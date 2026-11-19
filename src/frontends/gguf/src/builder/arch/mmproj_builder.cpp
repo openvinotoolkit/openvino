@@ -65,6 +65,8 @@ struct ProjectorTopology {
     const char* name;
     EncoderTopology topology;
     unsigned traits = 0;
+    ProjectorLayout genai_layout = ProjectorLayout::Unsupported;
+    AudioLayout audio_layout = AudioLayout::Unsupported;
 };
 
 // Entries describe implemented graph topologies, independently of language DecoderConfig.
@@ -73,24 +75,24 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "deepseekocr2", EncoderTopology::OCR2, RMS_NORM},
     {"vision", "pixtral", EncoderTopology::PIXTRAL, RMS_NORM},
     {"vision", "phi4", EncoderTopology::PHI4},
-    {"vision", "lfm2", EncoderTopology::LFM2},
-    {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER},
-    {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM},
-    {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION},
-    {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO},
+    {"vision", "lfm2", EncoderTopology::LFM2, 0, ProjectorLayout::Image},
+    {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER, 0, ProjectorLayout::WindowedPatches},
+    {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM, ProjectorLayout::PaddedPatches},
+    {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION, 0, ProjectorLayout::PaddedPatches},
+    {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO, 0, ProjectorLayout::Unsupported, AudioLayout::Gemma4},
     {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
-    {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
+    {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO, 0, ProjectorLayout::Unsupported, AudioLayout::UnifiedGemma4},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
-    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46},
-    {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
+    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46, 0, ProjectorLayout::PackedPatches},
+    {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN, ProjectorLayout::Image},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
-    {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN},
-    {"vision", "internvl", EncoderTopology::INTERNVL},
+    {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN, ProjectorLayout::BatchedImage},
+    {"vision", "internvl", EncoderTopology::INTERNVL, 0, ProjectorLayout::BatchedImage},
     {"vision", "resampler", EncoderTopology::RESAMPLER},
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
-    {"vision", "qwen3vl_merger", EncoderTopology::QWEN},
+    {"vision", "qwen3vl_merger", EncoderTopology::QWEN, 0, ProjectorLayout::SplitMerger},
     {"audio", "qwen2a", EncoderTopology::WHISPER, POOL_2},
     {"audio", "ultravox", EncoderTopology::WHISPER},
     {"audio", "voxtral", EncoderTopology::WHISPER, POOL_2},
@@ -1227,7 +1229,10 @@ std::vector<std::string> build_mmproj_encoders(GgufGraphContext& g,
         config[definition->modality + ".projector"] = definition->projector_type;
         const auto layout =
             result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
-        config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
+        config[definition->modality + ".genai_layout"] =
+            definition->modality == "audio" ? audio_layout_name(result.audio_layout.value_or(
+                                                  definition->audio_layout.value_or(AudioLayout::Unsupported)))
+                                            : projector_layout_name(layout);
         auto callback = result.genai_adapter.value_or(definition->genai_adapter);
         if (callback) {
             auto adapter = std::make_shared<ModelAdapter>();
@@ -1331,6 +1336,24 @@ private:
 
 }  // namespace
 
+ProjectorLayout builtin_projector_layout(const std::string& projector_type) {
+    for (const auto& entry : projector_catalog) {
+        if (std::string(entry.modality) == "vision" && projector_type == entry.name)
+            return entry.genai_layout;
+    }
+    return ProjectorLayout::Unsupported;
+}
+
+namespace {
+AudioLayout builtin_audio_layout(const std::string& projector_type) {
+    for (const auto& entry : projector_catalog) {
+        if (std::string(entry.modality) == "audio" && projector_type == entry.name)
+            return entry.audio_layout;
+    }
+    return AudioLayout::Unsupported;
+}
+}  // namespace
+
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
                                         const std::string& projector_type) {
@@ -1341,6 +1364,8 @@ ProjectorResult build_builtin_projector(GgufGraphContext& graph,
         const auto layout = builtin_projector_layout(projector_type);
         if (layout != ProjectorLayout::Unsupported)
             result.genai_layout = layout;
+    } else if (modality == "audio") {
+        result.audio_layout = builtin_audio_layout(projector_type);
     }
     return result;
 }
@@ -1350,14 +1375,16 @@ std::vector<ProjectorDefinition> builtin_projectors() {
     for (const auto& entry : projector_catalog) {
         const std::string modality = entry.modality;
         const std::string type = entry.name;
-        definitions.push_back({"clip." + modality + "." + type,
-                               "clip",
-                               modality,
-                               type,
-                               [modality, type](GgufGraphContext& graph) {
-                                   return build_builtin_projector(graph, modality, type);
-                               },
-                               {}});
+        auto definition = ProjectorDefinition{"clip." + modality + "." + type,
+                                              "clip",
+                                              modality,
+                                              type,
+                                              [modality, type](GgufGraphContext& graph) {
+                                                  return build_builtin_projector(graph, modality, type);
+                                              },
+                                              {}};
+        definition.audio_layout = entry.audio_layout;
+        definitions.push_back(std::move(definition));
     }
     return definitions;
 }
