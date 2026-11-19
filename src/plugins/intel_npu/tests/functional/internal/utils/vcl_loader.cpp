@@ -38,6 +38,7 @@ constexpr std::string_view kLoadAttemptMarker = "Try to load";
 class VCLLoaderTests : public ::testing::Test {
 protected:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         const auto library =
             ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string(kLoaderLibrary));
         if (!std::filesystem::exists(library)) {

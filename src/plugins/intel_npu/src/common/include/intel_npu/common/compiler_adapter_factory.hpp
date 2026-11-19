@@ -48,8 +48,8 @@ public:
      *
      * PREFER_PLUGIN is resolved like in decideCompilerType(): resolution only loads the function table. If loading
      * fails during online compilation, the request falls back to DRIVER. A later compiler creation failure, or an
-     * explicit PLUGIN request failure, throws without fallback. A provider that loads the library once, like the
-     * loader holder of the plugin, rethrows its first load failure.
+     * explicit PLUGIN request failure, throws without fallback. A provider that caches its load failure, like the one
+     * of the plugin, rethrows it on every later call.
      *
      * @param[in,out] compilerType The requested compiler type on input; the type of the returned adapter on output
      *        (never PREFER_PLUGIN).

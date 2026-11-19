@@ -7,7 +7,6 @@
 #include <exception>
 #include <memory>
 
-#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "parser.hpp"
 #include "vcl_profiling_decoder.hpp"
 

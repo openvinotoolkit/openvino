@@ -60,6 +60,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeLoadsFunctionsWithoutCreatin
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeWhenProviderFailsThrowsOffline) {
     const CompilerAdapterFactory factory({}, vcl_provider::unavailable());
     OV_EXPECT_THROW_HAS_SUBSTRING(decide(factory), ov::Exception, "Failed to load VCL function table");
+    OV_EXPECT_THROW_HAS_SUBSTRING(decide(factory), ov::Exception, "Injected unavailable provider");
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeDoesNotCreateCompiler) {
@@ -103,7 +104,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeSeparateFactoriesLoadProvide
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 0u);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformWithWorkingCompilerResolvesToPlugin) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory({}, fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
@@ -233,13 +234,13 @@ TEST(CompilerAdapterFactoryTests, GetCompilerInvalidCompilerTypeThrowsWithoutInv
 // compilation is online. Without a device the platform is not looked at, so one platform of each kind is enough.
 class CompilerAdapterFactoryPlatformTests : public ::testing::TestWithParam<std::string> {};
 
-TEST_P(CompilerAdapterFactoryPlatformTests, DecideCompilerTypeWithWorkingCompilerResolvesToPlugin) {
+TEST_P(CompilerAdapterFactoryPlatformTests, DecideCompilerTypeResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory({}, fake.provider());
     EXPECT_EQ(decide(factory, GetParam()), CompilerType::PLUGIN);
 }
 
-TEST_P(CompilerAdapterFactoryPlatformTests, GetCompilerPreferPluginFirstCallReturnsTheProbedCompiler) {
+TEST_P(CompilerAdapterFactoryPlatformTests, GetCompilerPreferPluginCreatesPluginCompiler) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory({}, fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;

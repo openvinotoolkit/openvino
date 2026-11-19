@@ -121,11 +121,11 @@ ov::intel_npu::CompilerType CompilerAdapterFactory::resolvePreferPluginCompiler(
                         "CompilerAdapterFactory requires a way to obtain the VCL entry points");
         functions = _vclFunctionsProvider();
         OPENVINO_ASSERT(functions != nullptr, "VCL function table provider returned no entry points");
-    } catch (...) {
+    } catch (const std::exception& ex) {
         if (onlineCompilation) {
             return ov::intel_npu::CompilerType::DRIVER;
         }
-        OPENVINO_THROW("Failed to load VCL function table for offline or cross compilation.");
+        OPENVINO_THROW("Failed to load VCL function table for offline or cross compilation. Error: ", ex.what());
     }
 
     return ov::intel_npu::CompilerType::PLUGIN;

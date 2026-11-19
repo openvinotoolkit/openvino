@@ -92,9 +92,7 @@ private:
     mutable std::shared_ptr<const VCLLoader> _vclLoader;
     mutable std::exception_ptr _vclLoadFailure;
 
-    // The only factory of the plugin, bound to `_backend` and this plugin's VCL entry points, and shared by
-    // compile, query, property and option support requests so that they all see what it learned about the
-    // compiler-in-plugin. Another backend or holder needs another factory.
+    // The only factory of the plugin, so that all requests share one compiler option support cache.
     std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;
 
     mutable Logger _logger;
