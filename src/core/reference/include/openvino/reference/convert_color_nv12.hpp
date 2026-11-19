@@ -10,27 +10,10 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/util/convert_color_i420_base.hpp"
 #include "openvino/op/util/convert_color_nv12_base.hpp"
+#include "openvino/reference/utils/convert_color_util.hpp"
 
 namespace ov {
 namespace reference {
-
-template <typename T>
-std::tuple<T, T, T> yuv_pixel_to_rgb(float y_val, float u_val, float v_val) {
-    auto c = y_val - 16.f;
-    auto d = u_val - 128.f;
-    auto e = v_val - 128.f;
-    auto clip = [](float a) -> T {
-        if (std::is_integral<T>()) {
-            return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
-        } else {
-            return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
-        }
-    };
-    auto b = clip(1.164f * c + 2.018f * d);
-    auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
-    auto r = clip(1.164f * c + 1.596f * e);
-    return std::tuple<T, T, T>{r, g, b};
-}
 
 template <typename T>
 void color_convert_nv12(const T* arg_y,
