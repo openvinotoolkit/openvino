@@ -745,7 +745,7 @@ protected:
         if (allowed_devices) {
             properties["NPUW_DEVICES"] = *allowed_devices;
         }
-        auto import = [&]() {
+        auto import = [&, plugin = plugin]() {
             if (GetParam()) {
                 auto imported = ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
                 EXPECT_EQ(imported->m_prefill_compiled->get_weights_bank(), retained_bank);
