@@ -427,15 +427,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const bool has_sink = has_head_sink || smooth_softmax;
     // The explicit chain has no is_causal fallback, and shared KV must hide the past rows beyond `total`, so both
     // always take the explicit (base) mask; overrides may otherwise drop it in favor of SDPA's causal flag.
-    // A declared fixed (static) capacity can likewise sit in a capacity-padded KV buffer once query_seqlens grows
-    // it past its static size, where kv_len - S no longer equals the true past offset -- an override's implicit
-    // causal alignment (SDPA's native is_causal, which assumes the query is the buffer's tail) would then be
-    // wrong, so force the explicit mask (built from the real past offset) there too. A growing (non-fixed-
-    // capacity) or windowed cache keeps its existing exactly-sized buffer invariant (no capacity slack), so both
-    // are left out to keep their native fast paths.
-    const bool explicit_mask =
-        use_explicit_attention || shared_kv ||
-        (has_query_seqlens && node->has_fixed_kv_capacity() && !node->get_sliding_window_cache());
+    const bool explicit_mask = use_explicit_attention || shared_kv;
     // qk_output before softmax reports masked positions as 0 (ORT); they are found on the bias-free mask, so a large
     // negative attention_bias reads logit + bias. The mask is then built once without the bias, and the aligned bias
     // is added on top (same op count as the fused form).
