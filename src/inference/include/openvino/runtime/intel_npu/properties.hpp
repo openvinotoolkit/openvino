@@ -133,6 +133,20 @@ static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILAT
 
 /**
  * @brief [Only for NPU compiler]
+ * Type: uint32_t
+ * Sets the compiler's optimization level.
+ * Possible values:
+ * 0 - optimize for compilation time
+ * 1 - optimize for execution time (default)
+ * 2 - high optimization for execution time
+ * 3 - maximize HW utilization, at the cost of higher compilation time/memory footprint
+ * NOTE: this configuration doesn't guarantee compatibility across all platforms.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<uint32_t> optimization_level{"NPU_OPTIMIZATION_LEVEL"};
+
+/**
+ * @brief [Only for NPU compiler]
  * Type: boolean
  * Set or verify state of dynamic quantization in  the NPU compiler
  * @ingroup ov_runtime_npu_prop_cpp_api

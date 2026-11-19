@@ -234,6 +234,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PREFER_PLUGIN`/</br> `PLUGIN`/</br>`DRIVER`| `PREFER_PLUGIN` |
 | `ov::intel_npu::compiler_version`/</br>`NPU_COMPILER_VERSION` | RO | NPU compiler version. MSB 16 bits are Major version, LSB 16 bits are Minor version | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
+| `ov::intel_npu::optimization_level`/</br>`NPU_OPTIMIZATION_LEVEL` | RW | Sets the compiler's optimization level. Use this dedicated property instead of encoding `optimization-level` inside `ov::intel_npu::compilation_mode_params` when possible. | `0`/</br>`1`/</br>`2`/</br>`3` | `1` |
 | `ov::intel_npu::compiler_dynamic_quantization`/</br>`NPU_COMPILER_DYNAMIC_QUANTIZATION` | RW | Enable/Disable dynamic quantization by NPU compiler | `YES` / `NO` | `N/A` |
 | `ov::intel_npu::qdq_optimization`/</br>`NPU_QDQ_OPTIMIZATION` | RW | Enable/Disable additional optimizations and balances performance and accuracy for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::qdq_optimization_aggressive`/</br>`NPU_QDQ_OPTIMIZATION_AGGRESSIVE` | RW | Enable/Disable additional optimizations to improve performance for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
