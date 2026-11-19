@@ -165,6 +165,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/disable_fp16_comp_cumsum_sin_gen.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/disable_fp16_comp_gated_residual.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/disable_fp16_comp_gaussian_topk.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/disable_fp16_comp_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/disable_fp16_comp_sin_gen.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/dynamic_quantize_fully_connected.cpp
