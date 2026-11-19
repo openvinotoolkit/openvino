@@ -1204,10 +1204,10 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
         ib >> make_data(&fused_prims_onednn[idx].dt, sizeof(dnnl::memory::data_type));
     }
 
-    // added a dummpy onednn_attrs to prevent initializing it for non-onednn impls
-    if (impl_type != impl_types::onednn) {
-        onednn_attrs = std::make_shared<dnnl::primitive_attr>();
-    }
+    // F5: a placeholder for every node, oneDNN ones included. The frozen list read above and the post-ops of the impl loaded later
+    // are the authoritative pair; the lazy init_onednn_primitive_attributes() would re-run the live predicates with the current
+    // build and overwrite the deserialized list (cache import must not recompute).
+    onednn_attrs = std::make_shared<dnnl::primitive_attr>();
 #endif  // ENABLE_ONEDNN_FOR_GPU
 }
 
@@ -1671,6 +1671,153 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
     return optimized_p_ops;
 }
 
+program_node::onednn_binary_post_op program_node::make_onednn_binary_post_op(layout in, const layout& out) const {
+    onednn_binary_post_op res;
+    if (is_type<gemm>()) {
+        size_t rank = cldnn::format::dimension(in.format);
+        auto in_pshape = in.get_partial_shape();
+        auto out_pshape = out.get_partial_shape();
+        size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+        if (ones_to_add > 0) {
+            layout new_layout = in;
+            ov::PartialShape new_input_pshape;
+            std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+            new_input_pshape = ov::PartialShape(dims);
+            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+            new_layout.set_partial_shape(new_input_pshape);
+            in = new_layout;
+        }
+        res.dims = onednn::convert_tensor(in.get_tensor(), rank, false);
+        res.dt = onednn::convert_data_type(in.data_type);
+        res.tag = onednn::convert_gemm_data_format(res.dims, in.format);
+        res.md = dnnl::memory::desc(res.dims, res.dt, res.tag);
+    } else if (is_type<fully_connected>()) {
+        auto input_size = this->as<fully_connected>().get_primitive()->input_size;
+        for (size_t i = 0; i < input_size; i++) {
+            res.dims.push_back(in.get_dim(i));
+        }
+        res.dt = onednn::convert_data_type(in.data_type);
+        res.tag = onednn::convert_gemm_data_format(res.dims, in.format);
+        res.md = dnnl::memory::desc(res.dims, res.dt, res.tag);
+    } else if (is_type<reduce>()) {
+        res.md = onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef);
+        res.tag = onednn::convert_data_format(in.format);
+        res.dims = res.md.get_dims();
+        res.dt = res.md.get_data_type();
+    } else {
+        res.md = cldnn::format::is_blocked(out.format) ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
+                                                       : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);
+        res.tag = onednn::convert_data_format(in.format);
+        res.dims = res.md.get_dims();
+        res.dt = res.md.get_data_type();
+    }
+    return res;
+}
+
+bool program_node::relabel_frozen_sum_as_binary_add(size_t mem_dep) {
+    for (auto& e : fused_prims_onednn) {
+        if ((e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum) && e.mem_dep == mem_dep) {
+            e.op_type = onednn_post_op_type::binary_add;
+            e.flatten = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool program_node::downgrade_onednn_sum_to_binary_add(size_t mem_dep) {
+    const auto is_sum_entry = [](const fused_primitive_desc_onednn& e) {
+        return e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum;
+    };
+    size_t entry_idx = fused_prims_onednn.size();
+    size_t slot = 0;
+    for (size_t i = 0; i < fused_prims_onednn.size(); i++) {
+        if (is_sum_entry(fused_prims_onednn[i]) && fused_prims_onednn[i].mem_dep == mem_dep) {
+            entry_idx = i;
+            break;
+        }
+        if (fused_prims_onednn[i].op_type != onednn_post_op_type::optimized) {
+            slot++;  // a compiled post-op slot; `optimized` entries occupy none
+        }
+    }
+    if (entry_idx == fused_prims_onednn.size()) {
+        return false;
+    }
+    OPENVINO_ASSERT(onednn_attrs != nullptr, "[GPU] F5: node ", id(), " has a frozen oneDNN sum but no oneDNN attributes");
+    const dnnl::post_ops old_ops = onednn_attrs->get_post_ops();
+    OPENVINO_ASSERT(slot < static_cast<size_t>(old_ops.len()) && old_ops.kind(static_cast<int>(slot)) == dnnl::primitive::kind::sum,
+                    "[GPU] F5: the compiled post-op chain of ", id(), " does not hold a sum at slot ", slot, " (chain length ", old_ops.len(), ")");
+
+    const auto bin = make_onednn_binary_post_op(get_input_layout(mem_dep), get_output_layout());
+
+    dnnl::post_ops new_ops;
+    for (int i = 0; i < old_ops.len(); i++) {
+        if (static_cast<size_t>(i) == slot) {
+            new_ops.append_binary(dnnl::algorithm::binary_add, bin.md);
+            continue;
+        }
+        switch (old_ops.kind(i)) {
+        case dnnl::primitive::kind::sum: {
+            float scale;
+            dnnl::memory::data_type data_type;
+            old_ops.get_params_sum(i, scale, data_type);
+            // Same as try_optimize_post_ops: only convolution takes the data type in append_sum.
+            if (is_type<convolution>()) {
+                new_ops.append_sum(scale, 0 /*zero_point*/, data_type);
+            } else {
+                new_ops.append_sum(scale);
+            }
+            break;
+        }
+        case dnnl::primitive::kind::eltwise: {
+            dnnl::algorithm alg;
+            float alpha, beta;
+            old_ops.get_params_eltwise(i, alg, alpha, beta);
+            new_ops.append_eltwise(alg, alpha, beta);
+            break;
+        }
+        case dnnl::primitive::kind::binary: {
+            dnnl::algorithm alg;
+            dnnl::memory::desc desc;
+            old_ops.get_params_binary(i, alg, desc);
+            new_ops.append_binary(alg, desc);
+            break;
+        }
+        case dnnl::primitive::kind::prelu: {
+            int mask;
+            old_ops.get_params_prelu(i, mask);
+            new_ops.append_prelu(mask);
+            break;
+        }
+        case dnnl::primitive::kind::convolution: {
+            dnnl::memory::data_type weights_dt, bias_dt, dst_dt;
+            dnnl::memory::dim kernel, stride, padding_l;
+            old_ops.get_params_dw(i, weights_dt, bias_dt, dst_dt, kernel, stride, padding_l);
+            new_ops.append_dw(weights_dt, bias_dt, dst_dt, kernel, stride, padding_l);
+            break;
+        }
+        default:
+            OPENVINO_THROW("[GPU] F5: cannot copy post-op kind ", static_cast<int>(old_ops.kind(i)), " at slot ", i, " of ", id());
+        }
+    }
+
+    // A new attribute object, not an in-place edit: the impl of this node (and, for fully_connected, the attrs the impl was created
+    // from) shares the old object. Everything else the impl needs (zero points, fpmath, accumulation mode) is re-applied by the impl
+    // creation that follows.
+    auto new_attrs = std::make_shared<dnnl::primitive_attr>();
+    new_attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    new_attrs->set_post_ops(new_ops);
+
+    auto& entry = fused_prims_onednn[entry_idx];
+    entry.op_type = onednn_post_op_type::binary_add;
+    entry.tag = bin.tag;
+    entry.dims = bin.dims;
+    entry.dt = bin.dt;
+    entry.flatten = false;  // mem_offset / mem_dep stay: the sum already owned a fused-memory slot
+    onednn_attrs = new_attrs;
+    return true;
+}
+
 void program_node::create_onednn_primitive_attributes(const std::vector<fused_primitive_desc>& cldnn_post_ops,
                                                       std::shared_ptr<dnnl::primitive_attr>& attrs,
                                                       std::vector<fused_primitive_desc_onednn>& fused_ops,
@@ -1730,6 +1877,15 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
         }
     };
 
+    // F5 runtime gate: a static node that re-creates its attributes at runtime (a shape_of subgraph node goes through update_impl)
+    // may only keep the in-place post-ops that the freeze recorded (and the F5 re-freeze did not downgrade). Without it a first sum
+    // downgraded to binary_add would leave num_inplace_post_ops == 0 and a later sum/mul could be promoted to in-place, which the
+    // dst binding of the network (decided from the frozen list) never set up. Dynamic nodes rebuild from the live predicate by design.
+    const bool gate_inplace_to_frozen = impl_params != nullptr && !is_dynamic();
+    auto inplace_post_op_allowed = [&](int32_t dep_idx, eltwise_mode mode) {
+        return !gate_inplace_to_frozen || onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(*this, dep_idx, mode);
+    };
+
     int32_t num_inplace_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
         const auto& desc = cldnn_post_ops[idx];
@@ -1780,53 +1936,14 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             auto in = get_input_layout(dep_idx);
 
             auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
-                if (is_type<gemm>()) {
-                    size_t rank = cldnn::format::dimension(in.format);
-                    auto in_pshape = in.get_partial_shape();
-                    auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
-                    if (ones_to_add > 0) {
-                        layout new_layout = in;
-                        ov::PartialShape new_input_pshape;
-                        std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
-                        new_input_pshape = ov::PartialShape(dims);
-                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
-                        new_layout.set_partial_shape(new_input_pshape);
-                        in = new_layout;
-                    }
-                    dnnl::memory::dims dims = onednn::convert_tensor(in.get_tensor(), rank, false);
-                    dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
-                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
-                    post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
-                    update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
-                } else if (is_type<fully_connected>()) {
-                    auto input_size = this->as<fully_connected>().get_primitive()->input_size;
-
-                    dnnl::memory::dims dims;
-                    for (size_t i = 0; i < input_size; i++) {
-                        dims.push_back(in.get_dim(i));
-                    }
-
-                    dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
-                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
-                    post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
-                    update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
-                } else if (is_type<reduce>()) {
-                    auto mem_desc = onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef);
-                    post_ops.append_binary(alg, mem_desc);
-                    update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false, mem_desc.get_dims(), mem_desc.get_data_type());
-                } else {
-                    auto mem_desc = cldnn::format::is_blocked(get_output_layout().format)
-                                        ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
-                                        : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);
-                    post_ops.append_binary(alg, mem_desc);
-                    update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false, mem_desc.get_dims(), mem_desc.get_data_type());
-                }
+                auto bin = make_onednn_binary_post_op(in, get_output_layout());
+                post_ops.append_binary(alg, bin.md);
+                update_onednn_post_op_list(op_type, dep_idx, bin.tag, bin.flatten, bin.dims, bin.dt);
             };
 
             if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
-                if (fusing_type == add_fusing_type::sum && num_inplace_post_ops == 0) {
+                if (fusing_type == add_fusing_type::sum && num_inplace_post_ops == 0 && inplace_post_op_allowed(dep_idx, eltwise_mode::sum)) {
                     if (is_type<convolution>()) {
                         post_ops.append_sum(1.0f, 0 /*zero-point*/, onednn::convert_data_type(in.data_type));
                     } else {
@@ -1840,7 +1957,8 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sub) {
                 set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
-                if (onednn_eltwise_fusing_helpers::can_use_mul_inplace(*this, desc) && num_inplace_post_ops == 0) {
+                if (onednn_eltwise_fusing_helpers::can_use_mul_inplace(*this, desc) && num_inplace_post_ops == 0 &&
+                    inplace_post_op_allowed(dep_idx, eltwise_mode::prod)) {
                     set_binary_op(dnnl::algorithm::binary_mul_inplace, onednn_post_op_type::binary_mul_inplace);
                     num_inplace_post_ops++;
                 } else {

@@ -647,6 +647,10 @@ void program::post_optimize_graph(bool is_internal) {
         get_processing_order().calculate_BFS_processing_order();
 
     apply_opt_pass<mark_state_init_subgraphs>();
+
+    // F5: the single point where the oneDNN in-place post-ops become final. Last statement of the phase and outside the dry_run gate of
+    // build_program(); F9 (when it lands) rewrites the processing order before this line, and war_safe (Phase 1a) extends this pass.
+    apply_opt_pass<refreeze_onednn_inplace_post_ops>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -2006,6 +2010,55 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+// F5 cache-import validation. The frozen list is deserialized together with the oneDNN impls, nothing is recomputed, so the pair has to
+// be consistent by construction. A blob that is not (written by a build with another predicate, truncated, tampered) must not run: a
+// frozen sum over an impl that is not a sum, or the reverse, silently produces wrong numbers. Throwing here makes core_impl drop the
+// cache entry and compile the model from scratch. The same decision function as the compile-time re-freeze is used (no second rule).
+void check_imported_onednn_inplace_post_ops(program& p) {
+    for (const auto& node_ptr : p.get_processing_order()) {
+        const auto& node = *node_ptr;
+        const auto& list = node.get_fused_primitives_onednn();
+        const auto* impl = node.get_selected_impl();
+        if (node.is_dynamic() || list.empty() || impl == nullptr || !impl->is_onednn()) {
+            continue;
+        }
+        auto fail = [&](const char* what) {
+            GPU_DEBUG_LOG << "[F5] cache import rejected for " << node.id() << ": " << what << std::endl;
+            OPENVINO_THROW("[GPU] Imported oneDNN post-op state of ", node.id(), " is inconsistent (", what, ")");
+        };
+        size_t num_inplace = 0;
+        for (const auto& e : list) {
+            if (e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum ||
+                e.op_type == onednn_post_op_type::binary_mul_inplace) {
+                num_inplace++;
+            }
+        }
+        if (num_inplace > 1) {
+            fail("more than one in-place post-op");
+        }
+        if (!impl->post_op_structure_matches(get_compiled_post_op_slots(list, 0, {}).kinds)) {
+            fail("compiled post-op chain does not match the frozen list");
+        }
+        for (const auto& e : list) {
+            if (e.op_type != onednn_post_op_type::sum && e.op_type != onednn_post_op_type::optimized_sum) {
+                continue;
+            }
+            if (onednn_eltwise_fusing_helpers::frozen_sum_downgrade_reason(node, static_cast<int32_t>(e.mem_dep)) !=
+                onednn_eltwise_fusing_helpers::sum_downgrade_reason::none) {
+                fail("frozen in-place sum is no longer supported by the graph");
+            }
+            const auto slots = get_compiled_post_op_slots(list, e.mem_dep, {onednn_post_op_type::sum, onednn_post_op_type::optimized_sum});
+            if (!slots.slot || !impl->is_sum_post_op(slots.kinds, *slots.slot)) {
+                fail("frozen in-place sum is not a sum in the compiled impl");
+            }
+        }
+    }
+}
+}  // namespace
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
@@ -2165,6 +2218,9 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             ib >> cached_kernel_ids;
             p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
         }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        check_imported_onednn_inplace_post_ops(*this);
+#endif
 
         size_t conversion_count;
         ib >> conversion_count;

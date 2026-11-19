@@ -13,6 +13,13 @@
 
 using namespace cldnn;
 
+// F5 Debug assertion D2 (zero Release cost). Temporarily define F5_DEBUG_CHECKS to 1 to exercise it in an NDEBUG build.
+#ifndef F5_DEBUG_CHECKS
+#    ifndef NDEBUG
+#        define F5_DEBUG_CHECKS 1
+#    endif
+#endif
+
 void basic_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::BasicMemoryDependencies");
     auto itr = p.get_processing_order().begin();
@@ -59,31 +66,33 @@ void basic_memory_dependencies::run(program& p) {
         }
 
         if (node->get_preferred_impl_type() == impl_types::onednn) {
-            size_t eltw_dep = 0;
-            for (auto& fused_op : node->get_fused_primitives()) {
-                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    // If it is first sum, reuse the buffer
-                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*node, fused_op);
-                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0) {
-                        continue;
+            // F5: runs after the single re-freeze point, so the answer is "frozen AND live" (M8 in get_reused_eltwmem_idx) and agrees
+            // with the dst bindings of the network. Only the in-place sum is handled here; an in-place mul is bound as a restriction
+            // carry-over in pass_manager.h (add_memory_dependency chain) and is not a pool-exempt writer.
+            const int32_t reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*node);
+            bool reused_is_sum = false;
+            if (reused_idx != -1) {
+                for (const auto& fused_op : node->get_fused_primitives()) {
+                    if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() &&
+                        fused_op.outer_dep_start_idx == reused_idx && fused_op.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
+                        reused_is_sum = true;
+                        break;
                     }
-                    if (!fused_op.has_outer_dep()) {
-                        continue;
-                    }
-                    eltw_dep = fused_op.outer_dep_start_idx;
-                    auto& eltw_node = node->get_dependency(eltw_dep);
-                    node->can_share_buffer(false);
-                    // Walk up the in-place chain to mark the root buffer owner as non-shareable.
-                    auto* root = &eltw_node;
-                    while (root->can_be_optimized() && !root->get_dependencies().empty()) {
-                        root = &root->get_dependency(0);
-                    }
-                    root->can_share_buffer(false);
+                }
+            }
+            if (reused_is_sum) {
+                auto& eltw_node = node->get_dependency(static_cast<size_t>(reused_idx));
+                node->can_share_buffer(false);
+                // Walk up the in-place chain to mark the root buffer owner as non-shareable.
+                auto* root = &eltw_node;
+                while (root->can_be_optimized() && !root->get_dependencies().empty()) {
+                    root = &root->get_dependency(0);
+                }
+                root->can_share_buffer(false);
 
-                    for (const auto& user : node->get_users()) {
-                        add_memory_dependency(user, &eltw_node);
-                        add_memory_dependency(user, node);
-                    }
+                for (const auto& user : node->get_users()) {
+                    add_memory_dependency(user, &eltw_node);
+                    add_memory_dependency(user, node);
                 }
             }
         }
@@ -102,4 +111,23 @@ void basic_memory_dependencies::run(program& p) {
             }
         }
     }
+
+#if defined(F5_DEBUG_CHECKS) && defined(ENABLE_ONEDNN_FOR_GPU)
+    // D2: every static node still carrying a frozen sum (F5 left only consistent ones) is the pool-exempt writer this pass just
+    // marked, and get_reused_eltwmem_idx names the same dependency.
+    for (const auto& node : p.get_processing_order()) {
+        if (node->is_dynamic()) {
+            continue;
+        }
+        for (const auto& e : node->get_fused_primitives_onednn()) {
+            if (e.op_type != onednn_post_op_type::sum && e.op_type != onednn_post_op_type::optimized_sum) {
+                continue;
+            }
+            OPENVINO_ASSERT(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*node) == static_cast<int32_t>(e.mem_dep) &&
+                                !node->can_share_buffer(),
+                            "[GPU] F5 D2: node ", node->id(), " has a frozen sum on dep ", e.mem_dep,
+                            " but basic_memory_dependencies did not mark it as the in-place writer");
+        }
+    }
+#endif  // F5_DEBUG_CHECKS
 }

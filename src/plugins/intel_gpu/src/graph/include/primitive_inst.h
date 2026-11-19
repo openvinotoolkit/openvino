@@ -30,6 +30,8 @@
 #include "impls/ocl/kernel_selector_helper.h"
 
 #include <memory>
+#include <optional>
+#include <initializer_list>
 #include <vector>
 #include <string>
 
@@ -62,6 +64,20 @@ struct BufferDescriptor {
 // can verify its compiled attrs really correspond to that list before trusting an index into it.
 enum class post_op_kind : uint8_t { eltwise, binary, prelu, sum, unsupported };
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// F5: the node-side description of the compiled oneDNN post-op chain. `kinds` has one entry per compiled slot of `list` (entries of type
+// `optimized` occupy no slot; a type without a compiled kind maps to post_op_kind::unsupported). `slot` is the compiled slot of the entry
+// whose mem_dep is `mem_dep` and whose type is one of `wanted` (empty if there is none). Shared by the F17 mul guard, the F5 sum guard
+// and the cache-import check, so that all of them index the compiled chain identically.
+struct compiled_post_op_slots {
+    std::vector<post_op_kind> kinds;
+    std::optional<size_t> slot;
+};
+compiled_post_op_slots get_compiled_post_op_slots(const std::vector<fused_primitive_desc_onednn>& list,
+                                                  size_t mem_dep,
+                                                  std::initializer_list<onednn_post_op_type> wanted);
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 /*
     Base class for all implementations.
 */
@@ -89,6 +105,19 @@ struct primitive_impl {
     // post-op chain has exactly the structure `expected` (one entry per compiled slot). Fail-safe: any mismatch or out-of-range index
     // answers false. Non-oneDNN impls never alias dst onto a post-op source.
     virtual bool is_binary_mul_inplace_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const {
+        (void)expected;
+        (void)onednn_idx;
+        return false;
+    }
+    // F5: true only if the compiled post-op chain has exactly the structure `expected` (one entry per compiled slot, every kind known).
+    // Meaningful for oneDNN impls only; other impls have no compiled chain and answer true.
+    virtual bool post_op_structure_matches(const std::vector<post_op_kind>& expected) const {
+        (void)expected;
+        return true;
+    }
+    // F5: true only if the compiled chain has the structure `expected` and slot `onednn_idx` is an in-place sum (dst already holds the
+    // addend). Fail-safe like is_binary_mul_inplace_post_op; non-oneDNN impls answer false.
+    virtual bool is_sum_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const {
         (void)expected;
         (void)onednn_idx;
         return false;
@@ -270,7 +299,9 @@ public:
     // F19: static oneDNN sum writer only. Index of the reused (outer) dependency recorded by the constructor, or -1.
     int32_t get_reused_eltw_dep_idx() const { return _reused_eltw_dep_idx; }
     // Re-points dst to the (possibly re-bound) output of the reused dependency. No-op unless dst is still the ctor-bound buffer.
-    void rebind_reused_eltw_output();
+    // Returns false only when a pending rebind could not run (dst bound externally, or the addend buffer is not allocated yet); the
+    // F5 D5 Debug assertion applies to the other outcomes.
+    bool rebind_reused_eltw_output();
     // F17: may dst alias the reused (outer) dependency `idx` of the fused eltwise sum/prod? A sum is always allowed (its legality is the
     // F5 predicate); a prod needs the CURRENT impl to be a oneDNN impl whose compiled post-op at that slot is binary_mul_inplace.
     bool reused_eltw_alias_allowed(int32_t idx) const;

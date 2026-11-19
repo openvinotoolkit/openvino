@@ -414,6 +414,15 @@ public:
     void run(program& p) override;
 };
 
+// F5: the single point after which the oneDNN in-place post-ops of a static node are final. Every frozen in-place sum that the live graph
+// no longer supports (or whose impl cannot honour it) is downgraded in place to a binary_add and the oneDNN impl is rebuilt; it never
+// upgrades. Runs at the very end of post_optimize_graph, outside the dry_run gate, for every program (internal and body included).
+class refreeze_onednn_inplace_post_ops : public base_pass {
+public:
+    refreeze_onednn_inplace_post_ops() : base_pass("refreeze_onednn_inplace_post_ops") {}
+    void run(program& p) override;
+};
+
 class build_implementations : public base_pass {
 public:
     build_implementations() : base_pass("build_implementations") {}

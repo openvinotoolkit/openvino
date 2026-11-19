@@ -19,11 +19,53 @@
 #include "program_wrapper.h"
 #include "program_helpers.h"
 
+#include "primitive_inst.h"
+
 #include <memory>
 #include <fully_connected_inst.h>
 
 using namespace cldnn;
 using namespace ::tests;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+// F5: after the single re-freeze point every remaining frozen in-place sum has no downgrade reason, is a sum in the compiled impl and is
+// the index get_reused_eltwmem_idx returns; and a node without frozen in-place sum is not aliased. Applying the pass is a no-op on a
+// consistent program (these tests re-run the freeze on an already built program, whose impls may not be the oneDNN ones).
+void expect_f5_consistent(program& prog) {
+    program_wrapper::apply_opt_pass<refreeze_onednn_inplace_post_ops>(prog);
+    for (auto* n : prog.get_processing_order()) {
+        if (n->is_dynamic() || n->get_fused_primitives_onednn().empty()) {
+            continue;
+        }
+        size_t frozen_sums = 0;
+        for (const auto& e : n->get_fused_primitives_onednn()) {
+            if (e.op_type != onednn_post_op_type::sum && e.op_type != onednn_post_op_type::optimized_sum) {
+                continue;
+            }
+            frozen_sums++;
+            const auto dep = static_cast<int32_t>(e.mem_dep);
+            EXPECT_TRUE(onednn_eltwise_fusing_helpers::frozen_sum_downgrade_reason(*n, dep) ==
+                        onednn_eltwise_fusing_helpers::sum_downgrade_reason::none)
+                << n->id();
+            const auto slots = get_compiled_post_op_slots(n->get_fused_primitives_onednn(), e.mem_dep,
+                                                          {onednn_post_op_type::sum, onednn_post_op_type::optimized_sum});
+            ASSERT_NE(n->get_selected_impl(), nullptr) << n->id();
+            EXPECT_TRUE(slots.slot && n->get_selected_impl()->is_sum_post_op(slots.kinds, *slots.slot)) << n->id();
+            EXPECT_EQ(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*n), dep) << n->id();
+        }
+        if (frozen_sums == 0) {
+            for (const auto& fused_op : n->get_fused_primitives()) {
+                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() &&
+                    fused_op.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
+                    EXPECT_NE(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*n), fused_op.outer_dep_start_idx) << n->id();
+                }
+            }
+        }
+    }
+}
+}  // namespace
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 TEST(add_onednn_optimization_attributes, init_attribute_for_fused_onednn_primitive) {
     auto& engine = get_test_engine();
@@ -97,6 +139,9 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
 
     // Check whether fusing_type is properly selected as sum for residual connection pattern
     ASSERT_EQ(fusing_type, add_fusing_type::sum);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    expect_f5_consistent(*prog);
+#endif
 
 }
 
@@ -214,6 +259,9 @@ static add_fusing_type residual_chain_fusing_type(cldnn::engine& engine, size_t 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    expect_f5_consistent(*prog);
+#endif
     auto& last_node = prog->get_node(last);
     auto& cldnn_post_ops = last_node.get_fused_primitives();
     EXPECT_EQ(cldnn_post_ops.size(), 1u) << "the residual eltwise did not fuse into " << last;

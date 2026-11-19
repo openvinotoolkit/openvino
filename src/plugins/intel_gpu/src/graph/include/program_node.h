@@ -534,6 +534,26 @@ public:
         return fused_prims_onednn;
     }
 
+    // The oneDNN binary post-op descriptor for the fused eltwise input `in` (shared by the freeze and by the F5 sum -> binary_add downgrade).
+    struct onednn_binary_post_op {
+        dnnl::memory::desc md;
+        dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef;
+        bool flatten = false;
+        dnnl::memory::dims dims;
+        dnnl::memory::data_type dt = dnnl::memory::data_type::undef;
+    };
+    onednn_binary_post_op make_onednn_binary_post_op(layout in, const layout& out) const;
+
+    // F5: patches, in place and without re-running the attribute construction (that would fold the constant bin+eltw coefficients a
+    // second time), the frozen in-place sum whose outer dependency is `mem_dep` into a binary_add: the list entry (all fields, so that a
+    // cache import rebuilds the same md), and a new dnnl::primitive_attr whose post-op chain differs only in that slot. The impl is NOT
+    // rebuilt here. Returns false if there is no frozen sum for mem_dep. Throws if the compiled chain does not match the list.
+    bool downgrade_onednn_sum_to_binary_add(size_t mem_dep);
+
+    // F5 (B1): for a node whose selected impl is not oneDNN (OCL/CPU nodes can carry a lazily frozen list too): only relabels the frozen
+    // sum entry as binary_add. No md is built, attrs and impl are untouched, nothing can throw on an unconvertible dtype/format.
+    bool relabel_frozen_sum_as_binary_add(size_t mem_dep);
+
     void init_onednn_primitive_attributes();
     void create_onednn_primitive_attributes(const std::vector<fused_primitive_desc>& cldnn_post_ops,
                                             std::shared_ptr<dnnl::primitive_attr>& attrs,

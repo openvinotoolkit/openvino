@@ -536,6 +536,7 @@ set(GPU_UNIT_TESTS_ONEDNN_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f6_f13_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f19_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f17_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f5_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/residual_sum_chain_dit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/onednn/utils_test.cpp
 )

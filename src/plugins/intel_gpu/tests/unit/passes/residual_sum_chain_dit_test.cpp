@@ -127,6 +127,27 @@ const char* fusing_str(add_fusing_type t) {
     }
 }
 
+
+// F5: frozen in-place sum <=> compiled impl slot is a sum <=> get_reused_eltwmem_idx names the dependency, and a frozen sum has no
+// downgrade reason. Checked on programs built by the full pipeline (the re-freeze pass already ran).
+void expect_f5_consistent(const program_node& p, bool expect_sum) {
+    const auto* op = fused_sum(p);
+    ASSERT_NE(op, nullptr) << p.id();
+    const int32_t dep = op->outer_dep_start_idx;
+    const bool frozen = onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(p, dep, eltwise_mode::sum);
+    const auto slots = get_compiled_post_op_slots(p.get_fused_primitives_onednn(), static_cast<size_t>(dep),
+                                                  {onednn_post_op_type::sum, onednn_post_op_type::optimized_sum});
+    const bool impl_sum = p.get_selected_impl() && slots.slot && p.get_selected_impl()->is_sum_post_op(slots.kinds, *slots.slot);
+    EXPECT_EQ(frozen, expect_sum) << p.id();
+    EXPECT_EQ(impl_sum, expect_sum) << p.id();
+    EXPECT_EQ(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(p) == dep, expect_sum) << p.id();
+    if (frozen) {
+        EXPECT_TRUE(onednn_eltwise_fusing_helpers::frozen_sum_downgrade_reason(p, dep) ==
+                    onednn_eltwise_fusing_helpers::sum_downgrade_reason::none)
+            << p.id();
+    }
+}
+
 ExecutionConfig make_config(engine& engine) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -245,6 +266,7 @@ void run_t1(engine& engine, const T1Param& prm, T1Obs& obs) {
               << " frozen_sum=" << obs.frozen << " X.can_share_buffer=" << obs.x_share << "\n" << dump(path);
 
     EXPECT_EQ(obs.frozen, obs.live == add_fusing_type::sum) << "frozen/live disagree\n" << dump(path);
+    expect_f5_consistent(p, obs.frozen);
     EXPECT_EQ(obs.live == add_fusing_type::sum, bound_predicts_sum(obs.hops)) << "hops=" << obs.hops << "\n" << dump(path);
     if (obs.live != add_fusing_type::sum) {
         EXPECT_EQ(obs.live, add_fusing_type::binary_per_tensor) << dump(path);
@@ -490,6 +512,8 @@ void run_dit(bool mha6) {
 
     EXPECT_EQ(attn_frozen, attn_live == add_fusing_type::sum) << dump(attn_path);
     EXPECT_EQ(mlp_frozen, mlp_live == add_fusing_type::sum) << dump(mlp_path);
+    expect_f5_consistent(Y, attn_frozen);
+    expect_f5_consistent(Z, mlp_frozen);
     EXPECT_EQ(mlp_hops, 3) << dump(mlp_path);
     EXPECT_EQ(mlp_live, add_fusing_type::sum) << dump(mlp_path);
     EXPECT_TRUE(mlp_frozen);

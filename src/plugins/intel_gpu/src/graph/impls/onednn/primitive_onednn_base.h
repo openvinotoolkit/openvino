@@ -98,13 +98,36 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         }
     }
 
+    bool post_op_structure_matches(const std::vector<post_op_kind>& expected) const override {
+        if (!_attrs) {
+            return false;
+        }
+        try {
+            return structure_matches(_attrs->get_post_ops(), expected);
+        } catch (...) {
+            return false;
+        }
+    }
+
+    bool is_sum_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const override {
+        if (!_attrs) {
+            return false;
+        }
+        try {
+            const dnnl::post_ops post_ops = _attrs->get_post_ops();
+            return onednn_idx < static_cast<size_t>(post_ops.len()) && structure_matches(post_ops, expected) &&
+                   post_ops.kind(static_cast<int>(onednn_idx)) == dnnl::primitive::kind::sum;
+        } catch (...) {
+            return false;  // fail-safe: never claim in-place on an oneDNN error
+        }
+    }
+
 private:
-    bool check_binary_mul_inplace_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const {
-        const dnnl::post_ops post_ops = _attrs->get_post_ops();
+    // The compiled chain must have exactly the structure the node-side list describes; otherwise an index into that list
+    // would address a different compiled slot (F17 C1).
+    static bool structure_matches(const dnnl::post_ops& post_ops, const std::vector<post_op_kind>& expected) {
         const auto len = static_cast<size_t>(post_ops.len());
-        // The compiled chain must have exactly the structure the node-side list describes; otherwise an index into that list
-        // would address a different compiled slot (F17 C1).
-        if (expected.size() != len || onednn_idx >= len) {
+        if (expected.size() != len) {
             return false;
         }
         for (size_t i = 0; i < len; i++) {
@@ -129,6 +152,15 @@ private:
             default:
                 return false;
             }
+        }
+        return true;
+    }
+
+    bool check_binary_mul_inplace_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const {
+        const dnnl::post_ops post_ops = _attrs->get_post_ops();
+        const auto len = static_cast<size_t>(post_ops.len());
+        if (onednn_idx >= len || !structure_matches(post_ops, expected)) {
+            return false;
         }
         if (post_ops.kind(static_cast<int>(onednn_idx)) != dnnl::primitive::kind::binary) {
             return false;

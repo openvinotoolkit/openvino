@@ -15,6 +15,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -129,3 +130,40 @@ TEST(inplace_alias_conflict_f6_f13, F6_external_buffer_root_types) {
     EXPECT_FALSE(program_helpers::is_external_buffer_root(prog->get_node("e")));
 }
 
+
+// F5 T8: a dynamic node is never a sum (the oneDNN attributes of dynamic nodes are rebuilt per inference from this predicate, so the
+// frozen list of a dynamic node is empty and the re-freeze pass has nothing to downgrade). Needs no oneDNN device: the fused eltwise
+// descriptor is built by hand, only the predicate is exercised, for both query kinds.
+TEST(inplace_alias_conflict_f6_f13, F5_T8_dynamic_node_is_never_sum) {
+    auto& engine = get_test_engine();
+    const ov::PartialShape dyn_shape{ov::Dimension::dynamic(), 16};
+    topology t;
+    t.add(input_layout("in", layout{dyn_shape, data_types::f16, format::bfyx}));
+    t.add(input_layout("add", layout{dyn_shape, data_types::f16, format::bfyx}));
+    t.add(data("w", make_f16(engine, ov::PartialShape{16, 16}, 0.f)));
+    t.add(fully_connected("fc", input_info("in"), "w"));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, t, config, false, /*no_optimizations=*/true);
+    auto& fc = prog->get_node("fc");
+    ASSERT_TRUE(fc.is_dynamic());
+
+    auto make_desc = [](int32_t outer_dep_idx) {
+        fused_primitive_desc fd(std::make_shared<eltwise>("e", std::vector<input_info>{input_info("fc"), input_info("add")}, eltwise_mode::sum));
+        fd.deps = {{"add", 0}};
+        fd.outer_dep_start_idx = outer_dep_idx;
+        return fd;
+    };
+    // outer dependency 1 is the (static) weights, 0 is the dynamic input: both cases must be rejected because the writer is dynamic
+    for (int32_t idx : {0, 1}) {
+        const auto fd = make_desc(idx);
+        EXPECT_EQ(onednn_eltwise_fusing_helpers::get_add_fusing_type(fc, fd, onednn_eltwise_fusing_helpers::add_fusing_query::exact),
+                  add_fusing_type::not_supported)
+            << "dep " << idx;
+        EXPECT_EQ(onednn_eltwise_fusing_helpers::get_add_fusing_type(fc, fd, onednn_eltwise_fusing_helpers::add_fusing_query::guard_superset),
+                  add_fusing_type::not_supported)
+            << "dep " << idx;
+    }
+    // the shared decision function: a dynamic node has no frozen sum, nothing can be reported as "none" for a frozen entry
+    EXPECT_FALSE(onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(fc, 0, eltwise_mode::sum));
+}

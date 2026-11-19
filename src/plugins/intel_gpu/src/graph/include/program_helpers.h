@@ -166,6 +166,23 @@ struct onednn_eltwise_fusing_helpers {
     // Index of the dependency whose buffer dst may alias, or -1. For a static node the fused op's frozen oneDNN post-op type must agree
     // (M8), so the result is "frozen AND live". Binding points must additionally ask primitive_inst::reused_eltw_alias_allowed().
     static int32_t get_reused_eltwmem_idx(const program_node& node);
+    // The frozen oneDNN post-op list (add_onednn_optimization_attributes, possibly downgraded by refreeze_onednn_inplace_post_ops) holds an
+    // in-place post-op for the fused op whose outer dependency is outer_dep_idx: sum / optimized_sum for mode == sum, binary_mul_inplace for
+    // prod. Always false without oneDNN.
+    static bool is_frozen_inplace_post_op(const program_node& node, int32_t outer_dep_idx, eltwise_mode mode);
+    // F17 M3b/M3c: the buffer of `cur` is, or is viewed by, a network output, or is a slot of a concat that is or may become in-place.
+    static bool forward_view_chain_is_visible_or_concat_slot(const program_node& cur);
+    // F5: why a frozen in-place sum must become a binary_add. The first matching condition is returned; none means the frozen sum stands.
+    enum class sum_downgrade_reason : int {
+        none = 0,
+        preferred_not_onednn = 1,
+        in_shape_of_subgraph = 2,
+        impl_not_onednn = 3,
+        dep_port_not_zero = 4,
+        live_not_sum = 5,
+        writer_is_concat_slot_or_visible = 6,
+    };
+    static sum_downgrade_reason frozen_sum_downgrade_reason(const program_node& node, int32_t mem_dep);
     // F17: the alias eligibility of binary_mul_inplace (dst bound to the post-op src1). Rules M0-M7 are structural queries on the graph;
     // the frozen/impl side (M8 in get_reused_eltwmem_idx, primitive_inst::reused_eltw_alias_allowed) only ever downgrades.
     static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);

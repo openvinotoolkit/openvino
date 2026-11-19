@@ -840,7 +840,21 @@ void network::allocate_primitives() {
         // F19: a oneDNN sum writer whose reused dep was an optimized view bound its dst at construction time to the view's
         // private buffer; re-point it now (PO is topological, so writer chains converge in one pass).
         if (!node->is_dynamic()) {
-            _primitives.at(node->id())->rebind_reused_eltw_output();
+            [[maybe_unused]] const bool rebind_ok = _primitives.at(node->id())->rebind_reused_eltw_output();
+#ifndef NDEBUG
+            // F5 D5: after the rebind every static in-place sum writer shares its addend's buffer (the dst must hold the addend)
+            const auto& inst = _primitives.at(node->id());
+            if (rebind_ok && inst->output_aliases_reused_eltw() && inst->outputs_allocated() && !node->get_dependencies().empty()) {
+                const auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*node);
+                if (idx >= 0 && onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(*node, idx, eltwise_mode::sum)) {
+                    const auto& dep_inst = _primitives.at(node->get_dependency(static_cast<size_t>(idx)).id());
+                    if (dep_inst->outputs_allocated() && !dep_inst->get_node().can_be_optimized()) {
+                        OPENVINO_ASSERT(get_engine().is_the_same_buffer(inst->output_memory(0), dep_inst->output_memory(0)),
+                                        "[GPU] F5 D5: in-place sum dst of ", node->id(), " is not the buffer of its addend ", dep_inst->id());
+                    }
+                }
+            }
+#endif
         }
     }
 

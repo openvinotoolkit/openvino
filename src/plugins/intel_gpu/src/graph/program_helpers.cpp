@@ -393,11 +393,10 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
-namespace {
 // F17 M3b/M3c helper (allocation-free, recursion only over the forward view chain of `cur`): true if the buffer of `cur` is, or is
 // viewed by, a network output (M3b), or is a slot of a concat that is or may become in-place (M3c). The walk advances ONLY to users
 // that are settled views of input 0 of exactly `cur` (C3): other users own their buffers and do not share dst.
-bool forward_view_chain_is_visible_or_concat_slot(const program_node& cur) {
+bool onednn_eltwise_fusing_helpers::forward_view_chain_is_visible_or_concat_slot(const program_node& cur) {
     if (program_helpers::is_or_becomes_output(cur)) {
         return true;
     }
@@ -416,10 +415,10 @@ bool forward_view_chain_is_visible_or_concat_slot(const program_node& cur) {
     return false;
 }
 
+// F17 M8 / F5: the type recorded at the oneDNN attribute freeze (and possibly downgraded by the F5 re-freeze) for the fused op whose
+// outer dependency is `outer_dep_idx`. Keyed by mem_dep, not by position (the list is reordered/pruned by post-op optimization).
+bool onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(const program_node& node, int32_t outer_dep_idx, eltwise_mode mode) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-// F17 M8: the type recorded at the oneDNN attribute freeze for the fused op whose outer dependency is `outer_dep_idx`.
-// Keyed by mem_dep, not by position (the list is reordered/pruned by post-op optimization).
-bool frozen_post_op_matches(const program_node& node, int32_t outer_dep_idx, eltwise_mode mode) {
     for (const auto& e : node.get_fused_primitives_onednn()) {
         if (e.mem_dep != static_cast<size_t>(outer_dep_idx)) {
             continue;
@@ -431,10 +430,46 @@ bool frozen_post_op_matches(const program_node& node, int32_t outer_dep_idx, elt
             return true;
         }
     }
+#else
+    (void)node;
+    (void)outer_dep_idx;
+    (void)mode;
+#endif
     return false;
 }
-#endif
-}  // namespace
+
+onednn_eltwise_fusing_helpers::sum_downgrade_reason onednn_eltwise_fusing_helpers::frozen_sum_downgrade_reason(const program_node& n,
+                                                                                                             int32_t mem_dep) {
+    // The single decision function of F5: the re-freeze pass, the cache-import check and the debug assertions all call it.
+    if (n.get_preferred_impl_type() != impl_types::onednn) {
+        return sum_downgrade_reason::preferred_not_onednn;
+    }
+    if (n.is_in_shape_of_subgraph()) {
+        return sum_downgrade_reason::in_shape_of_subgraph;
+    }
+    if (!n.get_selected_impl() || !n.get_selected_impl()->is_onednn()) {
+        return sum_downgrade_reason::impl_not_onednn;
+    }
+    if (mem_dep < 0 || static_cast<size_t>(mem_dep) >= n.get_dependencies().size() || n.get_dependency_with_port(mem_dep).second != 0) {
+        return sum_downgrade_reason::dep_port_not_zero;
+    }
+    // the same predicate the unbound dst binding uses: the writer (or a view chain starting at it) must not be a concat slot
+    if (forward_view_chain_is_visible_or_concat_slot(n)) {
+        return sum_downgrade_reason::writer_is_concat_slot_or_visible;
+    }
+    const fused_primitive_desc* sum_op = nullptr;
+    for (const auto& fused_op : n.get_fused_primitives()) {
+        if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() && fused_op.outer_dep_start_idx == mem_dep &&
+            fused_op.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
+            sum_op = &fused_op;
+            break;
+        }
+    }
+    if (!sum_op || get_add_fusing_type(n, *sum_op) != add_fusing_type::sum) {
+        return sum_downgrade_reason::live_not_sum;
+    }
+    return sum_downgrade_reason::none;
+}
 
 // binary_mul_inplace: oneDNN matmul post-op whose src1 may alias dst. Unlike sum the alias is
 // optional (plain binary_mul otherwise), so this only checks the buffers are interchangeable:
@@ -505,7 +540,7 @@ bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(const program_node& p_no
         return false;
     }
     // M3b/M3c: p_node itself, or a view chain starting at it, is visible or a concat slot (dst would write the concat's buffer)
-    if (forward_view_chain_is_visible_or_concat_slot(p_node)) {
+    if (onednn_eltwise_fusing_helpers::forward_view_chain_is_visible_or_concat_slot(p_node)) {
         return false;
     }
     // M4: dep is a concat that is or may become in-place
@@ -536,7 +571,7 @@ int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node
                 // frozen post-op type of THIS fused op (e.g. frozen binary_mul / binary_add) must not alias dst, because oneDNN was not
                 // told that src1 and dst coincide. Dynamic nodes rebuild their attrs from the same live predicate in update_impl; the
                 // impl actually used is checked at the binding points (primitive_inst::reused_eltw_alias_allowed).
-                if (!node.is_dynamic() && !frozen_post_op_matches(node, fused_op.outer_dep_start_idx, mode))
+                if (!node.is_dynamic() && !is_frozen_inplace_post_op(node, fused_op.outer_dep_start_idx, mode))
                     continue;
 #endif
                 return fused_op.outer_dep_start_idx;

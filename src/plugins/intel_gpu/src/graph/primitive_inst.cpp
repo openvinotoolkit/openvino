@@ -321,34 +321,38 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     return ev;
 }
 
-void primitive_inst::rebind_reused_eltw_output() {
+bool primitive_inst::rebind_reused_eltw_output() {
     // Called once from network::allocate_primitives(); later calls are no-ops.
     if (!_reused_eltw_rebind_pending)
-        return;
+        return true;
     _reused_eltw_rebind_pending = false;
     const void* ctor_ptr = _reused_eltw_ctor_dst_ptr;
     _reused_eltw_ctor_dst_ptr = nullptr;
     if (_reused_eltw_dep_idx < 0 || is_dynamic() || is_constant() || _outputs.empty() || !_outputs[0])
-        return;
+        return true;
     // _deps may not be built yet at this point (build_insts_deps() runs after allocate_primitives()); use the node graph.
     if (!_node || static_cast<size_t>(_reused_eltw_dep_idx) >= _node->get_dependencies().size())
-        return;
+        return true;
     const auto dep_port = _node->get_dependency_with_port(_reused_eltw_dep_idx);
     const auto dep_inst = _network.get_primitive(dep_port.first->id());
     if (dep_port.second != 0) {
+#ifndef NDEBUG
+        // F5 downgrades a frozen sum whose addend is not output port 0 (reason 4), so a pending rebind never gets here.
+        OPENVINO_ASSERT(false, "[GPU] F5: ", id(), " rebinds an in-place sum dst to output port ", dep_port.second, " of ", dep_port.first->id());
+#endif
         GPU_DEBUG_TRACE_DETAIL << id() << ": F19 reused eltw dep " << dep_port.first->id() << " has output port " << dep_port.second
                                << "; keep the constructor binding (F18/P1-M)" << std::endl;
-        return;
+        return false;
     }
     if (!dep_inst || !dep_inst->outputs_allocated() || dep_inst->_outputs.empty() || !dep_inst->_outputs[0])
-        return;
+        return false;  // the addend buffer does not exist yet: the rebind was supposed to run but could not
     // Rebind only while dst is still the buffer bound at construction time (compared by raw pointer, no memory::ptr is held).
     if (_outputs[0]->buffer_ptr() != ctor_ptr)
-        return;
+        return false;  // dst was rebound externally: not ours to re-point
     auto& eng = get_network().get_engine();
     auto dep_mem = dep_inst->_outputs[0];
     if (eng.is_the_same_buffer(*dep_mem, *_outputs[0]))
-        return;
+        return true;
     const auto& out_layout = _impl_params->get_output_layout(0);
 #ifndef NDEBUG
     OPENVINO_ASSERT(dep_mem->size() >= out_layout.bytes_count(),
@@ -358,34 +362,15 @@ void primitive_inst::rebind_reused_eltw_output() {
     GPU_DEBUG_TRACE_DETAIL << id() << ": F19 rebind sum dst to output of " << dep_inst->id() << std::endl;
     set_output_memory(new_mem, false, 0);
     _output_aliases_reused_eltw = true;
+    return true;
 }
 
-bool primitive_inst::reused_eltw_alias_allowed(int32_t idx) const {
-    if (idx < 0 || !_node)
-        return false;
-    const fused_primitive_desc* fused_op_desc = nullptr;
-    for (const auto& fused_op : _node->get_fused_primitives()) {
-        if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() && fused_op.outer_dep_start_idx == idx) {
-            fused_op_desc = &fused_op;
-            break;
-        }
-    }
-    if (!fused_op_desc)
-        return false;
-    const auto mode = fused_op_desc->typed_desc<eltwise>()->mode;
-    if (mode == eltwise_mode::sum)
-        return true;
-    if (mode != eltwise_mode::prod)
-        return false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // The impl may be a clone from a cache whose key does not cover the oneDNN post-op structure (F17 C1), so the answer is taken from
-    // the compiled attrs of the actual impl and verified against this node's own post-op list.
-    if (!_impl || !_impl->is_onednn())
-        return false;
-    const auto& list = _impl_params->fused_desc_onednn;
-    std::vector<post_op_kind> expected;
-    expected.reserve(list.size());
-    std::optional<size_t> inplace_slot;
+compiled_post_op_slots get_compiled_post_op_slots(const std::vector<fused_primitive_desc_onednn>& list,
+                                                  size_t mem_dep,
+                                                  std::initializer_list<onednn_post_op_type> wanted) {
+    compiled_post_op_slots res;
+    res.kinds.reserve(list.size());
     for (const auto& e : list) {
         post_op_kind kind = post_op_kind::unsupported;
         switch (e.op_type) {
@@ -421,13 +406,45 @@ bool primitive_inst::reused_eltw_alias_allowed(int32_t idx) const {
         default:
             break;
         }
-        if (e.op_type == onednn_post_op_type::binary_mul_inplace && e.mem_dep == static_cast<size_t>(idx))
-            inplace_slot = expected.size();
-        expected.push_back(kind);
+        if (!res.slot && e.mem_dep == mem_dep && std::find(wanted.begin(), wanted.end(), e.op_type) != wanted.end())
+            res.slot = res.kinds.size();
+        res.kinds.push_back(kind);
     }
-    if (!inplace_slot)
+    return res;
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
+bool primitive_inst::reused_eltw_alias_allowed(int32_t idx) const {
+    if (idx < 0 || !_node)
         return false;
-    return _impl->is_binary_mul_inplace_post_op(expected, *inplace_slot);
+    const fused_primitive_desc* fused_op_desc = nullptr;
+    for (const auto& fused_op : _node->get_fused_primitives()) {
+        if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() && fused_op.outer_dep_start_idx == idx) {
+            fused_op_desc = &fused_op;
+            break;
+        }
+    }
+    if (!fused_op_desc)
+        return false;
+    const auto mode = fused_op_desc->typed_desc<eltwise>()->mode;
+    if (mode != eltwise_mode::sum && mode != eltwise_mode::prod)
+        return false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // The impl may be a clone from a cache whose key does not cover the oneDNN post-op structure (F17 C1), and (F5) a sum is only a sum
+    // if the impl was actually compiled with one: oneDNN does not bind src1 for a sum, so aliasing dst onto the addend of an impl that
+    // was built with a binary_add reads garbage. The answer is therefore taken from the compiled attrs of the actual impl, verified
+    // against this node's own post-op list.
+    if (!_impl || !_impl->is_onednn())
+        return false;
+    const auto slots = (mode == eltwise_mode::sum)
+                           ? get_compiled_post_op_slots(_impl_params->fused_desc_onednn,
+                                                        static_cast<size_t>(idx),
+                                                        {onednn_post_op_type::sum, onednn_post_op_type::optimized_sum})
+                           : get_compiled_post_op_slots(_impl_params->fused_desc_onednn, static_cast<size_t>(idx), {onednn_post_op_type::binary_mul_inplace});
+    if (!slots.slot)
+        return false;
+    return (mode == eltwise_mode::sum) ? _impl->is_sum_post_op(slots.kinds, *slots.slot)
+                                       : _impl->is_binary_mul_inplace_post_op(slots.kinds, *slots.slot);
 #else
     return false;
 #endif
@@ -3087,6 +3104,23 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
     }
     OPENVINO_ASSERT(_outputs.size() == get_node().get_output_layouts().size());
     OPENVINO_ASSERT(_max_output_layout_count.size() == get_node().get_output_layouts().size());
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // F5 I-F5-3 (Release on purpose: a loud failure at network construction beats silently summing onto uninitialized memory). A static
+    // node whose impl was compiled with an in-place sum must have its dst bound to the addend: oneDNN does not bind src1 for a sum.
+    // Covers nodes that skipped allocation (a slot of an in-place concat) as well: no frozen sum may survive there, F5 downgrades it.
+    if (!node.is_dynamic() && _impl && _impl->is_onednn()) {
+        for (const auto& e : _impl_params->fused_desc_onednn) {
+            if (e.op_type != onednn_post_op_type::sum && e.op_type != onednn_post_op_type::optimized_sum)
+                continue;
+            const auto slots = get_compiled_post_op_slots(_impl_params->fused_desc_onednn,
+                                                          e.mem_dep,
+                                                          {onednn_post_op_type::sum, onednn_post_op_type::optimized_sum});
+            OPENVINO_ASSERT(!slots.slot || !_impl->is_sum_post_op(slots.kinds, *slots.slot) || _output_aliases_reused_eltw,
+                            "[GPU] F5: the oneDNN impl of ", id(), " was compiled with an in-place sum on dependency ", e.mem_dep,
+                            " but the output buffer is not bound to the addend (allocate_memory=", allocate_memory, ")");
+        }
+    }
+#endif  // ENABLE_ONEDNN_FOR_GPU
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable, bool shareable) {
