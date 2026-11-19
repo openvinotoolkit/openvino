@@ -239,6 +239,23 @@ TRANSFORMATIONS_API bool have_same_fake_quantize_params(const std::shared_ptr<ov
                                                         const std::shared_ptr<ov::op::v0::FakeQuantize>& rhs);
 
 /**
+ * \brief Collects the attributes reported by node->visit_attributes() into a map that supports equality comparison.
+ *
+ * \param node  The node whose attributes are collected.
+ * \return The map from the attribute name to its value.
+ * \throws ov::NotImplemented for the attributes that can not be compared, e.g. sub-models or raw buffers.
+ */
+TRANSFORMATIONS_API ov::AnyMap get_comparable_attributes(const std::shared_ptr<ov::Node>& node);
+
+/**
+ * \brief Checks that two constants have the same element type, shape and data.
+ *
+ * \return false if any of the constants is nullptr or if they differ.
+ */
+TRANSFORMATIONS_API bool constants_are_equal(const std::shared_ptr<ov::op::v0::Constant>& lhs,
+                                             const std::shared_ptr<ov::op::v0::Constant>& rhs);
+
+/**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
  * and calls "func" for each ov::Node.
  *

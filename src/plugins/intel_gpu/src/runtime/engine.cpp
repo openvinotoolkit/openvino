@@ -70,7 +70,7 @@ const device_info& engine::get_device_info() const {
     return _device->get_info();
 }
 
-const device::ptr engine::get_device() const {
+device::ptr engine::get_device() const {
     return _device;
 }
 
@@ -90,7 +90,7 @@ uint64_t engine::get_max_memory_size() const {
     return max_device_mem;
 }
 
-uint64_t engine::get_host_memory_size() const {
+uint64_t engine::get_host_memory_size() {
     return static_cast<uint64_t>(get_cpu_ram_size());
 }
 
@@ -312,7 +312,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     return engine::create(engine_type, runtime_type, device);
 }
 
-bool engine::check_allocatable(const layout& layout, allocation_type type) {
+bool engine::check_allocatable(const layout& layout, allocation_type type) const {
     OPENVINO_ASSERT(supports_allocation(type), "[GPU] Unsupported allocation type: ", type);
 
     if (!get_enable_large_allocations()) {
