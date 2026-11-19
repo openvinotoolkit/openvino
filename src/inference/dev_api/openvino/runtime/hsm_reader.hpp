@@ -234,6 +234,13 @@ public:
         return section_by_id(any_device_id, static_cast<uint32_t>(tag));
     }
 
+    /**
+     * @brief Finds the first manifest entry matching (@p device, @p tag) and returns a #Section handle for it.
+     *
+     * @param device The device ID to match.
+     * @param tag The tag to match, including its 4 reserved bytes.
+     * @return std::optional<Section> A handle to the matching section, or `std::nullopt` if not found.
+     */
     std::optional<Section> section(DeviceId device, SectionTagReserved tag) const {
         return section_by_id(device, tag);
     }
@@ -282,6 +289,14 @@ public:
         return decode(any_device_id, tag, decoder);
     }
 
+    /**
+     * @brief Runs @p decoder over the first manifest entry matching (@p device, @p tag).
+     * @note Returns std::nullopt if no matching entry is found, or if @p decoder itself returns std::nullopt.
+     * @param device The device ID to match.
+     * @param tag The tag to match, including its 4 reserved bytes.
+     * @param decoder The decoder to run over the matching section.
+     * @return A decoded value if the section is found and the decoder succeeds; otherwise, `std::nullopt`.
+     */
     template <typename T>
     std::optional<T> decode(DeviceId device, SectionTagReserved tag, const SectionDecoder<T>& decoder) const {
         const auto found = section(device, tag);
