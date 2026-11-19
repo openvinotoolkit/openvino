@@ -25,7 +25,6 @@
 
 #include "dnnl_extension_utils.h"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::x64;
@@ -150,7 +149,13 @@ BrgemmKernel::BrgemmKernel(size_t M,
         vlen = cpu_isa_traits_t<cpu_isa_t::avx2>::vlen;
     }
     // blocking N
-    N_blk = f16_copy ? rnd_up(N, 16) : !is_f32 ? 32 : std::max(N, vlen / inType.size());
+    if (f16_copy) {
+        N_blk = rnd_up(N, 16);
+    } else if (!is_f32) {
+        N_blk = 32;
+    } else {
+        N_blk = std::max(N, vlen / inType.size());
+    }
     N_tail = N % N_blk;
 
     // blocking K
@@ -372,9 +377,13 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.a_dt_sz = inType.size();
     brgCopyKernelConf.tr_a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
-    brgCopyKernelConf.isa = f16_copy                               ? avx512_core_fp16
-                            : dt_in0 == dnnl_data_type_t::dnnl_f16 ? avx512_core_amx_fp16
-                                                                   : avx512_core_amx;
+    if (f16_copy) {
+        brgCopyKernelConf.isa = avx512_core_fp16;
+    } else if (dt_in0 == dnnl_data_type_t::dnnl_f16) {
+        brgCopyKernelConf.isa = avx512_core_amx_fp16;
+    } else {
+        brgCopyKernelConf.isa = avx512_core_amx;
+    }
     brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
 
     if (create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf) != dnnl::impl::status::success) {
