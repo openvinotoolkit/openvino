@@ -28,7 +28,7 @@ std::string buildRuntimeRequirements(const BlobSectionsRegistry& blobSectionsReg
     });
 
     const std::string result = result_stream.str();
-    logger.debug("Runtime requirements string: %s length: %zu", result, result.size());
+    logger.debug("Runtime requirements string: %s length: %zu", result.data(), result.size());
 
     return result;
 }

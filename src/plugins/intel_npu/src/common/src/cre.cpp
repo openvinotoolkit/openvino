@@ -512,6 +512,8 @@ ov::CompatibilityCheck CRE::evaluate(
     ov::CompatibilityCheck subexpression_result;
 
     while (!end_condition(expression_iterator, expression_end, end_delimiter)) {
+        m_logger.trace("evaluate: the current token is %s", (*expression_iterator)->to_string());
+
         CRE_ASSERT(!is_section_id(*expression_iterator), "Unexpected section ID token");
         CRE_ASSERT(!is_close_special_token(*expression_iterator),
                    "Found a closed parrenthesis without any matching open token");
