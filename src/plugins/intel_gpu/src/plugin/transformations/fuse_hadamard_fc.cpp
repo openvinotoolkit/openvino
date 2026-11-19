@@ -50,7 +50,7 @@ size_t hadamard_block_of(const std::shared_ptr<ov::op::v0::Constant>& c) {
     for (size_t i = 0; i < b; i += 37) {
         for (size_t j = 0; j < b; j += 41) {
             const float sign = (std::bitset<32>(i & j).count() & 1) ? -1.0F : 1.0F;
-            if (std::fabs(v[i * b + j] - sign * want) > 1e-4F) {
+            if (std::fabs(v[(i * b) + j] - (sign * want)) > 1e-4F) {
                 return 0;
             }
         }
