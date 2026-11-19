@@ -1412,6 +1412,220 @@ TEST(fully_connected_gpu, bf_tiled_fp16_large_k_accumulation_accuracy) {
     }
 }
 
+TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "cl_khr_fp16 is not supported.";
+    }
+
+    // Exercises shape-agnostic INT4 3D FC after an in-place feature-axis variadic_split crop
+    // (has_dynamic_pad() == true at compile time, offset=[0, 3, 0, 0] at runtime, F_total=5 -> F=2).
+    // - Square weights (IFM=64, OFM=64) with B=2 (flattened batch=4) run fc_bf_tiled_kernel_forced_tile_b4
+    //   (include/fully_connected_gpu_bf_tiled_common.cl), and B=256 (flattened batch=512 > 256) verifies
+    //   dynamic-pad rejection prevents tile-8/tile-16 SLM dispatch mismatch.
+    // - Imbalanced weights (IFM=64, OFM=256) with B=2 (flattened batch=4) run fully_connected_gpu_bf_tiled_dyn_b
+    //   (include/fully_connected_gpu_bf_tiled_dyn_b_core.cl).
+    const int in_features_total = 5;
+    const int feature_offset = 3;
+    const int feature_num = 2;
+    const int ifm_num = 64;
+    const int scales_group_size = 32;
+
+    auto axis_mem = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto splits_mem = engine.allocate_memory({ov::PartialShape{2}, data_types::i64, format::bfyx});
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_mem, {feature_offset, feature_num});
+
+    for (int ofm_num : {64, 256}) {
+        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
+        auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f);
+        set_values(weights_mem, weights_data);
+        set_values(scale_mem, scale_data);
+
+        const layout dyn_in_layout(ov::PartialShape{-1, in_features_total, ifm_num}, data_types::f16, format::bfyx);
+        auto fc_prim = fully_connected("fc_prim", input_info("crop"), "weights", "", "scale", "", data_types::f16, 3, 2);
+        fc_prim.decompression_zero_point_scalar = 0;
+
+        topology test_topo(
+            input_layout("input", dyn_in_layout),
+            data("axis", axis_mem),
+            data("splits", splits_mem),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            crop("crop", {input_info("input"), input_info("axis"), input_info("splits")}, tensor(1), tensor(0), crop_ngraph_op_mode::variadic_split, 1, 1),
+            fc_prim);
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
+        ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+
+        ExecutionConfig ref_config = get_test_default_config(engine);
+        ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        ref_config.set_property(ov::intel_gpu::optimize_data(false));
+        ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+        ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
+
+        network test_net(engine, test_topo, config);
+        network ref_net(engine, test_topo, ref_config);
+
+        ASSERT_TRUE(test_net.get_primitive("crop")->can_be_optimized());
+
+        for (int batch_num : {2, 256}) {
+            if (ofm_num == 256 && batch_num == 256) {
+                continue;
+            }
+            const layout actual_in_layout(ov::PartialShape{batch_num, in_features_total, ifm_num}, data_types::f16, format::bfyx);
+            auto input_mem = engine.allocate_memory(actual_in_layout);
+            std::vector<ov::float16> input_data(batch_num * in_features_total * ifm_num);
+            auto rand_vals = rg.generate_random_1d<ov::float16>(batch_num * feature_num * ifm_num, -1.0f, 1.0f);
+            size_t r_idx = 0;
+            for (int b = 0; b < batch_num; ++b) {
+                for (int f = 0; f < in_features_total; ++f) {
+                    for (int k = 0; k < ifm_num; ++k) {
+                        const size_t idx = (static_cast<size_t>(b) * in_features_total + f) * ifm_num + k;
+                        input_data[idx] = (f < feature_offset) ? ov::float16(100.0f) : rand_vals[r_idx++];
+                    }
+                }
+            }
+            set_values(input_mem, input_data);
+
+            test_net.set_input_data("input", input_mem);
+            ref_net.set_input_data("input", input_mem);
+            auto test_out = test_net.execute().at("fc_prim").get_memory();
+            auto ref_out = ref_net.execute().at("fc_prim").get_memory();
+
+            auto fc_inst = test_net.get_primitive("fc_prim");
+            EXPECT_EQ(fc_inst->get_intermediates_memories().size(), 0U) << "Dynamic quantize must be disabled on dynamically padded input";
+            const auto kernels = fc_inst->get_impl()->get_kernels_dump_info(*fc_inst->get_impl_params()).get_entries();
+            if (ofm_num == 256 && batch_num == 2) {
+                EXPECT_NE(kernels.find("fully_connected_gpu_bf_tiled_dyn_b"), std::string::npos) << "Expected dyn_b kernel, got: " << kernels;
+            } else {
+                EXPECT_NE(kernels.find("fully_connected_gpu_bf_tiled"), std::string::npos) << "Expected bf_tiled kernel, got: " << kernels;
+            }
+
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(test_out, get_test_stream());
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
+            const size_t expected_count = static_cast<size_t>(batch_num) * feature_num * ofm_num;
+            ASSERT_EQ(test_out->count(), expected_count);
+            for (size_t i = 0; i < expected_count; ++i) {
+                ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 5e-2f)
+                    << "ofm_num=" << ofm_num << " batch_num=" << batch_num << " i=" << i;
+            }
+        }
+    }
+}
+
+TEST(fully_connected_gpu, bf_tiled_zero_offset_upper_feature_pad_disables_dyn_quant) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16 || engine.get_device_info().dev_type != device_type::integrated_gpu) {
+        GTEST_SKIP() << "Requires integrated GPU with cl_khr_fp16 support.";
+    }
+
+    // Zero-offset crop (offset=[0, 0, 0, 0], F_total=5 -> F=2) leaves GetFirstElementOffset() == 0 while
+    // INPUT0_BATCH_PITCH != OUTPUT_FEATURE_NUM * INPUT0_FEATURE_PITCH (PitchesDifferFromLogicalDims() == true).
+    // With flattened batch=512 > 256 and u4 weights, quantize_input must be omitted for the padded case
+    // while enabled for the contiguous control.
+    const int batch_num = 256;
+    const int in_features_total = 5;
+    const int feature_num = 2;
+    const int ifm_num = 64;
+    const int ofm_num = 64;
+    const int scales_group_size = 32;
+
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f);
+    set_values(weights_mem, weights_data);
+    set_values(scale_mem, scale_data);
+
+    auto full_input_mem = engine.allocate_memory({{batch_num, in_features_total, ifm_num, 1}, data_types::f16, format::bfyx});
+    auto contig_input_mem = engine.allocate_memory({{batch_num, feature_num, ifm_num, 1}, data_types::f16, format::bfyx});
+    auto eltw_mem = engine.allocate_memory({{1, in_features_total, 1, 1}, data_types::f16, format::bfyx});
+
+    auto active_vals = rg.generate_random_1d<ov::float16>(batch_num * feature_num * ifm_num, -1.0f, 1.0f);
+    std::vector<ov::float16> full_input_data(batch_num * in_features_total * ifm_num);
+    size_t r_idx = 0;
+    for (int b = 0; b < batch_num; ++b) {
+        for (int f = 0; f < in_features_total; ++f) {
+            for (int k = 0; k < ifm_num; ++k) {
+                const size_t idx = (static_cast<size_t>(b) * in_features_total + f) * ifm_num + k;
+                full_input_data[idx] = (f < feature_num) ? active_vals[r_idx++] : ov::float16(100.0f);
+            }
+        }
+    }
+    std::vector<ov::float16> eltw_zero(in_features_total, ov::float16(0.0f));
+    set_values(full_input_mem, full_input_data);
+    set_values(contig_input_mem, active_vals);
+    set_values(eltw_mem, eltw_zero);
+
+    auto fc_padded = fully_connected("fc_prim", input_info("crop"), "weights", "", "scale", "", data_types::f16, 3, 2);
+    fc_padded.decompression_zero_point_scalar = 0;
+    topology padded_topo(
+        input_layout("input", full_input_mem->get_layout()),
+        data("eltw_in", eltw_mem),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        eltwise("eltw", {input_info("input"), input_info("eltw_in")}, eltwise_mode::sum),
+        crop("crop", input_info("eltw"), tensor{batch_num, feature_num, 1, ifm_num}, tensor{0, 0, 0, 0}),
+        fc_padded);
+
+    auto fc_contig = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2);
+    fc_contig.decompression_zero_point_scalar = 0;
+    topology contig_topo(
+        input_layout("input", contig_input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        fc_contig);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::optimize_data(false));
+    ov::intel_gpu::ImplementationDesc ref_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl_desc}}));
+
+    network padded_net(engine, padded_topo, config);
+    network contig_net(engine, contig_topo, config);
+    network ref_net(engine, contig_topo, ref_config);
+
+    ASSERT_TRUE(padded_net.get_primitive("crop")->can_be_optimized());
+
+    padded_net.set_input_data("input", full_input_mem);
+    contig_net.set_input_data("input", contig_input_mem);
+    ref_net.set_input_data("input", contig_input_mem);
+
+    auto padded_out = padded_net.execute().at("fc_prim").get_memory();
+    contig_net.execute();
+    auto ref_out = ref_net.execute().at("fc_prim").get_memory();
+
+    auto padded_fc_inst = padded_net.get_primitive("fc_prim");
+    auto contig_fc_inst = contig_net.get_primitive("fc_prim");
+    EXPECT_EQ(padded_fc_inst->get_impl()->get_kernels().size(), 1U) << "Padded static input must omit quantize_input kernel";
+    EXPECT_EQ(padded_fc_inst->get_intermediates_memories().size(), 0U) << "Padded input must not allocate dynamic quantize buffers";
+    EXPECT_EQ(contig_fc_inst->get_impl()->get_kernels().size(), 2U) << "Contiguous static control must include quantize_input + FC kernels";
+    EXPECT_EQ(contig_fc_inst->get_intermediates_memories().size(), 2U) << "Contiguous control must allocate dynamic quantize buffers";
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(padded_out, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_out, get_test_stream());
+    const size_t expected_count = static_cast<size_t>(batch_num) * feature_num * ofm_num;
+    ASSERT_EQ(padded_out->count(), expected_count);
+    for (size_t i = 0; i < expected_count; ++i) {
+        ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 5e-2f) << " i = " << i;
+    }
+}
+
 TEST(fully_connected_gpu, bf_tiled_with_unaligned_batch) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
