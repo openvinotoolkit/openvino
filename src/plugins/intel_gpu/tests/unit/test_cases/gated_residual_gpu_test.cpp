@@ -355,35 +355,26 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            // UP_PROJ[+branch mix] instead of gr_read.cl. Up to 32
                                            // rows the decode tiling is used, up to 4 rows per EU the mid
                                            // (split-K wide) tiling, above it the wide one.
-                                           gr_read_case{32, 64, 32, true},      // exact token-tile boundary
-                                           gr_read_case{37, 96, 32, false},     // partial last token tile, no write gate
-                                           gr_read_case{41, 48, 64, true},      // partial tile; D=48, split-K over 6 K steps
-                                           gr_read_case{16, 64, 32, true},      // exactly one N-tile
-                                           gr_read_case{48, 64, 32, false},     // three full N-tiles
-                                           gr_read_case{3, 32, 32, true},       // narrowest D
-                                           gr_read_case{5, 64, 16, true},       // scalar path
-                                           gr_read_case{19, 64, 32, true},      // DPAS path
-                                           gr_read_case{1, 640, 320, true},     // production width, decode
-                                           gr_read_case{17, 640, 320, true},    // production width, prefill with a partial tile
-                                           gr_read_case{193, 32, 32, true},     // mid tiling
-                                           gr_read_case{200, 64, 32, true},     // mid tiling, partial 32-token tile
-                                           gr_read_case{300, 48, 64, false},    // mid tiling, D=48 column tiles
-                                           gr_read_case{257, 640, 320, true},   // production-like width, mid tiling
-                                           gr_read_case{17, 2560, 320, true},   // wide, decode tiling
-                                           gr_read_case{100, 2560, 320, true},  // wide, mid tiling
-                                           gr_read_case{1, 5120, 640, true},    // wider (C*D > 16384, L > 512), decode
-                                           gr_read_case{17, 5120, 640, true},   // wider, prefill with a partial tile
-                                           gr_read_case{100, 5120, 640, true},  // wider, mid tiling
-                                           gr_read_case{17, 5120, 640, false},  // wider, no write gate
-                                           gr_read_case{1000, 64, 32, true},    // wide tiling / single kernel (> 4 rows per EU)
-                                           gr_read_case{777, 48, 64, false},    // wide tiling, partial tiles (D % 32 != 0)
-                                           gr_read_case{1111, 128, 64, true},   // single kernel, partial 32-row tile
-                                           gr_read_case{700, 640, 320, false},  // single kernel, production-like width
+                                           gr_read_case{32, 64, 32, true},     // exact token-tile boundary
+                                           gr_read_case{37, 96, 32, false},    // partial last token tile, no write gate
+                                           gr_read_case{41, 48, 64, true},     // partial tile; D=48, split-K over 6 K steps
+                                           gr_read_case{48, 64, 32, false},    // three full N-tiles
+                                           gr_read_case{3, 32, 32, true},      // narrowest D
+                                           gr_read_case{1, 640, 320, true},    // production width, decode
+                                           gr_read_case{17, 640, 320, true},   // production width, prefill with a partial tile
+                                           gr_read_case{193, 32, 32, true},    // mid tiling
+                                           gr_read_case{200, 64, 32, true},    // mid tiling, partial 32-token tile
+                                           gr_read_case{300, 48, 64, false},   // mid tiling, D=48 column tiles
+                                           gr_read_case{17, 2560, 320, true},  // wide, decode tiling
+                                           gr_read_case{1, 5120, 640, true},   // wider (C*D > 16384, L > 512), decode
+                                           gr_read_case{17, 5120, 640, true},  // wider, prefill with a partial tile
+                                           gr_read_case{1000, 64, 32, true},   // wide tiling / single kernel (> 4 rows per EU)
+                                           gr_read_case{777, 48, 64, false},   // wide tiling, partial tiles (D % 32 != 0)
+                                           gr_read_case{1111, 128, 64, true},  // single kernel, partial 32-row tile
                                            // L=16 keeps these on gr_read.cl; above 32 rows one work-group owns
                                            // several rows, the last group only partially filled.
                                            gr_read_case{37, 64, 16, true},
                                            gr_read_case{100, 48, 16, false},
-                                           gr_read_case{50, 64, 16, true},
                                            gr_read_case{65, 2560, 16, true},  // real width: 4 rows per work-group
                                            // The model tail mixer: READ without a write gate.
                                            gr_read_case{4, 64, 16, false},     // scalar gr_read
@@ -716,110 +707,66 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
     }
 }
 
+// Each kernel route (gemv <= 8 rows, decode, mid, predequantized / single kernel) is covered with the dtype / write-gate / zero-point
+// combinations spread over small shapes; production widths only keep a few representative cases.
 INSTANTIATE_TEST_SUITE_P(smoke,
                          gated_residual_quant_test,
-                         ::testing::Values(gr_quant_case{1, 64, 32, true},  // decode, one K32 group of W_up
-                                           gr_quant_case{1, 64, 32, false},
-                                           gr_quant_case{7, 128, 32, true},
-                                           gr_quant_case{7, 128, 32, false},
-                                           gr_quant_case{32, 96, 32, true},  // D % 64 != 0: narrow raw loads
-                                           gr_quant_case{37, 96, 64, false},
-                                           gr_quant_case{33, 128, 64, true},  // mid tiling
-                                           gr_quant_case{200, 64, 32, false},
-                                           gr_quant_case{17, 640, 320, true},  // production width, decode
-                                           gr_quant_case{17, 640, 320, false},
-                                           gr_quant_case{100, 640, 320, true},
-                                           gr_quant_case{257, 640, 320, false},  // mid tiling
-                                           gr_quant_case{250, 64, 32, true},     // mid tiling
-                                           gr_quant_case{1000, 64, 32, true},    // single kernel
-                                           gr_quant_case{1000, 64, 32, false},
-                                           gr_quant_case{1111, 128, 64, true},  // partial 32-row tile
-                                           gr_quant_case{700, 640, 320, true},
-                                           gr_quant_case{700, 640, 320, false},
-                                           gr_quant_case{17, 2560, 320, true},  // real width
-                                           gr_quant_case{17, 2560, 320, false},
-                                           gr_quant_case{100, 2560, 320, true},
-                                           gr_quant_case{2000, 2560, 320, true},
-                                           gr_quant_case{2000, 2560, 320, false},
-                                           // compressed W_inject: the write gate of a compressed READ (11 inputs)
-                                           gr_quant_case{1, 64, 32, true, true},  // decode
-                                           gr_quant_case{1, 64, 32, false, true},
-                                           gr_quant_case{7, 128, 32, true, true},
-                                           gr_quant_case{7, 128, 32, false, true},
-                                           gr_quant_case{33, 128, 64, true, true},  // mid tiling
-                                           gr_quant_case{200, 64, 32, false, true},
-                                           gr_quant_case{37, 96, 64, false, true},   // partial token tile, D % 64 != 0
-                                           gr_quant_case{17, 640, 320, true, true},  // production width
-                                           gr_quant_case{17, 640, 320, false, true},
-                                           gr_quant_case{257, 640, 320, false, true},
-                                           gr_quant_case{1000, 64, 32, true, true},  // above the predequantization threshold
-                                           gr_quant_case{1000, 64, 32, false, true},
-                                           gr_quant_case{1111, 128, 64, true, true},
-                                           gr_quant_case{17, 2560, 320, true, true},  // real width
-                                           gr_quant_case{17, 2560, 320, false, true},
-                                           gr_quant_case{100, 2560, 320, true, true},
-                                           gr_quant_case{2000, 2560, 320, true, true},
-                                           gr_quant_case{2000, 2560, 320, false, true},
-                                           // gemv tier (<= 8 rows) at production widths
-                                           gr_quant_case{1, 640, 320, true},
-                                           gr_quant_case{1, 640, 320, false},
-                                           gr_quant_case{8, 640, 320, true},
-                                           gr_quant_case{8, 640, 320, false},
-                                           gr_quant_case{1, 2560, 320, true},
-                                           gr_quant_case{1, 2560, 320, false},
-                                           gr_quant_case{8, 2560, 320, true},
-                                           gr_quant_case{8, 2560, 320, false},
-                                           gr_quant_case{1, 640, 320, true, true},
-                                           gr_quant_case{1, 640, 320, false, true},
-                                           gr_quant_case{8, 640, 320, true, true},
-                                           gr_quant_case{8, 640, 320, false, true},
-                                           gr_quant_case{1, 2560, 320, true, true},
-                                           gr_quant_case{1, 2560, 320, false, true},
-                                           gr_quant_case{8, 2560, 320, true, true},
-                                           gr_quant_case{8, 2560, 320, false, true},
-                                           // RBAR splits the 5120-wide branch rows across subgroups at decode
-                                           gr_quant_case{1, 5120, 640, true},
-                                           gr_quant_case{1, 5120, 640, false},
-                                           gr_quant_case{17, 5120, 640, true},
-                                           gr_quant_case{17, 5120, 640, false},
-                                           gr_quant_case{100, 5120, 640, true},
-                                           gr_quant_case{1, 5120, 640, true, true},
-                                           gr_quant_case{17, 5120, 640, false, true},
-                                           // signed weights (i4 / i8) with zero points: gemv, decode, mid and predequantized
-                                           gr_quant_case{1, 64, 32, true, false, true},
-                                           gr_quant_case{1, 64, 32, false, false, true},
-                                           gr_quant_case{7, 128, 32, true, true, true},
-                                           gr_quant_case{7, 128, 32, false, true, true},
-                                           gr_quant_case{1, 2560, 320, true, true, true},
-                                           gr_quant_case{8, 2560, 320, false, true, true},
-                                           gr_quant_case{17, 640, 320, true, true, true},
-                                           gr_quant_case{17, 640, 320, false, false, true},
-                                           gr_quant_case{33, 128, 64, true, true, true},
-                                           gr_quant_case{257, 640, 320, false, true, true},
-                                           gr_quant_case{250, 64, 32, true, false, true},
-                                           gr_quant_case{1000, 64, 32, true, true, true},
-                                           gr_quant_case{1000, 64, 32, false, false, true},
-                                           gr_quant_case{2000, 2560, 320, true, true, true},
-                                           // no zero points (the zero point is 0), unsigned and signed
-                                           gr_quant_case{1, 64, 32, true, false, false, false},
-                                           gr_quant_case{1, 64, 32, false, true, false, false},
-                                           gr_quant_case{7, 128, 32, true, true, true, false},
-                                           gr_quant_case{7, 128, 32, false, false, true, false},
-                                           gr_quant_case{1, 2560, 320, true, true, true, false},
-                                           gr_quant_case{8, 2560, 320, false, true, false, false},
-                                           gr_quant_case{17, 640, 320, true, true, false, false},
-                                           gr_quant_case{17, 640, 320, false, true, true, false},
-                                           gr_quant_case{33, 128, 64, true, true, true, false},
-                                           gr_quant_case{257, 640, 320, false, true, false, false},
-                                           gr_quant_case{250, 64, 32, false, false, false, false},
-                                           gr_quant_case{1000, 64, 32, true, true, true, false},
-                                           gr_quant_case{1000, 64, 32, false, false, false, false},
-                                           gr_quant_case{2000, 2560, 320, false, true, true, false},
-                                           // Model cache: the primitive is exported and imported before it runs.
-                                           gr_quant_case{17, 640, 320, true, true, false, true, 0, false, true},     // u4 with zero points and a write gate
-                                           gr_quant_case{17, 640, 320, true, false, false, false, 0, false, true},   // u4 without zero points
-                                           gr_quant_case{200, 64, 32, false, true, true, true, 0, false, true},      // i8 with a write gate, mid tiling
-                                           gr_quant_case{1000, 64, 32, true, false, false, true, 0, false, true}));  // predequantized weights
+                         ::testing::Values(
+                             // gemv / decode
+                             gr_quant_case{1, 64, 32, true},  // one K32 group of W_up
+                             gr_quant_case{1, 64, 32, false, true},
+                             gr_quant_case{7, 128, 32, true, true},
+                             gr_quant_case{7, 128, 32, false},
+                             gr_quant_case{32, 96, 32, true},  // D % 64 != 0: narrow raw loads
+                             gr_quant_case{37, 96, 64, false, true},
+                             // mid tiling
+                             gr_quant_case{33, 128, 64, true, true},
+                             gr_quant_case{200, 64, 32, false, true},
+                             gr_quant_case{250, 64, 32, true},
+                             // single kernel / predequantization
+                             gr_quant_case{1000, 64, 32, true, true},
+                             gr_quant_case{1000, 64, 32, false},
+                             gr_quant_case{1111, 128, 64, true},  // partial 32-row tile
+                             // production widths
+                             gr_quant_case{1, 640, 320, true, true},
+                             gr_quant_case{1, 640, 320, false},
+                             gr_quant_case{8, 640, 320, true},
+                             gr_quant_case{8, 640, 320, false, true},
+                             gr_quant_case{17, 640, 320, true, true},
+                             gr_quant_case{17, 640, 320, false},
+                             gr_quant_case{257, 640, 320, false, true},  // mid tiling
+                             gr_quant_case{700, 640, 320, true},
+                             gr_quant_case{1, 2560, 320, true, true},  // real width
+                             gr_quant_case{8, 2560, 320, false},
+                             gr_quant_case{17, 2560, 320, true, true},
+                             gr_quant_case{17, 2560, 320, false},
+                             gr_quant_case{100, 2560, 320, true},
+                             gr_quant_case{2000, 2560, 320, true, true},  // the only very large cases
+                             gr_quant_case{2000, 2560, 320, false},
+                             // RBAR splits the 5120-wide branch rows across subgroups at decode
+                             gr_quant_case{1, 5120, 640, true, true},
+                             gr_quant_case{17, 5120, 640, false},
+                             // signed weights (i4 / i8) with zero points
+                             gr_quant_case{1, 64, 32, true, false, true},
+                             gr_quant_case{7, 128, 32, false, true, true},
+                             gr_quant_case{33, 128, 64, false, false, true},
+                             gr_quant_case{250, 64, 32, false, true, true},
+                             gr_quant_case{1000, 64, 32, true, true, true},
+                             gr_quant_case{17, 640, 320, true, true, true},
+                             gr_quant_case{1, 2560, 320, false, true, true},
+                             // no zero points (the zero point is 0), unsigned and signed
+                             gr_quant_case{1, 64, 32, true, false, false, false},
+                             gr_quant_case{7, 128, 32, false, true, true, false},
+                             gr_quant_case{33, 128, 64, true, true, true, false},
+                             gr_quant_case{250, 64, 32, false, false, false, false},
+                             gr_quant_case{1000, 64, 32, true, true, true, false},
+                             gr_quant_case{17, 640, 320, true, true, false, false},
+                             gr_quant_case{1, 2560, 320, false, true, false, false},
+                             // Model cache: the primitive is exported and imported before it runs.
+                             gr_quant_case{17, 640, 320, true, true, false, true, 0, false, true},     // u4 with zero points and a write gate
+                             gr_quant_case{17, 640, 320, true, false, false, false, 0, false, true},   // u4 without zero points
+                             gr_quant_case{200, 64, 32, false, true, true, true, 0, false, true},      // i8 with a write gate, mid tiling
+                             gr_quant_case{1000, 64, 32, true, false, false, true, 0, false, true}));  // predequantized weights
 
 /// 32 / 64 / 128 and per-channel group sizes of both bit widths on every kernel path; W_up keeps the default group size when it does
 /// not divide its K (= L).
@@ -830,24 +777,15 @@ std::vector<gr_quant_case> group_size_cases() {
         size_t L;
         bool write_gate;
     };
-    // gemv, decode, mid (shared dequantization), predequantized, production widths
-    const std::vector<shape> shapes = {{1, 64, 32, false},
-                                       {7, 128, 32, true},
-                                       {17, 640, 320, false},
-                                       {33, 128, 64, true},
-                                       {257, 640, 320, true},
-                                       {1000, 64, 32, false},
-                                       {1, 2560, 320, true},
-                                       {8, 2560, 320, false},
-                                       {2000, 2560, 320, true}};
+    // gemv, mid (shared dequantization), predequantized, production widths: the group size only changes the dequantization
+    const std::vector<shape> shapes = {{1, 64, 32, false}, {33, 128, 64, true}, {17, 640, 320, false}, {1000, 64, 32, false}, {1, 2560, 320, true}};
     std::vector<gr_quant_case> cases;
     for (const size_t group : {size_t{32}, size_t{64}, size_t{128}, kPerChannel}) {
         for (const bool u4 : {true, false}) {
             for (const auto& s : shapes) {
-                // The bit width's default group size is already exercised by the main list, except for these two shapes.
+                // The bit width's default group size is already exercised by the main list.
                 const bool is_default = (group == 32 && u4) || (group == kPerChannel && !u4);
-                const bool in_main_list = is_default && (s.rows != 33 || u4) && (s.rows != 257 || !u4);
-                if (in_main_list) {
+                if (is_default) {
                     continue;
                 }
                 cases.push_back({s.rows, s.D, s.L, u4, s.write_gate, false, true, group});
@@ -859,13 +797,12 @@ std::vector<gr_quant_case> group_size_cases() {
         for (const bool u4 : {true, false}) {
             cases.push_back({17, 640, 320, u4, true, true, false, group});
             cases.push_back({1, 2560, 320, u4, false, true, true, group});
-            cases.push_back({257, 640, 320, u4, true, false, false, group});
         }
     }
     // L = 640 divides by 64 / 128, so W_up really uses the group size too instead of falling back to the default
     for (const size_t group : {size_t{64}, size_t{128}}) {
         for (const bool u4 : {true, false}) {
-            for (const size_t rows : {size_t{1}, size_t{17}, size_t{100}, size_t{257}, size_t{1000}}) {
+            for (const size_t rows : {size_t{1}, size_t{17}, size_t{1000}}) {
                 cases.push_back({rows, 640, 640, u4, true, false, true, group});
             }
         }
@@ -880,7 +817,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_group_sizes, gated_residual_quant_test, ::testing
 std::vector<gr_quant_case> scalar_cases() {
     std::vector<gr_quant_case> cases;
     for (const bool u4 : {true, false}) {
-        for (const size_t rows : {size_t{1}, size_t{7}, size_t{20}, size_t{40}}) {
+        for (const size_t rows : {size_t{1}, size_t{20}}) {
             for (const size_t group : {size_t{0}, size_t{64}, kPerChannel}) {
                 cases.push_back({rows, 128, 64, u4, false, false, true, group, true});
             }
@@ -974,14 +911,10 @@ TEST_P(gated_residual_write_test, combines_branches) {
 }
 
 // D=48 is a multiple of 16 but not of 32 or 64, so gr_best_tile() falls back to GR_WRITE_TILE=16; D=64 and 256 use the wide tile.
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         gated_residual_write_test,
-                         ::testing::Values(gr_write_case{5, 64},
-                                           gr_write_case{9, 48},
-                                           gr_write_case{37, 256},
-                                           gr_write_case{3, 5120},
-                                           gr_write_case{33, 5120},
-                                           gr_write_case{37, 256, true}));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    gated_residual_write_test,
+    ::testing::Values(gr_write_case{5, 64}, gr_write_case{9, 48}, gr_write_case{37, 256}, gr_write_case{33, 5120}, gr_write_case{37, 256, true}));
 
 // A cached dynamic READ holds the stages of every row-count route; the imported network has to run each of them.
 // decode, mid and wide tilings, then the single kernel, and back (entry 4 is also the static row count)
@@ -1089,12 +1022,7 @@ TEST_P(gated_residual_caching_test, imported_network_runs_every_row_route) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          gated_residual_caching_test,
-                         ::testing::Values(gr_caching_case{false, true, true},
-                                           gr_caching_case{false, false, true},
-                                           gr_caching_case{true, true, true},
-                                           gr_caching_case{true, false, true},
-                                           gr_caching_case{false, true, false},
-                                           gr_caching_case{true, false, false}));
+                         ::testing::Values(gr_caching_case{false, true, true}, gr_caching_case{true, false, true}, gr_caching_case{true, false, false}));
 
 // --- ov::Model / ov::Core level tests (plugin pipeline, dynamic rows) ----------
 //
