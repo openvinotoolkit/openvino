@@ -458,5 +458,10 @@
         "error_text": "httpx.ConnectError: [Errno -2] Name or service not known",
         "ticket": 9999999,
         "category": "Network"
+    },
+    {
+        "error_text": "Unable to correct problems, you have held broken packages",
+        "ticket": 9999999,
+        "category": "Network"
     }
 ]
