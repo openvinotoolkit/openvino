@@ -18,8 +18,8 @@ public:
 
     ReadValue() = default;
 
-    ReadValue(const std::shared_ptr<ov::op::util::Variable>& variable);
-    ReadValue(const Output<Node>& variable_initializer, const std::shared_ptr<ov::op::util::Variable>& variable);
+    ReadValue(const std::shared_ptr<ov::op::util::Variable>& past_values);
+    ReadValue(const Output<Node>& variable_initializer, const std::shared_ptr<ov::op::util::Variable>& past_values);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

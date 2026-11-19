@@ -48,8 +48,9 @@ int64_t stateless_kv_inst::get_swa_sequence_length(int64_t abs_seq_len, int64_t 
     OPENVINO_ASSERT(abs_seq_len >= 0, "[GPU] stateless_kv absolute sequence length must be non-negative");
     OPENVINO_ASSERT(window_size > 0 && window_size <= cache_capacity,
                     "[GPU] stateless_kv window_size must be within cache capacity");
-    if (abs_seq_len <= cache_capacity)
+    if (abs_seq_len <= cache_capacity) {
         return abs_seq_len;
+    }
 
     const auto rolling_gap = cache_capacity - window_size + 1;
     const auto overflow = abs_seq_len - cache_capacity;
@@ -59,8 +60,9 @@ int64_t stateless_kv_inst::get_swa_sequence_length(int64_t abs_seq_len, int64_t 
 
 static std::optional<int64_t> read_len_value(const memory::ptr& mem, const kernel_impl_params& impl_param) {
     const auto layout = mem->get_layout();
-    if (layout.count() == 0)
+    if (layout.count() == 0) {
         return std::nullopt;
+    }
 
     OPENVINO_ASSERT(layout.count() == 1);
     cldnn::mem_lock<uint8_t, mem_lock_type::read> mem_lock_guard(mem, impl_param.get_stream());
@@ -71,12 +73,14 @@ static std::optional<int64_t> read_len_value(const memory::ptr& mem, const kerne
 std::optional<stateless_kv_runtime_state> stateless_kv_inst::compute_runtime_state(const kernel_impl_params& impl_param,
                                                                                    const stateless_kv& desc) {
     const auto mem_dep_it = impl_param.memory_deps.find(2);
-    if (mem_dep_it == impl_param.memory_deps.end())
+    if (mem_dep_it == impl_param.memory_deps.end()) {
         return std::nullopt;
+    }
 
     const auto seq_len_opt = read_len_value(mem_dep_it->second, impl_param);
-    if (!seq_len_opt)
+    if (!seq_len_opt) {
         return std::nullopt;
+    }
     const auto seq_len = *seq_len_opt;
 
     const auto& past_layout = impl_param.get_input_layout(0);
@@ -259,15 +263,18 @@ std::string stateless_kv_inst::to_string(const stateless_kv_node& node) {
 }
 
 void stateless_kv_inst::update_output_memory() {
-    if (_node != nullptr)
+    if (_node != nullptr) {
         build_deps();
+    }
 
-    if (input_memory_ptr() == nullptr || _outputs.empty())
+    if (input_memory_ptr() == nullptr || _outputs.empty()) {
         return;
+    }
 
     OPENVINO_ASSERT(_outputs.size() == 2);
-    if (!_outputs[0])
+    if (!_outputs[0]) {
         return;
+    }
 
     auto& engine = _network.get_engine();
     OPENVINO_ASSERT(_outputs[1], "[GPU] output1 should be available when output0 is present");
