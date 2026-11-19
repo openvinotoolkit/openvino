@@ -1,0 +1,43 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <memory>
+#include <utility>
+
+#include "program_node.h"
+#include "registry/implementation_manager.hpp"
+#include "ze/tp/collective_backend.hpp"
+
+using namespace cldnn;  // TODO: Remove once namespaces are aligned
+
+namespace ov::intel_gpu::ocl {
+
+struct TPAllReduce : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("ocl::tp_allreduce")
+    explicit TPAllReduce(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
+
+    [[nodiscard]] bool validate_impl(const program_node& node) const override {
+        static constexpr std::array supported_types = {data_types::f16, data_types::bf16, data_types::f32};
+        static constexpr std::array supported_fmts = {format::bfyx, format::bfzyx, format::bfwzyx};
+
+        // Empty without a TP context: binding then reports the missing context, not a missing implementation.
+        const auto& backend = node.get_program().get_config().get_tp_collective_backend();
+        if (node.has_fused_primitives() || !(backend.empty() || backend == cldnn::ze::tp::l0_p2p_backend)) {
+            return false;
+        }
+
+        const auto& in_layout = node.get_input_layout(0);
+        const auto& out_layout = node.get_output_layout(0);
+        if (!one_of(in_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
+            return false;
+        }
+        return one_of(in_layout.data_type, supported_types) && in_layout.data_type == out_layout.data_type;
+    }
+};
+
+}  // namespace ov::intel_gpu::ocl

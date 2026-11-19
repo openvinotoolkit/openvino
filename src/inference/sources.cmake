@@ -13,6 +13,7 @@ set(OV_RUNTIME_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/cpp/compiled_model.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/cpp/core.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/cpp/infer_request.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cpp/plugin_managed_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/cpp/remote_context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/cpp/remote_tensor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/cpp/variable_state.cpp
@@ -81,6 +82,7 @@ set(OV_RUNTIME_PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_npu/level_zero/level_zero.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_npu/properties.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_npu/remote_properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/plugin_managed_cache.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/profiling_info.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/properties.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/remote_context.hpp

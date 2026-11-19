@@ -11,6 +11,12 @@
 #include <string>
 #include <memory>
 
+#ifdef ENABLE_TP
+namespace cldnn::ze::tp {
+struct DeviceGroup;
+}  // namespace cldnn::ze::tp
+#endif
+
 namespace ov::intel_gpu {
 
 class Plugin : public ov::IPlugin {
@@ -39,6 +45,16 @@ private:
     static std::string get_device_id_from_config(const ov::AnyMap& config);
     std::string get_device_id(const ov::AnyMap& config) const;
     std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
+
+#ifdef ENABLE_TP
+    /// create_context() with ov::tp::internal parameters: the context of one rank of a tensor-parallel group.
+    std::shared_ptr<RemoteContextImpl> create_tp_context(const ov::AnyMap& params) const;
+    /// The devices behind `names` and their ids; does not throw for names that cannot form a group.
+    cldnn::ze::tp::DeviceGroup describe_tp_device_group(const std::vector<std::string>& names,
+                                                        std::vector<std::string>& ids) const;
+    /// ov::tp::internal::collective_backends / collective_support for the device group in `arguments`.
+    ov::Any query_tp_collectives(const std::string& name, const ov::AnyMap& arguments) const;
+#endif
 
     static std::vector<ov::PropertyName> get_caching_properties();
     static std::vector<ov::PropertyName> get_supported_properties();

@@ -223,6 +223,8 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/tensor_iterator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/top_k.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp_all_reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/unary_elementwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/unique.cpp

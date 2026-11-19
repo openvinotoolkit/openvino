@@ -18,6 +18,10 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 
+#ifdef ENABLE_TP
+#include "openvino/runtime/tp/collective_contract.hpp"
+#endif
+
 #include <sstream>
 #include <sys/types.h>
 #include <vector>
@@ -391,6 +395,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::runtime_requirements) {
         return decltype(ov::runtime_requirements)::value_type{m_runtime_requirements};
     }
+#ifdef ENABLE_TP
+    if (name == ov::tp::internal::cache_groups.name()) {
+        return decltype(ov::tp::internal::cache_groups)::value_type{get_graph(0)->get_cache_groups(m_inputs)};
+    }
+#endif
 
     return m_config.get_property(name, OptionVisibility::RELEASE);
 }

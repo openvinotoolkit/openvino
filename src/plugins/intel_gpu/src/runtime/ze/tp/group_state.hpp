@@ -1,0 +1,593 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstddef>
+#include <cstdint>
+#include <fstream>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
+
+#include "collective_options.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "tp_debug.hpp"
+#include "ze/ze_common.hpp"
+
+namespace cldnn {
+class engine;
+
+namespace ze {
+namespace tp {
+
+struct TPL0SharedContext;
+using TPL0SharedContextPtr = std::shared_ptr<TPL0SharedContext>;
+
+/// The Level Zero entry points, resolved once. The ov::ze* wrappers take a
+/// process-global lock on every call, which serializes every Level Zero call
+/// made anywhere in OpenVINO; the collectives call through this table instead.
+const std::shared_ptr<ov::ZeroApi>& ze_api();
+
+/// The driver's id of the allocation holding `ptr`, or the largest id when the
+/// driver no longer knows the pointer. Part of every recording signature: an
+/// address alone does not tell a freed buffer from a new one at the same place.
+uint64_t alloc_id_of(ze_context_handle_t context, void* ptr);
+
+/// One hand-over of a recorded command list to a device queue. Owned by the
+/// recording; the group polls it (watchdog), signals it (abort) and waits for
+/// it (staging growth), so the recording registers it with track() and
+/// withdraws it with untrack() before destroying it.
+struct Splice {
+    ze_event_handle_t done{nullptr};
+    /// Set while `done` belongs to a hand-over that has not been accounted for.
+    std::atomic<uint8_t> in_flight{0};
+    /// What the hand-over moves across a device boundary; device profiling only.
+    std::size_t bytes{0};
+    /// The collective's call the hand-over belongs to; device profiling only.
+    uint64_t call{0};
+    bool allreduce{true};
+};
+
+/// A counter a std::vector can hold. Relaxed throughout: these are statistics,
+/// and no other memory is published through them.
+struct Counter {
+    std::atomic<uint64_t> v{0};
+    Counter() = default;
+    explicit Counter(uint64_t init) : v(init) {}
+    Counter(const Counter& o) : v(o.get()) {}
+    Counter& operator=(const Counter& o) {
+        v.store(o.get(), std::memory_order_relaxed);
+        return *this;
+    }
+    uint64_t get() const {
+        return v.load(std::memory_order_relaxed);
+    }
+    void add(uint64_t d) {
+        v.fetch_add(d, std::memory_order_relaxed);
+    }
+    void bump() {
+        add(1);
+    }
+    void keep_max(uint64_t d) {
+        if (d > get()) {
+            v.store(d, std::memory_order_relaxed);
+        }
+    }
+    void keep_min(uint64_t d) {
+        if (d < get()) {
+            v.store(d, std::memory_order_relaxed);
+        }
+    }
+};
+using CounterVec = std::vector<Counter>;
+
+/// What GPU_TP_PROFILING measures. Written by the recordings and the group,
+/// printed by the group. Every vector is indexed by rank and written only by
+/// that rank. With profiling off nothing here is written.
+struct CollectiveStats {
+    /// Buckets of the device-occupancy histogram: bucket b covers [2^b, 2^(b+1)) us.
+    static constexpr uint32_t kDevBuckets = 20;
+
+    // Arrival skew and the host phases of an allreduce.
+    CounterVec ph1_ns;      // staging check + call rendezvous
+    CounterVec ph2_ns;      // leaving the rendezvous to having handed the work over
+    CounterVec late_ns;     // arrival minus the first arrival
+    CounterVec last_count;  // how often this rank arrived last
+    // Model work between leaving one collective and reaching the next.
+    CounterVec seg_ns;
+    CounterVec seg_min_ns;
+    CounterVec seg_max_ns;
+    CounterVec seg_count;
+    std::vector<std::chrono::steady_clock::time_point> last_exit;
+    CounterVec p2_gate_ns;     // staging check (and growth) before the rendezvous
+    CounterVec p2_rec_ns;      // recording this rank's commands
+    CounterVec p2_wait_ns;     // waiting for the previous splice of the list
+    CounterVec p2_reset_ns;    // zeEventHostReset
+    CounterVec p2_append_ns;   // the splice itself
+    CounterVec p2_rec_count;
+    CounterVec p2_wait_count;
+    CounterVec p2_block_count;
+    // Queue occupancy of a spliced allreduce, from its completion event.
+    CounterVec p2_dev_ns;
+    CounterVec p2_dev_max_ns;
+    CounterVec p2_dev_count;
+    CounterVec p2_dev_max_cid;
+    CounterVec p2_dev_hist;  // flat [N * kDevBuckets]
+    // Device time between the end of one collective and the start of the next.
+    CounterVec dev_gap_ns;
+    CounterVec dev_gap_count;
+    std::vector<uint64_t> dev_last_end_ticks;
+    std::vector<uint8_t> dev_has_last;  // whether dev_last_end_ticks holds a sample
+    CounterVec dev_bytes;
+    // Which schedule the recordings used.
+    CounterVec n_pair;
+    CounterVec n_ring;
+    CounterVec n_halving;
+    uint64_t spread_ns{0};  // sum of (last arrival - first arrival), under the mailbox lock
+
+    // The gather, kept out of the allreduce averages.
+    CounterVec gather_barrier_ns;
+    CounterVec gather_append_ns;
+    CounterVec gather_calls;
+    CounterVec gather_spliced;
+    CounterVec gather_records;
+    CounterVec gather_dev_ns;
+    CounterVec gather_dev_max_ns;
+    CounterVec gather_dev_count;
+    CounterVec gather_bytes;
+
+    // Splices handed over that the devices have not caught up with.
+    CounterVec ahead_now;
+    CounterVec ahead_sum;
+    CounterVec ahead_max;
+    CounterVec ahead_count;
+
+    // Rank-0 totals.
+    Counter record_ns;
+    Counter splice_ns;
+    Counter tail_ns;
+    Counter rebuilds;
+    Counter records;
+    // Allreduces split to fit a fixed staging.
+    Counter chunked_calls;
+    Counter chunks;
+    Counter max_chunks;
+
+    // Recording time by stage, summed over all ranks.
+    Counter rec_drain_ns;
+    Counter rec_reset_ns;
+    Counter rec_build_ns;
+    Counter rec_close_ns;
+    Counter gather_close_ns;
+    Counter scratch_stall_ns;
+
+    // The window's AllReduce calls, the divisor of the per-call host figures, and rank 0's payload.
+    CounterVec ar_calls;
+    Counter ar_bytes;
+    // Calls (one per inference) the window's device samples belong to: read when a recording is reused, they lag.
+    Counter dev_call_min{~uint64_t{0}};
+    Counter dev_call_max;
+
+    explicit CollectiveStats(uint32_t world_size);
+    /// Zeroes what a report covers; keeps the state carried from one collective to the next.
+    void start_window();
+};
+
+/// \brief The collective resources of one TP group in a process, shared by
+/// every rank's communicator.
+///
+/// Resources only: the call rendezvous, every rank's staging, the events the
+/// ranks signal each other, a queue per rank for the synchronous fallback,
+/// failure handling and the watchdog. What runs over them -- the schedules and
+/// their command lists -- belongs to the collective implementations, which
+/// reach this through their channel.
+class GroupState {
+public:
+    /// \param collective_timeout  Upper bound on any single wait, host- or
+    ///        device-side. Zero means wait forever.
+    /// \param fixed_staging_bytes  Size of every rank's staging, a multiple of
+    ///        512, handed over with adopt_staging(); zero lets each rank's
+    ///        staging grow with the largest payload it has seen.
+    GroupState(TPL0SharedContextPtr shared,
+               uint32_t world_size,
+               std::size_t num_collectives,
+               std::chrono::milliseconds collective_timeout = std::chrono::milliseconds{5000},
+               const CollectiveOptions& options = CollectiveOptions{},
+               std::size_t fixed_staging_bytes = 0);
+    GroupState(const GroupState&) = delete;
+    GroupState& operator=(const GroupState&) = delete;
+    ~GroupState();
+
+    uint32_t world_size() const {
+        return m_world_size;
+    }
+    const TPL0SharedContextPtr& shared_context() const {
+        return m_shared;
+    }
+    ze_context_handle_t context() const;
+    std::size_t num_collectives() const {
+        return m_num_collectives;
+    }
+    bool is_ready() const {
+        return m_ready;
+    }
+    const CollectiveOptions& options() const {
+        return m_options;
+    }
+    ze_device_handle_t device(uint32_t rank) const {
+        return m_ranks[rank].device;
+    }
+    uint32_t compute_ordinal(uint32_t rank) const {
+        return m_ranks[rank].compute_ordinal;
+    }
+
+    /// Whether the driver has the splice extension at all.
+    bool async_supported() const;
+    /// Whether collectives run spliced into the model's queue: the driver can,
+    /// and no debug option asked for the synchronous path.
+    bool run_spliced() const {
+        return async_supported() && !m_options.force_sync_collective;
+    }
+
+    /// GPU_TP_VALIDATE_ALLREDUCE_OUTPUT: `rank`'s checksum of its output of its next call of `collective_id`.
+    /// The rank completing a call compares the ranks' checksums and reports a difference with `name`.
+    void check_output(uint32_t rank, uint64_t collective_id, uint64_t checksum, const std::string& name);
+
+    /// GPU_TP_DUMP_PROFILING_DATA_PATH: whether there is a CSV, and one row of it.
+    bool profiling_csv() const {
+        return m_csv.is_open();
+    }
+    void write_csv_row(const std::string& row);
+    /// How long after the first rank `rank` reached its last call rendezvous; host profiling only.
+    uint64_t last_late_ns(uint32_t rank) const {
+        return m_last_late_ns[rank];
+    }
+
+    // ---------------------------------------------------------------
+    // Fixed staging
+    // ---------------------------------------------------------------
+
+    /// Device USM for `rank`'s fixed staging; freed when the last holder lets go.
+    static std::shared_ptr<void> allocate_staging(const TPL0SharedContextPtr& shared,
+                                                  uint32_t rank,
+                                                  std::size_t bytes);
+    /// Gives `rank` its fixed staging, allocated with allocate_staging() for
+    /// fixed_staging_bytes(). Before the rank's first collective.
+    void adopt_staging(uint32_t rank, std::shared_ptr<void> buffer);
+    /// The engine `rank`'s staging is counted in (usm_device), so that the
+    /// device's memory statistics include it. Before adopt_staging().
+    void set_memory_account(uint32_t rank, std::weak_ptr<cldnn::engine> engine);
+    /// Zero when the staging grows with the payload.
+    std::size_t fixed_staging_bytes() const {
+        return m_fixed_staging_bytes;
+    }
+    /// The largest staging half a call may ask for; zero for no limit.
+    std::size_t staging_half_limit() const {
+        return m_fixed_staging_bytes / 2;
+    }
+
+    // ---------------------------------------------------------------
+    // Calls
+    // ---------------------------------------------------------------
+
+    /// What an allreduce learns from the call rendezvous.
+    struct AllreduceCall {
+        uint32_t parity{0};                 // of the call's first chunk; chunk c has (parity + c) & 1
+        std::vector<void*> staging[2];      // [parity][N] every rank's staging half
+        std::vector<uint64_t> staging_ids;  // [N]
+        std::vector<ze_event_handle_t>* recv[2]{};  // pair: [r] = "rank r pushed its payload"
+        std::vector<ze_event_handle_t>* step[2]{};  // ring/halving: [step * N + rank]
+    };
+
+    /// Makes `rank`'s staging hold two halves of `half_bytes`, then meets the
+    /// other ranks at the call rendezvous. A call of `chunks` chunks is that
+    /// many sub-collectives in a row, each with its own call number, so the
+    /// chunks alternate staging halves and event sets like separate calls.
+    /// Throws, and aborts the group, if the ranks disagree on the call or one
+    /// of them does not arrive in time.
+    void begin_allreduce(uint32_t rank,
+                         uint64_t collective_id,
+                         std::size_t n,
+                         ov::element::Type dtype,
+                         std::size_t half_bytes,
+                         std::size_t chunks,
+                         AllreduceCall& call);
+
+    /// What a gather learns from the call rendezvous.
+    struct GatherCall {
+        uint32_t parity{0};
+        void* root_out{nullptr};
+        uint64_t root_out_id{0};
+        std::vector<ze_event_handle_t>* events{nullptr};  // [r] = "rank r's band is in the root's output", r > 0
+        std::vector<ze_event_handle_t>* ready{nullptr};   // [r] = "the root's output may be written", r > 0
+    };
+
+    /// The call rendezvous of a gather. `out` is the destination on the root
+    /// and ignored on every other rank.
+    void begin_gather(uint32_t rank,
+                      uint64_t collective_id,
+                      std::size_t rows,
+                      std::size_t slice_elems,
+                      ov::element::Type dtype,
+                      void* out,
+                      GatherCall& call);
+
+    // ---------------------------------------------------------------
+    // Hand-over
+    // ---------------------------------------------------------------
+
+    /// A recording's command lists and completion events, one per call parity.
+    struct RecordingResources {
+        ze_event_pool_handle_t pool{nullptr};
+        ze_command_list_handle_t lists[2]{};
+        ze_event_handle_t done[2]{};
+    };
+
+    /// Resources made for `rank` when the group was created, one per
+    /// collective, or new ones once those are taken. The caller owns them
+    /// afterwards and releases them with destroy_recording_resources().
+    /// Made ahead because creating them costs about a millisecond per
+    /// collective and rank, which would otherwise land on the first inference.
+    RecordingResources take_recording_resources(uint32_t rank);
+    static void destroy_recording_resources(RecordingResources& res);
+
+    /// Registers a recording's splice with the watchdog and the abort path.
+    void track(Splice* splice);
+    /// Withdraws it. The caller has made sure it is not in flight.
+    void untrack(uint32_t rank, Splice* splice);
+
+    /// Waits until `splice` has finished on the device. Returns whether it was
+    /// in flight; release_splice() must then follow. Until it does, `done`
+    /// still holds the finished hand-over's timestamps. `blocked`, if given,
+    /// tells whether the device was still running it.
+    bool wait_splice(Splice& splice, uint32_t rank, uint64_t collective_id, bool* blocked = nullptr);
+    /// Makes a splice wait_splice() found in flight ready for the next hand-over.
+    void release_splice(Splice& splice, uint32_t rank);
+
+    /// Records that `rank` has just handed `splice` to its model queue.
+    void handed_over(uint32_t rank, Splice* splice);
+
+    /// The synchronous fallback: runs `list` on the rank's own queue and waits.
+    void execute_and_wait(uint32_t rank, ze_command_list_handle_t list, const char* what);
+    /// Waits for the rank's own queue to drain.
+    void drain(uint32_t rank, const char* what);
+
+    // ---------------------------------------------------------------
+    // Failure
+    // ---------------------------------------------------------------
+
+    /// True once a collective has failed. The group is single-use after that.
+    bool is_aborted() const {
+        return m_aborted.load(std::memory_order_acquire);
+    }
+    /// Marks the group as failed, wakes every waiting rank and makes all later
+    /// calls throw. The first reason wins.
+    void abort_all(const std::string& reason);
+    /// Throws if a previous collective already failed.
+    void throw_if_aborted() const;
+    /// Aborts the group and throws. `timed_out` distinguishes "this rank ran
+    /// out of patience" from "somebody else already failed".
+    [[noreturn]] void fail_collective(bool timed_out, uint64_t collective_id, uint32_t rank, const char* stage);
+    /// The timeout in the nanoseconds Level Zero waits take; zero maps to no limit.
+    uint64_t timeout_ns() const;
+
+    /// Tells the watchdog that `rank` has handed a collective to a queue whose
+    /// completion the host will not wait for.
+    void note_collective_started(uint32_t rank);
+
+    // ---------------------------------------------------------------
+    // Diagnostics
+    // ---------------------------------------------------------------
+
+    /// Group-owned device-USM staging, which bypasses the intel_gpu memory pool.
+    struct ScratchStats {
+        std::size_t payload_capacity_bytes{0};
+        std::size_t total_allocated_bytes{0};
+        std::vector<std::size_t> allocated_bytes_per_rank;
+        uint64_t growth_count{0};
+        uint64_t allocation_count{0};
+    };
+    ScratchStats get_scratch_stats() const;
+
+    CollectiveStats& stats() {
+        return m_stats;
+    }
+    uint64_t timer_ns_per_tick(uint32_t rank) const {
+        return m_ranks[rank].timer_ns_per_tick;
+    }
+    uint64_t timestamp_mask(uint32_t rank) const {
+        return m_ranks[rank].timestamp_mask;
+    }
+
+    /// Closes out one collective for the measurement bookkeeping and prints a
+    /// report when a dump period has gone by. Every collective calls it once.
+    void note_collective_done(uint32_t rank);
+
+private:
+    struct RankState {
+        ze_device_handle_t device{nullptr};
+        uint32_t compute_ordinal{0};
+        ze_command_queue_handle_t compute_queue{nullptr};
+        uint64_t timer_ns_per_tick{0};
+        uint64_t timestamp_mask{~uint64_t{0}};
+    };
+
+    // Events the allreduces of one call parity signal and wait on. Call k + 2
+    // reuses them only after every rank finished call k + 1, which needs every
+    // rank's input of k + 1, which each rank sends only after its call k --
+    // resets included -- completed.
+    struct EventSet {
+        ze_event_pool_handle_t pool{nullptr};
+        std::vector<ze_event_handle_t> recv;  // pair: [2]
+        std::vector<ze_event_handle_t> step;  // ring/halving: [(2(N-1)+1) * N]
+    };
+
+    // Gather ordering, one set per gather parity. The root signals ready[r]
+    // once its queue reaches the gather -- everything before it, including
+    // whatever else used the output's memory, is done -- and rank r writes its
+    // band only after that, then signals ev[r]; the root waits for every ev.
+    struct GatherEvents {
+        ze_event_pool_handle_t pool{nullptr};
+        std::vector<ze_event_handle_t> ev;     // [N], index 0 unused
+        std::vector<ze_event_handle_t> ready;  // [N], index 0 unused
+    };
+
+    // A rank's staging: two halves, one per allreduce parity, each half of the
+    // allocation. Owned by that rank alone and published per call. A fixed
+    // staging is held through `fixed` and never grows.
+    struct Staging {
+        void* base{nullptr};
+        std::size_t bytes{0};
+        std::size_t payload_capacity{0};
+        uint64_t id{0};
+        uint64_t growth_count{0};
+        std::shared_ptr<void> fixed;
+    };
+
+    // One rank's entry of the call rendezvous.
+    struct MailboxSlot {
+        uint64_t seq{0};
+        bool allreduce{true};
+        uint64_t collective_id{0};
+        std::size_t n{0};
+        ov::element::Type dtype{ov::element::dynamic};
+        std::size_t rows{0};
+        void* staging{nullptr};  // allreduce: this rank's staging; gather: the root's output
+        std::size_t staging_half{0};
+        uint64_t staging_id{0};
+    };
+
+    // The call rendezvous. Every rank publishes one slot per call, in the set
+    // picked by the parity of the call number, and waits until every rank has
+    // published the same call. A set is rewritten only at call k + 2, which a
+    // rank reaches after the rendezvous of k + 1 -- so after every peer has
+    // published k + 1, which a peer does only after it read the slots of k.
+    //
+    // A mutex and a condition_variable, deliberately: an atomic barrier that
+    // spins before parking measured worse at four ranks, because a spinning
+    // waiter takes the core the late peer's dispatch thread needs.
+    struct Mailbox {
+        std::mutex mtx;
+        std::condition_variable cv;
+        std::vector<MailboxSlot> slots[2];
+        uint32_t arrived[2]{0, 0};
+        uint64_t released[2]{0, 0};
+        std::chrono::steady_clock::time_point first_arrival[2]{};
+    };
+
+    void init_rank(RankState& rs);
+    void destroy_rank(RankState& rs);
+    void create_event_sets();
+    void destroy_event_sets();
+    RecordingResources create_recording_resources(uint32_t rank) const;
+
+    /// Makes `s` -- `rank`'s staging -- hold two halves of `half_bytes`.
+    /// Growing waits for the rank's own last hand-over: by then every peer
+    /// write into the old staging has landed, because that collective waited
+    /// for them.
+    void ensure_staging(Staging& s,
+                        uint32_t rank,
+                        std::size_t payload_bytes,
+                        std::size_t half_bytes,
+                        uint64_t collective_id);
+    void destroy_staging();
+    void account_staging(uint32_t rank, std::size_t bytes, bool allocated);
+
+    /// Publishes `mine` and waits until every rank has published the same call;
+    /// `all` receives every rank's slot.
+    void call_rendezvous(uint32_t rank, const MailboxSlot& mine, std::vector<MailboxSlot>& all);
+
+    void sync_queue(ze_command_queue_handle_t queue, const char* what) const;
+
+    void start_watchdog();
+    void stop_watchdog();
+    void watchdog_loop();
+    /// Signals every event from the host so whatever a device waits on is
+    /// released. Only after the group has been declared dead.
+    void release_all_waits();
+
+    void emit_report();
+    void report_host_ranks();
+    void report_host_totals();
+    void report_device();
+
+    TPL0SharedContextPtr m_shared;
+    uint32_t m_world_size{0};
+    std::size_t m_num_collectives{0};
+    bool m_ready{false};
+    std::chrono::milliseconds m_collective_timeout{5000};
+    CollectiveOptions m_options;
+    std::size_t m_fixed_staging_bytes{0};
+
+    std::atomic<bool> m_aborted{false};
+    mutable std::mutex m_abort_mutex;
+    std::string m_abort_reason;
+
+    // How many collectives each rank has handed to the model's queue: the
+    // watchdog's sign that the hosts are still moving.
+    std::unique_ptr<std::atomic<uint64_t>[]> m_started;
+    std::once_flag m_watchdog_once;
+    std::thread m_watchdog;
+    std::mutex m_watchdog_mutex;
+    std::condition_variable m_watchdog_cv;
+    bool m_watchdog_stop{false};
+
+    // Every live recording's splices; the watchdog and the abort path walk them.
+    std::mutex m_tracked_mutex;
+    std::vector<Splice*> m_tracked;
+
+    std::vector<RankState> m_ranks;
+
+    mutable std::mutex m_staging_mutex;
+    std::vector<Staging> m_staging;
+    std::vector<std::weak_ptr<cldnn::engine>> m_memory_accounts;  // [N]
+    std::vector<uint64_t> m_seq;            // [N] calls of any kind: the mailbox set
+    std::vector<uint64_t> m_allreduce_seq;  // [N] their parity picks staging half and events
+    std::vector<uint64_t> m_gather_seq;     // [N] kept apart: a gather does not order the peers
+    // The splice each rank handed over last; its completion means everything
+    // the rank handed over before is done too.
+    std::vector<Splice*> m_last_splice;
+
+    Mailbox m_mailbox;
+    EventSet m_events[2];
+    GatherEvents m_gather_events[2];
+
+    std::mutex m_made_ahead_mutex;
+    std::vector<std::vector<RecordingResources>> m_made_ahead;  // [N]: not taken yet
+
+    CollectiveStats m_stats;
+    DumpPeriod m_dump_period;  ///< in inferences: every collective of the model once
+    uint64_t m_rank0_collectives = 0;
+    uint64_t m_reported_inferences = 0;
+
+    // GPU_TP_VALIDATE_ALLREDUCE_OUTPUT.
+    struct OutputCheck {
+        std::vector<uint64_t> checksums;  // [N]
+        uint32_t arrived = 0;
+    };
+    std::mutex m_check_mutex;
+    std::vector<std::map<uint64_t, uint64_t>> m_check_calls;  // [N]: calls of each collective checked so far
+    std::map<std::pair<uint64_t, uint64_t>, OutputCheck> m_checks;  // (collective, call) still collecting
+    uint64_t m_checked = 0;
+    uint64_t m_mismatches = 0;
+
+    // GPU_TP_DUMP_PROFILING_DATA_PATH.
+    std::mutex m_csv_mutex;
+    std::ofstream m_csv;
+    std::vector<uint64_t> m_last_late_ns;  // [N], each written by its rank only
+};
+
+using GroupStatePtr = std::shared_ptr<GroupState>;
+
+}  // namespace tp
+}  // namespace ze
+}  // namespace cldnn

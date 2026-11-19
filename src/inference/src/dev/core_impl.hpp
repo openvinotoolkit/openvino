@@ -133,7 +133,7 @@ bool is_config_applicable(const std::string& device_name, const std::string& dev
  *
  * @param device_name Target device
  * @return true if target device is virtual device(e.g. AUTO, AUTO:XPU, AUTO:XPU.x, MULTI, MULTI:XPU, MULTI:XPU.x,
- * HETERO:XPU, HETERO:XPU.x, BATCH:XPU, BATCH:XPU.x)
+ * HETERO:XPU, HETERO:XPU.x, BATCH:XPU, BATCH:XPU.x, TP, TP:XPU.x,XPU.y)
  */
 bool is_virtual_device(const std::string& device_name);
 

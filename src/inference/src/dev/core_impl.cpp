@@ -451,7 +451,7 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 
 bool ov::is_virtual_device(const std::string& device_name) {
     return (device_name.find("AUTO") == 0 || device_name.find("MULTI") == 0 || device_name.find("HETERO") == 0 ||
-            device_name.find("BATCH") == 0);
+            device_name.find("BATCH") == 0 || device_name.substr(0, device_name.find(':')) == "TP");
 };
 
 namespace {

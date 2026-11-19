@@ -122,3 +122,27 @@ TEST_F(test_device_mem_usage_estimation, basic) {
 TEST_F(test_device_mem_usage_estimation, basic_cached) {
     this->test_basic(true);
 }
+
+// Memory one engine allocates counts for its device whichever engine asks,
+// and stops counting once released.
+TEST(device_memory_statistics, sums_every_engine_of_the_device) {
+    auto first = create_test_engine();
+    if (!first->supports_allocation(allocation_type::usm_device)) {
+        GTEST_SKIP() << "no USM device allocations";
+    }
+    const auto info = first->get_device_info();
+    auto usm_device = [&info] {
+        std::ostringstream key;
+        key << allocation_type::usm_device;
+        return engine::get_device_memory_statistics(info).at(key.str());
+    };
+    const auto before = usm_device();
+
+    constexpr size_t bytes = 1 << 20;
+    auto second = create_test_engine();
+    auto memory = second->allocate_memory(layout{ov::PartialShape{bytes}, data_types::u8, format::bfyx},
+                                          allocation_type::usm_device);
+    EXPECT_EQ(usm_device(), before + bytes);
+    memory.reset();
+    EXPECT_EQ(usm_device(), before);
+}

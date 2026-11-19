@@ -44,9 +44,12 @@ endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
+ov_option (ENABLE_TP "Enables Tensor Parallel Plugin" OFF)
+
 # Set default GPU runtime to OCL. COMBINED (build ZE and OCL plugins side by side) is
 # opt-in only; the default is never flipped.
 set(OV_GPU_DEFAULT_RT "OCL")
+
 if (ENABLE_INTEL_GPU)
     ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported values: OCL (default), SYCL, ZE (L0 alias), and COMBINED (ZE+OCL, shared builds only)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL COMBINED)
     if(GPU_RT_TYPE STREQUAL "L0")
@@ -71,6 +74,10 @@ if (ENABLE_INTEL_GPU)
             message(FATAL_ERROR "GPU_VENDOR=NVIDIA does not support static builds (BUILD_SHARED_LIBS=OFF) yet")
         endif()
     endif()
+    if(ENABLE_TP AND NOT (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED"))
+        message(FATAL_ERROR "ENABLE_TP requires GPU_RT_TYPE=ZE (aka L0) or COMBINED; got '${GPU_RT_TYPE}'. "
+                            "Rerun cmake with -DGPU_RT_TYPE=ZE (or L0, or COMBINED), or disable TP via -DENABLE_TP=OFF.")
+    endif()
 endif()
 
 if(APPLE)
@@ -88,6 +95,7 @@ ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF
 ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
 ov_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_GPU" OFF)
 ov_dependent_option (ENABLE_MLIR_FOR_GPU "Enable MLIR / Graph Compiler based execution in GPU plugin [EXPERIMENTAL, NOT PRODUCTION-READY]" OFF "ENABLE_INTEL_GPU;ENABLE_GPU_DEBUG_CAPS;NOT GPU_RT_TYPE STREQUAL SYCL" OFF)
+ov_dependent_option (ENABLE_TP_DEBUG_CAPS "enable TP debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_TP" OFF)
 ov_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_CPU" OFF)
 ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 

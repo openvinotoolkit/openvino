@@ -30,8 +30,10 @@ namespace ov {
     symbol_statement(zeCommandQueueCreate)                    \
     symbol_statement(zeCommandQueueDestroy)                   \
     symbol_statement(zeCommandQueueExecuteCommandLists)       \
+    symbol_statement(zeCommandQueueSynchronize)               \
     symbol_statement(zeContextCreate)                         \
     symbol_statement(zeContextDestroy)                        \
+    symbol_statement(zeDeviceCanAccessPeer)                   \
     symbol_statement(zeDeviceGet)                             \
     symbol_statement(zeDeviceGetCommandQueueGroupProperties)  \
     symbol_statement(zeDeviceGetProperties)                   \
@@ -95,29 +97,31 @@ namespace ov {
  * @def weak_symbols_list
  * @brief Macro that expands to declarations of optional Level Zero API symbols.
  */
-#define weak_symbols_list()                                   \
-    symbol_statement(zeCommandListGetNextCommandIdExp)        \
-    symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
-    symbol_statement(zeInitDrivers)                           \
-    symbol_statement(zelGetLoaderVersion)                     \
-    symbol_statement(zelSetDriverTeardown)                    \
-    symbol_statement(zeDeviceGetRuntimeRequirements)          \
-    symbol_statement(zeDeviceGetRuntimeRequirementsKey)       \
-    symbol_statement(zeDeviceValidateRuntimeRequirements)     \
-    symbol_statement(zeCommandQueueSetPriorityExt)            \
-    symbol_statement(zeEventCounterBasedCreate)               \
-    symbol_statement(zeCommandQueueSetQosExt)                 \
-    symbol_statement(zeCommandQueueGetQosExt)                 \
+#define weak_symbols_list()                                       \
+    symbol_statement(zeCommandListGetNextCommandIdExp)            \
+    symbol_statement(zeCommandListUpdateMutableCommandsExp)       \
+    symbol_statement(zeCommandListImmediateAppendCommandListsExp) \
+    symbol_statement(zeContextCreateEx)                           \
+    symbol_statement(zeInitDrivers)                               \
+    symbol_statement(zelGetLoaderVersion)                         \
+    symbol_statement(zelSetDriverTeardown)                        \
+    symbol_statement(zeDeviceGetRuntimeRequirements)              \
+    symbol_statement(zeDeviceGetRuntimeRequirementsKey)           \
+    symbol_statement(zeDeviceValidateRuntimeRequirements)         \
+    symbol_statement(zeCommandQueueSetPriorityExt)                \
+    symbol_statement(zeEventCounterBasedCreate)                   \
+    symbol_statement(zeCommandQueueSetQosExt)                     \
+    symbol_statement(zeCommandQueueGetQosExt)                     \
     symbol_statement(zeCommandListImmediateAppendCommandListsWithParameters)
 // clang-format on
 
 /**
  * @class ZeroApi
  * @brief Singleton for dynamically loading and accessing Level Zero API symbols.
- * 
+ *
  * Dynamicaly loads ze_loader during construction and resolves required and optional symbols.
  * Provides wrappers for resolved symbols and throws when missing symbol is called.
- * 
+ *
  * @note User must store shared pointer returned by get_instance() to prevent unloading.
  */
 class ZeroApi {

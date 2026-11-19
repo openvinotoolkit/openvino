@@ -363,6 +363,8 @@ set(OV_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_static_shape_ie.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rotary_positional_embeddings.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/tp_all_reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/tp_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/vl_sdpa.cpp
 )
 

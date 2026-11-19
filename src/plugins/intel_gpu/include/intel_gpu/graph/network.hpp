@@ -32,6 +32,12 @@ struct MLIRGpuRuntime;
 }  // namespace mlir
 }  // namespace ov::intel_gpu
 
+#ifdef ENABLE_TP
+namespace cldnn::ze::tp {
+class Channel;
+}  // namespace cldnn::ze::tp
+#endif
+
 namespace cldnn {
 
 /// @brief Represents network output returned by @ref network::get_output().
@@ -246,6 +252,17 @@ public:
 
     const ExecutionConfig& get_config() const { return _program->get_config(); }
 
+#ifdef ENABLE_TP
+    /// The channel this network's tensor-parallel collectives run through. Attached when the model is bound
+    /// to a TP context at compile or import, so neither the graph nor the primitives carry runtime pointers.
+    void set_tp_channel(std::shared_ptr<cldnn::ze::tp::Channel> channel) {
+        _tp_channel = std::move(channel);
+    }
+    const std::shared_ptr<cldnn::ze::tp::Channel>& get_tp_channel() const {
+        return _tp_channel;
+    }
+#endif
+
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
@@ -301,6 +318,10 @@ private:
     output_chains_map _remote_output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
+
+#ifdef ENABLE_TP
+    std::shared_ptr<cldnn::ze::tp::Channel> _tp_channel;
+#endif
 
     /// @brief Invalidate the recording of the previous iteration
     void invalidate_recording();

@@ -341,3 +341,9 @@ REGISTER_FACTORY(internal, PagedQSAIndexerGPU);
 REGISTER_FACTORY(internal, QSAIndexer);
 REGISTER_FACTORY(internal, SparsePA);
 REGISTER_FACTORY(internal, SparseSDPA);
+
+// ------------------------- Tensor Parallel ops ----------------------------- //
+#ifdef ENABLE_TP
+REGISTER_FACTORY(internal, TPAllReduce);
+REGISTER_FACTORY(internal, TPGather);
+#endif

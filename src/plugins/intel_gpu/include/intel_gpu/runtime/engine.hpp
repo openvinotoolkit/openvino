@@ -143,6 +143,10 @@ public:
     /// @note It contains information about current memory usage
     std::map<std::string, uint64_t> get_memory_statistics() const;
 
+    /// The same, summed over every live engine of the device described by @p info (matched by UUID),
+    /// whichever context created it.
+    static std::map<std::string, uint64_t> get_device_memory_statistics(const device_info& info);
+
     /// Adds @p bytes count to currently used memory size of the specified allocation @p type
     void add_memory_used(uint64_t bytes, allocation_type type);
 
@@ -181,6 +185,13 @@ public:
 
     /// Returns onednn engine object which shares device and context with current engine
     dnnl::engine& get_onednn_engine() const;
+
+    /// Serializes oneDNN primitive execution belonging to this engine.
+    /// Workaround for MFDNN-15356: concurrent oneDNN dispatches race inside the
+    /// Level Zero runtime. The state being protected is per device, so the lock
+    /// is scoped to a single engine and independent devices do not wait on each
+    /// other. To be removed once MFDNN-15356 is resolved.
+    std::mutex& get_onednn_execution_mutex() const { return onednn_execution_mutex; }
 #endif
 
     /// Factory method which creates engine object with impl configured by @p engine_type
@@ -204,6 +215,7 @@ protected:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     mutable std::mutex onednn_mutex;
+    mutable std::mutex onednn_execution_mutex;
     std::shared_ptr<dnnl::engine> _onednn_engine;
 #endif
 

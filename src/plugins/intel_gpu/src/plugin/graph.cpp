@@ -33,10 +33,18 @@
 #include "fully_connected_inst.h"
 #include "paged_attention_inst.h"
 
+#ifdef ENABLE_TP
+#include "intel_gpu/primitives/tp_allreduce.hpp"
+#include "intel_gpu/primitives/tp_gather.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "ze/tp/rank_communicator.hpp"
+#endif
+
 #include <list>
 #include <set>
 #include <unordered_set>
 #include <sstream>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <algorithm>
@@ -246,6 +254,9 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     } else {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
+#ifdef ENABLE_TP
+    bind_collectives();
+#endif
 
     std::vector<cldnn::tensor_conversion_key> conversion_keys;
     for (const auto& variable : m_network->get_variables_info()) {
@@ -289,6 +300,94 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
 bool Graph::use_external_queue() const {
     return m_context->get_external_queue() != nullptr;
 }
+
+#ifdef ENABLE_TP
+void Graph::bind_collectives() {
+    std::vector<cldnn::ze::tp::CollectiveUse> collectives;
+    for (const auto& id : m_network->get_executed_primitive_ids()) {
+        const auto inst = m_network->get_primitive(id);
+        if (const auto prim = std::dynamic_pointer_cast<const cldnn::tp_allreduce>(inst->desc())) {
+            collectives.push_back({id, prim->collective_id, prim->rank, prim->world_size});
+        } else if (const auto prim = std::dynamic_pointer_cast<const cldnn::tp_gather>(inst->desc())) {
+            collectives.push_back({id, prim->collective_id, prim->rank, prim->world_size});
+        }
+    }
+    if (collectives.empty()) {
+        return;
+    }
+
+    const auto& communicator = m_context->get_tp_communicator();
+    OPENVINO_ASSERT(communicator != nullptr,
+                    "[GPU][TP] the model contains tensor-parallel collectives (", collectives.front().name,
+                    ", ...) and needs a TP context, but was compiled for an ordinary context");
+    m_network->set_tp_channel(communicator->bind(collectives, m_stream_id));
+}
+
+void Graph::throw_if_collectives_failed() const {
+    if (const auto& channel = m_network->get_tp_channel()) {
+        channel->throw_if_aborted();
+    }
+}
+
+std::vector<ov::CacheGroupInfo> Graph::get_cache_groups(const std::vector<ov::Output<const ov::Node>>& inputs) const {
+    using cldnn::paged_attention;
+    std::map<cldnn::primitive_id, size_t> port_of;
+    for (const auto& [port, ids] : inputPrimitiveIDs) {
+        for (const auto& id : ids)
+            port_of.emplace(id, port);
+    }
+
+    std::set<size_t> cache_ports;
+    size_t block_size = 0;
+    for (const auto& id : m_network->get_executed_primitive_ids()) {
+        const auto prim = std::dynamic_pointer_cast<const paged_attention>(m_network->get_primitive(id)->desc());
+        if (!prim)
+            continue;
+        const size_t prim_block_size = prim->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
+        OPENVINO_ASSERT(block_size == 0 || block_size == prim_block_size,
+                        "[GPU][TP] the paged-attention operations of one model use different block sizes");
+        block_size = prim_block_size;
+        for (const auto idx : {paged_attention::KEY_CACHE, paged_attention::VALUE_CACHE}) {
+            const auto it = port_of.find(prim->input.at(idx).pid);
+            OPENVINO_ASSERT(it != port_of.end(), "[GPU][TP] a cache input of ", id, " is not an input of the model");
+            cache_ports.insert(it->second);
+        }
+    }
+    if (cache_ports.empty())
+        return {};
+
+    ov::CacheGroupInfo group;
+    group.kind = ov::CacheKind::KEY_VALUE;
+    group.block_size = block_size;
+    for (const auto port : cache_ports) {
+        const auto& input = inputs.at(port);
+        const auto& shape = input.get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static() && shape.size() >= 2 && input.get_element_type().is_static(),
+                        "[GPU][TP] paged-attention cache input ", input.get_any_name(), " is not settled: ", shape, " ",
+                        input.get_element_type());
+        size_t block_elements = 1;
+        for (size_t d = 1; d < shape.size(); ++d)
+            block_elements *= static_cast<size_t>(shape[d].get_length());
+        group.block_size_in_bytes += (block_elements * input.get_element_type().bitwidth() + 7) / 8;
+
+        // SDPAToPagedAttention names a cache input <key|value>_cache.<layer>.
+        const auto name = input.get_any_name();
+        const auto dot = name.rfind('.');
+        OPENVINO_ASSERT(dot != std::string::npos && dot + 1 < name.size() &&
+                            std::all_of(name.begin() + dot + 1, name.end(), [](char c) {
+                                return std::isdigit(static_cast<unsigned char>(c)) != 0;
+                            }),
+                        "[GPU][TP] paged-attention cache input ", name, " does not end in its layer index");
+        ov::CacheTensorInfo tensor;
+        tensor.name = name;
+        tensor.layer = static_cast<size_t>(std::stoull(name.substr(dot + 1)));
+        tensor.element_type = input.get_element_type();
+        tensor.shape = shape;
+        group.tensors.push_back(std::move(tensor));
+    }
+    return {group};
+}
+#endif
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::get_runtime_model");

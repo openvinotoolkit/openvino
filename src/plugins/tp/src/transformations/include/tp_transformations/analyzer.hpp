@@ -1,0 +1,105 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
+
+namespace ov {
+namespace tp {
+
+struct TPAnalyzerConfig {
+    uint32_t world_size = 2;
+    /// Split the vocabulary projection and gather it into rank 0.
+    bool shard_lm_head = true;
+    /// File to write the verifier's sharding states to; empty: none.
+    std::string dump_sharding_states;
+};
+
+/// What the analysis found, for the plugin's log.
+struct TPAnalysisReport {
+    size_t attention_blocks = 0;
+    size_t mlp_blocks = 0;
+    bool lm_head = false;
+    /// Device memory each rank adds for its cut copy of an LM head weight shared with another
+    /// reader (a tied embedding, which stays whole); 0 when the LM head has the weight to itself.
+    size_t lm_head_copy_bytes = 0;
+    /// Linear layers no block pass claimed; they stay whole on every rank.
+    std::vector<std::string> unclaimed;
+    size_t unclaimed_bytes = 0;
+    /// Geometry of the first attention block.
+    int64_t num_heads = 0;
+    int64_t num_kv_heads = 0;
+    int64_t head_dim = 0;
+    int64_t intermediate_size = 0;
+    /// Variables split along the KV-head axis.
+    std::vector<std::string> sharded_variables;
+    /// Consecutive ranks sharing one KV head: world_size / num_kv_heads with fewer KV heads than ranks.
+    uint32_t kv_replicas = 1;
+};
+
+using TPAnalysisReportPtr = std::shared_ptr<TPAnalysisReport>;
+
+/// Pass 1: the block passes, then the sharding verifier. Leaves tp_shard / tp_role annotations.
+class TPLayerAnalyzer : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("TPLayerAnalyzer");
+    explicit TPLayerAnalyzer(const TPAnalyzerConfig& config, TPAnalysisReportPtr report = nullptr);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    TPAnalyzerConfig m_config;
+    TPAnalysisReportPtr m_report;
+};
+
+/// PagedAttentionExtension with separate Q/K/V projections and the O projection.
+class TPPagedAttentionBlock : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TPPagedAttentionBlock");
+    TPPagedAttentionBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
+};
+
+/// ScaledDotProductAttention with separate Q/K/V and O projections; KV cache in variables.
+class TPStatefulSDPABlock : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TPStatefulSDPABlock");
+    TPStatefulSDPABlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
+};
+
+/// down(act(gate(x)) * up(x)).
+class TPGatedMLPBlock : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TPGatedMLPBlock");
+    TPGatedMLPBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
+};
+
+/// down(act(gate) * up) where gate and up are the two parts of one gate_up_proj output.
+class TPFusedGateUpMLPBlock : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TPFusedGateUpMLPBlock");
+    TPFusedGateUpMLPBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
+};
+
+/// down(act(up(x))).
+class TPDenseMLPBlock : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TPDenseMLPBlock");
+    TPDenseMLPBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
+};
+
+/// The vocabulary projection in front of a Result, split by vocabulary and gathered into rank 0.
+class TPVocabParallelBlock : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TPVocabParallelBlock");
+    TPVocabParallelBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
+};
+
+}  // namespace tp
+}  // namespace ov

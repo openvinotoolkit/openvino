@@ -19,6 +19,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "openvino/runtime/plugin_managed_cache.hpp"
 
 namespace ov::intel_gpu {
 struct HostTimeProfilingEntry {
@@ -85,6 +86,16 @@ public:
         return m_weight_sharing_source_buffers;
     }
 
+#ifdef ENABLE_TP
+    /// Throws if the model's collective group has failed during or before this
+    /// inference: the released device waits leave its outputs undefined.
+    void throw_if_collectives_failed() const;
+
+    /// The model's paged-attention caches as one KEY_VALUE group (empty without paged attention);
+    /// `inputs` are the compiled model's inputs, by port index.
+    std::vector<ov::CacheGroupInfo> get_cache_groups(const std::vector<ov::Output<const ov::Node>>& inputs) const;
+#endif
+
     std::vector<HostTimeProfilingEntry> host_exec_times;
 
 private:
@@ -108,6 +119,10 @@ private:
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
 
     void build(std::shared_ptr<cldnn::program> program);
+#ifdef ENABLE_TP
+    /// Binds the network's tensor-parallel collectives to the context's communicator.
+    void bind_collectives();
+#endif
     std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives = true);
 };
 

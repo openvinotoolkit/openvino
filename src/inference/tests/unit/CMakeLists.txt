@@ -38,11 +38,13 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/memory_solver_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/native_stream_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/parallel_read_streambuf_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/plugin_managed_cache_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/property_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/query_model_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/single_file_storage.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/thread_affinity_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tlv_format.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/tp_collective_contract_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/variable_state_test.cpp
         DEPENDENCIES
             openvino_template_extension

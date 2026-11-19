@@ -51,9 +51,18 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/runtime/tp/collective_contract.hpp"
 
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
 #    include "transformations/mlir/interface/gpu_runtime.hpp"
+#endif
+
+#ifdef ENABLE_TP
+#    include <optional>
+
+#    include "ze/tp/collective_backend.hpp"
+#    include "ze/tp/rank_communicator.hpp"
+#    include "ze/ze_engine.hpp"
 #endif
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
@@ -333,6 +342,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
     config.set_user_property(user_config, OptionVisibility::RELEASE);
+#ifdef ENABLE_TP
+    if (const auto& communicator = context_impl->get_tp_communicator()) {
+        config.set_property(ov::intel_gpu::tp_collective_backend(communicator->backend()));
+    }
+#endif
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
@@ -352,8 +366,171 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
     if (remote_properties.empty()) {
         return get_default_context(m_default_device_id);
     }
+#ifdef ENABLE_TP
+    if (remote_properties.count(ov::tp::internal::device_group.name()) != 0) {
+        return create_tp_context(remote_properties);
+    }
+#else
+    OPENVINO_ASSERT(remote_properties.count(ov::tp::internal::device_group.name()) == 0,
+                    "[GPU] tensor-parallel contexts need a GPU plugin built with ENABLE_TP on the Level Zero runtime");
+#endif
     return std::make_shared<RemoteContextImpl>(get_default_contexts(), remote_properties);
 }
+
+#ifdef ENABLE_TP
+namespace {
+
+/// Removes `property` from `params` and returns its value, if it was there.
+template <typename T, ov::PropertyMutability M>
+std::optional<T> take(ov::AnyMap& params, const ov::Property<T, M>& property) {
+    auto it = params.find(property.name());
+    if (it == params.end()) {
+        return std::nullopt;
+    }
+    auto value = it->second.template as<T>();
+    params.erase(it);
+    return value;
+}
+
+cldnn::ze::tp::CollectiveOptions collective_options(const ExecutionConfig& config) {
+    cldnn::ze::tp::CollectiveOptions options;
+    options.enable_halving = config.get_tp_enable_halving();
+    options.halving_max_bytes = config.get_tp_halving_max_bytes();
+    options.force_sync_collective = GPU_DEBUG_VALUE_OR(config.get_tp_force_sync_collective(), false);
+    options.skip_collective = GPU_DEBUG_VALUE_OR(config.get_tp_skip_collective(), false);
+    options.validate_allreduce_output = GPU_DEBUG_VALUE_OR(config.get_tp_validate_allreduce_output(), false);
+    options.verbosity = GPU_DEBUG_VALUE_OR(config.get_tp_verbose(), ov::log::Level::NO);
+
+    const auto profiling = GPU_DEBUG_VALUE_OR(config.get_tp_profiling(), TPProfilingMode::NONE);
+    options.profiling_host = profiling == TPProfilingMode::HOST || profiling == TPProfilingMode::ALL;
+    options.profiling_device = profiling == TPProfilingMode::DEVICE || profiling == TPProfilingMode::ALL;
+    if (profiling != TPProfilingMode::NONE) {
+        const auto period = static_cast<std::size_t>(GPU_DEBUG_VALUE_OR(config.get_tp_dump_period(), uint64_t{0}));
+        options.dump_period = period != 0 ? period : 1;
+        options.profiling_csv_dir = GPU_DEBUG_VALUE_OR(config.get_tp_dump_profiling_data_path(), std::string{});
+    }
+    return options;
+}
+
+}  // namespace
+
+cldnn::ze::tp::DeviceGroup Plugin::describe_tp_device_group(const std::vector<std::string>& names,
+                                                            std::vector<std::string>& ids) const {
+    cldnn::ze::tp::DeviceGroup group;
+    group.names = names;
+    ids.clear();
+    for (const auto& name : names) {
+        ov::DeviceIDParser parser(name);
+        if (parser.get_device_name() != get_device_name()) {
+            group.problem = "device " + name + " of the group is not a " + get_device_name() + " device";
+            return group;
+        }
+        auto id = parser.get_device_id().empty() ? m_default_device_id : parser.get_device_id();
+        if (m_device_map.count(id) == 0) {
+            group.problem = "device " + name + " of the group does not exist";
+            return group;
+        }
+        if (std::find(ids.begin(), ids.end(), id) != ids.end()) {
+            group.problem = "device " + name + " appears in the group more than once";
+            return group;
+        }
+        ids.push_back(std::move(id));
+    }
+    for (size_t r = 0; r < ids.size(); ++r) {
+        const auto& engine = get_default_context(ids[r])->get_engine();
+        if (engine.runtime_type() != cldnn::runtime_types::ze) {
+            group.problem = "device " + names[r] + " does not run on Level Zero";
+            return group;
+        }
+        const auto& ze_engine = cldnn::downcast<const cldnn::ze::ze_engine>(engine);
+        const auto driver = ze_engine.get_driver().handle();
+        if (r != 0 && driver != group.driver) {
+            group.problem = "all devices of a group must share a Level Zero driver, " + names[r] +
+                            " belongs to a different one than " + names[0];
+            return group;
+        }
+        group.driver = driver;
+        group.devices.push_back(ze_engine.get_device().handle());
+    }
+    return group;
+}
+
+ov::Any Plugin::query_tp_collectives(const std::string& name, const ov::AnyMap& arguments) const {
+    const auto group_it = arguments.find(ov::tp::internal::device_group.name());
+    OPENVINO_ASSERT(group_it != arguments.end(),
+                    "[GPU][TP] ", name, " needs the device group as argument ", ov::tp::internal::device_group.name());
+    std::vector<std::string> ids;
+    const auto group = describe_tp_device_group(group_it->second.as<std::vector<std::string>>(), ids);
+    if (name == ov::tp::internal::collective_backends.name()) {
+        return decltype(ov::tp::internal::collective_backends)::value_type{cldnn::ze::tp::supported_backends(group)};
+    }
+    const auto backend_it = arguments.find(ov::tp::internal::collective_backend.name());
+    const auto backend =
+        backend_it == arguments.end() ? std::string{ov::tp::auto_backend} : backend_it->second.as<std::string>();
+    return decltype(ov::tp::internal::collective_support)::value_type{cldnn::ze::tp::backend_support(group, backend)};
+}
+
+std::shared_ptr<RemoteContextImpl> Plugin::create_tp_context(const ov::AnyMap& params) const {
+    ov::AnyMap rest = params;
+    const auto group_names = take(rest, ov::tp::internal::device_group).value();
+    const auto groups = take(rest, ov::tp::internal::groups);
+    OPENVINO_ASSERT(groups.has_value(), "[GPU][TP] ", ov::tp::internal::groups.name(), " is required with ",
+                    ov::tp::internal::device_group.name());
+    OPENVINO_ASSERT(groups->size() == 1 && groups->count(0) == 1,
+                    "[GPU][TP] only collective group 0 is supported, got ", groups->size(), " group(s)");
+    const auto& group = groups->at(0);
+    OPENVINO_ASSERT(group.exchange != nullptr, "[GPU][TP] collective group 0 has no exchange endpoint");
+
+    const auto channels = take(rest, ov::tp::internal::channels);
+    OPENVINO_ASSERT(!channels.has_value() || *channels == 1,
+                    "[GPU][TP] only one channel per TP context is supported, got ", channels.value_or(0));
+    const auto comm_buffer_size = take(rest, ov::tp::internal::comm_buffer_size).value_or(0);
+    const auto timeout_ms = take(rest, ov::tp::internal::communication_timeout_ms).value_or(int64_t{5000});
+    OPENVINO_ASSERT(timeout_ms >= 0, "[GPU][TP] ", ov::tp::internal::communication_timeout_ms.name(),
+                    " must not be negative, got ", timeout_ms);
+    const auto own_id = take(rest, ov::device::id).value_or(m_default_device_id);
+    OPENVINO_ASSERT(m_configs_map.count(own_id) != 0, "[GPU][TP] unknown device id ", own_id);
+
+    // What remains tunes the collectives; anything else is a mistake.
+    for (const auto& entry : rest) {
+        OPENVINO_ASSERT(entry.first.rfind("GPU_TP_", 0) == 0,
+                        "[GPU][TP] unsupported parameter of a TP context: ", entry.first);
+    }
+    ExecutionConfig config = m_configs_map.at(own_id);
+    try {
+        config.set_user_property(rest, OptionVisibility::ANY);
+    } catch (const ov::Exception& e) {
+        OPENVINO_THROW("[GPU][TP] the options of the TP context cannot be applied; the GPU_TP_* debug options exist "
+                       "only in builds with ENABLE_GPU_DEBUG_CAPS: ", e.what());
+    }
+
+    const auto world_size = group.exchange->world_size();
+    const auto rank = group.exchange->rank();
+    OPENVINO_ASSERT(group_names.size() == world_size,
+                    "[GPU][TP] the device group lists ", group_names.size(), " devices for ", world_size, " ranks");
+    OPENVINO_ASSERT(rank < world_size, "[GPU][TP] invalid rank ", rank, " of ", world_size);
+
+    std::vector<std::string> ids;
+    const auto device_group = describe_tp_device_group(group_names, ids);
+    // Resolving the name is the binding support check: an unusable group or name fails here.
+    const auto backend = cldnn::ze::tp::resolve_backend(device_group, group.backend);
+    OPENVINO_ASSERT(ids[rank] == own_id,
+                    "[GPU][TP] rank ", rank, " runs on ", group_names[rank],
+                    " by the group, but its context is created on ", get_device_name(), ".", own_id);
+
+    auto shared = cldnn::ze::tp::acquire_shared_context(device_group.driver, device_group.devices);
+
+    // Applies the environment (OV_GPU_TP_*) on top of what was set.
+    config.finalize(get_default_context(own_id).get(), nullptr);
+    auto communicator = std::make_shared<cldnn::ze::tp::RankCommunicator>(group.exchange,
+                                                                           backend,
+                                                                           std::move(shared),
+                                                                           std::chrono::milliseconds{timeout_ms},
+                                                                           collective_options(config),
+                                                                           comm_buffer_size);
+    return std::make_shared<RemoteContextImpl>(get_default_contexts(), std::move(communicator));
+}
+#endif  // ENABLE_TP
 
 std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id, bool initialize) const {
     auto contexts = get_default_contexts();
@@ -502,6 +679,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
     config.apply_weightless_options();
+#ifdef ENABLE_TP
+    if (const auto& communicator = context_impl->get_tp_communicator()) {
+        config.set_property(ov::intel_gpu::tp_collective_backend(communicator->backend()));
+    }
+#endif
 
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
@@ -603,6 +785,17 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
+    }
+    if (name == ov::tp::internal::collective_backends.name() || name == ov::tp::internal::collective_support.name()) {
+#ifdef ENABLE_TP
+        return query_tp_collectives(name, options);
+#else
+        if (name == ov::tp::internal::collective_backends.name()) {
+            return decltype(ov::tp::internal::collective_backends)::value_type{};
+        }
+        return decltype(ov::tp::internal::collective_support)::value_type{
+            "the GPU plugin is built without tensor-parallel collectives (ENABLE_TP on the Level Zero runtime)"};
+#endif
     }
 
     ov::AnyMap actual_runtime_info;
@@ -770,22 +963,23 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::range_for_streams)::value_type {range};
     }
     if (name == ov::intel_gpu::memory_statistics) {
-        const auto& ctx = get_default_context(device_id, false);
-        if (!ctx->is_initialized()) {
-            decltype(ov::intel_gpu::memory_statistics)::value_type res;
-            auto add_zero_mem_usage = [&res](auto alloc_type) {
-                std::ostringstream oss;
-                oss << alloc_type;
-                res[oss.str()] = 0;
-            };
-            add_zero_mem_usage(cldnn::allocation_type::unknown);
-            add_zero_mem_usage(cldnn::allocation_type::cl_mem);
-            add_zero_mem_usage(cldnn::allocation_type::usm_host);
-            add_zero_mem_usage(cldnn::allocation_type::usm_shared);
-            add_zero_mem_usage(cldnn::allocation_type::usm_device);
-            return res;
-        }
-        return decltype(ov::intel_gpu::memory_statistics)::value_type{ctx->get_engine().get_memory_statistics()};
+        // Device-wide: every context on the device, TP and user contexts included.
+        return decltype(ov::intel_gpu::memory_statistics)::value_type{
+            cldnn::engine::get_device_memory_statistics(device_info)};
+    }
+    if (name == ov::tp::internal::device_memory.name()) {
+        const auto statistics = cldnn::engine::get_device_memory_statistics(device_info);
+        auto in_use = [&](const char* type) -> uint64_t {
+            const auto it = statistics.find(type);
+            return it == statistics.end() ? 0 : it->second;
+        };
+        ov::tp::internal::DeviceMemory memory;
+        memory.total = device_info.max_global_mem_size;
+        memory.used = in_use("usm_device") + in_use("cl_mem");
+        if (device_info.dev_type == cldnn::device_type::integrated_gpu)
+            memory.used += in_use("usm_host");
+        memory.max_allocation = device_info.max_alloc_mem_size;
+        return decltype(ov::tp::internal::device_memory)::value_type{memory};
     }
     if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
@@ -927,7 +1121,10 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
         ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
         ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO}};
+        ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO},
+        ov::PropertyName{ov::tp::internal::collective_backends.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::tp::internal::collective_support.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::tp::internal::device_memory.name(), ov::PropertyMutability::RO}};
     return supported_internal_properties;
 }
 

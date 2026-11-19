@@ -243,6 +243,60 @@ static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_rout
 static constexpr Property<bool, PropertyMutability::RW> record_replay_dynamic{"GPU_RECORD_REPLAY_DYNAMIC"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_types{"GPU_FORCE_FP32_LAYER_TYPES"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_names{"GPU_FORCE_FP32_LAYER_NAMES"};
+
+#ifdef ENABLE_TP
+// ---- Tensor parallel: collectives of the ranks of a TP compiled model ----
+//
+// Read when a TP context is created (create_context with ov::tp::internal parameters), from the device's
+// configuration, the context parameters and the environment.
+
+/// What the collectives measure and report.
+enum class TPProfilingMode : uint8_t {
+    NONE = 0,
+    HOST = 1,
+    DEVICE = 2,
+    ALL = 3,
+};
+
+inline std::ostream& operator<<(std::ostream& os, const TPProfilingMode& val) {
+    switch (val) {
+        case TPProfilingMode::NONE: os << "NONE"; break;
+        case TPProfilingMode::HOST: os << "HOST"; break;
+        case TPProfilingMode::DEVICE: os << "DEVICE"; break;
+        case TPProfilingMode::ALL: os << "ALL"; break;
+        default: os << "unknown";
+    }
+    return os;
+}
+
+inline std::istream& operator>>(std::istream& is, TPProfilingMode& val) {
+    std::string str;
+    is >> str;
+    if (str == "NONE") {
+        val = TPProfilingMode::NONE;
+    } else if (str == "HOST") {
+        val = TPProfilingMode::HOST;
+    } else if (str == "DEVICE") {
+        val = TPProfilingMode::DEVICE;
+    } else if (str == "ALL") {
+        val = TPProfilingMode::ALL;
+    } else {
+        OPENVINO_THROW("Unsupported TPProfilingMode value: ", str);
+    }
+    return is;
+}
+
+static constexpr Property<bool, ov::PropertyMutability::RW> tp_enable_halving{"GPU_TP_ENABLE_HALVING"};
+static constexpr Property<uint64_t, ov::PropertyMutability::RW> tp_halving_max_bytes{"GPU_TP_HALVING_MAX_BYTES"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> tp_collective_backend{"GPU_TP_COLLECTIVE_BACKEND"};
+static constexpr Property<ov::log::Level, ov::PropertyMutability::RW> tp_verbose{"GPU_TP_VERBOSE"};
+static constexpr Property<TPProfilingMode, ov::PropertyMutability::RW> tp_profiling{"GPU_TP_PROFILING"};
+static constexpr Property<uint64_t, ov::PropertyMutability::RW> tp_dump_period{"GPU_TP_DUMP_PERIOD"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> tp_dump_profiling_data_path{"GPU_TP_DUMP_PROFILING_DATA_PATH"};
+static constexpr Property<bool, ov::PropertyMutability::RW> tp_force_sync_collective{"GPU_TP_FORCE_SYNC_COLLECTIVE"};
+static constexpr Property<bool, ov::PropertyMutability::RW> tp_skip_collective{"GPU_TP_SKIP_COLLECTIVE"};
+static constexpr Property<bool, ov::PropertyMutability::RW> tp_validate_allreduce_output{"GPU_TP_VALIDATE_ALLREDUCE_OUTPUT"};
+#endif  // ENABLE_TP
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

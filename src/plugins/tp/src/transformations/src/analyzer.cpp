@@ -1,0 +1,108 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "tp_transformations/analyzer.hpp"
+
+#include <fstream>
+#include <unordered_set>
+
+#include "block_utils.hpp"
+#include "itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/pass/manager.hpp"
+#include "tp_transformations/verifier.hpp"
+#include "transformations/utils/utils.hpp"
+
+namespace ov {
+namespace tp {
+
+namespace {
+
+size_t weight_bytes(const std::shared_ptr<ov::Node>& matmul) {
+    size_t bytes = 0;
+    std::unordered_set<ov::Node*> visited;
+    ov::op::util::visit_path(
+        matmul->get_input_node_ptr(1),
+        visited,
+        [&](ov::Node* node) {
+            if (const auto* c = ov::as_type<ov::op::v0::Constant>(node))
+                bytes += c->get_byte_size();
+        },
+        [](ov::Node*) {
+            return false;
+        });
+    return bytes;
+}
+
+// In graph order, so the same model is numbered the same every time.
+void number_collectives(const ov::Model& model) {
+    uint64_t next = 0;
+    for (const auto& node : model.get_ordered_ops()) {
+        auto& rt_info = node->get_rt_info();
+        const auto it = rt_info.find(ProjectionRole::get_type_info_static());
+        if (it == rt_info.end())
+            continue;
+        auto role = it->second.as<ProjectionRole>();
+        if (role.collective == Collective::NONE)
+            continue;
+        role.collective_id = next++;
+        it->second = role;
+    }
+}
+
+}  // namespace
+
+TPLayerAnalyzer::TPLayerAnalyzer(const TPAnalyzerConfig& config, TPAnalysisReportPtr report)
+    : m_config(config),
+      m_report(report ? std::move(report) : std::make_shared<TPAnalysisReport>()) {}
+
+bool TPLayerAnalyzer::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_transforms, "TPLayerAnalyzer");
+    OPENVINO_ASSERT(m_config.world_size >= 2, "[TP] the analysis needs at least 2 ranks");
+
+    ov::pass::Manager manager("TPLayerAnalyzer");
+    manager.set_per_pass_validation(false);
+    manager.register_pass<TPPagedAttentionBlock>(m_config, m_report);
+    manager.register_pass<TPStatefulSDPABlock>(m_config, m_report);
+    manager.register_pass<TPGatedMLPBlock>(m_config, m_report);
+    manager.register_pass<TPFusedGateUpMLPBlock>(m_config, m_report);
+    manager.register_pass<TPDenseMLPBlock>(m_config, m_report);
+    if (m_config.shard_lm_head)
+        manager.register_pass<TPVocabParallelBlock>(m_config, m_report);
+    {
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_transforms, "TPBlockPasses");
+        manager.run_passes(model);
+    }
+
+    OPENVINO_ASSERT(m_report->attention_blocks > 0,
+                    "[TP] Could not identify transformer layers for TP: the model contains neither "
+                    "PagedAttentionExtension nor ScaledDotProductAttention with recognizable projections. "
+                    "Model may not be supported.");
+    OPENVINO_ASSERT(m_report->mlp_blocks > 0, "[TP] Could not locate an MLP block. Model may not be supported.");
+    number_collectives(*model);
+
+    for (const auto& node : model->get_ordered_ops()) {
+        if (blocks::is_linear_layer(node.get()) && get_role(*node) == nullptr) {
+            m_report->unclaimed.push_back(node->get_friendly_name());
+            m_report->unclaimed_bytes += weight_bytes(node);
+        }
+    }
+
+    std::ofstream dump;
+    if (!m_config.dump_sharding_states.empty()) {
+        dump.open(m_config.dump_sharding_states);
+        OPENVINO_ASSERT(dump, "[TP] Cannot write the sharding states to '", m_config.dump_sharding_states, "'");
+        dump << "# Sharding states of '" << model->get_friendly_name() << "' on " << m_config.world_size << " ranks\n"
+             << "# Blocks: " << m_report->attention_blocks << " attention, " << m_report->mlp_blocks << " MLP, LM head "
+             << (m_report->lm_head ? "split" : "whole") << "\n";
+        for (const auto& name : m_report->unclaimed)
+            dump << "# Whole on every rank, claimed by no block pass: " << name << "\n";
+    }
+    TPShardingVerifier(m_config.world_size, dump.is_open() ? &dump : nullptr).run_on_model(model);
+    return true;
+}
+
+}  // namespace tp
+}  // namespace ov
