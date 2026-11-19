@@ -7,6 +7,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/backends_registry.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_sections/batch_size.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_sections/compiler_schedules.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_sections/encrypted_schedules_flag.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_format_importers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_option_support_helper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_schedule_instance_evaluator.hpp
@@ -33,6 +34,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedule_instance_evaluator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_version.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/encrypted_schedules_flag.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/executor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extension.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hsm_read_write.cpp

@@ -12,7 +12,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/cre.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/option_support_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/device_helpers.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_sections/encrypted_schedules_flag.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiler_adapter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/igraph.hpp
@@ -33,7 +32,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_source.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cre.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/device_helpers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/encrypted_schedules_flag.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/igraph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/isection_type_evaluator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/isection.cpp

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/hsm_sections/encrypted_schedules_flag.hpp"
+#include "hsm_sections/encrypted_schedules_flag.hpp"
 
 #include "intel_npu/common/itt.hpp"
 

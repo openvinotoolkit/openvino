@@ -50,7 +50,9 @@ ov_add_test_target(
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_schedule_instance_evaluator.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/remote_context.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_schedules.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/encrypted_schedules_flag.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp"
   LINK_LIBRARIES
   ${OPTIONAL_FUNC_TESTS_LIBS}
