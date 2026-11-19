@@ -48,10 +48,8 @@ public:
     static layout calc_output_layout(dynamic_quantize_node const& node, kernel_impl_params const& impl_params);
 
     // Internal function to be used from fakealignment
-    template<typename ShapeType>
-    static std::vector<layout> __calc_output_layouts(dynamic_quantize_node const& node,
-                                                     const layout &act_layout,
-                                                     const dynamic_quantize::Attributes& config);
+    template <typename ShapeType>
+    static std::vector<layout> __calc_output_layouts(const dynamic_quantize_node& node, const layout& act_layout, const dynamic_quantize::Attributes& attrs);
     static std::string to_string(dynamic_quantize_node const& node);
 
     typed_primitive_inst(network& network, dynamic_quantize_node const& node);

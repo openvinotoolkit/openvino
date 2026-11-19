@@ -78,7 +78,7 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
 
     constexpr size_t kernels_num{3};
     KernelData kernel_data = KernelData::Default<matrix_nms_params>(params, kernels_num);
-    const matrix_nms_params& new_params = dynamic_cast<const matrix_nms_params&>(*kernel_data.params.get());
+    const matrix_nms_params& new_params = dynamic_cast<const matrix_nms_params&>(*kernel_data.params);
 
     constexpr size_t BOX_INFO_SIZE{16};
 
@@ -173,7 +173,7 @@ JitConstants MatrixNmsKernelRef::GetJitConstants(const matrix_nms_params& params
     return jit;
 }
 
-void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clKernelData& kernel, size_t idx) const {
+void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clKernelData& kernel, size_t idx) {
     switch (idx) {
     case 0:
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
