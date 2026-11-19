@@ -33,7 +33,8 @@ InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder)
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
-    if (m_inputs.size() > 0 && m_inputs[0]) {
+    // FX graphs have no receiver input, so the "self" check applies only to TorchScript
+    if (m_decoder_type_name != "fx" && m_inputs.size() > 0 && m_inputs[0]) {
         // We need to remove "self" input to not confuse external users
         const auto& names = m_inputs[0]->get_names();
         if (std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {
@@ -166,7 +167,7 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
     });
     FRONT_END_GENERAL_CHECK(all_inputs, "Only initial inputs are supported by override_all_inputs.");
     // We need to add back "self" input if it was in initial inputs
-    if (!m_inputs.empty() && m_inputs[0]) {
+    if (m_decoder_type_name != "fx" && !m_inputs.empty() && m_inputs[0]) {
         // We need to remove "self" input to not confuse external users
         const auto& names = m_inputs[0]->get_names();
         if (std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {

@@ -94,6 +94,7 @@
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
+#include "plugin/transformations/batch_replicated_branches.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
@@ -138,6 +139,7 @@
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
 #include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
+#include "plugin/transformations/scale_down_gated_mlp_input.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -150,6 +152,7 @@
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
@@ -916,6 +919,8 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
     manager.register_pass<ov::pass::RoPEFusion>(true);
+    manager.register_pass<ov::pass::FuseQSAIndexer>(true);
+    manager.register_pass<ov::pass::FuseQSAIndexerQuery>();
     manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
     pass_config->disable<ov::pass::RoPEFusionGPTJ>();
     pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
@@ -1298,6 +1303,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        // After CommonOptimizations: ShapeOf consumers of static branches are folded and do not block batching
+        manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
@@ -1969,6 +1976,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
+        // After the horizontal fusion, so that the scales of a merged gate/up FC are the ones scaled.
+        // ActivationsScaling, when enabled, already scales every MatMul.
+        if (infer_precision == ov::element::f16 && !(config.get_activations_scale_factor() > 0.F)) {
+            manager.register_pass<ov::intel_gpu::ScaleDownGatedMLPInput>();
+        }
+
         // After the horizontal fusion so a merged gate/up FC absorbs the shared
         // rotation once. Only the TernOCL impl applies a fused rotation, so without it
         // the rotation stays in the graph.
