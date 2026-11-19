@@ -101,6 +101,9 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
+        if (isDeferredGraphInit() && !dependsOnGraphInitTiming()) {
+            GTEST_SKIP() << "NPU_CREATE_EXECUTOR=0 only defers graph init, which this test does not depend on";
+        }
 
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
 #if !defined(OPENVINO_STATIC_LIBRARY) && !defined(USE_STATIC_IE)
@@ -144,6 +147,26 @@ public:
     RuntimeCompareSetupResult prepareRuntimeCompareContext(const std::shared_ptr<ov::Model>& model);
 
 protected:
+    bool isDeferredGraphInit() const {
+        const auto it = configuration.find(ov::intel_npu::create_executor.name());
+        return it != configuration.end() && it->second.as<std::string>() == "0";
+    }
+
+    // Tests that touch the graph before the first create_infer_request (import, set_property) or rely on deferred
+    // runtime loading, so they behave differently depending on when the graph is initialized.
+    static bool dependsOnGraphInitTiming() {
+        static constexpr std::array<std::string_view, 5> testNames = {
+            "CompileAndImportAndInfer",
+            "SetProperty_CombinedPriorityAndWorkload",
+            "SetProperty_WorkloadType_SingleCompiledModel",
+            "SetProperty_WorkloadType_SingleCompiledModel_NonSharedCommonQueue",
+            "CompileDynamicModelWithNoHostCompileMode",
+        };
+        const std::string_view fullName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        const std::string_view testName = fullName.substr(0, fullName.find('/'));
+        return std::find(testNames.begin(), testNames.end(), testName) != testNames.end();
+    }
+
     ov::Core core;
     ov::AnyMap configuration;
     std::string selectedModelName;
@@ -255,10 +278,7 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     return result;
 }
 
-// Tests whose code path depends on whether the graph is initialized in compile_model or in create_infer_request.
-using InferWithHostCompileInitTimingTests = InferWithHostCompileTests;
-
-TEST_P(InferWithHostCompileInitTimingTests, CompileAndImportAndInfer) {
+TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -804,7 +824,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo) {
     }
 }
 
-TEST_P(InferWithHostCompileInitTimingTests, SetProperty_CombinedPriorityAndWorkload) {
+TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
@@ -1011,7 +1031,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_RetryAfterUndersizedOutpu
 //           update_runtime_config → WORKLOAD_TYPE diff → pConfig → configCmdQueue
 //
 // Skipped gracefully when the driver does not support workload_type.
-TEST_P(InferWithHostCompileInitTimingTests, SetProperty_WorkloadType_SingleCompiledModel) {
+TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
@@ -1215,7 +1235,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel_
         setInputInferAndCompare(model, reqNew, reqRefNew, inTensor, "Priority_nonshared_new_request_after_set"));
 }
 
-TEST_P(InferWithHostCompileInitTimingTests, SetProperty_WorkloadType_SingleCompiledModel_NonSharedCommonQueue) {
+TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_NonSharedCommonQueue) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
@@ -1529,15 +1549,8 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 const std::vector<std::string> devices = {"NPU.4000", "NPU.5010", "NPU.6010"};
 
 // NPU_BATCH_MODE is not varied: HostCompile keeps the model dynamic and forces BatchMode::COMPILER internally.
-// NPU_CREATE_EXECUTOR=0 only defers graph init; it is covered by InferWithHostCompileInitTimingTests.
+// Tests that do not depend on graph init timing are skipped under NPU_CREATE_EXECUTOR=0, see SetUp().
 const std::vector<ov::AnyMap> configs = {
-    {
-        {"NPU_COMPILER_TYPE", "PLUGIN"},
-        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
-    },
-};
-
-const std::vector<ov::AnyMap> initTimingConfigs = {
     {
         {"NPU_COMPILER_TYPE", "PLUGIN"},
         {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
@@ -1560,13 +1573,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(modelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileTests>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         InferWithHostCompileInitTimingTests,
-                         ::testing::Combine(::testing::ValuesIn(devices),
-                                            ::testing::ValuesIn(initTimingConfigs),
-                                            ::testing::ValuesIn(modelNames)),
-                         ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileInitTimingTests>);
 
 const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     {
