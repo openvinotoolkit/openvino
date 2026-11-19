@@ -114,32 +114,37 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
 ConvertPowerHalfToSqrt::ConvertPowerHalfToSqrt() {
     using namespace ov::pass::pattern;
 
-    auto x = any_input();
+    auto x = any_input([](const ov::Output<ov::Node>& output) {
+        return output.get_element_type().is_real();
+    });
     auto const_half = wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
         const auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        float val = 0.F;
         return const_node && const_node->get_element_type().is_real() &&
-               ov::op::util::has_constant_value<float>(const_node, 0.5F);
+               ov::op::util::is_scalar_or_single_elem_constant(const_node) &&
+               ov::op::util::get_single_value(const_node, val) && val == 0.5F;
     });
-    auto opt_convert = optional<ov::op::v0::Convert>({const_half});
-    auto power = wrap_type<ov::op::v1::Power>({x, opt_convert});
+    auto opt_convert = optional<ov::op::v0::Convert>({const_half}, [](const ov::Output<ov::Node>& output) {
+        return output.get_element_type().is_real();
+    });
+    auto power = wrap_type<ov::op::v1::Power>({x, opt_convert}, [](const ov::Output<ov::Node>& output) {
+        const auto node = output.get_node();
+        if (output.get_element_type() != node->get_input_element_type(0)) {
+            return false;
+        }
+        const auto& in0_shape = node->get_input_partial_shape(0);
+        const auto& in1_shape = node->get_input_partial_shape(1);
+        const auto& out_shape = output.get_partial_shape();
+        if (in1_shape.rank().is_dynamic()) {
+            return false;
+        }
+        return in1_shape.rank().get_length() == 0 ||
+               (in0_shape.rank().is_static() && out_shape.rank().is_static() && in0_shape == out_shape);
+    });
 
-    ov::matcher_pass_callback callback = [this](Matcher& m) {
-        const auto power_node = ov::as_type_ptr<ov::op::v1::Power>(m.get_match_root());
-        if (!power_node || transformation_callback(power_node)) {
-            return false;
-        }
-        if (power_node->get_output_element_type(0) != power_node->get_input_element_type(0)) {
-            return false;
-        }
-
-        const auto& in0_shape = power_node->get_input_partial_shape(0);
-        const auto& in1_shape = power_node->get_input_partial_shape(1);
-        const auto& out_shape = power_node->get_output_partial_shape(0);
-        if (in1_shape.is_dynamic() || ov::shape_size(in1_shape.to_shape()) != 1) {
-            return false;
-        }
-        if (in1_shape.rank().get_length() > 0 &&
-            (in0_shape.rank().is_dynamic() || out_shape.rank().is_dynamic() || in0_shape != out_shape)) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto power_node = m.get_match_root();
+        if (transformation_callback(power_node)) {
             return false;
         }
 

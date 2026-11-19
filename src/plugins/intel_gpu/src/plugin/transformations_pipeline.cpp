@@ -1192,6 +1192,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
 
         pass_config->set_callback<ov::pass::RMSFusionMatcher>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
+            // GPU RMS supports only up to 5D (bfyx / bfzyx) layouts; reject dynamic-rank or >5D output shapes.
+            const auto& out_shape = root->get_output_partial_shape(0);
+            if (out_shape.rank().is_dynamic() || out_shape.size() > 5) {
+                return true;
+            }
             if (!root->get_input_partial_shape(0).is_static()) {
                 return false;
             }

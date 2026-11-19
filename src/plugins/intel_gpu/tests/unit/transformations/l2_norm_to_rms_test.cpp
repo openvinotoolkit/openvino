@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -221,6 +222,64 @@ TEST_F(TransformationTestsF, PowerHalfWithConvertAndBroadcastGuard) {
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// Scalar NaN exponent and Convert(0.5 -> i32) integral destination must not be rewritten to Sqrt.
+TEST_F(TransformationTestsF, PowerHalfRejectsNaNAndIntegralConvert) {
+    auto x_f32 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
+    auto x_i32 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 4});
+    auto nan_exp = ov::op::v0::Constant::create(ov::element::f32, {1}, {std::numeric_limits<float>::quiet_NaN()});
+    auto pow_nan = std::make_shared<ov::op::v1::Power>(x_f32, nan_exp);
+    auto half_to_i32 = std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5F}), ov::element::i32);
+    auto pow_i32 = std::make_shared<ov::op::v1::Power>(x_i32, half_to_i32);
+    model = std::make_shared<ov::Model>(ov::OutputVector{pow_nan, pow_i32}, ov::ParameterVector{x_f32, x_i32});
+    manager.register_pass<ConvertPowerHalfToSqrt>();
+}
+
+// End-to-end GPU compilation & execution check: 6D decomposed Power(0.5) RMSNorm stays decomposed because GPU RMS
+// supports only up to 5D layouts (bfyx / bfzyx).
+TEST(L2NormToRMSTest, power_half_rank_six_rms_stays_decomposed_on_gpu) {
+    constexpr size_t norm_hidden = 64;
+    constexpr float norm_eps = 1e-5F;
+
+    std::vector<float> gamma_f32(norm_hidden, 1.25F);
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 2, 2, 4, norm_hidden});
+    auto sq = std::make_shared<ov::op::v1::Power>(x, ov::op::v0::Constant::create(ov::element::f32, {1}, {2.0F}));
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {5});
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, axes, true);
+    auto add_eps = std::make_shared<ov::op::v1::Add>(mean, ov::op::v0::Constant::create(ov::element::f32, {1}, {norm_eps}));
+    auto pow_half = std::make_shared<ov::op::v1::Power>(add_eps, ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5F}));
+    auto rsqrt = std::make_shared<ov::op::v1::Power>(pow_half, ov::op::v0::Constant::create(ov::element::f32, {1}, {-1.0F}));
+    auto mul_x = std::make_shared<ov::op::v1::Multiply>(x, rsqrt);
+    auto gamma = ov::op::v0::Constant::create(ov::element::f32, {norm_hidden}, gamma_f32);
+    auto out = std::make_shared<ov::op::v1::Multiply>(mul_x, gamma);
+    auto ov_model = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{x});
+
+    ov::Core core;
+    ov::CompiledModel compiled;
+    ASSERT_NO_THROW(compiled = core.compile_model(ov_model, tests::get_engine_gpu_device_name(), ov::hint::inference_precision(ov::element::f32)));
+
+    auto runtime_model = compiled.get_runtime_model();
+    bool found_rms = false;
+    for (const auto& op : runtime_model->get_ordered_ops()) {
+        const auto& rt = op->get_rt_info();
+        auto it = rt.find("layerType");
+        if (it != rt.end() && it->second.is<std::string>()) {
+            const auto& layer_type = it->second.as<std::string>();
+            if (layer_type == "rms" || layer_type == "RMS") {
+                found_rms = true;
+            }
+        }
+    }
+    EXPECT_FALSE(found_rms) << "Expected 6D RMSNorm to remain decomposed on GPU";
+
+    auto req = compiled.create_infer_request();
+    std::vector<float> input_vals(ov::shape_size(ov::Shape{2, 2, 2, 2, 4, norm_hidden}), 2.0F);
+    req.set_input_tensor(0, ov::Tensor(ov::element::f32, {2, 2, 2, 2, 4, norm_hidden}, input_vals.data()));
+    ASSERT_NO_THROW(req.infer());
+    const float* actual = req.get_output_tensor(0).data<const float>();
+    const float expected_val = 2.0F / std::sqrt(4.0F + norm_eps) * 1.25F;
+    EXPECT_NEAR(actual[0], expected_val, 1e-3F);
 }
 
 // End-to-end GPU execution check: decomposed Power(0.5) RMSNorm with large finite inputs (400..1700, where
