@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
         return (params.groups > 1) ? WeightsLayout::gyxio : WeightsLayout::yxio;
     }
-    std::string GetKernelName(const convolution_params&) const override;
+    std::string GetKernelName(const convolution_params& /*unused*/) const override;
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;

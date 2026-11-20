@@ -6,8 +6,8 @@
 
 namespace cldnn::ze {
 ze_driver_resource ze_import_driver(cl_device_id ocl_device) {
-    ze_ocl_interop& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = interop.find_ze_driver(ocl_device);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = ze_ocl_interop::find_ze_driver(ocl_device);
     const bool is_borrowed = true;
     ze_driver_resource resource(ze_handle, is_borrowed);
 
@@ -22,8 +22,8 @@ ze_driver_resource ze_import_driver(cl_device_id ocl_device) {
 }
 
 ze_device_resource ze_import_device(cl_device_id ocl_device) {
-    ze_ocl_interop& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = interop.get_ze_device(ocl_device);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = ze_ocl_interop::get_ze_device(ocl_device);
     const bool is_borrowed = true;
     ze_device_resource resource(ze_handle, is_borrowed);
     resource.attach_ocl_handle<ocl_resource_type::device>(ocl_device, is_borrowed);
@@ -32,16 +32,16 @@ ze_device_resource ze_import_device(cl_device_id ocl_device) {
 
 ze_context_resource ze_import_context(cl_context ocl_context, bool is_borrowed) {
     ocl_owner<ocl_resource_type::context> ocl_owner(ocl_context, is_borrowed);
-    ze_ocl_interop& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = interop.get_ze_context(ocl_context);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = ze_ocl_interop::get_ze_context(ocl_context);
     ze_context_resource resource(ze_handle, true);
     resource.attach_ocl_handle(std::move(ocl_owner));
     return resource;
 }
 
 ze_command_list_resource ze_import_command_list(cl_command_queue ocl_command_queue) {
-    ze_ocl_interop& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = interop.get_ze_cmd_list(ocl_command_queue);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = ze_ocl_interop::get_ze_cmd_list(ocl_command_queue);
     const bool is_borrowed = true;
     ze_command_list_resource resource(ze_handle, is_borrowed);
     resource.attach_ocl_handle<ocl_resource_type::command_queue>(ocl_command_queue, is_borrowed);
@@ -50,8 +50,8 @@ ze_command_list_resource ze_import_command_list(cl_command_queue ocl_command_que
 
 ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context, bool is_borrowed) {
     ocl_owner<ocl_resource_type::mem_object> ocl_owner(ocl_buffer, is_borrowed);
-    ze_ocl_interop& interop = ze_ocl_interop::get_instance();
-    auto ze_usm_ptr = interop.get_ze_usm(ocl_buffer);
+    ze_ocl_interop::get_instance();
+    auto* ze_usm_ptr = ze_ocl_interop::get_ze_usm(ocl_buffer);
     ze_usm_resource resource({context.handle(), ze_usm_ptr}, true);
     resource.attach_ocl_handle(std::move(ocl_owner));
     return resource;
@@ -59,8 +59,8 @@ ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context, bo
 
 ze_image_resource ze_import_image(cl_mem ocl_image, bool is_borrowed) {
     ocl_owner<ocl_resource_type::mem_object> ocl_owner(ocl_image, is_borrowed);
-    auto& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = interop.get_ze_image(ocl_image);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = ze_ocl_interop::get_ze_image(ocl_image);
     ze_image_resource resource(ze_handle, true);
     resource.attach_ocl_handle(std::move(ocl_owner));
     return resource;
@@ -71,8 +71,8 @@ void ze_export_ocl_device(ze_device_resource device) {
         return;
     }
     auto& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = device.handle();
-    auto ocl_handle = interop.find_ocl_device(ze_handle);
+    auto* ze_handle = device.handle();
+    auto* ocl_handle = interop.find_ocl_device(ze_handle);
     ocl_owner<ocl_resource_type::device> ocl_owner(ocl_handle);
     device.attach_ocl_handle<ocl_resource_type::device>(std::move(ocl_owner));
 }
@@ -86,9 +86,9 @@ void ze_export_ocl_context(ze_context_resource context, ze_device_resource devic
     ocl_context_args context_args;
     context_args.device = device.ocl_handle<ocl_resource_type::device>();
 
-    auto& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = context.handle();
-    auto ocl_handle = interop.create_cl_context(ze_handle, context_args);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = context.handle();
+    auto* ocl_handle = ze_ocl_interop::create_cl_context(ze_handle, context_args);
     ocl_owner<ocl_resource_type::context> ocl_owner(ocl_handle);
     context.attach_ocl_handle<ocl_resource_type::context>(std::move(ocl_owner));
 }
@@ -105,9 +105,9 @@ void ze_export_ocl_command_queue(ze_command_list_resource cmd_list,
     queue_args.device = device.ocl_handle<ocl_resource_type::device>();
     queue_args.context = context.ocl_handle<ocl_resource_type::context>();
 
-    auto& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = cmd_list.handle();
-    auto ocl_handle = interop.create_cl_queue(ze_handle, queue_args);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = cmd_list.handle();
+    auto* ocl_handle = ze_ocl_interop::create_cl_queue(ze_handle, queue_args);
     ocl_owner<ocl_resource_type::command_queue> ocl_owner(ocl_handle);
     cmd_list.attach_ocl_handle<ocl_resource_type::command_queue>(std::move(ocl_owner));
 }
@@ -127,9 +127,9 @@ void ze_export_ocl_mem(ze_usm_resource usm,
     buffer_args.flags = flags;
     buffer_args.size = size;
 
-    auto& interop = ze_ocl_interop::get_instance();
+    ze_ocl_interop::get_instance();
     auto ze_handle = usm.handle();
-    auto ocl_handle = interop.create_cl_buffer(ze_handle.ptr, buffer_args);
+    auto* ocl_handle = ze_ocl_interop::create_cl_buffer(ze_handle.ptr, buffer_args);
     ocl_owner<ocl_resource_type::mem_object> ocl_owner(ocl_handle);
     usm.attach_ocl_handle<ocl_resource_type::mem_object>(std::move(ocl_owner));
 }
@@ -151,9 +151,9 @@ void ze_export_ocl_image(ze_image_resource image,
     image_args.format = format;
     image_args.desc = desc;
 
-    auto& interop = ze_ocl_interop::get_instance();
-    auto ze_handle = image.handle();
-    auto ocl_handle = interop.create_cl_image(ze_handle, image_args);
+    ze_ocl_interop::get_instance();
+    auto* ze_handle = image.handle();
+    auto* ocl_handle = ze_ocl_interop::create_cl_image(ze_handle, image_args);
     ocl_owner<ocl_resource_type::mem_object> ocl_owner(ocl_handle);
     image.attach_ocl_handle<ocl_resource_type::mem_object>(std::move(ocl_owner));
 }

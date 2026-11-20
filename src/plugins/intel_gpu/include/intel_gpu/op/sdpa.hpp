@@ -23,23 +23,23 @@ public:
     SDPA() = default;
 
     SDPA(const OutputVector& inputs,
-         const bool is_causal,
+         bool is_causal,
          const std::vector<int64_t>& order_q,
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
-         const ov::element::Type output_type = ov::element::dynamic,
+         ov::element::Type output_type = ov::element::dynamic,
          CausalMaskAlignment causal_mask_alignment = CausalMaskAlignment::UPPER_LEFT,
          int64_t sliding_window_size = 0);
 
     SDPA(const OutputVector& inputs,
-         const bool is_causal,
+         bool is_causal,
          const std::vector<int64_t>& order_q,
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
          const QuantizationAttribute& quantization_attrs,
-         const ov::element::Type output_type = ov::element::dynamic,
+         ov::element::Type output_type = ov::element::dynamic,
          CausalMaskAlignment causal_mask_alignment = CausalMaskAlignment::UPPER_LEFT,
          int64_t sliding_window_size = 0);
 
