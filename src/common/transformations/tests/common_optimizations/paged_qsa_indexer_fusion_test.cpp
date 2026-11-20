@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <string>
@@ -32,8 +33,10 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
@@ -610,6 +613,8 @@ INSTANTIATE_TEST_SUITE_P(
         return info.param;
     });
 
+enum class SplitRoPEType { VariadicSplit, Slice, StridedSlice };
+
 struct QueryOptions {
     std::string name;
     float norm_epsilon = epsilon;
@@ -634,8 +639,12 @@ struct QueryOptions {
     // A static single-token query whose head transposes around a head-first RoPE are Reshapes, as in SDPAToPA output.
     bool single_token_head_first = false;
     bool query_is_reshape = false;
-    // A partial RoPE left as Transpose -> VariadicSplit -> RoPE -> Concat, as when RoPEFusionIOSlicing is disabled.
+    bool query_is_slice = false;
+    // A partial RoPE left as Transpose -> Split -> RoPE -> Concat, as when RoPEFusionIOSlicing is disabled.
     bool split_rope = false;
+    SplitRoPEType split_rope_type = SplitRoPEType::VariadicSplit;
+    bool different_tail_input = false;
+    int64_t concat_axis = -1;
     int64_t rope_length = -1;
     int64_t rope_axis = 1;
     // Reshape target expressing the cos / sin head-axis Unsqueeze; empty keeps the Unsqueeze.
@@ -684,6 +693,12 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
     if (o.query_is_reshape) {
         graph.raw_query = std::make_shared<v1::Reshape>(graph.raw_query, i64({0, 0, 0, 0}), true);
     }
+    if (o.query_is_slice) {
+        const auto joined = std::make_shared<v0::Concat>(OutputVector{graph.raw_query, graph.raw_query}, -1);
+        const auto transposed = std::make_shared<v1::Transpose>(joined, i64({0, 2, 1, 3}));
+        const auto restored = std::make_shared<v1::Transpose>(transposed, i64({0, 2, 1, 3}));
+        graph.raw_query = std::make_shared<v8::Slice>(restored, i64({0}), i64({head_size}), i64({1}), i64({3}));
+    }
     const auto make_norm = [&](const Output<Node>& input) -> Output<Node> {
         const auto norm_input =
             o.changes_precision ? Output<Node>(std::make_shared<v0::Convert>(input, element::f16)) : input;
@@ -719,19 +734,47 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
         if (o.single_token_head_first) {
             rope_input = std::make_shared<v1::Reshape>(input, i64({0, query_heads, 1, head_size}), true);
         }
-        std::shared_ptr<v1::VariadicSplit> split;
+        Output<Node> rope_tail;
         if (o.split_rope) {
             config.input_trans0213 = false;
             rope_input = std::make_shared<v1::Transpose>(rope_input, i64({0, 2, 1, 3}));
-            split = std::make_shared<v1::VariadicSplit>(rope_input, i64({3}), i64({rotary_dim, -1}));
-            rope_input = split->output(0);
+            if (o.split_rope_type == SplitRoPEType::VariadicSplit) {
+                const auto split = std::make_shared<v1::VariadicSplit>(rope_input, i64({3}), i64({rotary_dim, -1}));
+                rope_input = split->output(0);
+                rope_tail = split->output(1);
+            } else {
+                auto tail_input = rope_input;
+                if (o.different_tail_input) {
+                    const auto param =
+                        std::make_shared<v0::Parameter>(rope_input.get_element_type(), rope_input.get_partial_shape());
+                    graph.model->add_parameters({param});
+                    tail_input = param;
+                }
+                const auto slice = [&](const Output<Node>& data, int64_t start, int64_t stop) -> Output<Node> {
+                    if (o.split_rope_type == SplitRoPEType::Slice) {
+                        return std::make_shared<v8::Slice>(data, i64({start}), i64({stop}), i64({1}), i64({3}));
+                    }
+                    const std::vector<int64_t> mask{1, 1, 1, 0};
+                    return std::make_shared<v1::StridedSlice>(data,
+                                                              i64({0, 0, 0, start}),
+                                                              i64({0, 0, 0, stop}),
+                                                              i64({1, 1, 1, 1}),
+                                                              mask,
+                                                              mask);
+                };
+                rope_tail = slice(tail_input, rotary_dim, std::numeric_limits<std::int32_t>::max());
+                rope_input = slice(rope_input, 0, rotary_dim);
+            }
         }
         rope = std::make_shared<op_internal::RoPE>(OutputVector{rope_input,
                                                                 with_head_axis(o.distinct_cos ? other_rows(cos) : cos),
                                                                 with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
                                                    config);
-        if (split) {
-            rope = std::make_shared<v0::Concat>(OutputVector{rope, split->output(1)}, -1);
+        if (o.split_rope) {
+            if (o.extra_consumers) {
+                graph.model->add_results({std::make_shared<v0::Result>(rope)});
+            }
+            rope = std::make_shared<v0::Concat>(OutputVector{rope, rope_tail}, o.concat_axis);
         }
         if (o.single_token_head_first) {
             return rope;
@@ -951,6 +994,29 @@ const std::vector<QueryOptions> query_cases = [] {
     o.distinct_cos = true;
     o.absorb_norm = o.absorb_rope = false;
     cases.push_back(o);
+    o = QueryOptions{"split_rope_slices"};
+    o.split_rope = true;
+    o.split_rope_type = SplitRoPEType::Slice;
+    o.concat_axis = 3;
+    cases.push_back(o);
+    o.name = "split_rope_strided_slices";
+    o.split_rope_type = SplitRoPEType::StridedSlice;
+    o.concat_axis = -1;
+    cases.push_back(o);
+    o.name = "split_rope_different_tail_input";
+    o.split_rope_type = SplitRoPEType::Slice;
+    o.different_tail_input = true;
+    o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"split_rope_non_last_concat_axis"};
+    o.split_rope = true;
+    o.concat_axis = 2;
+    o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"canonical_rope_sliced_input"};
+    o.query_is_slice = true;
+    o.with_norm = o.absorb_norm = false;
+    cases.push_back(o);
     return cases;
 }();
 
@@ -970,6 +1036,36 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQuerySplitRoPE) {
     comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
+
+class FusePagedQSAIndexerQueryNonLastSplitAxisTest : public TransformationTestsF,
+                                                     public testing::WithParamInterface<int64_t> {};
+
+TEST_P(FusePagedQSAIndexerQueryNonLastSplitAxisTest, DoesNotFuse) {
+    QueryOptions options;
+    options.with_norm = options.with_rope = false;
+    auto graph = make_query_graph<op_internal::PagedQSAIndexer>(options);
+    const auto head_first =
+        std::make_shared<v1::Reshape>(graph.raw_query, i64({0, -1, 1, head_size, rotary_dim}), true);
+    const auto split = std::make_shared<v1::VariadicSplit>(head_first, i64({3}), i64({rotary_dim, -1}));
+    const auto cos = graph.inputs[PagedQSAIndexerInputIdx::ROPE_COS].get_node()->input_value(0);
+    const auto sin = graph.inputs[PagedQSAIndexerInputIdx::ROPE_SIN].get_node()->input_value(0);
+    op_internal::RoPE::Config rope_config;
+    rope_config.rotary_ndims = rotary_dim;
+    const auto rope = std::make_shared<op_internal::RoPE>(OutputVector{split->output(0),
+                                                                       std::make_shared<v0::Unsqueeze>(cos, i64({1})),
+                                                                       std::make_shared<v0::Unsqueeze>(sin, i64({1}))},
+                                                          rope_config);
+    const auto concat = std::make_shared<v0::Concat>(OutputVector{rope, split->output(1)}, GetParam());
+    replace_query_indexer(graph, options, concat, graph.indexer->get_config());
+    model = graph.model;
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         FusePagedQSAIndexerQueryNonLastSplitAxisTest,
+                         testing::Values<int64_t>(-1, 4));
 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryWithDynamicHeadFirstReshapeTarget) {
     QueryOptions options;
