@@ -19,6 +19,23 @@ public:
     InsertVocabSub128();
 };
 
+// Shifts the dequantization of the embedding Gather that reads the same u8 asymmetric vocabulary as
+// `lm_head_model`. CutLMHead gives the cut-off model its own copy of the dequantization nodes, so after the
+// cut the Gather in the other models has to be shifted separately. The partitioner uses one i8 closure for
+// both readers only if both are shifted. Run it before InsertVocabSub128 shifts the LM head model, which
+// the vocabulary is taken from.
+class InsertEmbeddingSub128 : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::InsertEmbeddingSub128");
+
+    explicit InsertEmbeddingSub128(const std::shared_ptr<ov::Model>& lm_head_model);
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    std::shared_ptr<ov::Model> m_lm_head_model;
+};
+
 class DetectVocabSharing : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::DetectVocabSharing");

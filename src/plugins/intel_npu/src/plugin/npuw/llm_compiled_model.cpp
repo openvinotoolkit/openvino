@@ -158,8 +158,26 @@ struct NPUDesc {
     bool compiler_matmul_gate = false;
     int64_t compiler_ver = 0;
     bool support_flash_attention_tile = false;
-    bool compiler_dynamic_zp_decomposition = false;
 };
+
+// Version of the compiler selected by NPU_COMPILER_TYPE in the config (the default compiler if it is not set).
+int64_t query_compiler_version(const std::shared_ptr<const ov::IPlugin>& plugin, const ov::AnyMap& config) {
+    const auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
+    if (compiler_type_it == config.end()) {
+        return plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    }
+    return plugin
+        ->get_property(ov::intel_npu::compiler_version.name(),
+                       ov::AnyMap{{ov::intel_npu::compiler_type.name(), compiler_type_it->second.as<std::string>()}})
+        .as<int64_t>();
+}
+
+// Zero point decomposition for weights-as-inputs dequantization, where the zero point and the scale are
+// also model inputs (DynamicDequantize becomes Dequantize). Supported starting from compiler 8.5
+// (EISW-229457).
+bool compiler_supports_dynamic_zp_decomposition(const int64_t compiler_ver) {
+    return compiler_ver >= ONEAPI_MAKE_VERSION(8, 5);
+}
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                               const ov::AnyMap& config) {
@@ -189,19 +207,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     }
 
     // Get compiler version based on NPU_COMPILER_TYPE configuration
-    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
-    auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
-    if (compiler_type_it == config.end()) {
-        // NPU_COMPILER_TYPE is not specified in config, use default compiler version
-        desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
-    } else {
-        // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
-        auto target_compiler_type = compiler_type_it->second.as<std::string>();
-        desc.compiler_ver = plugin
-                                ->get_property(ov::intel_npu::compiler_version.name(),
-                                               ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
-                                .as<int64_t>();
-    }
+    desc.compiler_ver = query_compiler_version(plugin, config);
     LOG_INFO("Compiler version: " << ONEAPI_VERSION_MAJOR(desc.compiler_ver) << "."
                                   << ONEAPI_VERSION_MINOR(desc.compiler_ver));
 
@@ -215,11 +221,6 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     } else {
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
-
-    // Zero point decomposition for weights-as-inputs dequantization, where the zero point and the scale are
-    // also model inputs (DynamicDequantize becomes Dequantize). Supported starting from compiler 8.5
-    // (EISW-229457).
-    desc.compiler_dynamic_zp_decomposition = desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 5);
 
     static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
         ov::intel_npu::Platform::NPU5010,
@@ -453,27 +454,6 @@ void disable_ws_for_int8_whisper(ov::AnyMap& config) {
     config.erase("NPUW_CWAI");
 }
 
-template <typename Option>
-bool get_bool_option(const ov::AnyMap& config) {
-    const auto it = config.find(std::string(Option::key()));
-    if (it == config.end()) {
-        return Option::defaultValue();
-    }
-    if (it->second.template is<bool>()) {
-        return it->second.template as<bool>();
-    }
-    return ::intel_npu::OptionParser<bool>::parse(it->second.template as<std::string>());
-}
-
-// Partitioning turns the Sub128 shifts of a shared vocabulary into one i8 closure only in function
-// subgraphs (NPUW_FOLD and NPUW_FUNCALL_FOR_ALL) with NPUW_HOST_GATHER on. Otherwise the shifts reach the
-// compiler as they are: no memory is saved, and the LM head becomes several times slower.
-bool vocab_is_closure(const ov::AnyMap& config) {
-    return get_bool_option<::intel_npu::NPUW_FOLD>(config) &&
-           get_bool_option<::intel_npu::NPUW_FUNCALL_FOR_ALL>(config) &&
-           get_bool_option<::intel_npu::NPUW_HOST_GATHER>(config);
-}
-
 void update_config_for_text_embed(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
@@ -484,6 +464,29 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
         result.emplace(value.first, value.second.as<std::string>());
     }
     return result;
+}
+
+// Partitioning turns the Sub128 shifts of a shared vocabulary into one i8 closure only in function
+// subgraphs that go through Partitioner::optimize(): NPUW_FOLD and NPUW_FUNCALL_FOR_ALL, with
+// NPUW_HOST_GATHER on. NPUW_CWAI is not enough: it is used only without NPUW_FOLD, and its pipeline does not
+// run optimize(), so the shifts would stay in the function body. Without a closure the shifts reach the
+// compiler as they are: no memory is saved, and the LM head becomes several times slower.
+// The options are read with the option set of the stage itself, to get the same defaults and values.
+bool vocab_is_closure(const ov::AnyMap& stage_config) {
+    ov::AnyMap selected;
+    for (const auto key : {::intel_npu::NPUW_FOLD::key(),
+                           ::intel_npu::NPUW_FUNCALL_FOR_ALL::key(),
+                           ::intel_npu::NPUW_HOST_GATHER::key()}) {
+        if (const auto it = stage_config.find(std::string(key)); it != stage_config.end()) {
+            selected.insert(*it);
+        }
+    }
+    auto options_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::registerNPUWOptions(*options_desc);
+    ::intel_npu::Config stage_cfg(options_desc);
+    stage_cfg.update(any_copy(selected));
+    return stage_cfg.get<::intel_npu::NPUW_FOLD>() && stage_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>() &&
+           stage_cfg.get<::intel_npu::NPUW_HOST_GATHER>();
 }
 
 // Detect Gemma-4 E2B/E4B by a consumed "per_layer_inputs" input with nonzero PLE dim.
@@ -1671,29 +1674,42 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (shared_vocab) {
         // The shared vocabulary makes the LM head dequantize the weights with the zero point and the scale as
         // inputs. Without the compiler zero point decomposition for this case the LM head becomes several times
-        // slower, so the default is turned off. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept.
+        // slower, so the default is turned off. The compiler is the one selected by the final LM head config,
+        // which can differ from the top-level one. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept.
         const bool set_by_user = npuw_llm_props.count(std::string(::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED::key())) > 0;
+        const auto head_compiler_ver = lm_head_model && npudesc.has_value() && !set_by_user
+                                           ? query_compiler_version(plugin, lm_head_config)
+                                           : int64_t{0};
         const bool compiler_supports =
-            !npudesc.has_value() || npudesc->compiler_dynamic_zp_decomposition || set_by_user;
+            !npudesc.has_value() || set_by_user || compiler_supports_dynamic_zp_decomposition(head_compiler_ver);
         const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
                                                     vocab_is_closure(generate_config) &&
                                                     (lm_head_model && vocab_is_closure(lm_head_config));
-        if (!compiler_supports) {
-            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer, the compiler is "
-                     << ONEAPI_VERSION_MAJOR(npudesc->compiler_ver) << "."
-                     << ONEAPI_VERSION_MINOR(npudesc->compiler_ver) << ".");
-            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-        } else if (!lm_head_model) {
+        if (!lm_head_model) {
             // Without a separate LM head model the embedding and the LM head are in one model. If the embedding
             // matches the quantized host gather (hidden size 2048 or more), the partitioner uses it for the whole
             // model and does not run ConvertDQVocab, so the Sub128 shifts of the LM head reach the compiler.
             LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_LLM_SHARED_HEAD.");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else if (!compiler_supports) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer for the LM head, "
+                     "the compiler is "
+                     << ONEAPI_VERSION_MAJOR(head_compiler_ver) << "." << ONEAPI_VERSION_MINOR(head_compiler_ver)
+                     << ".");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
         } else if (!vocab_is_closure_in_all_stages) {
             LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
                      "NPUW_HOST_GATHER in every stage.");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
         } else {
+            // The LM head model has its own copy of the dequantization nodes, so the embedding Gather in the
+            // other models is shifted as well: both readers have to use the same i8 representation to share
+            // one table. The embedding goes first, as the vocabulary is taken from the unshifted LM head model.
+            auto embedding_models = generate_model_variants;
+            embedding_models.push_back(prefill_model);
+            for (const auto& embedding_model : embedding_models) {
+                ov::npuw::InsertEmbeddingSub128(lm_head_model).run_on_model(embedding_model);
+            }
             if (!ov::npuw::InsertVocabSub128().run_on_model(lm_head_model)) {
                 // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
                 LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");

@@ -4,6 +4,7 @@
 
 #include "insert_vocab_sub128.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -281,4 +282,75 @@ bool ov::npuw::DetectVocabSharing::run_on_model(const std::shared_ptr<ov::Model>
         log_vocab_names("LM-head candidate:", lm_head_vocabs.front());
     }
     return false;
+}
+
+namespace {
+
+class InsertEmbeddingSub128Matcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::InsertEmbeddingSub128Matcher");
+
+    explicit InsertEmbeddingSub128Matcher(const std::vector<Vocab>& lm_head_vocabs) {
+        const auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+        const auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
+        const auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+        const auto qweight_convert = opp::wrap_type<ov::op::v0::Convert>({qweight});
+        const auto qzerop_convert = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+        const auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qweight_convert, qzerop_convert});
+        const auto qscale = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
+        const auto qconvert = opp::optional<ov::op::v0::Convert>({qscale});
+        const auto gather = opp::wrap_type<ov::op::v8::Gather>({qconvert, opp::any_input(), opp::any_input()});
+
+        auto callback = [=, &lm_head_vocabs](opp::Matcher& matcher) {
+            const auto& values = matcher.get_pattern_value_map();
+            const auto weight = ov::as_type_ptr<ov::op::v0::Constant>(values.at(qweight).get_node_shared_ptr());
+            const auto zerop = ov::as_type_ptr<ov::op::v0::Constant>(values.at(qzerop).get_node_shared_ptr());
+            const auto scale = ov::as_type_ptr<ov::op::v0::Constant>(values.at(qcoeff).get_node_shared_ptr());
+            if (weight->get_element_type() != ov::element::u8 || zerop->get_element_type() != ov::element::u8 ||
+                weight->get_shape().size() != 2) {
+                return false;
+            }
+            // Only the Gather over the vocabulary of the LM head: other u8 tables (for example, per-layer
+            // embeddings) are not shared with it.
+            const bool shared = std::any_of(lm_head_vocabs.begin(), lm_head_vocabs.end(), [&](const Vocab& head) {
+                return same_storage(weight, head.weight) && same_storage(zerop, head.zerop) &&
+                       same_storage(scale, head.scale);
+            });
+            if (!shared) {
+                return false;
+            }
+            insert_sub128_shifts(std::static_pointer_cast<ov::op::v1::Subtract>(values.at(qsub).get_node_shared_ptr()));
+            return true;
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(gather, "InsertEmbeddingSub128"), std::move(callback));
+    }
+};
+
+}  // namespace
+
+ov::npuw::InsertEmbeddingSub128::InsertEmbeddingSub128(const std::shared_ptr<ov::Model>& lm_head_model)
+    : m_lm_head_model(lm_head_model) {}
+
+bool ov::npuw::InsertEmbeddingSub128::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    // Only the u8 asymmetric vocabulary of the LM head in the [V, H] layout is shifted by InsertVocabSub128.
+    std::vector<Vocab> lm_head_vocabs;
+    std::size_t matched = 0;
+    ov::pass::GraphRewrite collect;
+    collect.add_matcher<CollectVocabCandidates>(lm_head_vocabs, matched, true);
+    collect.run_on_model(m_lm_head_model);
+    lm_head_vocabs.erase(std::remove_if(lm_head_vocabs.begin(),
+                                        lm_head_vocabs.end(),
+                                        [](const Vocab& vocab) {
+                                            return !vocab.zerop || !vocab.scale ||
+                                                   vocab.weight->get_element_type() != ov::element::u8;
+                                        }),
+                         lm_head_vocabs.end());
+    if (lm_head_vocabs.empty()) {
+        return false;
+    }
+
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<InsertEmbeddingSub128Matcher>(lm_head_vocabs);
+    return rewrite.run_on_model(model);
 }
