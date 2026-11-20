@@ -737,4 +737,11 @@ class typed_primitive_inst : public typed_primitive_inst_base<PType> {
     static_assert(meta::always_false<PType>::value, "Missing typed_primitive_inst specialization");
 };
 
+#ifdef GPU_DEBUG_CONFIG
+// B0/D0 allocation trace (GPU_DEBUG statistics): category of an allocation that did not come from the memory pool, by the fixed priority
+// shape_of > kv_variable > network_output > [internal_buffer] > inplace_concat_group > sum_root > multi_output_port > constant > other.
+// Exposed so that unit tests can pin the priority order.
+alloc_category classify_off_pool_allocation(const program_node& node, bool can_be_optimized, size_t idx, bool is_internal_buffer);
+#endif  // GPU_DEBUG_CONFIG
+
 }  // namespace cldnn

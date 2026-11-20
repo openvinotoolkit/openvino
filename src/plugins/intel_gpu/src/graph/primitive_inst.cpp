@@ -17,6 +17,7 @@
 #include "condition_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
+#include "concatenation_inst.h"
 #include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "dynamic_quantize_inst.h"
@@ -1199,6 +1200,11 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 auto* ext_block = get_network().get_output_memory_block(next->id());
                 if (ext_block) {
                     ext_block->resize(actual_layouts[0]);
+                    // P1-L2: the previous output of this node may be its own pool block; drop the stale pool user record
+                    // before the buffer is replaced (no-op if the node is not a pool user of it).
+                    if (_outputs[0] != nullptr && get_node().get_program().get_config().get_enable_memory_pool()) {
+                        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+                    }
                     _outputs[0] = ext_block->memory();
                     _max_output_layout_count[0] = _outputs[0]->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[0].data_type);
                     GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block via forward probe -> " << next->id() << " - "
@@ -3123,6 +3129,75 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
 #endif  // ENABLE_ONEDNN_FOR_GPU
 }
 
+#ifdef GPU_DEBUG_CONFIG
+// B0/D0 allocation trace (GPU_DEBUG only, behavior neutral): classifies one allocation and records it in the pool of the network.
+// Category priority for off-pool allocations (first match wins), fixed by the orchestrator and checked by alloc_trace_summary_test:
+//   1 shape_of, 2 kv_variable, 3 network_output, [internal buffers: internal_buffer], 4 inplace_concat_group, 5 sum_root,
+//   6 multi_output_port, 7 constant, 8 other.
+alloc_category classify_off_pool_allocation(const program_node& node, bool can_be_optimized, size_t idx, bool is_internal_buffer) {
+    if (node.is_in_shape_of_subgraph()) {
+        return alloc_category::shape_of;
+    }
+    if (node.is_type<kv_cache>() || node.is_type<stateless_kv>() || node.is_type<read_value>() || node.is_type<assign>()) {
+        return alloc_category::kv_variable;
+    }
+    if (node.is_output()) {
+        return alloc_category::network_output;
+    }
+    if (is_internal_buffer) {
+        return alloc_category::internal_buffer;
+    }
+    if ((node.is_type<concatenation>() && can_be_optimized) || program_helpers::in_place_concat_holder_of(node) != nullptr) {
+        return alloc_category::inplace_concat_group;
+    }
+    const bool constant_like = node.is_type<data>() || node.is_type<input_layout>() || node.is_type<mutable_data>() || node.is_constant();
+    if (!node.can_share_buffer() && !constant_like) {
+        return alloc_category::sum_root;
+    }
+    if (idx > 0 && node.get_outputs_count() > 1) {
+        return alloc_category::multi_output_port;
+    }
+    if (constant_like) {
+        return alloc_category::constant;
+    }
+    return alloc_category::other;
+}
+
+static void trace_allocation(memory_pool& pool,
+                             const program_node& node,
+                             bool can_be_optimized,
+                             size_t idx,
+                             uint64_t bytes,
+                             uint32_t net_id,
+                             bool pooled,
+                             const char* reason,
+                             bool is_internal_buffer) {
+    alloc_trace_record rec;
+    rec.node_id = node.id();
+    rec.unique_id = node.get_unique_id();
+    rec.port = idx;
+    rec.bytes = bytes;
+    rec.network_id = net_id;
+    rec.pooled = pooled;
+    rec.is_internal_buffer = is_internal_buffer;
+    rec.is_output_node = node.is_output();
+    rec.multi_output_node = node.get_outputs_count() > 1;
+    rec.reason = reason;
+    if (pooled) {
+        rec.category = alloc_category::pooled;
+    } else if (!node.get_program().get_config().get_enable_memory_pool()) {
+        rec.category = alloc_category::pool_disabled;
+    } else {
+        rec.category = classify_off_pool_allocation(node, can_be_optimized, idx, is_internal_buffer);
+    }
+    pool.record_alloc_trace(rec, node.get_program().get_config().get_dump_alloc_trace() > 1);
+    GPU_DEBUG_IF(node.get_program().get_config().get_dump_alloc_trace() > 1) {
+        GPU_DEBUG_COUT << "[alloc_trace] net=" << net_id << " node=" << rec.node_id << " uid=" << rec.unique_id << (is_internal_buffer ? " ibuf=" : " port=")
+                       << idx << " bytes=" << bytes << " pooled=" << pooled << " category=" << to_string(rec.category) << " reason=" << reason << std::endl;
+    }
+}
+#endif  // GPU_DEBUG_CONFIG
+
 memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable, bool shareable) {
     const bool has_non_allocated_output = std::any_of(_outputs.begin(), _outputs.end(), [](const auto& output) {
         return output == nullptr;
@@ -3197,6 +3272,20 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
                                         _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
     GPU_DEBUG_LOG << " [" << get_network().get_id() << ":" << get_node().id() << ": internal buf " << idx << "] " << alloc_type << " " << ret_mem->buffer_ptr()
                   << std::endl;
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_IF(get_config().get_dump_alloc_trace()) {
+        const bool pooled = get_node().get_program().get_config().get_enable_memory_pool() && shareable;
+        trace_allocation(get_network().get_memory_pool(),
+                         *_node,
+                         can_be_optimized(),
+                         idx,
+                         layout.bytes_count(),
+                         get_network_id(),
+                         pooled,
+                         pooled ? "pool" : "internal_not_shareable",
+                         true);
+    }
+#endif  // GPU_DEBUG_CONFIG
     return ret_mem;
 }
 
@@ -3417,6 +3506,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
 
+#ifdef GPU_DEBUG_CONFIG
+    auto trace = [&](bool pooled, const char* reason) {
+        GPU_DEBUG_IF(node.get_program().get_config().get_dump_alloc_trace()) {
+            trace_allocation(pool, node, impl_params.can_be_optimized(), idx, layout.bytes_count(), net_id, pooled, reason, false);
+        }
+    };
+#endif  // GPU_DEBUG_CONFIG
+
     if (is_internal) {
         bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;
         if (node.can_be_optimized() || is_reorder_weights) {
@@ -3425,19 +3522,32 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             if (is_internal && is_reorder_weights && _engine.supports_allocation(allocation_type::usm_device)) {
                 alloc_type = allocation_type::usm_device;
             }
-            return get_memory_from_pool(_engine, net_id, pool, node, layout, alloc_type, false, memory_dependencies, reset, curr_memory);
+            auto mem = get_memory_from_pool(_engine, net_id, pool, node, layout, alloc_type, false, memory_dependencies, reset, curr_memory);
+            // reusable_across_network is false here, so the block is not registered in the pool
+            GPU_DEBUG_CODE(trace(false, "internal_not_reusable");)
+            return mem;
         }
         if ((node.is_output() && is_reorder_weights) || (!node.is_output() && node.is_type<input_layout>())) {
             reset = false;
         }
         GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
+        GPU_DEBUG_CODE(trace(false, "internal_constant");)
         return _engine.allocate_memory(layout, alloc_type, reset);
     }
     if (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) {
         GPU_DEBUG_LOG << "[" << node.id() << ": output]" << std::endl;
+        // P1-L1: this node previously may have obtained a pool block (e.g. a dynamic concat that was not optimized in an earlier
+        // iteration). Direct allocation bypasses the pool, so drop this node's stale user record to avoid a ghost user that
+        // would keep conflicting with other nodes. release_memory is a no-op if the node is not a user of the block.
+        if (curr_memory != nullptr && node.get_program().get_config().get_enable_memory_pool()) {
+            pool.release_memory(curr_memory, node.get_unique_id(), node.id(), net_id);
+        }
+        GPU_DEBUG_CODE(trace(false, "bypass_pool");)
         return _engine.allocate_memory(layout, alloc_type, reset);
     }
-    return get_memory_from_pool(_engine, net_id, pool, node, layout, alloc_type, reusable_across_network, memory_dependencies, reset, curr_memory);
+    auto mem = get_memory_from_pool(_engine, net_id, pool, node, layout, alloc_type, reusable_across_network, memory_dependencies, reset, curr_memory);
+    GPU_DEBUG_CODE(trace(node.get_program().get_config().get_enable_memory_pool() && reusable_across_network, reusable_across_network ? "pool" : "not_reusable");)
+    return mem;
 }
 
 std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem, bool runtime_alloc) {

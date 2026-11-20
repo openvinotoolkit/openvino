@@ -7,6 +7,7 @@
 set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/adaptive_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/alias_analysis.cpp
     ${CMAKE_CURRENT_LIST_DIR}/arg_max_min.cpp
     ${CMAKE_CURRENT_LIST_DIR}/assign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/batch_to_space.cpp

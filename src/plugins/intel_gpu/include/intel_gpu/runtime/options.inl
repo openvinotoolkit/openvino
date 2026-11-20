@@ -116,6 +116,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors_format, ov::intel_gpu::DumpFo
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_layer_names, std::vector<std::string>{}, "Activate dump for specified layers only")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_memory_pool_path, "", "Save csv file with memory pool info to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_memory_pool, 0, "Enable verbose output for memory pool. 0 - Disabled, 1 - Dump summary, 2 - Dump detailed entries")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_alloc_trace, 0, "Collect allocation trace statistics (off-pool bytes/count by category, ghost pool users). 0 - Disabled, 1 - Print summary on change after each iteration, 2 - Also print every allocation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_iterations, std::set<int64_t>{}, "Space separated list of iterations where other dump options should be enabled")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_sincos_path, "", "Save input/output of every Sin/Cos activation execution to specified folder as raw binary (SINCOS__<seq>__...bin).")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_src_after_exec, false, "Enable source data dump after layer execution. Useful for capturing updated states in stateful models.")

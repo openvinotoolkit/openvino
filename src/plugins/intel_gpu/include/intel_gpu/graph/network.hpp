@@ -235,6 +235,19 @@ public:
         return *_memory_pool;
     }
 
+#ifdef GPU_DEBUG_CONFIG
+    // Allocation trace statistics (B0/D0). Empty unless the dump_alloc_trace debug option was enabled (GPU_DEBUG builds only).
+    alloc_trace_summary get_alloc_trace_summary() const {
+        return _memory_pool->get_alloc_trace_summary(net_id);
+    }
+    // Per-allocation records, stored only with dump_alloc_trace >= 2 (capped).
+    std::vector<alloc_trace_record> get_alloc_trace_records() const {
+        return _memory_pool->get_alloc_trace_records(net_id);
+    }
+    // Currently held bytes of this network: unique buffers by handle, bucketed (see held_bytes_snapshot). Host-side metadata walk only.
+    held_bytes_snapshot get_held_bytes_snapshot() const;
+#endif  // GPU_DEBUG_CONFIG
+
     void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableStateBase>& variable);
     bool has_variable(const std::string &variable_id) const;
     ov::intel_gpu::VariableStateBase& get_variable(const std::string &variable_id) const;

@@ -5,6 +5,9 @@
 #include "debug_helper.hpp"
 
 #include <regex>
+#include <mutex>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -801,6 +804,131 @@ NetworkDebugHelper::NetworkDebugHelper(network& net) : m_network(net), m_iter(ne
     }
 }
 
+static void print_alloc_trace_summary(network& net, const std::unordered_set<size_t>& live_uids) {
+    auto& pool = net.get_memory_pool();
+    const auto net_id = net.get_id();
+    if (!pool.consume_alloc_trace_changes(net_id)) {
+        return;
+    }
+    const auto sum = pool.get_alloc_trace_summary(net_id);
+    auto mb = [](uint64_t b) {
+        return std::to_string(static_cast<double>(b) / (1024 * 1024)) + " MB";
+    };
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_COUT << "Allocation trace: off-pool by category (net_id:" << net_id << ")" << std::endl;
+    for (size_t i = 0; i < static_cast<size_t>(alloc_category::count_); ++i) {
+        const auto c = static_cast<alloc_category>(i);
+        const auto& e = sum.at(c);
+        if (e.count == 0) {
+            continue;
+        }
+        GPU_DEBUG_COUT << " * " << std::left << std::setw(22) << to_string(c) << ": count=" << std::setw(6) << e.count << " bytes=" << e.bytes << " ("
+                       << mb(e.bytes) << ")" << std::right << std::endl;
+    }
+    if (sum.dropped_records) {
+        GPU_DEBUG_COUT << " Dropped per-allocation records (cap reached): " << sum.dropped_records << std::endl;
+    }
+    // Caveats: (1) the network output share is relative to cumulative allocated bytes, not to the peak; (2) "foreign user records" below
+    // is not the F18 same-block probe; (3) `pooled` is over-counted when the pool itself falls back to direct allocation (image formats,
+    // disable_memory_reuse); (4) dynamic kv dependencies (can_share_buffer(false) in prepare_buffer_fusing) may show up as sum_root.
+    GPU_DEBUG_COUT << " Total allocations       : count=" << sum.total_count << " bytes=" << sum.total_bytes << " (" << mb(sum.total_bytes) << ")" << std::endl;
+    GPU_DEBUG_COUT << " Off-pool total          : bytes=" << sum.off_pool_bytes() << " (" << mb(sum.off_pool_bytes()) << ")" << std::endl;
+    GPU_DEBUG_COUT << " Multi-output nodes      : " << sum.multi_output_node_uids.size() << ", idx>0 outputs: count=" << sum.non_first_port_count
+                   << " bytes=" << sum.non_first_port_bytes << std::endl;
+    // Scope: only buffers allocated through primitive_inst::allocate_output / allocate_internal_buffer are traced. Output buffers provided by the
+    // plugin (set_output_memory / OutputMemoryBlock, e.g. logits) are not allocations of the network, so they are 0 here by design; see the
+    // "external" bucket and "network output (held)" of the held-bytes snapshot. Same for variable memory and beam tables that kv_cache impls or
+    // the plugin allocate themselves: the snapshot "variable" bucket can exceed the kv_variable trace bytes.
+    GPU_DEBUG_COUT << " Network output bytes    : " << sum.network_output_bytes << " ("
+                   << (sum.total_bytes ? 100.0 * static_cast<double>(sum.network_output_bytes) / static_cast<double>(sum.total_bytes) : 0.0)
+                   << "% of allocated bytes; network-allocated outputs only, plugin-provided outputs are in the held snapshot)" << std::endl;
+    // Pool consistency probes: same uid on several records (F18 probe) and foreign users (user uid that is not a primitive of this network).
+    // This does NOT detect P1-L1/L2 style leaks: their stale users are still live nodes; those are guarded by concat_holder_pool_leak tests B0-T1/T2.
+    std::unordered_map<size_t, size_t> per_uid;
+    size_t foreign = 0;
+    for (auto uid : pool.get_all_user_uids(net_id)) {
+        per_uid[uid]++;
+        if (live_uids.find(uid) == live_uids.end()) {
+            foreign++;
+        }
+    }
+    size_t multi_record_uids = 0;
+    for (const auto& kv : per_uid) {
+        multi_record_uids += kv.second > 1 ? 1 : 0;
+    }
+    GPU_DEBUG_COUT << " Pool: users on >1 records: " << multi_record_uids << ", foreign user records (uid not a primitive of this network): " << foreign << std::endl;
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+}
+
+// Digest of the last printed snapshot per network (print only on changes); kept here, not in network.
+static std::unordered_map<const network*, uint64_t> g_last_held_digest;
+static std::mutex g_last_held_digest_mutex;
+
+static void print_held_bytes_snapshot(network& net) {
+    const auto snap = net.get_held_bytes_snapshot();
+    const uint64_t digest = snap.total_bytes * 1000003u + snap.total_blocks * 31u + snap.pooled.bytes * 7u + snap.ghost.bytes * 13u;
+    {
+        std::lock_guard<std::mutex> lock(g_last_held_digest_mutex);
+        auto& last = g_last_held_digest[&net];
+        if (digest == last) {
+            return;
+        }
+        last = digest;
+    }
+    auto mb = [](uint64_t b) {
+        return std::to_string(static_cast<double>(b) / (1024 * 1024)) + " MB";
+    };
+    auto line = [&](const char* name, const held_bytes_snapshot::entry& e) {
+        if (e.blocks) {
+            GPU_DEBUG_COUT << " * " << std::left << std::setw(22) << name << ": blocks=" << std::setw(6) << e.blocks << " bytes=" << e.bytes << " ("
+                           << mb(e.bytes) << ")" << std::right << std::endl;
+        }
+    };
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_COUT << "Held bytes snapshot (net_id:" << net.get_id() << ", unique buffers by handle)" << std::endl;
+    line("pooled (per block)", snap.pooled);
+    // ghost detection limit: a leaked pool block is visible here only if no live node references it; if a live node shares the block it is
+    // shown as pooled, so P1-L1/L2 style leaks (stale user record on a block still held by another node) are NOT detected by this line;
+    // those are guarded by the concat_holder_pool_leak tests B0-T1/B0-T2.
+    // always printed (also when 0) so that the manual gate "ghost == 0" is checkable from the log
+    GPU_DEBUG_COUT << " * " << std::left << std::setw(22) << "ghost (unreferenced)" << ": blocks=" << std::setw(6) << snap.ghost.blocks << " bytes=" << snap.ghost.bytes
+                   << " (" << mb(snap.ghost.bytes) << ")" << std::right << std::endl;
+    line("constant", snap.constant);
+    line("external", snap.external);
+    line("variable", snap.variable);
+    for (size_t i = 0; i < static_cast<size_t>(alloc_category::count_); ++i) {
+        line((std::string("off-pool:") + to_string(static_cast<alloc_category>(i))).c_str(), snap.off_pool[i]);
+    }
+    GPU_DEBUG_COUT << " total_held               : blocks=" << snap.total_blocks << " bytes=" << snap.total_bytes << " (" << mb(snap.total_bytes) << ")" << std::endl;
+    GPU_DEBUG_COUT << " network output (held)    : bytes=" << snap.network_output_bytes << " ("
+                   << (snap.total_bytes ? 100.0 * static_cast<double>(snap.network_output_bytes) / static_cast<double>(snap.total_bytes) : 0.0)
+                   << "% of held bytes)" << std::endl;
+    // Reconciliation with the engine counters, same allocation type on both sides. The engine counters are process-wide, so not_in_snapshot may
+    // include: other networks, the weights reorder cache, shape_info sub-buffers, plugin-owned variable memory, user-side buffers and any
+    // buffer that is not referenced by outputs/intermediates (e.g. pool blocks without a live referencing node are in the snapshot as ghost).
+    for (const auto t : {allocation_type::usm_device, allocation_type::cl_mem}) {
+        uint64_t snap_t = 0;
+        for (const auto& b : snap.buffers) {
+            snap_t += b.type == t ? b.bytes : 0;
+        }
+        const int64_t engine_t = static_cast<int64_t>(net.get_engine().get_used_device_memory(t));
+        GPU_DEBUG_COUT << " reconciliation " << std::left << std::setw(10) << (t == allocation_type::usm_device ? "usm_device" : "cl_mem") << std::right
+                       << ": engine=" << engine_t << " snapshot=" << snap_t << " not_in_snapshot(process-wide)=" << (engine_t - static_cast<int64_t>(snap_t))
+                       << std::endl;
+    }
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+    if (net.get_program()->get_config().get_dump_alloc_trace() > 1) {
+        // Joinable with "[alloc_trace] ... uid=<uid> port=<idx>|ibuf=<idx> bytes=" records by (uid, port|ibuf).
+        for (const auto& b : snap.buffers) {
+            GPU_DEBUG_COUT << "[held_buf] net=" << net.get_id() << " bucket=" << b.bucket << " owner=" << (b.owner.empty() ? "n/a" : b.owner)
+                           << " uid=" << b.owner_uid << (b.owner_intermediate ? " ibuf=" : " port=") << b.owner_port
+                           << " type=" << (b.owner_type.empty() ? "n/a" : b.owner_type) << " bytes=" << b.bytes << " layout_bytes="
+                           << (b.layout_bytes < 0 ? std::string("n/a") : std::to_string(b.layout_bytes)) << " handle=" << b.handle << std::endl;
+        }
+    }
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+}
+
 NetworkDebugHelper::~NetworkDebugHelper() {
     auto* prog = m_network.get_program().get();
     auto net_id = m_network.get_id();
@@ -847,6 +975,21 @@ NetworkDebugHelper::~NetworkDebugHelper() {
         if (iters.empty() || iters.find(m_iter) != iters.end()) {
             dump_memory_pool(config.get_dump_memory_pool_path(), m_iter);
             GPU_DEBUG_COUT << "============================================================================" << std::endl;
+        }
+    }
+
+    if (config.get_dump_alloc_trace()) {
+        std::unordered_set<size_t> live_uids;
+        for (const auto& prim : m_network._primitives) {
+            live_uids.insert(prim.second->get_node().get_unique_id());
+        }
+        print_alloc_trace_summary(m_network, live_uids);
+        try {
+            print_held_bytes_snapshot(m_network);
+        } catch (const std::exception& e) {
+            // statistics must never break execution (and a destructor must not throw)
+            GPU_DEBUG_COUT << "[held snapshot] failed: " << e.what() << std::endl;
+        } catch (...) {
         }
     }
 

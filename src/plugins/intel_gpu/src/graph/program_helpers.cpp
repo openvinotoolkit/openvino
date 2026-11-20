@@ -235,6 +235,7 @@ program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const progra
     const size_t bound = n.get_program().get_processing_order().size();
     size_t steps = 0;
     const program_node* cur = &n;
+    int32_t cur_port = 0;
     if (collect_path) {
         res.path.push_back(cur);
     }
@@ -242,8 +243,11 @@ program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const progra
     while (true) {
         if (const auto* holder = in_place_concat_holder_of(*cur)) {
             cur = holder;  // slot step takes precedence
+            cur_port = 0;
         } else if (is_buffer_view_of_input0(*cur, mode)) {
-            cur = &cur->get_dependency(0);
+            const auto dep = cur->get_dependency_with_port(0);
+            cur = dep.first;
+            cur_port = dep.second;
         } else {
             break;
         }
@@ -254,6 +258,7 @@ program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const progra
         res.path_has_output = res.path_has_output || is_or_becomes_output(*cur);
     }
     res.owner = cur;
+    res.owner_port = cur_port;
     return res;
 }
 

@@ -24,6 +24,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "alias_analysis.h"
 #include "intel_gpu/graph/tensor_conversion.hpp"
 
 
@@ -822,6 +823,9 @@ void program::prepare_memory_dependencies() {
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
+    // Phase 0.5a: behaviour-neutral. Builds the alias classes once (all queue types: OOOQ classes carry fb_oooq for shadow validation),
+    // after every restriction pass and before the restrictions are published. Nothing reads it yet.
+    _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
     // Publish sorted restriction vectors before runtime consumers can access them.
     for (const auto& node : get_processing_order()) {
         node->get_memory_dependencies();

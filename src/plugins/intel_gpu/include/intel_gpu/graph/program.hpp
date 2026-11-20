@@ -29,6 +29,7 @@ struct topology;
 struct program_node;
 class layout_optimizer;
 class pass_manager;
+class alias_analysis;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
@@ -165,6 +166,8 @@ public:
     bool is_body_program() const { return _is_body_program; }
     bool can_be_optimized() const { return _can_be_optimized; }
     bool is_internal_program() const { return is_internal; }
+    // Phase 0.5a: alias classes of the compiled graph; built once in prepare_memory_dependencies (nullptr before it, and when it is skipped).
+    const alias_analysis* get_alias_analysis() const { return _alias_analysis.get(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
@@ -332,6 +335,7 @@ private:
     nodes_ordering processing_order;
     std::vector<primitive_id> allocating_order;
     std::unique_ptr<pass_manager> pm;
+    std::unique_ptr<alias_analysis> _alias_analysis;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal = false;
     // Forced oneDNN impls optimization attribute

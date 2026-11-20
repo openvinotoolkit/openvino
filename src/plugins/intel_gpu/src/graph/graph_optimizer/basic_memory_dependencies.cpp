@@ -9,6 +9,8 @@
 #include "program_helpers.h"
 #include "stateless_kv_inst.h"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include <set>
 #include <vector>
 
 using namespace cldnn;
@@ -20,10 +22,27 @@ using namespace cldnn;
 #    endif
 #endif
 
+// Phase 0.5a B4 Debug assertion (zero Release cost). Temporarily define ALIAS_B4_DEBUG_CHECKS to 1 to exercise it in an NDEBUG build.
+#ifndef ALIAS_B4_DEBUG_CHECKS
+#    ifndef NDEBUG
+#        define ALIAS_B4_DEBUG_CHECKS 1
+#    endif
+#endif
+
 void basic_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::BasicMemoryDependencies");
     auto itr = p.get_processing_order().begin();
     std::vector<size_t> past_outputs;
+    size_t owner_diff_count = 0;
+#ifdef ALIAS_B4_DEBUG_CHECKS
+    // Defect B transition (Phase 0.5a): nodes marked only by the new owner resolution, with their can_share_buffer before the mark.
+    struct owner_only_mark {
+        program_node* node;
+        bool was_non_shareable;
+    };
+    std::vector<owner_only_mark> owner_only_marks;
+    std::set<const program_node*> legacy_marked;  // nodes the legacy sum walk marked (anywhere in the pass)
+#endif
     while (itr != p.get_processing_order().end()) {
         const auto& node = *itr;
         itr++;
@@ -89,6 +108,23 @@ void basic_memory_dependencies::run(program& p) {
                     root = &root->get_dependency(0);
                 }
                 root->can_share_buffer(false);
+#ifdef ALIAS_B4_DEBUG_CHECKS
+                legacy_marked.insert(root);
+#endif
+
+                // Defect B (concat in the chain): the walk above steps to dep(0) of an in-place concat, i.e. to its first predecessor
+                // instead of the holder. The owner by edge direction (slot step first) is the real allocator; mark it as well. The old
+                // marking is kept so that no node becomes poolable (neutral transition).
+                // SUNSET: P1-C deletes the old walk above and keeps only this owner-based marking.
+                program_node* owner = const_cast<program_node*>(
+                    program_helpers::resolve_buffer_owner(eltw_node, program_helpers::view_resolution::settled_only).owner);
+                if (owner != root) {
+                    ++owner_diff_count;
+#ifdef ALIAS_B4_DEBUG_CHECKS
+                    owner_only_marks.push_back({owner, !owner->can_share_buffer()});
+#endif
+                    owner->can_share_buffer(false);
+                }
 
                 for (const auto& user : node->get_users()) {
                     add_memory_dependency(user, &eltw_node);
@@ -111,6 +147,24 @@ void basic_memory_dependencies::run(program& p) {
             }
         }
     }
+
+    if (owner_diff_count != 0) {
+        GPU_DEBUG_LOG << "[alias_analysis] defect B: sum owner differs from the legacy chain root " << owner_diff_count << " time(s)" << std::endl;
+    }
+
+#ifdef ALIAS_B4_DEBUG_CHECKS
+    // B4: judged after the main loop (mutable_data propagates the output flag inside it). A node marked only by the owner resolution
+    // must already be outside the pool, otherwise this transition would have changed an allocation.
+    for (const auto& m : owner_only_marks) {
+        const program_node& n = *m.node;
+        if (legacy_marked.count(&n)) {
+            continue;  // also marked by the legacy walk of another sum: not owner-only
+        }
+        // design 11 section 7.3: a static cbo node that is not runtime skippable bypasses the pool for certain
+        OPENVINO_ASSERT(m.was_non_shareable || (n.can_be_optimized() && !n.is_dynamic() && !n.is_runtime_skippable()) || n.is_output() || p.is_internal_program(),
+                        "[GPU] alias_analysis B4: node ", n.id(), " is newly marked non-shareable by the defect B owner resolution but was poolable");
+    }
+#endif  // ALIAS_B4_DEBUG_CHECKS
 
 #if defined(F5_DEBUG_CHECKS) && defined(ENABLE_ONEDNN_FOR_GPU)
     // D2: every static node still carrying a frozen sum (F5 left only consistent ones) is the pool-exempt writer this pass just

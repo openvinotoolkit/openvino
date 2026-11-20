@@ -46,6 +46,150 @@ bool memory_pool::has_conflict(const memory_set& mem_cand,
     return false;
 }
 
+std::vector<size_t> memory_pool::get_user_uids(const memory& mem, uint32_t net_id) const {
+    std::vector<size_t> uids;
+    const auto mem_handle = mem.get_internal_params().mem;
+    auto collect = [&](const memory_record& rec) {
+        if (rec._network_id != net_id || rec._memory->get_internal_params().mem != mem_handle) {
+            return;
+        }
+        for (const auto& u : rec._users) {
+            uids.push_back(u._unique_id);
+        }
+    };
+    for (const auto& kv : _non_padded_pool) {
+        collect(kv.second);
+    }
+    for (const auto& kv : _padded_pool) {
+        for (const auto& rec : kv.second) {
+            collect(rec);
+        }
+    }
+    return uids;
+}
+
+size_t memory_pool::count_records_with_user(size_t uid, uint32_t net_id) const {
+    size_t cnt = 0;
+    auto has_user = [&](const memory_record& rec) {
+        if (rec._network_id != net_id) {
+            return false;
+        }
+        for (const auto& u : rec._users) {
+            if (u._unique_id == uid && u._network_id == net_id) {
+                return true;
+            }
+        }
+        return false;
+    };
+    for (const auto& kv : _non_padded_pool) {
+        cnt += has_user(kv.second) ? 1 : 0;
+    }
+    for (const auto& kv : _padded_pool) {
+        for (const auto& rec : kv.second) {
+            cnt += has_user(rec) ? 1 : 0;
+        }
+    }
+    return cnt;
+}
+
+#ifdef GPU_DEBUG_CONFIG
+std::vector<size_t> memory_pool::get_all_user_uids(uint32_t net_id) const {
+    std::vector<size_t> uids;
+    auto collect = [&](const memory_record& rec) {
+        if (rec._network_id != net_id) {
+            return;
+        }
+        for (const auto& u : rec._users) {
+            uids.push_back(u._unique_id);
+        }
+    };
+    for (const auto& kv : _non_padded_pool) {
+        collect(kv.second);
+    }
+    for (const auto& kv : _padded_pool) {
+        for (const auto& rec : kv.second) {
+            collect(rec);
+        }
+    }
+    return uids;
+}
+
+void memory_pool::record_alloc_trace(const alloc_trace_record& rec, bool keep_record) {
+    std::lock_guard<std::mutex> lock(_alloc_trace_mutex);
+    auto& s = _alloc_trace[rec.network_id];
+    auto& e = s.by_category[static_cast<size_t>(rec.category)];
+    e.count++;
+    e.bytes += rec.bytes;
+    s.total_count++;
+    s.total_bytes += rec.bytes;
+    if (rec.is_output_node) {
+        s.network_output_bytes += rec.bytes;
+    }
+    if (rec.multi_output_node && !rec.is_internal_buffer) {
+        s.multi_output_node_uids.insert(rec.unique_id);
+        if (rec.port > 0) {
+            s.non_first_port_count++;
+            s.non_first_port_bytes += rec.bytes;
+        }
+    }
+    s.generation++;
+    if (keep_record) {
+        auto& recs = _alloc_trace_records[rec.network_id];
+        if (recs.size() < max_alloc_trace_records) {
+            recs.push_back(rec);
+        } else {
+            s.dropped_records++;
+        }
+    }
+}
+
+std::vector<alloc_trace_record> memory_pool::get_alloc_trace_records(uint32_t net_id) const {
+    std::lock_guard<std::mutex> lock(_alloc_trace_mutex);
+    auto it = _alloc_trace_records.find(net_id);
+    return it == _alloc_trace_records.end() ? std::vector<alloc_trace_record>{} : it->second;
+}
+
+alloc_trace_summary memory_pool::get_alloc_trace_summary(uint32_t net_id) const {
+    std::lock_guard<std::mutex> lock(_alloc_trace_mutex);
+    auto it = _alloc_trace.find(net_id);
+    return it == _alloc_trace.end() ? alloc_trace_summary{} : it->second;
+}
+
+std::vector<pool_block_info> memory_pool::get_pool_blocks(uint32_t net_id) const {
+    std::vector<pool_block_info> blocks;
+    auto add = [&](const memory_record& rec) {
+        if (rec._network_id != net_id || rec._users.empty()) {
+            return;
+        }
+        pool_block_info b;
+        b.handle = rec._memory->get_internal_params().mem;
+        const auto tracker = rec._memory->get_mem_tracker();
+        b.bytes = tracker ? tracker->size() : rec._memory->size();
+        b.type = rec._memory->get_allocation_type();
+        blocks.push_back(b);
+    };
+    for (const auto& kv : _non_padded_pool) {
+        add(kv.second);
+    }
+    for (const auto& kv : _padded_pool) {
+        for (const auto& rec : kv.second) {
+            add(rec);
+        }
+    }
+    return blocks;
+}
+
+bool memory_pool::consume_alloc_trace_changes(uint32_t net_id) {
+    std::lock_guard<std::mutex> lock(_alloc_trace_mutex);
+    auto it = _alloc_trace.find(net_id);
+    if (it == _alloc_trace.end() || it->second.generation == it->second.printed_generation) {
+        return false;
+    }
+    it->second.printed_generation = it->second.generation;
+    return true;
+}
+#endif  // GPU_DEBUG_CONFIG
+
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
     // check non padded pool first
     auto _layout = mem->get_layout();

@@ -21,6 +21,11 @@
 #include "debug_helper.hpp"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
+#ifdef GPU_DEBUG_CONFIG
+#include "assign_inst.h"
+#include "concatenation_inst.h"
+#include "data_inst.h"
+#endif
 #include "input_layout_inst.h"
 #include "runtime_concat_order.h"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -1009,6 +1014,147 @@ void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) 
         GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
     }
 }
+
+#ifdef GPU_DEBUG_CONFIG
+// Forward limitation (Phase 4s): dedup by handle with tracker size counts a sub-buffer as the whole parent block, because sub-buffers share the
+// parent's memory tracker (ocl_engine.cpp ~226/~232) while USM/cl_mem sub-buffers have their own handles. Slicing an Arena with
+// create_subbuffer would multiply-count; rework before Phase 4s. Today graph-layer outputs do not use sub-buffers (only shape_info ~397 and MoE).
+// Ghost limit: only pool blocks without any live referencing node are reported as ghost; P1-L1/L2 leaks are guarded by B0-T1/B0-T2.
+held_bytes_snapshot network::get_held_bytes_snapshot() const {
+    struct ref {
+        const primitive_inst* inst;
+        size_t port;
+        bool intermediate;
+        memory::ptr mem;
+    };
+    std::map<const void*, std::vector<ref>> by_handle;
+    for (const auto& kv : _primitives) {
+        const primitive_inst* inst = kv.second.get();
+        for (size_t i = 0; i < inst->outputs_memory_count(); ++i) {
+            if (auto m = inst->output_memory_ptr(i)) {
+                by_handle[m->get_internal_params().mem].push_back({inst, i, false, m});
+            }
+        }
+        const auto& inter = inst->get_intermediates_memories();
+        for (size_t i = 0; i < inter.size(); ++i) {
+            if (inter[i]) {
+                by_handle[inter[i]->get_internal_params().mem].push_back({inst, i, true, inter[i]});
+            }
+        }
+    }
+
+    held_bytes_snapshot snap;
+    const auto blocks = _memory_pool->get_pool_blocks(net_id);
+    std::map<const void*, pool_block_info> pool_by_handle;
+    for (const auto& b : blocks) {
+        pool_by_handle.emplace(b.handle, b);
+    }
+
+    auto add = [&](held_bytes_snapshot::entry& e, uint64_t bytes) {
+        e.blocks++;
+        e.bytes += bytes;
+        snap.total_blocks++;
+        snap.total_bytes += bytes;
+    };
+    auto is_device = [](allocation_type t) {
+        return t == allocation_type::usm_device || t == allocation_type::cl_mem;
+    };
+
+    for (const auto& kv : by_handle) {
+        const auto& refs = kv.second;
+        // owner rule, see held_bytes_snapshot
+        auto rank = [](const ref& r) {
+            const auto& node = r.inst->get_node();
+            if (!r.intermediate && node.is_type<concatenation>() && r.inst->can_be_optimized()) {
+                return 0;
+            }
+            return (r.intermediate || !r.inst->can_be_optimized()) ? 1 : 2;
+        };
+        const ref* owner = &refs.front();
+        for (const auto& r : refs) {
+            const auto rr = rank(r), ro = rank(*owner);
+            if (rr < ro || (rr == ro && r.inst->get_node().get_unique_id() < owner->inst->get_node().get_unique_id())) {
+                owner = &r;
+            }
+        }
+        const auto& node = owner->inst->get_node();
+        bool any_output = false;
+        bool ext_block = false;
+        for (const auto& r : refs) {
+            if (r.inst->get_node().is_output()) {
+                any_output = true;
+                if (auto* blk = get_output_memory_block(r.inst->id())) {
+                    if (blk->memory() && blk->memory()->get_internal_params().mem == kv.first) {
+                        ext_block = true;
+                    }
+                }
+            }
+        }
+
+        held_buffer hb;
+        hb.handle = kv.first;
+        hb.owner = node.id();
+        hb.referenced_by_output = any_output;
+        hb.owner_uid = node.get_unique_id();
+        hb.owner_port = owner->port;
+        hb.owner_intermediate = owner->intermediate;
+        hb.owner_type = node.get_primitive()->type_string();
+        if (!owner->intermediate) {
+            const auto& ol = owner->inst->get_output_layout(owner->port);
+            if (ol.is_static()) {
+                hb.layout_bytes = static_cast<int64_t>(ol.bytes_count());
+            }
+        }
+        auto pit = pool_by_handle.find(kv.first);
+        if (pit != pool_by_handle.end()) {
+            hb.bytes = pit->second.bytes;
+            hb.type = pit->second.type;
+            hb.bucket = "pooled";
+            add(snap.pooled, hb.bytes);
+            pool_by_handle.erase(pit);
+        } else {
+            const auto tracker = owner->mem->get_mem_tracker();
+            hb.bytes = tracker ? tracker->size() : owner->mem->size();
+            hb.type = owner->mem->get_allocation_type();
+            if (node.is_type<kv_cache>() || node.is_type<read_value>() || node.is_type<assign>() || node.is_type<stateless_kv>()) {
+                hb.bucket = "variable";
+                add(snap.variable, hb.bytes);
+            } else if (node.is_type<data>() || node.is_type<mutable_data>() || node.is_constant()) {
+                hb.bucket = "constant";
+                add(snap.constant, hb.bytes);
+            } else if (node.is_type<input_layout>() || ext_block || is_output_remote_memory(*owner->mem)) {
+                hb.bucket = "external";
+                add(snap.external, hb.bytes);
+            } else {
+                const auto cat = classify_off_pool_allocation(node, owner->inst->can_be_optimized(), owner->port, owner->intermediate);
+                hb.bucket = to_string(cat);
+                add(snap.off_pool[static_cast<size_t>(cat)], hb.bytes);
+            }
+        }
+        if (is_device(hb.type)) {
+            snap.device_bytes += hb.bytes;
+        }
+        if (any_output) {
+            snap.network_output_bytes += hb.bytes;
+        }
+        snap.buffers.push_back(std::move(hb));
+    }
+    // pool records nobody references
+    for (const auto& kv : pool_by_handle) {
+        held_buffer hb;
+        hb.handle = kv.first;
+        hb.bytes = kv.second.bytes;
+        hb.type = kv.second.type;
+        hb.bucket = "ghost";
+        add(snap.ghost, hb.bytes);
+        if (is_device(hb.type)) {
+            snap.device_bytes += hb.bytes;
+        }
+        snap.buffers.push_back(std::move(hb));
+    }
+    return snap;
+}
+#endif  // GPU_DEBUG_CONFIG
 
 void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block) {
     OPENVINO_ASSERT(block != nullptr, "[GPU] Use unregister path (nullptr) via clear_output_memory_blocks or erase");

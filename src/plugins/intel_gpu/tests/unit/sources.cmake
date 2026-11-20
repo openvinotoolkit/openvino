@@ -82,8 +82,11 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_test_context.hpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/add_onednn_optimization_attributes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/add_required_reorders_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/alloc_trace_summary_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/alias_analysis_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/basic_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/clamp_fp16_output_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/concat_holder_pool_leak_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/fuse_primitives_with_layout.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/handle_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_test.cpp

@@ -128,6 +128,7 @@ struct program_helpers {
     enum class view_resolution { settled_only, include_post_freeze_candidates };
     struct buffer_owner {
         const program_node* owner = nullptr;          // node whose own allocation backs the queried node's output
+        int32_t owner_port = 0;                       // output port of owner that backs it (view step: port of the dependency; slot step: 0)
         std::vector<const program_node*> path;        // queried node .. owner, in walk order (only if collect_path)
         bool path_has_output = false;                 // some node on the walk (start and owner included) is_or_becomes_output
     };
