@@ -206,6 +206,14 @@ class TaskManager:
         thread.start()
         return thread
 
+    def __start_process(self, log_file, device):
+        args = self._command_list[self._idx].replace(self._device, device)
+        if not constants.IS_WIN:
+            args = shlex.split(args)
+        process = Popen(args, shell=False, stdout=log_file, stderr=log_file)
+        process.log_name = os.path.basename(log_file.name)
+        return process
+
     def init_worker(self):
         if len(self._command_list) <= self._idx:
             logger.warning(
@@ -220,18 +228,7 @@ class TaskManager:
                 LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length)
             )
             with open(log_file_name, "w", encoding=constants.ENCODING) as log_file:
-                args = self._command_list[self._idx].replace(
-                    self._device, target_device
-                )
-                if not constants.IS_WIN:
-                    args = shlex.split(args)
-                process = Popen(
-                    args,
-                    shell=False,
-                    stdout=log_file,
-                    stderr=log_file,
-                )
-                process.log_name = os.path.basename(log_file_name)
+                process = self.__start_process(log_file, target_device)
                 worker = self.__create_thread(self._process_list.append(process))
                 self._workers.append(worker)
                 worker.join()
@@ -280,13 +277,7 @@ class TaskManager:
                     continue
 
     def __update_process(self, pid: int, log_file, device):
-        args = self._command_list[self._idx].replace(self._device, device)
-        if not constants.IS_WIN:
-            args = shlex.split(args)
-        self._process_list[pid] = Popen(
-            args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file
-        )
-        self._process_list[pid].log_name = os.path.basename(log_file.name)
+        self._process_list[pid] = self.__start_process(log_file, device)
 
     def update_worker(self):
         if self._idx >= len(self._command_list):
@@ -441,14 +432,14 @@ class TestParallelRunner:
         with open(test_list_file_name, encoding=constants.ENCODING) as test_list_file:
             test_suite = ""
             for line in test_list_file.read().split("\n"):
-                # suites: 'Suite.  # TypeParam = ...' at column 0, tests: '  name  # GetParam() = ...'
-                name = line.split("  # ", 1)[0].strip()
-                if not name:
+                if not line.strip():
                     continue
                 if not line.startswith(" "):
+                    name = line.partition("  # TypeParam = ")[0]
                     test_suite = name[:-1] if name.endswith(".") else ""
                     continue
                 if test_suite:
+                    name = line.lstrip(" ").partition("  # GetParam() = ")[0]
                     real_test_name = f"{test_suite}.{name}"
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
