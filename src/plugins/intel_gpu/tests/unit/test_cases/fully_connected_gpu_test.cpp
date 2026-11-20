@@ -5381,25 +5381,6 @@ static void set_values_as(memory::ptr mem, const std::vector<float>& values) {
     }
 }
 
-template <typename T>
-static std::vector<float> read_values_as_float(memory::ptr mem) {
-    cldnn::mem_lock<T, mem_lock_type::read> ptr(mem, get_test_stream());
-    return std::vector<float>(ptr.begin(), ptr.end());
-}
-
-static std::vector<float> read_values_as_float(memory::ptr mem) {
-    switch (mem->get_layout().data_type) {
-    case data_types::f16:
-        return read_values_as_float<ov::float16>(mem);
-    case data_types::bf16:
-        return read_values_as_float<ov::bfloat16>(mem);
-    case data_types::f32:
-        return read_values_as_float<float>(mem);
-    default:
-        OPENVINO_THROW("Unexpected data type");
-    }
-}
-
 static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank,
                                                   bool is_caching_test,
                                                   bool is_dynamic_ifm = false,
@@ -5478,7 +5459,7 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank,
         ASSERT_EQ(network->get_output_layout("fc").get_partial_shape(), expected_out_shape);
         ASSERT_EQ(output_mem->get_layout().data_type, out_dt);
 
-        const auto output = read_values_as_float(output_mem);
+        const auto output = get_output_values_to_float(*network, outputs.at("fc"));
         for (int64_t r = 0; r < rows; ++r) {
             for (int64_t o = 0; o < ofm; ++o) {
                 float ref = bias_data[o];
@@ -5492,7 +5473,7 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank,
 
 // In-place crop + unsqueeze propagates a dynamic padding to the FC input. The shape-agnostic impl flattens the
 // tensors and drops the padding, so it must not be used for such a node.
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_dynamic_padding) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_dynamic_padding) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP();
@@ -5539,57 +5520,57 @@ TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_dynamic_padding) {
     }
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d) {
     test_dynamic_shape_agnostic_onednn_fc(2, false);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d) {
     test_dynamic_shape_agnostic_onednn_fc(3, false);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_cached) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_cached) {
     test_dynamic_shape_agnostic_onednn_fc(2, true);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_cached) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_cached) {
     test_dynamic_shape_agnostic_onednn_fc(3, true);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_dynamic_ifm) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_dynamic_ifm) {
     test_dynamic_shape_agnostic_onednn_fc(2, false, true);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_dynamic_ifm) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_dynamic_ifm) {
     test_dynamic_shape_agnostic_onednn_fc(3, false, true);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_not_transposed_weights) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_not_transposed_weights) {
     test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::f16, data_types::f16, data_types::f16, false);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_not_transposed_weights_dynamic_ifm) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_not_transposed_weights_dynamic_ifm) {
     test_dynamic_shape_agnostic_onednn_fc(3, false, true, data_types::f16, data_types::f16, data_types::f16, false);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_f32) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_f32) {
     test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::f32, data_types::f32, data_types::f32);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_bf16) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_bf16) {
     test_dynamic_shape_agnostic_onednn_fc(3, false, false, data_types::bf16, data_types::bf16, data_types::bf16);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_u8s8) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_u8s8) {
     test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::u8, data_types::i8, data_types::f32);
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_u8s8_dynamic_ifm) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_u8s8_dynamic_ifm) {
     test_dynamic_shape_agnostic_onednn_fc(3, false, true, data_types::u8, data_types::i8, data_types::f32);
 }
 
 // Fused ops are not supported by the shape-agnostic impl. With forcing, validate_impl() is skipped and create_impl()
 // returns nullptr for the dynamic impl, so a static oneDNN impl with the fused op must be used instead.
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_fused_op_rejected) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_fused_op_rejected) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP();
@@ -5627,7 +5608,7 @@ TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_fused_op_rejected) {
         ASSERT_TRUE(fc_inst->get_impl()->is_onednn()) << "rows " << rows;
         ASSERT_FALSE(fc_inst->get_impl()->is_dynamic()) << "rows " << rows;
 
-        const auto output = read_values_as_float(outputs.at("softmax").get_memory());
+        const auto output = get_output_values_to_float(*network, outputs.at("softmax"));
         for (int64_t r = 0; r < rows; ++r) {
             std::vector<float> ref(ofm);
             for (int64_t o = 0; o < ofm; ++o) {
@@ -5643,7 +5624,7 @@ TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_fused_op_rejected) {
     }
 }
 
-TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_not_selected_on_intel) {
+TEST(smoke_fully_connected_onednn_gpu, dynamic_shape_agnostic_not_selected_on_intel) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad || engine.get_device_info().vendor_id != INTEL_VENDOR_ID)
         GTEST_SKIP();
