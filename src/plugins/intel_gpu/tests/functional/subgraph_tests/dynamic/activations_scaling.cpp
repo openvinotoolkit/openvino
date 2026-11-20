@@ -524,7 +524,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
 // the branches moved through an Add would apply it in front of the Add.
 //
 //               input
-//          /      |      \
+//          /      |      \_
 //      MatMul  MatMul  MatMul
 //         |       \      /
 //         |       Multiply
