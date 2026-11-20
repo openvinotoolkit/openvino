@@ -45,7 +45,15 @@ KERNEL(fc)(
                         ACCUMULATOR_TYPE zp = DECOMPRESSION_ZP_VALUE;
                     #else
                         const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(oym, y / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                        #if DECOMPRESSION_ZP_PACKED_INT4
+                            const __global DECOMPRESSION_ZP_PACKED_TYPE* packed_zp =
+                                (const __global DECOMPRESSION_ZP_PACKED_TYPE*)decompression_zp;
+                            MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2) unpacked_zp =
+                                UNPACK_INT4x2(ACCUMULATOR_TYPE, packed_zp[zp_offset / 2]);
+                            ACCUMULATOR_TYPE zp = unpacked_zp[zp_offset % 2];
+                        #else
                         ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                        #endif
                     #endif
                 #else
                     ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
@@ -103,7 +111,15 @@ KERNEL(fc)(
                             ACCUMULATOR_TYPE zp = DECOMPRESSION_ZP_VALUE;
                         #else
                             const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(ofm, ifm / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                            #if DECOMPRESSION_ZP_PACKED_INT4
+                                const __global DECOMPRESSION_ZP_PACKED_TYPE* packed_zp =
+                                    (const __global DECOMPRESSION_ZP_PACKED_TYPE*)decompression_zp;
+                                MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2) unpacked_zp =
+                                    UNPACK_INT4x2(ACCUMULATOR_TYPE, packed_zp[zp_offset / 2]);
+                                ACCUMULATOR_TYPE zp = unpacked_zp[zp_offset % 2];
+                            #else
                             ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                            #endif
                         #endif
                     #else
                         ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
