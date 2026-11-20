@@ -752,6 +752,27 @@ TEST(alias_analysis, A17_duplicate_uid_identity_lookup_is_exact) {
     expect_identity_lookup_exact(*prog, aa);
 }
 
+// A21 (P1-B-S). uid level view of the collision data: a uid shared by two nodes is ambiguous (the first and the later tensor), others are not.
+TEST(alias_analysis, A21_uid_is_ambiguous_accessor) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, chain_topology(), {"O"});
+    prog->get_node("R").can_be_optimized(true);
+    {
+        auto aa = alias_analysis::build(*prog);
+        EXPECT_EQ(aa.ambiguous_uid_count(), 0u);
+        for (auto* n : prog->get_processing_order()) {
+            EXPECT_FALSE(aa.uid_is_ambiguous(static_cast<uint32_t>(n->get_unique_id()))) << n->id();
+        }
+    }
+    prog->get_node("O").set_unique_id(prog->get_node("P").get_unique_id());  // O collides with P
+    auto aa = alias_analysis::build(*prog);
+    const uint32_t shared = static_cast<uint32_t>(prog->get_node("P").get_unique_id());
+    EXPECT_TRUE(aa.uid_is_ambiguous(shared));
+    EXPECT_EQ(aa.ambiguous_uid_count(), 1u);
+    EXPECT_FALSE(aa.uid_is_ambiguous(static_cast<uint32_t>(prog->get_node("R").get_unique_id()))) << "unique uids stay unambiguous";
+    EXPECT_FALSE(aa.uid_is_ambiguous(0xFFFFFFF0u)) << "unknown uid";
+}
+
 // kv_cache: EVERY kv_cache has an alias edge to its input 0 (user decision 2026-11-20): MUST_VIEW (settled-view edge) when cbo, MAY_INPLACE
 // when not. The variable (read_value) class therefore contains the kv_cache and the readers of the kv_cache are readers of that class.
 TEST(alias_analysis, A18_kv_cache_cbo_and_non_cbo) {

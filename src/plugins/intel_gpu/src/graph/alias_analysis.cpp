@@ -141,6 +141,23 @@ const alias_class* alias_analysis::class_of(const tensor_id& id) const {
     return it == m_class_of_tensor.end() ? nullptr : &m_classes[it->second];
 }
 
+bool alias_analysis::uid_is_ambiguous(uint32_t uid) const {
+    for (const auto k : m_colliding_keys) {
+        if (static_cast<uint32_t>(k >> 32) == uid) {
+            return true;
+        }
+    }
+    return false;
+}
+
+size_t alias_analysis::ambiguous_uid_count() const {
+    std::unordered_set<uint32_t> uids;
+    for (const auto k : m_colliding_keys) {
+        uids.insert(static_cast<uint32_t>(k >> 32));
+    }
+    return uids.size();
+}
+
 tensor_id alias_analysis::root_of(const tensor_id& id) const {
     const auto* c = class_of(id);
     return c ? c->root : id;

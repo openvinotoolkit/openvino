@@ -792,6 +792,8 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << user_mark;
     ob << optimized;
     ob << share_buffer;
+    ob << pool_class_root;
+    ob << alias_pool_root_uid;
     for (const auto& _support_padding : _support_padding_in_axis) {
         ob << _support_padding;
     }
@@ -992,6 +994,8 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
     ib >> user_mark;
     ib >> optimized;
     ib >> share_buffer;
+    ib >> pool_class_root;
+    ib >> alias_pool_root_uid;
     for (auto& _support_padding : _support_padding_in_axis) {
         ib >> _support_padding;
     }

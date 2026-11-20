@@ -12,6 +12,9 @@
 #include <set>
 #include <stack>
 #include <string>
+#ifndef NDEBUG
+#include <unordered_map>
+#endif
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -863,6 +866,35 @@ void network::allocate_primitives() {
 #endif
         }
     }
+
+#ifndef NDEBUG
+    // P1-B-S (read-only, deviation from design 11 section 3.7 approved by the user): a zero-allocation member of a promoted in-place concat class
+    // must have been bound to the buffer of its class root by the holder constructor, before the internal buffers are allocated (their
+    // allocation returns early for nodes without output memory). The root instance is looked up by uid; its _outputs may also come from
+    // the attached memory of a mutable_data user (primitive_inst ctor), the comparison is on the instances' actual buffers either way.
+    {
+        std::unordered_map<uint32_t, const program_node*> node_of_uid;
+        bool has_zero_alloc = false;
+        for (const auto& node : po) {
+            node_of_uid.emplace(static_cast<uint32_t>(node->get_unique_id()), node);
+            has_zero_alloc = has_zero_alloc || (primitive_inst::allocation_route(*node, 0, node->can_be_optimized()) == primitive_inst::alloc_route::ZERO_ALLOC_MEMBER);
+        }
+        if (has_zero_alloc) {
+            for (const auto& node : po) {
+                if (primitive_inst::allocation_route(*node, 0, node->can_be_optimized()) != primitive_inst::alloc_route::ZERO_ALLOC_MEMBER) {
+                    continue;
+                }
+                const auto root_it = node_of_uid.find(node->get_alias_pool_root_uid());
+                OPENVINO_ASSERT(root_it != node_of_uid.end(), "[GPU] P1-B-S: root uid ", node->get_alias_pool_root_uid(), " of ", node->id(), " is not a node of the program");
+                const auto& inst = _primitives.at(node->id());
+                const auto& root_inst = _primitives.at(root_it->second->id());
+                OPENVINO_ASSERT(inst->outputs_allocated() && root_inst->outputs_allocated() &&
+                                    get_engine().is_the_same_buffer(inst->output_memory(0), root_inst->output_memory(0)),
+                                "[GPU] P1-B-S: zero-allocation member ", node->id(), " is not bound to the buffer of its class root ", root_it->second->id());
+            }
+        }
+    }
+#endif
 
     // allocate intermediate buffers
     for (const auto& node : po) {

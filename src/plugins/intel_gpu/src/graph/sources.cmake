@@ -67,6 +67,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/add_onednn_optimization_attributes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/add_required_reorders.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/basic_memory_dependencies.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/class_level_memory_dependencies.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/build_implementations.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/compile_graph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/concat_input_order.cpp
@@ -111,6 +112,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/broadcast_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/bucketize_inst.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/col2im_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/class_level_memory_dependencies.h
     ${CMAKE_CURRENT_LIST_DIR}/include/concatenation_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/condition_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/convert_color_inst.h

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <list>
 #include <map>
 #include <memory>
@@ -416,6 +417,25 @@ public:
         share_buffer = share;
     }
 
+    // P1-B-S class-level pool flags (written only by class_level_memory_dependencies, read by primitive_inst::allocation_route).
+    // Both are serialized. Default: not a class root, no alias pool root.
+    static constexpr uint32_t invalid_alias_pool_root_uid = std::numeric_limits<uint32_t>::max();
+    bool is_pool_class_root() const {
+        return pool_class_root;
+    }
+    void set_pool_class_root(bool v) {
+        pool_class_root = v;
+    }
+    uint32_t get_alias_pool_root_uid() const {
+        return alias_pool_root_uid;
+    }
+    bool has_alias_pool_root() const {
+        return alias_pool_root_uid != invalid_alias_pool_root_uid;
+    }
+    void set_alias_pool_root_uid(uint32_t uid) {
+        alias_pool_root_uid = uid;
+    }
+
     // Sets padding support for all axis
     void support_padding_all(bool support);
     // Sets padding support for specified axis
@@ -673,6 +693,8 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
+    bool pool_class_root = false;
+    uint32_t alias_pool_root_uid = std::numeric_limits<uint32_t>::max();
     bool share_internal_buffer = true;
     std::array<bool, tensor_dim_max> _support_padding_in_axis;
 

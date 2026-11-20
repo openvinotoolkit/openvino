@@ -146,6 +146,11 @@ public:
     size_t duplicate_uid_count() const {
         return m_duplicate_uids;
     }
+    // P1-B-S: uid level view of the same collision data (the private m_colliding_keys is keyed by (uid, space, index)). True if the uid
+    // projection of any OUTPUT tensor of a node with this uid collided with an earlier tensor, i.e. the uid is shared by several nodes
+    // (or several tensors of different identity). Class level generators must not promote a class that contains such a uid.
+    bool uid_is_ambiguous(uint32_t uid) const;
+    size_t ambiguous_uid_count() const;
 
 private:
     // Orders members and classes deterministically. NOT a time axis: the lifetime axis is network::_exec_order (F9).

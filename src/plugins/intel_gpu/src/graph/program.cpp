@@ -25,6 +25,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "alias_analysis.h"
+#include "class_level_memory_dependencies.h"
 #include "intel_gpu/graph/tensor_conversion.hpp"
 
 
@@ -826,6 +827,8 @@ void program::prepare_memory_dependencies() {
     // Phase 0.5a: behaviour-neutral. Builds the alias classes once (all queue types: OOOQ classes carry fb_oooq for shadow validation),
     // after every restriction pass and before the restrictions are published. Nothing reads it yet.
     _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
+    // P1-B-S: class-level pool identity of static in-place concat holders. No-op unless enable_concat_holder_pool is set (default off).
+    apply_opt_pass<class_level_memory_dependencies>();
     // Publish sorted restriction vectors before runtime consumers can access them.
     for (const auto& node : get_processing_order()) {
         node->get_memory_dependencies();
@@ -1849,7 +1852,11 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         }
         #endif
 
-        if (node->can_be_optimized())
+        // P1-B-S: route-aware. A promoted in-place concat holder is a pool allocation; zero-allocation class members allocate nothing.
+        const auto route = primitive_inst::allocation_route(*node, 0, node->can_be_optimized());
+        if (node->can_be_optimized() && route != primitive_inst::alloc_route::POOL_AS_ROOT)
+            continue;
+        if (route == primitive_inst::alloc_route::ZERO_ALLOC_MEMBER)
             continue;
         if (node->is_type<data>()) {
             const_sum += out_size;

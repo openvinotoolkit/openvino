@@ -3035,7 +3035,11 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             allocate_memory = _mem_allocated = false;
         }
     }
-
+    // P1-B-S: a predecessor slot of a promoted in-place concat class never owns memory; the holder constructor (concatenation.cpp, build_deps)
+    // binds its buffer. Placed here (not in do_allocate_memory) because reorder/permute call the parent constructor directly.
+    if (allocate_memory && allocation_route(node, 0, node.can_be_optimized()) == alloc_route::ZERO_ALLOC_MEMBER) {
+        allocate_memory = _mem_allocated = false;
+    }
 
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
@@ -3449,6 +3453,22 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
     return false;
 }
 
+primitive_inst::alloc_route primitive_inst::allocation_route(const program_node& node, size_t port, bool runtime_cbo) {
+    if (port == 0 && !node.is_dynamic()) {
+        if (node.is_pool_class_root() && node.can_share_buffer() && !node.is_output()) {
+            return alloc_route::POOL_AS_ROOT;
+        }
+        if (node.has_alias_pool_root() && node.get_alias_pool_root_uid() != static_cast<uint32_t>(node.get_unique_id())) {
+            return alloc_route::ZERO_ALLOC_MEMBER;
+        }
+    }
+    // identical to the pre-P1-B-S inline predicate of allocate_output
+    if (!node.can_share_buffer() || runtime_cbo || node.is_output()) {
+        return alloc_route::DIRECT;
+    }
+    return alloc_route::LEGACY_POOL;
+}
+
 memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             memory_pool& pool,
                                             const program_node& node,
@@ -3534,7 +3554,25 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         GPU_DEBUG_CODE(trace(false, "internal_constant");)
         return _engine.allocate_memory(layout, alloc_type, reset);
     }
-    if (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) {
+    auto route = allocation_route(node, idx, impl_params.can_be_optimized());
+#ifndef NDEBUG
+    OPENVINO_ASSERT(route != alloc_route::ZERO_ALLOC_MEMBER, "[GPU] ", node.id(), ": a zero-allocation class member must not allocate its output");
+#endif
+    if (route == alloc_route::ZERO_ALLOC_MEMBER) {
+        // Release builds: never reached by design; degrade to the pre-existing per-node behaviour instead of guessing. The degraded node
+        // owns a private buffer that the holder constructor already replaced or will replace, so it is wasted memory, not wrong data.
+        GPU_DEBUG_LOG << "[P1-B-S] zero-allocation member " << node.id() << " reached allocate_output: falling back to the legacy route" << std::endl;
+        route = (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) ? alloc_route::DIRECT : alloc_route::LEGACY_POOL;
+    }
+    if (route == alloc_route::POOL_AS_ROOT) {
+        // P1-B-S: the holder of a promoted in-place concat class is the only pool user of the class (restrictions were merged by the class
+        // level generator). Same call as the LEGACY_POOL branch below.
+        auto mem = get_memory_from_pool(_engine, net_id, pool, node, layout, alloc_type, reusable_across_network, memory_dependencies, reset, curr_memory);
+        GPU_DEBUG_CODE(trace(node.get_program().get_config().get_enable_memory_pool() && reusable_across_network,
+                             reusable_across_network ? "pool_class_root" : "not_reusable");)
+        return mem;
+    }
+    if (route == alloc_route::DIRECT) {
         GPU_DEBUG_LOG << "[" << node.id() << ": output]" << std::endl;
         // P1-L1: this node previously may have obtained a pool block (e.g. a dynamic concat that was not optimized in an earlier
         // iteration). Direct allocation bypasses the pool, so drop this node's stale user record to avoid a ghost user that

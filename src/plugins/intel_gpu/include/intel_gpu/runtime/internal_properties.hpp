@@ -131,6 +131,7 @@ static constexpr Property<std::shared_ptr<GpuWeightlessCacheMap>, PropertyMutabi
 static constexpr Property<QueueTypes, PropertyMutability::RW> queue_type{"GPU_QUEUE_TYPE"};
 
 static constexpr Property<bool, PropertyMutability::RW> enable_memory_pool{"GPU_ENABLE_MEMORY_POOL"};
+static constexpr Property<bool, PropertyMutability::RW> enable_concat_holder_pool{"GPU_ENABLE_CONCAT_HOLDER_POOL"};
 static constexpr Property<bool, PropertyMutability::RW> optimize_data{"GPU_OPTIMIZE_DATA"};
 static constexpr Property<bool, PropertyMutability::RW> allow_static_input_reorder{"GPU_ALLOW_STATIC_INPUT_REORDER"};
 static constexpr Property<bool, PropertyMutability::RW> partial_build_program{"GPU_PARTIAL_BUILD"};

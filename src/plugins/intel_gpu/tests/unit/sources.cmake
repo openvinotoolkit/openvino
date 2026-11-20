@@ -87,6 +87,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/basic_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/clamp_fp16_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/concat_holder_pool_leak_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/concat_holder_pool_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/fuse_primitives_with_layout.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/handle_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_test.cpp

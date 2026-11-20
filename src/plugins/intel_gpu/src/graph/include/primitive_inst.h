@@ -404,6 +404,13 @@ public:
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
 
+    // P1-B-S: where the output buffer of (node, port) comes from. POOL_AS_ROOT / ZERO_ALLOC_MEMBER are decided by the serialized class-level
+    // flags only; DIRECT / LEGACY_POOL keep the pre-existing runtime predicate (`!can_share_buffer || runtime_cbo || is_output`), where
+    // runtime_cbo is impl_params.can_be_optimized() (it flips per iteration for dynamic nodes). With default flags the result is identical
+    // to the old inline predicate.
+    enum class alloc_route { LEGACY_POOL, DIRECT, POOL_AS_ROOT, ZERO_ALLOC_MEMBER };
+    static alloc_route allocation_route(const program_node& node, size_t port, bool runtime_cbo);
+
     static memory::ptr allocate_output(engine& engine,
                                        memory_pool& pool,
                                        const program_node& node,
