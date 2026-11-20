@@ -24,7 +24,7 @@ using DeconvInputData = std::tuple<InputShape,                          // data 
         std::vector<std::vector<int32_t>>>;  // values for 'output_shape'
 
 using DeconvLayerCPUTestParamsSet =
-        std::tuple<DeconvSpecParams, DeconvInputData, ElementType, fusingSpecificParams, CPUSpecificParams, ov::AnyMap>;
+    std::tuple<DeconvSpecParams, DeconvInputData, ElementType, ExtraOperationsParams, CPUSpecificParams, ov::AnyMap>;
 
 class DeconvolutionLayerCPUTest : public testing::WithParamInterface<DeconvLayerCPUTestParamsSet>,
                                   virtual public SubgraphBaseTest,
@@ -55,7 +55,7 @@ private:
 };
 
 /* COMMON PARAMS */
-const std::vector<fusingSpecificParams> fusingParamsSet{
+const std::vector<ExtraOperationsParams> fusingParamsSet{
         emptyFusingSpec,
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
         fusingAddPerChannel

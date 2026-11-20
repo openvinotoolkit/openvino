@@ -3,6 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/convolution_backprop_data.hpp"
+#include "internal_properties.hpp"
 #include "shared_test_classes/single_op/convolution_backprop_data.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
@@ -15,7 +16,7 @@ namespace ov {
 namespace test {
 namespace DeConvolution {
 /* COMMON PARAMS */
-const std::vector<fusingSpecificParams> brgDeconvFusingParamsSet{
+const std::vector<ExtraOperationsParams> brgDeconvFusingParamsSet{
     emptyFusingSpec,
     //bias fusing
     fusingAddPerChannel,
@@ -266,10 +267,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_INT8_AMX,
         ::testing::Combine(convParams_ExplicitPadding_NSPC_2D,
                            ::testing::ValuesIn(smoke_2D_inputs),
                            ::testing::Values(ElementType::i8),
-                           ::testing::ValuesIn({emptyFusingSpec, fusingClampRoundAddRelu}),
+                           ::testing::Values(emptyFusingSpec, fusingClampRoundAddRelu),
                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_amx})),
                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);
+
+const ExtraOperationsParams dqScalesMultipleConsumers{
+    fusingMultiplyPerChannelWithSecondConsumer,
+    // The fixture generates inputs below 2560. Keep quantized activations below 128 to avoid saturation without VNNI.
+    QuantizationInfo{{{0, QuantizationData{0, 8192, 256}}, {1, QuantizationData{-1, 1, 255}}}}};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Deconv_2D_INT8_DQScalesMultipleConsumers,
+    DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Values(DeconvSpecParams{{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, 8, ov::op::PadType::EXPLICIT, {}}),
+        ::testing::Values(
+            DeconvInputData{InputShape{{}, {{2, 16, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
+            DeconvInputData{InputShape{{{1, 2}, 16, {5, 7}, {5, 7}}, {{2, 16, 7, 7}, {1, 16, 5, 5}}},
+                            ov::test::utils::InputLayerType::CONSTANT,
+                            {}}),
+        ::testing::Values(ElementType::f32),
+        ::testing::Values(dqScalesMultipleConsumers),
+        ::testing::Values(CPUSpecificParams{{}, {}, {}, ".*"}),
+        ::testing::Values(ov::AnyMap{ov::hint::inference_precision(ov::element::f32),
+                                     ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE)})),
+    DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Deconvolution 3D ============= */
 const std::vector<DeconvInputData> smoke_3D_inputs = {
@@ -416,7 +439,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_INT8_AMX,
         ::testing::Combine(convParams_ExplicitPadding_NSPC_3D,
                            ::testing::ValuesIn(smoke_3D_inputs),
                            ::testing::Values(ElementType::i8),
-                           ::testing::ValuesIn({emptyFusingSpec, fusingClampRoundAddRelu}),
+                           ::testing::Values(emptyFusingSpec, fusingClampRoundAddRelu),
                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_amx})),
                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);

@@ -8,7 +8,8 @@ using namespace CPUTestUtils;
 using namespace ov::test;
 
 std::string DeconvolutionLayerCPUTest::getTestCaseName(const testing::TestParamInfo<DeconvLayerCPUTestParamsSet>& obj) {
-    const auto& [basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig] = obj.param;
+    const auto& [basicParamsSet, inputData, prec, extraOpsParams, cpuParams, additionalConfig] = obj.param;
+    const auto& [fusingParams, qinfo] = extraOpsParams;
     const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding] = basicParamsSet;
     const auto& [inputShape, outShapeType, outShapeData] = inputData;
     std::ostringstream result;
@@ -39,6 +40,9 @@ std::string DeconvolutionLayerCPUTest::getTestCaseName(const testing::TestParamI
 
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
+    if (!qinfo.empty()) {
+        result << "_" << qinfo;
+    }
 
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
@@ -155,14 +159,15 @@ std::shared_ptr<ov::Model> DeconvolutionLayerCPUTest::createGraph(const std::vec
                                                                  outPadding);
     }
 
-    return create_ov_model(prec, params, deconv, "DeconvCPU");
+    return create_ov_model(prec, params, deconv, "DeconvCPU", std::get<ExtraOperationsParams>(GetParam()).qinfo);
 }
 
 void DeconvolutionLayerCPUTest::SetUp() {
     rel_threshold = 1e-4f;
 
     targetDevice = ov::test::utils::DEVICE_CPU;
-    const auto& [basicParamsSet, inputData, _prec, fusingParams, cpuParams, additionalConfig] = this->GetParam();
+    const auto& [basicParamsSet, inputData, _prec, extraOpsParams, cpuParams, additionalConfig] = this->GetParam();
+    const auto& [fusingParams, qinfo] = extraOpsParams;
     prec = _prec;
     const auto& [inputShape, outShapeType, _outShapeData] = inputData;
     outShapeData = _outShapeData;
@@ -185,7 +190,7 @@ void DeconvolutionLayerCPUTest::SetUp() {
         inType = outType = prec;
     }
 
-    selectedType = makeSelectedTypeStr(selectedType, prec);
+    selectedType = makeSelectedTypeStr(selectedType, qinfo.inputs.empty() ? prec : ElementType::i8);
 
     std::vector<InputShape> paramsShapes;
     paramsShapes.push_back(inputShape);
