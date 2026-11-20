@@ -1955,7 +1955,30 @@ void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    auto finalize_weights = [&]() {
+    // True if the host reads this closure at inference time (host gather source, quantized gather source, or CPU
+    // unpack because the closure type differs from the function's port type); such weights must stay cacheable.
+    auto closure_read_by_host = [&](std::size_t idx, std::size_t tidx) {
+        const auto& desc = m_compiled_submodels[idx];
+        const auto& func_desc = m_compiled_submodels[desc.replaced_by.value_or(idx)];
+        const auto pid = static_cast<int64_t>(desc.param_base + tidx);
+        for (const auto* d : {&desc, &func_desc}) {
+            if (d->host_gather.dst_idx != -1 && d->host_gather.src_idx == pid) {
+                return true;
+            }
+            const auto& qg = d->quant_unpack_gather;
+            if (qg.dst_idx != -1 && (qg.src_w_idx == pid || qg.src_z_idx == pid || qg.src_s_idx == pid)) {
+                return true;
+            }
+        }
+        if (func_desc.compiled_model) {
+            const auto& iport = func_desc.compiled_model->inputs()[desc.param_base + tidx];
+            if (desc.lazy_closure[tidx].eval_meta().type != iport.get_element_type()) {
+                return true;
+            }
+        }
+        return false;
+    };
+    auto finalize_weights = [&, closure_read_by_host]() {
         // Register lazy tensors
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1977,7 +2000,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                     continue;  // host-side closure
                 }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], submodel_device(real_idx));
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx],
+                                               submodel_device(real_idx),
+                                               closure_read_by_host(idx, tidx));
             }
         }
 
