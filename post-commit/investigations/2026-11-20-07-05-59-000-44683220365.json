@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-07-05-59-000-44683220365",
+  "timestamp": "2026-11-20T07:05:59Z",
+  "run_id": "44683220365",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44683220365",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "442b3aca319c6b37f3e7a0278bf6ccebe2a538c5",
+  "pr_number": "39793",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39793",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Cmake build - CC COLLECT step failed: MSVC cl.exe/c1xx hit fatal errors C1002/C1060 (out of heap space) and link.exe hit fatal error LNK1102 (out of memory) while compiling/linking Unity build units and test/sample binaries in parallel."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Overall status aggregation step failed because the upstream Build_And_Run_Collect_Mode job failed."
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\tests\\functional\\plugin\\conformance\\test_runner\\op_conformance_runner\\src\\utils\\generate_static_shapes.cpp(200) : fatal error C1002: compiler is out of heap space in pass 2",
+    "C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\list(323) : fatal error C1002: compiler is out of heap space in pass 2",
+    "c1xx: fatal error C1060: compiler is out of heap space",
+    "LINK : fatal error LNK1102: out of memory (model_creation_sample.exe, classification_sample_async.exe, hello_reshape_ssd.exe, hello_nv12_input_classification.exe, ov_gpu_func_tests.exe, ov_auto_batch_func_tests.exe, ...)"
+  ],
+  "root_cause": "The Windows Conditional Compilation (CC COLLECT) build ran out of process/heap memory on the self-hosted Windows runner. Ninja's default high job-parallelism drove many concurrent cl.exe/link.exe instances (compiling large Unity-build translation units for op_conformance_runner and ov_template_func_tests, plus linking numerous sample/test executables), which exhausted available RAM/heap on the runner. This is not a code regression from the triggering commit (an NPUW RoPE/sliding-window fix unrelated to Windows build tooling or build-system files) - it is the same recurring Windows build-parallelism/runner-memory-capacity issue already tracked as a known Infrastructure pattern (signature_hash 80cfa127185fbf3e, now observed 15 times since 2026-11-03).",
+  "reproduction_steps": "Not reliably reproducible outside CI without the same runner memory constraints. Locally: build OpenVINO on Windows with VS2022 CC/Collect mode (cmake -DSELECTIVE_BUILD=COLLECT ...), using Ninja with the same job count as CI (-j matching the runner's logical CPU count) on a machine with similar RAM (commonly OOMs on runners with <=16GB RAM when many large Unity translation units and link steps run concurrently).",
+  "recommended_actions": [
+    "Reduce effective Ninja/MSBuild parallelism for Windows CC build jobs (e.g. cap -j / CMAKE_BUILD_PARALLEL_LEVEL to a safe fraction of logical CPUs) to lower peak concurrent cl.exe/link.exe memory usage.",
+    "Disable or shrink Unity builds for the largest conformance/template test targets (op_conformance_runner, ov_template_func_tests) on Windows CC jobs, since large Unity translation units are the files hitting C1002/C1060.",
+    "Investigate increasing the self-hosted Windows runner's available memory or moving to runners with more RAM for the Windows Conditional Compilation workflow.",
+    "Consider splitting the CC COLLECT build into smaller targets/stages so fewer large compiles/links run in parallel.",
+    "Escalate to CI infra owners given this is the 15th recorded occurrence of the same signature - an ad-hoc per-run retry is no longer a sufficient mitigation."
+  ],
+  "prevention_strategies": "Cap parallel build jobs and/or disable Unity builds for the largest test targets specifically on Windows CC workflows; monitor runner memory headroom during builds; consider a lightweight pre-flight memory check or `/MP` concurrency throttling in the Windows CC CMake presets so a single bad combination of Unity build + full parallelism cannot exhaust runner RAM again.",
+  "historical_context": "This exact signature (Windows Release build out-of-memory: compiler C1060/C1002 'out of heap space' + linker LNK1102 'out of memory' under high parallelism, pattern 80cfa127185fbf3e) has now recurred 15 times since first seen 2026-11-03, with 5 occurrences in the last 24 hours alone (2026-11-19 through 2026-11-20). It is the single most frequent recurring failure pattern in this CI Doctor's database and is unrelated to the content of the triggering commits each time - confirming it is a systemic Windows-runner resource-capacity/build-parallelism issue rather than a code defect."
+}
