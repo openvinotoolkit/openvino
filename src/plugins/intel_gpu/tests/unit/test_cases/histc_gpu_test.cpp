@@ -197,10 +197,11 @@ TEST_P(histc_gpu_int_precision, i32_data_range) {
 INSTANTIATE_TEST_SUITE_P(smoke, histc_gpu_int_precision, testing::Values(impl_types::ocl, impl_types::cpu));
 
 // The CPU fallback reads and writes only the logical elements of padded buffers.
-TEST(histc_gpu, cpu_padded_input_output) {
+template <class T>
+std::vector<int32_t> run_padded_histc(bool force_cpu) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ov::PartialShape{1, 1, 1, 2}, data_types::i32, format::bfyx});
-    set_values(input, std::vector<int32_t>{1, 2});
+    auto input = engine.allocate_memory({ov::PartialShape{1, 1, 1, 2}, ov::element::from<T>(), format::bfyx});
+    set_values(input, std::vector<T>{T(1.f), T(2.f)});
 
     auto prim = histc("histc", input_info("padded"), 2, 1.0, 3.0);
     prim.output_data_types = {optional_data_type{data_types::i32}};
@@ -210,13 +211,25 @@ TEST(histc_gpu, cpu_padded_input_output) {
                       prim,
                       reorder("output", input_info("histc"), layout{ov::PartialShape{2}, data_types::i32, format::bfyx}));
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"histc", {format::bfyx, "", impl_types::cpu}}}));
+    if (force_cpu) {
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"histc", {format::bfyx, "", impl_types::cpu}}}));
+    }
     network network(engine, topology, config);
     network.set_input_data("input", input);
     auto output = network.execute().at("output").get_memory();
 
     cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
-    ASSERT_EQ(std::vector<int32_t>(output_ptr.begin(), output_ptr.end()), (std::vector<int32_t>{1, 1}));
+    return {output_ptr.begin(), output_ptr.end()};
+}
+
+TEST(histc_gpu, cpu_padded_input_output) {
+    ASSERT_EQ(run_padded_histc<int32_t>(true), (std::vector<int32_t>{1, 1}));
+}
+
+// The OCL kernel rejects padding, so floating-point inputs need the fallback too.
+TEST(histc_gpu, padded_float_input_output) {
+    ASSERT_EQ(run_padded_histc<float>(false), (std::vector<int32_t>{1, 1}));
+    ASSERT_EQ(run_padded_histc<ov::float16>(false), (std::vector<int32_t>{1, 1}));
 }
 
 // An empty input keeps the equal attributes as the range; widening FLT_MAX makes it infinite.

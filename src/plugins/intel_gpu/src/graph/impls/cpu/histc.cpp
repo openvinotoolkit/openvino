@@ -32,7 +32,7 @@ void for_each_element(const layout& l, F&& f) {
     }
 }
 
-// Integer Histc bins in double, so devices without fp64 run it on the host.
+// Host fallback for what the OCL impl rejects: padded layouts, and integers (binned in double) without fp64.
 struct histc_impl : public typed_primitive_impl<histc> {
     using parent = typed_primitive_impl<histc>;
     using parent::parent;
@@ -87,6 +87,12 @@ struct histc_impl : public typed_primitive_impl<histc> {
             }
         };
         switch (in_layout.data_type) {
+        case data_types::f32:
+            run_in(reinterpret_cast<const float*>(in_lock.data()));
+            break;
+        case data_types::f16:
+            run_in(reinterpret_cast<const ov::float16*>(in_lock.data()));
+            break;
         case data_types::i32:
             run_in(reinterpret_cast<const int32_t*>(in_lock.data()));
             break;
@@ -129,6 +135,8 @@ attach_histc_impl::attach_histc_impl() {
     };
 
     auto types = {
+        data_types::f32,
+        data_types::f16,
         data_types::i32,
         data_types::i8,
         data_types::u8,

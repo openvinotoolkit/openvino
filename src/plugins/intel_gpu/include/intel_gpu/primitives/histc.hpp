@@ -38,8 +38,9 @@ struct histc : public primitive_base<histc> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const histc>(rhs);
         return bins == rhs_casted.bins && min == rhs_casted.min && max == rhs_casted.max;
