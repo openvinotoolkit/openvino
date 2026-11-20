@@ -98,6 +98,18 @@ DATA_ET border_padding(const DATA_ET* data,
     return get_single_value(data, data_shape, index_4D_t{n, c, y, x});
 }
 
+inline long reflect_index_no_align(long coord, const long size) {
+    const auto size_2 = size * 2l;
+    coord = (coord % size_2 + size_2) % size_2;
+    return coord >= size ? size_2 - 1 - coord : coord;
+}
+
+inline long reflect_index_with_align(long coord, const long size) {
+    const auto span = size == 1 ? 1 : 2 * (size - 1);
+    coord = std::abs(coord) % span;
+    return coord >= size ? span - coord : coord;
+}
+
 template <typename DATA_ET>
 DATA_ET reflection_data_no_align(const DATA_ET* data,
                                  const Shape& data_shape,
@@ -105,14 +117,8 @@ DATA_ET reflection_data_no_align(const DATA_ET* data,
                                  const size_t c,
                                  long y_d,
                                  long x_d) {
-    const auto H = static_cast<long>(data_shape[2]);
-    const auto W = static_cast<long>(data_shape[3]);
-    const auto H_2 = H * 2l;
-    const auto W_2 = W * 2l;
-    y_d = (y_d % H_2 + H_2) % H_2;
-    x_d = (x_d % W_2 + W_2) % W_2;
-    const auto y = static_cast<size_t>(y_d >= H ? H_2 - 1 - y_d : y_d);
-    const auto x = static_cast<size_t>(x_d >= W ? W_2 - 1 - x_d : x_d);
+    const auto y = static_cast<size_t>(reflect_index_no_align(y_d, static_cast<long>(data_shape[2])));
+    const auto x = static_cast<size_t>(reflect_index_no_align(x_d, static_cast<long>(data_shape[3])));
     return get_single_value(data, data_shape, index_4D_t{n, c, y, x});
 }
 
@@ -123,14 +129,8 @@ DATA_ET reflection_data_with_align(const DATA_ET* data,
                                    const size_t c,
                                    long y_d,
                                    long x_d) {
-    const auto H = static_cast<long>(data_shape[2]);
-    const auto W = static_cast<long>(data_shape[3]);
-    const auto H_2_2 = H == 1 ? 1 : 2 * (H - 1);
-    const auto W_2_2 = W == 1 ? 1 : 2 * (W - 1);
-    y_d = std::abs(y_d) % H_2_2;
-    x_d = std::abs(x_d) % W_2_2;
-    const auto y = static_cast<size_t>(y_d >= H ? H_2_2 - y_d : y_d);
-    const auto x = static_cast<size_t>(x_d >= W ? W_2_2 - x_d : x_d);
+    const auto y = static_cast<size_t>(reflect_index_with_align(y_d, static_cast<long>(data_shape[2])));
+    const auto x = static_cast<size_t>(reflect_index_with_align(x_d, static_cast<long>(data_shape[3])));
     return get_single_value(data, data_shape, index_4D_t{n, c, y, x});
 }
 
@@ -288,19 +288,6 @@ DATA_ET border_padding_3d(const DATA_ET* data,
     const auto y = static_cast<size_t>(std::min(std::max(y_d, 0l), H - 1));
     const auto x = static_cast<size_t>(std::min(std::max(x_d, 0l), W - 1));
     return get_single_value(data, data_shape, index_5D_t{n, c, z, y, x});
-}
-
-// Reflects a single axis coordinate using the same arithmetic as the 4D path.
-inline long reflect_index_no_align(long coord, const long size) {
-    const auto size_2 = size * 2l;
-    coord = (coord % size_2 + size_2) % size_2;
-    return coord >= size ? size_2 - 1 - coord : coord;
-}
-
-inline long reflect_index_with_align(long coord, const long size) {
-    const auto span = size == 1 ? 1 : 2 * (size - 1);
-    coord = std::abs(coord) % span;
-    return coord >= size ? span - coord : coord;
 }
 
 template <typename DATA_ET>

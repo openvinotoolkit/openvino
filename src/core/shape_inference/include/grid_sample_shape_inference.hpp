@@ -37,14 +37,16 @@ std::vector<TRShape> shape_infer(const GridSample* op, const std::vector<TShape>
                               "The rank of the data and grid input tensors must be equal.");
     }
 
-    // Determine the output rank: prefer whichever input has a static rank.
-    size_t out_rank = 4;
-    if (data_shape.rank().is_static()) {
-        out_rank = data_shape.size();
-    } else if (grid_shape.rank().is_static()) {
-        out_rank = grid_shape.size();
+    if (data_shape.rank().is_dynamic() && grid_shape.rank().is_dynamic()) {
+        return {PartialShape::dynamic()};
     }
+    const size_t out_rank = data_shape.rank().is_static() ? data_shape.size() : grid_shape.size();
     const size_t spatial_rank = out_rank - 2;
+
+    // Bicubic is only defined for 4D input (as in PyTorch and ONNX).
+    NODE_VALIDATION_CHECK(op,
+                          out_rank != 5 || op->get_attributes().mode != GridSample::InterpolationMode::BICUBIC,
+                          "GridSample does not support bicubic interpolation for 5D (volumetric) input.");
 
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes.front();

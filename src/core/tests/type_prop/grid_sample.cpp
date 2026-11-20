@@ -195,6 +195,15 @@ TEST(type_prop, grid_sample_5d_bicubic_is_rejected) {
     EXPECT_THROW(op::v9::GridSample(data, grid, attrs), ov::NodeValidationFailure);
 }
 
+TEST(type_prop, grid_sample_5d_grid_bicubic_dynamic_data_rank_is_rejected) {
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 4, 10, 10, 3});
+    const auto attrs = op::v9::GridSample::Attributes{false,
+                                                      op::v9::GridSample::InterpolationMode::BICUBIC,
+                                                      op::v9::GridSample::PaddingMode::ZEROS};
+    EXPECT_THROW(op::v9::GridSample(data, grid, attrs), ov::NodeValidationFailure);
+}
+
 TEST(type_prop, grid_sample_5d_incorrect_last_dim_in_grid) {
     const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 16, 16});
     const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 4, 10, 10, 2});
@@ -259,7 +268,5 @@ TEST(type_prop, grid_sample_dynamic_rank_of_data_and_grid) {
     const auto data = make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
     const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto grid_sample = make_shared<op::v9::GridSample>(data, grid, op::v9::GridSample::Attributes{});
-    EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}))
-        << "The output shape of GridSample is incorrect";
+    EXPECT_EQ(grid_sample->get_output_partial_shape(0), PartialShape::dynamic());
 }
