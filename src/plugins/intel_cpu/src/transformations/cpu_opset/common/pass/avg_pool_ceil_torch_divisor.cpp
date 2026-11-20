@@ -194,6 +194,16 @@ bool has_non_zero_padding(const ov::op::util::AvgPoolBase& pool) {
            std::any_of(pool.get_pads_end().begin(), pool.get_pads_end().end(), non_zero);
 }
 
+// AvgPool with exclude_pad requires every padding to be smaller than the dilated kernel span, so the rewrite
+// is only valid when it holds.
+// shortcut: pools with padding >= kernel keep the old divisor; handle them if a real model needs it.
+bool padding_smaller_than_kernel(const std::vector<Axis>& axes) {
+    return std::all_of(axes.begin(), axes.end(), [](const Axis& axis) {
+        const int64_t span = (axis.kernel - 1) * axis.dilation + 1;
+        return span > axis.pad_begin && span > axis.pad_end;
+    });
+}
+
 bool spatial_dims_static(const ov::PartialShape& shape) {
     return std::all_of(shape.begin() + 2, shape.end(), [](const ov::Dimension& dim) {
         return dim.is_static();
@@ -218,6 +228,9 @@ ov::intel_cpu::AvgPoolCeilTorchDivisor::AvgPoolCeilTorchDivisor() {
         ov::Strides dilations = pool_v16 ? pool_v16->get_dilations() : ov::Strides{};
         // empty dilations are valid for AvgPool-16 and mean "no dilation"
         dilations.resize(pool->get_kernel().size(), 1);
+        if (!padding_smaller_than_kernel(pooling_axes(*pool, dilations))) {
+            return false;
+        }
 
         const auto data = pool->input_value(0);
         const auto& data_shape = pool->get_input_partial_shape(0);
