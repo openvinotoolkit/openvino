@@ -216,22 +216,24 @@ TEST(OptPatterns, StandardLayout_NoConvert_MatchesAndPreservesConsts) {
     EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qcoeff) != to_keep.end());
 }
 
-TEST(OptPatterns, PairedSub128_DoesNotPreserveConsts) {
-    const ov::Shape weight_shape{32064, 3072};
-    const ov::Shape scale_shape{32064, 1};
+TEST(OptPatterns, PairedSub128_PreservesConstsWithoutChangingGraph) {
+    const ov::Shape weight_shape{4, 8};
+    const ov::Shape scale_shape{4, 1};
     auto [qweight, qzerop, qcoeff, model] = build_asymm_matmul_subgraph(weight_shape,
                                                                         ov::element::u8,
-                                                                        weight_shape,
+                                                                        scale_shape,
                                                                         scale_shape,
                                                                         /*transpose_b=*/true,
                                                                         /*convert_before_matmul=*/true,
                                                                         128.0f,
                                                                         128.0f);
 
+    const auto original_ops = model->get_ordered_ops();
     ResultNodes to_keep;
     run_preserve_pattern(model, to_keep);
 
-    EXPECT_TRUE(to_keep.empty());
+    EXPECT_EQ(to_keep, (ResultNodes{qweight, qzerop, qcoeff}));
+    EXPECT_EQ(model->get_ordered_ops(), original_ops);
 }
 
 TEST(OptPatterns, Non128Subtraction_DoesNotPreserveConsts) {

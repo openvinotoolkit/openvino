@@ -2149,13 +2149,16 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     ???(Act) -------------------------------------------->
 
 PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
-                                                           PreserveConstDictMatMulAsymm::Results to_keep) {
+                                                           PreserveConstDictMatMulAsymm::Results to_keep,
+                                                           bool restore_sub128) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw, opp::any_input()}, is_subtract_128);
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz, opp::any_input()}, is_subtract_128);
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
@@ -2181,6 +2184,13 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
+        // InsertVocabSub128 shifts both operands by the same amount, preserving the original DQ.
+        // Keep its constants too, so the quantized tail is detected and its weights are not lifted.
+        const bool has_weight_shift = node_to_output.count(qshiftw) != 0;
+        if (has_weight_shift != (node_to_output.count(qshiftz) != 0)) {
+            return false;
+        }
+
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
@@ -2203,6 +2213,23 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
+            if (restore_sub128 && has_weight_shift) {
+                // Rebuild only the MatMul DQ branch: a Gather may still consume the shifted branch.
+                const auto clone_with_inputs = [&](const std::shared_ptr<ov::Node>& pattern,
+                                                   const ov::OutputVector& inputs) {
+                    const auto node = node_to_output.at(pattern).get_node_shared_ptr();
+                    const auto copy = node->clone_with_new_inputs(inputs);
+                    ov::copy_runtime_info(node, copy);
+                    return copy;
+                };
+                const auto subtract = clone_with_inputs(qsub, {node_to_output.at(qcvtw), node_to_output.at(qcvtz)});
+                ov::Output<ov::Node> weight = clone_with_inputs(qmuls, {subtract, node_to_output.at(qcoeff)});
+                if (node_to_output.count(qcvtm)) {
+                    weight = clone_with_inputs(qcvtm, {weight});
+                }
+                matched_matmul->input(1).replace_source_output(weight);
+                return true;
+            }
             return false;  // root hasn't changed
         }
         return false;  // root hasn't changed

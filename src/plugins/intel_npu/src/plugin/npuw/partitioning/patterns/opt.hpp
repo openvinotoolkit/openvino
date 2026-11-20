@@ -246,7 +246,8 @@ public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulAsymm(Context::Ref ctx, Results to_keep);
+    // Restoration is used only after selecting the compiler-supported quantized-tail mode.
+    PreserveConstDictMatMulAsymm(Context::Ref ctx, Results to_keep, bool restore_sub128 = false);
 };
 
 class PreserveConstDictMatMulFP8 : public ov::pass::MatcherPass {
