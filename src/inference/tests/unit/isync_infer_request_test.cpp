@@ -76,8 +76,8 @@ public:
     }
 
 private:
-    const std::string m_device_name{"TEST"};
-    const ov::AnyMap m_properties;
+    std::string m_device_name{"TEST"};
+    ov::AnyMap m_properties;
     size_t m_host_tensor_creation_count = 0;
 };
 

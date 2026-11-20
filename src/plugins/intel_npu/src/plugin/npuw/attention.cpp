@@ -65,6 +65,9 @@ void ov::npuw::function::patch_reshape_constants(const std::shared_ptr<ov::Model
 
         auto patch_input = [&](const std::shared_ptr<ov::Node>& node, size_t sequence_axis) {
             const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+            if (!matmul) {
+                return;
+            }
             auto current = matmul->input_value(1).get_node_shared_ptr();
             while (current && !ov::is_type<ov::op::v1::Reshape>(current)) {
                 if (!ov::is_type<ov::op::v1::Transpose>(current) && !ov::is_type<ov::op::v0::Convert>(current) &&

@@ -16,7 +16,7 @@ namespace ov::intel_gpu {
 
 namespace {
 
-static void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye>& op) {
+void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye>& op) {
     validate_inputs_count(op, {3, 4});
 
     const ov::Shape& output_shapes = op->get_output_shape(0);

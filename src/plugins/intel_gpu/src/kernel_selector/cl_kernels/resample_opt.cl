@@ -3,6 +3,7 @@
 //
 
 #include "include/fetch_utils.cl"
+#include "include/resample_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 
@@ -46,6 +47,8 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
         return 0.f;
     if (num == 0.f || num == (float)(length_resized - 1))
         return num == 0.f ? 0.f : (float)(length_original - 1);
+    // Interpolating modes are built with -cl-fp32-correctly-rounded-divide-sqrt (ResampleKernelOpt::GetKernelsData),
+    // which makes this division match ref_divide() of resample_ref
     return (float)((int)num * (length_original - 1)) / (float)(length_resized - 1);
 #else
 #error [clDNN resample_opt.cl]: coordinate transformation mode - not supported
@@ -246,12 +249,21 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
 
 #ifdef SAMPLE_TYPE_NEAREST
+    // Coordinates that do not depend on out_x are computed once per work-item.
+    // NOTE: resample_opt.cl uses the "legacy" scale convention (SCALES[i] == input_size / output_size),
+    // so a downsampling axis is the one where SCALES[i] > 1 (unlike resample_ref.cl's generic path).
+    const float iy_coord = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, INPUT0_SIZE_Y);
+    const int iy = clamp(FUNC_CALL(get_nearest_val)(iy_coord, SCALES[3] > 1.0f), 0, INPUT0_SIZE_Y - 1);
+#if OUTPUT_DIMS == 5
+    const float iz_coord = FUNC_CALL(get_original_coordinate)(z, SCALES[2], OUTPUT_SIZE_Z, INPUT0_SIZE_Z);
+    const int iz = clamp(FUNC_CALL(get_nearest_val)(iz_coord, SCALES[2] > 1.0f), 0, INPUT0_SIZE_Z - 1);
+#endif
+
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
-        const int ix = floor((x + out_x) * SCALES[4]);
-        const int iy = floor(y * SCALES[3]);
+        const float ix_coord = FUNC_CALL(get_original_coordinate)(x + out_x, SCALES[4], OUTPUT_SIZE_X, INPUT0_SIZE_X);
+        const int ix = clamp(FUNC_CALL(get_nearest_val)(ix_coord, SCALES[4] > 1.0f), 0, INPUT0_SIZE_X - 1);
 
 #if OUTPUT_DIMS == 5
-        const int iz = floor(z * SCALES[2]);
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iz, iy, ix));
 #else
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iy, ix));
@@ -299,7 +311,24 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int PADDED_Y = INPUT0_SIZE_Y + PADS_BEGIN[3] + PADS_END[3];
     const int PADDED_X = INPUT0_SIZE_X + PADS_BEGIN[4] + PADS_END[4];
 
+#if OUTPUT_X_BLOCK_SIZE <= SUB_GROUP_SIZE
+    // All lanes share x and y, so instead of every lane evaluating all coordinates of the block, lane i evaluates the
+    // one of output column x + i (and the first spare lane the one of row y) and the values are broadcast.
+    const uint lane = get_sub_group_local_id();
+#if OUTPUT_X_BLOCK_SIZE < SUB_GROUP_SIZE
+    const bool row_lane = lane == OUTPUT_X_BLOCK_SIZE;
+    const float lane_coord = FUNC_CALL(get_original_coordinate)(row_lane ? y : x + (int)(lane % OUTPUT_X_BLOCK_SIZE),
+                                                                row_lane ? SCALES[3] : SCALES[4],
+                                                                row_lane ? OUTPUT_SIZE_Y : OUTPUT_SIZE_X,
+                                                                row_lane ? PADDED_Y : PADDED_X);
+    const ACCUMULATOR_TYPE iy = sub_group_broadcast(lane_coord, OUTPUT_X_BLOCK_SIZE);
+#else
+    const float lane_coord = FUNC_CALL(get_original_coordinate)(x + (int)lane, SCALES[4], OUTPUT_SIZE_X, PADDED_X);
     const ACCUMULATOR_TYPE iy = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, PADDED_Y);
+#endif
+#else
+    const ACCUMULATOR_TYPE iy = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, PADDED_Y);
+#endif
     float in_y = fmax(0.0f, fmin(iy, (float)(PADDED_Y - 1)));
     int in_y1 = min((int)in_y, PADDED_Y - 1);
     int in_y2 = min(in_y1 + 1, PADDED_Y - 1);
@@ -307,7 +336,11 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const ACCUMULATOR_TYPE dy2 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y2)) : 0.5f;
 
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
+#if OUTPUT_X_BLOCK_SIZE <= SUB_GROUP_SIZE
+        const ACCUMULATOR_TYPE ix = sub_group_broadcast(lane_coord, out_x);
+#else
         const ACCUMULATOR_TYPE ix = FUNC_CALL(get_original_coordinate)(x + out_x, SCALES[4], OUTPUT_SIZE_X, PADDED_X);
+#endif
         float in_x = fmax(0.0f, fmin(ix, (float)(PADDED_X - 1)));
         int in_x1 = min((int)in_x, PADDED_X - 1);
         int in_x2 = min(in_x1 + 1, PADDED_X - 1);

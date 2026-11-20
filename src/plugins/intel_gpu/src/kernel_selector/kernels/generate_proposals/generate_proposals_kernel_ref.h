@@ -11,12 +11,12 @@ struct generate_proposals_params : public base_params {
     generate_proposals_params()
             : base_params(KernelType::GENERATE_PROPOSALS) {}
 
-    float min_size{0.0f};
-    float nms_threshold{0.0f};
+    float min_size{0.0F};
+    float nms_threshold{0.0F};
     size_t pre_nms_count{0};
     size_t post_nms_count{0};
     bool normalized{true};
-    float nms_eta{1.0f};
+    float nms_eta{1.0F};
     Datatype roi_num_type = Datatype::INT64;
 };
 
@@ -34,7 +34,6 @@ public:
     ParamsKey GetSupportedKey() const override;
 protected:
     bool Validate(const Params& p) const override;
-    void SetKernelArguments(const generate_proposals_params& params,
-                            size_t idx, cldnn::arguments_desc& kernel) const;
+    static void SetKernelArguments(const generate_proposals_params& params, size_t idx, cldnn::arguments_desc& arguments);
 };
 }  // namespace kernel_selector
