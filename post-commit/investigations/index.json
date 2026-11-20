@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 150,
+  "total": 151,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1507,6 +1507,15 @@
       "category": "Code Issue",
       "signature_hash": "c679b29f4fb1c2b4",
       "commit_sha": "0c3ff7aa2378cc512ee2e87856b5c97cb12c8e65"
+    },
+    {
+      "investigation_id": "2026-11-20-15-31-55-530-44759171049",
+      "run_id": "44759171049",
+      "timestamp": "2026-11-20T15:31:55Z",
+      "title": "CXX_Unit_Tests Android job fails downloading CPU unit test binary with ListArtifacts ECONNREFUSED",
+      "category": "Network",
+      "signature_hash": "1808e665f1f70825",
+      "commit_sha": "e8d09770824e05d1a36fcb5d67fe83edff11921a"
     }
   ]
 }

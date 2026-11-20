@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+    "signature_hash": "1808e665f1f70825",
+    "title": "CXX_Unit_Tests Android job fails downloading CPU unit test binary with ListArtifacts ECONNREFUSED",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-11-20T15:31:55Z",
+    "last_seen": "2026-11-20T15:31:55Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/44759171049"
+    ],
+    "affected_commits": [
+        "e8d09770824e05d1a36fcb5d67fe83edff11921a"
+    ],
+    "recent_timestamps": [
+        "2026-11-20T15:31:55Z"
+    ]
+}

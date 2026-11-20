@@ -1,0 +1,43 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-20-15-31-55-530-44759171049",
+    "timestamp": "2026-11-20T15:31:55Z",
+    "run_id": "44759171049",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44759171049",
+    "workflow_name": "Android",
+    "commit_sha": "e8d09770824e05d1a36fcb5d67fe83edff11921a",
+    "pr_number": "39963",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39963",
+    "author": "mvafin",
+    "category": "Network",
+    "title": "CXX_Unit_Tests Android job fails downloading CPU unit test binary with ListArtifacts ECONNREFUSED",
+    "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+    "signature_hash": "1808e665f1f70825",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "CXX_Unit_Tests",
+            "conclusion": "failure",
+            "symptom": "Download CPU unit test binary step fails with ECONNREFUSED while listing artifacts"
+        },
+        {
+            "name": "ci/gha_overall_status_android",
+            "conclusion": "failure",
+            "symptom": "Overall status check job exits 1 because an upstream job (CXX_Unit_Tests) failed"
+        }
+    ],
+    "key_errors": [
+        "[VERBOSE] Attempting to fetch artifact with name: 'ov_cpu_unit_tests_android_x64'",
+        "##[error]Action failed with error: Failed to ListArtifacts: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github",
+        "##[error]Unable to download artifact(s): Failed to ListArtifacts: Unable to make request: ECONNREFUSED"
+    ],
+    "root_cause": "The 'Download CPU unit test binary' step in the CXX_Unit_Tests (Android) job uses akashchi/download-artifact to fetch the 'ov_cpu_unit_tests_android_x64' artifact produced earlier in the same run. The download action's call to the GitHub Actions ArtifactService ListArtifacts API was refused at the TCP level (ECONNREFUSED) rather than timing out, pointing to a transient network/connectivity problem between the self-hosted Android runner and the GitHub Actions results service, not a code or configuration defect. The triggering PR (#39963) only touches PyTorch frontend Python files and is unrelated to Android CI infrastructure; the gha_overall_status_android job failure is a pure downstream consequence of the CXX_Unit_Tests failure (an aggregator job that exits 1 when any dependency fails).",
+    "reproduction_steps": "N/A - this is a transient runner/network connectivity failure when calling the GitHub Actions ArtifactService (ListArtifacts) from the self-hosted Android runner; it is not reproducible by rerunning code or tests locally. Re-running the workflow typically succeeds once connectivity to the GitHub Actions backend is restored.",
+    "recommended_actions": [
+        "Re-run the failed Android workflow (or just the CXX_Unit_Tests job) since this is a transient connectivity issue, not a code defect introduced by PR #39963.",
+        "If ECONNREFUSED on ListArtifacts/CreateArtifact/FinalizeArtifact recurs frequently for self-hosted Android runners, check the health/network egress rules of that runner pool (DNS resolution and outbound HTTPS to the GitHub Actions artifact/results endpoints).",
+        "Consider adding a retry-with-backoff wrapper around the artifact download step for Android CI, mirroring retry handling already present for other flaky network cases in this workflow."
+    ],
+    "prevention_strategies": "Add automatic retries (e.g., 2-3 attempts with backoff) to download/upload-artifact steps used by self-hosted runners so transient ECONNREFUSED/connection-refused errors against the ArtifactService do not fail the whole job. Track the frequency of this signature via the CI Doctor pattern database; if it recurs beyond isolated incidents, escalate to the CI infrastructure team to investigate the self-hosted Android runner pool's network reliability.",
+    "historical_context": "This exact ListArtifacts/ECONNREFUSED signature has not previously been recorded in the post-commit database, but closely related ArtifactService connectivity failures have recurred multiple times: 'Failed to CreateArtifact: ECONNREFUSED' (pattern b6957c2b9e09de1c, 1 occurrence), 'Failed to FinalizeArtifact: ECONNREFUSED' (pattern 0c33a04c2cbe783c, 2 occurrences), and 'ListArtifacts' request timeouts (pattern 77303b969eadbc6a, 3 occurrences for a different, timeout-based ListArtifacts failure). All are transient GitHub Actions ArtifactService connectivity issues rather than code defects, supporting the conclusion that this is an infrastructure/network reliability issue rather than something introduced by the merged PR."
+}
