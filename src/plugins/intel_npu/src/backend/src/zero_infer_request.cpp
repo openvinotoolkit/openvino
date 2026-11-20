@@ -1261,6 +1261,15 @@ void ZeroInferRequest::infer_async() {
     OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Inference::start");
     // This task chain marker will only be available when ENABLE_PROFILING_ITT=FULL
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+
+    // The batch size must be settled before the pipeline is created or updated, and it involves both the inputs and
+    // the outputs. A user tensor can be reshaped without calling set_tensor again, so make sure the batch size is up to
+    // date, then validate and synchronize the outputs against it. The batch size is per request state, so the graph
+    // mutex (shared with the other requests) is not needed here.
+    update_batch_size_from_user_inputs();
+    validate_output_batch_sizes();
+    sync_reshaped_user_outputs();
+
     prepare_inputs();
     prepare_outputs();
 
@@ -1270,12 +1279,6 @@ void ZeroInferRequest::infer_async() {
 
 void ZeroInferRequest::prepare_inputs() {
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "prepare_inputs");
-
-    // A user tensor can be reshaped without calling set_tensor again, so make sure the batch size is up to date. The
-    // batch size is per request state, so the graph mutex (shared with the other requests) is not needed here
-    update_batch_size_from_user_inputs();
-    validate_output_batch_sizes();
-    sync_reshaped_user_outputs();
 
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
