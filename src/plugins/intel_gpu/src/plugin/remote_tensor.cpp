@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
-
 #include <cstdint>
 #include <memory>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 template <>
 struct std::hash<ov::intel_gpu::SharedBufferHandle> {
@@ -35,20 +36,8 @@ struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
 namespace ov::intel_gpu {
 
 namespace {
-ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
-    ov::Strides strides{};
-    if (element_type.bitwidth() < 8) {
-        return strides;
-    }
-
-    if (!shape.empty()) {
-        strides.resize(shape.size());
-        strides.back() = shape.back() == 0 ? 0 : element_type.size();
-        std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
-        std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
-    }
-
-    return strides;
+static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
+    return ov::util::can_compute_byte_strides(element_type, shape) ? ov::util::get_dense_byte_strides(element_type, shape) : ov::Strides{};
 }
 
 struct MemWrapper {
