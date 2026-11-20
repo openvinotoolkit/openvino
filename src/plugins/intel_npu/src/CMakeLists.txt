@@ -11,6 +11,8 @@ add_subdirectory(al)
 
 add_subdirectory(ops)
 
+add_subdirectory(transformations)
+
 if (ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(common)
     add_subdirectory(compiler_adapter)
