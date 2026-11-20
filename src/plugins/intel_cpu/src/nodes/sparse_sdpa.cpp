@@ -549,6 +549,25 @@ void SparseSDPA::updateKVCache() {
     update(m_v_state, cur_v, beam_port + 2, m_value_spec);
 }
 
+namespace {
+
+// The head counts and head sizes are fixed once, when the executor is built (createPrimitive); the batch and the
+// lengths may change.
+bool hasStaticHeads(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) {
+    const auto static_dim = [&op](size_t port, size_t rank, size_t dim) {
+        const auto& ps = op->get_input_partial_shape(port);
+        return ps.rank().is_static() && ps.size() >= rank && ps[dim].is_static();
+    };
+    if (!static_dim(InputIdx::QUERY, 4, 1) || !static_dim(InputIdx::QUERY, 4, 3) || !static_dim(InputIdx::KEY, 4, 1) ||
+        !static_dim(InputIdx::VALUE, 4, 3) || !static_dim(InputIdx::SEL_INDICES, 2, 1)) {
+        errorMessage = "SparseAttention CPU implementation requires static head counts and head sizes.";
+        return false;
+    }
+    return true;
+}
+
+}  // namespace
+
 bool SparseSDPA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (const auto kv_op = ov::as_type_ptr<const SparseAttentionKVOp>(op)) {
@@ -569,7 +588,7 @@ bool SparseSDPA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                 errorMessage = "SparseAttentionWithKVCache CPU implementation only supports f32, f16, or bf16 query.";
                 return false;
             }
-            return true;
+            return hasStaticHeads(op, errorMessage);
         }
         const auto sparse_attention = ov::as_type_ptr<const SparseAttentionOp>(op);
         if (!sparse_attention) {
@@ -601,6 +620,9 @@ bool SparseSDPA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                 errorMessage = "SparseAttention CPU implementation only supports f32, f16, or bf16 data inputs.";
                 return false;
             }
+        }
+        if (!hasStaticHeads(op, errorMessage)) {
+            return false;
         }
     } catch (...) {
         return false;

@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -184,6 +185,16 @@ void score_run(const float* q, const T* rows, size_t n, size_t G, size_t D, floa
 // The (score, block id) of a complete block.
 using BlockScore = std::pair<float, int32_t>;
 
+// A NaN / Inf in the query, keys or norm weights poisons a whole score row. The scores are sanitized before they are
+// ordered: finite, within +-kScoreLimit (no overflow in the row range or the bucketing of the brgemm scorer), NaN as
+// the lowest score. The ordering is then a strict weak one, and every scoring path picks the same blocks.
+constexpr float kScoreLimit = std::numeric_limits<float>::max() / 2;
+
+inline float sanitize_score(float score) {
+    // the negated comparison also catches NaN
+    return score > -kScoreLimit ? std::min(score, kScoreLimit) : -kScoreLimit;
+}
+
 // Writes the ids of the k = min(block_topk, num_blocks) blocks of the highest scores[0, num_blocks) to `chosen` and
 // returns k. Equal scores: the lower block id wins. The blocks are in ascending id order, or in descending score order
 // (equal scores: the lower id first) with order_by_score. `scores` is reordered.
@@ -193,6 +204,9 @@ inline size_t select_topk(BlockScore* scores,
                           size_t block_topk,
                           bool order_by_score) {
     const size_t k = std::min(block_topk, num_blocks);
+    for (size_t i = 0; i < num_blocks; i++) {
+        scores[i].first = sanitize_score(scores[i].first);
+    }
     std::partial_sort(scores, scores + k, scores + num_blocks, [](const BlockScore& lhs, const BlockScore& rhs) {
         if (lhs.first != rhs.first) {
             return lhs.first > rhs.first;

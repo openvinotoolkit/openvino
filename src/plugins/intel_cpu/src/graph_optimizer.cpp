@@ -3305,7 +3305,8 @@ void GraphOptimizer::MatchSparseSdpaKvCache(Graph& graph) {
     for (size_t i = 0; i < nodes.size(); i++) {  // AddNode appends: an index loop and a copy of the node
         const auto node = nodes[i];
         const auto sparse = findKVCacheConsumer<node::SparseSDPA, MemoryInputSparseSDPA>(node, Type::SparseSDPA);
-        if (!sparse) {
+        // only the SparseAttentionWithKVCache form owns KV cache states
+        if (!sparse || !sparse->isStateful()) {
             continue;
         }
         CPU_GRAPH_OPTIMIZER_SCOPE(MatchSparseSdpaKvCache_Node);

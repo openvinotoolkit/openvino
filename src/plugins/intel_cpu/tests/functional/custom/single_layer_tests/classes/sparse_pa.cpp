@@ -23,7 +23,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
+#include "utils/precision_support.h"
 #include "utils/quantization_utils.hpp"
 
 namespace {
@@ -310,6 +310,10 @@ ov::Shape SparsePALayerCPUTest::cache_shape(bool is_key) const {
 
 void SparsePALayerCPUTest::SetUp() {
     const auto& [data_precision, shapes, cfg] = GetParam();
+
+    if (!ov::intel_cpu::hasHardwareSupport(data_precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << data_precision << " data on this system.";
+    }
     targetDevice = ov::test::utils::DEVICE_CPU;
     m_data_precision = data_precision;
     m_cfg = cfg;
@@ -766,12 +770,6 @@ void SparsePALayerCPUTest::compare(const std::vector<ov::Tensor>& expected, cons
 
 TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    // Without f16 instructions the plugin runs f16 models in f32 and converts their parameters, so the node writes the
-    // new keys and values into a converted copy of the caches this test feeds from step to step, not into the caches.
-    if (std::get<0>(GetParam()) == ov::element::f16 &&
-        !(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx2_vnni_2())) {
-        GTEST_SKIP() << "f16 is not supported on this CPU";
-    }
     const auto invalid = std::get<2>(GetParam()).invalid;
     if (invalid != SparsePAInvalid::kNone) {
         // Inference must reject the input with an exception, before anything is written or read out of bounds.

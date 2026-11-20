@@ -39,7 +39,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
+#include "utils/precision_support.h"
 
 namespace ov {
 namespace test {
@@ -314,8 +314,8 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
     const auto Bk = std::get<5>(param);
     const auto Hs = std::get<6>(param);
     const auto turbo = std::get<7>(param);
-    if (prec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
-        GTEST_SKIP() << "bf16 is not supported on this machine";
+    if (!ov::intel_cpu::hasHardwareSupport(prec)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << prec << " data on this system.";
     }
     auto core = ov::test::utils::PluginCache::get().core();
     // the reference keeps a plain (not compressed) cache: the stateful model is compared against it, a compressed cache

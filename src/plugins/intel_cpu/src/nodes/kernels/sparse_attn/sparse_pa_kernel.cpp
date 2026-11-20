@@ -94,8 +94,6 @@ struct SparsePAScratchLayout {
                  data_size,
                  brgemm_sizes),
           total(brgemm.total) {}
-
-private:
 };
 
 // ---- quantized (u8/u4) paged cache access, same layouts as PagedAttention (see PaQuant) ----

@@ -19,6 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "utils/precision_support.h"
 
 namespace {
 
@@ -287,6 +288,10 @@ std::string PagedQSAIndexerLayerCPUTest::getTestCaseName(
 void PagedQSAIndexerLayerCPUTest::SetUp() {
     const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens, page_size, query_fusion_type] =
         GetParam();
+    // Without hardware support the plugin runs a bf16 / f16 model in f32 and converts its parameters.
+    if (!ov::intel_cpu::hasHardwareSupport(data_precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << data_precision << " data on this system.";
+    }
     m_query_norm = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||
                    query_fusion_type == QSAIndexerQueryFusionType::kNormOnly;
     m_query_rope = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||

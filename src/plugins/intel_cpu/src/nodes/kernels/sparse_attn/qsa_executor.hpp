@@ -64,7 +64,7 @@ struct DenseCall {
 };
 
 /// @brief The tensors of a call of the PagedQSAIndexer node (caches addressed through the PagedAttention page table).
-struct PagedCall {
+struct PagedIndexerArgs {
     // Set by Executor::find_batch_max_params() from the longest sequence; read by the stages and the scorer.
     int64_t max_blocks = 0;                                    ///< most complete blocks a sequence has after the call
     int64_t max_new_blocks = 0;                                ///< most blocks a sequence completes in the call
@@ -107,8 +107,8 @@ public:
 };
 
 using DenseExecutor = Executor<DenseCall>;
-using PagedExecutor = Executor<PagedCall>;
+using PagedExecutor = Executor<PagedIndexerArgs>;
 using DenseScorer = Scorer<DenseCall>;
-using PagedScorer = Scorer<PagedCall>;
+using PagedScorer = Scorer<PagedIndexerArgs>;
 
 }  // namespace ov::Extensions::Cpu::qsa

@@ -54,7 +54,7 @@ using ov::Extensions::Cpu::qsa::DenseCall;
 using ov::Extensions::Cpu::qsa::DenseScorer;
 using ov::Extensions::Cpu::qsa::kScoreBlockRows;
 using ov::Extensions::Cpu::qsa::kSelectBuckets;
-using ov::Extensions::Cpu::qsa::PagedCall;
+using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
 using ov::Extensions::Cpu::qsa::PagedScorer;
 using ov::Extensions::Cpu::qsa::QsaBrgemm;
 using ov::intel_cpu::AmxTileState;
@@ -65,22 +65,16 @@ using ov::intel_cpu::div_up;
 using ov::intel_cpu::rnd_up;
 using qsa_kernel::batch_entry_plan;
 using qsa_kernel::block_address;
+using qsa_kernel::kScoreLimit;
 using qsa_kernel::rope_batch;
 using qsa_kernel::row_view;
+using qsa_kernel::sanitize_score;
 using qsa_kernel::seq_plan;
 using qsa_kernel::SeqPlan;
 
-// A NaN / Inf in the query, keys or norm weights poisons a whole score row. Step 5 therefore sanitizes the scores:
-// finite, within +-kScoreLimit (no overflow in the row range or the bucketing), NaN as the lowest score. The ordering
-// is then a strict weak one.
-constexpr float kScoreLimit = std::numeric_limits<float>::max() / 2;
+// Step 5 sanitizes the scores (see qsa_kernel::sanitize_score; the executor's select_topk does the same).
 // A row with a smaller range goes to one bucket: its scores are (nearly) equal anyway, and 1 / range stays finite.
 constexpr float kMinScoreRange = 1e-30F;
-
-inline float sanitize_score(float score) {
-    // the negated comparison also catches NaN
-    return score > -kScoreLimit ? std::min(score, kScoreLimit) : -kScoreLimit;
-}
 
 inline __m512 sanitize_scores(__m512 v) {
     // _mm512_max_ps returns its second operand when either one is NaN
@@ -764,7 +758,7 @@ class PagedSource {
 public:
     using Element = T;
 
-    PagedSource(const PagedCall& call, const Config& config, const float* q_norm_weight)
+    PagedSource(const PagedIndexerArgs& call, const Config& config, const float* q_norm_weight)
         : m_call(call),
           m_c(config),
           m_q_norm_w(q_norm_weight) {}
@@ -826,7 +820,7 @@ private:
         return static_cast<size_t>(plan(seq).token_begin + v);
     }
 
-    const PagedCall& m_call;
+    const PagedIndexerArgs& m_call;
     const Config& m_c;
     const float* m_q_norm_w;
 };
@@ -877,12 +871,12 @@ class PagedScorerImpl final : public PagedScorer {
 public:
     explicit PagedScorerImpl(std::shared_ptr<const QsaBrgemm> brgemm) : m_brgemm(std::move(brgemm)) {}
 
-    [[nodiscard]] size_t scratch_bytes(const PagedCall& call) const override {
+    [[nodiscard]] size_t scratch_bytes(const PagedIndexerArgs& call) const override {
         return ScorerScratch(*m_brgemm, call.subsequence_begins.size(0) - 1, call.max_q_len, call.max_blocks)
             .total_bytes;
     }
 
-    void score(const PagedCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
+    void score(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
         const ScorerScratch scratch(*m_brgemm, call.subsequence_begins.size(0) - 1, call.max_q_len, call.max_blocks);
         auto* const q_norm_buf = reinterpret_cast<float*>(memory);
         const float* const q_norm_w =

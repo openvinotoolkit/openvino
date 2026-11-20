@@ -32,8 +32,8 @@ namespace ov::Extensions::Cpu::XARCH {
 namespace {
 
 using ov::Extensions::Cpu::qsa::Config;
-using ov::Extensions::Cpu::qsa::PagedCall;
 using ov::Extensions::Cpu::qsa::PagedExecutor;
+using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
 using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
@@ -82,7 +82,7 @@ struct ScratchLayout {
     size_t threads_offset;
     size_t total_bytes;
 
-    ScratchLayout(const PagedCall& call, const Config& c, int64_t max_blocks)
+    ScratchLayout(const PagedIndexerArgs& call, const Config& c, int64_t max_blocks)
         : thread(c.index_query_heads, c.head_dim, c.rotary_dim, static_cast<size_t>(max_blocks), c.block_topk),
           norm_weights_offset(rnd_up(call.q_idx.size(0) * sizeof(int32_t), kAlign)),
           threads_offset(rnd_up(norm_weights_offset + 2 * c.head_dim * sizeof(float), kAlign)),
@@ -107,7 +107,7 @@ struct ThreadBuffers {
 // The scratch of a call, bound to its memory.
 template <typename T>
 struct Scratch {
-    Scratch(const PagedCall& call, const Config& c, const ScratchLayout& layout, uint8_t* memory)
+    Scratch(const PagedIndexerArgs& call, const Config& c, const ScratchLayout& layout, uint8_t* memory)
         : token_seq(reinterpret_cast<int32_t*>(memory)),
           threads(memory + layout.threads_offset),
           m_layout(layout) {
@@ -160,7 +160,7 @@ private:
 // interleaved cos/sin row, for the block's summary to use once the block completes. A block that can never complete
 // is skipped. ----
 template <typename T>
-void store_token_rows(const PagedCall& call, const Config& c, const Scratch<T>& scratch, size_t token) {
+void store_token_rows(const PagedIndexerArgs& call, const Config& c, const Scratch<T>& scratch, size_t token) {
     const auto plan = seq_plan(call, c, static_cast<size_t>(scratch.token_seq[token]));
     const int64_t logical_pos = plan.past_len + (static_cast<int64_t>(token) - plan.token_begin);
     const auto buf = scratch.thread();
@@ -192,7 +192,7 @@ void store_token_rows(const PagedCall& call, const Config& c, const Scratch<T>& 
 // its raw keys, RMSNorm'ed and RoPE'd with the coefficients of its first token. The blocks are independent of each
 // other. ----
 template <typename T>
-void pool_block(const PagedCall& call,
+void pool_block(const PagedIndexerArgs& call,
                 const Config& c,
                 const Scratch<T>& scratch,
                 size_t seq,
@@ -229,7 +229,7 @@ void pool_block(const PagedCall& call,
 // ---- Phase 3, per token: RMSNorm + partial RoPE of every index-query head, then per selection head the score of
 // each complete block (sum over its heads of max(0, q . summary)) and the top-k blocks in ascending order. ----
 template <typename T>
-void select_blocks(const PagedCall& call, const Config& c, const Scratch<T>& scratch, size_t token) {
+void select_blocks(const PagedIndexerArgs& call, const Config& c, const Scratch<T>& scratch, size_t token) {
     const auto plan = seq_plan(call, c, static_cast<size_t>(scratch.token_seq[token]));
     const auto buf = scratch.thread();
     const size_t D_idx = c.head_dim;
@@ -298,12 +298,9 @@ class PagedExecutorImpl final : public PagedExecutor {
 public:
     explicit PagedExecutorImpl(const Config& config) : m_config(config) {}
 
-    void find_batch_max_params(PagedCall& call) const override {
-        const auto* block_indices_begins = call.block_indices_begins.ptr<int32_t>();
+    void find_batch_max_params(PagedIndexerArgs& call) const override {
         call.max_blocks = call.max_new_blocks = call.max_q_len = 0;
         for (size_t seq = 0; seq < call.subsequence_begins.size(0) - 1; seq++) {
-            OPENVINO_ASSERT(block_indices_begins[seq + 1] > block_indices_begins[seq],
-                            "[CPU] paged_qsa_indexer: each sequence must have at least one cache block");
             const auto plan = seq_plan(call, m_config, seq);
             OPENVINO_ASSERT(plan.total_blocks() <= plan.block_capacity,
                             "[CPU] paged_qsa_indexer: the completed blocks do not fit the sequence's cache blocks");
@@ -313,11 +310,11 @@ public:
         }
     }
 
-    [[nodiscard]] size_t scratch_bytes(const PagedCall& call) const override {
+    [[nodiscard]] size_t scratch_bytes(const PagedIndexerArgs& call) const override {
         return ScratchLayout(call, m_config, call.max_blocks).total_bytes;
     }
 
-    void prepare(const PagedCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
+    void prepare(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
         const auto& parallel = *cpu_parallel;
         const size_t tokens = call.q_idx.size(0);
         const ScratchLayout layout(call, m_config, call.max_blocks);
@@ -348,7 +345,7 @@ public:
     }
 
     // A token scores the complete blocks up to the one it completes, all written by prepare().
-    void score_tokens(const PagedCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
+    void score_tokens(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
         const ScratchLayout layout(call, m_config, call.max_blocks);
         const Scratch<T> scratch(call, m_config, layout, memory);
         cpu_parallel->parallel_for(call.q_idx.size(0), [&](size_t token) {

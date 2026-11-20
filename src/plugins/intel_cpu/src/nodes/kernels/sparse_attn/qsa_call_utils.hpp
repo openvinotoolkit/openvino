@@ -22,7 +22,7 @@ namespace ov::Extensions::Cpu::XARCH::qsa_kernel {
 
 using ov::Extensions::Cpu::qsa::Config;
 using ov::Extensions::Cpu::qsa::DenseCall;
-using ov::Extensions::Cpu::qsa::PagedCall;
+using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
 using ov::intel_cpu::PlainTensor;
 
 // ---- dense op ----
@@ -91,7 +91,7 @@ struct SeqPlan {
     }
 };
 
-inline SeqPlan seq_plan(const PagedCall& call, const Config& c, size_t seq) {
+inline SeqPlan seq_plan(const PagedIndexerArgs& call, const Config& c, size_t seq) {
     const auto* subsequence_begins = call.subsequence_begins.ptr<int32_t>();
     const auto* block_indices_begins = call.block_indices_begins.ptr<int32_t>();
     const int64_t block_begin = block_indices_begins[seq];
@@ -118,7 +118,7 @@ struct CacheAddress {
 
 // Maps a logical token position (relative to the sequence's own 0..S history) to the (page, slot) address into
 // the raw key cache through the shared page table.
-inline CacheAddress token_address(const PagedCall& call, const SeqPlan& plan, int64_t logical_pos) {
+inline CacheAddress token_address(const PagedIndexerArgs& call, const SeqPlan& plan, int64_t logical_pos) {
     const int64_t page_table_idx = plan.block_begin + logical_pos / plan.page_size;
     const auto page = static_cast<size_t>(*call.block_indices.ptr<int32_t>(static_cast<size_t>(page_table_idx)));
     return {page, static_cast<size_t>(logical_pos % plan.page_size)};
@@ -126,7 +126,7 @@ inline CacheAddress token_address(const PagedCall& call, const SeqPlan& plan, in
 
 // Maps a (sequence-local, 0-based) completed-block index to the (page, slot) address into the summary cache /
 // the block rope cache.
-inline CacheAddress block_address(const PagedCall& call, const SeqPlan& plan, int64_t block_idx) {
+inline CacheAddress block_address(const PagedIndexerArgs& call, const SeqPlan& plan, int64_t block_idx) {
     const int64_t page_table_idx = plan.block_begin + (block_idx * plan.key_block_size) / plan.page_size;
     const auto page = static_cast<size_t>(*call.block_indices.ptr<int32_t>(static_cast<size_t>(page_table_idx)));
     return {page, static_cast<size_t>(block_idx % plan.slots_per_page)};

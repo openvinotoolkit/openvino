@@ -17,6 +17,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sparse_attention.hpp"
+#include "utils/precision_support.h"
 
 namespace {
 
@@ -161,6 +162,10 @@ std::string SparseSDPALayerCPUTest::getTestCaseName(const testing::TestParamInfo
 void SparseSDPALayerCPUTest::SetUp() {
     const auto& [device, data_precision, h_sel, causal, batch, k_head_size, sel_block_size, key_length, shape] =
         GetParam();
+
+    if (!ov::intel_cpu::hasHardwareSupport(data_precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << data_precision << " data on this system.";
+    }
     targetDevice = device;
     m_data_precision = data_precision;
     m_h_sel = h_sel;
