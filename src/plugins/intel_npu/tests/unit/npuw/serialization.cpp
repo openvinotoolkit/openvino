@@ -176,7 +176,7 @@ constexpr char kExpectedCpuCountMismatchMessage[] = "CPU closure ids count does 
 constexpr char kExpectedNonCpuCountMismatchMessage[] = "non-CPU closure ids count does not match non-CPU tensor count";
 constexpr char kExpectedNonCpuOobIndexMessage[] = "non-CPU closure index is out of range";
 
-// Writes the fixed CompiledModelDesc::serialize() prefix (funcall/spatial metadata) that
+// Writes the fixed CompiledModelDesc prefix (funcall/spatial metadata) that
 // precedes is_remote/closure_uid in every ORC blob, regardless of weightless mode.
 void write_compiled_model_desc_prefix(ov::npuw::orc::Stream& writer) {
     std::optional<std::size_t> replaced_by = std::size_t{0};
@@ -191,7 +191,7 @@ void write_compiled_model_desc_prefix(ov::npuw::orc::Stream& writer) {
 std::string make_blob_with_oob_cpu_closure_id(bool is_weightless) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(is_weightless, {});
+    ExportWeightsContext ctx{is_weightless, {}};
 
     ov::Tensor cpu_tensor(ov::element::u8, ov::Shape{1u});
     cpu_tensor.data<uint8_t>()[0] = 0x7F;
@@ -252,7 +252,7 @@ std::string make_blob_with_metadata_size(bool is_weightless,
                                          std::size_t closure_uid_size) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(is_weightless, {});
+    ExportWeightsContext ctx{is_weightless, {}};
 
     std::stringstream serialized(std::ios::in | std::ios::out | std::ios::binary);
     auto writer = Stream::writer(serialized);
@@ -289,7 +289,7 @@ std::string make_weightless_blob_with_cpu_or_non_cpu_mismatch(std::size_t cpu_id
     using namespace ov::npuw::s11n;
 
     constexpr bool is_weightless = true;
-    WeightsContext ctx(is_weightless, {});
+    ExportWeightsContext ctx{is_weightless, {}};
 
     std::stringstream serialized(std::ios::in | std::ios::out | std::ios::binary);
     auto writer = Stream::writer(serialized);
@@ -426,7 +426,7 @@ void expect_lazy_weightless_mmap_roundtrip(const ov::element::Type& type,
         auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
 
         // Non-null weights + weights_path + empty consts_cache -> lazy-mmap branch.
-        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        ImportWeightsContext import_ctx{true, weights, weights_file.path.string(), {}, {}};
         ASSERT_NO_THROW(res.read_weight(import_ctx));
     }  // import-time mapping released here; eval() maps the file on its own
 
@@ -468,7 +468,7 @@ void expect_lazy_weightless_mmap_rejected(
         ASSERT_NE(mapped, nullptr);
         auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
 
-        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        ImportWeightsContext import_ctx{true, weights, weights_file.path.string(), {}, {}};
         // Match the message - read_weight() has several asserts, and ASSERT_THROW would pass on any of them.
         OV_EXPECT_THROW_HAS_SUBSTRING(res.read_weight(import_ctx), ov::AssertFailure, expected_message);
     }
@@ -527,14 +527,14 @@ void expect_lazy_weightless_mmap_crafted_rejected(
         ASSERT_NE(mapped, nullptr);
         auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
 
-        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        ImportWeightsContext import_ctx{true, weights, weights_file.path.string(), {}, {}};
         OV_EXPECT_THROW_HAS_SUBSTRING(res.read_weight(import_ctx), ov::AssertFailure, expected_message);
     }
 }
 
-ov::npuw::s11n::WeightsContext::ConstsCache make_consts_cache(
+ov::npuw::s11n::ImportWeightsContext::ConstsCache make_consts_cache(
     const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants) {
-    ov::npuw::s11n::WeightsContext::ConstsCache cache;
+    ov::npuw::s11n::ImportWeightsContext::ConstsCache cache;
     for (const auto& constant : constants) {
         const auto attr = constant->get_rt_info()
                               .at(ov::WeightlessCacheAttribute::get_type_info_static())
@@ -678,10 +678,11 @@ std::shared_ptr<ov::MockICore> make_host_tensor_core() {
 namespace ov::npuw {
 class CompiledModelDescSerializationAccess {
 public:
-    static void deserialize_compiled_model_desc(std::stringstream& input, const ov::npuw::s11n::WeightsContext& ctx) {
+    static void deserialize_compiled_model_desc(std::stringstream& input,
+                                                const ov::npuw::s11n::ImportWeightsContext& ctx) {
         auto reader = ov::npuw::s11n::Stream::reader(input);
         CompiledModel::CompiledModelDesc imported_desc;
-        imported_desc.serialize(reader, ctx);
+        imported_desc.deserialize(reader, ctx);
     }
 
     static std::shared_ptr<CompiledModel> make_serialized_compiled_model() {
@@ -1497,11 +1498,11 @@ TEST(SerializationTest, OVTypes_Tensor_with_weights) {
 
     std::unordered_map<const void*, std::size_t> const_offset;
     const_offset[nullptr] = 0;
-    WeightsContext ctx(false, const_offset);
+    ExportWeightsContext ctx{false, const_offset};
 
-    WeightsContext::ConstsCache consts_cache;
+    ImportWeightsContext::ConstsCache consts_cache;
     consts_cache[{0, 0}] = nullptr;
-    WeightsContext des_ctx(nullptr, "", consts_cache, {});
+    ImportWeightsContext des_ctx{false, nullptr, "", consts_cache, {}};
 
     write_weightless(ss, {var}, ctx);
     read_weightless(ss, res, des_ctx);
@@ -1579,7 +1580,7 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_bf16_to_f16) {
     ov::Tensor var(ov::element::f16, ov::Shape{3}, expected_values.data());
 
     std::stringstream ss;
-    WeightsContext export_ctx(true, {{var.data(), 0}});
+    ExportWeightsContext export_ctx{true, {{var.data(), 0}}};
     write_weightless(ss, {var}, export_ctx);
 
     std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_bf16_weights.bin";
@@ -1596,7 +1597,11 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_bf16_to_f16) {
         ASSERT_NE(mapped, nullptr);
         auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
 
-        WeightsContext import_ctx(weights, file_path.string(), {}, {{0, var.get_byte_size()}});
+        ImportWeightsContext import_ctx{true,
+                        weights,
+                        file_path.string(),
+                        {},
+                        {{0, var.get_byte_size()}}};
         read_weightless(ss, res, import_ctx);
     }  // mapped + weights released here, file handle closed on Windows
 
@@ -1605,7 +1610,7 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_bf16_to_f16) {
     std::filesystem::remove(file_path);
 }
 
-// The weightless-import mmap path in serialize_weightless() reads `byte_size` and `offset`
+// The weightless-import mmap path in deserialize_weightless() reads `byte_size` and `offset`
 // straight from the (untrusted) stream and then does
 //     std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
 // without checking either
@@ -1617,13 +1622,13 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_bf16_to_f16) {
 //
 // This test crafts such a blob: a 4-byte destination tensor, an 8-byte backing weights
 // file, but byte_size = 64 KiB. Without importer-side validation this may corrupt the heap and crash
-// nondeterministically; with validation in place, read_weightless() is expected to throw (ov::AssertFailure)
+// nondeterministically; with validation in place, deserialize_weightless() is expected to throw (ov::AssertFailure)
 // instead of reaching the memcpy.
 TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
     using namespace ov::npuw::s11n;
 
     // Hand-craft the serialized weightless entry in the exact field order the importer
-    // reads it (serialize_weightless, is_weightless branch):
+    // reads it (deserialize_weightless, is_weightless branch):
     //   size, is_initialized, is_weightless, type_str, shape, byte_size, offset
     std::stringstream ss;
     write(ss, std::size_t(1));                         // one tensor in the vector
@@ -1650,7 +1655,7 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
         auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
 
         // No bf16 entry and empty consts_cache -> forces the unguarded mmap memcpy branch.
-        WeightsContext import_ctx(weights, file_path.string(), {}, {});
+        ImportWeightsContext import_ctx{true, weights, file_path.string(), {}, {}};
 
         // memcpy reads 64 KiB from an 8-byte mmap region into a 4-byte tensor:
         // out-of-bounds READ past the mapping AND out-of-bounds WRITE past the heap tensor.
@@ -1754,7 +1759,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_const_roundtrip) {
     std::stringstream ss;
     write(ss, var);
     read(ss, res);
-    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({constant}), {}));
+    res.read_weight(ImportWeightsContext{true, nullptr, "", make_consts_cache({constant}), {}});
 
     expect_lazy_tensor_transform_types_equal(var, res);
     EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
@@ -1796,7 +1801,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     std::stringstream ss;
     write(ss, var);
     read(ss, res);
-    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({first, second}), {}));
+    res.read_weight(ImportWeightsContext{true, nullptr, "", make_consts_cache({first, second}), {}});
 
     expect_lazy_tensor_transform_types_equal(var, res);
     EXPECT_EQ(var.get_hash(), res.get_hash());
@@ -1816,7 +1821,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
     write(ss, var);
     var.detach();
     read(ss, res);
-    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({constant}), {}));
+    res.read_weight(ImportWeightsContext{true, nullptr, "", make_consts_cache({constant}), {}});
 
     expect_lazy_tensor_transform_types_equal(var, res);
     EXPECT_EQ(var.get_hash(), res.get_hash());
@@ -1857,7 +1862,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
     std::stringstream ss;
     write(ss, var);
     read(ss, res);
-    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({w, s}), {}));
+    res.read_weight(ImportWeightsContext{true, nullptr, "", make_consts_cache({w, s}), {}});
 
     expect_lazy_tensor_transform_types_equal(var, res);
     EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
@@ -1879,7 +1884,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_gather_roundtrip) {
     std::stringstream ss;
     write(ss, var);
     read(ss, res);
-    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({w}), {}));
+    res.read_weight(ImportWeightsContext{true, nullptr, "", make_consts_cache({w}), {}});
 
     expect_lazy_tensor_transform_types_equal(var, res);
     EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
@@ -2353,8 +2358,8 @@ TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
     // Reading a funcall desc must not trip the in-codec index check, which is skipped
     // because the funcall has no compiled model of its own at this point.
     auto reader = Stream::reader(ss);
-    ASSERT_NO_THROW(imported[0].serialize(reader, {}));
-    ASSERT_NO_THROW(imported[1].serialize(reader, {}));
+    ASSERT_NO_THROW(imported[0].deserialize(reader, {}));
+    ASSERT_NO_THROW(imported[1].deserialize(reader, {}));
 
     ASSERT_EQ(ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx, 5);
     ASSERT_FALSE(ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[1]));
@@ -2517,8 +2522,7 @@ TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedClosureAndLazyClosur
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {
     using namespace ov::npuw::s11n;
 
-    std::unordered_map<const void*, std::size_t> const_to_offset;
-    WeightsContext ctx(false, const_to_offset);
+    ImportWeightsContext ctx{false};
     const auto malformed_blob = make_blob_with_oob_cpu_closure_id(false);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
@@ -2531,8 +2535,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightfu
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightless) {
     using namespace ov::npuw::s11n;
 
-    std::unordered_map<const void*, std::size_t> const_to_offset;
-    WeightsContext ctx(true, const_to_offset);
+    ImportWeightsContext ctx{true};
     const auto malformed_blob = make_blob_with_oob_cpu_closure_id(true);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
@@ -2545,7 +2548,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightle
 TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weightful) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(false, {});
+    ImportWeightsContext ctx{false};
     const auto malformed_blob = make_blob_with_metadata_size(false,
                                                              /*closure_size=*/1u,
                                                              /*is_remote_size=*/1u,
@@ -2561,7 +2564,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weig
 TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weightless) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(true, {});
+    ImportWeightsContext ctx{true};
     const auto malformed_blob = make_blob_with_metadata_size(true,
                                                              /*closure_size=*/1u,
                                                              /*is_remote_size=*/1u,
@@ -2577,7 +2580,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weig
 TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weightful) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(false, {});
+    ImportWeightsContext ctx{false};
     const auto malformed_blob = make_blob_with_metadata_size(false,
                                                              /*closure_size=*/1u,
                                                              /*is_remote_size=*/2u,
@@ -2593,7 +2596,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weight
 TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weightless) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(true, {});
+    ImportWeightsContext ctx{true};
     const auto malformed_blob = make_blob_with_metadata_size(true,
                                                              /*closure_size=*/1u,
                                                              /*is_remote_size=*/2u,
@@ -2609,7 +2612,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weight
 TEST(SerializationTest, CompiledModelDesc_rejects_weightless_cpu_closure_count_mismatch) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(true, {});
+    ImportWeightsContext ctx{true};
     // 1 CPU id but 0 CPU tensors actually written -> ids/tensor count mismatch.
     const auto malformed_blob = make_weightless_blob_with_cpu_or_non_cpu_mismatch(/*cpu_ids_count=*/1u,
                                                                                   /*cpu_tensors_count=*/0u,
@@ -2627,7 +2630,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_weightless_cpu_closure_count_m
 TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_count_mismatch) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(true, {});
+    ImportWeightsContext ctx{true};
     // CPU side is well-formed (0 ids / 0 tensors), but 1 non-CPU id with 0 non-CPU tensors
     // actually written -> non-CPU ids/tensor count mismatch.
     const auto malformed_blob = make_weightless_blob_with_cpu_or_non_cpu_mismatch(/*cpu_ids_count=*/0u,
@@ -2646,7 +2649,7 @@ TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_cou
 TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_index_out_of_range) {
     using namespace ov::npuw::s11n;
 
-    WeightsContext ctx(true, {});
+    ImportWeightsContext ctx{true};
     // CPU side is well-formed (0 ids / 0 tensors); non-CPU ids/tensors counts match (1/1), but
     // the single non-CPU index (5) is out of range for closure_size == 1.
     const auto malformed_blob = make_weightless_blob_with_cpu_or_non_cpu_mismatch(/*cpu_ids_count=*/0u,
@@ -2781,7 +2784,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_file_shrunk_after_imp
         auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
 
         // The description is valid against the file as it is right now, so import succeeds.
-        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        ImportWeightsContext import_ctx{true, weights, weights_file.path.string(), {}, {}};
         ASSERT_NO_THROW(res.read_weight(import_ctx));
     }  // import-time mapping released here - the file can be rewritten now
 
