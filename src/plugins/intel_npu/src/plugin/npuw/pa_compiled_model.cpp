@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "intel_npu/config/npuw.hpp"
-#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -353,7 +352,7 @@ void ov::npuw::pa::relayout_token_major(const std::shared_ptr<ov::Model>& model,
 ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
                                                           const std::string& pa_device,
                                                           const std::string& weights_bank,
-                                                          const std::optional<util::NPUDesc>& npudesc) {
+                                                          const std::optional<NPUDesc>& npudesc) {
     // The variants start from the NPU defaults of the NPUW LLM path. On top of
     // them every PA op is a block of its own, kept off NPU, and the static
     // repeated blocks around them fold onto NPU and share one weights bank
@@ -362,7 +361,7 @@ ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& prop
     // tail that does it has a dynamic row count, so it cannot be made a
     // function like the static subgraphs. The caller's properties override
     // these defaults, and extend the compilation mode parameters.
-    auto config = util::get_default_common_config(npudesc);
+    auto config = get_default_common_config(npudesc);
     config.erase(std::string(::intel_npu::NPUW_SLICE_OUT::key()));
     config.erase(std::string(::intel_npu::NPUW_FUNCALL_FOR_ALL::key()));
     // The tail picks a dynamic number of logits rows, which the NPU compiler
@@ -459,8 +458,7 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
         const auto bank_it = properties.find(std::string(::intel_npu::NPUW_WEIGHTS_BANK::key()));
         const auto caller_bank = bank_it == properties.end() ? std::string{} : bank_it->second.as<std::string>();
         const auto bank = caller_bank.empty() ? ov::npuw::util::generate_random_string() : caller_bank;
-        auto variant_config =
-            make_variant_config(properties, device, bank, util::extract_npu_descriptor(plugin, properties));
+        auto variant_config = make_variant_config(properties, device, bank, extract_npu_descriptor(plugin, properties));
         // NPUW builds the PA blocks of the variants as new models, without the
         // rt_info runtime options the CPU may take its cache settings from and
         // without the 4-bit weights the GPU picks a u4 cache for. Both read the

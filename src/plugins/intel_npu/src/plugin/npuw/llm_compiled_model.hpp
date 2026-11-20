@@ -6,6 +6,8 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <string>
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
@@ -25,6 +27,21 @@ struct LLMSwaCacheTestAccess;
 
 namespace ov {
 namespace npuw {
+
+// What the LLM path reads from the NPU to pick its default submodel configs.
+// The PA front-end starts its variants from the same defaults.
+struct NPUDesc {
+    std::string arch;
+    int64_t max_tiles = 0;
+    bool compiler_dq = false;
+    bool compiler_matmul_gate = false;
+    int64_t compiler_ver = 0;
+    bool support_flash_attention_tile = false;
+};
+
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                              const ov::AnyMap& config);
+ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc);
 
 class LLMInferRequest;
 class WhisperInferRequest;

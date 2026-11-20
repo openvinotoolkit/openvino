@@ -38,8 +38,8 @@ std::string str(const ov::AnyMap& config, const char* key) {
     return config.at(key).as<std::string>();
 }
 
-ov::npuw::util::NPUDesc npu_with_compiler_dq() {
-    ov::npuw::util::NPUDesc desc;
+ov::npuw::NPUDesc npu_with_compiler_dq() {
+    ov::npuw::NPUDesc desc;
     desc.arch = "4000";
     desc.max_tiles = 6;
     desc.compiler_dq = true;
@@ -73,8 +73,8 @@ TEST(PAVariantConfig, SendsThePAOpsAndTheTailToTheGPUWithF32Links) {
 }
 
 TEST(PAVariantConfig, StartsFromTheLLMPathNPUDefaults) {
-    for (const auto& npudesc : {std::optional<ov::npuw::util::NPUDesc>{}, std::make_optional(npu_with_compiler_dq())}) {
-        const auto defaults = ov::npuw::util::get_default_common_config(npudesc);
+    for (const auto& npudesc : {std::optional<ov::npuw::NPUDesc>{}, std::make_optional(npu_with_compiler_dq())}) {
+        const auto defaults = ov::npuw::get_default_common_config(npudesc);
         const auto config = PACompiledModel::make_variant_config({}, "CPU", "bank0", npudesc);
         for (const auto& [key, value] : defaults) {
             if (key == "NPUW_DEVICES" || key == "NPUW_SLICE_OUT" || key == "NPUW_FUNCALL_FOR_ALL") {

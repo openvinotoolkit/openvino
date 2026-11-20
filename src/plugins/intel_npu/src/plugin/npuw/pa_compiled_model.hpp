@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "llm_compiled_model_utils.hpp"
+#include "llm_compiled_model.hpp"
 #include "npuw/compiled_model.hpp"
 #include "pa_dispatch.hpp"
 
@@ -59,7 +59,7 @@ public:
     static ov::AnyMap make_variant_config(const ov::AnyMap& properties,
                                           const std::string& pa_device,
                                           const std::string& weights_bank,
-                                          const std::optional<util::NPUDesc>& npudesc);
+                                          const std::optional<NPUDesc>& npudesc);
 
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
     const std::vector<ov::Output<const ov::Node>>& outputs() const override;
