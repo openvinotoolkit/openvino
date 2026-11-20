@@ -12,11 +12,8 @@
 
 namespace ov::intel_gpu::ocl {
 
-// Dynamic quantization of the activations of the MoE expert GEMMs (moe_3gemm_dyn_quan.cl), the front end of the expert
-// GEMMs that run on int8 activations, whatever their weight type: the hidden states are quantized once per token and
-// then gathered into their rows sorted by expert for gate and up, and act(gate) * up is quantized for down. The
-// quantization is that of the FullyConnected layers (dynamic_quantize_gpu_opt): symmetric int8 per group, with an f16
-// dequantization scale of each group, [rows, groups].
+// Front end of the MoE expert GEMMs on int8 activations, for every weight type (moe_3gemm_dyn_quan.cl). Same scheme as
+// dynamic_quantize_gpu_opt: symmetric int8 per group with f16 scales [rows, groups].
 class MoE3GemmDynQuan {
 public:
     enum class Projection { GATE_UP, DOWN };
@@ -32,9 +29,8 @@ public:
         return proj == Projection::DOWN ? config.inter_size : config.hidden_size;
     }
 
-    // Values per quantization group of the projection's input, 0 when it is not quantized. The activation group is
-    // the largest of 128 and 64 values that is no larger than the configured dynamic quantization group and divides the
-    // weight group of the projection: 128 for the per-token default of Xe2+, as for the u8/i8 FullyConnected layers.
+    // Values per quantization group of the projection's input, 0 when it is not quantized: the largest of 128 and 64
+    // that is at most the configured dynamic quantization group and divides the weight group.
     static size_t get_activation_group_size(const RuntimeParams& params, Projection proj);
 };
 

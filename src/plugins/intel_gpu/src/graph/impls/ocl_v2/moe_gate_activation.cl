@@ -22,7 +22,7 @@ inline float FUNC(moe_mlp_fast_erf)(float x) {
 #elif defined(GATE_ACT_GELU_TANH)
 #    define MOE_GATE_ACT(x) (0.5f * (x) * (1.0f + (tanh(0.79788458347320556640625f * (x) * (1.0f + 0.044715f * (x) * (x))))))
 #elif defined(MOE_GATE_ACT_NATIVE)
-// For f16 outputs: the error of native_exp / native_recip is far below their rounding
+// For f16 outputs: native_exp / native_recip stay within one f16 ulp of exp
 #    define MOE_GATE_ACT(x) ((x) * native_recip(1.0f + native_exp(-(x))))
 #else
 #    define MOE_GATE_ACT(x) ((x) / (1.0f + exp(-(x))))

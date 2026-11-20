@@ -84,20 +84,10 @@ KERNEL(moe_int3_gemm)(
     const uint lane = get_sub_group_local_id();
     const uint sg   = (uint)get_local_id(1);
 
-    // A work-group takes one {expert, first row} entry of the tile list, so only
-    // row tiles that hold rows are launched, apart from the padding of the GPU
-    // mask gen's list, which exits at once. A subgroup computes TILE_M (16) rows x
-    // NB 16-column blocks, so each activation load feeds NB DPAS. The activations
-    // of a quantization group arrive through 2D block reads anchored at the
-    // expert's first row: their layout is exactly the DPAS a operand, and rows past
-    // the expert read as zero. The weights minus the zero point are staged as signed
-    // 4-bit values for the int8 x int4 DPAS and shared by the SG_M
-    // subgroups through a triple-buffered SLM stage behind a split barrier: the
-    // next group is staged and the barrier entered before the current group is
-    // computed, and only waited on afterwards. A buffer is rewritten two groups
-    // after it was read, and passing the wait of the group in between proves every
-    // subgroup is done with it. Subgroups whose rows lie past the expert's end
-    // still stage their share of the weights, but skip the DPAS and the rescale.
+    // One work-group per {expert, first row} tile; padding tiles of the GPU mask gen exit at once.
+    // The SG_M subgroups share the decoded weight tile through triple-buffered SLM + split barrier:
+    // a buffer is rewritten two groups after it was read, once every subgroup passed the wait in between.
+    // Rows past the expert's end read as zero (2D block read).
 #define NH              (CHUNKS_PER_GROUP / 2)
 #define GRAN_PER_GROUP  (CHUNKS_PER_GROUP * NB)
 #define GRAN_PER_SG     (GRAN_PER_GROUP / SG_M)

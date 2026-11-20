@@ -43,9 +43,8 @@ KERNEL(moe_mask_gen)(
     int experts_id_iter = work_group_scan_exclusive_add(is_used);
 
 #if INT3_TILES_ENABLE
-    // Row tiles of the u3 expert GEMMs: {expert, first row} of every TILE_ROWS-row tile that holds rows. The host
-    // launches MoE3GemmInt3Gemm::get_max_tiles() tiles, so the rest of the list is padded with tiles past the end of
-    // expert 0, which the GEMMs skip.
+    // {expert, first row} per TILE_ROWS-row tile, in expert order. Before the early return: the scans are collective.
+    // The host launches get_max_tiles() tiles; the rest is padded with (0, INT_MAX), which the GEMM skips.
     const int expert_tiles = (num_tokens_per_curr_expert + TILE_ROWS - 1) / TILE_ROWS;
     const int first_tile = work_group_scan_exclusive_add(expert_tiles);
     const int used_tiles = work_group_reduce_add(expert_tiles);

@@ -24,7 +24,7 @@ public:
     // Work-groups: TILE_SG_M subgroups of TILE_ROWS / TILE_SG_M rows x get_tile_nb() 16-column blocks. N is a
     // multiple of 64 and a quantization group of 64 or more values, so they fit every supported shape.
     static constexpr size_t TILE_SG_M = 4;
-    static size_t get_tile_nb(const cldnn::device_info& info, Projection proj);
+    static size_t get_tile_nb(const RuntimeParams& params, Projection proj);
 
     // gate: the gate GEMM of GATE_UP, with the act(gate) * up epilogue, rather than the up GEMM
     explicit MoE3GemmInt3Gemm(Projection proj, bool gate = false)

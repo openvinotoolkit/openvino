@@ -6,8 +6,8 @@
 
 #include <algorithm>
 
+#include "common_utils/device_queries.hpp"
 #include "common_utils/jitter.hpp"
-#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "moe_3gemm_base.hpp"
 #include "moe_3gemm_int3_weights.hpp"
@@ -17,12 +17,8 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-// Requirements shared by all moe_3gemm_int3_gemm kernels. They need SIMD16 DPAS and the 2D block reads of Xe2+, read
-// f16 scales, and take the zero point as u8/i8 in the u3 range [0, 7], subtracted from the weights while they are
-// decoded. The activations are quantized to int8, which is accurate enough for
-// zero-centered weights only, so the weights need a zero point. The tiled kernels consume an activation group as pairs
-// of 32-value chunks, which the 64- and 128-value groups of MoE3GemmDynQuan are. Weight groups of a multiple of 64
-// values make hidden_size and inter_size, so K and N of both projections, multiples of 64 too.
+// int8 activations are accurate enough for zero-centered weights only, so the weights need a zero point. Weight and
+// activation groups of a multiple of 64 values make K and N of both projections multiples of 64 as well.
 bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
     const auto& info = params.get_device_info();
@@ -45,9 +41,11 @@ bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
 }
 
 // On Xe2, gate and up run faster on one column block in the 128 GRF mode (twice the threads per EU) than on two
-// blocks in 256 GRF; down is faster on two. See get_build_options().
-size_t MoE3GemmInt3Gemm::get_tile_nb(const cldnn::device_info& info, Projection proj) {
-    return info.arch < gpu_arch::xe3 && proj == Projection::GATE_UP ? 1 : 2;
+// blocks in 256 GRF; down is faster on two. The TILE_SG_M subgroups split the 32-value chunks of an activation group
+// times the blocks among them, so one block takes groups of 128 values. See get_build_options().
+size_t MoE3GemmInt3Gemm::get_tile_nb(const RuntimeParams& params, Projection proj) {
+    const bool one_block = params.get_device_info().arch < gpu_arch::xe3 && proj == Projection::GATE_UP;
+    return one_block && MoE3GemmDynQuan::get_activation_group_size(params, proj) / 32 % TILE_SG_M == 0 ? 1 : 2;
 }
 
 size_t MoE3GemmInt3Gemm::get_max_tiles(size_t num_experts, size_t rows) {
@@ -68,7 +66,7 @@ JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) co
     jit.make("ZP_TYPE", weights.zp_type == ov::element::i8 ? "char" : "uchar");
     jit.make("SG_M", TILE_SG_M);
     jit.make("TILE_M", TILE_ROWS / TILE_SG_M);
-    jit.make("NB", get_tile_nb(params.get_device_info(), m_proj));
+    jit.make("NB", get_tile_nb(params, m_proj));
     if (m_gate) {
         jit.make("GATE_ACT_MUL", 1);
         jit.make("MOE_GATE_ACT_NATIVE", 1);
@@ -77,16 +75,15 @@ JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) co
     return jit;
 }
 
-// GRF size per thread, a trade of registers against threads per EU. On Xe2 the down tiles (two column blocks) need
-// 256 GRFs, the gate and up tiles (one block) fit the default 128. Xe3 selects the size per kernel, which suits gate
-// and up; down runs faster with 192 than with the 128 it picks, and the 4 Xe-core PTL slower with 256.
+// On Xe2 two column blocks need 256 GRFs and one fits the default 128. On Xe3 the compiler's choice suits gate and
+// up, but down runs faster with 192 than with the 128 it picks.
 std::string MoE3GemmInt3Gemm::get_build_options(const RuntimeParams& params) const {
     auto options = KernelGenerator::get_build_options(params);
+    if (params.get_device_info().arch < gpu_arch::xe3) {
+        return get_tile_nb(params, m_proj) == 2 ? options + " -cl-intel-256-GRF-per-thread" : options;
+    }
     if (m_proj != Projection::DOWN) {
         return options;
-    }
-    if (params.get_device_info().arch < gpu_arch::xe3) {
-        return options + " -cl-intel-256-GRF-per-thread";
     }
     const auto& program = params.get_program();
     if (query_register_file_size_option_supported(program.get_engine(), program.get_config())) {

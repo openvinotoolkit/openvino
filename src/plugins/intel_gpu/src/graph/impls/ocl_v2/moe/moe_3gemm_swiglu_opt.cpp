@@ -1202,13 +1202,10 @@ public:
         return one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f16});
     }
 
-    // OneDNN grouped matmul on s8 activations with grouped src scales, for int8 x int4 / int8 DPAS. 4-bit weights may
-    // have a zero point, which OneDNN subtracts while converting them to s8; 8-bit ones with a zero point would need the
-    // group sums of the activations, which the grouped matmul can't take, so OneDNN would convert the weights to f16.
-    // Below this token count, s8 activations lose to f16 ones in the OneDNN grouped matmuls: the tokens are spread over
-    // the experts, so there are only a few rows per expert (Qwen3.6-35B-A3B int4 on LNL)
+    // OneDNN s8 activations lose to f16 below this token count (few rows per expert)
     static constexpr size_t onednn_dyn_quan_default_threshold = 256;
 
+    // 8-bit weights with a zero point would need activation group sums, which the grouped matmul can't take
     static bool is_onednn_dyn_quan_supported(const RuntimeParams& params) {
         const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
         const auto& info = params.get_device_info();
@@ -3106,12 +3103,12 @@ public:
         auto offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
         auto tiles = intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES];
         const auto& wei = scratch.moe_fusion_wei_addr;
-        const auto& info = instance.get_impl_params()->get_device_info();
+        const auto& impl_params = *instance.get_impl_params();
 
         // w: weight index (gate, up, down). The gate GEMM reads the up output for its act(gate) * up epilogue.
         const auto gemm = [&](int w, memory::ptr output) {
             const auto n = static_cast<size_t>(w == 2 ? _hidden_size : _intermediate_size);
-            const auto nb = MoE3GemmInt3Gemm::get_tile_nb(info, w == 2 ? MoE3GemmInt3Gemm::Projection::DOWN : MoE3GemmInt3Gemm::Projection::GATE_UP);
+            const auto nb = MoE3GemmInt3Gemm::get_tile_nb(impl_params, w == 2 ? MoE3GemmInt3Gemm::Projection::DOWN : MoE3GemmInt3Gemm::Projection::GATE_UP);
             std::vector<memory::ptr> inputs{gemm_input, gemm_input_scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets, tiles};
             if (w == 0) {
                 inputs.push_back(scratch.up);
