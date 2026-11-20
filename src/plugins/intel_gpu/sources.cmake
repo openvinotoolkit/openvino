@@ -203,6 +203,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/optimize_subsequent_reshapes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/preserve_single_selective_ssm_output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/print_model_statistics.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/qkv_split_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/reduce_fc_dimensions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/remove_fq_before_dw_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/scale_down_gated_mlp_input.cpp
