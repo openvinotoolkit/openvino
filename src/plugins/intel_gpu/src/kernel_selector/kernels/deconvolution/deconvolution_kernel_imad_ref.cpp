@@ -45,7 +45,7 @@ ParamsKey DeconvolutionKernel_imad_ref::GetSupportedKey() const {
     return k;
 }
 
-WeightsLayout DeconvolutionKernel_imad_ref::GetPreferredWeightsLayout(const deconvolution_params&) const {
+WeightsLayout DeconvolutionKernel_imad_ref::GetPreferredWeightsLayout(const deconvolution_params& /*params*/) const {
     return WeightsLayout::g_os_zyx_is_osv32_isv4;
 }
 
@@ -92,9 +92,8 @@ JitConstants DeconvolutionKernel_imad_ref::GetJitConstants(const deconvolution_p
     return jit;
 }
 
-size_t DeconvolutionKernel_imad_ref::GetTileIFM(const deconvolution_params&) const {
+size_t DeconvolutionKernel_imad_ref::GetTileIFM(const deconvolution_params& /*unused*/) {
     return 4;
 }
-
 
 }  // namespace kernel_selector

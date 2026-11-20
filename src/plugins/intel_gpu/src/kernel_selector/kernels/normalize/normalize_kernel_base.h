@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ struct normalize_params : public base_params {
     normalize_params() : base_params(KernelType::NORMALIZE) {}
 
     NormalizeMode normMode = NormalizeMode::ACROSS_SPATIAL;
-    float epsilon = 1e-10f;
+    float epsilon = 1e-10F;
     DataTensor scaleTable;
 
     ParamsKey GetParamsKey() const override {
@@ -38,14 +38,14 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    JitConstants GetJitConstants(const normalize_params& params) const;
-    DispatchData SetDefault(const normalize_params& params) const;
+    JitConstants GetJitConstants(const normalize_params& np) const;
+    static DispatchData SetDefault(const normalize_params& params);
     KernelsData GetCommonKernelsData(const Params& params) const;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ACTIVATION };
     }
     bool Validate(const Params& params) const override;
-    Datatype GetActivationType(const normalize_params& params) const;
+    static Datatype GetActivationType(const normalize_params& params);
 };
 }  // namespace kernel_selector

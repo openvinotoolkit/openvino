@@ -1,7 +1,7 @@
 # Running converted GGUF models
 
-`convert()` returns a stateless graph with llama.cpp-style inputs. A caller-registered `GenAIExtension`
-turns a language model into a stateful model with the OpenVINO GenAI interface. Multimodal projector
+`convert()` returns a stateless graph with llama.cpp-style inputs. `adapt_to_genai()` turns a
+converted model into the stateful models with the OpenVINO GenAI interface. Multimodal projector
 files use their own [encoder contract](mmproj.md#graph-boundary).
 
 ## Split GGUF files
@@ -64,33 +64,42 @@ below have no Python bindings, and `DecoderTransformationExtension` cannot be co
 
 ## Stateful and GenAI conversion
 
-Register `GenAIExtension` before `convert()`. The frontend creates stateful caches before
-stateless cache lowering, completes normalization (including recurrent-operation fusion), then
-adapts the normalized graph to GenAI. Callers do not register or order individual passes.
+Convert without GenAI-specific extensions, then pass the result to
+[`adapt_to_genai()`](../include/openvino/frontend/gguf/adapt_to_genai.hpp). It returns the named
+models GenAI uses; callers do not register or order individual passes. The same call adapts a
+[projector file](mmproj.md#using-the-encoders-and-a-language-model).
 
 ```cpp
-#include <openvino/frontend/gguf/extension/genai.hpp>
+#include <openvino/frontend/gguf/adapt_to_genai.hpp>
 #include <openvino/frontend/manager.hpp>
 
 using namespace ov::frontend::gguf;
 ov::frontend::FrontEndManager manager;
 auto frontend = manager.load_by_framework("gguf");
-frontend->add_extension(std::make_shared<GenAIExtension>());
-auto model = frontend->convert(frontend->load("model.gguf"));
+auto models = adapt_to_genai(frontend->convert(frontend->load("model.gguf")));
+auto language = models.at("language");
 ```
 
+`adapt_to_genai()` modifies and returns the converted decoder as `language`, and throws for a
+model that is already adapted. `GenAIExtension` is deprecated: it calls `adapt_to_genai()` at
+the end of `convert()` and returns `language`.
+
 Internally, [`GGUFMakeStateful`](../include/openvino/frontend/gguf/make_stateful.hpp) replaces each KV cache
-Parameter/Result pair with a Variable, adds `beam_idx` and reorders caches by it. Sliding-window
+Parameter/Result pair with a Variable, adds `beam_idx` and reorders caches by it. It accepts both
+the frontend's cache-write operation and its lowered stateless form, so it runs on a converted model. Sliding-window
 caches can be left stateless with `skip_caches`. Recurrent states are declared through the
 `gguf_recurrent_states` rt_info key.
 
-[`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) requires a stateful model and
-exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
+[`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) then exposes GenAI's
+interface. Select the mode with `GenAIAdaptOptions::input`:
 
 | Mode | Inputs | Output |
 |---|---|---|
 | `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,T,vocab]` |
 | `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,T,vocab]` |
+
+`EMBEDS_TO_LOGITS` also returns the token lookup as `text_embeddings` and, for architectures with
+per-layer token embeddings, `text_embeddings_per_layer`.
 
 - The leading dimensions are derived from the live inputs, so one graph serves both SDPA and
   `ov::pass::SDPAToPagedAttention`.
