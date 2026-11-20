@@ -2809,7 +2809,14 @@ void primitive_inst::execute() {
 
         OPENVINO_ASSERT(outputs.find(last_prim_id) != outputs.end(), "[GPU] Can't find output primitive ", last_prim_id, " for unfused subgraph");
 
-        _outputs[0] = outputs.at(last_prim_id).get_memory();
+        auto subgraph_output = outputs.at(last_prim_id).get_memory();
+        // Consumers rebind kernel arguments only when MEMORY_CHANGED is set.
+        if (!_outputs[0] || !get_network().get_engine().is_the_same_buffer(*_outputs[0], *subgraph_output)) {
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+        // The pooled fused output would otherwise stay registered to this primitive until network destruction.
+        release_and_clear_output_memory();
+        _outputs[0] = std::move(subgraph_output);
 
         _impl_params->output_layouts[0] = _unfused_subgraph->get_output_layout(last_prim_id);
         set_out_event(outputs.at(last_prim_id).get_event());
