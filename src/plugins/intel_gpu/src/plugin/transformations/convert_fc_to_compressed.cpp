@@ -160,8 +160,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        const bool has_transpose_before_reshape = pattern_map.count(transpose_before_reshape_m) != 0u;
-        const bool has_transpose = pattern_map.count(transpose_m) != 0u;
+        const bool has_transpose_before_reshape = pattern_map.count(transpose_before_reshape_m) != 0U;
+        const bool has_transpose = pattern_map.count(transpose_m) != 0U;
         // An optional Convert absorbed by mul_const_convert_m carries the precision the graph used for the
         // scale (e.g. f32 -> f16 inserted by ConvertPrecision). Keep it for runtime scales: stripping it would
         // leak the source precision into the FC scale input. Constants need no Convert because Convert(Constant)

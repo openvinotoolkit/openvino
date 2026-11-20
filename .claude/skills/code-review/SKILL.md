@@ -298,6 +298,10 @@ Apply the same technical evidence threshold regardless of authorship:
 
 ## Review output
 
+Always load and follow [delivery.md](references/delivery.md). It is mandatory and
+defines the report order, the final-message rule, and PR publishing; the
+rules below define the content of each part.
+
 Start with the main assessment and identify the reviewed baseline. State
 whether inspection was complete or partial.
 

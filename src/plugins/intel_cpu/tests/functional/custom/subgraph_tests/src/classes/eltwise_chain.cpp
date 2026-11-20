@@ -47,7 +47,9 @@ std::string EltwiseChainTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     return results.str();
 }
 
-ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape) {
+ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& type,
+                                                    const ov::Shape& shape,
+                                                    int32_t seed) {
     struct gen_params {
         uint32_t range;
         int32_t start_from;
@@ -63,6 +65,7 @@ ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& typ
     in_data.start_from = params.start_from;
     in_data.range = params.range;
     in_data.resolution = params.resolution;
+    in_data.seed = seed;
     auto tensor = ov::test::utils::create_and_fill_tensor(type, shape, in_data);
     return tensor;
 }
@@ -72,9 +75,11 @@ void EltwiseChainTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(
-                funcInput.get_element_type(),
-                targetInputStaticShapes[i])});
+        // A different seed per input, so that inputs of the same shape are not equal
+        inputs.insert({funcInput.get_node_shared_ptr(),
+                       generate_eltwise_input(funcInput.get_element_type(),
+                                              targetInputStaticShapes[i],
+                                              static_cast<int32_t>(i + 1))});
     }
 }
 
@@ -113,10 +118,13 @@ void EltwiseChainTest::SetUp() {
                 (conversion == ov::element::dynamic)
                     ? param
                     : std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(param, conversion));
+            // As for constant secondary inputs, the first input starts the chain
+            // and the following ones are the second inputs of the operations
             if (inputNodes1.empty()) {
                 inputNodes1.push_back(inputNode);
+            } else {
+                inputNodes2.push_back(inputNode);
             }
-            inputNodes2.push_back(inputNode);
         }
     } else {
         paramVec = ov::ParameterVector {std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes.front())};
