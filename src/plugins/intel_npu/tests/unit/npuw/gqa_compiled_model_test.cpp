@@ -37,6 +37,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "serialization.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
@@ -893,6 +894,32 @@ protected:
                       outputs.at(j).get_node()->get_friendly_name());
             ASSERT_EQ(model_outputs.at(j).get_names(), outputs.at(j).get_names());
         }
+    }
+
+    void validate_gqa_roundtrip(const size_t axis,
+                                const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                                const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                                const uint32_t max_context_len,
+                                const uint32_t sliding_window_length,
+                                const uint32_t sliding_window_headroom,
+                                const std::shared_ptr<const ov::npuw::GQACompiledModel>& gqa_compiled_model) {
+        make_port_asserts(model_inputs, model_outputs, gqa_compiled_model->inputs(), gqa_compiled_model->outputs());
+
+        size_t matched_ports = 0;
+        for (const auto& input : gqa_compiled_model->inputs()) {
+            if (input.get_node()->get_friendly_name() != "past_keys_0" &&
+                input.get_node()->get_friendly_name() != "past_values_0") {
+                continue;
+            }
+            ASSERT_TRUE(input.get_partial_shape()[axis].is_dynamic());
+            ++matched_ports;
+        }
+        ASSERT_EQ(matched_ports, 2u);
+
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::max_context_len.name()), max_context_len);
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::swa_len.name()), sliding_window_length);
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::swa_headroom.name()),
+                  sliding_window_headroom);
     }
 
     std::unique_ptr<ov::npuw::GQACompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
@@ -2604,22 +2631,63 @@ TEST_F(GQACompiledModelTest, GQAExportImportRoundTrip) {
                         ov::npuw::ICompiledModel::import_model(stream, m_plugin, {})));
     ASSERT_NE(imported, nullptr);
     ASSERT_EQ(stream.peek(), EOF);
-    ASSERT_NO_FATAL_FAILURE(make_port_asserts(model_inputs, model_outputs, imported->inputs(), imported->outputs()));
+    ASSERT_NO_FATAL_FAILURE(validate_gqa_roundtrip(axis,
+                                                   model_inputs,
+                                                   model_outputs,
+                                                   max_context_len,
+                                                   sliding_window_length,
+                                                   sliding_window_headroom,
+                                                   imported));
+}
 
-    size_t matched_ports = 0;
-    for (const auto& input : imported->inputs()) {
-        if (input.get_node()->get_friendly_name() != "past_keys_0" &&
-            input.get_node()->get_friendly_name() != "past_values_0") {
-            continue;
-        }
-        ASSERT_TRUE(input.get_partial_shape()[axis].is_dynamic());
-        ++matched_ports;
-    }
-    ASSERT_EQ(matched_ports, 2u);
+TEST_F(GQACompiledModelTest, GQAExportImportRoundTripWithEncryption) {
+    const size_t axis = 2;
+    auto model = build_gqa_model_with_dynamic_kv_cache(axis);
+    const auto& model_inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
+    const auto& model_outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
 
-    ASSERT_EQ(imported->get_property(ov::intel_npu::npuw::llm::max_context_len.name()), max_context_len);
-    ASSERT_EQ(imported->get_property(ov::intel_npu::npuw::llm::swa_len.name()), sliding_window_length);
-    ASSERT_EQ(imported->get_property(ov::intel_npu::npuw::llm::swa_headroom.name()), sliding_window_headroom);
+    const uint32_t max_context_len = 4096u;
+    const uint32_t sliding_window_length = 8u;
+    const uint32_t sliding_window_headroom = 512u;
+    auto test_props = base_props();
+    merge_props(
+        test_props,
+        ov::AnyMap{ov::intel_npu::npuw::llm::max_context_len(max_context_len),
+                   ov::intel_npu::npuw::llm::swa_len(sliding_window_length),
+                   ov::intel_npu::npuw::llm::swa_headroom(sliding_window_headroom),
+                   ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})});
+
+    auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto mock_compiled_model = std::make_shared<testing::NiceMock<ov::MockICompiledModel>>(model, m_plugin);
+    m_plugin->set_core(mock_core);
+    setup_mocks(model_inputs, model_outputs, mock_core, mock_compiled_model);
+
+    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, test_props);
+    std::stringstream stream;
+    ASSERT_NO_THROW(compiled->export_model(stream));
+
+    std::shared_ptr<ov::npuw::GQACompiledModel> imported;
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "Blob is encrypted, but no decryption callback was provided");
+    stream.clear();
+    stream.seekg(0);
+    EXPECT_CALL(
+        *mock_core,
+        import_model(testing::An<std::istream&>(), testing::An<const std::string&>(), testing::An<const ov::AnyMap&>()))
+        .Times(testing::AtLeast(1))
+        .WillRepeatedly(testing::Return(mock_compiled_model));
+    ASSERT_NO_THROW(imported = std::dynamic_pointer_cast<ov::npuw::GQACompiledModel>(
+                        ov::npuw::ICompiledModel::import_model(stream, m_plugin, test_props)));
+    ASSERT_NE(imported, nullptr);
+    ASSERT_EQ(stream.peek(), EOF);
+    ASSERT_NO_FATAL_FAILURE(validate_gqa_roundtrip(axis,
+                                                   model_inputs,
+                                                   model_outputs,
+                                                   max_context_len,
+                                                   sliding_window_length,
+                                                   sliding_window_headroom,
+                                                   imported));
 }
 
 }  // namespace
