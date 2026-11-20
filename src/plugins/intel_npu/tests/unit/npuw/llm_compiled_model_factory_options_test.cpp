@@ -1219,19 +1219,108 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintFusesGptOssExpertsWithInt
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsAccuracyCheck) {
-    for (const char* acc_check : {"YES", "ON", "TRUE", "yes", "1"}) {
+    for (const auto& acc_check :
+         {ov::Any("YES"), ov::Any("ON"), ov::Any("TRUE"), ov::Any("yes"), ov::Any("1"), ov::Any(true)}) {
         for (const char* stage_hint : {"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_GENERATE_MOE_HINT"}) {
+            SCOPED_TRACE(std::string(stage_hint) + "=" + acc_check.as<std::string>());
             RecordingFactory recorder;
-            EXPECT_THROW(create_compiled_model(
-                             build_qwen3_moe_llm_model(),
-                             {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_ACC_CHECK", acc_check}, {stage_hint, "FUSED"}},
-                             recorder),
-                         ov::Exception)
-                << stage_hint << "=" << acc_check;
-            EXPECT_EQ(recorder.count_suffix("_prefill"), 0u);
-            EXPECT_EQ(recorder.count_contains("_kv"), 0u);
+            ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_ACC_CHECK", acc_check}, {stage_hint, "FUSED"}};
+            OV_EXPECT_THROW_HAS_SUBSTRING(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder),
+                                          ov::Exception,
+                                          "NPUW_ACC_CHECK is not supported with MoE hint FUSED");
+            EXPECT_TRUE(recorder.calls().empty());
         }
     }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintAllowsDisabledAccuracyCheck) {
+    for (const auto& acc_check :
+         {ov::Any("NO"), ov::Any("OFF"), ov::Any("FALSE"), ov::Any("no"), ov::Any("0"), ov::Any(false)}) {
+        SCOPED_TRACE(acc_check.as<std::string>());
+        RecordingFactory recorder;
+        ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                         {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                         {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"},
+                         {"NPUW_ACC_CHECK", acc_check}};
+        ASSERT_NO_THROW(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder));
+        EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
+        EXPECT_GT(recorder.count_contains("_kv"), 0u);
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsStageSpecificAccuracyCheck) {
+    for (const auto& stage : {std::pair{"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_PREFILL_CONFIG"},
+                              std::pair{"NPUW_LLM_GENERATE_MOE_HINT", "NPUW_LLM_GENERATE_CONFIG"}}) {
+        for (const auto& prefix : {std::string{}, std::string{"++"}}) {
+            for (const auto& value : {ov::Any("ON"), ov::Any(true)}) {
+                SCOPED_TRACE(std::string(stage.first) + " / " + prefix + stage.second);
+                RecordingFactory recorder;
+                ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                 {stage.first, "FUSED"},
+                                 {prefix + stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", value}}}};
+                OV_EXPECT_THROW_HAS_SUBSTRING(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder),
+                                              ov::Exception,
+                                              "NPUW_ACC_CHECK is not supported with MoE hint FUSED");
+                EXPECT_TRUE(recorder.calls().empty());
+            }
+        }
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintUsesEffectiveStageAccuracyCheck) {
+    for (const auto& stage : {std::pair{"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_PREFILL_CONFIG"},
+                              std::pair{"NPUW_LLM_GENERATE_MOE_HINT", "NPUW_LLM_GENERATE_CONFIG"}}) {
+        SCOPED_TRACE(stage.first);
+        RecordingFactory recorder;
+        ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                         {"NPUW_ACC_CHECK", "YES"},
+                         {stage.first, "FUSED"},
+                         {std::string("++") + stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", false}}}};
+
+        ASSERT_NO_THROW(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder));
+        const auto& fused = std::string(stage.first) == "NPUW_LLM_PREFILL_MOE_HINT"
+                                ? require_call(recorder, "_prefill")
+                                : require_call_containing(recorder, "_kv");
+        const auto& other = std::string(stage.first) == "NPUW_LLM_PREFILL_MOE_HINT"
+                                ? require_call_containing(recorder, "_kv")
+                                : require_call(recorder, "_prefill");
+        EXPECT_FALSE(fused.props.at("NPUW_ACC_CHECK").as<bool>());
+        expect_prop(other.props, "NPUW_ACC_CHECK", "YES");
+
+        RecordingFactory root_override_recorder;
+        ov::AnyMap root_override{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                 {"NPUW_ACC_CHECK", "NO"},
+                                 {stage.first, "FUSED"},
+                                 {stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", "YES"}}}};
+        ASSERT_NO_THROW(create_compiled_model(build_qwen3_moe_llm_model(), root_override, root_override_recorder));
+        const auto& root_overridden = std::string(stage.first) == "NPUW_LLM_PREFILL_MOE_HINT"
+                                          ? require_call(root_override_recorder, "_prefill")
+                                          : require_call_containing(root_override_recorder, "_kv");
+        expect_prop(root_overridden.props, "NPUW_ACC_CHECK", "NO");
+
+        RecordingFactory addition_override_recorder;
+        ov::AnyMap addition_override{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                     {"NPUW_ACC_CHECK", "NO"},
+                                     {stage.first, "FUSED"},
+                                     {stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", "NO"}}},
+                                     {std::string("++") + stage.second, ov::AnyMap{{"NPUW_ACC_CHECK", "YES"}}}};
+        OV_EXPECT_THROW_HAS_SUBSTRING(
+            create_compiled_model(build_qwen3_moe_llm_model(), addition_override, addition_override_recorder),
+            ov::Exception,
+            "NPUW_ACC_CHECK is not supported with MoE hint FUSED");
+        EXPECT_TRUE(addition_override_recorder.calls().empty());
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsInvalidAccuracyCheck) {
+    RecordingFactory recorder;
+    ov::AnyMap props{{"NPUW_LLM_SHARED_HEAD", "NO"},
+                     {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                     {"NPUW_ACC_CHECK", "invalid"}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(create_compiled_model(build_qwen3_moe_llm_model(), props, recorder),
+                                  ov::Exception,
+                                  "Failed to parse 'NPUW_ACC_CHECK'");
+    EXPECT_TRUE(recorder.calls().empty());
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsPartiallyLoweredBlocks) {

@@ -232,6 +232,19 @@ void config_fused(ov::AnyMap& stage_config, Stage stage) {
     // (see apply_moe_fusion), so no per-expert partitioning hints are needed here.
     LOG_INFO("MoE config for " << stage_name(stage)
                                << " stage: FUSED (single MOECompressed op, device dynamic-sparse kernel)");
+    // The merged stage config includes root NPUW options and stage-specific overrides, unlike the LLM config.
+    const auto acc_check = stage_config.find(std::string(::intel_npu::NPUW_ACC_CHECK::key()));
+    if (acc_check != stage_config.end()) {
+        auto options = std::make_shared<::intel_npu::OptionsDesc>();
+        options->add<::intel_npu::NPUW_ACC_CHECK>();
+        ::intel_npu::Config config(options);
+        config.update(::intel_npu::NPUW_ACC_CHECK::key(), acc_check->second);
+        OPENVINO_ASSERT(!config.get<::intel_npu::NPUW_ACC_CHECK>(),
+                        "NPUW_ACC_CHECK is not supported with MoE hint FUSED (",
+                        stage_name(stage),
+                        " stage): the reference device cannot run the fused MOECompressed op. "
+                        "Disable NPUW_ACC_CHECK or use HOST_ROUTED or DEVICE_ROUTED.");
+    }
     if (stage == Stage::GENERATE) {
         stage_config["NPUW_UNFOLD_IREQS"] = "YES";
     }
@@ -307,11 +320,6 @@ void fuse_requested_stages(const ::intel_npu::Config& cfg,
                            const std::shared_ptr<ov::Model>& generate_model) {
     const auto prefill_hint = cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
     const auto generate_hint = cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-    if ((prefill_hint == MoEHint::FUSED || generate_hint == MoEHint::FUSED) && cfg.get<::intel_npu::NPUW_ACC_CHECK>()) {
-        OPENVINO_THROW("NPUW_ACC_CHECK is not supported with MoE hint FUSED: the reference device cannot run the "
-                       "fused MOECompressed op. Disable NPUW_ACC_CHECK or use HOST_ROUTED or DEVICE_ROUTED.");
-    }
-
     // PREFILL and GENERATE hints are independent, so each stage is fused (or not) on its own.
     if (prefill_hint == MoEHint::FUSED) {
         apply_moe_fusion(prefill_model);
