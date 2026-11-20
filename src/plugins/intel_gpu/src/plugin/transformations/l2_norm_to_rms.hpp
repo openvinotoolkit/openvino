@@ -43,7 +43,8 @@ namespace ov::intel_gpu {
 //    non-constant inputs). Such norms are left to the late registration: MarkDivWithEps keys on the Divide and
 //    keeps the residual stream in FP32, and an early fusion would remove the Divide and let it drop to f16.
 // The scaled gamma is marked to stay in FP32: it may be dequantized from u16 values above the f16 range
-// (e.g. 65535), and after an early fusion no Divide is left to keep it in FP32.
+// (e.g. 65535), and after an early fusion no Divide is left to keep it in FP32. KeepDequantizationPrecision covers
+// Constant weights only, not a u16 weight fed as a model input (as ONNX Runtime with the OpenVINO EP passes it).
 class L2NormToRMS : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("L2NormToRMS");
