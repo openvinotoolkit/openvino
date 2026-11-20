@@ -59,7 +59,8 @@ public:
                  bool b_accumulate = false,
                  bool fuse_relu = false,
                  ov::element::Type b_in_type = ov::element::dynamic,
-                 ov::element::Type a_in_type = ov::element::dynamic);
+                 ov::element::Type a_in_type = ov::element::dynamic,
+                 bool pack_b_to_f32 = true);
 
     virtual ~BrgemmKernel() = default;
 
@@ -127,7 +128,8 @@ protected:
                  bool b_accumulate,
                  bool fuse_relu = false,
                  ov::element::Type b_in_type = ov::element::dynamic,
-                 ov::element::Type a_in_type = ov::element::dynamic);
+                 ov::element::Type a_in_type = ov::element::dynamic,
+                 bool pack_b_to_f32 = true);
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0, ldd = 0;

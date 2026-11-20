@@ -243,7 +243,7 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
     }
 }
 
-using BrgemmFP16Params = std::tuple<size_t, size_t, size_t, bool, bool, bool, bool>;
+using BrgemmFP16Params = std::tuple<size_t, size_t, size_t, bool, bool, bool, bool, bool>;
 
 class BrgemmFP16Test : public testing::TestWithParam<BrgemmFP16Params> {};
 
@@ -251,8 +251,8 @@ TEST_P(BrgemmFP16Test, PaddedStridesAndTails) {
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         GTEST_SKIP() << "FP16 BRGEMM requires AVX512-FP16.";
     }
-    const auto [M, N, K, transposed, accumulate, float_b, float_a] = GetParam();
-    if ((float_b || float_a) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+    const auto [M, N, K, transposed, accumulate, float_b, float_a, typed_b] = GetParam();
+    if ((float_b || float_a || typed_b) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
         GTEST_SKIP() << "Mixed FP16/FP32 operands use the non-AMX path.";
     }
     const size_t lda = K + 5;
@@ -289,12 +289,29 @@ TEST_P(BrgemmFP16Test, PaddedStridesAndTails) {
                                      accumulate,
                                      false,
                                      float_b ? ov::element::f32 : ov::element::f16,
-                                     float_a ? ov::element::f32 : ov::element::f16);
+                                     float_a ? ov::element::f32 : ov::element::f16,
+                                     !typed_b);
     std::vector<uint8_t> packed_b(guard + gemm.get_scratch_b_size() + guard, 0xA5);
     std::vector<uint8_t> scratch_a(guard + gemm.get_scratch_a_size() + guard, 0xA5);
     std::vector<size_t> workspace(4 * 1024);
     gemm.copy_buffer_b(float_b ? static_cast<void*>(b_float.data()) : static_cast<void*>(b.data()),
                        packed_b.data() + guard);
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+        const size_t packed_ld = (N + 15) / 16 * 16;
+        for (size_t k = 0; k < K; ++k) {
+            for (size_t n = 0; n < packed_ld; ++n) {
+                const auto offset = transposed ? n * ldb + k : k * ldb + n;
+                if (typed_b && !float_b) {
+                    const auto expected = n < N ? b[offset] : ov::float16(0.F);
+                    ASSERT_EQ(reinterpret_cast<const ov::float16*>(packed_b.data() + guard)[k * packed_ld + n],
+                              expected);
+                } else {
+                    const auto expected = n < N ? (float_b ? b_float[offset] : static_cast<float>(b[offset])) : 0.F;
+                    ASSERT_EQ(reinterpret_cast<const float*>(packed_b.data() + guard)[k * packed_ld + n], expected);
+                }
+            }
+        }
+    }
     for (size_t step = 0; step < 2; ++step) {
         for (size_t m = 0; m < M; m += gemm.get_mblk_size()) {
             const auto count = std::min(gemm.get_mblk_size(), M - m);
@@ -354,6 +371,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BrgemmFP16,
                          ::testing::Combine(::testing::Values(1, 33),
                                             ::testing::Values(17, 37),
                                             ::testing::Values(3, 16, 17, 35, 127, 129),
+                                            ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),

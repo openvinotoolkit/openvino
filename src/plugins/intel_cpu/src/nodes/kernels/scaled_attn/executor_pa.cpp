@@ -37,6 +37,7 @@
 #include "softmax_kernel.hpp"
 #include "transpose.hpp"
 #include "transpose_kernel.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #include "xattention.hpp"
@@ -423,6 +424,7 @@ struct MHAHelper {
     size_t _new_score_stride = 0;
     bool AarchF16 = false;
     bool _dnn_f16_copy = false;
+    bool _typed_kv_storage = false;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
@@ -682,7 +684,8 @@ struct MHAHelper {
               size_t B_token,
               size_t kv_len,
               bool init_alibi_lookup,
-              bool init_rotation_coefficient_scratch) {
+              bool init_rotation_coefficient_scratch,
+              bool typed_kv_storage) {
         // query shape: [B, H, L, S]
         // present_key shape: [block, H, 32, S]
         // Q*K': [M1, S] * [M2, S]'
@@ -693,6 +696,13 @@ struct MHAHelper {
         //   aka: M:1~block_size, N:S, K:block_size
         // Because K and V are from cache, can use M2'=rnd_up(M2, block_size) to simplify logic
         auto in_type = precision_of<DATA_TYPE>::value;
+        if (_typed_kv_storage != typed_kv_storage) {
+            _qk_gemm.clear();
+            _wv_gemm.clear();
+            _wv_gemm_acc.clear();
+            _packed_kv_cache.clear();
+            _typed_kv_storage = typed_kv_storage;
+        }
 #    if defined(OPENVINO_ARCH_X86_64)
         _dnn_f16_copy =
             in_type == ov::element::f16 && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
@@ -754,7 +764,8 @@ struct MHAHelper {
                                                       ,
                                                       false,
                                                       b_type,
-                                                      a_type
+                                                      a_type,
+                                                      !_typed_kv_storage
 #    endif
                 );
             };
@@ -2670,6 +2681,25 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 #    endif
 
+        bool typed_kv_storage = false;
+#    if defined(OPENVINO_ARCH_X86_64) && defined(CPU_DEBUG_CAPS)
+        if (ov::intel_cpu::getEnvBool("OV_PA_ADAPTIVE_KV")) {
+            size_t max_q_blocks = 0;
+            bool any_multi_token = false;
+            for (size_t seq = 0; seq + 1 < subsequence_begins.size(0); ++seq) {
+                const auto q_len =
+                    size_t(subsequence_begins.ptr<int32_t>()[seq + 1] - subsequence_begins.ptr<int32_t>()[seq]);
+                max_q_blocks = std::max(max_q_blocks, div_up(q_len, block_size));
+                any_multi_token |= q_len > 1;
+            }
+            const size_t reuse_upper_bound = max_q_blocks * (H / Hk);
+            typed_kv_storage = precision_of<DATA_TYPE>::value == ov::element::f16 &&
+                               !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
+                               !_helper._params.is_sage_attn && parallel_get_max_threads() >= 8 && any_multi_token &&
+                               reuse_upper_bound <= 4 &&
+                               (KEY_PREC == ov::element::f16 || VALUE_PREC == ov::element::f16);
+        }
+#    endif
         _helper.init(H,
                      S,
                      SV,
@@ -2681,7 +2711,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                      B_token,
                      max_context_len,
                      static_cast<bool>(alibi_slopes),
-                     init_rotation_coefficient_scratch);
+                     init_rotation_coefficient_scratch,
+                     typed_kv_storage);
     }
 
     void concat_pastkv(const PlainTensor& k,
