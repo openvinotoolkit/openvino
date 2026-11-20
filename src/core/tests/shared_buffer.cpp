@@ -758,8 +758,8 @@ TEST_F(SharedBufferTest, common_buffer_nested_shared_buffer_propagates_to_mmap) 
                                                                                         mmap_size - parent_offset,
                                                                                         mock);
     auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::util::IBuffer>>>(parent->data() + child_offset,
-                                                                                         child_size,
-                                                                                         parent);
+                                                                                        child_size,
+                                                                                        parent);
 
     EXPECT_CALL(*mock, hint_evict_mock(parent_offset + child_offset, child_size)).Times(1);
     EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
