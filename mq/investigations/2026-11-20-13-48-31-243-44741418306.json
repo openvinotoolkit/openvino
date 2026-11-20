@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-13-48-31-243-44741418306",
+  "timestamp": "2026-11-20T13:48:31Z",
+  "run_id": "44741418306",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44741418306",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "39963",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39963",
+  "author": "mvafin",
+  "category": "Flaky Test",
+  "title": "smoke_MatMulCompressedWeights_Kleidiai fails with unexpected impl type undef_f32 on ARM64",
+  "signature": "unexpected impl type undef_f32 implType find kleidiai npos matmulcompressedweights|Flaky Test",
+  "signature_hash": "5c9adec102201520",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_MatMulCompressedWeights_Kleidiai/MatmulWeightsDecompression.CompareWithRefs test fails asserting implType contains 'kleidiai', got 'undef_f32' instead"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Aggregated status-check job fails because the CPU functional tests job failed (no independent error of its own)"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp:168: Failure\nExpected: (implType.find(\"kleidiai\")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615\nunexpected impl type: undef_f32",
+    "[  FAILED  ] smoke_MatMulCompressedWeights_Kleidiai/MatmulWeightsDecompression.CompareWithRefs/data_shape=[?.?.?]_([1.4.16].[10.16.16])_weights_shape=[16,32]_weights_precision=i4_decompression_precision=f32_scale_precision=dynamic... (111 ms)"
+  ],
+  "root_cause": "On ARM64 cross-compiled CPU builds, the KleidiAI-accelerated matmul-with-compressed-weights implementation is not selected for this specific parameter combination (dynamic DYNAMIC_QUANTIZATION_GROUP_SIZE with a bias-fusing post-op), falling back to a generic 'undef_f32' executor instead of a 'kleidiai'-named one. This is the same intermittent KleidiAI executor-selection issue previously recorded in pattern 5c9adec102201520 (first seen 2026-11-13), now recurring a third time across unrelated PRs (#39266, #39548, #39963), confirming it is unrelated to the current PR's Python/PyTorch-frontend changes and is a pre-existing flaky ARM64 CPU-plugin test.",
+  "reproduction_steps": "On an aarch64 Linux CPU build with KleidiAI enabled, run: ov_cpu_func_tests --gtest_filter='*smoke_MatMulCompressedWeights_Kleidiai*CompareWithRefs*data_shape=[?.?.?]_([1.4.16].[10.16.16])_weights_shape=[16,32]*i4*f32*dynamic*full*empty*DYNAMIC_QUANTIZATION_GROUP_SIZE*fusingBias*' repeatedly; failure is intermittent and may require several runs/different scheduling to reproduce.",
+  "recommended_actions": [
+    "Investigate src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp:168 and the underlying KleidiAI executor-selection logic to determine why the bias-fusing + dynamic-group-size case sometimes falls back to undef_f32 instead of the kleidiai implementation.",
+    "Consider marking this specific parameterization as disabled/known-flaky in the CPU functional test suite until the executor-selection race/condition is fixed, to stop blocking unrelated PRs in the merge queue.",
+    "This PR (#39963) is unrelated to the failure; re-running the failed job or re-queuing should let it merge."
+  ],
+  "prevention_strategies": "Add deterministic executor-selection logging/tracing around KleidiAI matmul decompression so flaky selection can be root-caused instead of only observed as an assertion failure; add a retry/quarantine mechanism for this specific parameterized test case.",
+  "historical_context": "Same signature (5c9adec102201520) previously recorded twice: 2026-11-13T07:09:24Z (run 43378018632, PR #39266) and 2026-11-13T19:24:42Z (run 43486543645, PR #39548). This is the 3rd occurrence overall (count=3), but the prior two occurrences are more than 12 hours before this run, so the 12-hour recurring-escalation threshold is not met by this run alone."
+}
