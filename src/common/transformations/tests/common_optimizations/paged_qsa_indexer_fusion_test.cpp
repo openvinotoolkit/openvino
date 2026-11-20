@@ -46,7 +46,6 @@
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
-#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -939,6 +938,19 @@ const std::vector<QueryOptions> query_cases = [] {
     o.rope_rows_target = {1, -1, 1, rotary_dim};
     o.absorb_norm = o.absorb_rope = false;
     cases.push_back(o);
+    o = QueryOptions{"split_rope"};
+    o.split_rope = true;
+    cases.push_back(o);
+    // Other consumers keep the split RoPE and its Concat.
+    o.name = "split_rope_extra_consumers";
+    o.extra_consumers = true;
+    cases.push_back(o);
+    // A split RoPE that is not absorbed stays split.
+    o = QueryOptions{"split_rope_distinct_cos"};
+    o.split_rope = true;
+    o.distinct_cos = true;
+    o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
     return cases;
 }();
 
@@ -949,22 +961,12 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                              return info.param.name;
                          });
 
-template <class Indexer>
-void check_split_query_rope_fusion(TransformationTestsF& test) {
+TEST_F(TransformationTestsF, FuseQSAIndexerQuerySplitRoPE) {
     QueryOptions options;
     options.split_rope = true;
-    test.model = getQueryModel<Indexer>(options);
-    test.model_ref = getQueryModelRef<Indexer>(options);
-    test.manager.get_pass_config()->disable<pass::RoPEFusionIOSlicing>();
-    test.manager.register_pass<pass::FuseQSAIndexerQuery>();
-}
-
-TEST_F(TransformationTestsF, FuseQSAIndexerQuerySplitRoPEWithIOSlicingDisabled) {
-    check_split_query_rope_fusion<op_internal::QSAIndexer>(*this);
-}
-
-TEST_F(TransformationTestsF, FusePagedQSAIndexerQuerySplitRoPEWithIOSlicingDisabled) {
-    check_split_query_rope_fusion<op_internal::PagedQSAIndexer>(*this);
+    model = getQueryModel<op_internal::QSAIndexer>(options);
+    model_ref = getQueryModelRef<op_internal::QSAIndexer>(options);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryWithDynamicHeadFirstReshapeTarget) {
