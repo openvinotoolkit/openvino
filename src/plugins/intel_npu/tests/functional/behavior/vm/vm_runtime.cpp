@@ -413,6 +413,7 @@ protected:
         const intel_npu::CommandQueueDesc commandQueueDesc{
                 ZE_COMMAND_QUEUE_PRIORITY_NORMAL,  // priority
                 std::nullopt,                      // workload
+                std::nullopt,                      // qos
                 0,                                 // options
                 nullptr,                           // owner_tag
                 true,                              // shared_common_queue
