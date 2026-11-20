@@ -63,12 +63,13 @@ TEST(PAVariantConfig, PartitionsThePAOpsOffNPU) {
               "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
 }
 
-TEST(PAVariantConfig, SendsThePAOpsToTheGPUAndTheTailToTheCPU) {
+TEST(PAVariantConfig, SendsThePAOpsAndTheTailToTheGPUWithF32Links) {
     const auto config = PACompiledModel::make_variant_config({}, "GPU", "bank0", std::nullopt);
 
-    EXPECT_EQ(str(config, "NPUW_DEVICES"), "NPU,GPU,CPU");
-    EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:PagedAttentionExtension/NPU,Op:PagedAttentionExtension/CPU");
-    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:CPU");
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "NPU,GPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:PagedAttentionExtension/NPU");
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:GPU");
+    EXPECT_EQ(str(config, "NPUW_F16IC"), "NO");
 }
 
 TEST(PAVariantConfig, StartsFromTheLLMPathNPUDefaults) {
