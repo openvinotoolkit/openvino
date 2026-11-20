@@ -580,6 +580,9 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
         try:
+            extension = self.get_op_extension()
+            if extension and isinstance(extension[1], ModuleExtension):
+                return False
             schema_text = self.get_schema()
             if schema_text != "(no schema)":
                 returns = _parse_schema(schema_text).returns

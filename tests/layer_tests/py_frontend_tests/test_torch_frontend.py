@@ -890,6 +890,179 @@ def test_module_extension_dynamo_custom_callbacks():
         PartialShape([100])
 
 
+@pytest.mark.precommit
+@pytest.mark.parametrize("dynamo", [False, True], ids=["torchscript", "export"])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+@pytest.mark.parametrize("kind", ["linear", "conv1d"])
+def test_patched_projection_output_view_mutation(dtype, kind, dynamo):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            if kind == "linear":
+                self.proj = torch.nn.Linear(8, 8, dtype=dtype)
+            else:
+                conv1d = pytest.importorskip("transformers.pytorch_utils").Conv1D
+                self.proj = conv1d(8, 8).to(dtype=dtype)
+
+        def forward(self, x):
+            query = self.proj(x)
+            sibling = self.proj(x)
+            query = query.view(1, 4, 2, 4).transpose(1, 2)
+            query[:, :1] = -query[:, :1]
+            return query, sibling, x
+
+    torch.manual_seed(0)
+    model = Model().eval()
+    example = torch.randn(1, 4, 8, dtype=dtype)
+    with torch.no_grad():
+        expected = tuple(value.numpy() for value in model(example))
+        try:
+            if not dynamo:
+                patch_model.__make_16bit_traceable(model)
+            converted = convert_model(model, example_input=example, dynamo=dynamo)
+            actual = compile_model(converted, "CPU", default_cfg)(example.numpy())
+            for index, value in enumerate(expected):
+                np.testing.assert_allclose(actual[index], value, atol=2e-3, rtol=2e-3)
+        finally:
+            if not dynamo:
+                patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dynamo", [False, True], ids=["torchscript", "export"])
+def test_patched_bmm_output_view_mutation(dynamo):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def forward(self, x, y):
+            query = torch.bmm(x, y)
+            sibling = torch.bmm(x, y)
+            query[:, :1] = -query[:, :1]
+            return query, sibling, x, y
+
+    model = Model().eval()
+    generator = torch.Generator().manual_seed(0)
+    example = (torch.randn(1, 4, 8, generator=generator), torch.randn(1, 8, 8, generator=generator))
+    with torch.no_grad():
+        expected = tuple(value.numpy().copy() for value in model(*example))
+        try:
+            if not dynamo:
+                patch_model.__make_16bit_traceable(model)
+            converted = convert_model(model, example_input=example, dynamo=dynamo)
+            actual = compile_model(converted, "CPU", default_cfg)([value.numpy() for value in example])
+            for index, value in enumerate(expected):
+                np.testing.assert_allclose(actual[index], value, atol=1e-5, rtol=1e-5)
+        finally:
+            if not dynamo:
+                patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dynamo", [False, True], ids=["torchscript", "export"])
+@pytest.mark.parametrize("target_op", ["aten::sin", "CustomSin"])
+@pytest.mark.parametrize("mutation", ["view", "direct"])
+def test_custom_module_extension_output_mutation(target_op, mutation, dynamo):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+
+    class Projection(torch.nn.Module):
+        def forward(self, x):
+            return torch.sin(x)
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.proj = Projection()
+
+        def forward(self, x):
+            query = self.proj(x)
+            sibling = self.proj(x)
+            if mutation == "view":
+                query = query.view(1, 4, 2, 4).transpose(1, 2)
+                query[:, :1] = -query[:, :1]
+            else:
+                query.add_(1)
+            return query, sibling, x
+
+    model = Model().eval()
+    example = torch.linspace(-1, 1, 32).reshape(1, 4, 8)
+    extensions = [ModuleExtension(Projection, target_op)]
+    if target_op == "CustomSin":
+        extensions.append(ConversionExtension(target_op, lambda context: ops.sin(context.get_input(0)).outputs()))
+
+    with torch.no_grad():
+        expected = tuple(value.numpy().copy() for value in model(example))
+        converted = convert_model(model, example_input=example, extension=extensions, dynamo=dynamo)
+        actual = compile_model(converted, "CPU", default_cfg)(example.numpy())
+    for index, value in enumerate(expected):
+        np.testing.assert_allclose(actual[index], value, atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.precommit
+def test_non_module_extension_pythonop_uses_alias_db():
+    from unittest.mock import Mock
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    class SinFunction(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, x):
+            return torch.sin(x)
+
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            return SinFunction.apply(x)
+
+    model = Model().eval()
+    example = torch.arange(24, dtype=torch.float32).reshape(1, 3, 8)
+    decoder = TorchScriptPythonDecoder(model, example_input=example)
+    nodes = []
+    decoder.visit_subgraph(nodes.append)
+    node = next(node for node in nodes if node.get_op_type() == "prim::PythonOp")
+    node.alias_db = Mock()
+    node.alias_db.may_contain_alias.return_value = True
+    assert node.may_produce_alias(0, 0)
+    node.alias_db.may_contain_alias.assert_called_once()
+
+
+@pytest.mark.precommit
+def test_module_extension_pythonop_skips_alias_db():
+    from unittest.mock import Mock
+    from openvino.frontend.pytorch import ModuleExtension, patch_model
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    class Projection(torch.nn.Module):
+        def forward(self, x):
+            return torch.sin(x)
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.proj = Projection()
+
+        def forward(self, x):
+            return self.proj(x)
+
+    model = Model().eval()
+    example = torch.arange(24, dtype=torch.float32).reshape(1, 3, 8)
+    extensions = {Projection: ModuleExtension(Projection, "aten::sin")}
+    try:
+        decoder = TorchScriptPythonDecoder(
+            model, example_input=(example,), module_extensions=extensions)
+        nodes = []
+        decoder.visit_subgraph(nodes.append)
+        node = next(node for node in nodes if node.get_op_extension())
+        assert isinstance(node.get_op_extension()[1], ModuleExtension)
+        node.alias_db = Mock()
+        assert not node.may_produce_alias(0, 0)
+        node.alias_db.may_contain_alias.assert_not_called()
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
     """__make_16bit_traceable exposes FP32 placeholders for ModuleExtension
