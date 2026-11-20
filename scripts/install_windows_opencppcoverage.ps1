@@ -48,8 +48,18 @@ $tool = Join-Path $InstallDir 'OpenCppCoverage.exe'
 if (!(Test-Path -LiteralPath $tool -PathType Leaf)) {
     throw "Installer did not produce $tool. Log: $log"
 }
-$check = Start-Process -FilePath $tool -ArgumentList '--help' -WorkingDirectory $DownloadDir -NoNewWindow -Wait -PassThru
+$smokeDir = Join-Path $DownloadDir "OpenCppCoverage-check-$(Get-Date -Format 'yyyyMMdd-HHmmss-fff')"
+New-Item -ItemType Directory -Path $smokeDir | Out-Null
+$report = Join-Path $smokeDir 'smoke.cobertura.xml'
+# Version 0.9.9.0 returns FailureExitCode even for --help. Exercise the collector instead.
+$check = Start-Process -FilePath $tool -ArgumentList @(
+    '--quiet', '--export_type', "`"cobertura:$report`"", '--', "`"$env:SystemRoot\System32\whoami.exe`""
+) -WorkingDirectory $smokeDir -RedirectStandardOutput "$smokeDir/stdout.log" `
+    -RedirectStandardError "$smokeDir/stderr.log" -Wait -PassThru
 if ($check.ExitCode -ne 0) {
-    throw "OpenCppCoverage --help failed with code $($check.ExitCode). Check installed dependencies."
+    throw "OpenCppCoverage smoke test failed with code $($check.ExitCode). Diagnostics: $smokeDir"
+}
+if (!(Test-Path -LiteralPath $report -PathType Leaf)) {
+    throw "OpenCppCoverage did not export a smoke-test report. Diagnostics: $smokeDir"
 }
 Write-Host "OpenCppCoverage is ready. Use -ToolPath '$tool' with run_windows_npu_coverage.ps1."

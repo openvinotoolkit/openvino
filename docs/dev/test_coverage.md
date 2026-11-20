@@ -188,7 +188,13 @@ From a PowerShell terminal **running as administrator**, use:
 This downloads the **x64** installer from the official
 [OpenCppCoverage 0.9.9.0 release](https://github.com/OpenCppCoverage/OpenCppCoverage/releases/tag/release-0.9.9.0).
 It checks a pinned SHA256, installs silently without restarting Windows or closing
-running applications, then checks `OpenCppCoverage.exe --help`. The checksum pins
+running applications, then runs a native-process smoke test under the collector.
+OpenCppCoverage 0.9.9.0 returns its generic failure code even for successful
+`--help`, so help's exit code is not used as a readiness check. The smoke test
+runs Windows `whoami.exe` and checks that the collector exits successfully and
+exports XML; it does not establish NPU source coverage. Its diagnostics are kept
+in a timestamped `OpenCppCoverage-check-*` directory beside the installer.
+The checksum pins
 the downloaded release artifact; upstream does not publish a separate checksum.
 The installer and timestamped installation log remain under
 `build-windows-npu-coverage/tools` (override with `-DownloadDir`).

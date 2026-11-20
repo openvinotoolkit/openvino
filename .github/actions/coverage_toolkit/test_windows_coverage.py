@@ -641,6 +641,7 @@ function Get-FileHash {
 function Test-Path { param($LiteralPath, $PathType) return $true }
 function Start-Process {
     param($FilePath, $ArgumentList, $WorkingDirectory, [switch]$NoNewWindow,
+          $RedirectStandardOutput, $RedirectStandardError,
           [switch]$Wait, [switch]$PassThru)
     $script:calls++
     if ($script:calls -eq 1) {
@@ -650,10 +651,12 @@ function Start-Process {
         }
         return @{ ExitCode = $(if ($script:scenario -eq 'setup-failure') { 5 } else { 0 }) }
     }
-    if ($ArgumentList -ne '--help') { throw 'Missing executable readiness check' }
-    return @{ ExitCode = $(if ($script:scenario -eq 'help-failure') { 1 } else { 0 }) }
+    if ('--' -notin $ArgumentList -or '--export_type' -notin $ArgumentList -or
+        $ArgumentList[-1] -notlike '*\System32\whoami.exe"') { throw 'Missing native collector smoke test' }
+    if ('--help' -in $ArgumentList) { throw 'Help returns failure even on a working installation' }
+    return @{ ExitCode = $(if ($script:scenario -eq 'smoke-failure') { 1 } else { 0 }) }
 }
-foreach ($scenario in @('bad-hash', 'setup-failure', 'help-failure', 'success')) {
+foreach ($scenario in @('bad-hash', 'setup-failure', 'smoke-failure', 'success')) {
     $script:scenario = $scenario
     $script:calls = 0
     $failure = $null
@@ -667,8 +670,8 @@ foreach ($scenario in @('bad-hash', 'setup-failure', 'help-failure', 'success'))
         'setup-failure' {
             if ($calls -ne 1 -or $failure -notlike '*installer exited with code 5*') { throw 'Setup failure hidden' }
         }
-        'help-failure' {
-            if ($failure -notlike '*--help failed*') { throw 'Readiness failure hidden' }
+        'smoke-failure' {
+            if ($failure -notlike '*smoke test failed*') { throw 'Readiness failure hidden' }
         }
         'success' { if ($failure -or $calls -ne 2) { throw "Install check failed: $failure" } }
     }
