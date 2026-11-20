@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-09-38-45-471-44701506598",
+  "timestamp": "2026-11-20T09:38:45Z",
+  "run_id": "44701506598",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44701506598",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "d6b2a405d8f138b69ad9c2702a166c20eb8ee659",
+  "pr_number": "39001",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39001",
+  "author": "insoow",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "ninja build stopped: cl.exe throws std::bad_alloc / fatal error C1060 (compiler out of heap space) while compiling template functional test translation units under high CMAKE_BUILD_PARALLEL_LEVEL=31"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the upstream Build_And_Run_Collect_Mode job failed"
+    }
+  ],
+  "key_errors": [
+    "2026-11-20T09:32:28.3088925Z FAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/cum_sum.cpp.obj\n2026-11-20T09:32:28.3777114Z terminate called after throwing an instance of 'std::bad_alloc'\n2026-11-20T09:32:28.4188932Z   what():  std::bad_alloc",
+    "2026-11-20T09:32:28.6553128Z C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\optional(292): fatal error C1060: compiler is out of heap space",
+    "2026-11-20T09:33:38.8906133Z C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\xhash(289): fatal error C1060: compiler is out of heap space\n2026-11-20T09:33:38.8906904Z ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows Conditional Compilation build compiles src/plugins/template/tests/functional (ov_template_func_tests) with CMAKE_BUILD_PARALLEL_LEVEL=31 on a self-hosted Windows runner. Several heavily templated op_reference test translation units (col2im.cpp, cum_sum.cpp, ctc_greedy_decoder.cpp, cosh.cpp) instantiate many std:: template specializations, driving per-cl.exe-process memory usage very high. With 31 parallel MSVC compiler processes plus ccache overhead, the runner's available memory is exhausted, so individual cl.exe invocations throw std::bad_alloc or hit fatal error C1060 (out of heap space) and ninja aborts the build. This is a recurring infrastructure/resource-contention issue (count=17 in the pattern database, most recent occurrences within the last 24 hours) rather than a code defect introduced by this specific commit; the commit under investigation (PR #39001, NPU VM runtime move) does not touch the template plugin or its tests.",
+  "reproduction_steps": "Not reliably reproducible outside the CI self-hosted Windows runner: requires building the `ov_template_func_tests` target with `CMAKE_BUILD_PARALLEL_LEVEL=31` (or similarly high) under memory-constrained conditions. Locally, building with a high ninja -j parallelism on a machine with limited RAM while ccache is cold can reproduce similar cl.exe out-of-heap-space failures.",
+  "recommended_actions": [
+    "Lower CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC Build_And_Run_Collect_Mode job (or switch to a memory-aware job pool, e.g. ninja -j via /l or RAM-based throttling) instead of a fixed high value like 31.",
+    "Investigate whether the self-hosted Windows runner pool used for this job has sufficient RAM for the current parallelism level, and consider increasing runner memory or reducing concurrent compiler jobs.",
+    "Consider splitting or simplifying heavily-templated op_reference test files (col2im.cpp, cum_sum.cpp, ctc_greedy_decoder.cpp, cosh.cpp) to reduce per-TU memory footprint during MSVC compilation.",
+    "Given this is the 17th occurrence, escalate to the CI infrastructure owners to proactively tune Windows CC build parallelism/runner sizing rather than treating each occurrence as a one-off."
+  ],
+  "prevention_strategies": "Tie CMAKE_BUILD_PARALLEL_LEVEL to the runner's available RAM (e.g., jobs = min(logical_cores, RAM_GB / per-job-memory-estimate)) rather than a fixed count. Monitor MSVC/ninja build memory usage on self-hosted Windows runners and alert when nearing capacity. Track recurrence of this exact signature in the pattern database and raise a dedicated CI infra ticket once it crosses a recurrence threshold.",
+  "historical_context": "This exact failure signature (Windows Release build runs out of memory - compiler fatal error C1060 and linker fatal error LNK1102 under high parallelism) has now been recorded 17 times in the CI Doctor Post-Commit pattern database, first seen 2026-11-03T07:07:04Z and repeatedly recurring (including runs within the last few hours), indicating a persistent, unresolved CI infrastructure capacity issue rather than an isolated incident."
+}
