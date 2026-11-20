@@ -439,13 +439,7 @@ public:
             ob << make_data(&bias_fmt, sizeof(dnnl::memory::format_tag));
         }
 
-        std::vector<uint8_t> prim_cache;
-        try {
-            prim_cache = _prim.get_cache_blob();
-        } catch (const dnnl::error&) {
-            prim_cache.clear();
-        }
-        ob << prim_cache;
+        ob << get_cache_blob();
 #endif
     }
 
