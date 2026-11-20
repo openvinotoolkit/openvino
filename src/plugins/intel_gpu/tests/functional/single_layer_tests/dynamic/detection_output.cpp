@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -118,7 +118,9 @@ public:
         result << "}_";
         result << "RDS=" << (replaceDynamicShapesToIntervals ? "true" : "false") << "_";
         result << "TargetDevice=" << targetDevice;
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -438,13 +440,13 @@ const auto params3InputsDynamic_v8 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In1, DetectionOutputLayerGPUTest,
                          params3InputsDynamic1,
-                         ov::test::utils::make_hyphen_free_test_name(DetectionOutputLayerGPUTest::getTestCaseName));
+                         DetectionOutputLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In2, DetectionOutputLayerGPUTest,
                          params3InputsDynamic2,
-                         ov::test::utils::make_hyphen_free_test_name(DetectionOutputLayerGPUTest::getTestCaseName));
+                         DetectionOutputLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputV8Dynamic3In, DetectionOutputLayerGPUTest,
                          params3InputsDynamic_v8,
-                         ov::test::utils::make_hyphen_free_test_name(DetectionOutputLayerGPUTest::getTestCaseName));
+                         DetectionOutputLayerGPUTest::getTestCaseName);
 } // namespace

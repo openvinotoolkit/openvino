@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "subgraph_tests/group_normalization_fusion.hpp"
 
 #include "common_test_utils/test_constants.hpp"
@@ -83,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(
     ValuesIn(expand_vals(
         valid_vals,
         GroupNormalizationFusionSubgraphTestAdditionalValues(ov::element::f32, ov::test::utils::DEVICE_GPU, {}))),
-    ov::test::utils::make_hyphen_free_test_name(GroupNormalizationFusionSubgraphTestsF::getTestCaseName));
+    GroupNormalizationFusionSubgraphTestsF::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationFusionSubgraphTests_f16,
@@ -91,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(
     ValuesIn(expand_vals(
         valid_vals,
         GroupNormalizationFusionSubgraphTestAdditionalValues(ov::element::f16, ov::test::utils::DEVICE_GPU, {}))),
-    ov::test::utils::make_hyphen_free_test_name(GroupNormalizationFusionSubgraphTestsF::getTestCaseName));
+    GroupNormalizationFusionSubgraphTestsF::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionSubgraphTests_bf16,
                          GroupNormalizationFusionSubgraphTestsF,
@@ -100,6 +98,6 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionSubgraphTests_bf16,
                                                   ov::element::bf16,
                                                   ov::test::utils::DEVICE_GPU,
                                                   {{ov::hint::inference_precision(ov::element::f16)}}))),
-                         ov::test::utils::make_hyphen_free_test_name(GroupNormalizationFusionSubgraphTestsF::getTestCaseName));
+                         GroupNormalizationFusionSubgraphTestsF::getTestCaseName);
 
 }  // namespace

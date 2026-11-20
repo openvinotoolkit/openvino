@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/lrn.hpp"
 
+#include <algorithm>
+
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -36,7 +38,9 @@ std::string LrnLayerTest::getTestCaseName(const testing::TestParamInfo<lrnLayerT
     result << "netPRC=" << model_type.get_type_name() << separator;
     result << "trgDev=" << targetDevice;
 
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void LrnLayerTest::SetUp() {

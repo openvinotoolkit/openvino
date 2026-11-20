@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "single_op_tests/einsum.hpp"
@@ -36,6 +34,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Einsum,
                          ::testing::Combine(::testing::ValuesIn(model_types),
                                             ::testing::ValuesIn(equationsWithInput),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(EinsumLayerTest::getTestCaseName));
+                         EinsumLayerTest::getTestCaseName);
 
 }  // namespace

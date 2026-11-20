@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
@@ -31,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsLayerTest,
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set2, GatherElementsLayerTest,
     ::testing::Combine(
@@ -41,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set2, GatherElementsLayerTest,
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set3, GatherElementsLayerTest,
     ::testing::Combine(
@@ -51,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set3, GatherElementsLayerTest,
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set4, GatherElementsLayerTest,
     ::testing::Combine(
@@ -61,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set4, GatherElementsLayerTest,
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set5, GatherElementsLayerTest,
     ::testing::Combine(
@@ -71,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set5, GatherElementsLayerTest,
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis0, GatherElementsLayerTest,
     ::testing::Combine(
@@ -81,7 +79,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis0, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis1, GatherElementsLayerTest,
     ::testing::Combine(
@@ -91,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis1, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis2, GatherElementsLayerTest,
     ::testing::Combine(
@@ -101,7 +99,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis2, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis3, GatherElementsLayerTest,
     ::testing::Combine(
@@ -111,7 +109,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis3, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis0, GatherElementsLayerTest,
     ::testing::Combine(
@@ -121,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis0, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis1, GatherElementsLayerTest,
     ::testing::Combine(
@@ -131,7 +129,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis1, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis2, GatherElementsLayerTest,
     ::testing::Combine(
@@ -141,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis2, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis3, GatherElementsLayerTest,
     ::testing::Combine(
@@ -151,7 +149,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis3, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis4, GatherElementsLayerTest,
     ::testing::Combine(
@@ -161,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis4, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis0, GatherElementsLayerTest,
     ::testing::Combine(
@@ -171,7 +169,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis0, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis1, GatherElementsLayerTest,
     ::testing::Combine(
@@ -181,7 +179,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis1, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis2, GatherElementsLayerTest,
     ::testing::Combine(
@@ -191,7 +189,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis2, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis3, GatherElementsLayerTest,
     ::testing::Combine(
@@ -201,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis3, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis4, GatherElementsLayerTest,
     ::testing::Combine(
@@ -211,7 +209,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis4, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis5, GatherElementsLayerTest,
     ::testing::Combine(
@@ -221,7 +219,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis5, GatherElementsLayerTes
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 // Rank-1 data with rank-1 constant indices: the plugin stores a rank-1 constant in
 // the feature slot while rank-1 parameters and the output use batch, so this read
@@ -234,6 +232,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank1, GatherElementsLayerTest,
         ::testing::ValuesIn(model_types),
         ::testing::ValuesIn(indices_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(GatherElementsLayerTest::getTestCaseName));
+    GatherElementsLayerTest::getTestCaseName);
 
 }  // namespace

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "single_op_tests/eye.hpp"
 
 namespace {
@@ -43,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_WithNonScalar_Test,
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(EyeLayerTest::getTestCaseName));
+                         EyeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test,
                          EyeLayerTest,
@@ -53,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test,
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(EyeLayerTest::getTestCaseName));
+                         EyeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test,
                          EyeLayerTest,
@@ -63,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test,
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(EyeLayerTest::getTestCaseName));
+                         EyeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test,
                          EyeLayerTest,
@@ -73,6 +71,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test,
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(EyeLayerTest::getTestCaseName));
+                         EyeLayerTest::getTestCaseName);
 
 }  // namespace

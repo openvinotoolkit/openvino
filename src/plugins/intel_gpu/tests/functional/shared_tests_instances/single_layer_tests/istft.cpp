@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "single_op_tests/istft.hpp"
 
 #include "common_test_utils/test_constants.hpp"
@@ -14,6 +12,6 @@ namespace test {
 INSTANTIATE_TEST_SUITE_P(smoke_ISTFT_static,
                          ISTFTLayerTest,
                          ISTFTLayerTest::GetTestDataForDevice(ov::test::utils::DEVICE_GPU),
-                         ov::test::utils::make_hyphen_free_test_name(ISTFTLayerTest::getTestCaseName));
+                         ISTFTLayerTest::getTestCaseName);
 }  // namespace test
 }  // namespace ov

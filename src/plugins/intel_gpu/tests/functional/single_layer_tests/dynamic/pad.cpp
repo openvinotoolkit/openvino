@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
@@ -46,7 +46,9 @@ public:
         results << "constantInput=" << inputLayerTypes[0] << "/" << inputLayerTypes[1] << "/" << inputLayerTypes[2] << "_";
         results << "PadMode=" << padMode;
 
-        return results.str();
+        auto test_case_name = results.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:
@@ -205,7 +207,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
                 ::testing::Values(ov::op::PadMode::CONSTANT)),
-        ov::test::utils::make_hyphen_free_test_name(PadLayerGPUTest::getTestCaseName)
+        PadLayerGPUTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -219,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(0),
                 ::testing::ValuesIn(isConstantInput),
                 ::testing::ValuesIn(padMode)),
-        ov::test::utils::make_hyphen_free_test_name(PadLayerGPUTest::getTestCaseName)
+        PadLayerGPUTest::getTestCaseName
 );
 
 //====================== Dynamic Shapes Tests 4D ======================
@@ -241,7 +243,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
                 ::testing::Values(ov::op::PadMode::CONSTANT)),
-        ov::test::utils::make_hyphen_free_test_name(PadLayerGPUTest::getTestCaseName)
+        PadLayerGPUTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -255,7 +257,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(0),
                 ::testing::ValuesIn(isConstantInput),
                 ::testing::ValuesIn(padMode)),
-        ov::test::utils::make_hyphen_free_test_name(PadLayerGPUTest::getTestCaseName)
+        PadLayerGPUTest::getTestCaseName
 );
 
 //====================== Dynamic Shapes Tests 5D ======================
@@ -277,7 +279,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(argPadValue),
                 ::testing::ValuesIn(isConstantInput),
                 ::testing::Values(ov::op::PadMode::CONSTANT)),
-        ov::test::utils::make_hyphen_free_test_name(PadLayerGPUTest::getTestCaseName)
+        PadLayerGPUTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -291,6 +293,6 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(0),
                 ::testing::ValuesIn(isConstantInput),
                 ::testing::ValuesIn(padMode)),
-        ov::test::utils::make_hyphen_free_test_name(PadLayerGPUTest::getTestCaseName)
+        PadLayerGPUTest::getTestCaseName
 );
 } // namespace

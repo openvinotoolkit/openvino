@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "low_precision_transformations/group_convolution_transformation.hpp"
@@ -107,7 +105,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),
-    ov::test::utils::make_hyphen_free_test_name(GroupConvolutionTransformationGPU::getTestCaseName));
+    GroupConvolutionTransformationGPU::getTestCaseName);
 
 namespace test_values_4d {
 const std::vector<std::pair<ov::PartialShape, ov::Shape>> inputShapes = {
@@ -157,7 +155,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
-         ov::test::utils::make_hyphen_free_test_name(GroupConvolutionTransformationGPU::getTestCaseName));
+         GroupConvolutionTransformationGPU::getTestCaseName);
 }  // namespace test_values_4d
 
 namespace test_values_3d {
@@ -208,7 +206,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
-         ov::test::utils::make_hyphen_free_test_name(GroupConvolutionTransformationGPU::getTestCaseName));
+         GroupConvolutionTransformationGPU::getTestCaseName);
 }  // namespace test_values_3d
 
 namespace depthwise {
@@ -249,6 +247,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),
-    ov::test::utils::make_hyphen_free_test_name(GroupConvolutionTransformationGPU::getTestCaseName));
+    GroupConvolutionTransformationGPU::getTestCaseName);
 }  // namespace depthwise
 }  // namespace

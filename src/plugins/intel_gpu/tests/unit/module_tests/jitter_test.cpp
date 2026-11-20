@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "impls/ocl_v2/utils/jitter.hpp"
 
 #include <gtest/gtest.h>
@@ -113,7 +111,9 @@ public:
     static std::string get_test_case_name(const testing::TestParamInfo<Params> &obj) {
         std::stringstream s;
         s << obj.param.l.to_short_string() << "/" << obj.index;
-        return s.str();
+        auto test_case_name = s.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 };
 TEST_P(JitterTest, data_layout) {
@@ -219,6 +219,6 @@ std::vector<Params> get_test_params() {
 INSTANTIATE_TEST_SUITE_P(smoke,
                          JitterTest,
                          ::testing::ValuesIn(get_test_params()),
-                         ov::test::utils::make_hyphen_free_test_name(JitterTest::get_test_case_name));
+                         JitterTest::get_test_case_name);
 
 }  // namespace

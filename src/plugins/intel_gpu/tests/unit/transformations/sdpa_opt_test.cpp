@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
+#include <algorithm>
 #include <memory>
 
 #include "common_test_utils/common_utils.hpp"
@@ -152,7 +151,9 @@ public:
         result << "model_element_type=" << model_element_type << "_";
         result << "num_groups=" << num_groups << "_";
         result << "qkv_order=" << ov::test::utils::vec2str(qkv_order);
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 };
 
@@ -208,7 +209,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                           ::testing::ValuesIn(dt_v),
                                           ::testing::ValuesIn(num_groups_v),
                                           ::testing::ValuesIn(qkv_order_v)),
-                         ov::test::utils::make_hyphen_free_test_name(SDPAOptimizationTestsP::get_test_case_name));
+                         SDPAOptimizationTestsP::get_test_case_name);
 
 }  // namespace
 }  // namespace intel_gpu

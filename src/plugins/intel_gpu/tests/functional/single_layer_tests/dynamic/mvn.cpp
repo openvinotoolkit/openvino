@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -46,7 +46,9 @@ public:
        result << "Epsilon=" << eps;
        result << "_" << "CNNInpPrc=" << inputPrecision;
 
-       return result.str();
+       auto test_case_name = result.str();
+       std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+       return test_case_name;
    }
 protected:
    void SetUp() override {
@@ -203,7 +205,7 @@ const auto Mvn3D = ::testing::Combine(
            ::testing::ValuesIn(epsilon)),
        ::testing::ValuesIn(inpPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerGPUTest, Mvn3D, ov::test::utils::make_hyphen_free_test_name(MvnLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerGPUTest, Mvn3D, MvnLayerGPUTest::getTestCaseName);
 
 const auto Mvn4D = ::testing::Combine(
        ::testing::Combine(
@@ -214,7 +216,7 @@ const auto Mvn4D = ::testing::Combine(
                ::testing::ValuesIn(epsilon)),
        ::testing::ValuesIn(inpPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerGPUTest, Mvn4D, ov::test::utils::make_hyphen_free_test_name(MvnLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerGPUTest, Mvn4D, MvnLayerGPUTest::getTestCaseName);
 
 const auto Mvn5D = ::testing::Combine(
        ::testing::Combine(
@@ -225,5 +227,5 @@ const auto Mvn5D = ::testing::Combine(
                ::testing::ValuesIn(epsilon)),
        ::testing::ValuesIn(inpPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerGPUTest, Mvn5D, ov::test::utils::make_hyphen_free_test_name(MvnLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerGPUTest, Mvn5D, MvnLayerGPUTest::getTestCaseName);
 } // namespace

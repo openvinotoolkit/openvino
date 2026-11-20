@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -52,7 +52,9 @@ public:
         result << "sorted=" << (sorted ? "True" : "False") << "_";
         result << "dataPrc=" << model_type;
 
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:
@@ -137,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static,
                                             ::testing::ValuesIn(flat_or_axis),
                                             ::testing::ValuesIn(sorted),
                                             ::testing::ValuesIn(model_types)),
-                         ov::test::utils::make_hyphen_free_test_name(UniqueLayerDynamicGPUTest::getTestCaseName));
+                         UniqueLayerDynamicGPUTest::getTestCaseName);
 
 std::vector<std::vector<InputShape>> getDynamicShapes() {
     return {
@@ -154,6 +156,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic,
                                             ::testing::ValuesIn(flat_or_axis),
                                             ::testing::ValuesIn(sorted),
                                             ::testing::ValuesIn(model_types)),
-                         ov::test::utils::make_hyphen_free_test_name(UniqueLayerDynamicGPUTest::getTestCaseName));
+                         UniqueLayerDynamicGPUTest::getTestCaseName);
 
 }  // namespace

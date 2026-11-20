@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "low_precision_transformations/multiply_to_group_convolution_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -55,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(params)),
-    ov::test::utils::make_hyphen_free_test_name(MultiplyToGroupConvolutionTransformation::getTestCaseName));
+    MultiplyToGroupConvolutionTransformation::getTestCaseName);
 }  // namespace shape4d
 
 }  // namespace

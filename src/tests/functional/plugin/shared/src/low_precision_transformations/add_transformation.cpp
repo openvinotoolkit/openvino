@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/add_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -41,7 +42,9 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
             param.fakeQuantize2.outputLowValues[0] << "_" <<
             param.fakeQuantize2.outputHighValues[0];
     }
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void AddTransformation::SetUp() {

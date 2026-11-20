@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/move_fake_quantize_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -21,7 +22,9 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(const testing::TestP
         "OP:" << param.operation << "_" <<
         "FQ:" << param.fakeQuantizeAfter << "_" <<
         "DQ:" << param.dequantizationAfter;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void MoveFakeQuantizeTransformation::SetUp() {

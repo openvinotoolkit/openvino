@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -47,7 +47,9 @@ public:
         result << "model_type=" << model_type << "_";
         result << "useConstantStart=" << useConstantStart << "_";
         result << "targetDevice=" << targetDevice;
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:
@@ -208,7 +210,7 @@ const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputSha
                                                  ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_01, RangeDynamicGPUTest,
-                         testParams_smoke, ov::test::utils::make_hyphen_free_test_name(RangeDynamicGPUTest::getTestCaseName));
+                         testParams_smoke, RangeDynamicGPUTest::getTestCaseName);
 
 
 const std::vector<std::vector<float>> inputFloatValues = {
@@ -234,7 +236,7 @@ const auto testFloatParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInp
                                                       ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_02, RangeDynamicGPUTest,
-                         testFloatParams_smoke, ov::test::utils::make_hyphen_free_test_name(RangeDynamicGPUTest::getTestCaseName));
+                         testFloatParams_smoke, RangeDynamicGPUTest::getTestCaseName);
 
 const std::vector<std::vector<float>> inputMixedValues = {
     {
@@ -255,5 +257,5 @@ const auto testMixedParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInp
                                                       ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_diff_types, RangeDynamicGPUTest,
-                         testMixedParams_smoke, ov::test::utils::make_hyphen_free_test_name(RangeDynamicGPUTest::getTestCaseName));
+                         testMixedParams_smoke, RangeDynamicGPUTest::getTestCaseName);
 } // namespace

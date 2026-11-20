@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/groupconvolution_qdq_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -19,7 +20,9 @@ std::string GroupConvolutionQDqTransformation::getTestCaseName(const testing::Te
     auto [netPrecision, inputShape, device, param] = obj.param;
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape, device) << param;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void GroupConvolutionQDqTransformation::SetUp() {

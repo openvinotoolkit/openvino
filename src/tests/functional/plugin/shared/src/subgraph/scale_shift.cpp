@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/scaleshift.hpp"
 
+#include <algorithm>
+
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -21,7 +23,9 @@ std::string ScaleShiftLayerTest::getTestCaseName(const testing::TestParamInfo<Sc
     results << "Shift=" << ov::test::utils::vec2str(shift) << "_";
     results << "netPRC=" << type.get_type_name() << "_";
     results << "targetDevice=" << targetName << "_";
-    return results.str();
+    auto test_case_name = results.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ScaleShiftLayerTest::SetUp() {

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "single_op_tests/activation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -127,17 +125,13 @@ const auto big_rank_cases = []() {
         ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases(),
-                         ov::test::utils::make_hyphen_free_test_name(ActivationLayerTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases(), ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(Activation_BigRanks, ActivationLayerTest, big_rank_cases(),
-                         ov::test::utils::make_hyphen_free_test_name(ActivationLayerTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(Activation_BigRanks, ActivationLayerTest, big_rank_cases(), ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases(),
-                         ov::test::utils::make_hyphen_free_test_name(ActivationLayerTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases(), ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases(),
-                         ov::test::utils::make_hyphen_free_test_name(ActivationLayerTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases(), ActivationLayerTest::getTestCaseName);
 
 const auto clampLowerBoundInputShapes = std::make_pair(
     ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{1, 8}}),

@@ -3,6 +3,8 @@
 //
 #include "shared_test_classes/single_op/eye.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/op/constant.hpp"
@@ -26,7 +28,9 @@ std::string EyeLayerTest::getTestCaseName(const testing::TestParamInfo<EyeLayerT
     result << "batchShape=" << ov::test::utils::vec2str(out_batch_shape) << "_";
     result << model_type << "_";
     result << std::to_string(obj.index);
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void EyeLayerTest::SetUp() {

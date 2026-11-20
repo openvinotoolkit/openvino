@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/relu_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -23,7 +24,9 @@ std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<Rel
         targetDevice << "_" <<
         testValues.fakeQuantize;
 
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 

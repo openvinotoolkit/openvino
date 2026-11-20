@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <memory>
 #include <queue>
 #include <string>
@@ -37,7 +38,9 @@ std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInf
            unsqueezeParam.unsqueezeAxes << "_" <<
            unsqueezeParam.shape;
 
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 void UnsqueezeTransformation::SetUp() {
     auto [netPrecision, device, unsqueezeParam] = this->GetParam();

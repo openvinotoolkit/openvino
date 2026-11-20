@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
@@ -147,7 +147,9 @@ public:
         result << "axis=" << axis << "_";
         result << "netPRC=" << model_type << "_";
         result << "restInputType=" << inputType << "_";
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -229,7 +231,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D, VariadicSplitLayerGPUDynam
                                 ::testing::Values(ov::element::f16),                        // netPrec
                                 ::testing::ValuesIn(input_shapes4d),                         // inShapes
                                 ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
-                        ov::test::utils::make_hyphen_free_test_name(VariadicSplitLayerGPUDynamicTest::getTestCaseName));
+                        VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck5D, VariadicSplitLayerGPUDynamicTest,
                         ::testing::Combine(
@@ -238,7 +240,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck5D, VariadicSplitLayerGPUDynam
                                 ::testing::Values(ov::element::f32),                        // netPrec
                                 ::testing::ValuesIn(input_shapes5d),                         // inShapes
                                 ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
-                        ov::test::utils::make_hyphen_free_test_name(VariadicSplitLayerGPUDynamicTest::getTestCaseName));
+                        VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck6D, VariadicSplitLayerGPUDynamicTest,
                         ::testing::Combine(
@@ -247,7 +249,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck6D, VariadicSplitLayerGPUDynam
                                 ::testing::Values(ov::element::i8),                         // netPrec
                                 ::testing::ValuesIn(input_shapes6d),                         // inShapes
                                 ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
-                        ov::test::utils::make_hyphen_free_test_name(VariadicSplitLayerGPUDynamicTest::getTestCaseName));
+                        VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
 
 const std::vector<InputShape> input_shapes4d_static = {
@@ -263,6 +265,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D_static_input_dyn_output, Va
                                 ::testing::Values(ov::element::f16),                        // netPrec
                                 ::testing::ValuesIn(input_shapes4d_static),                         // inShapes
                                 ::testing::ValuesIn(restInputTypes)),                       // input type of split_length
-                        ov::test::utils::make_hyphen_free_test_name(VariadicSplitLayerGPUDynamicTest::getTestCaseName));
+                        VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 
 } // namespace

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -37,7 +37,9 @@ public:
         }
         results << "Prc=" << model_type << "_";
         results << "Axis=" << axis << "_" << (exclusive ? "exclusive" : "") << "_" << (reverse ? "reverse" : "");
-        return results.str();
+        auto test_case_name = results.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:
@@ -157,19 +159,12 @@ const auto testCasesAxis_negative = ::testing::Combine(
     ::testing::ValuesIn(reverse)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_0_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_0,
-                         ov::test::utils::make_hyphen_free_test_name(CumSumLayerGPUTest::getTestCaseName));
-INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_1_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_1,
-                         ov::test::utils::make_hyphen_free_test_name(CumSumLayerGPUTest::getTestCaseName));
-INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_2_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_2,
-                         ov::test::utils::make_hyphen_free_test_name(CumSumLayerGPUTest::getTestCaseName));
-INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_3_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_3,
-                         ov::test::utils::make_hyphen_free_test_name(CumSumLayerGPUTest::getTestCaseName));
-INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_4_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_4,
-                         ov::test::utils::make_hyphen_free_test_name(CumSumLayerGPUTest::getTestCaseName));
-INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_5_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_5,
-                         ov::test::utils::make_hyphen_free_test_name(CumSumLayerGPUTest::getTestCaseName));
-INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_neg_axes_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_negative,
-                         ov::test::utils::make_hyphen_free_test_name(CumSumLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_0_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_0, CumSumLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_1_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_1, CumSumLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_2_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_2, CumSumLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_3_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_3, CumSumLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_4_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_4, CumSumLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_axis_5_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_5, CumSumLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_cum_sum_neg_axes_CompareWithRefs_dynamic, CumSumLayerGPUTest, testCasesAxis_negative, CumSumLayerGPUTest::getTestCaseName);
 
 } // namespace

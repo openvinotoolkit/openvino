@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
@@ -58,7 +58,9 @@ public:
         result << "keepDims=" << keepDims << "_";
         result << "trgDev=" << targetDevice;
 
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:
@@ -166,8 +168,7 @@ const auto reduceSum = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_sum_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceSum,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_sum_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceSum, ReduceLayerGPUTest::getTestCaseName);
 
 const auto reduceMin = ::testing::Combine(
         ::testing::ValuesIn({dyn2d, dyn6d}),
@@ -176,8 +177,7 @@ const auto reduceMin = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_min_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMin,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_min_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMin, ReduceLayerGPUTest::getTestCaseName);
 
 const auto reduceMax = ::testing::Combine(
         ::testing::ValuesIn({dyn3d, dyn5d}),
@@ -186,8 +186,7 @@ const auto reduceMax = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_max_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMax,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_max_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMax, ReduceLayerGPUTest::getTestCaseName);
 
 const auto reduceL1 = ::testing::Combine(
         ::testing::ValuesIn({dyn4d, dyn6d}),
@@ -196,8 +195,7 @@ const auto reduceL1 = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_l1_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceL1,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_l1_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceL1, ReduceLayerGPUTest::getTestCaseName);
 
 
 // ================== Reduction float types (Mean, Prod, L2) ==================
@@ -208,8 +206,7 @@ const auto reduceMean = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_mean_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMean,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_mean_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMean, ReduceLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_prod_compareWithRefs_dynamic,
                          ReduceLayerGPUTest,
@@ -218,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_reduce_prod_compareWithRefs_dynamic,
                                             ::testing::Values(ov::test::utils::ReductionType::Prod),
                                             ::testing::ValuesIn(keepDims),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+                         ReduceLayerGPUTest::getTestCaseName);
 
 const auto reduceL2 = ::testing::Combine(
         ::testing::ValuesIn({dyn4d, dyn5d}),
@@ -227,8 +224,7 @@ const auto reduceL2 = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_l2_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceL2,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_l2_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceL2, ReduceLayerGPUTest::getTestCaseName);
 
 
 // ================== Reduction logical types (LogicalOr, LogicalAnd) ==================
@@ -239,8 +235,7 @@ const auto reduceLogicalOr = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_logicalor_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceLogicalOr,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_logicalor_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceLogicalOr, ReduceLayerGPUTest::getTestCaseName);
 
 const auto reduceLogicalAnd = ::testing::Combine(
         ::testing::ValuesIn({dyn3d, dyn5d}),
@@ -249,8 +244,7 @@ const auto reduceLogicalAnd = ::testing::Combine(
         ::testing::ValuesIn(keepDims),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_logicaland_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceLogicalAnd,
-                         ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_logicaland_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceLogicalAnd, ReduceLayerGPUTest::getTestCaseName);
 
 
 // ================== various reduce-axis ==================
@@ -346,5 +340,5 @@ const auto reduceMaxWithVariousAxis = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_max_withVariousAxis_compareWithRefs_dynamic,
-                        ReduceLayerGPUTest, reduceMaxWithVariousAxis, ov::test::utils::make_hyphen_free_test_name(ReduceLayerGPUTest::getTestCaseName));
+                        ReduceLayerGPUTest, reduceMaxWithVariousAxis, ReduceLayerGPUTest::getTestCaseName);
 } // namespace

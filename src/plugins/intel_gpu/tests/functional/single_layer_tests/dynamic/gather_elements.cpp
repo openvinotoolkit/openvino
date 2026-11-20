@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -44,7 +44,9 @@ public:
         result << "IP=" << indices_type << "_";
         result << "device=" << device;
 
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -100,6 +102,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsGPUTest,
                     ::testing::ValuesIn(std::vector<ov::element::Type>({ov::element::f16, ov::element::f32})),
                     ::testing::Values(ov::element::i32),
                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
-        ov::test::utils::make_hyphen_free_test_name(GatherElementsGPUTest::getTestCaseName));
+        GatherElementsGPUTest::getTestCaseName);
 
 } // namespace

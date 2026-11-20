@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -85,5 +83,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, SplitTransformation,
         ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(params)),
-    ov::test::utils::make_hyphen_free_test_name(SplitTransformation::getTestCaseName));
+    SplitTransformation::getTestCaseName);
 }  // namespace

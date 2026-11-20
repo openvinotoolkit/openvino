@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "single_op_tests/squeeze_unsqueeze.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -53,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ov::test::utils::make_hyphen_free_test_name(SqueezeUnsqueezeLayerTest::getTestCaseName));
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
@@ -61,5 +59,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                                 ::testing::Values(SqueezeOpType::SQUEEZE),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ov::test::utils::make_hyphen_free_test_name(SqueezeUnsqueezeLayerTest::getTestCaseName));
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
 }  // namespace

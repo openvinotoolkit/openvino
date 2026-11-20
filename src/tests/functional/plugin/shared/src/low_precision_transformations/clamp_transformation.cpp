@@ -3,6 +3,8 @@
 //
 
 #include "low_precision_transformations/clamp_transformation.hpp"
+
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -19,7 +21,9 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
            param.fakeQuantize << "_" <<
         "min=" << param.clampLowConst <<
         "max=" << param.clampHighConst;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ClampTransformation::SetUp() {

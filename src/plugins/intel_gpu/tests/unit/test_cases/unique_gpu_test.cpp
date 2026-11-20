@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
+#include <algorithm>
 #include <test_utils/test_utils.h>
 
 #include <intel_gpu/primitives/unique.hpp>
@@ -114,7 +113,9 @@ public:
             result << "axis=" << p.axis << "; ";
         }
         result << "fmt=" << fmt_to_str(fmt) << "; ";
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 };
 
@@ -373,7 +374,7 @@ const std::vector<format::type> layout_formats = {format::bfyx, format::b_fs_yx_
                              unique_gpu_test_##elem_type##index_type##count_type,                                      \
                              testing::Combine(testing::ValuesIn(getUniqueParams<elem_type, index_type, count_type>()), \
                                               testing::ValuesIn(layout_formats)),                                      \
-                             ov::test::utils::make_hyphen_free_test_name(unique_gpu_test_##elem_type##index_type##count_type::PrintToStringParamName));
+                             unique_gpu_test_##elem_type##index_type##count_type::PrintToStringParamName);
 
 INSTANTIATE_UNIQUE_TEST_SUITE(float, int64_t, int32_t);
 

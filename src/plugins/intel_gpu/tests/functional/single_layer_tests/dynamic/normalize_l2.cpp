@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -39,7 +39,9 @@ public:
        result << "EpsMode=" << epsMode << "_";
        result << "Epsilon=" << eps;
 
-       return result.str();
+       auto test_case_name = result.str();
+       std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+       return test_case_name;
    }
 protected:
    void SetUp() override {
@@ -179,8 +181,7 @@ const auto NormalizeL2_3D = ::testing::Combine(
            ::testing::ValuesIn(epsMode),
            ::testing::ValuesIn(epsilon));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NormalizeL2_3D, NormalizeL2LayerGPUTest, NormalizeL2_3D,
-                         ov::test::utils::make_hyphen_free_test_name(NormalizeL2LayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NormalizeL2_3D, NormalizeL2LayerGPUTest, NormalizeL2_3D, NormalizeL2LayerGPUTest::getTestCaseName);
 
 const auto NormalizeL2_4D = ::testing::Combine(
                ::testing::ValuesIn(inputShapes_4D),
@@ -189,8 +190,7 @@ const auto NormalizeL2_4D = ::testing::Combine(
                ::testing::ValuesIn(epsMode),
                ::testing::ValuesIn(epsilon));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NormalizeL2_4D, NormalizeL2LayerGPUTest, NormalizeL2_4D,
-                         ov::test::utils::make_hyphen_free_test_name(NormalizeL2LayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NormalizeL2_4D, NormalizeL2LayerGPUTest, NormalizeL2_4D, NormalizeL2LayerGPUTest::getTestCaseName);
 
 const auto NormalizeL2_5D = ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D),
@@ -199,7 +199,6 @@ const auto NormalizeL2_5D = ::testing::Combine(
                ::testing::ValuesIn(epsMode),
                ::testing::ValuesIn(epsilon));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NormalizeL2_5D, NormalizeL2LayerGPUTest, NormalizeL2_5D,
-                         ov::test::utils::make_hyphen_free_test_name(NormalizeL2LayerGPUTest::getTestCaseName));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NormalizeL2_5D, NormalizeL2LayerGPUTest, NormalizeL2_5D, NormalizeL2LayerGPUTest::getTestCaseName);
 
 } // namespace

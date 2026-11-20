@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/gather_elements.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
@@ -33,7 +35,9 @@ std::string GatherElementsLayerTest::getTestCaseName(const testing::TestParamInf
     result << "DP=" << model_type.get_type_name() << "_";
     result << "IP=" << indices_type.get_type_name() << "_";
     result << "device=" << device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void GatherElementsLayerTest::SetUp() {

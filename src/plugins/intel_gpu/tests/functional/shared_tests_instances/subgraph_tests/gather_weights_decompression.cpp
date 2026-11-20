@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
 
 using namespace ov::test;
@@ -49,6 +47,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                                             ::testing::ValuesIn(decompression_multiply_types),
                                             ::testing::ValuesIn(decompression_subtract_types),
                                             ::testing::ValuesIn(reshape_on_decompression)),
-                         ov::test::utils::make_hyphen_free_test_name(GatherWeightsDecompression::get_test_case_name));
+                         GatherWeightsDecompression::get_test_case_name);
 
 }  // namespace

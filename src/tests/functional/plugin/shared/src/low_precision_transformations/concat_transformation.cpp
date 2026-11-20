@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/concat_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -23,7 +24,9 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
         testValues.dequantization1 <<
         testValues.fqOnData2 <<
         testValues.dequantization2;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ConcatTransformation::SetUp() {

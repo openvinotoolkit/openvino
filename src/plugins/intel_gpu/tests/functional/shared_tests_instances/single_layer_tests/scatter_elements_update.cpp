@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include "single_op_tests/scatter_elements_update.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -58,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(inputPrecisions),
                        ::testing::ValuesIn(idxPrecisions),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(ScatterElementsUpdateLayerTest::getTestCaseName));
+    ScatterElementsUpdateLayerTest::getTestCaseName);
 
 
 const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduceModes{
@@ -88,7 +86,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputPrecisions[0]),
                        ::testing::Values(idxPrecisions[0]),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(ScatterElementsUpdate12LayerTest::getTestCaseName));
+    ScatterElementsUpdate12LayerTest::getTestCaseName);
 
 const std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> batch1100Shapes {
     {{1100, 4, 1, 1}, {{{1100, 1, 1, 1}, {1}}}},
@@ -109,5 +107,5 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputPrecisions[0]),
                        ::testing::Values(idxPrecisions[0]),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    ov::test::utils::make_hyphen_free_test_name(ScatterElementsUpdate12LayerTest::getTestCaseName));
+    ScatterElementsUpdate12LayerTest::getTestCaseName);
 }  // namespace

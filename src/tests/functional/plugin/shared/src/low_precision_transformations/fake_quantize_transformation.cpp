@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/fake_quantize_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -21,7 +22,9 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            isConvertOnConstants << "_" << testParams.fakequantize;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void FakeQuantizeTransformation::SetUp() {

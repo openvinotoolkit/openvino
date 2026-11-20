@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "single_op_tests/batch_norm.hpp"
@@ -40,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_BatchNorm,
         BatchNormLayerTest,
         batchNormParams,
-        ov::test::utils::make_hyphen_free_test_name(BatchNormLayerTest::getTestCaseName)
+        BatchNormLayerTest::getTestCaseName
 );
 
 }  // namespace

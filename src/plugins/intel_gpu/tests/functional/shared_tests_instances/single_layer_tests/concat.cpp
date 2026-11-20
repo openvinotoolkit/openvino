@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "single_op_tests/concat.hpp"
@@ -32,7 +30,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConcatLayerTest,
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ov::test::utils::make_hyphen_free_test_name(ConcatLayerTest::getTestCaseName));
+                        ConcatLayerTest::getTestCaseName);
 
 std::vector<int> axes6D = {-6, -3, -1, 0, 1, 2, 3, 4, 5};
 std::vector<std::vector<ov::Shape>> inShapes6D = {
@@ -45,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat6D, ConcatLayerTest,
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes6D)),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ov::test::utils::make_hyphen_free_test_name(ConcatLayerTest::getTestCaseName));
+                        ConcatLayerTest::getTestCaseName);
 
 std::vector<int> axes7D = {-7, -3, -1, 0, 1, 2, 3, 4, 5, 6};
 std::vector<std::vector<ov::Shape>> inShapes7D = {
@@ -58,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat7D, ConcatLayerTest,
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes7D)),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ov::test::utils::make_hyphen_free_test_name(ConcatLayerTest::getTestCaseName));
+                        ConcatLayerTest::getTestCaseName);
 
 std::vector<int> axes8D = {-8, -3, -1, 0, 1, 2, 3, 4, 5, 6, 7};
 std::vector<std::vector<ov::Shape>> inShapes8D = {
@@ -71,5 +69,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat8D, ConcatLayerTest,
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes8D)),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ov::test::utils::make_hyphen_free_test_name(ConcatLayerTest::getTestCaseName));
+                        ConcatLayerTest::getTestCaseName);
 }  // namespace

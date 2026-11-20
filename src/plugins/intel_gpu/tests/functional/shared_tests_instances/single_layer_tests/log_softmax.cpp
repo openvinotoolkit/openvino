@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "single_op_tests/log_softmax.hpp"
@@ -32,7 +30,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax2D,
                                           testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D)),
                                           testing::ValuesIn(axis2D),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(LogSoftmaxLayerTest::getTestCaseName));
+                         LogSoftmaxLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ov::Shape>> inputShapes4D = {
     {{1, 100, 1, 1}},
@@ -50,6 +48,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax4D,
                                           testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes4D)),
                                           testing::ValuesIn(axis4D),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ov::test::utils::make_hyphen_free_test_name(LogSoftmaxLayerTest::getTestCaseName));
+                         LogSoftmaxLayerTest::getTestCaseName);
 
 }  // namespace

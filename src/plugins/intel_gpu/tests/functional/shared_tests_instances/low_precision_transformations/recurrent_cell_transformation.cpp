@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "low_precision_transformations/recurrent_cell_transformation.hpp"
@@ -91,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
-    ov::test::utils::make_hyphen_free_test_name(RecurrentCellTransformation::getTestCaseName));
+    RecurrentCellTransformation::getTestCaseName);
 } // namespace testValues1
 
 namespace testValues2 {
@@ -170,5 +168,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
-    ov::test::utils::make_hyphen_free_test_name(RecurrentCellTransformation::getTestCaseName));
+    RecurrentCellTransformation::getTestCaseName);
 } // namespace testValues2

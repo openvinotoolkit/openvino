@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_name.hpp"
-
 #include <vector>
 
 #include "low_precision_transformations/mat_mul_with_optimized_constant_fq.hpp"
@@ -35,5 +33,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithOptimizedConstantFq,
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(params)),
-    ov::test::utils::make_hyphen_free_test_name(MatMulWithOptimizedConstantFq::getTestCaseName));
+    MatMulWithOptimizedConstantFq::getTestCaseName);
 }  // namespace
