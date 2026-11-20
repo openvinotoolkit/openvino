@@ -38,6 +38,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "thread_pool_imp.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -199,6 +200,32 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
     return DnnlExtensionUtils::makeDescriptor(reshapedWeiDesc);
 }
 
+// Weight scales mask for per-channel scales folded into the oneDNN weight scales: oneDNN matmul reads per output
+// channel scales along the last weights dimension (N). The dequantization scales of a FullyConnected with batched
+// weights can also vary along the batch dimensions: [B, 1, N] scales take the batch and N bits, [B, 1, 1] scales the
+// batch bits only.
+static int getWeiScaleMaskPerChannel(const MemoryArgs& memory, const size_t rank) {
+    const int perOutputChannel = 1 << (rank - 1);
+    const auto it = memory.find(ARG_DST_DEQ_SCALE);
+    if (it == memory.end()) {
+        return perOutputChannel;
+    }
+
+    const auto scalesDims = getNormalizedDimsBySize(it->second->getShape().getDims(), rank);
+    int perBatch = 0;
+    for (size_t i = 0; i + 2 < rank; i++) {
+        if (scalesDims[i] > 1) {
+            perBatch |= 1 << i;
+        }
+    }
+
+    if (perBatch != 0 && scalesDims[rank - 1] == 1) {
+        return perBatch;
+    }
+
+    return perBatch | perOutputChannel;
+}
+
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context,
@@ -220,7 +247,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                 dims,
                                 dims.size() - 1,
                                 isINT8,
-                                1 << 0,
+                                getWeiScaleMaskPerChannel(memory, dims.size()),
                                 memory,
                                 outputDataType,
                                 attrs.dqScales);
