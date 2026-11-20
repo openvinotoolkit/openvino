@@ -10,6 +10,11 @@
 #include <queue>
 #include <string>
 
+#include "openvino/core/model.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/opsets/opset4_decl.hpp"
 
 using namespace ov;
@@ -74,4 +79,15 @@ TEST(TransformationTests, HasConstantValueHelper) {
 
     int64_scalar = opset4::Constant::create(element::i64, Shape{}, {12});
     ASSERT_FALSE(op_util::has_constant_value<int64_t>(int64_scalar, 13));
+}
+
+TEST(TransformationTests, HasOpWithTypeHelper) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    auto model = std::make_shared<Model>(OutputVector{relu}, ParameterVector{param});
+
+    EXPECT_TRUE(op_util::has_op_with_type<ov::op::v0::Relu>(model));
+    EXPECT_FALSE(op_util::has_op_with_type<ov::op::v0::Sigmoid>(model));
+    EXPECT_TRUE((op_util::has_op_with_type<ov::op::v0::Sigmoid, ov::op::v0::Relu>(model)));
+    EXPECT_FALSE((op_util::has_op_with_type<ov::op::v0::Sigmoid, ov::op::v0::Tanh>(model)));
 }
