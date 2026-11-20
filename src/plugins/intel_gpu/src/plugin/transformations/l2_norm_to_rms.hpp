@@ -39,9 +39,11 @@ namespace ov::intel_gpu {
 //    rank <= 5 (the kernel has bfyx and bfzyx implementations only);
 //  - ReduceSum, Add(eps), Sqrt and Divide have no other consumers; eps is a scalar Constant;
 //  - gamma scales the normalized axis only: static shape {..., 1, N}, no more dims than x;
-//  - with skip_residual_input (registration before ConvertPrecision), x is not a residual Add (an Add of two
-//    non-constant inputs). Such norms are left to the late registration: MarkDivWithEps keys on the Divide and
-//    keeps the residual stream in FP32, and an early fusion would remove the Divide and let it drop to f16.
+//  - with skip_residual_input (registration before ConvertPrecision), x does not come from a residual Add (an Add
+//    of two non-constant inputs), directly or through Reshape, Squeeze, Unsqueeze or elementwise arithmetic with
+//    a constant operand. Such norms are left to the late registration: MarkDivWithEps keys on the Divide and its
+//    FP32 mark propagates up through these ops to the residual stream; an early fusion would remove the Divide and
+//    let the residual stream drop to f16.
 // The scaled gamma is marked to stay in FP32: it may be dequantized from u16 values above the f16 range
 // (e.g. 65535), and after an early fusion no Divide is left to keep it in FP32. KeepDequantizationPrecision covers
 // Constant weights only, not a u16 weight fed as a model input (as ONNX Runtime with the OpenVINO EP passes it).

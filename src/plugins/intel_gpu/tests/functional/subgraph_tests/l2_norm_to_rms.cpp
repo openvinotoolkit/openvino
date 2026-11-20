@@ -16,6 +16,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -228,11 +229,24 @@ enum class ResidualRange {
     Overflow,  // inputs in [20000, 30000)
 };
 
-class L2NormToRMSResidualOverflow : public testing::WithParamInterface<ResidualRange>,
+// What lies between the residual Add and the norm.
+enum class ResidualLink {
+    Direct,
+    BiasAdd,  // Add of a constant bias
+    Reshape,  // rank-changing Reshape {1, 16, 64} -> {16, 64}
+};
+
+using ResidualOverflowParams = std::tuple<ResidualRange, ResidualLink>;
+
+class L2NormToRMSResidualOverflow : public testing::WithParamInterface<ResidualOverflowParams>,
                                     virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ResidualRange>& obj) {
-        return obj.param == ResidualRange::Overflow ? "Overflow" : "InRange";
+    static std::string getTestCaseName(const testing::TestParamInfo<ResidualOverflowParams>& obj) {
+        const auto& [range, link] = obj.param;
+        std::ostringstream name;
+        name << (range == ResidualRange::Overflow ? "Overflow" : "InRange") << "_";
+        name << (link == ResidualLink::Direct ? "Direct" : link == ResidualLink::BiasAdd ? "BiasAdd" : "Reshape");
+        return name.str();
     }
 
 protected:
@@ -256,6 +270,13 @@ protected:
         for (size_t i = 1; i < num_inputs; ++i) {
             residual = std::make_shared<ov::op::v1::Add>(residual, params[i]);
         }
+        const auto link = std::get<1>(GetParam());
+        if (link == ResidualLink::BiasAdd) {
+            residual = std::make_shared<ov::op::v1::Add>(residual, ov::op::v0::Constant::create(ov::element::f32, {shape.back()}, {0.25f}));
+        } else if (link == ResidualLink::Reshape) {
+            auto target_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {shape[1], shape[2]});
+            residual = std::make_shared<ov::op::v1::Reshape>(residual, target_shape, false);
+        }
 
         // ONNX LpNormalization(p=2) lowering with FLT_EPSILON, as the ONNX frontend produces it
         auto power = std::make_shared<ov::op::v1::Power>(residual, ov::op::v0::Constant::create(ov::element::f32, {}, {2.f}));
@@ -276,7 +297,7 @@ protected:
         const auto& func_inputs = function->inputs();
         for (size_t i = 0; i < func_inputs.size(); ++i) {
             const auto seed = static_cast<int32_t>(i + 1);
-            const auto gen = GetParam() == ResidualRange::Overflow ? ov::test::utils::InputGenerateData(20000, 10000, 1, seed)
+            const auto gen = std::get<0>(GetParam()) == ResidualRange::Overflow ? ov::test::utils::InputGenerateData(20000, 10000, 1, seed)
                                                                    : ov::test::utils::InputGenerateData(0, 1, 1000, seed);
             inputs.insert({func_inputs[i].get_node_shared_ptr(),
                            ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), target_input_static_shapes[i], gen)});
@@ -290,7 +311,8 @@ TEST_P(L2NormToRMSResidualOverflow, Inference) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_L2NormToRMS_residual_overflow,
                          L2NormToRMSResidualOverflow,
-                         ::testing::Values(ResidualRange::InRange, ResidualRange::Overflow),
+                         ::testing::Combine(::testing::Values(ResidualRange::InRange, ResidualRange::Overflow),
+                                            ::testing::Values(ResidualLink::Direct, ResidualLink::BiasAdd, ResidualLink::Reshape)),
                          L2NormToRMSResidualOverflow::getTestCaseName);
 
 // L2 norm with gamma = (Convert(u16 weight) - zp) * scale, weight up to 65535, f16 inference. The u16 weight is a model

@@ -21,6 +21,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
@@ -166,40 +167,49 @@ TEST_F(TransformationTestsF, L2NormToRMSRankSix) {
 
 namespace {
 
-// (h + b) + (branch + bias) -> L2 norm * gamma: a residual stream feeding the normalization
-std::shared_ptr<ov::Model> residual_fed_norm(bool fused) {
+// A model output together with the parameters it depends on, so a test builds model and model_ref separately.
+struct NormInput {
+    ov::Output<ov::Node> x;
+    ov::ParameterVector params;
+};
+
+std::shared_ptr<ov::Node> add_bias(const ov::Output<ov::Node>& x) {
+    return std::make_shared<ov::op::v1::Add>(x, ov::op::v0::Constant::create(ov::element::f32, {hidden}, {0.5f}));
+}
+
+std::shared_ptr<ov::Node> constant_gamma() {
+    return ov::op::v0::Constant::create(ov::element::f32, {hidden}, {1.5f});
+}
+
+// (h + b) + (branch + bias): a residual stream, the final Add has two non-constant inputs
+NormInput residual_stream() {
     const ov::Shape shape{1, 16, hidden};
     auto h = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto prev_residual = std::make_shared<ov::op::v1::Add>(h, b);
-    auto bias_add = std::make_shared<ov::op::v1::Add>(branch, ov::op::v0::Constant::create(ov::element::f32, {hidden}, {0.5f}));
-    auto residual = std::make_shared<ov::op::v1::Add>(prev_residual, bias_add);
-    auto gamma = ov::op::v0::Constant::create(ov::element::f32, {hidden}, {1.5f});
-    auto norm = fused ? rms(residual, gamma, ov::element::f32) : l2_norm(residual, gamma);
-    return std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{h, b, branch});
+    auto residual = std::make_shared<ov::op::v1::Add>(prev_residual, add_bias(branch));
+    return {residual, {h, b, branch}};
 }
 
-// branch + bias -> L2 norm * gamma: an Add with a constant input is a bias, not a residual connection
-std::shared_ptr<ov::Model> bias_fed_norm(bool fused) {
+// branch + bias: an Add with a constant input is a bias, not a residual connection
+NormInput bias_only() {
     auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
-    auto bias_add = std::make_shared<ov::op::v1::Add>(branch, ov::op::v0::Constant::create(ov::element::f32, {hidden}, {0.5f}));
-    auto gamma = ov::op::v0::Constant::create(ov::element::f32, {hidden}, {1.5f});
-    auto norm = fused ? rms(bias_add, gamma, ov::element::f32) : l2_norm(bias_add, gamma);
-    return std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{branch});
+    return {add_bias(branch), {branch}};
 }
 
-// L2 norm * gamma, gamma = (Convert(u16 weight) - zp) * scale with weight up to 65535 (above the f16 range)
-std::shared_ptr<ov::Model> u16_dequantized_gamma_norm(bool fused) {
-    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+// gamma = (Convert(u16 weight) - zp) * scale with weight up to 65535 (above the f16 range)
+std::shared_ptr<ov::Node> u16_dequantized_gamma() {
     std::vector<uint16_t> q(hidden, 40000);
     q[0] = 65535;
     auto weight = std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::u16, {hidden}, q), ov::element::f32);
     auto zp = std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::u16, {}, {127}), ov::element::f32);
     auto shifted = std::make_shared<ov::op::v1::Subtract>(weight, zp);
-    auto gamma = std::make_shared<ov::op::v1::Multiply>(shifted, ov::op::v0::Constant::create(ov::element::f32, {}, {0.000855f}));
-    auto norm = fused ? rms(x, gamma, ov::element::f32) : l2_norm(x, gamma);
-    return std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{x});
+    return std::make_shared<ov::op::v1::Multiply>(shifted, ov::op::v0::Constant::create(ov::element::f32, {}, {0.000855f}));
+}
+
+std::shared_ptr<ov::Model> make_model(const std::shared_ptr<ov::Node>& out, const ov::ParameterVector& params) {
+    return std::make_shared<ov::Model>(ov::OutputVector{out}, params);
 }
 
 }  // namespace
@@ -207,22 +217,51 @@ std::shared_ptr<ov::Model> u16_dequantized_gamma_norm(bool fused) {
 // Before ConvertPrecision a residual-fed norm is left decomposed, so MarkDivWithEps still keeps the residual stream
 // in FP32.
 TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_ResidualFedNormNotFused) {
-    model = residual_fed_norm(false);
+    auto in = residual_stream();
+    model = make_model(l2_norm(in.x, constant_gamma()), in.params);
+    manager.register_pass<L2NormToRMS>(1024, true);
+}
+
+// A bias Add between the residual Add and the norm: the FP32 mark of MarkDivWithEps propagates up through it to
+// the residual stream, so the norm is left decomposed as well.
+TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_ResidualThroughBiasNotFused) {
+    auto in = residual_stream();
+    model = make_model(l2_norm(add_bias(in.x), constant_gamma()), in.params);
+    manager.register_pass<L2NormToRMS>(1024, true);
+}
+
+// The same for a rank-changing Reshape between the residual Add and the norm.
+TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_ResidualThroughReshapeNotFused) {
+    auto in = residual_stream();
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(in.x, ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{16, hidden}), false);
+    model = make_model(l2_norm(reshape, constant_gamma()), in.params);
     manager.register_pass<L2NormToRMS>(1024, true);
 }
 
 // The late registration (after ConvertPrecision) fuses the residual-fed norm.
 TEST_F(TransformationTestsF, L2NormToRMS_ResidualFedNormFused) {
-    model = residual_fed_norm(false);
-    model_ref = residual_fed_norm(true);
+    {
+        auto in = residual_stream();
+        model = make_model(l2_norm(in.x, constant_gamma()), in.params);
+    }
+    {
+        auto in = residual_stream();
+        model_ref = make_model(rms(in.x, constant_gamma(), ov::element::f32), in.params);
+    }
     manager.register_pass<L2NormToRMS>(1024);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_BiasFedNormFused) {
-    model = bias_fed_norm(false);
-    model_ref = bias_fed_norm(true);
+    {
+        auto in = bias_only();
+        model = make_model(l2_norm(in.x, constant_gamma()), in.params);
+    }
+    {
+        auto in = bias_only();
+        model_ref = make_model(rms(in.x, constant_gamma(), ov::element::f32), in.params);
+    }
     manager.register_pass<L2NormToRMS>(1024, true);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -231,8 +270,14 @@ TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_BiasFedNormFused) {
 // A norm fused before ConvertPrecision with gamma dequantized from u16: the scaled gamma is marked to stay in FP32
 // (no Divide is left for MarkDivWithEps, and a u16 -> f16 conversion of 65535 gives inf).
 TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_U16DequantizedGammaKeptFP32) {
-    model = u16_dequantized_gamma_norm(false);
-    model_ref = u16_dequantized_gamma_norm(true);
+    {
+        auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+        model = make_model(l2_norm(x, u16_dequantized_gamma()), {x});
+    }
+    {
+        auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+        model_ref = make_model(rms(x, u16_dequantized_gamma(), ov::element::f32), {x});
+    }
     manager.register_pass<L2NormToRMS>(1024, true);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);

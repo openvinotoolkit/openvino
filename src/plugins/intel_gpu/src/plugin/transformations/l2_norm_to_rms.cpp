@@ -17,7 +17,11 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
@@ -38,6 +42,29 @@ bool is_residual_add(const ov::Output<ov::Node>& output) {
         return !ov::util::get_constant_from_source(input);
     });
 }
+
+// Whether x comes from a residual Add, directly or through ops that the FP32 mark of MarkDivWithEps propagates up
+// through (propagate_through_ops in mark_subgraphs_to_keep_in_mixed_precision.cpp): Reshape, Squeeze, Unsqueeze,
+// and elementwise arithmetic with one constant operand (a bias or a scale).
+bool is_fed_by_residual_add(ov::Output<ov::Node> output) {
+    while (!is_residual_add(output)) {
+        const auto node = output.get_node_shared_ptr();
+        if (ov::is_type_any_of<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>(node)) {
+            output = node->input_value(0);
+            continue;
+        }
+        if (!ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node)) {
+            return false;
+        }
+        const bool lhs_constant = ov::util::get_constant_from_source(node->input_value(0)) != nullptr;
+        const bool rhs_constant = ov::util::get_constant_from_source(node->input_value(1)) != nullptr;
+        if (lhs_constant == rhs_constant) {
+            return false;
+        }
+        output = node->input_value(lhs_constant ? 1 : 0);
+    }
+    return true;
+}
 }  // namespace
 
 L2NormToRMS::L2NormToRMS(size_t max_work_group_size, bool skip_residual_input) {
@@ -47,7 +74,7 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size, bool skip_residual_input) {
     auto x = any_input();
     if (skip_residual_input) {
         x = any_input([](const ov::Output<ov::Node>& output) {
-            return !is_residual_add(output);
+            return !is_fed_by_residual_add(output);
         });
     }
     auto x_convert = optional<ov::op::v0::Convert>({x});
