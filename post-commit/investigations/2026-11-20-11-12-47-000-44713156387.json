@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-11-12-47-000-44713156387",
+  "timestamp": "2026-11-20T11:12:47Z",
+  "run_id": "44713156387",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44713156387",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "0c3ff7aa2378cc512ee2e87856b5c97cb12c8e65",
+  "pr_number": "40041",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40041",
+  "author": "byungilm",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "cl.exe fatal error C1060 (compiler out of heap space) on multiple template functional test TUs, followed by link.exe fatal error LNK1102 (out of memory) building ov_api_conformance_tests.exe"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status-check job failed because the upstream Build_And_Run_Collect_Mode job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/ctc_greedy_decoder.cpp.obj\nC:\\actions-runner\\_work\\openvino\\openvino\\openvino\\thirdparty\\gtest\\gtest\\googletest\\include\\gtest/gtest_pred_impl.h(252): fatal error C1060: compiler is out of heap space",
+    "FAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/cos.cpp.obj\nC:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\memory(1641): fatal error C1060: compiler is out of heap space",
+    "LINK : fatal error LNK1102: out of memory\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows CC (Conditional Compilation) Release build compiles with CMAKE_BUILD_PARALLEL_LEVEL=31 on a shared/constrained Windows runner. Under this parallelism, multiple cl.exe worker processes compete for address space/heap simultaneously, causing MSVC's cl.exe to run out of heap space (C1060) on several unrelated template functional-test translation units (ctc_greedy_decoder.cpp, cos.cpp). Shortly after, the linker (link.exe) building ov_api_conformance_tests.exe also exhausts memory (LNK1102). This is a resource-exhaustion failure on the runner/build-parallelism configuration, not a defect in the merged PR's code change (a GPU-plugin graph-transformation fix unrelated to Windows CC/template tests). The same signature has now recurred 18 times since 2026-11-03, consistently tied to high parallel build concurrency on Windows runners.",
+  "reproduction_steps": "Not reliably reproducible outside CI; it is a resource-contention issue tied to the Windows CI runner's available memory under CMAKE_BUILD_PARALLEL_LEVEL=31. Locally, building the `template` and `conformance` modules with Release config and comparably high `/MP` or ninja parallelism on a memory-constrained Windows machine can reproduce C1060/LNK1102.",
+  "recommended_actions": [
+    "Reduce CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC Release build job, or switch to a Windows runner SKU with more RAM",
+    "Investigate ccache/ninja scheduling to avoid launching too many concurrent cl.exe/link.exe processes relative to available memory",
+    "Consider splitting the conformance/template test target builds into separate parallel-limited stages to cap peak memory usage",
+    "Escalate to CI infra owners given this signature has now recurred 18 times since 2026-11-03 with no apparent fix in progress"
+  ],
+  "prevention_strategies": "Tune build parallelism to the runner's actual memory budget (e.g., derive CMAKE_BUILD_PARALLEL_LEVEL from available RAM rather than core count) and monitor runner memory usage during Windows CC builds to catch regressions in parallelism/runner-size configuration before they cause recurring post-commit failures.",
+  "historical_context": "This exact signature (C1060 compiler out-of-heap-space + LNK1102 linker out-of-memory under high parallelism on the Windows CC build) has recurred 18 times since first observed on 2026-11-03T07:07:04Z, most recently a few hours before this run (2026-11-20T09:38:45Z). It is the single most frequent recurring pattern in the post-commit knowledge base and has not been tied to any specific PR's code changes across occurrences - a strong indicator of an infrastructure/configuration issue (build parallelism vs. runner memory) rather than a code regression."
+}
