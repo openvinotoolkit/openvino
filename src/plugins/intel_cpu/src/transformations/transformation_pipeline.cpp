@@ -19,7 +19,6 @@
 #include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/gather.hpp"
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/network_helper.hpp"
 #include "low_precision/qdq_stripping.hpp"
 #include "low_precision/quantization_details.hpp"
 #include "nodes/fullyconnected.h"

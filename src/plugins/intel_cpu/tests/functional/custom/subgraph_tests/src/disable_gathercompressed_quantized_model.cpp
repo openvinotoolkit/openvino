@@ -34,7 +34,7 @@ namespace test {
  */
 enum class GatherScaleShape { SCALAR, PER_ROW, PER_COLUMN };
 
-std::ostream& operator<<(std::ostream& os, GatherScaleShape scale_shape) {
+static std::ostream& operator<<(std::ostream& os, GatherScaleShape scale_shape) {
     switch (scale_shape) {
     case GatherScaleShape::SCALAR:
         return os << "scalar";
