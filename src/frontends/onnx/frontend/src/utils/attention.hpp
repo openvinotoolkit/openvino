@@ -55,6 +55,29 @@ enum class CausalKind {
     NONPAD,  // per-batch offset = nonpad[b] - seq_q (external KV cache)
 };
 
+/// \brief Returns the sequence length (dimension 2) of a 4D attention tensor as an i64 scalar.
+ov::Output<ov::Node> get_sequence_length(const ov::Output<ov::Node>& input);
+
+/// \brief Build an additive band (sliding-window) mask.
+///
+/// Query i attends key j iff -left <= j - (i + offset) <= right; a negative bound leaves that side
+/// unbounded, and at least one bound must be non-negative. A causal mask is the band with right = 0.
+///
+/// \param Q                 Query tensor of shape (B, heads, seq_q, head_size).
+/// \param K                 Key tensor of shape (B, heads, seq_kv, head_size).
+/// \param offset            Absolute position of query 0: an i64 scalar, an i64 (B,) per-batch vector, or an
+///                          empty output meaning 0.
+/// \param left              Number of preceding keys visible to a query, or -1 for unbounded.
+/// \param right             Number of following keys visible to a query, or -1 for unbounded.
+/// \param mask_filter_value Value assigned to masked positions (default: -inf).
+/// \return A float additive mask of shape (seq_q, seq_kv), or (B, 1, seq_q, seq_kv) for a per-batch offset.
+ov::Output<ov::Node> build_window_mask(const ov::Output<ov::Node>& Q,
+                                       const ov::Output<ov::Node>& K,
+                                       const ov::Output<ov::Node>& offset,
+                                       int64_t left,
+                                       int64_t right,
+                                       float mask_filter_value = -std::numeric_limits<float>::infinity());
+
 /// \brief Build an additive causal mask with opset-24 bottom-right alignment.
 ///
 /// For CausalKind::NONPAD the offset varies per batch and the result has shape (B, 1, seq_q, seq_kv);
@@ -89,6 +112,8 @@ ov::Output<ov::Node> build_causal_mask(const ov::Output<ov::Node>& Q,
 ///                              guard so a row whose keys are all masked (-inf) yields a zero output row
 ///                              instead of NaN. Set to false for ONNX Runtime MultiHeadAttention
 ///                              semantics (finite mask_filter_value, no zero-row guard).
+/// \param softmax_precision     When static and different from the score type, the softmax is computed in
+///                              this type and its result is cast back to the score type.
 /// \return A two-element OutputVector: {attention_output, qk_intermediate_or_empty}.
 ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
                                         const ov::Output<ov::Node>& K,
@@ -97,6 +122,7 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
                                         float scale_attr,
                                         float softcap,
                                         int64_t qk_matmul_output_mode,
-                                        bool include_safe_softmax = true);
+                                        bool include_safe_softmax = true,
+                                        const ov::element::Type& softmax_precision = ov::element::dynamic);
 
 }  // namespace ov::frontend::onnx::attention

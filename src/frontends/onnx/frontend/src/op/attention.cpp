@@ -33,6 +33,7 @@
 
 using namespace ov::op;
 using namespace ov::frontend::onnx::attention;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
 
 namespace ov::frontend::onnx::ai_onnx {
 namespace detail {
@@ -222,7 +223,8 @@ PreparedQKV prepare_qkv(const ov::frontend::onnx::Node& node,
 
 namespace detail {
 
-static ov::OutputVector attention_common(const ov::frontend::onnx::Node& node, bool is_opset24) {
+static ov::OutputVector attention_common(const ov::frontend::onnx::Node& node, int64_t opset_version) {
+    const bool is_opset24 = opset_version >= 24;
     auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node, num_inputs >= 3, "Attention expects at least 3 inputs, got: ", num_inputs);
@@ -256,6 +258,35 @@ static ov::OutputVector attention_common(const ov::frontend::onnx::Node& node, b
                      qk_matmul_output_mode >= 0 && qk_matmul_output_mode <= 3,
                      "qk_matmul_output_mode must be 0, 1, 2, or 3, got: ",
                      qk_matmul_output_mode);
+
+    int64_t left_window_size = -1;
+    int64_t right_window_size = -1;
+    if (opset_version >= 25) {
+        left_window_size = node.get_attribute_value<int64_t>("left_window_size", -1);
+        right_window_size = node.get_attribute_value<int64_t>("right_window_size", -1);
+        CHECK_VALID_NODE(node,
+                         left_window_size >= -1,
+                         "left_window_size must be -1 or non-negative, got: ",
+                         left_window_size);
+        CHECK_VALID_NODE(node,
+                         right_window_size >= -1,
+                         "right_window_size must be -1 or non-negative, got: ",
+                         right_window_size);
+    }
+    const bool has_window = left_window_size >= 0 || right_window_size >= 0;
+
+    ov::element::Type softmax_precision = ov::element::dynamic;
+    if (node.has_attribute("softmax_precision")) {
+        const auto softmax_precision_attr = node.get_attribute_value<int64_t>("softmax_precision");
+        CHECK_VALID_NODE(node,
+                         softmax_precision_attr == TensorProto_DataType::TensorProto_DataType_FLOAT ||
+                             softmax_precision_attr == TensorProto_DataType::TensorProto_DataType_FLOAT16 ||
+                             softmax_precision_attr == TensorProto_DataType::TensorProto_DataType_DOUBLE ||
+                             softmax_precision_attr == TensorProto_DataType::TensorProto_DataType_BFLOAT16,
+                         "softmax_precision must be FLOAT, FLOAT16, DOUBLE or BFLOAT16, got: ",
+                         softmax_precision_attr);
+        softmax_precision = common::get_ov_element_type(softmax_precision_attr);
+    }
 
     size_t num_outputs = node.get_outputs_size();
     const auto& output_names = node.get_output_names();
@@ -309,20 +340,26 @@ static ov::OutputVector attention_common(const ov::frontend::onnx::Node& node, b
     if (has_nonpad)
         nonpad = inputs[6];
 
-    // Build an explicit causal mask rather than relying on the SDPA op's is_causal flag, because
+    // Build an explicit causal/window mask rather than relying on the SDPA op's is_causal flag, because
     // the flag is implemented inconsistently across backends (CPU: bottom-right offset, GPU: top-left offset).
-    // An explicit additive mask gives identical results on every backend. offset = past_sequence_length when a KV cache
-    // is present (bottom-right alignment per the ONNX Attention spec, confirmed by onnx/onnx#8068).
-    if (is_causal) {
-        // opset-24 supports NONPAD causal alignment.
-        CausalKind kind = has_past_key                 ? CausalKind::PAST
-                          : (is_opset24 && has_nonpad) ? CausalKind::NONPAD
-                                                       : CausalKind::NONE;
-        auto causal_mask = build_causal_mask(Q, K, kind, NEG_INF, nonpad);
+    // An explicit additive mask gives identical results on every backend. Both bounds are aligned to the
+    // absolute query position offset + i, where offset counts the valid keys preceding the query block:
+    // past_sequence_length with an internal KV cache, nonpad_kv_seqlen - q_sequence_length (per batch) with an
+    // external one, 0 otherwise (bottom-right alignment per the ONNX Attention spec, onnx/onnx#8068).
+    if (is_causal || has_window) {
+        ov::Output<ov::Node> offset;
+        if (has_past_key) {
+            offset = get_sequence_length(inputs[4]);
+        } else if (has_nonpad) {
+            offset = std::make_shared<v1::Subtract>(nonpad, get_sequence_length(Q));
+        }
+        // The causal frontier caps the right side of the window at the current position.
+        const int64_t right_bound = is_causal ? 0 : right_window_size;
+        auto band_mask = build_window_mask(Q, K, offset, left_window_size, right_bound, NEG_INF);
         if (has_attn_mask) {
-            attn_mask = std::make_shared<v1::Add>(attn_mask, causal_mask);
+            attn_mask = std::make_shared<v1::Add>(attn_mask, band_mask);
         } else {
-            attn_mask = causal_mask;
+            attn_mask = band_mask;
         }
         has_attn_mask = true;
         is_causal = false;
@@ -341,9 +378,18 @@ static ov::OutputVector attention_common(const ov::frontend::onnx::Node& node, b
     ov::Output<ov::Node> Y;
     ov::Output<ov::Node> qk_debug_output;
 
-    // opset-24 forces the manual path when nonpad_kv_seqlen is present.
+    // opset-24 forces the manual path when nonpad_kv_seqlen is present. The SDPA path does not honor
+    // softmax_precision: OpenVINO SDPA implementations accumulate the softmax in f32 already.
     if (softcap > 0.0f || qk_matmul_output_mode >= 0 || has_nonpad) {
-        auto results = build_manual_attention(Q, K, V, attn_mask, scale_attr, softcap, qk_matmul_output_mode);
+        auto results = build_manual_attention(Q,
+                                              K,
+                                              V,
+                                              attn_mask,
+                                              scale_attr,
+                                              softcap,
+                                              qk_matmul_output_mode,
+                                              true /*include_safe_softmax*/,
+                                              softmax_precision);
         Y = results[0];
         if (results[1].get_node())
             qk_debug_output = results[1];
@@ -382,16 +428,23 @@ static ov::OutputVector attention_common(const ov::frontend::onnx::Node& node, b
 
 namespace opset_23 {
 ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
-    return detail::attention_common(node, /*is_opset24=*/false);
+    return detail::attention_common(node, 23);
 }
 ONNX_OP("Attention", OPSET_RANGE(1, 23), ai_onnx::opset_23::attention);
 }  // namespace opset_23
 
 namespace opset_24 {
 ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
-    return detail::attention_common(node, /*is_opset24=*/true);
+    return detail::attention_common(node, 24);
 }
-ONNX_OP("Attention", OPSET_SINCE(24), ai_onnx::opset_24::attention);
+ONNX_OP("Attention", OPSET_IN(24), ai_onnx::opset_24::attention);
 }  // namespace opset_24
+
+namespace opset_25 {
+ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
+    return detail::attention_common(node, 25);
+}
+ONNX_OP("Attention", OPSET_SINCE(25), ai_onnx::opset_25::attention);
+}  // namespace opset_25
 
 }  // namespace ov::frontend::onnx::ai_onnx

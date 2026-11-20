@@ -16,6 +16,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
@@ -72,51 +73,74 @@ ov::Output<ov::Node> convert_boolean_mask(const ov::Output<ov::Node>& mask,
     return std::make_shared<v1::Select>(mask, zero, conv_neg_large);
 }
 
-// Build an additive causal mask with opset-24 bottom-right alignment. For CausalKind::NONPAD the offset
-// varies per batch and the result has shape (B, 1, seq_q, seq_kv); otherwise the result is (seq_q, seq_kv)
-// and broadcasts over batch and heads.
+ov::Output<ov::Node> get_sequence_length(const ov::Output<ov::Node>& input) {
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    return std::make_shared<v0::Squeeze>(get_dimensions(std::make_shared<v3::ShapeOf>(input), {2}), zero);
+}
+
+// Build an additive band mask: query i attends key j iff -left <= j - (i + offset) <= right, a negative bound
+// leaving that side open. A scalar (or absent) offset yields (seq_q, seq_kv); a per-batch (B,) offset yields
+// (B, 1, seq_q, seq_kv).
+ov::Output<ov::Node> build_window_mask(const ov::Output<ov::Node>& Q,
+                                       const ov::Output<ov::Node>& K,
+                                       const ov::Output<ov::Node>& offset,
+                                       int64_t left,
+                                       int64_t right,
+                                       float mask_filter_value) {
+    OPENVINO_ASSERT(left >= 0 || right >= 0, "Attention window mask requires at least one bounded side");
+
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto col = std::make_shared<v4::Range>(zero, get_sequence_length(K), one, ov::element::i64);  // (seq_kv,)
+    auto row = std::make_shared<v4::Range>(zero, get_sequence_length(Q), one, ov::element::i64);  // (seq_q,)
+
+    // rel[i, j] = col[j] - row[i] - offset  -> (seq_q, seq_kv) or (B, seq_q, seq_kv)
+    auto axis0 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto axis1 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto row_2d = std::make_shared<v0::Unsqueeze>(row, axis1);               // (seq_q, 1)
+    ov::Output<ov::Node> rel = std::make_shared<v1::Subtract>(col, row_2d);  // (seq_q, seq_kv)
+
+    const bool per_batch = offset.get_node() && offset.get_partial_shape().rank() != ov::Rank(0);
+    if (per_batch) {
+        auto offset_shape = v0::Constant::create(ov::element::i64, ov::Shape{3}, {-1, 1, 1});
+        auto offset_3d = std::make_shared<v1::Reshape>(offset, offset_shape, false);  // (B, 1, 1)
+        rel = std::make_shared<v1::Subtract>(std::make_shared<v0::Unsqueeze>(rel, axis0), offset_3d);
+    } else if (offset.get_node()) {
+        rel = std::make_shared<v1::Subtract>(rel, offset);
+    }
+
+    ov::Output<ov::Node> allowed;
+    if (right >= 0) {
+        auto upper = v0::Constant::create(ov::element::i64, ov::Shape{}, {right});
+        allowed = std::make_shared<v1::LessEqual>(rel, upper);
+    }
+    if (left >= 0) {
+        auto lower_bound = v0::Constant::create(ov::element::i64, ov::Shape{}, {-left});
+        auto lower = std::make_shared<v1::GreaterEqual>(rel, lower_bound);
+        allowed = allowed.get_node() ? std::make_shared<v1::LogicalAnd>(allowed, lower)->output(0) : lower->output(0);
+    }
+    if (per_batch) {
+        allowed = std::make_shared<v0::Unsqueeze>(allowed, axis1);  // (B, 1, seq_q, seq_kv)
+    }
+
+    return convert_boolean_mask(allowed, Q.get_element_type(), mask_filter_value);
+}
+
+// Build an additive causal mask with bottom-right alignment. For CausalKind::NONPAD the offset varies per batch and
+// the result has shape (B, 1, seq_q, seq_kv); otherwise the result is (seq_q, seq_kv) and broadcasts over batch and
+// heads.
 ov::Output<ov::Node> build_causal_mask(const ov::Output<ov::Node>& Q,
                                        const ov::Output<ov::Node>& K,
                                        CausalKind kind,
                                        float mask_filter_value,
                                        const ov::Output<ov::Node>& nonpad) {
-    auto q_shape = std::make_shared<v3::ShapeOf>(Q);
-    auto k_shape = std::make_shared<v3::ShapeOf>(K);
-    auto seq_q = get_dimensions(q_shape, {2});   // (1,)
-    auto seq_kv = get_dimensions(k_shape, {2});  // (1,)
-
-    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-
-    auto seq_q_scalar = std::make_shared<v0::Squeeze>(seq_q, zero);
-    auto seq_kv_scalar = std::make_shared<v0::Squeeze>(seq_kv, zero);
-
-    auto col = std::make_shared<v4::Range>(zero, seq_kv_scalar, one, ov::element::i64);  // (seq_kv,)
-    auto row = std::make_shared<v4::Range>(zero, seq_q_scalar, one, ov::element::i64);   // (seq_q,)
-
-    // diff[i, j] = col[j] - row[i]  -> (seq_q, seq_kv)
-    auto axis1 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-    auto row_2d = std::make_shared<v0::Unsqueeze>(row, axis1);  // (seq_q, 1)
-    auto diff = std::make_shared<v1::Subtract>(col, row_2d);    // (seq_q, seq_kv)
-
-    std::shared_ptr<ov::Node> allowed;
+    ov::Output<ov::Node> offset;
     if (kind == CausalKind::NONPAD) {
-        // offset_b = nonpad[b] - seq_q ; allowed[b, i, j] = diff[i, j] <= offset_b
-        auto offset = std::make_shared<v1::Subtract>(nonpad, seq_q);  // (B,)
-        auto offset_shape = v0::Constant::create(ov::element::i64, ov::Shape{3}, {-1, 1, 1});
-        auto offset_3d = std::make_shared<v1::Reshape>(offset, offset_shape, false);  // (B, 1, 1)
-        auto axis0 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-        auto diff_3d = std::make_shared<v0::Unsqueeze>(diff, axis0);            // (1, seq_q, seq_kv)
-        auto allowed_3d = std::make_shared<v1::LessEqual>(diff_3d, offset_3d);  // (B, seq_q, seq_kv)
-        allowed = std::make_shared<v0::Unsqueeze>(allowed_3d, axis1);           // (B, 1, seq_q, seq_kv)
+        offset = std::make_shared<v1::Subtract>(nonpad, get_sequence_length(Q));  // (B,)
     } else if (kind == CausalKind::PAST) {
-        auto offset = std::make_shared<v1::Subtract>(seq_kv_scalar, seq_q_scalar);  // scalar
-        allowed = std::make_shared<v1::LessEqual>(diff, offset);
-    } else {
-        allowed = std::make_shared<v1::LessEqual>(diff, zero);
+        offset = std::make_shared<v1::Subtract>(get_sequence_length(K), get_sequence_length(Q));  // scalar
     }
-
-    return convert_boolean_mask(allowed, Q.get_element_type(), mask_filter_value);
+    return build_window_mask(Q, K, offset, /*left=*/-1, /*right=*/0, mask_filter_value);
 }
 
 // Build manual attention decomposition following ONNX opset-24 semantics.
@@ -130,7 +154,8 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
                                         float scale_attr,
                                         float softcap,
                                         int64_t qk_matmul_output_mode,
-                                        bool include_safe_softmax) {
+                                        bool include_safe_softmax,
+                                        const ov::element::Type& softmax_precision) {
     // 1. Q @ K^T
     auto qk = std::make_shared<v0::MatMul>(Q, K, false, true);
 
@@ -163,7 +188,11 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
 
     // 5. Softmax with an optional fully-masked-row guard: rows whose keys are all masked out (additive
     // mask of -inf) would yield NaN after softmax; opset-24 requires a zero output row instead.
-    std::shared_ptr<ov::Node> softmax_out = std::make_shared<v8::Softmax>(masked, -1);
+    const bool cast_softmax = softmax_precision.is_static() && softmax_precision != masked->get_element_type();
+    ov::Output<ov::Node> softmax_in = masked;
+    if (cast_softmax)
+        softmax_in = std::make_shared<v0::Convert>(masked, softmax_precision);
+    std::shared_ptr<ov::Node> softmax_out = std::make_shared<v8::Softmax>(softmax_in, -1);
 
     if (include_safe_softmax) {
         bool non_empty_attn_mask = true;
@@ -179,6 +208,9 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
             softmax_out = std::make_shared<v1::Select>(is_nan, zero, softmax_out);
         }
     }
+
+    if (cast_softmax)
+        softmax_out = std::make_shared<v1::ConvertLike>(softmax_out, masked);
 
     ov::Output<ov::Node> qk_debug_output;
     switch (qk_matmul_output_mode) {
