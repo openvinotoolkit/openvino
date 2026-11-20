@@ -11,6 +11,7 @@
 #include "primitive_type_base.h"
 #include <algorithm>
 #include <string>
+#include <unordered_set>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
@@ -219,27 +220,39 @@ std::vector<program_node*> condition_node::get_inputs_forwarded_to_outputs() con
         const auto& body = *branch.inner_program;
         // condition_impl takes the outer input memory as the output of a skipped body instead of running it
         const bool body_is_skipped = body.can_be_optimized();
+        // Body nodes whose buffer can become a body output
+        std::vector<const program_node*> candidates;
         for (const auto& out : branch.output_map) {
-            if (!body.has_node(out.second)) {
+            if (body.has_node(out.second)) {
+                candidates.push_back(&body.get_node(out.second));
+            }
+        }
+        std::unordered_set<const program_node*> visited;
+        while (!candidates.empty()) {
+            const program_node* node = candidates.back();
+            candidates.pop_back();
+            if (!visited.insert(node).second) {
                 continue;
             }
-            const program_node* node = &body.get_node(out.second);
-            while (!node->is_type<input_layout>() && !node->is_type<data>() && !node->get_dependencies().empty() &&
-                   (body_is_skipped || node->can_be_optimized() || node->is_runtime_skippable())) {
-                node = &node->get_dependency(0);
-            }
-            if (!node->is_type<input_layout>()) {
-                continue;
-            }
-            for (const auto& in : branch.input_map) {
-                if (in.second != node->id()) {
-                    continue;
-                }
-                for (const auto& dep : get_dependencies()) {
-                    if (dep.first->id() == in.first && std::find(forwarded.begin(), forwarded.end(), dep.first) == forwarded.end()) {
-                        forwarded.push_back(dep.first);
+            if (node->is_type<input_layout>()) {
+                for (const auto& in : branch.input_map) {
+                    if (in.second != node->id()) {
+                        continue;
+                    }
+                    for (const auto& dep : get_dependencies()) {
+                        if (dep.first->id() == in.first && std::find(forwarded.begin(), forwarded.end(), dep.first) == forwarded.end()) {
+                            forwarded.push_back(dep.first);
+                        }
                     }
                 }
+            } else if (node->is_type<condition>()) {
+                // A nested condition passes its inputs through in the same way, e.g. a parameter of this body
+                for (const auto* nested_input : node->as<condition>().get_inputs_forwarded_to_outputs()) {
+                    candidates.push_back(nested_input);
+                }
+            } else if (!node->is_type<data>() && !node->get_dependencies().empty() &&
+                       (body_is_skipped || node->can_be_optimized() || node->is_runtime_skippable())) {
+                candidates.push_back(&node->get_dependency(0));
             }
         }
     };

@@ -835,7 +835,9 @@ public:
 
     // A skipped (identity) body passes the condition input buffer through as the condition output. "scale" runs while
     // the output of "cond" is still to be read by "sum", so the memory pool must not give it the buffer of "abs".
-    void test_skipped_body_keeps_input_buffer(bool is_caching_test) {
+    // With nested, the bodies of "cond" run and return a nested condition with identity bodies, which passes the body
+    // parameter, i.e. the buffer of "abs", through in the same way.
+    void test_skipped_body_keeps_input_buffer(bool is_caching_test, bool nested = false) {
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -854,18 +856,36 @@ public:
             branch.output_map.insert({0, "body_result" + suffix});
             return branch;
         };
+        auto nested_branch = [&](const primitive_id& outer_input_id, const std::string& suffix) {
+            condition::branch branch;
+            topology body;
+            body.add(input_layout("body_input" + suffix, data_layout),
+                     input_layout("body_predicate" + suffix, pred_layout),
+                     condition("body_cond" + suffix,
+                               {input_info("body_predicate" + suffix), input_info("body_input" + suffix)},
+                               identity_branch("body_input" + suffix, suffix + "_t"),
+                               identity_branch("body_input" + suffix, suffix + "_f")));
+            branch.inner_program = program::build_program(engine, body, config, false, false, true);
+            branch.input_map.insert({outer_input_id, "body_input" + suffix});
+            branch.input_map.insert({"predicate", "body_predicate" + suffix});
+            branch.output_map.insert({0, "body_cond" + suffix});
+            return branch;
+        };
+        auto cond_branch = [&](const primitive_id& outer_input_id, const std::string& suffix) {
+            return nested ? nested_branch(outer_input_id, suffix) : identity_branch(outer_input_id, suffix);
+        };
 
         topology topology;
         topology.add(input_layout("input", data_layout));
         topology.add(input_layout("predicate", pred_layout));
         topology.add(activation("abs", input_info("input"), activation_func::abs));
-        topology.add(condition("cond", {input_info("predicate"), input_info("abs")}, identity_branch("abs", "_t0"), identity_branch("abs", "_f0")));
+        topology.add(condition("cond", {input_info("predicate"), input_info("abs")}, cond_branch("abs", "_t0"), cond_branch("abs", "_f0")));
         topology.add(activation("scale", input_info("cond"), activation_func::linear, {2.f, 0.f}));
         topology.add(condition("cond2", {input_info("predicate"), input_info("scale")}, identity_branch("scale", "_t1"), identity_branch("scale", "_f1")));
         topology.add(eltwise("sum", {input_info("cond"), input_info("cond2")}, eltwise_mode::sum));
 
         network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-        ASSERT_TRUE(net->get_primitive("cond")->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+        ASSERT_EQ(net->get_primitive("cond")->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized(), !nested);
         ASSERT_FALSE(engine.is_the_same_buffer(*net->get_primitive("scale")->output_memory_ptr(), *net->get_primitive("abs")->output_memory_ptr()));
 
         std::vector<float> input_data(data_layout.count());
@@ -960,6 +980,14 @@ TEST_F(condition_gpu_tests, skipped_body_keeps_input_buffer) {
 
 TEST_F(condition_gpu_tests, skipped_body_keeps_input_buffer_cached) {
     this->test_skipped_body_keeps_input_buffer(true);
+}
+
+TEST_F(condition_gpu_tests, nested_skipped_body_keeps_input_buffer) {
+    this->test_skipped_body_keeps_input_buffer(false, true);
+}
+
+TEST_F(condition_gpu_tests, nested_skipped_body_keeps_input_buffer_cached) {
+    this->test_skipped_body_keeps_input_buffer(true, true);
 }
 
 TEST(condition_gpu, empty_body_with_different_shapes) {
