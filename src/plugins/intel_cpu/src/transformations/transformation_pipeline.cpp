@@ -158,6 +158,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/avg_pool_ceil_torch_divisor.hpp"
 #include "transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp"
 #include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
@@ -637,6 +638,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
+    // oneDNN include-padding AvgPool divides by the full kernel, also counting the CEIL_TORCH overhang
+    CPU_REGISTER_PASS_COMMON(manager, AvgPoolCeilTorchDivisor);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
 

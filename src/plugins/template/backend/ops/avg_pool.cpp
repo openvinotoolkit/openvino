@@ -86,7 +86,8 @@ bool evaluate(const std::shared_ptr<ov::op::v14::AvgPool>& op,
                                ov::Strides(op->get_kernel().size(), 1),
                                op->get_pads_begin(),
                                op->get_pads_end(),
-                               !op->get_exclude_pad());
+                               !op->get_exclude_pad(),
+                               op->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH);
     return true;
 }
 
@@ -140,7 +141,8 @@ bool evaluate(const std::shared_ptr<ov::op::v16::AvgPool>& op,
                                op->get_dilations(),
                                op->get_pads_begin(),
                                op->get_pads_end(),
-                               !op->get_exclude_pad());
+                               !op->get_exclude_pad(),
+                               op->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH);
     return true;
 }
 
