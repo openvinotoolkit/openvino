@@ -44,6 +44,8 @@ struct SDPAOpt : public ImplementationManager {
     // Per-channel compressed KV has one reader among these stages, sdpa_ocl, so it is admitted only where sdpa_ocl serves
     // the op (sdpa_ocl_serves_op() without a single-element mask); SDPARef takes it everywhere else.
     [[nodiscard]] static bool per_channel_kv_on_dpas_lane(const kernel_impl_params& params);
+    // The same for a transposed V (order {..,3,2}): sdpa_ocl's v_tile_t is its one reader among these stages.
+    [[nodiscard]] static bool transposed_v_on_dpas_lane(const kernel_impl_params& params);
     // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout dpas_sdpa_op_supported() refuses,
     // so it has to run on the regular sdpa_opt stages instead.
     [[nodiscard]] static bool has_bf16_compressed_kv_zero_point(const kernel_impl_params& params);
@@ -75,12 +77,12 @@ struct SDPAOpt : public ImplementationManager {
             return false;
         }
 
-        // A V order that moves the head dim (e.g. {0,1,3,2}) goes to SDPARef, which indexes every V element through
-        // INPUT2_DIMS_ORDER. Neither the sdpa_ocl stages nor the sdpa_opt kernels read it right: both take the head dim of
-        // V as contiguous (sdpa_ocl never reads VAL_S3, sdpa_opt block-reads consecutive head-dim elements).
+        // A V order that moves the head dim (e.g. {0,1,3,2}): the opt kernels block-read consecutive head-dim elements, so
+        // only sdpa_ocl's transposed-V reader takes it (where it serves the op), and SDPARef, which indexes every V element
+        // through INPUT2_DIMS_ORDER, everywhere else.
         const auto& v_order = desc->input_v_transpose_order;
         if (!v_order.empty() && v_order.back() != static_cast<int64_t>(v_order.size() - 1)) {
-            return false;
+            return transposed_v_on_dpas_lane(*p);
         }
 
         auto k_head_size = k_layout.get_partial_shape()[desc->input_k_transpose_order.back()];

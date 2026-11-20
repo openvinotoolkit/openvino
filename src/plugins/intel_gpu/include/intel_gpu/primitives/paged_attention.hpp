@@ -84,6 +84,12 @@ struct paged_attention : public primitive_base<paged_attention> {
         return info.arch >= gpu_arch::xe_hpc;
     }
 
+    // Transposed V (SDPA value order {.., 3, 2}) in sdpa_ocl (v_tile_t): Xe2+, the measured devices (docs/sdpa_ocl.md,
+    // "Transposed V read in sdpa_ocl"). On top of sdpa_ocl_selected().
+    static bool sdpa_ocl_transposed_v_ok(const device_info& info) {
+        return info.arch >= gpu_arch::xe2;
+    }
+
     // ARL-H (gfx 12.74) keeps sdpa_opt for a static one-query plain SDPA (upstream's rule, "Where it runs" in the docs).
     static bool sdpa_ocl_plain_single_token_ok(const device_info& info) {
         return info.gfx_ver.major != 12 || info.gfx_ver.minor != 74;

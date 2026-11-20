@@ -2123,8 +2123,8 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // ENABLE_DEBUG_CAPS
 
 // V with the head dim strided (input_v_transpose_order {0,1,3,2}, V stored [b, h, head_size, seq]) must give the same
-// result as the plain layout. sdpa_ocl and sdpa_opt take the head dim of V as contiguous, so the transposed op goes to
-// sdpa_ref (SDPAOpt::validate_impl()), while the plain layout runs sdpa_ocl.
+// result as the plain layout. Both run sdpa_ocl: the transposed one through its transposed-V reader (v_tile_t); the opt
+// kernels never take it (SDPAOpt::validate_impl()).
 TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     constexpr int batch = 1;
     constexpr int heads = 4;
@@ -2204,7 +2204,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     };
 
     auto reference_mem = execute(v_layout, v_mem, {0, 1, 2, 3}, "sdpa_ocl");
-    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2}, "sdpa_ref");
+    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2}, "sdpa_ocl");
 
     mem_lock<ov::float16, mem_lock_type::read> reference(reference_mem, get_test_stream());
     mem_lock<ov::float16, mem_lock_type::read> transposed(transposed_mem, get_test_stream());
@@ -2295,7 +2295,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     };
 
     auto reference_mem = execute(v_layout, v_mem, {0, 1, 2, 3}, "sdpa_ocl");
-    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2}, "sdpa_ref");
+    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2}, "sdpa_ocl");
 
     mem_lock<ov::float16, mem_lock_type::read> reference(reference_mem, get_test_stream());
     mem_lock<ov::float16, mem_lock_type::read> transposed(transposed_mem, get_test_stream());
@@ -2304,6 +2304,173 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     for (size_t i = 0; i < reference.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(reference[i]), static_cast<float>(transposed[i]), 0.02f) << "Mismatch at index " << i;
     }
+}
+
+// Transposed V (order {0,1,3,2}) on sdpa_ocl's v_tile_t, step by step on one network (static: one step), against the same
+// op with the plain V layout (bit-exact: same tiling and V values) and the host reference. Key counts odd, even and a
+// multiple of 8 (a row starts 2 B off a dword when value * seq + key is odd), shorter than one cp block, ending inside one;
+// GQA, batch 2, heads 64 / 72 / 128 / 256, a mask, and V rows padded past the keys with NaN (a windowed view), which the
+// output must not see. Even keys on a pitch of a multiple of 8 take the 2D block read, the rest the per-lane read.
+struct sdpa_tv_case {
+    int batch, heads, kv_heads, head_size;
+    std::vector<std::pair<int, int>> steps;  // {queries, keys}
+    bool dynamic = false;
+    bool mask = false;
+    bool causal = false;  // upper-left; used with queries == keys only
+    int nan_pad = 0;      // keys of NaN padding after each V row (static only)
+};
+
+static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
+    auto& engine = get_test_engine();
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || engine.get_device_info().arch < gpu_arch::xe2)
+        GTEST_SKIP() << "sdpa_ocl's transposed-V reader is Xe2+";
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const int B = c.batch, H = c.heads, KVH = c.kv_heads, D = c.head_size;
+    auto build = [&](bool transposed, int seq_q, int seq_kv) {
+        const int pad = transposed ? c.nan_pad : 0;
+        const layout q_l({B, H, c.dynamic ? -1 : seq_q, D}, data_types::f16, format::bfyx);
+        const layout k_l({B, KVH, c.dynamic ? -1 : seq_kv, D}, data_types::f16, format::bfyx);
+        const layout v_l = transposed ? layout({B, KVH, D, c.dynamic ? -1 : seq_kv}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, pad}))
+                                      : layout({B, KVH, c.dynamic ? -1 : seq_kv, D}, data_types::f16, format::bfyx);
+        const layout m_l({1, 1, c.dynamic ? -1 : seq_q, c.dynamic ? -1 : seq_kv}, data_types::f16, format::bfyx);
+        topology topo;
+        topo.add(input_layout("q", q_l));
+        topo.add(input_layout("k", k_l));
+        topo.add(input_layout("v", v_l));
+        std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v")};
+        if (c.mask) {
+            topo.add(input_layout("mask", m_l));
+            inputs.push_back(input_info("mask"));
+        }
+        const std::vector<int64_t> v_order = transposed ? std::vector<int64_t>{0, 1, 3, 2} : std::vector<int64_t>{0, 1, 2, 3};
+        topo.add(scaled_dot_product_attention("sdpa", inputs, c.causal, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, v_order, {0, 1, 2, 3}, {}, false));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        return get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    };
+    auto plain_net = build(false, c.steps[0].first, c.steps[0].second);
+    auto tv_net = build(true, c.steps[0].first, c.steps[0].second);
+    for (const auto& [seq_q, seq_kv] : c.steps) {
+        SCOPED_TRACE(std::to_string(seq_q) + " queries over " + std::to_string(seq_kv) + " keys");
+        auto q_data = rg.generate_random_1d<ov::float16>(size_t(B) * H * seq_q * D, -4.0f, 4.0f);
+        auto k_data = rg.generate_random_1d<ov::float16>(size_t(B) * KVH * seq_kv * D, -1.0f, 1.0f);
+        auto v_data = rg.generate_random_1d<ov::float16>(size_t(B) * KVH * seq_kv * D, -1.0f, 1.0f);
+        auto m_data = rg.generate_random_1d<ov::float16>(size_t(seq_q) * seq_kv, -2.0f, 0.0f);
+        const int pitch = seq_kv + c.nan_pad;
+        std::vector<ov::float16> vt_data(size_t(B) * KVH * D * pitch, ov::float16(std::numeric_limits<float>::quiet_NaN()));
+        for (int bh = 0; bh < B * KVH; ++bh)
+            for (int s = 0; s < seq_kv; ++s)
+                for (int d = 0; d < D; ++d)
+                    vt_data[(size_t(bh) * D + d) * pitch + s] = v_data[(size_t(bh) * seq_kv + s) * D + d];
+        const layout q_l({B, H, seq_q, D}, data_types::f16, format::bfyx);
+        const layout kv_l({B, KVH, seq_kv, D}, data_types::f16, format::bfyx);
+        const layout vt_l({B, KVH, D, seq_kv}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, c.nan_pad}));
+        const layout m_l({1, 1, seq_q, seq_kv}, data_types::f16, format::bfyx);
+        auto q_mem = engine.allocate_memory(q_l);
+        auto k_mem = engine.allocate_memory(kv_l);
+        auto v_mem = engine.allocate_memory(kv_l);
+        auto vt_mem = engine.allocate_memory(vt_l);
+        auto m_mem = engine.allocate_memory(m_l);
+        set_values(q_mem, q_data);
+        set_values(k_mem, k_data);
+        set_values(v_mem, v_data);
+        set_values(vt_mem, vt_data);
+        set_values(m_mem, m_data);
+        auto run = [&](network::ptr& net, const memory::ptr& v) {
+            net->set_input_data("q", q_mem);
+            net->set_input_data("k", k_mem);
+            net->set_input_data("v", v);
+            if (c.mask)
+                net->set_input_data("mask", m_mem);
+            return net->execute().at("result").get_memory();
+        };
+        auto plain_out = run(plain_net, v_mem);
+        auto tv_out = run(tv_net, vt_mem);
+        const auto inst = tv_net->get_primitive("sdpa");
+        ASSERT_NE(inst->get_impl(), nullptr);
+        const auto entries = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+        ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+
+        const ov::Shape q_shape{size_t(B), size_t(H), size_t(seq_q), size_t(D)};
+        const ov::Shape kv_shape{size_t(B), size_t(KVH), size_t(seq_kv), size_t(D)};
+        const auto ref = sdpa_host_reference(sdpa_to_float(q_data),
+                                             q_shape,
+                                             sdpa_to_float(k_data),
+                                             kv_shape,
+                                             sdpa_to_float(v_data),
+                                             kv_shape,
+                                             c.mask ? sdpa_to_float(m_data) : std::vector<float>{},
+                                             m_l.get_shape(),
+                                             c.causal,
+                                             nullptr);
+        const auto tv = sdpa_to_float<ov::float16>(tv_out);
+        const auto diff = sdpa_compare_with_reference(ref, tv);
+        ASSERT_FALSE(diff.has_nan) << "NaN in the output (padding read?) or the reference";
+        ASSERT_LE(diff.max_abs_err, 4e-3f) << "vs the host reference: max abs error at index " << diff.max_abs_idx;
+        // A dynamic network may run its shape-agnostic or (compiled in the background) static kernel at a step, so the
+        // bit-exact check is for the static cases.
+        if (!c.dynamic) {
+            const auto plain = sdpa_to_float<ov::float16>(plain_out);
+            ASSERT_EQ(plain.size(), tv.size());
+            for (size_t i = 0; i < tv.size(); ++i)
+                ASSERT_EQ(plain[i], tv[i]) << "transposed V differs from the plain layout at index " << i << " (value " << i % D << ")";
+        }
+    }
+}
+
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_17q_17kv_d64_causal) {
+    run_sdpa_transposed_v({1, 8, 2, 64, {{17, 17}}, false, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_1q_18kv_d64) {
+    run_sdpa_transposed_v({1, 8, 2, 64, {{1, 18}}});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_40q_58kv_d128_mask) {
+    run_sdpa_transposed_v({1, 8, 2, 128, {{40, 58}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_4q_4kv_96q_96kv_d64_causal) {
+    run_sdpa_transposed_v({1, 4, 4, 64, {{96, 96}}, false, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_32q_8kv_1q_1025kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{1, 1025}}});
+}
+TEST(sdpa_gpu_transposed_v, static_32q_8kv_1q_1024kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{1, 1024}}});
+}
+TEST(sdpa_gpu_transposed_v, static_32q_8kv_1q_5kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{1, 5}}});
+}
+TEST(sdpa_gpu_transposed_v, static_16q_16kv_33q_333kv_d72_mask) {
+    run_sdpa_transposed_v({1, 16, 16, 72, {{33, 333}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_16q_4kv_1q_701kv_d256) {
+    run_sdpa_transposed_v({1, 16, 4, 256, {{1, 701}}});
+}
+TEST(sdpa_gpu_transposed_v, static_16q_4kv_200q_200kv_d256_causal) {
+    run_sdpa_transposed_v({1, 16, 4, 256, {{200, 200}}, false, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_b2_8q_2kv_17q_41kv_d64_mask) {
+    run_sdpa_transposed_v({2, 8, 2, 64, {{17, 41}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_nanpad_8q_2kv_1q_19kv_d64) {
+    run_sdpa_transposed_v({1, 8, 2, 64, {{1, 19}}, false, false, false, 13});
+}
+TEST(sdpa_gpu_transposed_v, static_nanpad_32q_8kv_40q_1001kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{40, 1001}}, false, false, false, 7});
+}
+// Even keys and a pitch of a multiple of 8: the 2D block read (vt_2d), with the NaN padding past the surface width.
+TEST(sdpa_gpu_transposed_v, static_nanpad_8q_2kv_17q_40kv_d64_2d) {
+    run_sdpa_transposed_v({1, 8, 2, 64, {{17, 40}}, false, false, false, 8});
+}
+TEST(sdpa_gpu_transposed_v, static_nanpad_32q_8kv_1q_1000kv_d128_2d) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{1, 1000}}, false, false, false, 24});
+}
+TEST(sdpa_gpu_transposed_v, dynamic_prompt_then_decode_8q_2kv_d64) {
+    run_sdpa_transposed_v({1, 8, 2, 64, {{17, 17}, {1, 18}, {1, 19}, {40, 59}, {1, 60}, {4, 64}, {1, 65}}, true, true});
+}
+TEST(sdpa_gpu_transposed_v, dynamic_prompt_then_decode_32q_8kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{513, 513}, {1, 514}, {1, 515}, {1, 516}, {512, 1028}, {1, 1029}, {3, 1032}, {1, 1033}}, true, true});
 }
 
 // Masks broadcast over keys: [1, H, Q, 1] (param false) and [1, H, 1, 1] (param true).
@@ -3090,9 +3257,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel,
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true},
-                                           // Few query rows (stacked GQA heads at decode) need the micro kernel too
+                                           // Few query rows (stacked GQA heads at decode)
                                            sdpa_test_params{128, 40, 10, 3, 512, 1, 4, false},
-                                           sdpa_test_params{128, 40, 10, 3, 512, 1, 8, false}),
+                                           sdpa_test_params{128, 40, 10, 3, 512, 1, 8, false},
+                                           // i8 decode on the plain decode tiling (512-key workgroup tiles, 256 at head 64):
+                                           // tails, several tiles, under one subgroup tile, heads 64 / 256, batch 2.
+                                           sdpa_test_params{64, 32, 8, 1, 1000, 1, 8, false},
+                                           sdpa_test_params{64, 32, 8, 1, 999, 1, 8, true},
+                                           sdpa_test_params{256, 16, 4, 1, 701, 1, 8, false},
+                                           sdpa_test_params{128, 32, 8, 1, 4097, 1, 8, true},
+                                           sdpa_test_params{128, 32, 8, 1, 17, 1, 8, false},
+                                           sdpa_test_params{128, 8, 2, 1, 600, 2, 8, false},
+                                           // i8 prefill on its own tiling at head 128 (64-key x 32-query workgroup tiles):
+                                           // query and key tails, batch 2.
+                                           sdpa_test_params{128, 32, 8, 100, 1000, 1, 8, true},
+                                           sdpa_test_params{128, 8, 2, 33, 77, 2, 8, false}),
                          sdpa_gpu_compressed_kv_per_channel_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,
@@ -3161,6 +3340,210 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false}),
                          sdpa_gpu_gqa_decomp_test::PrintToStringParamName);
+
+// Per-channel i8 V transposed (order {0,1,3,2}, sdpa_ocl's v_t_i8_read), step by step on one network (static: one step),
+// against the same op with the plain V layout (bit-exact on static: the same tiling and V bytes) and the host reference on
+// the dequantized K/V. Symmetric (the GQA decomposition's cache) and asymmetric (a zp per column); rows starting at every
+// byte of a dword (value * pitch + key mod 4), key counts under one cp block or ending inside a cp block pair, V rows padded
+// past the keys (a windowed view: the pitch is not the key count). A pitch of a multiple of 16 B with whole dwords of keys
+// takes the 2D block read, the rest the per-lane read.
+struct sdpa_tv_i8_case {
+    int batch, heads, kv_heads, head_size;
+    std::vector<std::pair<int, int>> steps;  // {queries, keys}
+    bool dynamic = false;
+    bool asymmetric = false;
+    int pad = 0;  // bytes of padding after each V row (static only)
+};
+
+static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
+    auto& engine = get_test_engine();
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || engine.get_device_info().arch < gpu_arch::xe2)
+        GTEST_SKIP() << "sdpa_ocl's transposed-V reader is Xe2+";
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const int B = c.batch, H = c.heads, KVH = c.kv_heads, D = c.head_size;
+    scaled_dot_product_attention::QuantizationAttributes qa;
+    qa.quantization_type =
+        c.asymmetric ? ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric : ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+    qa.quantization_dt = ov::element::i8;
+    qa.scale_dt = ov::element::f16;
+    qa.zp_dt = ov::element::f16;
+    qa.group_sizes = {1, 1, UINT64_MAX, 1};
+    qa.scales_zp_output_order = {0, 1, 2, 3};
+    qa.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    const layout comp_l({B, KVH, 1, D}, data_types::f16, format::bfyx);
+    auto build = [&](bool transposed, int seq_q, int seq_kv) {
+        const int sq = c.dynamic ? -1 : seq_q, skv = c.dynamic ? -1 : seq_kv;
+        const layout q_l({B, H, sq, D}, data_types::f16, format::bfyx);
+        const layout k_l({B, KVH, skv, D}, data_types::i8, format::bfyx);
+        const layout v_l = transposed ? layout({B, KVH, D, skv}, data_types::i8, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, c.pad}))
+                                      : layout({B, KVH, skv, D}, data_types::i8, format::bfyx);
+        topology topo;
+        topo.add(input_layout("q", q_l));
+        topo.add(input_layout("k", k_l));
+        topo.add(input_layout("v", v_l));
+        topo.add(input_layout("k_scale", comp_l));
+        topo.add(input_layout("v_scale", comp_l));
+        std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v"), input_info("k_scale"), input_info("v_scale")};
+        if (c.asymmetric) {
+            topo.add(input_layout("k_zp", comp_l));
+            topo.add(input_layout("v_zp", comp_l));
+            inputs.emplace_back("k_zp");
+            inputs.emplace_back("v_zp");
+        }
+        const std::vector<int64_t> v_order = transposed ? std::vector<int64_t>{0, 1, 3, 2} : std::vector<int64_t>{0, 1, 2, 3};
+        topo.add(scaled_dot_product_attention("sdpa", inputs, false, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, v_order, {0, 1, 2, 3}, qa, true));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg.set_property(ov::hint::kv_cache_precision(ov::element::i8));
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
+        return get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    };
+    auto plain_net = build(false, c.steps[0].first, c.steps[0].second);
+    auto tv_net = build(true, c.steps[0].first, c.steps[0].second);
+    for (const auto& [seq_q, seq_kv] : c.steps) {
+        SCOPED_TRACE(std::to_string(seq_q) + " queries over " + std::to_string(seq_kv) + " keys");
+        auto q_data = rg.generate_random_1d<ov::float16>(size_t(B) * H * seq_q * D, -4.0f, 4.0f);
+        auto k_orig = rg.generate_random_1d<ov::float16>(size_t(B) * KVH * seq_kv * D, -1.0f, 1.0f);
+        auto v_orig = rg.generate_random_1d<ov::float16>(size_t(B) * KVH * seq_kv * D, -1.0f, 1.0f);
+        auto k_q = quantize_kv_per_channel<ov::float16>(k_orig, B, seq_kv, KVH, D, 8, false, nullptr, !c.asymmetric);
+        auto v_q = quantize_kv_per_channel<ov::float16>(v_orig, B, seq_kv, KVH, D, 8, false, nullptr, !c.asymmetric);
+        // The padding holds 127, a value no real key takes here.
+        const int pitch = seq_kv + c.pad;
+        std::vector<int8_t> vt_data(size_t(B) * KVH * D * pitch, int8_t(127));
+        for (int bh = 0; bh < B * KVH; ++bh)
+            for (int s = 0; s < seq_kv; ++s)
+                for (int d = 0; d < D; ++d)
+                    vt_data[(size_t(bh) * D + d) * pitch + s] = v_q.packed[(size_t(bh) * seq_kv + s) * D + d];
+        const layout q_l({B, H, seq_q, D}, data_types::f16, format::bfyx);
+        const layout kv_l({B, KVH, seq_kv, D}, data_types::i8, format::bfyx);
+        const layout vt_l({B, KVH, D, seq_kv}, data_types::i8, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, c.pad}));
+        auto q_mem = engine.allocate_memory(q_l);
+        auto k_mem = engine.allocate_memory(kv_l);
+        auto v_mem = engine.allocate_memory(kv_l);
+        auto vt_mem = engine.allocate_memory(vt_l);
+        auto k_scale_mem = engine.allocate_memory(comp_l);
+        auto v_scale_mem = engine.allocate_memory(comp_l);
+        set_values(q_mem, q_data);
+        set_values(k_mem, k_q.packed);
+        set_values(v_mem, v_q.packed);
+        set_values(vt_mem, vt_data);
+        set_values(k_scale_mem, k_q.scales);
+        set_values(v_scale_mem, v_q.scales);
+        memory::ptr k_zp_mem, v_zp_mem;
+        if (c.asymmetric) {
+            k_zp_mem = engine.allocate_memory(comp_l);
+            v_zp_mem = engine.allocate_memory(comp_l);
+            set_values(k_zp_mem, k_q.zero_points);
+            set_values(v_zp_mem, v_q.zero_points);
+        }
+        auto run = [&](network::ptr& net, const memory::ptr& v) {
+            net->set_input_data("q", q_mem);
+            net->set_input_data("k", k_mem);
+            net->set_input_data("v", v);
+            net->set_input_data("k_scale", k_scale_mem);
+            net->set_input_data("v_scale", v_scale_mem);
+            if (c.asymmetric) {
+                net->set_input_data("k_zp", k_zp_mem);
+                net->set_input_data("v_zp", v_zp_mem);
+            }
+            auto out = net->execute().at("result").get_memory();
+            // A removable output reorder may rename the SDPA node to "result".
+            std::string sdpa_id;
+            for (const auto& info : net->get_primitives_info()) {
+                if (info.type_id == "scaled_dot_product_attention")
+                    sdpa_id = info.original_id;
+            }
+            EXPECT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+            if (!sdpa_id.empty()) {
+                const auto inst = net->get_primitive(sdpa_id);
+                const auto entries = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+                EXPECT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+            }
+            return out;
+        };
+        auto plain_out = run(plain_net, v_mem);
+        auto tv_out = run(tv_net, vt_mem);
+
+        const ov::Shape q_shape{size_t(B), size_t(H), size_t(seq_q), size_t(D)};
+        const ov::Shape kv_shape{size_t(B), size_t(KVH), size_t(seq_kv), size_t(D)};
+        const auto ref = sdpa_host_reference(sdpa_to_float(q_data),
+                                             q_shape,
+                                             sdpa_to_float(k_q.dequantized),
+                                             kv_shape,
+                                             sdpa_to_float(v_q.dequantized),
+                                             kv_shape,
+                                             {},
+                                             {},
+                                             false,
+                                             nullptr);
+        const auto tv = sdpa_to_float<ov::float16>(tv_out);
+        const auto diff = sdpa_compare_with_reference(ref, tv);
+        ASSERT_FALSE(diff.has_nan) << "NaN in the output or the reference";
+        ASSERT_GE(diff.cosine, 0.999) << "vs the host reference";
+        // As the per-channel compressed tests: the kernel folds the K scale into Q and the V scale into the output.
+        ASSERT_LE(diff.max_abs_err, 1e-1f) << "vs the host reference: max abs error at index " << diff.max_abs_idx;
+        // A dynamic network may run its shape-agnostic or (compiled in the background) static kernel at a step, so the
+        // bit-exact check is for the static cases.
+        if (!c.dynamic) {
+            const auto plain = sdpa_to_float<ov::float16>(plain_out);
+            ASSERT_EQ(plain.size(), tv.size());
+            for (size_t i = 0; i < tv.size(); ++i)
+                ASSERT_EQ(plain[i], tv[i]) << "transposed V differs from the plain layout at index " << i << " (value " << i % D << ")";
+        }
+    }
+}
+
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_1q_18kv_d64) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 64, {{1, 18}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_17q_17kv_d64) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 64, {{17, 17}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_40q_58kv_d128) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 128, {{40, 58}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_32q_8kv_1q_5kv_d128) {
+    run_sdpa_transposed_v_i8({1, 32, 8, 128, {{1, 5}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_32q_8kv_1q_1025kv_d128) {
+    run_sdpa_transposed_v_i8({1, 32, 8, 128, {{1, 1025}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_32q_8kv_1q_1027kv_d128_asym) {
+    run_sdpa_transposed_v_i8({1, 32, 8, 128, {{1, 1027}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_b2_8q_2kv_17q_41kv_d64_asym) {
+    run_sdpa_transposed_v_i8({2, 8, 2, 64, {{17, 41}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_16q_4kv_1q_701kv_d256) {
+    run_sdpa_transposed_v_i8({1, 16, 4, 256, {{1, 701}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_16q_16kv_33q_333kv_d72) {
+    run_sdpa_transposed_v_i8({1, 16, 16, 72, {{33, 333}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_pad_8q_2kv_1q_19kv_d64) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 64, {{1, 19}}, false, false, 13});
+}
+// A pitch of a multiple of 16 B with whole dwords of keys: the 2D block read (vt_2d).
+TEST(sdpa_gpu_transposed_v_i8, static_32q_8kv_1q_1024kv_d128_2d) {
+    run_sdpa_transposed_v_i8({1, 32, 8, 128, {{1, 1024}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_32q_8kv_1q_64kv_d128_2d) {
+    run_sdpa_transposed_v_i8({1, 32, 8, 128, {{1, 64}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_pad_32q_8kv_512q_1000kv_d128_2d) {
+    run_sdpa_transposed_v_i8({1, 32, 8, 128, {{512, 1000}}, false, false, 24});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_33q_96kv_d64_2d_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 64, {{33, 96}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d64) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 64, {{17, 17}, {1, 18}, {1, 19}, {40, 59}, {1, 60}, {4, 64}, {1, 65}}, true});
+}
+TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_32q_8kv_d128) {
+    run_sdpa_transposed_v_i8({1, 32, 8, 128, {{513, 513}, {1, 514}, {1, 515}, {1, 516}, {512, 1024}, {1, 1025}, {3, 1032}, {1, 1033}}, true});
+}
 // A [1, 1, 1, K] mask holds one row shared by all queries. Before the fix, PREFETCH_MASK strode by the row
 // pitch per query and prefetched up to seq_len * seq_len * 2 bytes (~128 MB here) past the 16 KB mask, which
 // fails with CL_OUT_OF_RESOURCES wherever the GPU faults on unmapped addresses.

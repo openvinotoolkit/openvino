@@ -87,6 +87,32 @@ bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
     return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
+bool SDPABase::has_transposed_v(const kernel_impl_params& params) {
+    if (!params.is_type<scaled_dot_product_attention>()) {
+        return false;
+    }
+    const auto& order = params.typed_desc<scaled_dot_product_attention>()->input_v_transpose_order;
+    if (order.empty()) {
+        return false;
+    }
+    const auto ext = extend_order_in_num_heads_dim(order);
+    return ext.size() == 4 && ext[2] == 3 && ext[3] == 2;
+}
+
+bool SDPABase::transposed_v_reader_ok(const kernel_impl_params& params) {
+    if (!has_transposed_v(params)) {
+        return false;
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto& v = params.get_input_layout(2);
+    // f16 (v_tile_t), or the per-channel i8 cache (v_t_i8_read); a packed 4-bit one would pack two keys per byte.
+    const bool f16_v = !desc->is_kv_compressed && v.data_type == ov::element::f16;
+    const bool i8_per_channel_v =
+        desc->is_kv_compressed && has_per_channel_compressed_kv(params) && !is_int4_kv_cache(params) && v.data_type == ov::element::i8;
+    return cldnn::paged_attention::sdpa_ocl_transposed_v_ok(params.get_device_info()) && (f16_v || i8_per_channel_v) && v.get_partial_shape().size() == 4 &&
+           format::is_simple_data_format(v.format);
+}
+
 bool SDPABase::has_per_channel_compressed_kv(const kernel_impl_params& params) {
     if (!params.is_type<scaled_dot_product_attention>()) {
         return false;

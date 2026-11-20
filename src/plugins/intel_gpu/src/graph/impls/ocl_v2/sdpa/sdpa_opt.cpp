@@ -71,6 +71,15 @@ bool SDPAOpt::per_channel_kv_on_dpas_lane(const kernel_impl_params& params) {
 #endif
 }
 
+bool SDPAOpt::transposed_v_on_dpas_lane(const kernel_impl_params& params) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    return SDPABase::transposed_v_reader_ok(params) && sdpa_ocl_serves_op(params, false);
+#else
+    UNUSED(params);
+    return false;
+#endif
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 namespace {
 // Knob (OV_GPU_ENABLE_SDPA_MICRO=0, a historical name): the DPAS SDPA kernel (sdpa_ocl) off, so the op runs the OCL
@@ -263,6 +272,17 @@ public:
                             ")");
             return execute_stage(events, instance, multi_token_rows ? ocl_multi_tokens : ocl_single_token);
         }
+        // A transposed V likewise (validate_impl() admits it where sdpa_ocl serves it): the opt stages read V's head dim as
+        // contiguous.
+        if (SDPABase::has_transposed_v(new_params)) {
+            OPENVINO_ASSERT(!is_indirect && has_stage(multi_token_rows ? ocl_multi_tokens : ocl_single_token),
+                            "[GPU] SDPA with a transposed V needs the sdpa_ocl ",
+                            multi_token_rows ? "multi-token" : "single-token",
+                            " stage (indirect = ",
+                            is_indirect,
+                            ")");
+            return execute_stage(events, instance, multi_token_rows ? ocl_multi_tokens : ocl_single_token);
+        }
         if (multi_token_rows && !is_indirect && !is_int4_kv && has_stage(ocl_multi_tokens)) {
             GPU_DEBUG_TRACE_DETAIL << "execute ocl_multi_tokens for prefill \n";
             return execute_stage(events, instance, ocl_multi_tokens);
@@ -382,9 +402,10 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
     ov::Dimension K_num_heads_dim = get_num_heads(k_layout, extended_input_k_transpose_order);
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
-    // The head dim must stay innermost for V too: sdpa_ocl reads V rows with a unit head-dim stride (it never reads
-    // VAL_S3), so a transposed V (order {..,3,2}) gives wrong output.
-    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
+    // The head dim must stay innermost, except for a transposed V (order {..,3,2}) that sdpa_ocl's v_tile_t reads
+    // (transposed_v_reader_ok()); every other V read assumes a unit head-dim stride.
+    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 ||
+        (extended_input_v_transpose_order[3] != 3 && !SDPABase::transposed_v_reader_ok(params))) {
         return false;
     }
 

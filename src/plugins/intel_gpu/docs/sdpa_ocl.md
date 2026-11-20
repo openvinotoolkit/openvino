@@ -1200,8 +1200,9 @@ decode with `ATTENTION_BACKEND=SDPA`, optimum-intel, Whisper) with f16 Q / K / V
 32-key x 16-query subgroup tiles in a single row of subgroups (`kq_sg_per_wg_queries` 1), 16 subgroups = 512 keys per
 workgroup at `d_max` 128 / 256 / 512 and 8 = 256 keys at `d_max` 64 (no S*V split of a 64-wide head over 16 subgroups
 keeps value tiles of 16 columns and score tiles of 8 rows), 256 GRF, with `PREFETCH_V`, `WIDE_READS` 1 (K), `SOFTMAX_BRANCHLESS` and `MAX_SPLIT_BARRIER`.
-`CAUSAL_TILE_SKIP` stays off (`add_prefill_pipeline_jit()`). `d_max` 32, bf16, compressed K / V and other devices keep
-the table tile (not measured). The tiling reads no query or key count, so the static and the shape-agnostic stage get the
+`CAUSAL_TILE_SKIP` stays off (`add_prefill_pipeline_jit()`). Since 2026-11-20 f16 Q with the per-channel compressed i8
+K / V of the GQA decomposition takes it too ("Plain decode tiling for the per-channel i8 cache"). `d_max` 32, bf16,
+other compressed K / V and other devices keep the table tile (not measured). The tiling reads no query or key count, so the static and the shape-agnostic stage get the
 same one at compile time and dispatch, and a loaded blob re-derives it from the same params. The kernel is unchanged:
 the config flag `plain_decode` only lets the PREFILL loop flags reach this stage. The stage used to take the table tile
 (16 x 16 subgroup tiles, 8 x 2 subgroups = 128 keys x 32 queries, 64 at `d_max` 64; 128 GRF): with one query, 31 of its
@@ -2402,7 +2403,7 @@ the plain layout).
   128, f16, perf counters, median of 50): plain layout 146 / 291 / 759 us at 1K / 4K / 16K context, transposed layout
   190 / 371 / 988 us (the Transpose is 31 / 74 / 223 us; SDPA is the same as for the plain layout). The old fused path
   was 417 / 844 / 2237 us, its SDPA 12 to 14x slower than the plain one besides being wrong. Reading `{0,1,3,2}` V in
-  `sdpa_ocl` directly would save the permute; not done.
+  `sdpa_ocl` directly saves the permute: done on 2026-11-20 for f16 on Xe2+, see "Transposed V read in sdpa_ocl".
 
 ### Plain SDPA sliding window (2026-11-02)
 
@@ -3448,6 +3449,160 @@ ones included, and a last one of 8 depths) does not limit to those heads.
 - Not checked: real models at the new heads (none in the benchmark set), other shapes (batch, numbers of heads, a mask,
   transposed inputs), ARL-H, the Linux driver, the ON build.
 
+### Transposed V read in sdpa_ocl (2026-11-20)
+
+The GQA case of "GQA with a transposed V cache" (a `[B, kv_heads, head_size, S]` V cache, a customer request behind
+#38578 / #38309) ran `sdpa_ocl` behind an explicit `Transpose{0,1,3,2}` of the whole cache every step, while master's
+`sdpa_micro` read value order `{0,1,3,2}` itself. On the shapes where master is fastest that made the branch slower
+(B70, one GQA layer, H 32 / KV heads 8 / head 128, decode at 1024 / 4096 / 16384 keys: 1.015 / 1.093 / 1.139x master).
+
+- `sdpa_ocl` reads it: `V_TRANSPOSED` (f16 uncompressed, or the per-channel i8 cache below; plain SDPA, Xe2+:
+  `SDPABase::transposed_v_reader_ok()`, `paged_attention::sdpa_ocl_transposed_v_ok()`), `ldvt = VAL_S3`, f16 through
+  `v_tile_t()` in `sdpa_ocl_v_load.cl`. The S*V B
+  operand wants, per lane (a value column), 16 keys of its own V row:
+  - where the 2D block rules hold (`vt_2d`, checked once per workgroup: pitch `% 16` B, a 4 B aligned start after the
+    64 B round-down, even keys, width and pitch >= 64 B) one `transpose_32b_16r8x1c` read per value block (lane = row =
+    value, dword = key pair), the surface ending at the last key and value;
+  - otherwise 8 dwords per lane (`vload8`), one more and a 16-bit funnel shift for a row starting 2 B off a dword (odd
+    S: odd value rows); the block holding the last key reads key by key with zeros past `k`, a block past it reads
+    nothing. A dense cache has a legal pitch at 1 key count in 8 (S % 8 == 0), so most decode steps take this path.
+  - K keeps its block reads (the 2D gate looks at K alone); `PREFETCH_V`, `PREFETCH_V_L3` and the wide V reads stay
+    off (they read the `[key][value]` surface; `#error` otherwise). The stage's tiling is otherwise unchanged.
+- `SDPAOpt`: `dpas_sdpa_op_supported()` accepts the order where `transposed_v_reader_ok()`, `validate_impl()` admits it
+  only where `sdpa_ocl` serves the op (`transposed_v_on_dpas_lane()`, else `SDPARef`), `execute()` asserts the
+  `sdpa_ocl` stage (the opt kernels read V's head dim as contiguous).
+- `GroupQueryAttentionDecomposition(..., fuse_transposed_v)`: the pipeline sets it on Xe2+ on the `sdpa_ocl` lane with the
+  DPAS kernel on and f16 inference; then SDPA reads the `StatelessKV` cache (axis 3) as value order `{0,1,3,2}`, unless
+  softcap / `qk_output` (explicit chain), a 4-bit or dequantized cache, or a head that is not a static multiple of 8 up
+  to 256, which keep the explicit Transpose. The sliding-window cache takes it too (its view pads the key axis).
+- The fused 8-bit per-channel cache (same day): `transposed_v_reader_ok()` also takes a per-channel compressed i8 V,
+  read by `v_t_i8_read()`. As the plain i8 V read, one read serves a cp block pair, and it gives the same registers
+  (lane = value, dword = 4 keys), so `v_i8_dequant_ch()` and the epilogue scale are shared: the 2D read is the same
+  `transpose_32b_16r8x1c` (32 keys a row; legal at pitch `% 16` B and a key count of whole dwords), the per-lane read 8
+  dwords plus one and a shift of 8 bits per byte off a dword, the pair holding the last key byte by byte.
+  `USE_2D_BLOCK_IO_V_I8` / `_V_U4` stay off for it (`#error` otherwise); a 4-bit cache keeps the Transpose (it would pack
+  two keys per byte). The decomposition fuses it where the cache is fused as compressed KV (8-bit).
+- Tried and dropped (A/B on the same build otherwise, transposed SDPA device time): a per-lane V prefetch (64 B lines,
+  `L1UC_L3C`) +16-22% in prefill and up to +26% in decode; the past-`k` block skip as an early exit of `v_tile_t()` -7 /
+  +8% (decode 4097 / 4096 keys); inside the per-key branch it costs nothing. The 2D read: -11 to -22% where the pitch
+  is legal (prefill 1024 / 4096, chunk 4000 + 512, decode 4096 / 16384), +1 to +5% elsewhere (the uniform branch;
+  no spill either way, cliloader).
+- Tests: `sdpa_gpu_transposed_v` (19: static against the same op with the plain layout bit-exact and the host
+  reference, odd / even / aligned key counts, 5 keys, heads 64 / 72 / 128 / 256, GQA, batch 2, a mask, V rows padded
+  with NaN past the keys on both read paths, dynamic prompt-then-decode sequences reaching both paths; the dispatched
+  kernel must be `sdpa_ocl`), `sdpa_gpu_transposed_v_i8` (16, the same checks on the per-channel i8 cache, symmetric and
+  asymmetric, both read paths, rows padded past the keys, heads 64 / 72 / 128 / 256), `transposed_v_*` now expect
+  `sdpa_ocl`, `GQADecompositionTest` (+6: fused, windowed fused, i8 fused, `qk_output`, a 4-bit and a dequantized i8 cache
+  not fused), `smoke_GQATransposedVCache` with two more steps (past 300 + 1, 301 + 77); its `i8_kv` transposed cases
+  take the fused i8 read.
+  Negative controls (temporary builds): the funnel shift off fails exactly the 7 cases with odd key counts on a
+  dense row, the 2D read one dword off exactly the 7 with a legal pitch; on the i8 reader, the byte shift off fails
+  exactly the 8 cases with a pitch off 4 B and a full pair, the 2D read one dword off the 6 with a legal pitch, the last
+  pair's bytes reversed the 12 that read per lane. A windowed GQA (kit `test/xe2fix/x1b/tv_swa.py`,
+  windows 16 / 128, capacities 24 / 300, steps past both) gives the plain layout's output on every step (cos 1.000000).
+  `sdpa_ocl_ab.py ab --levels l1 --modes none` over the `s7_b70d` corpus: 512 of 512 configurations preprocess the
+  same (the new code is under `#if V_TRANSPOSED`).
+- Cost against master `9ab80010c1` (`sdpa_micro`), one GQA layer (synthetic ONNX, kit `test/xe2fix/x1b`, `tv_cost.py` /
+  `run_p0.sh` / `table.py`): B70 at 1800 MHz pinned, f16, random U(-1, 1) data, perf-counter device time of every
+  primitive of the layer without the input copies (the `Parameter` entries come and go in either arm), median of 30,
+  one process per case and arm, arms alternating, 2 rounds. Branch / master:
+
+  | case (H 32, KV heads 8, head 128) | transposed V | plain V (control) |
+  |---|---|---|
+  | decode, 1024 / 4096 / 16384 keys | 0.889 / 0.885 / 0.882 | 0.966 / 0.941 / 0.920 |
+  | decode, 1025 / 4097 / 16385 keys | 0.767 / 0.764 / 0.690 | 0.990 / 0.972 / 0.923 |
+  | prefill 1023 / 1024 / 4096 | 0.372 / 0.909 / 0.871 | 0.979 / 0.961 / 0.983 |
+  | chunk of 512 on 4000 | 0.890 | 0.959 |
+
+  `sdpa_micro` reads a transposed V fast only at a key count that is a multiple of 8 (prefill 1023: 1514 us SDPA against
+  261 at 1024). The transposed SDPA itself is 1.07-2.8x the plain-layout one (decode 4097: 123 against 49 us), so the
+  plain layout stays the faster cache.
+- The per-channel i8 cache, the same method (`p4`, 2 rounds), branch / master of the layer:
+
+  | case (H 32, KV heads 8, head 128) | transposed V | plain V (control) |
+  |---|---|---|
+  | decode, 1024 / 4096 / 16384 keys | 1.164 / 1.112 / 1.143 | 1.028 / 1.055 / 1.200 |
+  | decode, 1025 / 4097 / 16385 keys | 0.904 / 0.727 / 0.869 | 1.079 / 1.062 / 1.197 |
+  | prefill 1023 / 1024, chunk of 512 on 4000 | 0.441 / 0.983 / 0.918 | 1.132 / 1.136 / 1.153 |
+
+  (Before the next entry's decode tiling.) Decode at 4096 keys was 1.36x with the explicit Transposes (143 us of i8
+  permute). What is left is the per-channel kernel: its plain-layout SDPA is 99 / 529 us against `sdpa_micro`'s 75 / 288 at 4096 / 16384 keys (the generic table
+  tile, 32 workgroups of 128-key tiles: `solve_plain_decode_tiling()` is f16 only), and the transposed layout costs
+  1.4-1.6x on either kernel (ours 155 / 635, micro's 110 / 437). Not 4 KB aliasing: 4112 and 4160 keys (legal pitch)
+  take 169 / 161 us against 155 at 4096.
+- Still slower than master on the test shapes: the func-test sizes (H 8 / KV heads 2, 17-58 keys, and H 4, 96 keys)
+  where `sdpa_ocl` takes 5-13 us against `sdpa_micro`'s 4-8 us (1.02-1.27x of the layer for the f16 transposed cases,
+  1.04-1.47x for i8), the same with the plain layout; the per-channel i8 decode and prefill are at or under master
+  with the transposed V since the next two entries (the plain layout still 1.01-1.07x at decode 1024 / 1025 / 16384
+  keys and 1.005-1.010x at prefill 1023 / 1024).
+- Not checked: other devices (xe_hpg and xe_hpc keep the Transpose: no transposed-V read in their arms), bf16, a real
+  model with this cache layout (none available).
+
+### Plain decode tiling for the per-channel i8 cache (2026-11-20)
+
+The per-channel compressed i8 cache of the GQA decomposition decoded on the table tile (32 workgroups of 128-key x
+32-query tiles at head 128, half the subgroups on padding query rows, 128 GRF): its SDPA was 99 / 529 us against
+`sdpa_micro`'s 75 / 288 at 4096 / 16384 keys, and 155 / 635 against 110 / 437 with the transposed V of the previous
+entry, the layer 1.06-1.20x master.
+
+- `solve_plain_decode_tiling()` takes it (`plain_prefill_shape::i8_per_channel_kv`: plain SDPA, f16 Q, per-channel
+  compressed i8 K and V; a 4-bit cache keeps the table tile): the f16 decode tiling ("Plain-SDPA decode tiling"), with
+  the 8-bit K / V reads it already has, so no `PREFETCH_V` and no `WIDE_READS` (both on the f16 2D reads). Kernel
+  unchanged; REG256, no spill (cliloader).
+- Cost, the previous entry's method (`p5`, 2 rounds), branch / master of the layer (before this change in brackets):
+
+  | case (H 32, KV heads 8, head 128) | transposed V | plain V |
+  |---|---|---|
+  | decode, 1024 / 4096 / 16384 keys | 1.006 / 0.915 / 0.924 (1.164 / 1.112 / 1.143) | 1.014 / 0.980 / 1.048 (1.028 / 1.055 / 1.200) |
+  | decode, 1025 / 4097 / 16385 keys | 0.828 / 0.612 / 0.717 (0.904 / 0.727 / 0.869) | 1.071 / 0.980 / 1.050 (1.079 / 1.062 / 1.197) |
+
+  SDPA at 4096 / 16384 keys: plain 60 / 349 us (`sdpa_micro` 75 / 288), transposed 86 / 330 (110 / 437).
+- The tiny func-test decode (8 / 2 heads, 18 keys) goes from 13 to 8 us at head 64 and from 11 to 14 us at head 128
+  (transposed 15.5 to 19); `sdpa_micro` takes 5-7. 8 subgroups at head 128 (256-key tiles, as head 64) gave 11 / 14
+  back there but lost most of the gain above (plain 60 to 80 us at 4096 keys, 349 to 448 at 16384), so head 128 keeps
+  16 (temporary build, A/B on one install).
+- Tests: `smoke_sdpa_gpu_compressed_kv_per_channel` +6 i8 decode cases (heads 64 / 128 / 256, 17-4097 keys, tails,
+  batch 2; cliloader confirms REG256 and 8 / 16 subgroups per workgroup); the i8 transposed-V tests, the per-channel and
+  GQA suites (126 unit, 44 func) pass; a windowed transposed i8 GQA (kit `tv_swa.py --kv i8`, windows 16 / 128 / 600,
+  capacities 24 / 300 / 700, decode past a 512-key tile) gives the plain layout's output on every step.
+- Not changed: the per-channel i8 prefill and chunk (plain layout 1.13-1.16x master: SDPA 294 against 211 us at 1024
+  keys, 856 against 665 for a chunk of 512 on 4000; the next entry), the 4-bit cache, the tiny shapes.
+
+### Plain-SDPA PREFILL tiling for the per-channel i8 cache (2026-11-20)
+
+The per-channel compressed i8 cache's multi-token stage took the bare table tile (128 keys x 32 queries, 16-query
+subgroup tiles, 128 GRF, none of the PREFILL loop changes, which the f16 table tile takes): SDPA 294 / 3546 / 857 us
+against `sdpa_micro`'s 211 / 2604 / 665 (prefill 1024 / 4096, chunk of 512 on 4000; H 32, KV heads 8, head 128).
+
+- Where it goes (temporary builds, timing only): the K widening costs nothing measurable; leaving the V dequant out
+  takes 13-16% off (1024: 223 to 189 us on the tile below). Each subgroup widens its V tile for its own score rows, so
+  the per-element work scales with queries / `sv_sg_tile_scores`.
+- `solve_plain_prefill_i8_tiling()` (`d_max` 128, `xe2_tuned()`, `plain_prefill_shape::i8_per_channel_kv`): 16-key x
+  32-query subgroup tiles, 4 x 1 subgroups (64 keys x 32 queries), 256 GRF, with the PREFILL loop changes
+  (`SOFTMAX_BRANCHLESS`, `MAX_SPLIT_BARRIER`, `CAUSAL_TILE_SKIP`; no `PREFETCH_V` / `WIDE_READS`, f16 reads only). It
+  reads no query or key count. Swept on one install (SDPA us at prefill 1024 / 4096 / chunk / 17 queries, head 128):
+  table + loop changes 264 / 3474 / 864 / 6; 16x32 8x2 244 / 2883 / 735; 16x32 4x4 237 / 2768 / 691; 16x32 4x2 227 /
+  2685 / 686; 16x32 4x1 223 / 2641 / 682 / 10; 64 queries a subgroup (16x64 8x2, 256 x 128 = the f16 static tile) 380-471;
+  32-key tiles 315-731; 2 subgroups on keys 599-746.
+- `V_I8_CONVERT` (`v_i8_convert`, this tiling only): `v_i8_dequant_ch()` widens by `convert_half4(as_char4(w))`
+  instead of `I8_TO_HALF` (the same halves; outputs bit-identical on all four cases): 223 / 2639 / 682 to 214 / 2546 /
+  652. On the decode tiling it is slower (SDPA 60 to 66 us at 4096 keys, 349 to 403 at 16384), so decode keeps the
+  shift; a packed half2 form (integer interleave, one half2 subtract per pair) was slower in both (234 / 2789 / 722).
+- Cost, the method of the entries above (`p7`, 2 rounds), branch / master of the layer (before in brackets):
+
+  | case (H 32, KV heads 8, head 128) | plain V | transposed V |
+  |---|---|---|
+  | prefill 1023 / 1024 / 4096 | 1.005 / 1.010 / 0.987 (1.133 / 1.136 / -) | 0.385 / 0.850 / 0.704 |
+  | chunk of 512 on 4000 | 0.987 (1.161) | 0.710 |
+
+  SDPA: 215 / 2550 / 654 us against `sdpa_micro`'s 211 / 2604 / 665. Decode is unchanged (60 / 349 us at 4096 / 16384).
+- Tests: `smoke_sdpa_gpu_compressed_kv_per_channel` +2 prefill cases (100 queries over 1000 keys asymmetric, batch 2 with
+  33 over 77; cliloader confirms REG256 and 4 subgroups); the per-channel, i8 transposed-V and GQA suites (128 unit, 44
+  func) pass; `tv_swa.py --kv i8` (windowed prefill and decode) gives the plain layout's output on every step.
+- The tiny prefill (8 / 2 heads, 17 queries, head 128) is 10 us on the bare table and on this tile, 6 on the table with
+  the loop changes (`sdpa_micro` 5): one compiled stage cannot take both. Head 64 / 256 and other heads keep the bare
+  table (not measured).
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -3758,7 +3913,7 @@ compressed per-token f16 1e-2 (1.9e-3), bf16 3e-2 (9.3e-3), per-channel 0.1 (3.5
 perturbed on purpose, the predicted rows failed: no mask 56 of 141 (every row whose mask matters), causal flipped 108,
 scale x1.25 every row whose output depends on the scale. The per-token / bf16 compressed decode rows are causal
 (upper-left) with one query, so they see key 0 only and check only that key's V. Broadcast, per-channel, GQA
-decomposition, transposed-V and the dynamic-V-head tests do run `sdpa_ref`.
+decomposition and the dynamic-V-head tests do run `sdpa_ref`; the transposed-V ones check `sdpa_ocl` (2026-11-20).
 
 The paged-attention harness data (`generate_realistic_data`, N(0, 0.1)) makes a GENERATE output
 about 0.08 / sqrt(keys) in size, so the compressed-cache tolerances (0.025 i8, 0.075 u4) accept an
