@@ -23,7 +23,7 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override {
         return WeightsLayout::gs_oiyx_gsv32;
     }
 
@@ -46,8 +46,8 @@ private:
 
     std::vector<AutoTuneOption> autoTuneOptions;
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
-    size_t getInputWidth(const convolution_params &arg, size_t blockWidth) const;
-    size_t getMinRegisterUsage(const convolution_params &arg, size_t blockWidth) const;
+    static size_t getInputWidth(const convolution_params& arg, size_t blockWidth);
+    static size_t getMinRegisterUsage(const convolution_params& arg, size_t blockWidth);
 };
 
 }  // namespace kernel_selector
