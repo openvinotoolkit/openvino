@@ -55,13 +55,14 @@ std::string bulkLoadMarkerFor(ov::intel_npu::CompilerType compilerType) {
 
 }  // namespace
 
-// Exercises CompilerOptionSupportHelper against a real backend and the driver compiler, complementing the
+// Exercises CompilerOptionSupportHelper against a real backend and the real VCL, complementing the
 // backend-agnostic unit tests in tests/unit/npu/compiler_option_support_helper_test.cpp.
 class CompilerOptionSupportHelperFunctionalTests : public ov::test::behavior::OVPluginTestBase,
                                                    public testing::WithParamInterface<ov::intel_npu::CompilerType> {
 protected:
     ov::SoPtr<IEngineBackend> backend;
     std::shared_ptr<OptionSupportCache> optionSupportCache;
+    VCLFunctionTableProvider vclFunctionsProvider;
     std::unique_ptr<CompilerOptionSupportHelper> helper;
     ov::intel_npu::CompilerType compilerType;
 
@@ -76,9 +77,12 @@ protected:
         compilerType = GetParam();
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         optionSupportCache = std::make_shared<OptionSupportCache>();
-        // The driver compiler does not need the VCL entry points.
+        const auto loader = std::make_shared<VCLLoader>();
+        vclFunctionsProvider = [loader] {
+            return loader->sharedFunctions();
+        };
         helper = std::make_unique<CompilerOptionSupportHelper>(
-            std::make_shared<const CompilerAdapterFactory>(backend, VCLFunctionTableProvider{}, optionSupportCache));
+            std::make_shared<const CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache));
     }
 
     void TearDown() override {
@@ -234,7 +238,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOpti
 TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirectCompilerProbe) {
     const std::string batchModeOption = ov::intel_npu::batch_mode.name();
 
-    const CompilerAdapterFactory factory{backend, VCLFunctionTableProvider{}};
+    const CompilerAdapterFactory factory{backend, vclFunctionsProvider};
     auto adapterCompilerType = compilerType;
     std::unique_ptr<ICompilerAdapter> compilerAdapter;
     OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(adapterCompilerType, ""));
@@ -316,7 +320,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ConcurrentLookupsForSameKeyLo
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          CompilerOptionSupportHelperFunctionalTests,
-                         ::testing::Values(ov::intel_npu::CompilerType::DRIVER),
+                         ::testing::Values(ov::intel_npu::CompilerType::DRIVER, ov::intel_npu::CompilerType::PLUGIN),
                          CompilerOptionSupportHelperFunctionalTests::getTestCaseName);
 
 class CompilerOptionSupportHelperConcurrencyTests : public ov::test::behavior::OVPluginTestBase {
