@@ -21,9 +21,6 @@ std::vector<TRShape> shape_infer(const GridSample* op, const std::vector<TShape>
     const auto& data_shape = input_shapes[0];
     const auto& grid_shape = input_shapes[1];
 
-    // GridSample supports 4D (N, C, H, W) and 5D (N, C, D, H, W) data. The grid is expected to have
-    // matching rank: 4D grid (N, H_out, W_out, 2) or 5D grid (N, D_out, H_out, W_out, 3). The last grid
-    // dimension stores the per-output spatial coordinates and therefore equals the spatial rank (2 or 3).
     NODE_VALIDATION_CHECK(op,
                           data_shape.rank().compatible(4) || data_shape.rank().compatible(5),
                           "The supported shape of the input data tensor is 4D or 5D.");
@@ -43,7 +40,6 @@ std::vector<TRShape> shape_infer(const GridSample* op, const std::vector<TShape>
     const size_t out_rank = data_shape.rank().is_static() ? data_shape.size() : grid_shape.size();
     const size_t spatial_rank = out_rank - 2;
 
-    // Bicubic is only defined for 4D input (as in PyTorch and ONNX).
     NODE_VALIDATION_CHECK(op,
                           out_rank != 5 || op->get_attributes().mode != GridSample::InterpolationMode::BICUBIC,
                           "GridSample does not support bicubic interpolation for 5D (volumetric) input.");
@@ -61,7 +57,6 @@ std::vector<TRShape> shape_infer(const GridSample* op, const std::vector<TShape>
                               "The last dimension of the grid tensor's shape has to be equal to the number of "
                               "spatial dimensions of the data tensor.");
         batch_dim = grid_shape[0];
-        // Copy the output spatial dimensions (grid[1 .. spatial_rank]) into output[2 .. out_rank).
         for (size_t i = 0; i < spatial_rank; ++i) {
             output_shape[2 + i] = grid_shape[1 + i];
         }

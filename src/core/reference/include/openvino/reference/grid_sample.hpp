@@ -28,7 +28,6 @@ using denormalize_fn_t = GRID_ET (*)(GRID_ET, size_t);
 template <typename DATA_ET>
 using get_padded_fn_t = DATA_ET (*)(const DATA_ET*, const Shape&, size_t, size_t, long, long);
 
-// 3D-spatial (volumetric) variant of the padded-access function: takes (z, y, x) integer coordinates.
 template <typename DATA_ET>
 using get_padded_3d_fn_t = DATA_ET (*)(const DATA_ET*, const Shape&, size_t, size_t, long, long, long);
 
@@ -237,9 +236,6 @@ DATA_ET bicubic(const DATA_ET* data,
     });
     return std::inner_product(cy.begin(), cy.end(), p.begin(), static_cast<DATA_ET>(0));
 }
-
-// 5D (volumetric) helpers: data [N, C, D, H, W], grid stores (x, y, z) mapping to (W, H, D).
-// Bicubic is rejected for 5D by op validation, so only trilinear and nearest are needed.
 
 template <typename DATA_ET, typename GRID_ET>
 using interpolate_3d_fn_t = DATA_ET (*)(const DATA_ET* data,

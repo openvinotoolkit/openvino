@@ -37,6 +37,9 @@ public:
         function = CreateFunction(params.data_tensor, params.grid_tensor, params.attributes);
         inputData = {params.data_tensor.data, params.grid_tensor.data};
         refOutData = {params.expected_tensor.data};
+        // f16 grid coordinate math drifts from the f32-computed expected values.
+        if (params.grid_tensor.type == element::f16 && params.grid_tensor.shape.size() == 5)
+            abs_threshold = 3e-3f;
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<GridSampleParams>& obj) {
@@ -688,7 +691,9 @@ std::vector<GridSampleParams> generateGridSampleParams() {
                                                             generateCornerCaseData1x1Params<f32, bf16>(),
                                                             generateCornerCaseData1x1Params<f32, f16>(),
 
-                                                            generate5DParams<f32, f32>()};
+                                                            generate5DParams<f32, f32>(),
+                                                            generate5DParams<f32, f16>(),
+                                                            generate5DParams<f16, f32>()};
     std::vector<GridSampleParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
