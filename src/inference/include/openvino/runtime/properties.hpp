@@ -920,26 +920,16 @@ inline std::istream& operator>>(std::istream& is, QoS& qos) {
 
 /**
  * @brief Structure to store the effective Quality of Service state reported by the device
+ *
+ * A default-constructed QoSInfo ({QoS::DEFAULT, false}) holds no device information: it only marks that the QoS
+ * state has not been queried yet. A QoSInfo returned by ov::qos_info always reports a concrete level, never
+ * QoS::DEFAULT.
+ *
  * @ingroup ov_runtime_cpp_prop_api
  */
 struct QoSInfo {
-    /**
-     * @brief Effective QoS level; never QoS::DEFAULT. When the application did not request a level, this is the
-     * level the driver/OS default resolved to.
-     */
-    QoS level;
-    /**
-     * @brief True if the level was requested by the application, false if it is the driver/OS-selected default
-     */
-    bool is_overridden;
-
-    bool operator==(const QoSInfo& other) const {
-        return level == other.level && is_overridden == other.is_overridden;
-    }
-
-    bool operator!=(const QoSInfo& other) const {
-        return !(*this == other);
-    }
+    QoS level = QoS::DEFAULT;    //!< Effective level; never DEFAULT, the resolved driver/OS level is reported instead
+    bool is_overridden = false;  //!< True if the level was requested by the application, false if driver/OS-selected
 };
 
 /** @cond INTERNAL */
