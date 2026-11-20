@@ -66,6 +66,43 @@ inline size_t get_partitions_num(const kernel_impl_params& params, size_t kernel
     return ceil_div(source_seq_len, get_seq_len_partition_size(params.get_device_info(), head_size, kernel_type));
 }
 
+// Query heads per KV head that the single-token kernel processes as rows of one work-group, so that each K/V
+// element is loaded once for all of them; 1 when the SDPA is not GQA or the path does not support it.
+inline size_t get_gqa_single_token_rows(const kernel_impl_params& params, bool indirect) {
+    if (indirect || !params.is_type<scaled_dot_product_attention>()) {
+        return 1;
+    }
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto q_heads = get_num_heads(params.get_input_layout(0), extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+    const auto k_heads = get_num_heads(params.get_input_layout(1), extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+    const auto k_dt = params.get_input_layout(1).data_type;
+    if (q_heads <= 0 || k_heads <= 0 || q_heads <= k_heads || q_heads % k_heads != 0 || data_type_traits::is_i4_u4(k_dt)) {
+        return 1;
+    }
+    constexpr int64_t max_rows = 8;
+    return q_heads / k_heads <= max_rows ? static_cast<size_t>(q_heads / k_heads) : 1;
+}
+
+// Symmetric int8 KV with one scale per channel ([B, H, 1, head_size] scale input): the single-token kernel folds
+// the key scales into Q and applies the value scales to its output. Returns {keys, values}.
+inline std::pair<bool, bool> get_single_token_per_channel_kv_scales(const kernel_impl_params& params) {
+    if (!params.is_type<scaled_dot_product_attention>()) {
+        return {false, false};
+    }
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (!desc->is_kv_compressed || SDPABase::is_int4_kv_cache(params) ||
+        desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Symmetric) {
+        return {false, false};
+    }
+    const auto data_inputs_num = get_data_inputs_num(*desc);
+    const auto is_per_channel = [&params](size_t idx) {
+        const auto& shape = params.input_layouts[idx].get_partial_shape();
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() && shape[2].get_length() == 1 && shape[3].is_static() &&
+               shape[3].get_length() > 1;
+    };
+    return {is_per_channel(data_inputs_num), is_per_channel(data_inputs_num + 1)};
+}
+
 class SDPAOptGeneratorBase : public SDPABase {
 public:
     SDPAOptGeneratorBase(std::string_view name, std::string_view stage, bool indirect) : SDPABase(name, stage, indirect) {}

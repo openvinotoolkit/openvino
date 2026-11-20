@@ -160,7 +160,18 @@ public:
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
-        if (has_stage(regular_micro_single_token) && !is_indirect) {
+        // The micro single-token kernel runs one work-group per query head and re-reads K/V for every head of a GQA group;
+        // the GQA single-token sdpa_opt kernel reads them once per group. It applies per-channel KV scales only when symmetric.
+        // Its second (finalization) kernel costs ~25 us per call on integrated GPUs, so there it pays off only from
+        // ~3k keys (LNL: 0.8x at 1k, 1.05x at 3k, 1.04-1.17x at 8k); on discrete GPUs it wins at every length.
+        const auto [key_per_channel, value_per_channel] = get_single_token_per_channel_kv_scales(new_params);
+        const bool opt_supports_kv = !is_per_channel_kv || key_per_channel || value_per_channel;
+        const bool is_integrated = new_params.get_device_info().dev_type == device_type::integrated_gpu;
+        const int64_t min_gqa_kv_len = is_integrated ? 3072 : 0;
+        const auto kv_len = get_seq_length(new_params.get_input_layout(1),
+                                           extend_order_in_num_heads_dim(new_params.typed_desc<scaled_dot_product_attention>()->input_k_transpose_order));
+        const bool use_gqa_single_token = get_gqa_single_token_rows(new_params, is_indirect) > 1 && opt_supports_kv && kv_len >= min_gqa_kv_len;
+        if (has_stage(regular_micro_single_token) && !is_indirect && !use_gqa_single_token) {
             return execute_stage(events, instance, regular_micro_single_token);
         }
 #endif
@@ -307,6 +318,14 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #else
     return false;
 #endif
+}
+
+bool SDPAOpt::supports_single_token_per_channel_kv(const kernel_impl_params& params) {
+    if (params.is_dynamic() || is_prefill_stage(params)) {
+        return false;
+    }
+    const auto [key_per_channel, value_per_channel] = get_single_token_per_channel_kv_scales(params);
+    return key_per_channel || value_per_channel;
 }
 
 std::unique_ptr<primitive_impl> SDPAOpt::create_impl(const program_node& node, const RuntimeParams& params) const {

@@ -30,6 +30,8 @@ struct SDPAOpt : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
+    // Static single-token SDPA with symmetric per-channel KV scales, which sdpa_opt handles without the micro kernel.
+    [[nodiscard]] static bool supports_single_token_per_channel_kv(const kernel_impl_params& params);
     // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout the oneDNN micro SDPA
     // stage cannot handle, so it has to run on the regular sdpa_opt stages instead.
     [[nodiscard]] static bool has_bf16_compressed_kv_zero_point(const kernel_impl_params& params);
@@ -77,7 +79,7 @@ struct SDPAOpt : public ImplementationManager {
         const bool combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         auto p = node.get_kernel_impl_params();
-        if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p)) {
+        if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p) && !supports_single_token_per_channel_kv(*p)) {
             return false;
         }
         // Asymmetric planar compressed KV is normally handled by the micro kernel. The one layout the micro

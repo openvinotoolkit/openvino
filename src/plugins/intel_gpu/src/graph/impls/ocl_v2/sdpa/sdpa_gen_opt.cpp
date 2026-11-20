@@ -208,12 +208,17 @@ Arguments SDPAOptGeneratorSingleToken::get_arguments_desc(const kernel_impl_para
 JitConstants SDPAOptGeneratorSingleToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::SINGLE_TOKEN);
     jit.make("SDPA_STAGE_0", 1);
-    jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", 1);
+    const auto gqa_rows = get_gqa_single_token_rows(params, m_indirect);
+    jit.make("SDPA_GQA_SINGLE_TOKEN", gqa_rows > 1 ? 1 : 0);
+    jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", gqa_rows);
+    const auto [key_per_channel, value_per_channel] = get_single_token_per_channel_kv_scales(params);
+    jit.make("KEY_SCALES_PER_CHANNEL", key_per_channel ? 1 : 0);
+    jit.make("VALUE_SCALES_PER_CHANNEL", value_per_channel ? 1 : 0);
     return jit;
 }
 
 DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[indirect = m_indirect](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         if (!params.is_dynamic()) {
@@ -239,7 +244,9 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";
             GPU_DEBUG_TRACE_DETAIL << "sg_num_scale = " << sg_num_scale << "\n";
 
-            wgs.global = {batch_size * heads_num, target_seq_len, head_size_u * num_of_partitions * sg_num_scale};
+            // In GQA mode one work-group covers all query heads of a KV head.
+            const size_t gqa_rows = get_gqa_single_token_rows(params, indirect);
+            wgs.global = {batch_size * heads_num / gqa_rows, target_seq_len, head_size_u * num_of_partitions * sg_num_scale};
             wgs.local = {1, 1, head_size_u * sg_num_scale};
         }
     }};
