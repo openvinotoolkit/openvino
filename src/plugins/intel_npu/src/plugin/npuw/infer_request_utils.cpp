@@ -4,9 +4,8 @@
 
 #include "infer_request_utils.hpp"
 
-#include <limits>
-
 #include "logging.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util.hpp"
 #include "util_xarch.hpp"
@@ -36,10 +35,46 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> 
 }
 
 void ov::npuw::util::copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
-    OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
-    std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
-                src->get_byte_size(),
-                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
+    if (src->get_element_type() == dst->get_element_type()) {
+        OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
+        std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
+                    src->get_byte_size(),
+                    reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
+        return;
+    }
+    OPENVINO_ASSERT(src->get_size() <= dst->get_size());
+    copy_tensor_elements(src, dst, 0, dst->get_size() - src->get_size(), src->get_size());
+}
+
+void ov::npuw::util::copy_tensor_elements(const ov::SoPtr<ov::ITensor>& src,
+                                          const ov::SoPtr<ov::ITensor>& dst,
+                                          size_t src_offset,
+                                          size_t dst_offset,
+                                          size_t count) {
+    OPENVINO_ASSERT(src_offset <= src->get_size() && count <= src->get_size() - src_offset,
+                    "Source element range exceeds tensor size");
+    OPENVINO_ASSERT(dst_offset <= dst->get_size() && count <= dst->get_size() - dst_offset,
+                    "Destination element range exceeds tensor size");
+    const auto src_type = src->get_element_type();
+    const auto dst_type = dst->get_element_type();
+    OPENVINO_ASSERT(src_type == dst_type || (src_type == ov::element::f32 && dst_type == ov::element::f16),
+                    "Unsupported staging conversion from ",
+                    src_type,
+                    " to ",
+                    dst_type);
+    if (count == 0) {
+        return;
+    }
+    if (src_type == dst_type) {
+        std::copy_n(static_cast<const uint8_t*>(src->data()) + src_offset * src_type.size(),
+                    count * src_type.size(),
+                    static_cast<uint8_t*>(dst->data()) + dst_offset * dst_type.size());
+    } else {
+        OPENVINO_ASSERT(src->is_continuous() && dst->is_continuous(), "Staging conversion requires continuous tensors");
+        const auto* src_data = src->data<float>() + src_offset;
+        auto* dst_data = dst->data<ov::float16>() + dst_offset;
+        ov::npuw::util::XARCH::to_f16_buffer(src_data, dst_data, count);
+    }
 }
 
 void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
@@ -237,6 +272,7 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
                         src->get_byte_size(),
                         ", dst_bytes=",
                         dst->get_byte_size());
+        copy_tensor_elements(src, dst, 0, 0, 0);
         return;
     }
 
@@ -261,43 +297,29 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
                     ", dst_seq_len=",
                     dst_seq_len);
 
-    const auto src_seq_len_bytes = src->get_byte_size();
-    const auto dst_seq_len_bytes = dst->get_byte_size();
+    const auto src_elements = src->get_size();
+    const auto dst_elements = dst->get_size();
     OPENVINO_ASSERT(src_seq_len > 0u, "per_layer_inputs src has zero seq_len");
     OPENVINO_ASSERT(dst_seq_len > 0u, "per_layer_inputs dst has zero seq_len");
-    OPENVINO_ASSERT(src_seq_len_bytes % src_seq_len == 0u,
-                    "per_layer_inputs src byte size is not divisible by seq_len. byte_size=",
-                    src_seq_len_bytes,
+    OPENVINO_ASSERT(src_elements % src_seq_len == 0u,
+                    "per_layer_inputs src size is not divisible by seq_len. size=",
+                    src_elements,
                     ", seq_len=",
                     src_seq_len);
-    OPENVINO_ASSERT(dst_seq_len_bytes % dst_seq_len == 0u,
-                    "per_layer_inputs dst byte size is not divisible by seq_len. byte_size=",
-                    dst_seq_len_bytes,
+    OPENVINO_ASSERT(dst_elements % dst_seq_len == 0u,
+                    "per_layer_inputs dst size is not divisible by seq_len. size=",
+                    dst_elements,
                     ", seq_len=",
                     dst_seq_len);
-    const auto src_per_token_bytes = src_seq_len_bytes / src_seq_len;
-    const auto dst_per_token_bytes = dst_seq_len_bytes / dst_seq_len;
-    OPENVINO_ASSERT(src_per_token_bytes == dst_per_token_bytes,
-                    "per-token byte size mismatch between src and dst. src=",
-                    src_per_token_bytes,
+    const auto src_per_token_elements = src_elements / src_seq_len;
+    const auto dst_per_token_elements = dst_elements / dst_seq_len;
+    OPENVINO_ASSERT(src_per_token_elements == dst_per_token_elements,
+                    "per-token element count mismatch between src and dst. src=",
+                    src_per_token_elements,
                     ", dst=",
-                    dst_per_token_bytes);
+                    dst_per_token_elements);
 
-    OPENVINO_ASSERT(static_cast<size_t>(chunk_tokens) <= std::numeric_limits<size_t>::max() / src_per_token_bytes,
-                    "chunk byte size overflow. chunk_tokens=",
-                    chunk_tokens,
-                    ", per_token_bytes=",
-                    src_per_token_bytes);
-    OPENVINO_ASSERT(static_cast<size_t>(src_offset_tokens) <= std::numeric_limits<size_t>::max() / src_per_token_bytes,
-                    "offset byte size overflow. src_offset_tokens=",
-                    src_offset_tokens,
-                    ", per_token_bytes=",
-                    src_per_token_bytes);
-
-    const size_t chunk_bytes = static_cast<size_t>(chunk_tokens) * src_per_token_bytes;
-    const size_t offset_bytes = static_cast<size_t>(src_offset_tokens) * src_per_token_bytes;
-
-    std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
-                chunk_bytes,
-                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - chunk_bytes);
+    const size_t chunk_elements = static_cast<size_t>(chunk_tokens) * src_per_token_elements;
+    const size_t offset_elements = static_cast<size_t>(src_offset_tokens) * src_per_token_elements;
+    copy_tensor_elements(src, dst, offset_elements, dst_elements - chunk_elements, chunk_elements);
 }

@@ -1348,7 +1348,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     // For VLM, model accepts 3d inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
     bool is_input_embeds = input_ids->get_shape().size() == 2 ? false : true;
 
-    const auto input_ids_elem_size = input_ids->get_element_type().size();
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
 
@@ -1406,7 +1405,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         }
     }
     while (remaining_prompts > 0) {
-        // NB: input_ids can be either fp32(VLM) or i64(LLM)
+        // The caller provides f32 embeddings (VLM) or i64 IDs (LLM).
+        // Internal prefill embeddings use f16 when prefill F16IC is on.
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
@@ -1437,18 +1437,19 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Caller tensors hold only the delta during a continued prefill, so they are
             // indexed relative to the absolute base the continuation started at. The
             // base is zero for an ordinary prefill, keeping this the absolute position.
-            auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
-            auto prefilled_bytes = (kvcache_desc.num_stored_tokens - m_continued_prefill_base) * input_ids_elem_size;
+            auto current_prefill_elements = current_prompts_len;
+            size_t prefilled_elements = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
             if (is_input_embeds) {
-                current_prefill_bytes *= input_ids->get_shape().back();
-                prefilled_bytes *= input_ids->get_shape().back();
+                current_prefill_elements *= input_ids->get_shape().back();
+                prefilled_elements *= input_ids->get_shape().back();
             }
 
             ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
-            std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
-                        current_prefill_bytes,
-                        reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
-                            current_prefill_bytes);
+            ov::npuw::util::copy_tensor_elements(input_ids,
+                                                 input_ids_in_tensor,
+                                                 prefilled_elements,
+                                                 input_ids_in_tensor->get_size() - current_prefill_elements,
+                                                 current_prefill_elements);
 
             if (m_position_ids_present) {
                 // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D
@@ -1605,12 +1606,10 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     LOG_BLOCK();
 
     m_llm_profile["1/prefill:3a.prepare"].record([&]() {
-        // NB: padded_input can be either fp32(VLM) or i64(LLM)
+        // The caller provides f32 embeddings (VLM) or i64 IDs (LLM).
+        // Internal prefill embeddings use f16 when prefill F16IC is on.
         auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-        std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
-                    input_ids->get_byte_size(),
-                    reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() -
-                        input_ids->get_byte_size());
+        ov::npuw::util::copy_to_right(input_ids, padded_input);
 
         auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
         if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {

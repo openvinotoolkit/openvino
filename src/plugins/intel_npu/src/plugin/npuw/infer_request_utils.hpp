@@ -28,6 +28,12 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
 
 void copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst);
 
+void copy_tensor_elements(const ov::SoPtr<ov::ITensor>& src,
+                          const ov::SoPtr<ov::ITensor>& dst,
+                          size_t src_offset,
+                          size_t dst_offset,
+                          size_t count);
+
 void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
                         ov::SoPtr<ov::ITensor> dst_tensor,
                         uint32_t kv_dim_src,

@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "infer_request_utils.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
@@ -461,6 +462,96 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, SharedHeadDisabledBuildsPrefillAndGen
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
     EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
     EXPECT_EQ(recorder.find_suffix("_lm_head"), nullptr);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PrefillF16InputsKeepPublicAndGeneratePortsF32) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.use_inputs_embeds = true;
+    for (const bool with_ple : {false, true}) {
+        SCOPED_TRACE(with_ple);
+        auto model = with_ple ? ov::test::npuw::build_per_layer_inputs_probe_model(cfg)
+                              : ov::test::npuw::build_llm_test_model(cfg);
+        RecordingFactory recorder;
+        auto compiled = create_compiled_model(model, {}, recorder);
+        const auto& prefill = require_call(recorder, "_prefill");
+        for (const auto* name : {"inputs_embeds", "per_layer_inputs"}) {
+            if (!with_ple && std::string(name) == "per_layer_inputs") {
+                continue;
+            }
+            SCOPED_TRACE(name);
+            const auto input = prefill.model->input(name);
+            EXPECT_EQ(input.get_element_type(), ov::element::f16);
+            ASSERT_FALSE(input.get_target_inputs().empty());
+            for (const auto& target : input.get_target_inputs()) {
+                const auto* convert = ov::as_type<ov::op::v0::Convert>(target.get_node());
+                ASSERT_NE(convert, nullptr);
+                EXPECT_EQ(convert->get_destination_type(), ov::element::f32);
+            }
+            const auto public_input = ov::npuw::util::find_port_by_name(compiled->inputs(), name);
+            ASSERT_TRUE(public_input.has_value());
+            EXPECT_EQ(public_input->get_element_type(), ov::element::f32);
+            EXPECT_EQ(model->input(name).get_element_type(), ov::element::f32);
+            ASSERT_GT(recorder.count_contains("_kv"), 0u);
+            for (const auto& call : recorder.calls()) {
+                if (call.friendly_name.find("_kv") != std::string::npos) {
+                    EXPECT_EQ(call.model->input(name).get_element_type(), ov::element::f32);
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PrefillF16InputsRespectDisabledF16ICAndPipelineNone) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.use_inputs_embeds = true;
+    const std::vector<ov::AnyMap> configs{
+        {{"NPUW_F16IC", false}},
+        {{"NPUW_F16IC", "NO"}},
+        {{"NPUW_F16IC", "YES"}, {"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_F16IC", false}}}},
+        {{"NPUW_F16IC", "YES"}, {"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_F16IC", "NO"}}}},
+        {{"NPUW_ONLINE_PIPELINE", "REP"}, {"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_ONLINE_PIPELINE", "NONE"}}}}};
+    for (size_t i = 0; i < configs.size(); ++i) {
+        SCOPED_TRACE(i);
+        RecordingFactory recorder;
+        auto compiled =
+            create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(cfg), configs[i], recorder);
+        const auto& prefill = require_call(recorder, "_prefill");
+        EXPECT_EQ(prefill.model->input("inputs_embeds").get_element_type(), ov::element::f32);
+        EXPECT_EQ(prefill.model->input("per_layer_inputs").get_element_type(), ov::element::f32);
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PrefillF16InputsUseFinalStageOverride) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.use_inputs_embeds = true;
+    RecordingFactory recorder;
+    auto compiled =
+        create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(cfg),
+                              {{"NPUW_F16IC", "NO"}, {"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_F16IC", true}}}},
+                              recorder);
+    const auto& prefill = require_call(recorder, "_prefill");
+    EXPECT_EQ(prefill.model->input("inputs_embeds").get_element_type(), ov::element::f16);
+    EXPECT_EQ(prefill.model->input("per_layer_inputs").get_element_type(), ov::element::f16);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PrefillF16InputsLeaveInputIdsUnchanged) {
+    RecordingFactory recorder;
+    auto compiled = create_compiled_model(build_llm_model(), {}, recorder);
+    EXPECT_EQ(require_call(recorder, "_prefill").model->input("input_ids").get_element_type(), ov::element::i64);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PrefillF16InputsSkipDanglingPerLayerInputs) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.use_inputs_embeds = true;
+    auto model = ov::test::npuw::build_llm_test_model(cfg);
+    auto ple = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 0, 0});
+    ple->output(0).set_names({"per_layer_inputs"});
+    model->add_parameters({ple});
+    RecordingFactory recorder;
+    auto compiled = create_compiled_model(model, {}, recorder);
+    const auto& prefill = require_call(recorder, "_prefill");
+    EXPECT_EQ(prefill.model->input("inputs_embeds").get_element_type(), ov::element::f16);
+    EXPECT_EQ(prefill.model->input("per_layer_inputs").get_element_type(), ov::element::f32);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, SharedHeadEnabledBuildsPrefillGenerateAndHeadStages) {

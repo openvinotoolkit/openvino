@@ -4,6 +4,7 @@
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -11,6 +12,7 @@
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "infer_request_utils.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
@@ -39,6 +41,7 @@
 #include "npuw_transformations/shrink_sliding_window_kv_cache.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -378,6 +381,37 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
         } else {
             lhs.emplace(key, value);
         }
+    }
+}
+
+void convert_prefill_inputs_to_f16(std::shared_ptr<ov::Model>& model, const ov::AnyMap& config) {
+    const auto f16ic = config.find("NPUW_F16IC");
+    const bool use_f16ic = f16ic == config.end()
+                               ? ::intel_npu::NPUW_F16IC::defaultValue()
+                               : ::intel_npu::OptionParser<bool>::parse(f16ic->second.as<std::string>());
+    const auto pipeline = config.find("NPUW_ONLINE_PIPELINE");
+    if (!use_f16ic || (pipeline != config.end() && pipeline->second.as<std::string>() == "NONE")) {
+        return;
+    }
+
+    ov::preprocess::PrePostProcessor ppp(model);
+    bool changed = false;
+    for (const auto* name : {ov::npuw::LLMInferRequest::layer_names::inputs_embeds,
+                             ov::npuw::LLMInferRequest::layer_names::per_layer_inputs}) {
+        const auto input = ov::npuw::util::find_port_by_name(std::as_const(*model).inputs(), name);
+        if (!input || input->get_element_type() != ov::element::f32 || input->get_target_inputs().empty()) {
+            continue;
+        }
+        const auto& shape = input->get_shape();
+        if (std::find(shape.begin(), shape.end(), 0u) != shape.end()) {
+            continue;
+        }
+        ppp.input(name).tensor().set_element_type(ov::element::f16);
+        changed = true;
+        LOG_INFO("Using f16 for prefill input " << name);
+    }
+    if (changed) {
+        model = ppp.build();
     }
 }
 
@@ -1642,6 +1676,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (rewr.run_on_model(prefill_model)) {
             LOG_INFO("DuplicateSharedKVConcat applied to prefill model");
         }
+    }
+
+    if (!m_is_whisper && !m_is_embedding && !m_is_encoder_embedding) {
+        convert_prefill_inputs_to_f16(prefill_model, prefill_config);
     }
 
     // Compile multiple generate model variants with different sizes

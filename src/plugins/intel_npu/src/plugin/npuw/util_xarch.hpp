@@ -90,6 +90,8 @@ void subtract_128(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITenso
 
 ov::Tensor to_f16(const ov::Tensor& t);
 
+void to_f16_buffer(const float* src, ov::float16* dst, std::size_t count);
+
 void copy_row_as_column(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
 
 void transpose_i4(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols);

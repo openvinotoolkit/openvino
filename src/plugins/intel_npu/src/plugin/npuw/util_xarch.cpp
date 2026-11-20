@@ -1577,6 +1577,34 @@ void ov::npuw::util::XARCH::unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
 #endif
 }
 
+void ov::npuw::util::XARCH::to_f16_buffer(const float* src, ov::float16* dst, std::size_t count) {
+    std::size_t scalar_start = 0;
+#if defined(HAVE_AVX2)
+    constexpr std::size_t vec_size = 8;
+    constexpr std::size_t block_size = 4096;
+    const std::size_t vector_elements = count - count % vec_size;
+    const std::size_t nblocks = vector_elements / block_size + (vector_elements % block_size != 0);
+    const auto convert_block = [&](std::size_t block) {
+        const std::size_t begin = block * block_size;
+        const std::size_t end = begin + std::min(block_size, vector_elements - begin);
+        for (std::size_t i = begin; i < end; i += vec_size) {
+            const __m256 values = _mm256_loadu_ps(src + i);
+            const __m128i converted = _mm256_cvtps_ph(values, _MM_FROUND_TO_NEAREST_INT);
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + i), converted);
+        }
+    };
+    if (nblocks > 1) {
+        ov::parallel_for(nblocks, convert_block);
+    } else if (nblocks == 1) {
+        convert_block(0);
+    }
+    scalar_start = vector_elements;
+#endif
+    for (std::size_t i = scalar_start; i < count; ++i) {
+        dst[i] = ov::float16(src[i]);
+    }
+}
+
 ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(t.get_element_type() == ov::element::f32);

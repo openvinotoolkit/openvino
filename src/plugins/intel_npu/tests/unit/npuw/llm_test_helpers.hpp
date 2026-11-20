@@ -295,9 +295,9 @@ inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
 /// StatefulToStateless (which LLMCompiledModel always runs), so this builds on the same
 /// base topology as the other test models and appends the probe input via a dedicated
 /// Add + Result, matching how build_gemma4_moe_llm_test_model appends its dangling PLE.
-inline std::shared_ptr<ov::Model> build_per_layer_inputs_probe_model() {
+inline std::shared_ptr<ov::Model> build_per_layer_inputs_probe_model(const LLMConfig& cfg = make_test_model_config()) {
     ModelBuilder mb;
-    auto model = mb.build_llm(make_test_model_config());
+    auto model = mb.build_llm(cfg);
 
     auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, -1});
     per_layer_inputs->output(0).set_names({"per_layer_inputs"});

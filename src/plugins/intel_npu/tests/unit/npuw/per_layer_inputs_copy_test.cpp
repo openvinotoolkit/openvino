@@ -4,6 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cstring>
+
 #include "infer_request_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
@@ -179,6 +182,90 @@ TEST(PerLayerInputsCopyTest, CopyToRightSameSizeCopiesAll) {
     ASSERT_NO_THROW(ov::npuw::util::copy_to_right(src, dst));
 
     EXPECT_EQ(to_vec(dst), to_vec(src));
+}
+
+TEST(PerLayerInputsCopyTest, CopyToRightConvertsF32ToF16) {
+    auto src = make_per_layer_tensor(3, 2, 4, 0.1234f);
+    auto dst = ov::get_tensor_impl(ov::Tensor(ov::element::f16, ov::Shape{1, 5, 2, 4}));
+    std::fill_n(dst->data<ov::float16>(), dst->get_size(), ov::float16(-7.f));
+
+    ASSERT_NO_THROW(ov::npuw::util::copy_to_right(src, dst));
+    for (size_t i = 0; i < dst->get_size(); ++i) {
+        const auto expected = i < 16 ? ov::float16(-7.f) : ov::float16(src->data<float>()[i - 16]);
+        EXPECT_EQ(dst->data<ov::float16>()[i].to_bits(), expected.to_bits()) << i;
+    }
+}
+
+TEST(PerLayerInputsCopyTest, ChunkConvertsF32ToF16WithOffsetsAndPartialTail) {
+    auto src = make_per_layer_tensor(5, 2, 4, 0.1234f);
+    auto dst = ov::get_tensor_impl(ov::Tensor(ov::element::f16, ov::Shape{1, 3, 2, 4}));
+    for (const auto& chunk : {std::pair<uint32_t, uint32_t>{0, 3}, {3, 2}}) {
+        std::fill_n(dst->data<ov::float16>(), dst->get_size(), ov::float16(-7.f));
+        ASSERT_NO_THROW(ov::npuw::util::copy_per_layer_inputs_chunk_to_right(src, dst, chunk.first, chunk.second));
+        const size_t leading_elements = (3 - chunk.second) * 8;
+        for (size_t i = 0; i < dst->get_size(); ++i) {
+            const auto expected = i < leading_elements
+                                      ? ov::float16(-7.f)
+                                      : ov::float16(src->data<float>()[chunk.first * 8 + i - leading_elements]);
+            EXPECT_EQ(dst->data<ov::float16>()[i].to_bits(), expected.to_bits()) << i;
+        }
+    }
+}
+
+TEST(PerLayerInputsCopyTest, ElementRangeConversionHandlesVectorTailAndOffsets) {
+    const std::array<float, 9>
+        values{0.f, -0.f, 0.1234f, -0.3333f, 1.00048828125f, 1.00146484375f, 17.12345f, -42.76543f, 65504.f};
+    constexpr size_t src_offset = 3;
+    constexpr size_t dst_offset = 5;
+    for (const size_t count : {size_t{5}, size_t{21}, size_t{8197}}) {
+        SCOPED_TRACE(count);
+        auto src = ov::get_tensor_impl(ov::Tensor(ov::element::f32, {src_offset + count + 2}));
+        auto dst = ov::get_tensor_impl(ov::Tensor(ov::element::f16, {dst_offset + count + 7}));
+        for (size_t i = 0; i < src->get_size(); ++i) {
+            src->data<float>()[i] = values[i % values.size()];
+        }
+        std::fill_n(dst->data<ov::float16>(), dst->get_size(), ov::float16(-7.f));
+        ASSERT_NO_THROW(ov::npuw::util::copy_tensor_elements(src, dst, src_offset, dst_offset, count));
+        for (size_t i = 0; i < dst->get_size(); ++i) {
+            const auto expected = i < dst_offset || i >= dst_offset + count
+                                      ? ov::float16(-7.f)
+                                      : ov::float16(src->data<float>()[src_offset + i - dst_offset]);
+            EXPECT_EQ(dst->data<ov::float16>()[i].to_bits(), expected.to_bits()) << i;
+        }
+    }
+}
+
+TEST(PerLayerInputsCopyTest, EqualTypesCopyBytesWithoutConversion) {
+    for (const auto& type : {ov::element::f32, ov::element::f16, ov::element::i64}) {
+        auto src = ov::get_tensor_impl(ov::Tensor(type, ov::Shape{1, 3, 2, 4}));
+        auto dst = ov::get_tensor_impl(ov::Tensor(type, ov::Shape{1, 5, 2, 4}));
+        std::memset(src->data(), 0xa5, src->get_byte_size());
+        std::memset(dst->data(), 0x7b, dst->get_byte_size());
+        ov::npuw::util::copy_to_right(src, dst);
+        const size_t leading_bytes = dst->get_byte_size() - src->get_byte_size();
+        EXPECT_EQ(std::memcmp(static_cast<uint8_t*>(dst->data()) + leading_bytes, src->data(), src->get_byte_size()),
+                  0);
+        EXPECT_TRUE(std::all_of(static_cast<uint8_t*>(dst->data()),
+                                static_cast<uint8_t*>(dst->data()) + leading_bytes,
+                                [](uint8_t value) {
+                                    return value == 0x7b;
+                                }));
+        ov::npuw::util::copy_per_layer_inputs_chunk_to_right(src, dst, 1, 2);
+        EXPECT_EQ(std::memcmp(static_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - 16 * type.size(),
+                              static_cast<uint8_t*>(src->data()) + 8 * type.size(),
+                              16 * type.size()),
+                  0);
+    }
+}
+
+TEST(PerLayerInputsCopyTest, UnsupportedTypePairsThrow) {
+    auto f32 = make_per_layer_tensor(3, 2, 4);
+    auto f16 = ov::get_tensor_impl(ov::Tensor(ov::element::f16, ov::Shape{1, 5, 2, 4}));
+    auto i64 = ov::get_tensor_impl(ov::Tensor(ov::element::i64, ov::Shape{1, 5, 2, 4}));
+    EXPECT_THROW(ov::npuw::util::copy_to_right(f32, i64), ov::Exception);
+    EXPECT_THROW(ov::npuw::util::copy_to_right(f16, f32), ov::Exception);
+    EXPECT_THROW(ov::npuw::util::copy_per_layer_inputs_chunk_to_right(f32, i64, 0, 2), ov::Exception);
+    EXPECT_THROW(ov::npuw::util::copy_per_layer_inputs_chunk_to_right(f16, f32, 0, 2), ov::Exception);
 }
 
 }  // namespace
