@@ -13,10 +13,11 @@ model: sonnet
 2. **内存依赖图与内存池复用 (`memory_pool` & Dependency Passes)**：
    - 深入分析 `basic_memory_dependencies`（In-Order Queue 线性生命周期）与 `oooq_memory_dependencies`（Out-of-Order Queue 并发冲突集）对 `program_node::memory_dependencies` 的构建准确性。
    - 评估从离散 `memory_pool` 块复用演进到 **Static Memory Arena（两阶段静态规划：Phase 1 收集 Tensor 生命周期与大小约束并计算偏移 Offset，Phase 2 一次性分配大块连续 Base Arena 并切片绑定）** 的收益、碎片率降低效果及边界对齐（Alignment）约束。
-3. **动态与静态混合场景（Hybrid Arena）**：
-   - 分析静态 Shape 子图使用 Static Arena 与动态 Shape 节点回退动态分配池的协同边界、In-place 算子（复用输入内存）以及 Shape 变化时的 Realloc 开销。
+3. **统一 Arena（静态与动态共用）**：
+   - 静态网络就是"签名永远命中、只有一段"的 A2。动态网络每轮先推导再规划（A2），在数据依赖切点分段续排（B2），容量可缩容。详见 CLAUDE.md"动态 Shape 路线（D 阶段）"。
+   - 不进 Arena 的部分走 LEGACY：OOOQ、CPU impl、shape_of、kv/变量、外部输入、输出（N2 前）、loop/condition body。
 4. **量化评估输出**：
    - 明确指出优化前后的峰值显存（Peak Memory）、驱动 API 调用次数（`clSVMAlloc` / `zeMemAllocDevice`）、内存碎片率及 Host-Device 同步开销变化。
 
-**定位说明（2026-11 审计）**：本 agent 是只读的通用内存分析助手，**不在 CLAUDE.md 主流水线内**，且无 Bash 工具，不能自行跑基准。凡需要实测数字（峰值显存、`ETC @ device` 桶大小、分配次数）的任务，应改派 `@ov-gpu-memory-profiler`；本 agent 只负责解释调用方已提供的数据。设计与实现类任务不得用本 agent 替代 `@ov-gpu-architect` / `@ov-gpu-pool-liveness-specialist` / `@ov-gpu-static-arena-architect`。
+**定位说明**：本 agent 是只读的通用内存分析助手，**不在 CLAUDE.md 主流水线内**，且无 Bash 工具，不能自行跑基准。凡需要实测数字（峰值显存、`ETC @ device` 桶大小、分配次数）的任务，应改派 `@ov-gpu-memory-profiler`；本 agent 只负责解释调用方已提供的数据。设计与实现类任务不得用本 agent 替代 `@ov-gpu-architect` / `@ov-gpu-pool-liveness-specialist` / `@ov-gpu-static-arena-architect`。
 注意：`allocate_output()` 的 bypass 判断与 Pattern A/B/C 现状以 CLAUDE.md 与 `ov-gpu-pool-liveness-specialist` 中经审计的描述为准，不得沿用本文件之外的旧快照。

@@ -24,4 +24,11 @@ model: haiku
    - `src/runtime/stream.cpp`：`get_expected_sync_method()` (:11-16 `SyncMethods::events/barriers/none`).
    - `src/graph/primitive_inst.cpp`：`update_shape_sync` (:461-468), gather runtime-skip (:1614-1620), CPU/OOOQ `_exec_deps` event 收集 (:2215).
 
+4. **Arena 与 D 路线相关入口**（快照，须重新 Grep）：
+   - `src/graph/primitive_inst.cpp`：`update_shape()` 的输入 layout 未变时提前返回（约 :438-466）；`do_runtime_skip_gather` 的 `finish()` 与索引回读（约 :2016-2018）；`update_weights` 在 prepare 阶段入队 reorder（约 :3139）；动态输出缩容规则（约 :1346-1372，`<=` 边界约 :1365）；stateless_kv 私有拷贝（约 :871-889）。
+   - `src/graph/network.cpp`：动态网络或含 variable 的网络关闭 record/replay（约 :1215/:1218）。
+   - `src/runtime/engine.cpp`：`check_allocatable`（约 :315-349）。
+   - `src/runtime/ocl/ocl_memory.cpp`：`CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL`（约 :508）、`create_subbuffer`。
+   - 入池资格（P1）：`allocate_output()` 的绕池条件、`can_share_buffer(false)` 的全部设置点、`memory_user` 的 uid 身份、`get_from_non_padded_pool`/`get_from_padded_pool` 的冲突检查（多输出端口与同一 uid 共块，即 F18）。
+
 **输出要求**：严禁长篇大论，仅返回**本次 Grep 重新核实过的**精确 `文件路径:起止行号`、关键函数签名、数据结构定义及上下游调用链摘要；若坐标与预置地图不一致，用一行注明"地图漂移：预置 X，实际 Y"。

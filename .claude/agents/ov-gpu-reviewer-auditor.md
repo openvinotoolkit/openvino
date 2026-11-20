@@ -17,11 +17,20 @@ model: sonnet
 4. **Dynamic Shape 与 Debug 兼容性**：
    - 静态图优化（如 Static Arena）是否在遇到 Dynamic Shape 节点时有安全可靠的 Bypass / Fallback 分支？
    - 开启与关闭 `ENABLE_DEBUG_CAPS` 时是否均能正常编译，且 `OV_GPU_Verbose` 日志信息准确？
-5. **本项目专项（2026-11 审计新增）**：
-   - `can_share_buffer(true)` 是否只出现在设计批准的唯一位置？Grep 全仓确认没有第二个写入点。
-   - 链首 root 恢复入池前，是否并集了整链全部成员的 restrictions 与全部 user？是否排除了 `is_output()`、动态节点、CPU impl、shape_of 子图？
-   - `fused_prims_onednn` 冻结值与 `basic_memory_dependencies`/`get_reused_eltwmem_idx` 实时判定分歧时，是否只可能走保守方向（不漏标）？
-   - `get_reused_eltwmem_idx` 对 `binary_mul_inplace`（FC）返回索引，而 `basic_memory_dependencies` 只标 sum：本次改动是否触及或加重该风险？
-   - 区间引擎是否仍限定在 `in_order` + 静态非 runtime-skippable 节点？动态网络 `_exec_order ≠ processing_order`（`build_exec_order` 重排 in-place concat 前驱），任何基于 `processing_num` 的复用判断在动态路径上都视为高危。
-   - `allocate_output()` 的 internal 与非 internal 两个 bypass 分支是否保持一致；Concat holder 是否不再直配绕池。
-   - Arena 路径：退役 Arena 是否仍被在途 kernel 引用（需 `stream.finish()` 后再释放）；重绑定后是否有悬空 `memory` 指针；Debug Canary 是否生效。
+5. **本项目专项**（依据 CLAUDE.md"统一原位冲突解决""阶段化执行约定""动态 Shape 路线（D 阶段）"）：
+   - `can_share_buffer` 的改写只出现在设计批准的唯一位置。Grep 全仓，确认没有第二个写入点。
+   - sum 链别名类的区间覆盖全部成员的全部用户，并排除 `is_output()`、动态节点、CPU impl、shape_of。
+   - F5 之后，冻结结果与实时判定出现分歧时只能走降级方向；检测点之后的调用点读的是重冻结结果。
+   - 本次改动是否触及或加重 binary_mul_inplace 经 `get_reused_eltwmem_idx` 返回索引的既有风险。Arena 绑定一旦改变了依赖内存，必须同时重绑这些 FC 的 dst。
+   - 时间轴是 `_exec_order` 或 F9 之后的 PO。基于旧 `processing_num` 的复用判断视为高危。
+   - Concat holder 不再直配绕池；`allocate_output()` 的 internal 与非 internal 分支保持一致。
+   - Arena 路径：
+     - 旧 Arena 等上一轮执行完才释放，不被在途 kernel 引用；
+     - 重绑定之后没有悬空的 `memory` 指针；
+     - Debug Canary 生效。
+   - D 路线：
+     - 推导阶段不入队 kernel，也不引入新的 `finish()`；
+     - 本轮计划在执行期间只读；
+     - B2 续排不移动存活张量；
+     - 换 impl 或换计划后 `_reset_arguments` 生效。
+   - 多 stream：每个 network 一份 Arena，不跨 network 共享。

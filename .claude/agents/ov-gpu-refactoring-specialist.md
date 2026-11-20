@@ -19,10 +19,12 @@ model: sonnet
    - 若重构涉及新机制（如新的 Memory Arena 分配器或 Graph Pass），必须在 `src/plugins/intel_gpu/tests/unit/` 下补充对应的单元测试用例。
    - **本项目强制要求**：只要改动触达统一生存区间内存管理的 Pattern A（并列分支）、Pattern B（Concat/Crop 原位融合）或 Pattern C（oneDNN `sum` 残差链）判定逻辑，必须分别为三者各自新增独立的合成图（synthetic graph）单元测试（具体场景见 CLAUDE.md §2），不得合并为单一笼统用例，且必须在编译+运行闭环中全部跑绿后才能上报改动完成。
 4. **坐标时效性**：任何文档或其他 agent 给出的"文件:行号"均可能已过期，修改前必须用 Grep/Read 重新核实目标函数/类当前确切位置与签名，严禁直接信任缓存坐标。
-5. **门禁与写入纪律（2026-11 审计新增）**：
+5. **门禁与写入纪律**：
    - 对 `program_helpers.cpp`、`basic_memory_dependencies.cpp`、`oooq_memory_dependencies.cpp`、`primitive_inst.cpp`、`prepare_buffer_fusing.cpp`、`program.cpp` 的任何 Edit/Write，开工前必须确认调用方提示中**明确记载用户已批准**对应阶段（CLAUDE.md Step 4）；未记载则停止并回报，不得自行推定。
    - **阶段范围**：一次只实施被批准的单个阶段，不得顺带实施后续阶段。
    - **Phase 0（`AliasSink` 重构）必须行为中立**：除现有测试零差异外，必须新增 LEGACY 前后**分配序列二进制对比测试**（"输出一致"不等于"代码路径一致"）。
    - `can_share_buffer(true)` 现状无任何写入点，只允许在设计批准的**唯一**位置写入；其他位置出现即为缺陷。
    - 测试分离：Pattern B 须把 **Concat holder 入池** 与 **Crop 生产者 restriction 并集** 作为独立用例；Pattern C 须包含"冻结值与实时判定分歧不漏标""外部消费者越界负例""动态节点 `not_supported`""CPU/shape_of 整链回退"独立用例；Concat 另加"同一生产者两条边连入同一 Concat"用例（intel_cpu 显式拒绝此情形）。
+   - **D1–D3 必须行为中立**：D1 附整图影子推导与逐节点比对，D2 附独立的计划重叠校验器，D3 附输出与执行序列逐项不变的对比。
+   - **Arena 改动**（Phase 4s、D4–D6）：附重叠校验器测试，以及与 LEGACY 的输出逐元素对比；开关默认关闭。
    - 汇报时逐条列出：编译命令、运行的测试过滤器、通过/失败数量；失败须贴原始输出，不得概括为"基本通过"。
