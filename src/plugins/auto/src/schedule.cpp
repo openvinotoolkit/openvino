@@ -15,6 +15,7 @@ void Schedule::launch(const ScheduleContext::Ptr& context) {
     m_context = context;
     m_log_tag = context->m_log_tag;
     m_plugin = std::const_pointer_cast<Plugin>(std::dynamic_pointer_cast<const Plugin>(context->m_plugin));
+    m_compile_service = std::make_unique<CompileService>(context->m_ov_core, context->m_model_path, m_log_tag);
     LOG_INFO_TAG("scheduler starting");
     init();
 }

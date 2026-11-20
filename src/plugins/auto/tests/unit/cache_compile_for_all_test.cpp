@@ -16,6 +16,7 @@
 #include <tuple>
 #include <vector>
 
+#include "compile_service.hpp"
 #include "include/auto_unit_test.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/parameter.hpp"
@@ -935,6 +936,50 @@ TEST_F(AutoCachePrecompileTest, claimWaitsForTheInFlightPrecompile) {
     claimer.join();
     EXPECT_TRUE(claimed.load());
     precompiler->stop();
+}
+
+TEST_F(AutoCachePrecompileTest, compileServiceRecordsTheCostOfEachCompilation) {
+    auto compiled_model = make_compiled_model();
+    ON_CALL(*compiled_model, get_property(StrEq(ov::loaded_from_cache.name()))).WillByDefault(Return(ov::Any(true)));
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        return {compiled_model, {}};
+    });
+    ov::auto_plugin::CompileService service(core, {}, "test");
+    EXPECT_FALSE(service.stats("GPU.0"));
+    EXPECT_TRUE(service.compile(model, "GPU.0", {}));
+    EXPECT_TRUE(service.compile(model, "GPU.0", {}));
+    const auto stats = service.stats("GPU.0");
+    ASSERT_TRUE(stats);
+    EXPECT_EQ(stats->compile_count, 2u);
+    EXPECT_EQ(stats->last_loaded_from_cache, std::optional<bool>(true));
+    EXPECT_GE(stats->last_compile_ms, 0.0);
+}
+
+TEST_F(AutoCachePrecompileTest, compileServiceKeepsAnOnDemandDeviceOutOfTheBackgroundLane) {
+    set_global_cache("test_cache_dir");
+    std::atomic<int> gpu_count{0};
+    std::atomic<int> npu_count{0};
+    auto compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        gpu_count++;
+        return {compiled_model, {}};
+    });
+    on_compile("NPU", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        npu_count++;
+        return {compiled_model, {}};
+    });
+    ov::auto_plugin::CacheManager manager;
+    ov::auto_plugin::CompileService service(core, {}, "test");
+    service.enable_precompile(manager, model);
+    ASSERT_TRUE(service.has_precompile());
+    EXPECT_TRUE(service.compile(model, "GPU.0", {}));
+    service.start_precompile(actual_device, {{"GPU.0", {}, -1}, {"NPU", {}, -1}}, {});
+    EXPECT_TRUE(wait_until([&] {
+        return npu_count.load() == 1;
+    }));
+    // only the on-demand compilation
+    EXPECT_EQ(gpu_count.load(), 1);
+    service.stop_precompile();
 }
 
 TEST_F(AutoCachePrecompileTest, skipsDeviceWithCachingDisabled) {

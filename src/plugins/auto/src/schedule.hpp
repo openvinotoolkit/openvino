@@ -6,6 +6,7 @@
 #pragma once
 
 #include "common.hpp"
+#include "compile_service.hpp"
 #include "instance_registry.hpp"
 #include "itt.hpp"
 
@@ -61,6 +62,8 @@ protected:
     TaskQueue                                                            m_infer_pipeline_tasks;
     // filled by init() only, the contexts keep their address until the schedule is destroyed
     InstanceRegistry                                                     m_instances;
+    // created by launch() before init(), every compilation of the schedule goes through it
+    std::unique_ptr<CompileService>                                      m_compile_service;
     // the context holding the compiled model that serves every request directly, null if requests are scheduled
     DeviceExecutionContext*                                              m_passthrough_context = nullptr;
     // set before compiling: the model is only held by its context, no worker is created for it

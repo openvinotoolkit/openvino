@@ -41,6 +41,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_manager.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_manager.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/common.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compile_service.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compile_service.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_compiled_model.cpp

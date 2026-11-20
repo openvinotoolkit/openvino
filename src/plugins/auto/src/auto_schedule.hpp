@@ -36,8 +36,6 @@ private:
     SoCompiledModel wait_first_compiled_model_ready() override;
     CompileResult try_to_compile_model(CompileRequest& request, const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const ModelInstanceKey& failed_instance) override;
-    // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
-    std::shared_ptr<CachePrecompiler>                                    m_cache_precompiler;
     void release_execution_slot() override;
     /**
      * @brief Serialize the incoming request behind the execution gate when per inference device selection is on.

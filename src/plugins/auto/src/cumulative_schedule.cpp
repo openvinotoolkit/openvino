@@ -200,11 +200,7 @@ CompileResult CumuSchedule::try_to_compile_model(CompileRequest& request,
         }
     }
     try {
-        if (!(m_context->m_model_path.empty())) {
-            result.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
-        } else {
-            result.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
-        }
+        result.m_compiled_model = m_compile_service->compile(model, device, device_config);
         result.m_succeeded = true;
     } catch (const ov::Exception& e) {
         result.m_error += device + ":" + e.what();

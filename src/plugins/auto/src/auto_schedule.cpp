@@ -155,11 +155,7 @@ void AutoSchedule::init() {
             m_context->m_startup_fallback = false;
             m_context->m_runtime_fallback = false;
             // Capture before the actual-device task releases the model.
-            m_cache_precompiler = std::make_shared<CachePrecompiler>(m_plugin->get_cache_manager(),
-                                                                     m_context->m_ov_core,
-                                                                     m_context->m_model,
-                                                                     m_context->m_model_path,
-                                                                     get_log_tag());
+            m_compile_service->enable_precompile(m_plugin->get_cache_manager(), m_context->m_model);
         }
     }
     if (m_context->m_runtime_fallback) {
@@ -352,14 +348,14 @@ void AutoSchedule::init() {
     }
     capture_hw_metadata(wait_first_compiled_model_ready());
     // compile_for_all disables the CPU helper, so the pre-compilation can start as soon as the actual device is ready.
-    if (m_cache_precompiler && m_compile_context[ACTUALDEVICE].is_ready()) {
+    if (m_compile_service->has_precompile() && m_compile_context[ACTUALDEVICE].is_ready()) {
         // Failed startup devices were already removed from the actual context's candidates.
-        m_cache_precompiler->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
-                                   m_compile_context[ACTUALDEVICE].m_meta_devices,
-                                   [this](const std::string& device_name) {
-                                       const auto* context = find_device_context(device_name);
-                                       return context && context->is_ready();
-                                   });
+        m_compile_service->start_precompile(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                                            m_compile_context[ACTUALDEVICE].m_meta_devices,
+                                            [this](const std::string& device_name) {
+                                                const auto* context = find_device_context(device_name);
+                                                return context && context->is_ready();
+                                            });
     }
 }
 
@@ -397,27 +393,8 @@ CompileResult AutoSchedule::try_to_compile_model(CompileRequest& request,
         }
     }
     try {
-        auto compile_start_time = std::chrono::high_resolution_clock::now();
-        if (!(m_context->m_model_path.empty())) {
-            result.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
-        } else {
-            result.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
-        }
+        result.m_compiled_model = m_compile_service->compile(model, device, device_config);
         result.m_succeeded = true;
-        auto compile_end_time = std::chrono::high_resolution_clock::now();
-        auto compiled_time =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(compile_end_time - compile_start_time).count() *
-            0.000001;
-        const char* loaded_from_cache = "unknown";
-        try {
-            loaded_from_cache =
-                result.m_compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>() ? "yes" : "no";
-        } catch (const ov::Exception&) {
-        }
-        LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms, loaded from cache: %s",
-                     device.c_str(),
-                     compiled_time,
-                     loaded_from_cache);
     } catch (const ov::Exception& e) {
         result.m_error += device + ":" + e.what();
         LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
@@ -792,10 +769,6 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     // select_dynamic_device() reserved nothing for the requested device
     request.m_priority_released = true;
-    if (m_cache_precompiler) {
-        // avoids compiling the device twice at the same time; the blob it leaves is loaded below
-        m_cache_precompiler->claim_device(requested_device_name);
-    }
     auto result = try_to_compile_model(request, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
     const bool fell_back_to_other_device = request.m_device_info.device_name != requested_device_name;
     // try_to_compile_model() drops every device that failed to compile from its own candidate list
@@ -1006,9 +979,7 @@ AutoSchedule::~AutoSchedule() {
         m_executor.reset();
     }
     // After the recycle task has stopped, so no new pre-compilation can be queued.
-    if (m_cache_precompiler) {
-        m_cache_precompiler->stop();
-    }
+    m_compile_service->stop_precompile();
     if (m_plugin && !m_context->m_dynamic_device_selection) {
         m_plugin->unregister_priority(m_context->m_model_priority,
                                       m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
