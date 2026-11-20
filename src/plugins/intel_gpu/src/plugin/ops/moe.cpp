@@ -83,16 +83,16 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
             return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
         }
 
-        // 2. Buffer descriptor offset (mmap path)
-        auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
-        if (source_buf) {
-            return ov::weight_sharing::Extension::get_constant_id(*const_op);
-        }
-
-        // 3. Plain "otd_bin_offset" rt_info entry (survives copy_runtime_info)
+        // 2. Plain "otd_bin_offset" rt_info entry (survives copy_runtime_info)
         auto otd_it = rt_info.find("otd_bin_offset");
         if (otd_it != rt_info.end()) {
             return static_cast<size_t>(otd_it->second.as<int64_t>());
+        }
+
+        // 3. Buffer descriptor offset: equals the file offset only if the whole weights file is mmapped
+        auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
+        if (source_buf) {
+            return ov::weight_sharing::Extension::get_constant_id(*const_op);
         }
 
         OPENVINO_THROW("OTD: Cannot determine bin offset for MOE weight constant. "

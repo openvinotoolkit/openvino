@@ -234,21 +234,21 @@ TEST_P(MoECompressedFusionTest, Inference) {
     run();
 }
 
-using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType>;
+using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType, bool>;
 
 // The experts are streamed from the weights file on demand, so the model has to be read from a file.
 class MoECompressedOffloadTest : public testing::WithParamInterface<MoECompressedOffloadParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoECompressedOffloadParams>& info) {
-        const auto& [offload_ratio, wp, ds] = info.param;
+        const auto& [offload_ratio, wp, ds, enable_mmap] = info.param;
         std::ostringstream result;
-        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds;
+        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds << "_MMAP=" << enable_mmap;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [offload_ratio, wp, ds] = GetParam();
+        const auto& [offload_ratio, wp, ds, enable_mmap] = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
         const auto caps = core->get_property(targetDevice, ov::device::capabilities);
         if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
@@ -277,7 +277,7 @@ protected:
         xml_path = file_prefix + ".xml";
         bin_path = file_prefix + ".bin";
         ov::pass::Serialize(xml_path, bin_path).run_on_model(function);
-        function = core->read_model(xml_path);
+        function = core->read_model(xml_path, {}, {ov::enable_mmap(enable_mmap)});
         configuration = {ov::hint::inference_precision(ov::element::f16),
                          ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
                          ov::hint::dynamic_quantization_group_size(0),
@@ -324,14 +324,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
                                             ::testing::Values(ov::element::u3),
                                             ::testing::Values(ov::test::utils::DecompressionType::full,
                                                               ov::test::utils::DecompressionType::scalar,
-                                                              ov::test::utils::DecompressionType::empty)),
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Bool()),
                          MoECompressedOffloadTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
                          MoECompressedOffloadTest,
                          ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u8, ov::element::u4),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty),
+                                            ::testing::Bool()),
                          MoECompressedOffloadTest::getTestCaseName);
 
 // GatherMatmul and fused MoE kernels support only f16 activations, so the MoE pipeline must be applied
