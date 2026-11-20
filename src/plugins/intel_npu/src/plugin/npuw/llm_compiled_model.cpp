@@ -1702,14 +1702,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                      "NPUW_HOST_GATHER in every stage.");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
         } else {
-            // The LM head model has its own copy of the dequantization nodes, so the embedding Gather in the
-            // other models is shifted as well: both readers have to use the same i8 representation to share
-            // one table. The embedding goes first, as the vocabulary is taken from the unshifted LM head model.
-            auto embedding_models = generate_model_variants;
-            embedding_models.push_back(prefill_model);
-            for (const auto& embedding_model : embedding_models) {
-                ov::npuw::InsertEmbeddingSub128(lm_head_model).run_on_model(embedding_model);
-            }
             if (!ov::npuw::InsertVocabSub128().run_on_model(lm_head_model)) {
                 // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
                 LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");

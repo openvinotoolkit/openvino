@@ -1266,12 +1266,11 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperInt8DisablesWsStageOptions) {
 }
 
 // Makes the embedding and the LM head of a synthetic model read one u8 asymmetric vocabulary, as in
-// an INT4 model with tied weights. Each reader has its own dequantization over the same constants, or both
-// readers use one dequantization chain, as in an IR of a model with tied weights.
+// an INT4 model with tied weights. As in a real IR, each reader
+// has its own dequantization over the same constants.
 void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model,
                               const std::string& embedding_weight_name,
-                              const std::string& head_name,
-                              const bool common_chain = false) {
+                              const std::string& head_name) {
     std::shared_ptr<ov::Node> embedding_weight;
     std::shared_ptr<ov::Node> head;
     for (const auto& node : model->get_ordered_ops()) {
@@ -1302,15 +1301,10 @@ void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model,
         auto shifted = std::make_shared<ov::op::v1::Subtract>(weight_f32, zero_point_f32);
         return std::make_shared<ov::op::v1::Multiply>(shifted, scale);
     };
-    // One dequantization chain for both readers, or one chain per reader.
-    const auto shared_chain = common_chain ? dequantize() : ov::Output<ov::Node>();
-    const auto reader_chain = [&]() {
-        return common_chain ? shared_chain : dequantize();
-    };
     for (const auto& reader : embedding_weight->output(0).get_target_inputs()) {
-        reader.replace_source_output(reader_chain());
+        reader.replace_source_output(dequantize());
     }
-    head->input(1).replace_source_output(reader_chain());
+    head->input(1).replace_source_output(dequantize());
 }
 
 std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
@@ -1332,9 +1326,8 @@ protected:
     Sub128Shifts compile_with_shared_vocabulary(const std::shared_ptr<ov::Model>& model,
                                                 const std::string& embedding_weight_name,
                                                 const std::string& head_name,
-                                                ov::AnyMap props,
-                                                const bool common_chain = false) {
-        share_u8_asym_vocabulary(model, embedding_weight_name, head_name, common_chain);
+                                                ov::AnyMap props) {
+        share_u8_asym_vocabulary(model, embedding_weight_name, head_name);
         bool shared = false;
         ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
         EXPECT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
@@ -1367,14 +1360,10 @@ protected:
                                               props);
     }
 
-    Sub128Shifts compile_llm(const ov::AnyMap& extra_props, const bool common_chain = false) {
+    Sub128Shifts compile_llm(const ov::AnyMap& extra_props) {
         ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "YES"}};
         props.insert(extra_props.begin(), extra_props.end());
-        return compile_with_shared_vocabulary(build_llm_model(),
-                                              "model.embed_tokens.weight",
-                                              "lm_head",
-                                              props,
-                                              common_chain);
+        return compile_with_shared_vocabulary(build_llm_model(), "model.embed_tokens.weight", "lm_head", props);
     }
 };
 
@@ -1392,22 +1381,12 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, WhisperDoesNotUseSharedVocabularyWi
     EXPECT_EQ(shifts.generate, 0u);
 }
 
-// With the default stage configs the vocabulary is a closure: the LM head model and the embedding in the
-// other models are shifted (the weight and the zero point of each), so both readers use one i8 table.
+// With the default stage configs the vocabulary is a closure; only the separate LM head model is shifted.
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsShiftedWithDefaultConfigs) {
     const auto shifts = compile_llm({});
     EXPECT_EQ(shifts.lm_head, 2u);
-    EXPECT_EQ(shifts.prefill, 2u);
-    EXPECT_EQ(shifts.generate, 2u);
-}
-
-// The LM head model gets its own copy of a dequantization chain that both readers share in the original
-// model: the embedding has to be shifted in the other models as well.
-TEST_F(LLMCompiledModelSharedVocabularyTest, BothReadersAreShiftedWithCommonDequantizationChain) {
-    const auto shifts = compile_llm({}, true);
-    EXPECT_EQ(shifts.lm_head, 2u);
-    EXPECT_EQ(shifts.prefill, 2u);
-    EXPECT_EQ(shifts.generate, 2u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
 }
 
 // NPUW_CWAI is used only without NPUW_FOLD and does not run Partitioner::optimize(), which resolves the shifts.
@@ -1462,8 +1441,6 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWithNewCompil
     const auto core = attach_mock_core_with_npu_device(m_plugin);
     const auto shifts = compile_llm({});
     EXPECT_EQ(shifts.lm_head, 2u);
-    EXPECT_EQ(shifts.prefill, 2u);
-    EXPECT_EQ(shifts.generate, 2u);
 }
 
 TEST_F(LLMCompiledModelSharedVocabularyTest, ExplicitSharedVocabularyIsUsedWithOldCompiler) {
@@ -1471,8 +1448,6 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, ExplicitSharedVocabularyIsUsedWithO
     const auto core = attach_mock_core_with_npu_device(m_plugin);
     const auto shifts = compile_llm({{"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}});
     EXPECT_EQ(shifts.lm_head, 2u);
-    EXPECT_EQ(shifts.prefill, 2u);
-    EXPECT_EQ(shifts.generate, 2u);
 }
 
 // The compiler that matters is the one of the final LM head config, not the top-level one: the plugin
@@ -1501,8 +1476,6 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedIfHeadOverrid
     const auto shifts = compile_llm({{"NPU_COMPILER_TYPE", "DRIVER"},
                                      {"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPU_COMPILER_TYPE", "PLUGIN"}}}});
     EXPECT_EQ(shifts.lm_head, 2u);
-    EXPECT_EQ(shifts.prefill, 2u);
-    EXPECT_EQ(shifts.generate, 2u);
 }
 
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsNotShiftedIfHeadHasNoFunctions) {
