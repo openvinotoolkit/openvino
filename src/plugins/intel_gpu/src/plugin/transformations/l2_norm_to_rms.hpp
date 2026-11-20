@@ -8,15 +8,42 @@
 
 namespace ov::intel_gpu {
 
-// An RMS norm written as an L2 normalization over the last axis, the form ONNX LpNormalization(p=2)
-// decomposes to:
-//     x / Sqrt(ReduceSum(x^2) + eps) * gamma
-// Since ReduceSum = N * ReduceMean over N elements, this is exactly
-//     RMS(x, gamma / sqrt(N), eps / N)
+// Fuses an RMS norm written as an L2 normalization over the last axis, the form ONNX LpNormalization(p=2)
+// decomposes to, into internal::RMS. Since ReduceSum = N * ReduceMean over N elements:
+//     x / Sqrt(ReduceSum(x^2) + eps) * gamma == RMS(x, gamma / sqrt(N), eps / N)
 // RMSFusion does not take it: it looks for ReduceMean and requires gamma to be a Constant, while here
 // gamma may be computed at run time (e.g. a dequantized weight fed as a model input).
-// skip_residual_input (for runs before ConvertPrecision): skip norms fed by a residual Add, so MarkDivWithEps
-// still keeps the residual stream in FP32. The scaled gamma is always kept in FP32 (u16 gamma may exceed f16).
+//
+// Before:                                  After:
+//
+//          x                                  x    gamma   1/sqrt(N)
+//          |                                  |       \     /
+//   [Convert] (optional)                      |      Multiply
+//      |        |                             |         |
+//      |      Power(2)                        +---RMS---+  (eps / N)
+//      |        |                                  |
+//      |    ReduceSum(last axis, keep_dims)   output type of the matched root
+//      |        |
+//      |      Add(eps)
+//      |        |
+//      |      Sqrt
+//      |        |
+//      +--Divide
+//           |
+//        Multiply--gamma
+//           |
+//     [Convert] (optional: a sole consumer of the Multiply, RMS writes its type directly)
+//
+// Conditions:
+//  - static N within the RMS kernel limit (N / 8 <= max_work_group_size, as RMSFusion on GPU);
+//    rank <= 5 (the kernel has bfyx and bfzyx implementations only);
+//  - ReduceSum, Add(eps), Sqrt and Divide have no other consumers; eps is a scalar Constant;
+//  - gamma scales the normalized axis only: static shape {..., 1, N}, no more dims than x;
+//  - with skip_residual_input (registration before ConvertPrecision), x is not a residual Add (an Add of two
+//    non-constant inputs). Such norms are left to the late registration: MarkDivWithEps keys on the Divide and
+//    keeps the residual stream in FP32, and an early fusion would remove the Divide and let it drop to f16.
+// The scaled gamma is marked to stay in FP32: it may be dequantized from u16 values above the f16 range
+// (e.g. 65535), and after an early fusion no Divide is left to keep it in FP32.
 class L2NormToRMS : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("L2NormToRMS");

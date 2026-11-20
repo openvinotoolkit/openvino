@@ -27,8 +27,9 @@ namespace ov::intel_gpu {
 
 namespace {
 // An Add of two non-constant inputs: a residual connection rather than a bias.
-bool is_residual_add(const std::shared_ptr<ov::Node>& node) {
-    if (!ov::is_type<ov::op::v1::Add>(node) || !node->get_output_element_type(0).is_real()) {
+bool is_residual_add(const ov::Output<ov::Node>& output) {
+    const auto node = output.get_node_shared_ptr();
+    if (!ov::is_type<ov::op::v1::Add>(node) || !output.get_element_type().is_real()) {
         return false;
     }
     for (const auto& input : node->input_values()) {
@@ -43,7 +44,13 @@ bool is_residual_add(const std::shared_ptr<ov::Node>& node) {
 L2NormToRMS::L2NormToRMS(size_t max_work_group_size, bool skip_residual_input) {
     using namespace ov::pass::pattern;
 
+    // A residual-fed norm is left decomposed when skip_residual_input is set, see the header.
     auto x = any_input();
+    if (skip_residual_input) {
+        x = any_input([](const ov::Output<ov::Node>& output) {
+            return !is_residual_add(output);
+        });
+    }
     auto x_convert = optional<ov::op::v0::Convert>({x});
     auto power = wrap_type<ov::op::v1::Power>({x_convert, wrap_type<ov::op::v0::Constant>(value_matches("2"))});
     auto axes = wrap_type<ov::op::v0::Constant>();
@@ -102,10 +109,6 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size, bool skip_residual_input) {
         }
 
         const auto x_out = pm.at(x);
-        // Leave a residual-fed norm decomposed: MarkDivWithEps keeps the residual stream FP32, the late run fuses it.
-        if (skip_residual_input && is_residual_add(x_out.get_node_shared_ptr())) {
-            return false;
-        }
         // Nodes are visited in topological order, so the match lands on the Multiply before its Convert is
         // seen; take a lone trailing Convert in as well so RMS writes the converted type directly.
         std::shared_ptr<ov::Node> root = pm.at(mul).get_node_shared_ptr();
