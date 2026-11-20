@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        const auto& func_input = function->inputs().front();
+        const auto func_input = function->input(0);
         const ov::test::utils::InputGenerateData in_data(-64, 128, 8);
         inputs.insert({func_input.get_node_shared_ptr(),
                        ov::test::utils::create_and_fill_tensor(func_input.get_element_type(), targetInputStaticShapes.front(), in_data)});
