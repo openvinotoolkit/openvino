@@ -56,7 +56,6 @@ PagedQSAIndexer::PagedQSAIndexer(const std::shared_ptr<ov::Node>& op, const Grap
     // Fixed by the model (isSupportedOperation checked they are static).
     m_index_query_heads = paged_qsa_indexer->get_index_query_heads();
     m_index_key_heads = paged_qsa_indexer->get_index_key_heads();
-    m_page_size = static_cast<size_t>(op->get_input_partial_shape(InputIdx::INDEX_KEY_CACHE)[2].get_length());
 }
 
 void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
@@ -92,7 +91,6 @@ void PagedQSAIndexer::createPrimitive() {
     config.rotary_dim = c.indexer_rotary_dim;
     config.index_query_heads = m_index_query_heads;
     config.index_key_heads = m_index_key_heads;
-    config.page_size = m_page_size;
     config.num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
     config.eps = c.epsilon;
     config.scale = ov::op::internal::PagedQSAIndexer::effective_scale(c);
@@ -132,8 +130,15 @@ void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
     // Core shape inference leaves the cache layout to the backend: the caches must match the config, or the kernels
     // would read / write out of bounds.
     const auto& c = m_config;
-    const size_t slots_per_page = m_page_size / c.key_block_size;
-    args.raw_k_cache.assert_dims({0, m_index_key_heads, m_page_size, c.indexer_head_dim}, true);
+    // The page size is the one of the cache, which the model may leave dynamic.
+    const size_t page_size = args.raw_k_cache.size(2);
+    CPU_NODE_ASSERT(page_size > 0 && page_size % c.key_block_size == 0,
+                    "the cache page size ",
+                    page_size,
+                    " must be a positive multiple of key_block_size ",
+                    c.key_block_size);
+    const size_t slots_per_page = page_size / c.key_block_size;
+    args.raw_k_cache.assert_dims({0, m_index_key_heads, page_size, c.indexer_head_dim}, true);
     args.indexer_rope_cache.assert_dims({0, slots_per_page, 2 * c.indexer_rotary_dim}, true);
     args.summary_cache.assert_dims({0, m_index_key_heads, slots_per_page, c.indexer_head_dim}, true);
     // The page table is validated once per call, so that the kernels index the caches without bounds checks.
@@ -143,7 +148,7 @@ void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
         args.block_indices,
         args.block_indices_begins,
         args.q_idx.size(0),
-        m_page_size,
+        page_size,
         std::min({args.raw_k_cache.size(0), args.indexer_rope_cache.size(0), args.summary_cache.size(0)}));
 
     m_executor->find_batch_max_params(args);
@@ -161,15 +166,15 @@ bool PagedQSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>
             errorMessage = "Only PagedQSAIndexer operation is supported";
             return false;
         }
-        // The head counts and the page size are fixed once, when the executor is built; the tokens and the number of
-        // pages may change.
+        // The head counts are fixed once, when the executor is built; the tokens, the number of pages and the page size
+        // may change.
         const auto& query_ps = op->get_input_partial_shape(InputIdx::INDEX_QUERY);
         const auto& key_ps = op->get_input_partial_shape(InputIdx::RAW_INDEX_KEYS);
         const auto& cache_ps = op->get_input_partial_shape(InputIdx::INDEX_KEY_CACHE);
         if (query_ps.rank().is_dynamic() || query_ps.size() != 2 || query_ps[1].is_dynamic() ||
             key_ps.rank().is_dynamic() || key_ps.size() != 2 || key_ps[1].is_dynamic() ||
-            cache_ps.rank().is_dynamic() || cache_ps.size() != 4 || cache_ps[2].is_dynamic()) {
-            errorMessage = "PagedQSAIndexer CPU implementation requires static head counts and a static page size.";
+            cache_ps.rank().is_dynamic() || cache_ps.size() != 4) {
+            errorMessage = "PagedQSAIndexer CPU implementation requires static head counts and a rank-4 key cache.";
             return false;
         }
         static constexpr size_t float_ports[] = {InputIdx::INDEX_QUERY,
@@ -204,10 +209,13 @@ bool PagedQSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>
             errorMessage = "PagedQSAIndexer configuration is invalid: " + reason;
             return false;
         }
-        const auto page_size = static_cast<size_t>(cache_ps[2].get_length());
-        if (page_size == 0 || page_size % config.key_block_size != 0) {
-            errorMessage = "PagedQSAIndexer page size must be a positive multiple of key_block_size.";
-            return false;
+        // A static page size is checked here, a dynamic one when the node runs.
+        if (cache_ps[2].is_static()) {
+            const auto page_size = static_cast<size_t>(cache_ps[2].get_length());
+            if (page_size == 0 || page_size % config.key_block_size != 0) {
+                errorMessage = "PagedQSAIndexer page size must be a positive multiple of key_block_size.";
+                return false;
+            }
         }
     } catch (...) {
         return false;

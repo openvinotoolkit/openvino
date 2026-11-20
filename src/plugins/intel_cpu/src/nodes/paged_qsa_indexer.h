@@ -56,7 +56,6 @@ private:
     // Fixed by the model.
     size_t m_index_query_heads = 0;
     size_t m_index_key_heads = 0;
-    size_t m_page_size = 0;  // tokens per page of the caches
 };
 
 }  // namespace ov::intel_cpu::node

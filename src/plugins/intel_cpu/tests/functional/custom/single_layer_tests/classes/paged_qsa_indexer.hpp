@@ -81,8 +81,8 @@ private:
     // a 16-bit cache, which the f32 oracle does not do. 0 for f32; for the small tests of the 16-bit types the share
     // of a few elements rounds down to none, so they stay exact.
     double m_mismatch_share = 0.0;
-    size_t m_page_size = 4;
-    size_t m_slots_per_page = 2;  // blocks of a page: page_size / compress_ratio
+    size_t m_page_size = 32;
+    size_t m_slots_per_page = 8;  // blocks of a page: page_size / compress_ratio
     size_t m_seq_blocks = 4;      // physical cache blocks of every sequence, enough for its tokens and a spare one
 };
 

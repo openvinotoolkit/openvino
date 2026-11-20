@@ -31,7 +31,6 @@ struct Config {
     size_t head_dim = 0;             ///< channels of an index head
     size_t index_query_heads = 0;    ///< heads of the index query
     size_t index_key_heads = 0;      ///< heads of the index keys
-    size_t page_size = 0;            ///< tokens per page of the caches (paged op)
     size_t rotary_dim = 0;           ///< channels rotated by RoPE
     size_t num_threads = 0;          ///< worker threads of the node (sizes the scratch)
     float eps = 0.0F;                ///< RMSNorm epsilon
@@ -49,7 +48,6 @@ struct Config {
                                    head_dim,
                                    index_query_heads,
                                    index_key_heads,
-                                   page_size,
                                    rotary_dim,
                                    num_threads}) {
             seed = dnnl::impl::hash_combine(seed, value);
@@ -68,7 +66,6 @@ struct Config {
                         head_dim,
                         index_query_heads,
                         index_key_heads,
-                        page_size,
                         rotary_dim,
                         num_threads,
                         eps,
@@ -81,7 +78,6 @@ struct Config {
                                                 rhs.head_dim,
                                                 rhs.index_query_heads,
                                                 rhs.index_key_heads,
-                                                rhs.page_size,
                                                 rhs.rotary_dim,
                                                 rhs.num_threads,
                                                 rhs.eps,

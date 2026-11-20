@@ -324,7 +324,7 @@ inline SeqPlan seq_plan(const PagedIndexerArgs& call, const Config& c, size_t se
     const int64_t seq_blocks = std::max<int64_t>(block_indices_begins[seq + 1] - block_begin, 0);
     SeqPlan plan{};
     plan.key_block_size = static_cast<int64_t>(c.key_block_size);
-    plan.page_size = static_cast<int64_t>(c.page_size);
+    plan.page_size = static_cast<int64_t>(call.raw_k_cache.size(2));
     plan.slots_per_page = plan.page_size / plan.key_block_size;
     plan.token_begin = subsequence_begins[seq];
     plan.q_len = std::max<int64_t>(subsequence_begins[seq + 1] - plan.token_begin, 0);

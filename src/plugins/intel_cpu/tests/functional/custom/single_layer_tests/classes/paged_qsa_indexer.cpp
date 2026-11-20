@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <map>
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -33,9 +34,9 @@ namespace {
 // paged and dense kernels share the per-token / per-block math and differ only in cache addressing.
 constexpr size_t kDidx = 16;
 constexpr size_t kRotaryDim = 8;
-constexpr size_t kR = 2;
+constexpr size_t kR = 4;  // the key block size of the index blocks (a cache page of 32 tokens holds 8 of them)
 constexpr size_t kBlockTopk = 2;
-constexpr std::array<int32_t, 2> kPastLens = {0, 2};
+constexpr std::array<int32_t, 2> kPastLens = {0, 4};
 constexpr float kEps = 1e-6F;
 constexpr float kScale = 0.25F;
 
@@ -317,7 +318,9 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
     if (data_precision == ov::element::bf16) {
         rel_threshold = 5e-2F;
         abs_threshold = 5e-2F;
-        m_mismatch_share = 0.02;
+        // The oracle keeps the block keys in f32, the kernel in bf16 (8 mantissa bits): a few near-tied scores pick
+        // another block.
+        m_mismatch_share = 0.05;
         configuration.insert(ov::hint::inference_precision(ov::element::bf16));
     } else if (data_precision == ov::element::f16) {
         rel_threshold = 5e-3F;
@@ -346,14 +349,18 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
     auto p_block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{n_phys});
     auto p_block_indices_begins =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_num_sequences + 1});
-    // The caches are typed by ConvertPagedAttnInputs (the inference precision), as in a real pipeline.
-    auto p_raw_k_cache =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, ov::Shape{n_phys, m_h_ik, m_page_size, kDidx});
-    auto p_indexer_rope_cache =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic,
-                                                ov::Shape{n_phys, m_slots_per_page, 2 * kRotaryDim});
-    auto p_summary_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic,
-                                                                   ov::Shape{n_phys, m_h_ik, m_slots_per_page, kDidx});
+    // The caches are typed by ConvertPagedAttnInputs (the inference precision) and their number of pages and page size
+    // are dynamic, as in a real pipeline (the page size is known when the model runs).
+    const auto cache_dim = static_cast<ov::Dimension::value_type>(-1);
+    auto p_raw_k_cache = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::dynamic,
+        ov::PartialShape{cache_dim, static_cast<ov::Dimension::value_type>(m_h_ik), cache_dim, kDidx});
+    auto p_indexer_rope_cache = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::dynamic,
+        ov::PartialShape{cache_dim, cache_dim, static_cast<ov::Dimension::value_type>(2 * kRotaryDim)});
+    auto p_summary_cache = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::dynamic,
+        ov::PartialShape{cache_dim, static_cast<ov::Dimension::value_type>(m_h_ik), cache_dim, kDidx});
 
     const ov::ParameterVector params_in{p_q_idx,
                                         p_k_idx,
@@ -370,13 +377,20 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
                                         p_summary_cache};
     // One target shape per call: the token inputs follow the tokens of the call, the others do not change.
     std::vector<InputShape> input_shapes;
+    // The caches are dynamic in the model, their target shape does not change.
+    const std::map<const ov::Node*, ov::Shape> cache_shapes{
+        {p_raw_k_cache.get(), ov::Shape{n_phys, m_h_ik, m_page_size, kDidx}},
+        {p_indexer_rope_cache.get(), ov::Shape{n_phys, m_slots_per_page, 2 * kRotaryDim}},
+        {p_summary_cache.get(), ov::Shape{n_phys, m_h_ik, m_slots_per_page, kDidx}}};
     for (const auto& p : params_in) {
-        const bool token_input = p->get_partial_shape().is_dynamic();
+        const auto cache_shape = cache_shapes.find(p.get());
+        const bool token_input = cache_shape == cache_shapes.end() && p->get_partial_shape().is_dynamic();
         std::vector<ov::Shape> target_shapes;
         for (const auto new_tokens_per_seq : m_calls) {
-            ov::Shape shape = token_input ? ov::Shape{m_num_sequences * new_tokens_per_seq,
+            ov::Shape shape = token_input                         ? ov::Shape{m_num_sequences * new_tokens_per_seq,
                                                       static_cast<size_t>(p->get_partial_shape()[1].get_length())}
-                                          : p->get_shape();
+                              : cache_shape != cache_shapes.end() ? cache_shape->second
+                                                                  : p->get_shape();
             target_shapes.push_back(shape);
         }
         input_shapes.emplace_back(p->get_partial_shape(), target_shapes);
