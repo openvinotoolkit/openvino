@@ -41,6 +41,7 @@
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "memory_desc/dnnl_memory_desc.h"
 #    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#    include "nodes/executors/dnnl/fp16_compressed_fc_executor.hpp"
 #    include "onednn/iml_type_mapper.h"
 #endif
 
@@ -159,10 +160,8 @@ static const TypeMapping dnnlMatMulTypeMapping {
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights
     {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
-#if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
     {{_f16, _u4 | _i4, _any, _any},                         {bypass(), bypass(), use<0>(), use<0>()},
-     []() { return getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC"); }},
-#endif
+     []() { return hasFp16WeightsDecompressionSupport(); }},
     // fp8 weights are decompressed inside the matmul kernel
     {{_bf16, _f8e4m3 | _f8e5m2, _any, _any},                  {bypass(), bypass(), use<0>(), use<0>()},
      []() { return hasFp8WeightsDecompressionSupport(ov::element::bf16); }},
@@ -191,6 +190,9 @@ static const TypeMapping dnnlMatMulTypeMapping {
 }
 
 [[maybe_unused]] static inline bool dnnlMatMulSupportedPrecision(const FCConfig& config) {
+    if (srcType(config) == f16 && any_of(weiType(config), i4, u4, i8, u8)) {
+        return hasFp16WeightsDecompressionSupport();
+    }
     // support regular float type matmul
     if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
         return true;
@@ -433,6 +435,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     })
                 VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                if (srcType(config) == f16 && any_of(weiType(config), i4, u4, i8, u8)) {
+                    VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
+                    VERIFY(config.attrs.constantWeights, UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                    return true;
+                }
                 // fp8 decompression uses rank-2 [OC, IC] weights
                 if (any_of(weiType(config), f8e4m3, f8e5m2)) {
                     VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
@@ -468,6 +475,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     attrs.postOps
                 };
 
+#if defined(OPENVINO_ARCH_X86_64)
+                if (memory.at(ARG_SRC)->getPrecision() == f16 &&
+                    any_of(memory.at(ARG_WEI)->getPrecision(), i4, u4, i8, u8) &&
+                    hasFp16WeightsDecompressionSupport() && attrs.constantWeights && !attrs.sparseWeights) {
+                    return std::make_shared<fp16_compressed_fc::Fp16CompressedFCExecutor>(attrs, context);
+                }
+#endif
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
                                  DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>>>(

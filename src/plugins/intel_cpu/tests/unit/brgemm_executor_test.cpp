@@ -220,11 +220,11 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         GTEST_SKIP() << "BRGEMM requires AVX2 or later.";
     }
-    if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
+    if (rtPrec == ov::element::bf16 && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
         GTEST_SKIP();
-    if (rtPrec == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())
+    if (rtPrec == ov::element::f16 && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16))
         GTEST_SKIP();
-    if (rtPrec == ov::element::i8 && !(ov::with_cpu_x86_avx512_core_amx_int8() ||
+    if (rtPrec == ov::element::i8 && !(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
                                        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)))
         GTEST_SKIP();
 
@@ -248,7 +248,7 @@ using BrgemmFP16Params = std::tuple<size_t, size_t, size_t, bool, bool, bool, bo
 class BrgemmFP16Test : public testing::TestWithParam<BrgemmFP16Params> {};
 
 TEST_P(BrgemmFP16Test, PaddedStridesAndTails) {
-    if (!ov::with_cpu_x86_avx512_core_fp16()) {
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16)) {
         GTEST_SKIP() << "FP16 BRGEMM requires AVX512-FP16.";
     }
     const auto [M, N, K, transposed, accumulate, float_b, float_a, typed_b] = GetParam();
@@ -449,7 +449,7 @@ static bool has_nonzero(const std::vector<float>& v) {
 }
 
 TEST(BrgemmKernelTileStateTest, sharedStateOverMBlocksMatchesPlainOverload) {
-    if (!ov::with_cpu_x86_bfloat16()) {
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
         GTEST_SKIP() << "bf16 brgemm is not supported";
     }
     // 33 rows: a body block and a tail block (two palettes)
@@ -471,7 +471,7 @@ TEST(BrgemmKernelTileStateTest, sharedStateOverMBlocksMatchesPlainOverload) {
 }
 
 TEST(BrgemmKernelTileStateTest, sharedStateAcrossKernelsWithDifferentPalettes) {
-    if (!ov::with_cpu_x86_bfloat16()) {
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
         GTEST_SKIP() << "bf16 brgemm is not supported";
     }
     // different K and N give different palettes (and K / N tails with K = 96, N = 48)
@@ -510,7 +510,7 @@ TEST(BrgemmKernelTileStateTest, sharedStateAcrossKernelsWithDifferentPalettes) {
 }
 
 TEST(BrgemmKernelTileStateTest, freshStateAfterOtherAmxCode) {
-    if (!ov::with_cpu_x86_bfloat16()) {
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
         GTEST_SKIP() << "bf16 brgemm is not supported";
     }
     // a new state is "unknown": it must configure even though the tiles hold another palette
@@ -533,7 +533,7 @@ TEST(BrgemmKernelTileStateTest, freshStateAfterOtherAmxCode) {
 }
 
 TEST(BrgemmKernelTileStateTest, quantizedKernelWithScalesSharesState) {
-    if (!(ov::with_cpu_x86_avx512_core_amx_int8() ||
+    if (!(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2))) {
         GTEST_SKIP() << "int8 brgemm is not supported";
     }

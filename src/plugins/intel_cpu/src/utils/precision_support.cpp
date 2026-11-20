@@ -74,4 +74,13 @@ ov::element::Type defaultFloatPrecision() {
     return ov::element::f32;
 }
 
+bool hasFp16WeightsDecompressionSupport() {
+#if defined(OPENVINO_ARCH_X86_64)
+    using namespace dnnl::impl::cpu::x64;
+    return mayiuse(avx512_core_fp16) && !mayiuse(avx512_core_amx_fp16);
+#else
+    return false;
+#endif
+}
+
 }  // namespace ov::intel_cpu

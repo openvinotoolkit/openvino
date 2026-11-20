@@ -4,13 +4,8 @@
 
 #include "fullyconnected.h"
 
-#include <cmath>
-#include <cstdlib>
-#if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
-#    include "nodes/executors/dnnl/fc_decode_cache.hpp"
-#endif
-
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -115,7 +110,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    // f16 is accepted only for fp8 weights, see isSupportedCompressedOperation()
+    // Integer and fp8 FP16 decompression are gated in isSupportedCompressedOperation().
     return {Type_t::f32, Type_t::bf16, Type_t::f16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
@@ -207,16 +202,23 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return IC >= 4 && OC != 1;
         }
 
-        bool useMatmulPrim = false;
-        CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-        // At the moment there is no implementation supporting integer weights decompression with f16 input
-        // (subject to change once we completely switch to dnnl::matmul).
+        const bool fp16Activations =
+            op->get_input_element_type(DATA) == ov::element::f16 ||
+            (op->get_input_element_type(DATA) == ov::element::f32 && config.inferencePrecision == ov::element::f16 &&
+             !ov::is_conversion_disabled(op, ov::element::f16) &&
+             !ov::is_conversion_disabled(op, ov::element::f32, ov::element::f16));
+        bool useMatmulPrim =
+            hasFp16WeightsDecompressionSupport() && fp16Activations &&
+            any_of(weightsPrecision, ov::element::i4, ov::element::u4, ov::element::i8, ov::element::u8);
+        CPU_DEBUG_CAP_ENABLE(useMatmulPrim = useMatmulPrim || getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
         if (!useMatmulPrim && op->get_input_element_type(DATA) == ov::element::f16) {
             return false;
         }
 
-        if (useMatmulPrim &&
-            (op->get_input_element_type(DATA) == ov::element::f16 || config.inferencePrecision == ov::element::f16)) {
+        if (useMatmulPrim && fp16Activations) {
+            if (!any_of(op->get_input_element_type(WEIGHT_SCALES), ov::element::f16, ov::element::f32)) {
+                return false;
+            }
             // The oneDNN compressed FP16 route needs even INT4 rows and aligned K groups.
             // Its primitive attributes require integer zero points in the quantized type's range.
             const auto& weights_shape = op->get_input_shape(WEIGHTS);
@@ -225,8 +227,52 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
                 (any_of(weightsPrecision, ov::element::i4, ov::element::u4) && IC % 2 != 0)) {
                 return false;
             }
+            auto parameterGroups = [&](size_t port) -> size_t {
+                const auto& shape = op->get_input_shape(port);
+                if (shape.size() == 1 && shape[0] == 1) {
+                    return 1;
+                }
+                if (shape.size() != 2 && !(shape.size() == 3 && shape[0] == 1)) {
+                    return 0;
+                }
+                const auto channels = shape[shape.size() - 2];
+                const auto groups = shape.back();
+                if ((channels != 1 && channels != OC) || groups == 0 || IC % groups != 0 ||
+                    (groups > 1 && (IC / groups) % 32 != 0)) {
+                    return 0;
+                }
+                return groups;
+            };
+            const auto scaleGroups = parameterGroups(WEIGHT_SCALES);
+            if (scaleGroups == 0 || scaleGroups != G) {
+                return false;
+            }
+            const auto scales = ov::util::get_constant_from_source(op->input_value(WEIGHT_SCALES));
+            if (!scales) {
+                return false;
+            }
+            for (const auto scale : scales->cast_vector<float>()) {
+                if (!std::isfinite(scale)) {
+                    return false;
+                }
+            }
             if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
                 op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
+                if (!any_of(op->get_input_element_type(WEIGHT_ZERO_POINTS),
+                            ov::element::f16,
+                            ov::element::f32,
+                            ov::element::i32,
+                            ov::element::i8,
+                            ov::element::u8,
+                            ov::element::i4,
+                            ov::element::u4)) {
+                    return false;
+                }
+                const auto zeroPointGroups = parameterGroups(WEIGHT_ZERO_POINTS);
+                if (zeroPointGroups == 0 ||
+                    (scaleGroups > 1 && zeroPointGroups > 1 && scaleGroups != zeroPointGroups)) {
+                    return false;
+                }
                 const auto zero_points = ov::util::get_constant_from_source(op->input_value(WEIGHT_ZERO_POINTS));
                 if (!zero_points) {
                     return false;
@@ -839,20 +885,6 @@ void FullyConnected::createPrimitive() {
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
     executor = factory->make(memory);
-#if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
-    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC") && !tp_cfg.enable_tensor_parallel &&
-        context->getConfig().streamExecutorConfig.get_streams() == 1 && context->getConfig().numSubStreams == 0 &&
-        std::getenv("OV_FC_DECODE_CACHE_MIB") != nullptr) {
-        auto cache_context = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-        auto cache = std::make_shared<fc_decode_cache::DecodeCache>(executor,
-                                                                    attrs,
-                                                                    cache_context,
-                                                                    fc_decode_cache::model_budget(context),
-                                                                    getName());
-        cache->prepare(memory);
-        executor = std::move(cache);
-    }
-#endif
 
     Node::createPrimitive();
 }

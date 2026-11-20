@@ -21,4 +21,7 @@ ov::element::Type defaultFloatPrecision();
  */
 bool hasFp8WeightsDecompressionSupport(ov::element::Type activationPrecision);
 
+/** FP16 compressed-weight dispatch validated on the AVX512-FP16 path without AMX-FP16. */
+bool hasFp16WeightsDecompressionSupport();
+
 }  // namespace ov::intel_cpu

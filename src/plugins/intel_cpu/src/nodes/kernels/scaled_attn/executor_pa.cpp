@@ -37,7 +37,6 @@
 #include "softmax_kernel.hpp"
 #include "transpose.hpp"
 #include "transpose_kernel.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #include "xattention.hpp"
@@ -2682,8 +2681,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 #    endif
 
         bool typed_kv_storage = false;
-#    if defined(OPENVINO_ARCH_X86_64) && defined(CPU_DEBUG_CAPS)
-        if (getEnvBool("OV_PA_ADAPTIVE_KV")) {
+#    if defined(OPENVINO_ARCH_X86_64)
+        {
             size_t max_q_blocks = 0;
             bool any_multi_token = false;
             for (size_t seq = 0; seq + 1 < subsequence_begins.size(0); ++seq) {
@@ -2694,8 +2693,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
             const size_t reuse_upper_bound = max_q_blocks * (H / Hk);
             typed_kv_storage = precision_of<DATA_TYPE>::value == ov::element::f16 &&
+                               dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) &&
                                !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-                               !_helper._params.is_sage_attn && parallel_get_max_threads() >= 8 && any_multi_token &&
+                               !_helper._params.is_sage_attn && parallel_get_max_threads() >= 32 && any_multi_token &&
                                reuse_upper_bound <= 4 &&
                                (KEY_PREC == ov::element::f16 || VALUE_PREC == ov::element::f16);
         }
