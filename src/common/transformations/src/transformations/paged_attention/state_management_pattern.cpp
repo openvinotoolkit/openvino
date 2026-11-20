@@ -884,10 +884,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
-        paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
-        paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
-        paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
-        paged_attention->get_rt_info()[V_HEAD_SIZE] = v_head_size;
+        paged_attention->get_rt_info()["num_k_heads"] = num_k_heads;
+        paged_attention->get_rt_info()["k_head_size"] = k_head_size;
+        paged_attention->get_rt_info()["num_v_heads"] = num_v_heads;
+        paged_attention->get_rt_info()["v_head_size"] = v_head_size;
 
         // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
         // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
