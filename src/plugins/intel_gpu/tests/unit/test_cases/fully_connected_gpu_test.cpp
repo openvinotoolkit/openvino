@@ -7465,6 +7465,20 @@ TEST(fully_connected_gpu_ternocl_int2_cached, static_hadamard_int8_prefill) {
     fully_connected_gpu_ternocl_int2::run(ternary_fc_params{40, 256, 1024, ternary_epilogue::none, false, true, 1024}, false, {40}, true);
 }
 
+// A dynamic impl with int8 prefill switches between the GEMV stage (M <= 8) and quant + int8 GEMM
+// (M > 8, one GEMM per M band), which also changes its scratch buffers.
+TEST(fully_connected_gpu_ternocl_int2_cached, dynamic_int8_prefill) {
+    if (!ternocl_int2_supported(get_test_engine()))
+        GTEST_SKIP();
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, true, 0}, true, {1, 8, 9, 20, 40, 70, 4, 1}, true);
+}
+
+TEST(fully_connected_gpu_ternocl_int2_cached, dynamic_hadamard_int8_prefill) {
+    if (!ternocl_int2_supported(get_test_engine()))
+        GTEST_SKIP();
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, true, 1024}, true, {1, 8, 9, 20, 40, 70, 4, 1}, true);
+}
+
 // Two FCs on one weight constant: both run the TernOCL impl on the same packed weights.
 TEST(fully_connected_gpu_ternocl_int2_dynamic, shared_weights) {
     auto& engine = get_test_engine();

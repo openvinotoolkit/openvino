@@ -60,7 +60,8 @@ constexpr size_t class_index(LaunchClass cls) {
     return static_cast<size_t>(cls);
 }
 
-constexpr LaunchClass class_at(size_t index) {
+LaunchClass class_at(size_t index) {
+    OPENVINO_ASSERT(index < kLaunchClasses, "[GPU] ternocl int2: index ", index, " is not a valid launch class");
     return static_cast<LaunchClass>(index);
 }
 
