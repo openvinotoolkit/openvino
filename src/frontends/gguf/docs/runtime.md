@@ -134,12 +134,21 @@ These core `ov::op::internal` operations can remain in the converted model:
 See [`ssm_scan.cpp`](../src/op/ssm_scan.cpp), [`gated_delta_net.cpp`](../src/op/gated_delta_net.cpp)
 and [`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
 
-Internal operations are outside the public IR opsets. Saving IR can succeed and still produce a file
-the IR frontend cannot read back, so test the save/read round trip. The IR reader explicitly restores
+Internal operations are outside the public IR opsets. Public `ov::serialize`, `ov::save_model` and
+`ov::pass::Serialize` permit raw GGUF Constants and internal compressed operations, including in
+control-flow bodies. Use a matching runtime/frontend/plugin build; this extended representation
+does not establish cross-version public opset compatibility. Saving other internal operations can
+still produce a file the IR frontend cannot read back, so test the save/read round trip.
+The IR reader explicitly restores
 `FullyConnectedCompressed` and `GatherCompressed` from `ie_internal_opset`, including their raw GGUF
 Constants, using block-aware byte counts. Without external-reference metadata, ordinary XML and BIN retain the raw payload; this does not
 automatically create external GGUF references or preserve the original file mapping. File regressions
 check payload identity, shared weights and GPU results after the original mapping is released.
+
+The IR reader also restores `GatedDeltaNet` with its `extension` version directly. A caller
+does not need `core.add_extension()` for this operation before `core.read_model()`. Explicitly
+registered operation extensions still take precedence over the built-in restoration. Other
+internal operations do not automatically gain IR support from this path.
 
 Explicit external references are supported for unchanged raw Constants carrying all three internal
 `gguf_ext_source`, `gguf_ext_offset` and `gguf_ext_size` metadata fields. The serializer writes the bare
@@ -204,15 +213,15 @@ DecoderBuilder previously omitted GraphEmitter's optional external-weight argume
 fix passes that existing pointer through the decoder factory and constructor without changing
 model calculations. The first failed attempt remains separate evidence, not a successful export.
 
-A follow-up strict short-history replay exports the graph with 194 externally referenced raw
-Constants; the other 40 unannotated raw Constants remain in ordinary BIN. Reading this hybrid
-Qwen3.5 graph also requires explicitly registering the existing internal GatedDeltaNet operation
+A historical strict short-history replay exported the graph with 194 externally referenced raw
+Constants; the other 40 unannotated raw Constants remained in ordinary BIN. Reading that hybrid
+Qwen3.5 graph on the earlier build required explicitly registering the internal GatedDeltaNet operation
 with `core.add_extension(std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>())`
-before `read_model`. The opt-in load test does this; Core's global IR registration and the operator
-implementation are unchanged. Without this registration, read-back fails at that extension op.
-With it, all 13 full-vocabulary logits rows match the direct-GGUF baseline bitwise, retaining the
-original CPU-reference gates. This covers one GPU request/stream, F16 inference/KV and activation
-DQ disabled on the tested build, not default Core-only read-back, default-zero-point schedules,
+before `read_model`. The current reader restores it directly, and the opt-in load test no longer
+registers it. On the historical build with registration, all 13 full-vocabulary logits rows matched
+the direct-GGUF baseline bitwise, retaining the original CPU-reference gates. That result covers
+one GPU request/stream, F16 inference/KV and activation DQ disabled on the tested build, not
+default-zero-point schedules,
 other devices/versions, LLMPipeline or general internal-op IR support. The opt-in is inactive by
 default and does not change the separate failing multi-request cache diagnostic below.
 

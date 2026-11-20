@@ -22,10 +22,12 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
@@ -148,30 +150,14 @@ protected:
         ASSERT_TRUE(out);
     }
 
-    void serialize_cache_ir(const std::shared_ptr<ov::Model>& model, std::ostream& xml, std::ostream& binary) {
-        model->validate_nodes_and_infer_types();
-        std::stringstream cache;
-        ov::pass::StreamSerialize(cache).run_on_model(model);
-        const auto bytes = cache.str();
-        ov::pass::StreamSerialize::DataHeader header{};
-        ASSERT_GE(bytes.size(), sizeof(header));
-        std::memcpy(&header, bytes.data(), sizeof(header));
-        ASSERT_LE(header.model_offset, bytes.size());
-        ASSERT_LE(header.model_size, bytes.size() - header.model_offset);
-        ASSERT_LE(header.consts_offset, bytes.size());
-        ASSERT_LE(header.consts_size, bytes.size() - header.consts_offset);
-        xml.write(bytes.data() + header.model_offset, static_cast<std::streamsize>(header.model_size));
-        binary.write(bytes.data() + header.consts_offset, static_cast<std::streamsize>(header.consts_size));
+    void serialize_ir(const std::shared_ptr<ov::Model>& model, std::ostream& xml, std::ostream& binary) {
+        ov::pass::Serialize(xml, binary).run_on_model(model);
     }
 
-    void serialize_cache_ir(const std::shared_ptr<ov::Model>& model,
-                            const std::string& xml_path,
-                            const std::string& bin_path) {
-        std::ofstream xml(xml_path);
-        std::ofstream binary(bin_path, std::ios::binary);
-        ASSERT_TRUE(xml);
-        ASSERT_TRUE(binary);
-        serialize_cache_ir(model, xml, binary);
+    void serialize_ir(const std::shared_ptr<ov::Model>& model,
+                      const std::string& xml_path,
+                      const std::string& bin_path) {
+        ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
     }
 
     std::string m_path;
@@ -496,41 +482,46 @@ TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
 
 class GGUFParserGpu : public GGUFParser, public ::testing::WithParamInterface<GgufRawFormat> {};
 
-TEST_F(GGUFParser, RawWeightsRejectPublicIrExport) {
-    ov::Tensor weights(ov::element::gguf_q4_k, {1, 256});
-    std::memset(weights.data(), 0, weights.get_byte_size());
-    const auto constant = std::make_shared<ov::op::v0::Constant>(weights);
-    const auto model = std::make_shared<ov::Model>(ov::OutputVector{constant}, ov::ParameterVector{});
-    const std::string message = "Cannot serialize raw GGUF weights to standard OpenVINO IR";
-    std::stringstream xml;
-    std::stringstream binary;
-    OV_EXPECT_THROW(ov::pass::Serialize(xml, binary).run_on_model(model), ov::Exception, testing::HasSubstr(message));
-    EXPECT_TRUE(xml.str().empty());
-    EXPECT_TRUE(binary.str().empty());
-    OV_EXPECT_THROW(ov::pass::Serialize(m_path + ".xml", m_path + ".bin").run_on_model(model),
-                    ov::Exception,
-                    testing::HasSubstr(message));
-    EXPECT_FALSE(std::filesystem::exists(m_path + ".xml"));
-    EXPECT_FALSE(std::filesystem::exists(m_path + ".bin"));
-    {
-        std::ofstream existing_xml(m_path + ".xml");
-        std::ofstream existing_binary(m_path + ".bin", std::ios::binary);
-        existing_xml << "existing xml";
-        existing_binary << "existing weights";
+TEST_F(GGUFParser, RawWeightsPublicIrRoundTrip) {
+    ov::Core core;
+    for (const auto& format : kRawFormats) {
+        SCOPED_TRACE(format.name);
+        const auto bytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
+        ov::Tensor weights(gguf_raw_element_type(format.type), {4, 256});
+        ASSERT_EQ(weights.get_byte_size(), bytes.size());
+        std::memcpy(weights.data(), bytes.data(), bytes.size());
+        const auto constant = std::make_shared<ov::op::v0::Constant>(weights);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{constant}, ov::ParameterVector{});
+        const auto check = [&](const std::shared_ptr<ov::Model>& restored) {
+            const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(
+                restored->get_results().at(0)->get_input_node_shared_ptr(0));
+            ASSERT_TRUE(raw);
+            EXPECT_EQ(raw->get_element_type(), weights.get_element_type());
+            EXPECT_EQ(raw->get_shape(), weights.get_shape());
+            ASSERT_EQ(raw->get_byte_size(), bytes.size());
+            EXPECT_EQ(std::memcmp(raw->get_data_ptr(), bytes.data(), bytes.size()), 0);
+        };
+        std::stringstream xml;
+        std::stringstream binary;
+        ASSERT_NO_THROW(ov::pass::Serialize(xml, binary).run_on_model(model));
+        const auto serialized = binary.str();
+        ov::Tensor constants(ov::element::u8, {serialized.size()});
+        std::memcpy(constants.data(), serialized.data(), serialized.size());
+        ASSERT_NO_FATAL_FAILURE(check(core.read_model(xml.str(), constants)));
+        ASSERT_NO_THROW(ov::pass::Serialize(m_path + ".xml", m_path + ".bin").run_on_model(model));
+        ASSERT_NO_FATAL_FAILURE(check(core.read_model(m_path + ".xml")));
+        for (const bool compress_to_fp16 : {false, true}) {
+            SCOPED_TRACE(compress_to_fp16);
+            ASSERT_NO_THROW(ov::save_model(model, m_path + ".xml", compress_to_fp16));
+            ASSERT_NO_FATAL_FAILURE(check(core.read_model(m_path + ".xml")));
+        }
+        std::stringstream cache;
+        EXPECT_NO_THROW(ov::pass::StreamSerialize(cache, {}).run_on_model(model));
+        EXPECT_FALSE(cache.str().empty());
     }
-    OV_EXPECT_THROW(ov::pass::Serialize(m_path + ".xml", m_path + ".bin").run_on_model(model),
-                    ov::Exception,
-                    testing::HasSubstr(message));
-    std::ifstream existing_xml(m_path + ".xml");
-    std::ifstream existing_binary(m_path + ".bin", std::ios::binary);
-    EXPECT_EQ(std::string(std::istreambuf_iterator<char>(existing_xml), {}), "existing xml");
-    EXPECT_EQ(std::string(std::istreambuf_iterator<char>(existing_binary), {}), "existing weights");
-    std::stringstream cache;
-    EXPECT_NO_THROW(ov::pass::StreamSerialize(cache, {}).run_on_model(model));
-    EXPECT_FALSE(cache.str().empty());
 }
 
-TEST_F(GGUFParser, InternalCompressedOpsRejectPublicIrExport) {
+TEST_F(GGUFParser, InternalCompressedOpsPublicIrRoundTrip) {
     const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 256});
     const auto weights = ov::op::v0::Constant::create(ov::element::u8, {1, 256}, {0});
     const auto absent = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
@@ -549,11 +540,16 @@ TEST_F(GGUFParser, InternalCompressedOpsRejectPublicIrExport) {
             output.get_node() == fc.get() ? ov::ParameterVector{activation} : ov::ParameterVector{});
         std::stringstream xml;
         std::stringstream binary;
-        OV_EXPECT_THROW(ov::pass::Serialize(xml, binary).run_on_model(model),
-                        ov::Exception,
-                        testing::HasSubstr("Cannot serialize internal compressed operation"));
-        EXPECT_TRUE(xml.str().empty());
-        EXPECT_TRUE(binary.str().empty());
+        ASSERT_NO_THROW(ov::pass::Serialize(xml, binary).run_on_model(model));
+        const auto bytes = binary.str();
+        ov::Tensor constants(ov::element::u8, {bytes.size()});
+        std::memcpy(constants.data(), bytes.data(), bytes.size());
+        const auto restored = ov::Core().read_model(xml.str(), constants);
+        const auto operation = restored->get_results().at(0)->get_input_node_shared_ptr(0);
+        EXPECT_STREQ(operation->get_type_name(), output.get_node()->get_type_name());
+        EXPECT_EQ(operation->get_input_size(), output.get_node()->get_input_size());
+        EXPECT_EQ(restored->output().get_element_type(), output.get_element_type());
+        EXPECT_EQ(restored->output().get_shape(), output.get_shape());
         std::stringstream cache;
         EXPECT_NO_THROW(ov::pass::StreamSerialize(cache).run_on_model(model));
         EXPECT_FALSE(cache.str().empty());
@@ -575,7 +571,49 @@ TEST_F(GGUFParser, InternalCompressedOpsRejectPublicIrExport) {
     EXPECT_EQ(restored->output().get_shape(), (ov::Shape{1}));
 }
 
-TEST_F(GGUFParser, NestedRawWeightsRejectPublicIrExport) {
+TEST_F(GGUFParser, GatedDeltaNetPublicIrRoundTripWithoutExtension) {
+    ov::ParameterVector parameters;
+    for (const ov::Shape& shape : {ov::Shape{1, 3, 2, 4}, ov::Shape{1, 3, 2, 4}, ov::Shape{1, 3, 2, 4},
+                                  ov::Shape{1, 2, 4, 4}, ov::Shape{1, 3, 2}, ov::Shape{1, 3, 2}}) {
+        parameters.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+    }
+    for (const bool fused : {false, true}) {
+        SCOPED_TRACE(fused);
+        const auto operation = std::make_shared<ov::op::internal::GatedDeltaNet>(
+            parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], parameters[5],
+            fused, 1e-5f, 1e-4f);
+        const auto model = std::make_shared<ov::Model>(
+            ov::OutputVector{operation->output(0), operation->output(1)}, parameters);
+        std::stringstream xml;
+        std::stringstream binary;
+        ASSERT_NO_THROW(ov::pass::Serialize(xml, binary).run_on_model(model));
+        ov::Core core;
+        const auto restored = core.read_model(xml.str(), ov::Tensor{});
+        const auto restored_operation = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(
+            restored->get_results().at(0)->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(restored_operation);
+        EXPECT_EQ(restored_operation->get_fuse_qk_l2norm(), fused);
+        EXPECT_FLOAT_EQ(restored_operation->get_q_l2_norm_eps(), 1e-5f);
+        EXPECT_FLOAT_EQ(restored_operation->get_k_l2_norm_eps(), 1e-4f);
+        ASSERT_EQ(restored->get_output_size(), 2);
+        EXPECT_EQ(restored->get_results().at(1)->get_input_node_shared_ptr(0), restored_operation);
+        for (size_t output = 0; output < model->get_output_size(); ++output) {
+            EXPECT_EQ(restored->output(output).get_element_type(), model->output(output).get_element_type());
+            EXPECT_EQ(restored->output(output).get_shape(), model->output(output).get_shape());
+        }
+        pugi::xml_document invalid;
+        ASSERT_TRUE(invalid.load_string(xml.str().c_str()));
+        for (auto layer : invalid.child("net").child("layers").children("layer")) {
+            if (std::string(layer.attribute("type").value()) == "GatedDeltaNet")
+                layer.attribute("version").set_value("ie_internal_opset");
+        }
+        std::stringstream invalid_xml;
+        invalid.save(invalid_xml);
+        EXPECT_ANY_THROW(core.read_model(invalid_xml.str(), ov::Tensor{}));
+    }
+}
+
+TEST_F(GGUFParser, NestedRawWeightsPublicIrRoundTrip) {
     ov::Tensor weights(ov::element::gguf_q4_k, {1, 256});
     std::memset(weights.data(), 0, weights.get_byte_size());
     const auto raw = std::make_shared<ov::op::v0::Constant>(weights);
@@ -592,11 +630,24 @@ TEST_F(GGUFParser, NestedRawWeightsRejectPublicIrExport) {
     ASSERT_EQ(model->output().get_element_type(), ov::element::f32);
     std::stringstream xml;
     std::stringstream binary;
-    OV_EXPECT_THROW(ov::pass::Serialize(xml, binary).run_on_model(model),
-                    ov::Exception,
-                    testing::HasSubstr("Cannot serialize raw GGUF weights to standard OpenVINO IR"));
-    EXPECT_TRUE(xml.str().empty());
-    EXPECT_TRUE(binary.str().empty());
+    ASSERT_NO_THROW(ov::pass::Serialize(xml, binary).run_on_model(model));
+    const auto bytes = binary.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    std::memcpy(constants.data(), bytes.data(), bytes.size());
+    const auto restored = ov::Core().read_model(xml.str(), constants);
+    const auto restored_branch = ov::as_type_ptr<ov::op::v8::If>(
+        restored->get_results().at(0)->get_input_node_shared_ptr(0));
+    ASSERT_TRUE(restored_branch);
+    const auto restored_convert = ov::as_type_ptr<ov::op::v0::Convert>(
+        restored_branch->get_then_body()->get_results().at(0)->get_input_node_shared_ptr(0));
+    ASSERT_TRUE(restored_convert);
+    const auto restored_raw = ov::as_type_ptr<ov::op::v0::Constant>(
+        restored_convert->get_input_node_shared_ptr(0));
+    ASSERT_TRUE(restored_raw);
+    EXPECT_EQ(restored_raw->get_element_type(), weights.get_element_type());
+    EXPECT_EQ(restored_raw->get_shape(), weights.get_shape());
+    ASSERT_EQ(restored_raw->get_byte_size(), weights.get_byte_size());
+    EXPECT_EQ(std::memcmp(restored_raw->get_data_ptr(), weights.data(), weights.get_byte_size()), 0);
 }
 
 TEST_F(GGUFParser, ActivationDqPreservesFp32Input) {
@@ -896,16 +947,16 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             auto unicode_model = std::make_shared<ov::Model>(
                 ov::OutputVector{unicode_raw, ov::op::v0::Constant::create(ov::element::f32, {1}, {1.f})},
                 ov::ParameterVector{});
-            serialize_cache_ir(unicode_model, m_path + ".unicode.xml", m_path + ".unicode.bin");
+            serialize_ir(unicode_model, m_path + ".unicode.xml", m_path + ".unicode.bin");
             const auto restored = core.read_model(m_path + ".unicode.xml");
             const auto restored_raw = ov::as_type_ptr<ov::op::v0::Constant>(
                 restored->get_results().at(0)->get_input_node_shared_ptr(0));
             ASSERT_TRUE(restored_raw);
             EXPECT_EQ(std::memcmp(restored_raw->get_data_ptr(), payload.data(), payload.size()), 0);
             std::stringstream unicode_xml, unicode_binary;
-            serialize_cache_ir(restored, unicode_xml, unicode_binary);
+            serialize_ir(restored, unicode_xml, unicode_binary);
             EXPECT_LT(unicode_binary.str().size(), payload.size());
-            RecordProperty("unicode_private_cache_reference_roundtrip", "1");
+            RecordProperty("unicode_public_ir_reference_roundtrip", "1");
         }
         auto loaded = get_gguf_data(m_path, options);
         auto& weights = std::get<1>(loaded);
@@ -1269,16 +1320,11 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             static_cast<const std::byte*>(raw->get_data_ptr()) - mapped->data()));
         EXPECT_EQ(info.at("gguf_ext_size").as<uint64_t>(), raw->get_byte_size());
         std::stringstream external_xml, external_binary;
-        OV_EXPECT_THROW(ov::pass::Serialize(external_xml, external_binary).run_on_model(model),
-                ov::Exception,
-                testing::HasSubstr("standard OpenVINO IR"));
-        EXPECT_TRUE(external_xml.str().empty());
-        EXPECT_TRUE(external_binary.str().empty());
-        serialize_cache_ir(model, external_xml, external_binary);
+        serialize_ir(model, external_xml, external_binary);
         EXPECT_LT(external_binary.str().size(), payload.size());
         RecordProperty("external_reference_bin_bytes", std::to_string(external_binary.str().size()));
         RecordProperty("external_reference_raw_bytes", std::to_string(payload.size()));
-        serialize_cache_ir(model, m_path + ".xml", m_path + ".bin");
+        serialize_ir(model, m_path + ".xml", m_path + ".bin");
         {
             const auto external_model = core.read_model(m_path + ".xml");
             const auto external_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
@@ -1289,7 +1335,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             ASSERT_EQ(external_raw->get_byte_size(), payload.size());
             EXPECT_EQ(std::memcmp(external_raw->get_data_ptr(), payload.data(), payload.size()), 0);
             std::stringstream chained_xml, chained_binary;
-            serialize_cache_ir(external_model, chained_xml, chained_binary);
+            serialize_ir(external_model, chained_xml, chained_binary);
             RecordProperty("external_reference_chained_bin_bytes", std::to_string(chained_binary.str().size()));
             EXPECT_EQ(chained_binary.str().size(), external_binary.str().size());
             pugi::xml_document chained_document;
@@ -1316,7 +1362,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             {
                 const auto chained_model = core.read_model(m_path + ".chain.xml");
                 std::stringstream next_xml, next_binary;
-                serialize_cache_ir(chained_model, next_xml, next_binary);
+                serialize_ir(chained_model, next_xml, next_binary);
                 EXPECT_EQ(next_binary.str().size(), external_binary.str().size());
                 RecordProperty("external_reference_next_bin_bytes", std::to_string(next_binary.str().size()));
             }
@@ -1387,16 +1433,16 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         invalid_reference("size", std::to_string(payload.size() - 1));
         info["gguf_ext_size"] = static_cast<uint64_t>(payload.size() - 1);
         std::stringstream invalid_xml, invalid_binary;
-        EXPECT_ANY_THROW(serialize_cache_ir(model, invalid_xml, invalid_binary));
+        EXPECT_ANY_THROW(serialize_ir(model, invalid_xml, invalid_binary));
         info["gguf_ext_size"] = static_cast<uint64_t>(payload.size());
-        serialize_cache_ir(model, m_path + ".xml", m_path + ".bin");
+        serialize_ir(model, m_path + ".xml", m_path + ".bin");
         info.erase("gguf_ext_source");
         info.erase("gguf_ext_offset");
         info.erase("gguf_ext_size");
         info.erase("gguf_ext_source_path");
     }
     std::stringstream xml, binary;
-    serialize_cache_ir(model, xml, binary);
+    serialize_ir(model, xml, binary);
     const auto serialized = binary.str();
     ov::Tensor constants(ov::element::u8, {serialized.size()});
     std::memcpy(constants.data(), serialized.data(), serialized.size());
@@ -1415,7 +1461,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         }
     }
     EXPECT_EQ(raw_constants, 1);
-    RecordProperty("private_cache_roundtrip_raw_constants", std::to_string(raw_constants));
+    RecordProperty("public_ir_roundtrip_raw_constants", std::to_string(raw_constants));
     run("64", "0");
     run("64", "1", ov::element::f16);
     run(nullptr, "0");
@@ -1441,7 +1487,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         ASSERT_TRUE(original_raw);
         EXPECT_EQ(std::memcmp(original_raw->get_data_ptr(), payload.data(), payload.size()), 0);
         std::stringstream stale_xml, stale_binary;
-        EXPECT_ANY_THROW(serialize_cache_ir(model, stale_xml, stale_binary));
+        EXPECT_ANY_THROW(serialize_ir(model, stale_xml, stale_binary));
         RecordProperty("external_reference_stale_snapshot_rejected", "1");
         const auto materialized_model = model->clone();
         for (const auto& operation : materialized_model->get_ordered_ops()) {
@@ -1451,7 +1497,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             }
         }
         std::stringstream materialized_xml, materialized_binary;
-        serialize_cache_ir(materialized_model, materialized_xml, materialized_binary);
+        serialize_ir(materialized_model, materialized_xml, materialized_binary);
         const auto materialized_bytes = materialized_binary.str();
         ASSERT_GE(materialized_bytes.size(), payload.size());
         ov::Tensor materialized_weights(ov::element::u8, {materialized_bytes.size()});
@@ -1464,7 +1510,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         ASSERT_TRUE(materialized_raw);
         EXPECT_EQ(std::memcmp(materialized_raw->get_data_ptr(), payload.data(), payload.size()), 0);
         std::stringstream fresh_xml, fresh_binary;
-        EXPECT_NO_THROW(serialize_cache_ir(replacement_model, fresh_xml, fresh_binary));
+        EXPECT_NO_THROW(serialize_ir(replacement_model, fresh_xml, fresh_binary));
         EXPECT_LT(fresh_binary.str().size(), payload.size());
     }
     run("64", "0");

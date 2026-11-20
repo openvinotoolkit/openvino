@@ -224,16 +224,19 @@ dimensions except the final input-channel dimension, not necessarily one
 request's token count. Performance-optimal boundaries require device, shape and
 whole-model measurements; the implementation limits alone do not establish them.
 
-Raw GGUF block weights and the internal `FullyConnectedCompressed` and
-`GatherCompressed` operations are not a supported standard IR representation.
 Public IR export through `ov::serialize`, `ov::save_model`, or `ov::pass::Serialize`
-rejects graphs containing these types or operations, including control-flow bodies,
-before creating or overwriting XML/BIN files. Export requires decoding the weights
-and converting the graph to versioned public operations; no automatic conversion is
-provided. Removing external-source metadata does not make a raw graph exportable.
+preserves raw GGUF block weights and the internal `FullyConnectedCompressed` and
+`GatherCompressed` operations, including control-flow bodies. The IR reader restores
+these operations and block-aware Constant payloads without CPU-side dequantization.
+This is an experimental extended IR representation requiring a matching runtime,
+frontend and GPU build, not a cross-version public opset compatibility guarantee.
+Unchanged raw Constants with external-source metadata reference the original GGUF
+file; keep that file beside the exported XML/BIN. Constants without that metadata
+store their raw payload in BIN. See [serialization](runtime.md#internal-operations-and-serialization)
+for source validation, relocation constraints and explicit BIN materialization.
 Direct GGUF compilation and inference remain supported. Private compiled-model
-export/import and cache serialization retain their implementation-specific format
-and do not establish a cross-version standard IR compatibility guarantee.
+export/import and cache serialization retain their separate implementation-specific
+format and do not establish cross-version compatibility either.
 
 For rank-4 raw FC outputs with singleton leading dimensions, GPU lowering can move a
 same-rank, same-channel NumPy Add/Multiply before the output shape restore, preserving

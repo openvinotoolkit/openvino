@@ -27,8 +27,8 @@ namespace ov::pass {
  * @brief Serialize transformation converts ov::Model into IR files
  * @attention
  * - dynamic shapes are not supported
- * - raw GGUF block types and internal FullyConnectedCompressed/GatherCompressed operations
- *   must be converted to versioned public representations before IR export
+ * - raw GGUF block types and internal compressed operations require a matching
+ *   runtime/plugin build when reading and compiling the exported IR
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {

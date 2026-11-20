@@ -16,6 +16,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/assign_base.hpp"
@@ -1285,11 +1286,15 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(
         opsetIt = m_opsets.find("opset6");
     }
 
-    if (!ovNode && params.version == "ie_internal_opset") {
-        if (type_name == "FullyConnectedCompressed") {
-            ovNode = std::make_shared<ov::op::internal::FullyConnectedCompressed>();
-        } else if (type_name == "GatherCompressed") {
-            ovNode = std::make_shared<ov::op::internal::GatherCompressed>();
+    if (!ovNode) {
+        if (params.version == "ie_internal_opset") {
+            if (type_name == "FullyConnectedCompressed") {
+                ovNode = std::make_shared<ov::op::internal::FullyConnectedCompressed>();
+            } else if (type_name == "GatherCompressed") {
+                ovNode = std::make_shared<ov::op::internal::GatherCompressed>();
+            }
+        } else if (params.version == "extension" && type_name == "GatedDeltaNet") {
+            ovNode = std::make_shared<ov::op::internal::GatedDeltaNet>();
         }
         if (ovNode) {
             ovNode->set_arguments(inputs);

@@ -1345,8 +1345,6 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         RecordProperty("external_ir_mode", ir_mode);
     }
     ov::Core core;
-    if (ir_mode == "load")
-        core.add_extension(std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>());
     ov::frontend::gguf::FrontEnd fe;
     fe.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
     auto model = ir_mode == "load" ? core.read_model(ir_prefix.string() + ".xml")

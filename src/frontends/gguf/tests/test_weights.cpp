@@ -157,28 +157,15 @@ TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
             FrontEnd frontend;
             const auto model = frontend.convert(frontend.load(decoder));
             std::stringstream xml, binary;
-            EXPECT_THROW(ov::pass::Serialize(xml, binary).run_on_model(model), ov::Exception);
-            EXPECT_TRUE(xml.str().empty());
-            EXPECT_TRUE(binary.str().empty());
-            std::stringstream cache;
-            ov::pass::StreamSerialize(cache).run_on_model(model);
-            const auto cache_bytes = cache.str();
-            ov::pass::StreamSerialize::DataHeader header{};
-            ASSERT_GE(cache_bytes.size(), sizeof(header));
-            std::memcpy(&header, cache_bytes.data(), sizeof(header));
-            ASSERT_LE(header.consts_offset, cache_bytes.size());
-            ASSERT_LE(header.consts_size, cache_bytes.size() - header.consts_offset);
-            ASSERT_LE(header.model_offset, cache_bytes.size());
-            ASSERT_LE(header.model_size, cache_bytes.size() - header.model_offset);
-            const auto payload = cache_bytes.substr(header.consts_offset, header.consts_size);
-            const auto cached_xml = cache_bytes.substr(header.model_offset, header.model_size);
+            ASSERT_NO_THROW(ov::pass::Serialize(xml, binary).run_on_model(model));
+            const auto payload = binary.str();
             ov::Tensor constants(ov::element::u8, {payload.size()});
             std::memcpy(constants.data(), payload.data(), payload.size());
             ov::Core core;
-            const auto restored = core.read_model(cached_xml, constants);
+            const auto restored = core.read_model(xml.str(), constants);
             ov::Tensor truncated(ov::element::u8, {payload.size() - 1});
             std::memcpy(truncated.data(), payload.data(), truncated.get_byte_size());
-            EXPECT_ANY_THROW(core.read_model(cached_xml, truncated));
+            EXPECT_ANY_THROW(core.read_model(xml.str(), truncated));
             for (const auto& checked_model : {model, restored}) {
                 std::shared_ptr<ov::Node> shared_weight;
                 for (const auto& result : checked_model->get_results()) {
