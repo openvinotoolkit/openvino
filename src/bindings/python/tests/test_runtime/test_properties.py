@@ -21,6 +21,8 @@ import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
 from openvino import properties
 
+from tests.utils.helpers import get_relu_model
+
 
 ###
 # Base properties API
@@ -571,10 +573,15 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 # Special cases
 ###
 def test_properties_qos_info():
-    info = props.QoSInfo(props.QoS.LOW, True)
-    assert info.level == props.QoS.LOW
-    assert info.is_overridden is True
-    assert "LOW" in repr(info)
+    # QoSInfo is output-only: it is returned by ov::qos_info and cannot be constructed from Python
+    with pytest.raises(TypeError):
+        props.QoSInfo()
+    assert isinstance(props.QoSInfo.level, property)
+    assert isinstance(props.QoSInfo.is_overridden, property)
+    assert props.QoSInfo.level.fset is None
+    assert props.QoSInfo.is_overridden.fset is None
+    # __eq__ is defined without __hash__, so instances are intentionally unhashable
+    assert props.QoSInfo.__hash__ is None
 
 
 @pytest.mark.parametrize("level", [props.QoS.DEFAULT, props.QoS.HIGH, props.QoS.MEDIUM,
@@ -596,6 +603,65 @@ def test_properties_qos_from_ov_any(level):
     value = OVAny(level).value
     assert isinstance(value, props.QoS)
     assert value == level
+
+
+def test_properties_qos_in_config_dict():
+    config = dict([props.qos(props.QoS.ECO)])  # noqa: C406
+    assert list(config.keys()) == ["QOS"]
+    assert config["QOS"].value == props.QoS.ECO
+
+
+def get_npu_core_with_qos():
+    if os.environ.get("TEST_DEVICE") != "NPU":
+        pytest.skip("QoS is only supported by NPU")
+    core = Core()
+    if props.qos() not in core.get_property("NPU", props.supported_properties):
+        pytest.skip("The NPU driver does not support the command queue QoS extension")
+    return core
+
+
+@pytest.mark.parametrize("level", [props.QoS.HIGH, props.QoS.MEDIUM, props.QoS.LOW,
+                                   props.QoS.UTILITY, props.QoS.ECO])
+def test_properties_qos_info_requested_level(level):
+    core = get_npu_core_with_qos()
+    compiled_model = core.compile_model(get_relu_model(), "NPU", dict([props.qos(level)]))  # noqa: C406
+
+    info = compiled_model.get_property(props.qos_info)
+    assert isinstance(info, props.QoSInfo)
+    assert info.level == level
+    assert info.is_overridden is True
+    assert str(level).split(".")[-1] in repr(info)
+
+
+def test_properties_qos_info_driver_default():
+    core = get_npu_core_with_qos()
+    compiled_model = core.compile_model(get_relu_model(), "NPU")
+
+    info = compiled_model.get_property(props.qos_info)
+    # The reported level is the resolved driver/OS default, never DEFAULT
+    assert info.level != props.QoS.DEFAULT
+    assert info.is_overridden is False
+
+
+def test_properties_qos_info_equality_and_immutability():
+    core = get_npu_core_with_qos()
+    compiled_model = core.compile_model(get_relu_model(), "NPU", dict([props.qos(props.QoS.LOW)]))  # noqa: C406
+
+    info = compiled_model.get_property(props.qos_info)
+    assert info == compiled_model.get_property(props.qos_info)
+    assert info != "LOW"
+
+    compiled_model.set_property(dict([props.qos(props.QoS.ECO)]))  # noqa: C406
+    updated_info = compiled_model.get_property(props.qos_info)
+    assert updated_info.level == props.QoS.ECO
+    assert updated_info != info
+
+    with pytest.raises(AttributeError):
+        info.level = props.QoS.ECO
+    with pytest.raises(AttributeError):
+        info.is_overridden = False
+    with pytest.raises(TypeError):
+        hash(info)
 
 
 def test_compiled_blob_property():

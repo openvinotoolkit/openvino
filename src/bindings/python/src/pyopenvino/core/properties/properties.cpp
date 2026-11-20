@@ -4,7 +4,6 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
-#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -44,11 +43,6 @@ void regmodule_properties(py::module m) {
 
     // Special case: ov::QoSInfo
     py::class_<ov::QoSInfo, std::shared_ptr<ov::QoSInfo>> cls_qosinfo(m_properties, "QoSInfo");
-    cls_qosinfo.def(py::init([](ov::QoS level, bool is_overridden) {
-                        return ov::QoSInfo{level, is_overridden};
-                    }),
-                    py::arg("level"),
-                    py::arg("is_overridden"));
     cls_qosinfo.def_readonly("level", &ov::QoSInfo::level);
     cls_qosinfo.def_readonly("is_overridden", &ov::QoSInfo::is_overridden);
     cls_qosinfo.def("__repr__", [](const ov::QoSInfo& info) {
@@ -56,11 +50,12 @@ void regmodule_properties(py::module m) {
         qosinfo_stream << info;
         return py::cast(qosinfo_stream.str());
     });
-    cls_qosinfo.def(py::self == py::self);
-    cls_qosinfo.def(py::self != py::self);
-    cls_qosinfo.def("__hash__", [](const ov::QoSInfo& info) {
-        return py::hash(py::make_tuple(static_cast<int>(info.level), info.is_overridden));
-    });
+    cls_qosinfo.def(
+        "__eq__",
+        [](const ov::QoSInfo& lhs, const ov::QoSInfo& rhs) {
+            return lhs.level == rhs.level && lhs.is_overridden == rhs.is_overridden;
+        },
+        py::is_operator());
 
     // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
