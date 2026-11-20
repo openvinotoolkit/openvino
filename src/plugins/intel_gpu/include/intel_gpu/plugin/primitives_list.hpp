@@ -292,6 +292,7 @@ REGISTER_FACTORY(v16, SegmentMax);
 // ------------------------------ Supported v17 ops ----------------------------- //
 REGISTER_FACTORY(v17, ErfInv);
 REGISTER_FACTORY(v17, GroupedMatMul);
+REGISTER_FACTORY(v17, Histc);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
