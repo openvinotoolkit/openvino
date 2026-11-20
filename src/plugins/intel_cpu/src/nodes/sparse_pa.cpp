@@ -5,6 +5,7 @@
 #include "sparse_pa.h"
 
 #include <algorithm>
+#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -13,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "cache/multi_cache.h"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "graph_context.h"
@@ -20,8 +22,6 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
-#include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
-#include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/sparse_attn_common.hpp"
@@ -41,6 +41,79 @@
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
+
+namespace {
+
+// The key of the executor in the params cache: everything the executor reads from the configuration of the node. The
+// brgemm kernels follow from it (and the CPU), so they are not part of the key. The nodes of a model that share it
+// share the executor, and so the buffers of its cache write.
+struct ExecutorKey {
+    ov::Extensions::Cpu::SparsePAConfig config;
+
+    [[nodiscard]] size_t hash() const {
+        using namespace dnnl::impl;
+        const auto& c = config;
+        size_t seed = 0;
+        for (const size_t value : {c.num_heads,
+                                   c.num_kv_heads,
+                                   c.num_selection_heads,
+                                   c.k_head_size,
+                                   c.v_head_size,
+                                   c.key_block_size,
+                                   c.page_size,
+                                   c.max_run_rows}) {
+            seed = hash_combine(seed, value);
+        }
+        seed = hash_combine(seed, c.causal);
+        seed = hash_combine(seed, c.data_precision.hash());
+        for (const auto* spec : {&c.key_spec, &c.value_spec}) {
+            seed = hash_combine(seed, static_cast<size_t>(spec->alg));
+            seed = hash_combine(seed, spec->precision.hash());
+            seed = hash_combine(seed, spec->group_size);
+            seed = hash_combine(seed, spec->by_channel);
+        }
+        return seed;
+    }
+
+    bool operator==(const ExecutorKey& rhs) const {
+        const auto& l = config;
+        const auto& r = rhs.config;
+        const auto same_spec = [](const ov::Extensions::Cpu::CacheSpec& a, const ov::Extensions::Cpu::CacheSpec& b) {
+            return a.alg == b.alg && a.precision == b.precision && a.group_size == b.group_size &&
+                   a.by_channel == b.by_channel;
+        };
+        return l.num_heads == r.num_heads && l.num_kv_heads == r.num_kv_heads &&
+               l.num_selection_heads == r.num_selection_heads && l.k_head_size == r.k_head_size &&
+               l.v_head_size == r.v_head_size && l.key_block_size == r.key_block_size && l.page_size == r.page_size &&
+               l.max_run_rows == r.max_run_rows && l.causal == r.causal && l.data_precision == r.data_precision &&
+               same_spec(l.key_spec, r.key_spec) && same_spec(l.value_spec, r.value_spec);
+    }
+};
+
+// The executor of a configuration, with the AMX kernels its prefill path uses (the config owns them).
+std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> makeExecutor(const MultiCachePtr& cache,
+                                                                    ov::Extensions::Cpu::SparsePAConfig config) {
+    config.brgemm = {};
+    // AMX matrix products over the selected rows of a work item (see attn_brgemm_tiles.hpp), for the prefill and the
+    // decode of a large selection: bf16 / f16 data on hardware with the matching AMX, a pack of several query heads
+    // (the M of the products), and the causal selection.
+    const auto prec = config.data_precision;
+    const bool amx = (prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
+                     (prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));
+    const size_t pack =
+        ov::Extensions::Cpu::max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads);
+    if (amx && config.causal && ov::Extensions::Cpu::TileBrgemmKernels::supports_pack(pack)) {
+        config.brgemm = ov::Extensions::Cpu::TileBrgemmKernels::get(cache,
+                                                                    pack,
+                                                                    config.k_head_size,
+                                                                    config.v_head_size,
+                                                                    ov::Extensions::Cpu::kGatherTileRows,
+                                                                    prec);
+    }
+    return ov::Extensions::Cpu::XARCH::make_sparse_pa_executor(config);
+}
+
+}  // namespace
 
 SparsePA::SparsePA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -123,85 +196,6 @@ bool SparsePA::deriveQuant(std::string& reason) {
     return true;
 }
 
-size_t SparsePA::writeKVSlotMappingBytes(size_t tokens) {
-    return ov::Extensions::Cpu::aligned(tokens * sizeof(int32_t));
-}
-
-size_t SparsePA::writeKVScratchBytes(size_t tokens, size_t block_size) const {
-    const auto& c = m_config;
-    size_t bytes = writeKVSlotMappingBytes(tokens);
-    if (isQuantized() && m_config.key_spec.by_channel) {
-        // One page of dequantized keys per worker thread (only the keys can be quantized by channel).
-        bytes += static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()) * block_size * c.k_head_size *
-                 sizeof(float);
-    }
-    return bytes;
-}
-
-void SparsePA::writeKV(uint8_t* scratch) {
-    PlainTensor key(getSrcMemoryAtPort(InputIdx::KEY));
-    PlainTensor value(getSrcMemoryAtPort(InputIdx::VALUE));
-    PlainTensor key_cache(getSrcMemoryAtPort(InputIdx::KEY_CACHE));
-    PlainTensor value_cache(getSrcMemoryAtPort(InputIdx::VALUE_CACHE));
-    PlainTensor past_lens(getSrcMemoryAtPort(InputIdx::PAST_LENS));
-    PlainTensor subsequence_begins(getSrcMemoryAtPort(InputIdx::SUBSEQUENCE_BEGINS));
-    PlainTensor block_indices(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES));
-    PlainTensor block_indices_begins(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES_BEGINS));
-    const auto& c = m_config;
-    const size_t block_size = m_config.page_size ? m_config.page_size : key_cache.size(2);
-
-    // Physical slot (block * block_size + offset) of every new token, as PagedAttention builds it.
-    const size_t tokens = key.size(0);
-    PlainTensor slot_mapping;
-    slot_mapping.resize<int32_t>({tokens}, reinterpret_cast<int32_t*>(scratch));
-    size_t idx = 0;
-    for (size_t seq = 0; seq < past_lens.size(0); seq++) {
-        const int32_t q_len = subsequence_begins.ptr<int32_t>()[seq + 1] - subsequence_begins.ptr<int32_t>()[seq];
-        const int32_t past = past_lens.ptr<int32_t>()[seq];
-        const int32_t first_block = block_indices_begins.ptr<int32_t>()[seq];
-        for (int32_t j = 0; j < q_len; j++) {
-            const auto pos = static_cast<size_t>(past) + static_cast<size_t>(j);
-            const auto block = static_cast<size_t>(block_indices.ptr<int32_t>()[first_block + pos / block_size]);
-            slot_mapping.ptr<int32_t>()[idx++] = static_cast<int32_t>(block * block_size + pos % block_size);
-        }
-    }
-
-    const auto key_4d = key.reshape({tokens, c.num_kv_heads, 1, c.k_head_size});
-    const auto value_4d = value.reshape({tokens, c.num_kv_heads, 1, c.v_head_size});
-    if (!isQuantized()) {
-        ov::Extensions::Cpu::XARCH::paged_attn_memcpy(key_4d,
-                                                      value_4d,
-                                                      key_cache,
-                                                      value_cache,
-                                                      slot_mapping,
-                                                      context->getCpuParallel());
-        return;
-    }
-    ov::Extensions::Cpu::QuantizeParam quant_param{m_config.key_spec.by_channel,
-                                                   false,
-                                                   false,
-                                                   m_config.key_spec.group_size,
-                                                   m_config.value_spec.group_size};
-    PlainTensor temp_buffer;
-    if (m_config.key_spec.by_channel) {
-        temp_buffer.resize<float>(
-            {static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()), block_size, c.k_head_size},
-            reinterpret_cast<float*>(scratch + writeKVSlotMappingBytes(tokens)));
-    }
-    ov::Extensions::Cpu::XARCH::paged_attn_quantkv(key_4d,
-                                                   value_4d,
-                                                   key_cache,
-                                                   value_cache,
-                                                   past_lens,
-                                                   subsequence_begins,
-                                                   block_indices,
-                                                   block_indices_begins,
-                                                   slot_mapping,
-                                                   temp_buffer,
-                                                   quant_param,
-                                                   context->getCpuParallel());
-}
-
 bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Config& config, std::string& reason) {
     const auto& query_ps = op.get_input_partial_shape(InputIdx::QUERY);
     const auto& key_ps = op.get_input_partial_shape(InputIdx::KEY);
@@ -272,28 +266,16 @@ void SparsePA::createPrimitive() {
     // Adjacent selected blocks of one page are attended as one run of up to a page of rows; with a dynamic page size
     // every block is its own run.
     m_config.max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
-    m_config.brgemm = {};
-    const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
-    m_config.data_precision = query_prec;
-    // AMX matrix products over the selected rows of a work item (see attn_brgemm_tiles.hpp), for the prefill and the
-    // decode of a large selection: bf16 / f16 data on hardware with the matching AMX, a pack of several query heads
-    // (the M of the products), and the causal selection.
-    const bool amx =
-        (query_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
-        (query_prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));
-    const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
-                                                                  m_config.num_kv_heads,
-                                                                  m_config.num_selection_heads);
-    if (amx && m_config.causal && ov::Extensions::Cpu::TileBrgemmKernels::supports_pack(pack)) {
-        m_brgemm = ov::Extensions::Cpu::TileBrgemmKernels::get(context->getParamsCache(),
-                                                               pack,
-                                                               Dh,
-                                                               m_config.v_head_size,
-                                                               ov::Extensions::Cpu::kGatherTileRows,
-                                                               query_prec);
-        m_config.brgemm = m_brgemm.handle();
-    }
-    m_executor = ov::Extensions::Cpu::XARCH::make_sparse_pa_executor(m_config);
+    m_config.brgemm = {};  // set by the builder of the executor
+    m_config.data_precision = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+    // The executor is shared by the nodes of the same configuration, see ExecutorKey.
+    const auto cache = context->getParamsCache();
+    [[maybe_unused]] const auto [sparse_pa_executor, lookup_status] =
+        cache->getOrCreate(ExecutorKey{m_config}, [&cache](const ExecutorKey& key) {
+            return makeExecutor(cache, key.config);
+        });
+    OPENVINO_ASSERT(sparse_pa_executor, "SparsePA executor creation fails");
+    m_executor = sparse_pa_executor;
 }
 
 void SparsePA::initSupportedPrimitiveDescriptors() {
@@ -335,6 +317,8 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& c = m_config;
 
     PlainTensor query(getSrcMemoryAtPort(InputIdx::QUERY));
+    PlainTensor key(getSrcMemoryAtPort(InputIdx::KEY));
+    PlainTensor value(getSrcMemoryAtPort(InputIdx::VALUE));
     PlainTensor key_cache(getSrcMemoryAtPort(InputIdx::KEY_CACHE));
     PlainTensor value_cache(getSrcMemoryAtPort(InputIdx::VALUE_CACHE));
     PlainTensor block_indices(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES));
@@ -364,8 +348,9 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
                     block_size,
                     " must be divisible by key_block_size ",
                     c.key_block_size);
-    // Core shape inference leaves the cache layout to the backend: the caches must match the config, or writeKV and the
-    // kernel would write / read out of bounds. A quantized cache layout (dims 2 and 3) is checked in deriveQuant.
+    // Core shape inference leaves the cache layout to the backend: the caches must match the config, or the K/V write
+    // and the kernel would write / read out of bounds. A quantized cache layout (dims 2 and 3) is checked in
+    // deriveQuant.
     if (isQuantized()) {
         key_cache.assert_dims({0, c.num_kv_heads, 0, 0}, true);
         value_cache.assert_dims({key_cache.size(0), c.num_kv_heads, 0, 0}, true);
@@ -382,6 +367,8 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
                            std::min(key_cache.size(0), value_cache.size(0)));
 
     const ov::Extensions::Cpu::SparsePATensors tensors{query,
+                                                       key,
+                                                       value,
                                                        key_cache,
                                                        value_cache,
                                                        block_indices,
@@ -392,18 +379,11 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                        sel_count,
                                                        out,
                                                        scale};
-    // Phase 1 scratch (the slot mapping and the by-channel requantization buffer) and phase 2 scratch (the executor's).
-    // The phases are separated by a barrier, so they share the start of one scratchpad request: a second request would
-    // free the first one's memory.
-    const size_t write_bytes = writeKVScratchBytes(query.size(0), block_size);
-    const auto scratch = context->getScratchPad()->createScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(
-        ov::element::u8,
-        ov::intel_cpu::Shape{std::max(m_executor->scratch_bytes(tensors, cpu_parallel), write_bytes)}));
-
-    // Phase 1: write the current K/V into the caches (parallel over token x kv head); it completes before phase 2,
-    // the sparse attention, reads them.
-    writeKV(scratch->getDataAs<uint8_t>());
-    // Phase 2: sparse attention, parallel over (query token, query head pack).
+    // The executor writes the current K/V into the caches (parallel over token x kv head), then runs the sparse
+    // attention (parallel over query token x query head pack) with per-thread scratch.
+    const auto scratch = context->getScratchPad()->createScratchPadMem(
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
+                                               ov::intel_cpu::Shape{m_executor->scratch_bytes(tensors, cpu_parallel)}));
     m_executor->execute(tensors, scratch->getDataAs<uint8_t>(), cpu_parallel);
 }
 

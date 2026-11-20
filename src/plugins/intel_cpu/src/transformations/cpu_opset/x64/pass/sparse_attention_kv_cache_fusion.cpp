@@ -24,7 +24,6 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
@@ -79,8 +78,8 @@ KVCachePattern make_pattern() {
     auto axis_k = wrap_type<ov::op::v0::Constant>(value_matches("0"));
     auto axis_v = wrap_type<ov::op::v0::Constant>(value_matches("0"));
     const auto beam_gather = attrs_match({{"batch_dims", 0}}) && consumers_count(1);
-    p.gather_k = wrap_type<ov::op::v7::Gather, ov::op::v8::Gather>({convert_past_k, p.beam_idx, axis_k}, beam_gather);
-    p.gather_v = wrap_type<ov::op::v7::Gather, ov::op::v8::Gather>({convert_past_v, p.beam_idx, axis_v}, beam_gather);
+    p.gather_k = wrap_type<ov::op::util::GatherBase>({convert_past_k, p.beam_idx, axis_k}, beam_gather);
+    p.gather_v = wrap_type<ov::op::util::GatherBase>({convert_past_v, p.beam_idx, axis_v}, beam_gather);
 
     // key/value are [N, Hkv, S, E] and are concatenated along S (axis 2, or -2 as PyTorch exports write it: the
     // Concat attribute is not normalized). The Concat feeds the SparseAttention, the Assign (maybe through a Convert)

@@ -47,16 +47,16 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    // The computation is the cross-compiled executor (AVX-512 / AVX2 / plain C++ by the CPU); the scoring of the blocks
-    // runs on the brgemm scorer instead where the CPU, the precisions and the head counts allow it.
+    // The computation is the PagedQSAIndexerExecutor: cross-compiled stages (AVX-512 / AVX2 / plain C++ by the CPU),
+    // where the scoring of the blocks runs on the brgemm scorer instead if the CPU, the precisions and the head counts
+    // allow it.
     ov::op::internal::PagedQSAIndexer::Config m_config;
-    std::shared_ptr<ov::Extensions::Cpu::qsa::PagedExecutor> m_executor;
-    std::shared_ptr<ov::Extensions::Cpu::qsa::PagedScorer> m_scorer;  // null: the executor scores the blocks itself
+    // Shared by the layers of the same configuration (params cache of the graph context).
+    std::shared_ptr<const ov::Extensions::Cpu::qsa::PagedQSAIndexerExecutor> m_executor;
     // Fixed by the model.
     size_t m_index_query_heads = 0;
     size_t m_index_key_heads = 0;
     size_t m_page_size = 0;  // tokens per page of the caches
-    impl_desc_type m_impl = impl_desc_type::ref;
 };
 
 }  // namespace ov::intel_cpu::node

@@ -17,8 +17,8 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/result.hpp"
-#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "utils/precision_support.h"
 
 namespace ov {
@@ -289,9 +289,7 @@ QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
                     for (size_t i = 0; i < k; i++) {
                         chosen[i] = scores[i].second;
                     }
-                    if (!order_by_score) {
-                        std::sort(chosen.begin(), chosen.end());  // else: the order of partial_sort, by score
-                    }
+                    std::sort(chosen.begin(), chosen.end());
                 }
                 auto* out_row = &out.sel_indices[((b * h_sel + sh) * L + lu) * block_topk];
                 for (size_t i = 0; i < k; i++) {
@@ -321,8 +319,7 @@ QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
 }
 
 std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo<QSAIndexerLayerTestParams>& obj) {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score, query_fusion_type] =
-        obj.param;
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, query_fusion_type] = obj.param;
     std::string scenario_name;
     switch (scenario) {
     case QSAIndexerScenario::kDensePrefill:
@@ -349,13 +346,11 @@ std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     }
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) + "_Batch=" + std::to_string(batch) +
-           "_Scenario=" + scenario_name + "_OrderByScore=" + std::to_string(order_by_score) +
-           "_QueryFusionType=" + std::to_string(static_cast<int>(query_fusion_type));
+           "_Scenario=" + scenario_name + "_QueryFusionType=" + std::to_string(static_cast<int>(query_fusion_type));
 }
 
 void QSAIndexerLayerCPUTest::SetUp() {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score, query_fusion_type] =
-        GetParam();
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, query_fusion_type] = GetParam();
     // Without hardware support the plugin runs a bf16 / f16 model in f32 and converts its parameters.
     if (!ov::intel_cpu::hasHardwareSupport(data_precision)) {
         GTEST_SKIP() << "CPU precision policy does not preserve " << data_precision << " data on this system.";
@@ -367,15 +362,12 @@ void QSAIndexerLayerCPUTest::SetUp() {
     m_h_sel = h_sel;
     m_batch = batch;
     m_scenario = scenario;
-    m_order_by_score = order_by_score;
     m_query_norm = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||
                    query_fusion_type == QSAIndexerQueryFusionType::kNormOnly;
     m_query_rope = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||
                    query_fusion_type == QSAIndexerQueryFusionType::kRopeOnly;
-    m_mismatch_share = (order_by_score || query_fusion_type != QSAIndexerQueryFusionType::kNormAndRope) &&
-                               data_precision != ov::element::f32
-                           ? 0.1
-                           : 0.0;
+    m_mismatch_share =
+        query_fusion_type != QSAIndexerQueryFusionType::kNormAndRope && data_precision != ov::element::f32 ? 0.1 : 0.0;
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
     if (data_precision == ov::element::bf16) {
@@ -440,7 +432,7 @@ void QSAIndexerLayerCPUTest::SetUp() {
     auto p_key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_batch});
     auto p_q_norm_weight = std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_didx});
     auto p_k_norm_weight = std::make_shared<ov::op::v0::Parameter>(m_data_precision, ov::Shape{m_didx});
-    // Only the blocks of the earlier calls: the op returns them grown by the blocks of this call.
+    // Only the blocks of the earlier calls: the implementation returns them grown by the blocks of this call.
     auto p_summary_cache = std::make_shared<ov::op::v0::Parameter>(m_data_precision,
                                                                    ov::PartialShape{static_cast<int64_t>(m_batch),
                                                                                     static_cast<int64_t>(m_h_ik),
@@ -462,15 +454,14 @@ void QSAIndexerLayerCPUTest::SetUp() {
     p_past_raw_k->set_friendly_name("past_raw_k");
     p_past_rope->set_friendly_name("past_rope");
 
-    ov::intel_cpu::QSAIndexerNode::Config config;
-    config.compress_ratio = m_compress_ratio;
+    ov::op::internal::QSAIndexer::Config config;
+    config.key_block_size = m_compress_ratio;
     config.block_topk = m_block_topk;
-    config.h_sel = m_h_sel;
+    config.num_selection_heads = m_h_sel;
     config.indexer_rotary_dim = m_rotary_dim;
     config.indexer_head_dim = m_didx;
-    config.eps = 1e-6F;
+    config.epsilon = 1e-6F;
     config.scale = 0.25F;
-    config.order_by_score = m_order_by_score;
     config.query_norm = m_query_norm;
     config.query_rope = m_query_rope;
 
@@ -484,15 +475,15 @@ void QSAIndexerLayerCPUTest::SetUp() {
                              p_summary_cache,
                              p_past_raw_k,
                              p_past_rope};
-    using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
-    auto qsa_indexer_v2 = std::make_shared<ov::intel_cpu::QSAIndexerNode>(args, config);
+    using OutputIdx = ov::op::internal::QSAIndexer::OutputIdx;
+    auto qsa_indexer = std::make_shared<ov::op::internal::QSAIndexer>(args, config);
 
     function = std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::SEL_INDICES)),
-                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::SEL_COUNT)),
-                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::SUMMARY_CACHE)),
-                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::PAST_INCOMPLETE_RAW_K)),
-                         std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::PAST_INCOMPLETE_ROPE))},
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(qsa_indexer->output(OutputIdx::SELECTED_BLOCK_INDICES)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer->output(OutputIdx::SELECTED_BLOCK_COUNT)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer->output(OutputIdx::BLOCK_INDEX_KEYS_CACHE)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer->output(OutputIdx::PAST_INCOMPLETE_RAW_K)),
+                         std::make_shared<ov::op::v0::Result>(qsa_indexer->output(OutputIdx::PAST_INCOMPLETE_ROPE))},
         ov::ParameterVector{p_q_idx,
                             p_k_idx,
                             p_rope_cos,
@@ -519,11 +510,11 @@ bool QSAIndexerLayerCPUTest::is_degenerate_scores_scenario() const {
 
 void QSAIndexerLayerCPUTest::check_selection_invariants(const CallSpec& call,
                                                         const std::vector<ov::Tensor>& outs) const {
-    using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
+    using OutputIdx = ov::op::internal::QSAIndexer::OutputIdx;
     const auto L = static_cast<size_t>(call.length);
     const auto r = static_cast<int64_t>(m_compress_ratio);
-    const auto* indices = outs[OutputIdx::SEL_INDICES].data<int32_t>();
-    const auto* counts = outs[OutputIdx::SEL_COUNT].data<int32_t>();
+    const auto* indices = outs[OutputIdx::SELECTED_BLOCK_INDICES].data<int32_t>();
+    const auto* counts = outs[OutputIdx::SELECTED_BLOCK_COUNT].data<int32_t>();
     for (size_t b = 0; b < m_batch; b++) {
         for (size_t sh = 0; sh < m_h_sel; sh++) {
             for (size_t l = 0; l < L; l++) {
@@ -541,7 +532,7 @@ void QSAIndexerLayerCPUTest::check_selection_invariants(const CallSpec& call,
                     for (size_t j = 0; j < i; j++) {
                         ASSERT_NE(chosen[i], chosen[j]) << "duplicate block, " << where;
                     }
-                    if (!m_order_by_score && i > 0) {
+                    if (i > 0) {
                         ASSERT_LT(chosen[i - 1], chosen[i]) << "blocks not ascending, " << where;
                     }
                 }
@@ -652,7 +643,6 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
     oracle.block_topk = m_block_topk;
     oracle.eps = 1e-6F;
     oracle.scale = 0.25F;
-    oracle.order_by_score = m_order_by_score;
     oracle.query_norm = m_query_norm;
     oracle.query_rope = m_query_rope;
     oracle.summary_cap = m_summary_cap;
@@ -710,9 +700,9 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
             << "state input " << i << " was modified in place";
     }
     // ...and the state outputs are what the outside Assign feeds into the next call.
-    m_summary_cache_tensor = outs[ov::intel_cpu::QSAIndexerNode::OutputIdx::SUMMARY_CACHE];
-    m_past_raw_k_tensor = outs[ov::intel_cpu::QSAIndexerNode::OutputIdx::PAST_INCOMPLETE_RAW_K];
-    m_past_rope_tensor = outs[ov::intel_cpu::QSAIndexerNode::OutputIdx::PAST_INCOMPLETE_ROPE];
+    m_summary_cache_tensor = outs[ov::op::internal::QSAIndexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE];
+    m_past_raw_k_tensor = outs[ov::op::internal::QSAIndexer::OutputIdx::PAST_INCOMPLETE_RAW_K];
+    m_past_rope_tensor = outs[ov::op::internal::QSAIndexer::OutputIdx::PAST_INCOMPLETE_ROPE];
     return outs;
 }
 

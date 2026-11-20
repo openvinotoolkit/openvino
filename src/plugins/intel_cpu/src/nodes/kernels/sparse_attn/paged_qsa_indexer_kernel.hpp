@@ -6,12 +6,16 @@
 
 #include <memory>
 
+#include "cache/multi_cache.h"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
 // The PagedQSAIndexer executor of `config`, cross-compiled: AVX-512, AVX2 or plain C++ by the CPU.
-std::shared_ptr<ov::Extensions::Cpu::qsa::PagedExecutor> make_paged_qsa_executor(
+/// @brief The complete executor of the node: the cross-compiled stages and, where the CPU and the configuration allow
+/// it, the scorer on brgemm (its kernels come from the params cache).
+std::shared_ptr<ov::Extensions::Cpu::qsa::PagedQSAIndexerExecutor> make_paged_indexer_executor(
+    const ov::intel_cpu::MultiCachePtr& cache,
     const ov::Extensions::Cpu::qsa::Config& config);
 
 }  // namespace ov::Extensions::Cpu::XARCH

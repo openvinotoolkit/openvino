@@ -9,7 +9,7 @@
 //   2. scores, for every token of the window, the complete blocks it can see (q . index key, summed over the query
 //      heads of a selection head) and keeps the block_topk best block ids: sel_indices [B, H_sel, L, block_topk],
 //      sel_count [B, H_sel, L].
-// Stage 1 is Executor::prepare(), stage 2 Executor::score_tokens() (the brgemm scorer of qsa_brgemm_kernel.cpp replaces
+// Stage 1 is the prepare part of execute(), stage 2 run_token_scorer() (the brgemm scorer of brgemm_scorer.hpp replaces
 // it on AVX-512). The kernel is cross-compiled: one source for AVX-512, AVX2 and plain C++.
 
 #include "qsa_indexer_kernel.hpp"
@@ -21,8 +21,9 @@
 #include <memory>
 #include <utility>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
-#include "nodes/kernels/sparse_attn/qsa_call_utils.hpp"
+#include "nodes/kernels/sparse_attn/brgemm_scorer.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
 #include "openvino/core/except.hpp"
@@ -38,53 +39,21 @@ namespace ov::Extensions::Cpu::XARCH {
 namespace {
 
 using ov::Extensions::Cpu::qsa::Config;
-using ov::Extensions::Cpu::qsa::DenseCall;
-using ov::Extensions::Cpu::qsa::DenseExecutor;
+using ov::Extensions::Cpu::qsa::IndexerArgs;
+using ov::Extensions::Cpu::qsa::qsa_kernel_impl_type;
+using ov::Extensions::Cpu::qsa::QSAIndexerExecutor;
 using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
+using ov::intel_cpu::MultiCachePtr;
 using ov::intel_cpu::rnd_up;
 using qsa_kernel::batch_entry_plan;
 using qsa_kernel::BatchEntryPlan;
 using qsa_kernel::BlockScore;
 using qsa_kernel::rope_batch;
 
-constexpr size_t kAlign = 64;
-
-// The buffers of one worker thread's slice of the scratch. The stages run one after the other, so they share the
-// floats; the (score, block) pairs and the chosen ids are for the token scorer.
-struct ThreadLayout {
-    size_t row_buf_off;       // floats: [D_idx] a converted row (after the [H_iq, D_idx] normalized queries)
-    size_t rope_cos_sin_off;  // floats: [2 * rotary_dim] cos / sin of the first token of a block (of the token)
-    size_t stage_off;         // floats: [kScoreRows, D_idx] summary rows converted to f32 (the scoring)
-    size_t score_f32_off;     // floats: [blocks] the scores of the blocks of a token and selection head
-    size_t scores_off;        // bytes: [blocks] (score * scale, block), what the top-k selects from
-    size_t chosen_off;        // bytes: [block_topk]
-    size_t bytes;
-
-    ThreadLayout(size_t H_iq, size_t D_idx, size_t rotary_dim, size_t max_blocks, size_t block_topk)
-        : row_buf_off(H_iq * D_idx),
-          rope_cos_sin_off(row_buf_off + D_idx),
-          stage_off(rope_cos_sin_off + 2 * rotary_dim),
-          score_f32_off(stage_off + qsa_kernel::kScoreRows * D_idx),
-          scores_off(rnd_up((score_f32_off + max_blocks) * sizeof(float), kAlign)),
-          chosen_off(rnd_up(scores_off + max_blocks * sizeof(BlockScore), kAlign)),
-          bytes(rnd_up(chosen_off + block_topk * sizeof(int32_t), kAlign)) {}
-};
-
-// The scratch of a call: [ f32 q / k norm weights | one slice per worker thread ].
-struct ScratchLayout {
-    ThreadLayout thread;
-    size_t threads_offset;
-    size_t total_bytes;
-
-    ScratchLayout(const DenseCall& call, const Config& c)
-        : thread(c.index_query_heads, c.head_dim, c.rotary_dim, call.summary_cache.size(2), c.block_topk),
-          threads_offset(rnd_up(2 * c.head_dim * sizeof(float), kAlign)),
-          total_bytes(threads_offset + c.num_threads * thread.bytes) {}
-};
-
-// The buffers of one worker thread's slice of the scratch.
+// The buffers of one worker thread's slice of the scratch. The stages run one after the other, so they share them; the
+// (score, block) pairs and the chosen ids are for the token scorer.
 struct ThreadBuffers {
     float* q_normed;  // [H_iq, D_idx] normalized + rotated index queries (stage 1: the first row is the pooled block)
     float* row_buf;   // [D_idx] a converted row
@@ -93,14 +62,36 @@ struct ThreadBuffers {
     float* score_f32;     // [blocks] the scores of the blocks of a token and selection head
     BlockScore* scores;   // [blocks] (score * scale, block), what the top-k selects from
     int32_t* chosen;      // [block_topk]
+    size_t bytes;         // the size of the slice
+
+    // The buffers of the slice that starts at `base`; with a null base only `bytes` is meaningful.
+    static ThreadBuffers partition(uint8_t* base, const Config& c, size_t max_blocks) {
+        qsa_kernel::ScratchPartition slice(base);
+        ThreadBuffers b{};
+        b.q_normed = slice.take<float>(c.index_query_heads * c.head_dim);
+        b.row_buf = slice.take<float>(c.head_dim);
+        b.rope_cos_sin = slice.take<float>(2 * c.rotary_dim);
+        b.stage = slice.take<float>(qsa_kernel::kScoreRows * c.head_dim);
+        b.score_f32 = slice.take<float>(max_blocks);
+        b.scores = slice.take<BlockScore>(max_blocks);
+        b.chosen = slice.take<int32_t>(c.block_topk);
+        b.bytes = slice.bytes();
+        return b;
+    }
 };
 
-// The scratch of a call, bound to its memory.
+// The scratch of a call, bound to its memory: [ f32 q / k norm weights | one slice per worker thread ].
 template <typename T>
 struct Scratch {
-    Scratch(const DenseCall& call, const Config& c, const ScratchLayout& layout, uint8_t* memory)
-        : threads(memory + layout.threads_offset),
-          m_layout(layout) {
+    static size_t bytes(const IndexerArgs& call, const Config& c) {
+        return threads_offset(c) + c.num_threads * ThreadBuffers::partition(nullptr, c, call.max_blocks).bytes;
+    }
+
+    Scratch(const IndexerArgs& call, const Config& c, uint8_t* memory)
+        : m_config(c),
+          m_max_blocks(static_cast<size_t>(call.max_blocks)),
+          m_thread_bytes(ThreadBuffers::partition(nullptr, c, m_max_blocks).bytes),
+          m_threads(memory + threads_offset(c)) {
         const size_t D_idx = c.head_dim;
         auto* const norm_weights = reinterpret_cast<float*>(memory);
         q_norm_w = qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), D_idx, norm_weights);
@@ -109,30 +100,29 @@ struct Scratch {
 
     // This worker thread's slice of the scratch.
     [[nodiscard]] ThreadBuffers thread() const {
-        const auto& t = m_layout.thread;
-        auto* const slice = threads + static_cast<size_t>(parallel_get_thread_num()) * t.bytes;
-        auto* const floats = reinterpret_cast<float*>(slice);
-        return {floats,
-                floats + t.row_buf_off,
-                floats + t.rope_cos_sin_off,
-                floats + t.stage_off,
-                floats + t.score_f32_off,
-                reinterpret_cast<BlockScore*>(slice + t.scores_off),
-                reinterpret_cast<int32_t*>(slice + t.chosen_off)};
+        return ThreadBuffers::partition(m_threads + static_cast<size_t>(parallel_get_thread_num()) * m_thread_bytes,
+                                        m_config,
+                                        m_max_blocks);
     }
 
     const float* q_norm_w = nullptr;  // f32 [D_idx] (the tensor itself when f32)
     const float* k_norm_w = nullptr;
-    uint8_t* threads;  // the slices of the worker threads
 
 private:
-    const ScratchLayout& m_layout;
+    static size_t threads_offset(const Config& c) {
+        return rnd_up(2 * c.head_dim * sizeof(float), qsa_kernel::ScratchPartition::kAlign);
+    }
+
+    const Config& m_config;
+    size_t m_max_blocks;
+    size_t m_thread_bytes;
+    uint8_t* m_threads;  // the slices of the worker threads
 };
 
 // The pending window of a row is [the `tail` rows of the incomplete-block state | the real tokens of this call].
 // Raw K row at pending position `pos` (a view of the tensor when it is f32, `buf` otherwise):
 template <typename T>
-const float* pending_row(const DenseCall& call,
+const float* pending_row(const IndexerArgs& call,
                          const Config& c,
                          const BatchEntryPlan& plan,
                          size_t b,
@@ -149,7 +139,7 @@ const float* pending_row(const DenseCall& call,
 // [rope_cos, rope_sin] of the first token of the block starting at pending position `pos`, in the layout of the
 // past_incomplete_rope state:
 template <typename T>
-void get_first_token_cos_sin(const DenseCall& call,
+void get_first_token_cos_sin(const IndexerArgs& call,
                              const Config& c,
                              const BatchEntryPlan& plan,
                              size_t b,
@@ -169,7 +159,7 @@ void get_first_token_cos_sin(const DenseCall& call,
 // [B, H_ik, blocks_in, D]), followed by zeros; the selection outputs start empty (indices -1, counts 0) ----
 // The copy of a long cache is split in block ranges to use the threads (decode has a single row and head).
 template <typename T>
-void initialize_summary_cache(const DenseCall& call, const Config& c, const CpuParallel& parallel) {
+void initialize_summary_cache(const IndexerArgs& call, const Config& c, const CpuParallel& parallel) {
     const size_t B = call.summary_cache.size(0);
     const size_t H_ik = c.index_key_heads;
     const size_t blocks_out = call.summary_cache.size(2);
@@ -212,7 +202,7 @@ void initialize_summary_cache(const DenseCall& call, const Config& c, const CpuP
 //   RoPE   the first Dr channels rotated with the cos / sin of the FIRST token of the block ([Dr] each)
 // and the result is the index key of the block: summary_cache[b, h, blk, :] ----
 template <typename T>
-void append_complete_blocks(const DenseCall& call,
+void append_complete_blocks(const IndexerArgs& call,
                             const Config& c,
                             const Scratch<T>& scratch,
                             const CpuParallel& parallel) {
@@ -255,7 +245,7 @@ void append_complete_blocks(const DenseCall& call,
 // ---- Phase 1b: fully overwrite the fixed-size incomplete-block state: the raw keys [B, H_ik, ratio - 1, D] of the
 // tokens after the last complete block (zero-padded) and the cos / sin [B, 2 * Dr] of the first of them ----
 template <typename T>
-void update_incomplete_block(const DenseCall& call,
+void update_incomplete_block(const IndexerArgs& call,
                              const Config& c,
                              const Scratch<T>& scratch,
                              const CpuParallel& parallel) {
@@ -292,7 +282,10 @@ void update_incomplete_block(const DenseCall& call,
 // ---- Phase 2 per real token: the query RMSNorm + RoPE, then per selection head the scoring of the complete blocks
 // and the top-k ----
 template <typename T>
-void run_token_scorer(const DenseCall& call, const Config& c, const Scratch<T>& scratch, const CpuParallel& parallel) {
+void run_token_scorer(const IndexerArgs& call,
+                      const Config& c,
+                      const Scratch<T>& scratch,
+                      const CpuParallel& parallel) {
     const size_t D_idx = c.head_dim;
     const size_t H_iq = c.index_query_heads;
     const size_t H_ik = c.index_key_heads;
@@ -355,11 +348,7 @@ void run_token_scorer(const DenseCall& call, const Config& c, const Scratch<T>& 
                 for (int64_t blk = 0; blk < n_complete; blk++) {
                     buf.scores[blk] = {buf.score_f32[blk] * c.scale, static_cast<int32_t>(blk)};
                 }
-                k = qsa_kernel::select_topk(buf.scores,
-                                            buf.chosen,
-                                            static_cast<size_t>(n_complete),
-                                            c.block_topk,
-                                            c.order_by_score);
+                k = qsa_kernel::select_topk(buf.scores, buf.chosen, static_cast<size_t>(n_complete), c.block_topk);
             }
 
             std::copy_n(buf.chosen, k, call.sel_indices.ptr<int32_t>(b, sh, l_u, 0));
@@ -370,11 +359,18 @@ void run_token_scorer(const DenseCall& call, const Config& c, const Scratch<T>& 
 
 // T is the precision of the data ports.
 template <typename T>
-class DenseExecutorImpl final : public DenseExecutor {
+class DenseExecutorImpl final : public QSAIndexerExecutor {
 public:
-    explicit DenseExecutorImpl(const Config& config) : m_config(config) {}
+    // The scorer on brgemm is chosen here: null where the CPU, the precision or the head counts do not allow it.
+    DenseExecutorImpl(const MultiCachePtr& cache, const Config& config)
+        : m_config(config),
+          m_brgemm_scorer(BrgemmScorer::create(cache, config)) {}
 
-    void find_batch_max_params(DenseCall& call) const override {
+    [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
+        return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : qsa_kernel_impl_type();
+    }
+
+    void find_batch_max_params(IndexerArgs& call) const override {
         const auto blocks_out = call.summary_cache.size(2);
         call.max_blocks = call.max_new_blocks = call.max_q_len = 0;
         for (size_t b = 0; b < call.q_idx.size(0); b++) {
@@ -391,40 +387,49 @@ public:
         }
     }
 
-    [[nodiscard]] size_t scratch_bytes(const DenseCall& call) const override {
-        return ScratchLayout(call, m_config).total_bytes;
+    // The stages and the scorer run one after the other on the same scratch.
+    [[nodiscard]] size_t scratch_bytes(const IndexerArgs& call) const override {
+        const size_t bytes = Scratch<T>::bytes(call, m_config);
+        return scores_on_brgemm(call) ? std::max(bytes, m_brgemm_scorer->scratch_bytes(call)) : bytes;
     }
 
-    void prepare(const DenseCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
-        const ScratchLayout layout(call, m_config);
-        const Scratch<T> scratch(call, m_config, layout, memory);
+    void execute(const IndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) const override {
+        const Scratch<T> scratch(call, m_config, memory);
         initialize_summary_cache<T>(call, m_config, *cpu_parallel);
         append_complete_blocks<T>(call, m_config, scratch, *cpu_parallel);
         update_incomplete_block<T>(call, m_config, scratch, *cpu_parallel);
-    }
-
-    void score_tokens(const DenseCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
-        const ScratchLayout layout(call, m_config);
-        const Scratch<T> scratch(call, m_config, layout, memory);
-        run_token_scorer<T>(call, m_config, scratch, *cpu_parallel);
+        if (scores_on_brgemm(call)) {
+            m_brgemm_scorer->score(call, memory, cpu_parallel);
+        } else {
+            run_token_scorer<T>(call, m_config, scratch, *cpu_parallel);
+        }
     }
 
 private:
+    using BrgemmScorer = brgemm_scorer_impl::BrgemmScorer<brgemm_scorer_impl::DenseSource<T>>;
+
+    // A call that has complete blocks to score goes to the scorer on brgemm, the others are scored by the stages.
+    [[nodiscard]] bool scores_on_brgemm(const IndexerArgs& call) const {
+        return m_brgemm_scorer && call.max_blocks > 0;
+    }
+
     Config m_config;
+    std::unique_ptr<BrgemmScorer> m_brgemm_scorer;
 };
 
 }  // namespace
 
-std::shared_ptr<ov::Extensions::Cpu::qsa::DenseExecutor> make_dense_qsa_executor(
+std::shared_ptr<ov::Extensions::Cpu::qsa::QSAIndexerExecutor> make_indexer_executor(
+    const ov::intel_cpu::MultiCachePtr& cache,
     const ov::Extensions::Cpu::qsa::Config& config) {
     if (config.precision == ov::element::f32) {
-        return std::make_shared<DenseExecutorImpl<float>>(config);
+        return std::make_shared<DenseExecutorImpl<float>>(cache, config);
     }
     if (config.precision == ov::element::f16) {
-        return std::make_shared<DenseExecutorImpl<ov::float16>>(config);
+        return std::make_shared<DenseExecutorImpl<ov::float16>>(cache, config);
     }
     if (config.precision == ov::element::bf16) {
-        return std::make_shared<DenseExecutorImpl<ov::bfloat16>>(config);
+        return std::make_shared<DenseExecutorImpl<ov::bfloat16>>(cache, config);
     }
     OPENVINO_THROW("QSAIndexer: unsupported precision ", config.precision);
 }

@@ -818,15 +818,11 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/brgemm_scorer.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_page_table_check.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm_kernel.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_call_utils.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_executor.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_common.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_kernel_utils.hpp
@@ -887,8 +883,6 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.hpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.cpp
-    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.cpp

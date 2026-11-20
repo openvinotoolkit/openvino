@@ -30,9 +30,9 @@ struct SparseSdpaConfig {
     float scale = 1.0F;
     CacheSpec key_spec;
     CacheSpec value_spec;
-    /// The AMX prefill kernels; not enabled when the node is not eligible. They are owned by the node and must outlive
-    /// the executor.
-    TileBrgemm brgemm;
+    /// The AMX prefill kernels; empty when the executor is not eligible. The config owns them, so an executor that
+    /// copies the config keeps them alive.
+    TileBrgemmKernels brgemm;
 };
 
 /// @brief The tensors of one call. Query, key, value and output share one floating-point type (f32 / f16 / bf16),
@@ -50,8 +50,9 @@ struct SparseSdpaTensors {
     const ov::intel_cpu::PlainTensor* value_scale_zp = nullptr;  ///< compressed value cache only
 };
 
-/// @brief Block-sparse group-query attention of the SparseSDPA node over a dense BHLS key / value cache. Built once by
-/// the factory below; the node asks for the scratch size of a call, allocates it and passes it to execute.
+/// @brief Block-sparse group-query attention of the SparseSDPA node over a dense BHLS key / value cache. Built by the
+/// factory below and shared by the nodes of the same configuration through the params cache of the graph context; the
+/// node asks for the scratch size of a call, allocates it and passes it to execute.
 class SparseSdpaExecutor {
 public:
     virtual ~SparseSdpaExecutor() = default;

@@ -4,9 +4,9 @@
 
 // The kernel of the PagedQSAIndexer node: the per-token math of the QSAIndexer (see qsa_indexer_kernel.cpp) over caches
 // addressed through the PagedAttention page table. A call appends the new raw keys, pools the blocks they complete, and
-// keeps each token's block_topk best blocks. Executor::prepare() does the first two, Executor::score_tokens() the
-// last one (the brgemm scorer of qsa_brgemm_kernel.cpp replaces it on AVX-512). Cross-compiled: one source for AVX-512,
-// AVX2 and plain C++.
+// keeps each token's block_topk best blocks. prepare() does the first two, score_tokens() the last
+// one (the brgemm scorer of brgemm_scorer.hpp replaces it on AVX-512). Cross-compiled: one source for
+// AVX-512, AVX2 and plain C++.
 
 #include "paged_qsa_indexer_kernel.hpp"
 
@@ -15,8 +15,9 @@
 #include <cstdint>
 #include <memory>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
-#include "nodes/kernels/sparse_attn/qsa_call_utils.hpp"
+#include "nodes/kernels/sparse_attn/brgemm_scorer.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
 #include "openvino/core/except.hpp"
@@ -32,11 +33,13 @@ namespace ov::Extensions::Cpu::XARCH {
 namespace {
 
 using ov::Extensions::Cpu::qsa::Config;
-using ov::Extensions::Cpu::qsa::PagedExecutor;
 using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
+using ov::Extensions::Cpu::qsa::PagedQSAIndexerExecutor;
+using ov::Extensions::Cpu::qsa::qsa_kernel_impl_type;
 using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
+using ov::intel_cpu::MultiCachePtr;
 using ov::intel_cpu::rnd_up;
 using qsa_kernel::block_address;
 using qsa_kernel::BlockScore;
@@ -44,52 +47,7 @@ using qsa_kernel::row_view;
 using qsa_kernel::seq_plan;
 using qsa_kernel::token_address;
 
-constexpr size_t kAlign = 64;
-
 // The buffers of one worker thread's slice of the scratch; the stages run one after the other, so they share them.
-struct ThreadLayout {
-    size_t q_normed_off = 0;  // floats: [H_iq, D_idx] normalized + rotated index queries
-    size_t row_buf_off;       // floats: [D_idx] a converted row
-    size_t summary_buf_off;   // floats: [D_idx] a pooled summary row
-    size_t pooled_off;        // floats: [D_idx] the mean of the raw keys of a block
-    size_t cos_sin_off;       // floats: [2 * rotary_dim] the interleaved cos / sin row of a block
-    size_t cos_tmp_off;       // floats: [rotary_dim] a cos row
-    size_t sin_tmp_off;       // floats: [rotary_dim] a sin row
-    size_t stage_off;         // floats: [kScoreRows, D_idx] summary rows converted to f32 (the scoring)
-    size_t score_f32_off;     // floats: [blocks] the scores of the blocks of a token and selection head
-    size_t scores_off;        // bytes: [blocks] (score * scale, block), what the top-k selects from
-    size_t chosen_off;        // bytes: [block_topk]
-    size_t bytes;
-
-    ThreadLayout(size_t H_iq, size_t D_idx, size_t rotary_dim, size_t max_blocks, size_t block_topk)
-        : row_buf_off(q_normed_off + H_iq * D_idx),
-          summary_buf_off(row_buf_off + D_idx),
-          pooled_off(summary_buf_off + D_idx),
-          cos_sin_off(pooled_off + D_idx),
-          cos_tmp_off(cos_sin_off + 2 * rotary_dim),
-          sin_tmp_off(cos_tmp_off + rotary_dim),
-          stage_off(sin_tmp_off + rotary_dim),
-          score_f32_off(stage_off + qsa_kernel::kScoreRows * D_idx),
-          scores_off(rnd_up((score_f32_off + max_blocks) * sizeof(float), kAlign)),
-          chosen_off(rnd_up(scores_off + max_blocks * sizeof(BlockScore), kAlign)),
-          bytes(rnd_up(chosen_off + block_topk * sizeof(int32_t), kAlign)) {}
-};
-
-// The scratch of a call: [ token -> sequence array | f32 norm weights | one slice per worker thread ].
-struct ScratchLayout {
-    ThreadLayout thread;
-    size_t norm_weights_offset;
-    size_t threads_offset;
-    size_t total_bytes;
-
-    ScratchLayout(const PagedIndexerArgs& call, const Config& c, int64_t max_blocks)
-        : thread(c.index_query_heads, c.head_dim, c.rotary_dim, static_cast<size_t>(max_blocks), c.block_topk),
-          norm_weights_offset(rnd_up(call.q_idx.size(0) * sizeof(int32_t), kAlign)),
-          threads_offset(rnd_up(norm_weights_offset + 2 * c.head_dim * sizeof(float), kAlign)),
-          total_bytes(threads_offset + c.num_threads * thread.bytes) {}
-};
-
-// The buffers of one worker thread's slice of the scratch.
 struct ThreadBuffers {
     float* q_normed;     // [H_iq, D_idx] normalized + rotated index queries
     float* row_buf;      // [D_idx] a converted row
@@ -102,17 +60,44 @@ struct ThreadBuffers {
     float* score_f32;    // [blocks] the scores of the blocks of a token and selection head
     BlockScore* scores;  // [blocks] (score * scale, block), what the top-k selects from
     int32_t* chosen;     // [block_topk]
+    size_t bytes;        // the size of the slice
+
+    // The buffers of the slice that starts at `base`; with a null base only `bytes` is meaningful.
+    static ThreadBuffers partition(uint8_t* base, const Config& c, size_t max_blocks) {
+        qsa_kernel::ScratchPartition slice(base);
+        ThreadBuffers b{};
+        b.q_normed = slice.take<float>(c.index_query_heads * c.head_dim);
+        b.row_buf = slice.take<float>(c.head_dim);
+        b.summary_buf = slice.take<float>(c.head_dim);
+        b.pooled = slice.take<float>(c.head_dim);
+        b.cos_sin = slice.take<float>(2 * c.rotary_dim);
+        b.cos_tmp = slice.take<float>(c.rotary_dim);
+        b.sin_tmp = slice.take<float>(c.rotary_dim);
+        b.stage = slice.take<float>(qsa_kernel::kScoreRows * c.head_dim);
+        b.score_f32 = slice.take<float>(max_blocks);
+        b.scores = slice.take<BlockScore>(max_blocks);
+        b.chosen = slice.take<int32_t>(c.block_topk);
+        b.bytes = slice.bytes();
+        return b;
+    }
 };
 
-// The scratch of a call, bound to its memory.
+// The scratch of a call, bound to its memory: [ token -> sequence array | f32 norm weights | one slice per worker
+// thread ].
 template <typename T>
 struct Scratch {
-    Scratch(const PagedIndexerArgs& call, const Config& c, const ScratchLayout& layout, uint8_t* memory)
+    static size_t bytes(const PagedIndexerArgs& call, const Config& c) {
+        return threads_offset(call, c) + c.num_threads * ThreadBuffers::partition(nullptr, c, call.max_blocks).bytes;
+    }
+
+    Scratch(const PagedIndexerArgs& call, const Config& c, uint8_t* memory)
         : token_seq(reinterpret_cast<int32_t*>(memory)),
-          threads(memory + layout.threads_offset),
-          m_layout(layout) {
+          m_config(c),
+          m_max_blocks(static_cast<size_t>(call.max_blocks)),
+          m_thread_bytes(ThreadBuffers::partition(nullptr, c, m_max_blocks).bytes),
+          m_threads(memory + threads_offset(call, c)) {
         const size_t D_idx = c.head_dim;
-        auto* const q_norm = reinterpret_cast<float*>(memory + layout.norm_weights_offset);
+        auto* const q_norm = reinterpret_cast<float*>(memory + norm_weights_offset(call));
         auto* const k_norm = q_norm + D_idx;
         // f32 weights are used in place; 16-bit ones are converted once per call into the scratch
         q_norm_w = qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), D_idx, q_norm);
@@ -131,29 +116,27 @@ struct Scratch {
 
     // This worker thread's slice of the scratch.
     [[nodiscard]] ThreadBuffers thread() const {
-        const auto& t = m_layout.thread;
-        auto* const slice = threads + static_cast<size_t>(parallel_get_thread_num()) * t.bytes;
-        auto* const floats = reinterpret_cast<float*>(slice);
-        return {floats + t.q_normed_off,
-                floats + t.row_buf_off,
-                floats + t.summary_buf_off,
-                floats + t.pooled_off,
-                floats + t.cos_sin_off,
-                floats + t.cos_tmp_off,
-                floats + t.sin_tmp_off,
-                floats + t.stage_off,
-                floats + t.score_f32_off,
-                reinterpret_cast<BlockScore*>(slice + t.scores_off),
-                reinterpret_cast<int32_t*>(slice + t.chosen_off)};
+        return ThreadBuffers::partition(m_threads + static_cast<size_t>(parallel_get_thread_num()) * m_thread_bytes,
+                                        m_config,
+                                        m_max_blocks);
     }
 
     int32_t* token_seq;  // per token: its sequence, -1 for a token that belongs to none
     const float* q_norm_w = nullptr;
     const float* k_norm_w = nullptr;
-    uint8_t* threads;  // the slices of the worker threads
 
 private:
-    const ScratchLayout& m_layout;
+    static size_t norm_weights_offset(const PagedIndexerArgs& call) {
+        return rnd_up(call.q_idx.size(0) * sizeof(int32_t), qsa_kernel::ScratchPartition::kAlign);
+    }
+    static size_t threads_offset(const PagedIndexerArgs& call, const Config& c) {
+        return rnd_up(norm_weights_offset(call) + 2 * c.head_dim * sizeof(float), qsa_kernel::ScratchPartition::kAlign);
+    }
+
+    const Config& m_config;
+    size_t m_max_blocks;
+    size_t m_thread_bytes;
+    uint8_t* m_threads;  // the slices of the worker threads
 };
 
 // ---- Phase 1, per token: append the raw index keys to the paged cache. A token that starts a block also stores its
@@ -284,7 +267,7 @@ void select_blocks(const PagedIndexerArgs& call, const Config& c, const Scratch<
             for (int64_t blk = 0; blk < n_complete; blk++) {
                 buf.scores[blk] = {buf.score_f32[blk] * c.scale, static_cast<int32_t>(blk)};
             }
-            k = qsa_kernel::select_topk(buf.scores, buf.chosen, static_cast<size_t>(n_complete), c.block_topk, false);
+            k = qsa_kernel::select_topk(buf.scores, buf.chosen, static_cast<size_t>(n_complete), c.block_topk);
         }
 
         std::copy_n(buf.chosen, k, call.sel_indices.ptr<int32_t>(token, sel_head, 0));
@@ -294,9 +277,16 @@ void select_blocks(const PagedIndexerArgs& call, const Config& c, const Scratch<
 
 // T is the precision of the floating-point ports.
 template <typename T>
-class PagedExecutorImpl final : public PagedExecutor {
+class PagedExecutorImpl final : public PagedQSAIndexerExecutor {
 public:
-    explicit PagedExecutorImpl(const Config& config) : m_config(config) {}
+    // The scorer on brgemm is chosen here: null where the CPU, the precision or the head counts do not allow it.
+    PagedExecutorImpl(const MultiCachePtr& cache, const Config& config)
+        : m_config(config),
+          m_brgemm_scorer(BrgemmScorer::create(cache, config)) {}
+
+    [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
+        return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : qsa_kernel_impl_type();
+    }
 
     void find_batch_max_params(PagedIndexerArgs& call) const override {
         call.max_blocks = call.max_new_blocks = call.max_q_len = 0;
@@ -310,15 +300,33 @@ public:
         }
     }
 
+    // The stages and the scorer run one after the other on the same scratch.
     [[nodiscard]] size_t scratch_bytes(const PagedIndexerArgs& call) const override {
-        return ScratchLayout(call, m_config, call.max_blocks).total_bytes;
+        const size_t bytes = Scratch<T>::bytes(call, m_config);
+        return scores_on_brgemm(call) ? std::max(bytes, m_brgemm_scorer->scratch_bytes(call)) : bytes;
     }
 
-    void prepare(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
+    void execute(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) const override {
+        prepare(call, memory, cpu_parallel);
+        if (scores_on_brgemm(call)) {
+            m_brgemm_scorer->score(call, memory, cpu_parallel);
+        } else {
+            score_tokens(call, memory, cpu_parallel);
+        }
+    }
+
+private:
+    using BrgemmScorer = brgemm_scorer_impl::BrgemmScorer<brgemm_scorer_impl::PagedSource<T>>;
+
+    // A call that has complete blocks to score goes to the scorer on brgemm, the others are scored by the stages.
+    [[nodiscard]] bool scores_on_brgemm(const PagedIndexerArgs& call) const {
+        return m_brgemm_scorer && call.max_blocks > 0;
+    }
+
+    void prepare(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) const {
         const auto& parallel = *cpu_parallel;
         const size_t tokens = call.q_idx.size(0);
-        const ScratchLayout layout(call, m_config, call.max_blocks);
-        const Scratch<T> scratch(call, m_config, layout, memory);
+        const Scratch<T> scratch(call, m_config, memory);
 
         std::fill_n(call.sel_indices.ptr<int32_t>(), tokens * m_config.num_selection_heads * m_config.block_topk, -1);
         std::fill_n(call.sel_count.ptr<int32_t>(), tokens * m_config.num_selection_heads, 0);
@@ -345,9 +353,8 @@ public:
     }
 
     // A token scores the complete blocks up to the one it completes, all written by prepare().
-    void score_tokens(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
-        const ScratchLayout layout(call, m_config, call.max_blocks);
-        const Scratch<T> scratch(call, m_config, layout, memory);
+    void score_tokens(const PagedIndexerArgs& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) const {
+        const Scratch<T> scratch(call, m_config, memory);
         cpu_parallel->parallel_for(call.q_idx.size(0), [&](size_t token) {
             if (scratch.token_seq[token] >= 0) {
                 select_blocks<T>(call, m_config, scratch, token);
@@ -355,23 +362,24 @@ public:
         });
     }
 
-private:
     Config m_config;
+    std::unique_ptr<BrgemmScorer> m_brgemm_scorer;
 };
 
 }  // namespace
 
-std::shared_ptr<ov::Extensions::Cpu::qsa::PagedExecutor> make_paged_qsa_executor(
+std::shared_ptr<ov::Extensions::Cpu::qsa::PagedQSAIndexerExecutor> make_paged_indexer_executor(
+    const ov::intel_cpu::MultiCachePtr& cache,
     const ov::Extensions::Cpu::qsa::Config& config) {
     // The precision of the summary blocks: the one the block scoring works in.
     if (config.precision == ov::element::f32) {
-        return std::make_shared<PagedExecutorImpl<float>>(config);
+        return std::make_shared<PagedExecutorImpl<float>>(cache, config);
     }
     if (config.precision == ov::element::f16) {
-        return std::make_shared<PagedExecutorImpl<ov::float16>>(config);
+        return std::make_shared<PagedExecutorImpl<ov::float16>>(cache, config);
     }
     if (config.precision == ov::element::bf16) {
-        return std::make_shared<PagedExecutorImpl<ov::bfloat16>>(config);
+        return std::make_shared<PagedExecutorImpl<ov::bfloat16>>(cache, config);
     }
     OPENVINO_THROW("PagedQSAIndexer: unsupported summary precision ", config.precision);
 }

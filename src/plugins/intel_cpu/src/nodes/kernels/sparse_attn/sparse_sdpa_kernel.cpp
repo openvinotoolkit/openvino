@@ -454,7 +454,7 @@ private:
                      max_q_head_pack_size(c.num_heads, c.num_kv_heads, c.num_selection_heads),
                      c.key_block_size,
                      is_quantized_cache(c.key_spec) || is_quantized_cache(c.value_spec)) {
-            if (c.brgemm.enabled()) {
+            if (c.brgemm.handle().enabled()) {
                 const size_t max_pack = max_q_head_pack_size(c.num_heads, c.num_kv_heads, c.num_selection_heads);
                 const size_t data_size = c.data_precision.size();
                 pack_layout = PackStateLayout(0, c.k_head_size, c.v_head_size, max_pack, data_size, true);
@@ -463,7 +463,7 @@ private:
                                                  c.v_head_size,
                                                  max_pack,
                                                  data_size,
-                                                 tile_brgemm_sizes(c.brgemm));
+                                                 tile_brgemm_sizes(c.brgemm.handle()));
                 brgemm_bytes_per_thread = brgemm_layout.total;
             }
         }
@@ -503,7 +503,7 @@ private:
         const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
         const bool causal = m_cfg.causal;
         const float scale = m_cfg.scale;
-        [[maybe_unused]] const TileBrgemm& brgemm = m_cfg.brgemm;
+        [[maybe_unused]] const TileBrgemm& brgemm = m_cfg.brgemm.handle();
         [[maybe_unused]] uint8_t* const brgemm_scratch =
             m_scratch.brgemm_bytes_per_thread > 0 ? scratch + m_scratch.brgemm_offset(num_threads) : nullptr;
 

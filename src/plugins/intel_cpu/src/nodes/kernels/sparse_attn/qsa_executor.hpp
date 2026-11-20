@@ -4,28 +4,24 @@
 
 #pragma once
 
-// The interface between the QSAIndexer / PagedQSAIndexer nodes and their cross-compiled kernels. Nothing here is
-// instruction-set specific: the nodes and the dispatchers include it, the kernels (qsa_indexer_kernel.cpp,
-// paged_qsa_indexer_kernel.cpp, qsa_brgemm_kernel.cpp) implement it.
-//
-// A node builds an executor once (the factory picks the data type) and then, per call, fills a Call with the tensors of
-// its ports, lets the executor find the batch maxima and asks it for the scratch size, and runs the stages.
-// Both ops are two stages:
-//   prepare      appends the new keys to the caches and pools the blocks they complete
-//   score        per token: scores the complete blocks it sees and keeps the block_topk best ones
-// The executor scores the tokens itself; the brgemm scorer (x64, AVX-512) is a separate object that replaces that
-// stage. The stages run one after the other and share one scratch, which is as large as the larger need of the two.
+// The interface between the QSA nodes and their cross-compiled kernels: the call tensors, the executors and the scorer.
+// Nothing here is instruction-set specific.
 
+#include <algorithm>
+#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <tuple>
+#include <utility>
 
 #include "cpu_parallel.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu::qsa {
-
-class QsaBrgemm;  // x64 only, see qsa_brgemm.hpp
 
 /// @brief What is fixed per node, for both ops.
 struct Config {
@@ -43,13 +39,63 @@ struct Config {
     ov::element::Type precision;     ///< of the floating-point ports (f32, f16 or bf16)
     bool query_norm = true;          ///< the op applies the RMSNorm to the query (else it is done in front of the op)
     bool query_rope = true;          ///< the op applies the RoPE to the query (else it is done in front of the op)
-    /// The chosen blocks by descending score instead of ascending block id (dense op only).
-    bool order_by_score = false;
+
+    // The configuration is the key of a node's executor in the params cache: it fixes the executor and its scorer.
+    [[nodiscard]] size_t hash() const {
+        size_t seed = 0;
+        for (const size_t value : {key_block_size,
+                                   num_selection_heads,
+                                   block_topk,
+                                   head_dim,
+                                   index_query_heads,
+                                   index_key_heads,
+                                   page_size,
+                                   rotary_dim,
+                                   num_threads}) {
+            seed = dnnl::impl::hash_combine(seed, value);
+        }
+        seed = dnnl::impl::hash_combine(seed, eps);
+        seed = dnnl::impl::hash_combine(seed, scale);
+        seed = dnnl::impl::hash_combine(seed, precision.hash());
+        seed = dnnl::impl::hash_combine(seed, query_norm);
+        return dnnl::impl::hash_combine(seed, query_rope);
+    }
+
+    bool operator==(const Config& rhs) const {
+        return std::tie(key_block_size,
+                        num_selection_heads,
+                        block_topk,
+                        head_dim,
+                        index_query_heads,
+                        index_key_heads,
+                        page_size,
+                        rotary_dim,
+                        num_threads,
+                        eps,
+                        scale,
+                        precision,
+                        query_norm,
+                        query_rope) == std::tie(rhs.key_block_size,
+                                                rhs.num_selection_heads,
+                                                rhs.block_topk,
+                                                rhs.head_dim,
+                                                rhs.index_query_heads,
+                                                rhs.index_key_heads,
+                                                rhs.page_size,
+                                                rhs.rotary_dim,
+                                                rhs.num_threads,
+                                                rhs.eps,
+                                                rhs.scale,
+                                                rhs.precision,
+                                                rhs.query_norm,
+                                                rhs.query_rope);
+    }
 };
 
 /// @brief The tensors of a call of the QSAIndexer node (dense caches, see qsa_indexer_kernel.cpp).
-struct DenseCall {
-    // Set by Executor::find_batch_max_params() from the longest row of the batch; read by the stages and the scorer.
+struct IndexerArgs {
+    // Set by IndexerExecutor::find_batch_max_params() from the longest row of the batch; read by the stages and the
+    // scorer.
     int64_t max_blocks = 0;                         ///< most complete blocks a row of the batch has after the call
     int64_t max_new_blocks = 0;                     ///< most blocks a row of the batch completes in the call
     int64_t max_q_len = 0;                          ///< most tokens of a row of the batch in the call
@@ -65,7 +111,7 @@ struct DenseCall {
 
 /// @brief The tensors of a call of the PagedQSAIndexer node (caches addressed through the PagedAttention page table).
 struct PagedIndexerArgs {
-    // Set by Executor::find_batch_max_params() from the longest sequence; read by the stages and the scorer.
+    // Set by IndexerExecutor::find_batch_max_params() from the longest sequence; read by the stages and the scorer.
     int64_t max_blocks = 0;                                    ///< most complete blocks a sequence has after the call
     int64_t max_new_blocks = 0;                                ///< most blocks a sequence completes in the call
     int64_t max_q_len = 0;                                     ///< most tokens of a sequence in the call
@@ -79,36 +125,33 @@ struct PagedIndexerArgs {
     ov::intel_cpu::PlainTensor sel_indices, sel_count;                          ///< [tokens, H_sel, K], [tokens, H_sel]
 };
 
-/// @brief Appends the new keys of a call to the caches and pools the blocks they complete; optionally scores the
-/// tokens.
+/// @brief The implementation type of the cross-compiled stages: the instruction set they are dispatched to on this CPU.
+inline ov::intel_cpu::impl_desc_type qsa_kernel_impl_type() {
+    if (ov::with_cpu_x86_avx512f()) {
+        return ov::intel_cpu::impl_desc_type::avx512;
+    }
+    return ov::with_cpu_x86_avx2() ? ov::intel_cpu::impl_desc_type::avx2 : ov::intel_cpu::impl_desc_type::ref;
+}
+
+/// @brief The executor of a QSA node: `prepare` the caches, then score the tokens with the stages or the brgemm scorer.
+/// It is stateless and shared through the params cache.
 template <typename Call>
-class Executor {
+class IndexerExecutor {
 public:
-    virtual ~Executor() = default;
-    /// Walks the rows / sequences of the call once: checks that the call fits its caches and sets the max_* fields of
-    /// the call, which the stages and the scorer read. Call it before scratch_bytes() and the stages.
+    virtual ~IndexerExecutor() = default;
+
+    /// The implementation type the node reports.
+    [[nodiscard]] virtual ov::intel_cpu::impl_desc_type impl_type() const = 0;
+    /// Checks that the call fits its caches and sets its max_* fields. Call it before scratch_bytes() and execute().
     virtual void find_batch_max_params(Call& call) const = 0;
-    /// The scratch bytes the stages of the call need, from the call (its max_* fields must be set).
+    /// The scratch bytes of the call, shared by all the stages.
     [[nodiscard]] virtual size_t scratch_bytes(const Call& call) const = 0;
-    virtual void prepare(const Call& call, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) = 0;
-    virtual void score_tokens(const Call& call,
-                              uint8_t* scratch,
-                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) = 0;
+    virtual void execute(const Call& call,
+                         uint8_t* scratch,
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
 };
 
-/// @brief The scoring stage on brgemm (AVX-512 only): runs after Executor::prepare() on the same scratch.
-template <typename Call>
-class Scorer {
-public:
-    virtual ~Scorer() = default;
-    /// Scratch of the scoring stage from the max_* fields of the call.
-    [[nodiscard]] virtual size_t scratch_bytes(const Call& call) const = 0;
-    virtual void score(const Call& call, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) = 0;
-};
-
-using DenseExecutor = Executor<DenseCall>;
-using PagedExecutor = Executor<PagedIndexerArgs>;
-using DenseScorer = Scorer<DenseCall>;
-using PagedScorer = Scorer<PagedIndexerArgs>;
+using QSAIndexerExecutor = IndexerExecutor<IndexerArgs>;
+using PagedQSAIndexerExecutor = IndexerExecutor<PagedIndexerArgs>;
 
 }  // namespace ov::Extensions::Cpu::qsa

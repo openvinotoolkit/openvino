@@ -19,10 +19,7 @@
 #include "node.h"
 #include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
-#include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
-#include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
-#include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -102,18 +99,16 @@ void PagedQSAIndexer::createPrimitive() {
     config.precision = precision;
     config.query_norm = c.query_norm;
     config.query_rope = c.query_rope;
-    m_executor = ov::Extensions::Cpu::XARCH::make_paged_qsa_executor(config);
-    m_impl = qsa_kernel_impl_type();
-    // The scoring on brgemm where the CPU, the precision and the head counts allow it. The scorer is shared by the
-    // layers of the same configuration.
-    if (const auto brgemm = ov::Extensions::Cpu::qsa::QsaBrgemm::get(context->getParamsCache(), config)) {
-        m_scorer = ov::Extensions::Cpu::XARCH::make_paged_qsa_scorer(brgemm);
-        if (m_scorer) {  // none in a build without AVX-512: the executor scores the blocks
-            m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(precision);
-        }
-    }
+    // The executor is shared by the layers of the same configuration.
+    const auto cache = context->getParamsCache();
+    [[maybe_unused]] const auto [paged_qsa_indexer_executor, lookup_status] =
+        cache->getOrCreate(config, [&cache](const ov::Extensions::Cpu::qsa::Config& key) {
+            return ov::Extensions::Cpu::XARCH::make_paged_indexer_executor(cache, key);
+        });
+    OPENVINO_ASSERT(paged_qsa_indexer_executor, "PagedQSAIndexer executor creation fails");
+    m_executor = paged_qsa_indexer_executor;
     Node::createPrimitive();
-    getSelectedPrimitiveDescriptor()->setImplementationType(m_impl);
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->impl_type());
 }
 
 void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
@@ -152,24 +147,10 @@ void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
         std::min({args.raw_k_cache.size(0), args.indexer_rope_cache.size(0), args.summary_cache.size(0)}));
 
     m_executor->find_batch_max_params(args);
-    size_t scratch_bytes = m_executor->scratch_bytes(args);
-    // A call that has complete blocks to score goes to the brgemm scorer, the others are scored by the executor.
-    const bool brgemm = m_scorer && args.max_blocks > 0;
-    if (brgemm) {
-        scratch_bytes = std::max(scratch_bytes, m_scorer->scratch_bytes(args));
-    }
-    // One scratch for both stages: a second createScratchPadMem() could free the memory of the first.
+    // One scratch for all the stages: a second createScratchPadMem() could free the memory of the first.
     const auto scratch = context->getScratchPad()->createScratchPadMem(
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{scratch_bytes}));
-    auto* const memory = scratch->getDataAs<uint8_t>();
-
-    const auto cpu_parallel = context->getCpuParallel();
-    m_executor->prepare(args, memory, cpu_parallel);
-    if (brgemm) {
-        m_scorer->score(args, memory, cpu_parallel);
-    } else {
-        m_executor->score_tokens(args, memory, cpu_parallel);
-    }
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{m_executor->scratch_bytes(args)}));
+    m_executor->execute(args, scratch->getDataAs<uint8_t>(), context->getCpuParallel());
 }
 
 bool PagedQSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,

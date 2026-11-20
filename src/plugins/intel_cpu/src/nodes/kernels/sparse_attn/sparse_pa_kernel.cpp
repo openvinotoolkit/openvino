@@ -15,6 +15,8 @@
 
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
+#include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
+#include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
@@ -41,8 +43,8 @@ namespace {
 //  - by-token (key or value): each row is a sequence of groups `[scale f32][zp f32][group data]`, so the row holds
 //    `S + 8 * groups` elements (u8) or `S + 16 * groups` (u4); a group size of 0 means one group per row.
 //  - by-channel (key only): each page is `f32 scale[S] | f32 zp[S] | data[block_size, S]`.
-// The caches are either both quantized or both plain f32/f16/bf16. The node writes the current-step K/V into quantized
-// caches before calling the kernel, so the kernel only reads them.
+// The caches are either both quantized or both plain f32/f16/bf16. The executor writes the current-step K/V into the
+// caches before the attention, so the attention only reads them.
 struct PaQuant {
     const CacheSpec& key;
     const CacheSpec& value;
@@ -697,7 +699,7 @@ public:
                   max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads),
                   config.data_precision.size(),
                   PaQuant{config.key_spec, config.value_spec},
-                  tile_brgemm_sizes(config.brgemm))
+                  tile_brgemm_sizes(config.brgemm.handle()))
                   .total) {}
 
     [[nodiscard]] size_t scratch_bytes(const SparsePATensors& t,
@@ -709,11 +711,70 @@ public:
 
     void execute(const SparsePATensors& t,
                  uint8_t* scratch,
-                 const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
+                 const ov::intel_cpu::CpuParallelPtr& cpu_parallel) override {
+        // Phase 1 completes before phase 2, the sparse attention, reads the caches.
+        write_kv(t, cpu_parallel);
         run(t, scratch, cpu_parallel);
     }
 
 private:
+    // Phase 1: writes the current K/V into the paged caches (parallel over token x kv head), quantizing them for
+    // u8 / u4 caches. The slot mapping and the by-channel requantization buffer are members, as in the PagedAttention
+    // executor.
+    void write_kv(const SparsePATensors& t, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+        const auto& c = m_cfg;
+        const auto& key_cache = t.key_cache;
+        const auto& past_lens = t.past_lens;
+        const auto& subsequence_begins = t.subsequence_begins;
+        const auto& block_indices = t.block_indices;
+        const auto& block_indices_begins = t.block_indices_begins;
+        const size_t block_size = c.page_size ? c.page_size : key_cache.size(2);
+
+        // Physical slot (block * block_size + offset) of every new token, as PagedAttention builds it.
+        const size_t tokens = t.key.size(0);
+        m_slot_mapping.resize<int32_t>({tokens});
+        size_t idx = 0;
+        for (size_t seq = 0; seq < past_lens.size(0); seq++) {
+            const int32_t q_len = subsequence_begins.ptr<int32_t>()[seq + 1] - subsequence_begins.ptr<int32_t>()[seq];
+            const int32_t past = past_lens.ptr<int32_t>()[seq];
+            const int32_t first_block = block_indices_begins.ptr<int32_t>()[seq];
+            for (int32_t j = 0; j < q_len; j++) {
+                const auto pos = static_cast<size_t>(past) + static_cast<size_t>(j);
+                const auto block = static_cast<size_t>(block_indices.ptr<int32_t>()[first_block + pos / block_size]);
+                m_slot_mapping.ptr<int32_t>()[idx++] = static_cast<int32_t>(block * block_size + pos % block_size);
+            }
+        }
+
+        const auto key_4d = t.key.reshape({tokens, c.num_kv_heads, 1, c.k_head_size});
+        const auto value_4d = t.value.reshape({tokens, c.num_kv_heads, 1, c.v_head_size});
+        if (!is_quantized_cache(c.key_spec)) {
+            paged_attn_memcpy(key_4d, value_4d, key_cache, t.value_cache, m_slot_mapping, cpu_parallel);
+            return;
+        }
+        const QuantizeParam quant_param{c.key_spec.by_channel,
+                                        false,
+                                        false,
+                                        c.key_spec.group_size,
+                                        c.value_spec.group_size};
+        if (c.key_spec.by_channel) {
+            // One page of dequantized keys per worker thread (only the keys can be quantized by channel).
+            m_temp_buffer.resize<float>(
+                {static_cast<size_t>(cpu_parallel->get_num_worker_threads()), block_size, c.k_head_size});
+        }
+        paged_attn_quantkv(key_4d,
+                           value_4d,
+                           key_cache,
+                           t.value_cache,
+                           past_lens,
+                           subsequence_begins,
+                           block_indices,
+                           block_indices_begins,
+                           m_slot_mapping,
+                           m_temp_buffer,
+                           quant_param,
+                           cpu_parallel);
+    }
+
     void run(const SparsePATensors& t, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
         const auto& query = t.query;
         const auto& key_cache = t.key_cache;
@@ -735,7 +796,7 @@ private:
         const float scale = t.scale;
         const PaQuant quant{m_cfg.key_spec, m_cfg.value_spec};
         const size_t max_run_rows = m_cfg.max_run_rows;
-        const TileBrgemm& brgemm = m_cfg.brgemm;
+        const TileBrgemm& brgemm = m_cfg.brgemm.handle();
         const size_t scratch_bytes_per_thread = m_thread_block_bytes;
         auto* const token_ids = reinterpret_cast<int32_t*>(
             scratch + static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * scratch_bytes_per_thread);
@@ -838,6 +899,8 @@ private:
 
     SparsePAConfig m_cfg;
     size_t m_thread_block_bytes;  // bytes of the scratch block of one worker thread
+    PlainTensor m_slot_mapping;   // int32 [tokens], grown on demand
+    PlainTensor m_temp_buffer;    // f32 [threads, page rows, k_head_size]: by-channel key requantization
 };
 
 }  // namespace

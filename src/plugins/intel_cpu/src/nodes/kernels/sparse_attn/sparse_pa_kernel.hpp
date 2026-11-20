@@ -35,17 +35,19 @@ struct SparsePAConfig {
     /// Most key rows of one run: the page size when adjacent selected blocks are merged inside a page, key_block_size
     /// when they are not.
     size_t max_run_rows = 0;
-    /// The AMX prefill kernels; not enabled when the node is not eligible. They are owned by the node and must outlive
-    /// the executor.
-    TileBrgemm brgemm;
+    /// The AMX prefill kernels; empty when the executor is not eligible. The config owns them, so an executor that
+    /// copies the config keeps them alive.
+    TileBrgemmKernels brgemm;
 };
 
 /// @brief The tensors of one call.
 struct SparsePATensors {
-    const ov::intel_cpu::PlainTensor& query;                 ///< [tokens, num_heads * k_head_size]
-    const ov::intel_cpu::PlainTensor& key_cache;             ///< [num_blocks, num_kv_heads, page rows, row size]
-    const ov::intel_cpu::PlainTensor& value_cache;           ///< the same for the values
-    const ov::intel_cpu::PlainTensor& block_indices;         ///< page table
+    const ov::intel_cpu::PlainTensor& query;          ///< [tokens, num_heads * k_head_size]
+    const ov::intel_cpu::PlainTensor& key;            ///< current-step keys [tokens, num_kv_heads * k_head_size]
+    const ov::intel_cpu::PlainTensor& value;          ///< current-step values [tokens, num_kv_heads * v_head_size]
+    const ov::intel_cpu::PlainTensor& key_cache;      ///< [num_blocks, num_kv_heads, page rows, row size]
+    const ov::intel_cpu::PlainTensor& value_cache;    ///< the same for the values
+    const ov::intel_cpu::PlainTensor& block_indices;  ///< page table
     const ov::intel_cpu::PlainTensor& block_indices_begins;  ///< [num_sequences + 1]
     const ov::intel_cpu::PlainTensor& subsequence_begins;    ///< [num_sequences + 1]
     const ov::intel_cpu::PlainTensor& past_lens;             ///< [num_sequences]
@@ -55,9 +57,12 @@ struct SparsePATensors {
     float scale = 1.0F;
 };
 
-/// @brief Sparse attention of the SparsePA node over the paged caches (see sparse_pa.h for the algorithm). The node
-/// writes the current-step K/V into the caches first, so this only reads them. Built once by
-/// the factory below; the node asks for the scratch size of a call, allocates it and passes it to execute.
+/// @brief Sparse attention of the SparsePA node over the paged caches (see sparse_pa.h for the algorithm). A call
+/// first writes the current-step K/V into the caches (parallel over token x kv head, quantizing them for u8 / u4
+/// caches), then runs the attention, which only reads them. The executor is shared by the nodes of the same
+/// configuration (through the params cache of the graph context) and owns the buffers of the cache write, which it
+/// resizes per call, like the PagedAttention executor: the nodes of a graph run one after another. The node asks for
+/// the scratch size of the attention, allocates it and passes it to execute.
 class SparsePAExecutor {
 public:
     virtual ~SparsePAExecutor() = default;
@@ -65,7 +70,7 @@ public:
                                                const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
     virtual void execute(const SparsePATensors& tensors,
                          uint8_t* scratch,
-                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) = 0;
 };
 
 }  // namespace ov::Extensions::Cpu

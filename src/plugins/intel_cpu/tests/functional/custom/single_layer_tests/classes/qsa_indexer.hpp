@@ -35,8 +35,6 @@ struct QSAIndexerOracle {
     float eps = 1e-6F;
     float scale = 0.25F;
     size_t summary_cap = 0;
-    // chosen blocks by descending score (ties: lower id first), not by ascending id
-    bool order_by_score = false;
     // the steps of the query that the op applies (the op leaves the others to the graph in front of it)
     bool query_norm = true;
     bool query_rope = true;
@@ -85,7 +83,7 @@ enum class QSAIndexerScenario {
 enum class QSAIndexerQueryFusionType { kNormAndRope, kNormOnly, kRopeOnly, kNone };
 
 // target device, data precision, H_iq, H_ik, h_sel, batch (only kDensePrefill uses it; the other scenarios force
-// 2), scenario, order_by_score, query steps
+// 2), scenario, query steps
 using QSAIndexerLayerTestParams = std::tuple<std::string,
                                              ov::element::Type,
                                              size_t,
@@ -93,7 +91,6 @@ using QSAIndexerLayerTestParams = std::tuple<std::string,
                                              size_t,
                                              size_t,
                                              QSAIndexerScenario,
-                                             bool,
                                              QSAIndexerQueryFusionType>;
 
 class QSAIndexerLayerCPUTest : public testing::WithParamInterface<QSAIndexerLayerTestParams>,
@@ -121,7 +118,6 @@ private:
     size_t m_h_ik = 2;
     size_t m_h_sel = 1;
     size_t m_batch = 1;
-    bool m_order_by_score = false;
     bool m_query_norm = true;
     bool m_query_rope = true;
     // Share of output elements that may differ: 16-bit types can flip the score order of near-equal blocks.

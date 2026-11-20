@@ -20,38 +20,36 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
-#include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
-#include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
 
 namespace {
 
-using InputIdx = ov::intel_cpu::QSAIndexerNode::InputIdx;
-using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
+using InputIdx = ov::op::internal::QSAIndexer::InputIdx;
+using OutputIdx = ov::op::internal::QSAIndexer::OutputIdx;
 
-// Output shapes of QSAIndexer: everything follows the input shapes, but the summary_cache block count of the longest
-// row, which is read from the key_length values.
+// Output shapes of QSAIndexer: everything follows the input shapes, but the block_index_keys_cache block count of the
+// longest row, which is read from the key_length values (the op reports the input shape: FuseQSAIndexer without padding
+// leaves the cache growth to the implementation, see its documentation).
 class QSAIndexerShapeInfer : public ShapeInferEmptyPads {
 public:
-    explicit QSAIndexerShapeInfer(const ov::intel_cpu::QSAIndexerNode::Config& config) : m_config(config) {}
+    explicit QSAIndexerShapeInfer(const ov::op::internal::QSAIndexer::Config& config) : m_config(config) {}
 
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& q_dims = input_shapes[InputIdx::Q_IDX].get();
-        const auto& summary_dims = input_shapes[InputIdx::SUMMARY_CACHE].get();
+        const auto& q_dims = input_shapes[InputIdx::INDEX_QUERY].get();
+        const auto& cache_dims = input_shapes[InputIdx::BLOCK_INDEX_KEYS_CACHE].get();
         const size_t batch = q_dims[0];
         const auto& key_length = data_dependency.at(InputIdx::KEY_LENGTH);
         const auto* key_length_p = key_length->getDataAs<const int32_t>();
@@ -61,10 +59,10 @@ public:
         for (size_t b = 0; b < key_length_count; b++) {
             longest = std::max<int64_t>(longest, key_length_p[b]);
         }
-        const auto num_blocks = static_cast<size_t>(longest / static_cast<int64_t>(m_config.compress_ratio));
-        return {{{batch, m_config.h_sel, q_dims[1], m_config.block_topk},
-                 {batch, m_config.h_sel, q_dims[1]},
-                 {batch, summary_dims[1], num_blocks, summary_dims[3]},
+        const auto num_blocks = static_cast<size_t>(longest / static_cast<int64_t>(m_config.key_block_size));
+        return {{{batch, m_config.num_selection_heads, q_dims[1], m_config.block_topk},
+                 {batch, m_config.num_selection_heads, q_dims[1]},
+                 {batch, cache_dims[1], num_blocks, cache_dims[3]},
                  input_shapes[InputIdx::PAST_INCOMPLETE_RAW_K].get(),
                  input_shapes[InputIdx::PAST_INCOMPLETE_ROPE].get()},
                 ShapeInferStatus::success};
@@ -75,13 +73,13 @@ public:
     }
 
 private:
-    ov::intel_cpu::QSAIndexerNode::Config m_config;
+    ov::op::internal::QSAIndexer::Config m_config;
 };
 
 class QSAIndexerShapeInferFactory : public ShapeInferFactory {
 public:
     explicit QSAIndexerShapeInferFactory(const std::shared_ptr<ov::Node>& op) {
-        if (const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op)) {
+        if (const auto qsa_indexer = ov::as_type_ptr<const ov::op::internal::QSAIndexer>(op)) {
             m_config = qsa_indexer->get_config();
         }
     }
@@ -91,7 +89,7 @@ public:
     }
 
 private:
-    ov::intel_cpu::QSAIndexerNode::Config m_config;
+    ov::op::internal::QSAIndexer::Config m_config;
 };
 
 }  // namespace
@@ -102,7 +100,7 @@ QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
+    const auto qsa_indexer = ov::as_type_ptr<const ov::op::internal::QSAIndexer>(op);
     OPENVINO_ASSERT(qsa_indexer, "Expected QSAIndexer node");
     m_config = qsa_indexer->get_config();
     // Fixed by the model (isSupportedOperation checked they are static).
@@ -114,12 +112,7 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    // Every floating-point port (data inputs, state inputs and state outputs) is declared with the
-    // precision of Q_IDX, so the kernel sees a single precision (a mismatching edge gets a Reorder).
-    // KEY_LENGTH stays i32 -- reordering it to f32 would numerically convert the index values.
-    // sel_indices/sel_count are i32; the state outputs never share memory with their inputs: the update is
-    // out-of-place.
-    const auto data_precision = getOriginalInputPrecisionAtPort(InputIdx::Q_IDX);
+    const auto data_precision = getOriginalInputPrecisionAtPort(InputIdx::INDEX_QUERY);
 
     std::vector<PortConfigurator> in_port_configs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
@@ -128,7 +121,7 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     }
     std::vector<PortConfigurator> out_port_configs;
     for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
-        const bool is_index = i == OutputIdx::SEL_INDICES || i == OutputIdx::SEL_COUNT;
+        const bool is_index = i == OutputIdx::SELECTED_BLOCK_INDICES || i == OutputIdx::SELECTED_BLOCK_COUNT;
         out_port_configs.emplace_back(LayoutType::ncsp,
                                       is_index ? ov::element::i32 : data_precision,
                                       getOutputShapeAtPort(i),
@@ -139,41 +132,38 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
 }
 
 void QSAIndexer::createPrimitive() {
-    const auto precision = getSrcMemoryAtPort(InputIdx::Q_IDX)->getDesc().getPrecision();
+    const auto precision = getSrcMemoryAtPort(InputIdx::INDEX_QUERY)->getDesc().getPrecision();
     const auto& c = m_config;
     ov::Extensions::Cpu::qsa::Config config;
-    config.key_block_size = c.compress_ratio;
-    config.num_selection_heads = c.h_sel;
+    config.key_block_size = c.key_block_size;
+    config.num_selection_heads = c.num_selection_heads;
     config.block_topk = c.block_topk;
     config.head_dim = c.indexer_head_dim;
     config.rotary_dim = c.indexer_rotary_dim;
     config.index_query_heads = m_index_query_heads;
     config.index_key_heads = m_index_key_heads;
     config.num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
-    config.eps = c.eps;
-    config.scale = QSAIndexerNode::effective_scale(c);
+    config.eps = c.epsilon;
+    config.scale = ov::op::internal::QSAIndexer::effective_scale(c);
     config.precision = precision;
-    config.order_by_score = c.order_by_score;
     config.query_norm = c.query_norm;
     config.query_rope = c.query_rope;
-    m_executor = ov::Extensions::Cpu::XARCH::make_dense_qsa_executor(config);
-    m_impl = qsa_kernel_impl_type();
-    // The scoring on brgemm where the CPU, the precision and the head counts allow it. The scorer is shared by the
-    // layers of the same configuration.
-    if (const auto brgemm = ov::Extensions::Cpu::qsa::QsaBrgemm::get(context->getParamsCache(), config)) {
-        m_scorer = ov::Extensions::Cpu::XARCH::make_dense_qsa_scorer(brgemm);
-        if (m_scorer) {  // none in a build without AVX-512: the executor scores the blocks
-            m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(precision);
-        }
-    }
+    // The executor is shared by the layers of the same configuration.
+    const auto cache = context->getParamsCache();
+    [[maybe_unused]] const auto [qsa_indexer_executor, lookup_status] =
+        cache->getOrCreate(config, [&cache](const ov::Extensions::Cpu::qsa::Config& key) {
+            return ov::Extensions::Cpu::XARCH::make_indexer_executor(cache, key);
+        });
+    OPENVINO_ASSERT(qsa_indexer_executor, "QSAIndexer executor creation fails");
+    m_executor = qsa_indexer_executor;
     Node::createPrimitive();
-    getSelectedPrimitiveDescriptor()->setImplementationType(m_impl);
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->impl_type());
 }
 
 void QSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
-    ov::Extensions::Cpu::qsa::DenseCall call;
-    call.q_idx.reset(getSrcMemoryAtPort(InputIdx::Q_IDX));
-    call.k_idx.reset(getSrcMemoryAtPort(InputIdx::K_IDX));
+    ov::Extensions::Cpu::qsa::IndexerArgs call;
+    call.q_idx.reset(getSrcMemoryAtPort(InputIdx::INDEX_QUERY));
+    call.k_idx.reset(getSrcMemoryAtPort(InputIdx::RAW_INDEX_KEYS));
     call.rope_cos.reset(getSrcMemoryAtPort(InputIdx::ROPE_COS));
     call.rope_sin.reset(getSrcMemoryAtPort(InputIdx::ROPE_SIN));
     call.key_length.reset(getSrcMemoryAtPort(InputIdx::KEY_LENGTH));
@@ -182,61 +172,46 @@ void QSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
     // The state inputs are read-only; the updated state lives in the matching outputs.
     call.past_raw_k_in.reset(getSrcMemoryAtPort(InputIdx::PAST_INCOMPLETE_RAW_K));
     call.past_rope_in.reset(getSrcMemoryAtPort(InputIdx::PAST_INCOMPLETE_ROPE));
-    call.summary_cache_in.reset(getSrcMemoryAtPort(InputIdx::SUMMARY_CACHE));
-    call.summary_cache.reset(getDstMemoryAtPort(OutputIdx::SUMMARY_CACHE));
+    call.summary_cache_in.reset(getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE));
+    call.summary_cache.reset(getDstMemoryAtPort(OutputIdx::BLOCK_INDEX_KEYS_CACHE));
     call.past_raw_k.reset(getDstMemoryAtPort(OutputIdx::PAST_INCOMPLETE_RAW_K));
     call.past_rope.reset(getDstMemoryAtPort(OutputIdx::PAST_INCOMPLETE_ROPE));
-    call.sel_indices.reset(getDstMemoryAtPort(OutputIdx::SEL_INDICES));
-    call.sel_count.reset(getDstMemoryAtPort(OutputIdx::SEL_COUNT));
+    call.sel_indices.reset(getDstMemoryAtPort(OutputIdx::SELECTED_BLOCK_INDICES));
+    call.sel_count.reset(getDstMemoryAtPort(OutputIdx::SELECTED_BLOCK_COUNT));
 
     m_executor->find_batch_max_params(call);
-    size_t scratch_bytes = m_executor->scratch_bytes(call);
-    // A call that has blocks in the summary cache to score goes to the brgemm scorer, the others are scored by the
-    // executor.
-    const bool brgemm = m_scorer && call.summary_cache.size(2) > 0;
-    if (brgemm) {
-        scratch_bytes = std::max(scratch_bytes, m_scorer->scratch_bytes(call));
-    }
-    // One scratch for both stages: a second createScratchPadMem() could free the memory of the first.
+    // One scratch for all the stages: a second createScratchPadMem() could free the memory of the first.
     const auto scratch = context->getScratchPad()->createScratchPadMem(
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{scratch_bytes}));
-    auto* const memory = scratch->getDataAs<uint8_t>();
-
-    const auto cpu_parallel = context->getCpuParallel();
-    m_executor->prepare(call, memory, cpu_parallel);
-    if (brgemm) {
-        m_scorer->score(call, memory, cpu_parallel);
-    } else {
-        m_executor->score_tokens(call, memory, cpu_parallel);
-    }
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{m_executor->scratch_bytes(call)}));
+    m_executor->execute(call, scratch->getDataAs<uint8_t>(), context->getCpuParallel());
 }
 
 bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
+        const auto qsa_indexer = ov::as_type_ptr<const ov::op::internal::QSAIndexer>(op);
         if (!qsa_indexer) {
             errorMessage = "Only QSAIndexer operation is supported";
             return false;
         }
         // The head counts are fixed once, when the executor is built; the batch and the window may change.
-        const auto& query_ps = op->get_input_partial_shape(InputIdx::Q_IDX);
-        const auto& key_ps = op->get_input_partial_shape(InputIdx::K_IDX);
+        const auto& query_ps = op->get_input_partial_shape(InputIdx::INDEX_QUERY);
+        const auto& key_ps = op->get_input_partial_shape(InputIdx::RAW_INDEX_KEYS);
         if (query_ps.rank().is_dynamic() || query_ps.size() != 4 || query_ps[2].is_dynamic() ||
             key_ps.rank().is_dynamic() || key_ps.size() != 4 || key_ps[2].is_dynamic()) {
             errorMessage = "QSAIndexer CPU implementation requires static head counts.";
             return false;
         }
-        static constexpr size_t float_ports[] = {InputIdx::Q_IDX,
-                                                 InputIdx::K_IDX,
+        static constexpr size_t float_ports[] = {InputIdx::INDEX_QUERY,
+                                                 InputIdx::RAW_INDEX_KEYS,
                                                  InputIdx::ROPE_COS,
                                                  InputIdx::ROPE_SIN,
                                                  InputIdx::Q_NORM_WEIGHT,
                                                  InputIdx::K_NORM_WEIGHT,
-                                                 InputIdx::SUMMARY_CACHE,
+                                                 InputIdx::BLOCK_INDEX_KEYS_CACHE,
                                                  InputIdx::PAST_INCOMPLETE_RAW_K,
                                                  InputIdx::PAST_INCOMPLETE_ROPE};
         // All floating-point ports share one precision (the op producer sets it).
-        const auto data_precision = op->get_input_element_type(InputIdx::Q_IDX);
+        const auto data_precision = op->get_input_element_type(InputIdx::INDEX_QUERY);
         if (data_precision != ov::element::f32 && data_precision != ov::element::f16 &&
             data_precision != ov::element::bf16) {
             errorMessage = "QSAIndexer CPU implementation only supports f32, f16, or bf16 data inputs.";
@@ -257,7 +232,7 @@ bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             }
         }
         std::string reason;
-        if (!ov::intel_cpu::QSAIndexerNode::validate_config(qsa_indexer->get_config(), reason)) {
+        if (!ov::op::internal::QSAIndexer::validate_config(qsa_indexer->get_config(), reason)) {
             errorMessage = "QSAIndexer configuration is invalid: " + reason;
             return false;
         }

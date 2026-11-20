@@ -86,24 +86,13 @@ private:
     /// and the page size of m_config. The quantized cache shapes (padded head size or page size) follow PagedAttention,
     /// see CacheSpec.
     bool deriveQuant(std::string& reason);
-    /// @brief Writes the current-step K/V into the paged caches (parallel over token x kv head), quantizing them for
-    /// u8/u4 caches. The attention kernel only reads the caches, so this is its barrier-separated first phase.
-    /// @param scratch at least writeKVScratchBytes() bytes, 64-byte aligned: the slot mapping and the by-channel
-    /// requantization buffer live there, not in the node
-    void writeKV(uint8_t* scratch);
-    /// @brief Bytes of the slot mapping of `tokens` tokens in the scratch of writeKV(), aligned to keep what follows it
-    /// aligned.
-    [[nodiscard]] static size_t writeKVSlotMappingBytes(size_t tokens);
-    /// @brief Bytes of scratch writeKV() needs for `tokens` tokens and caches of `block_size` rows per page.
-    [[nodiscard]] size_t writeKVScratchBytes(size_t tokens, size_t block_size) const;
     [[nodiscard]] bool isQuantized() const {
         return ov::Extensions::Cpu::is_quantized_cache(m_config.key_spec);
     }
 
     Config m_config{};
-    // AMX matrix products of the prefill path (empty when the node is not eligible), see TileBrgemm. Declared before
-    // the executor, which uses them.
-    ov::Extensions::Cpu::TileBrgemmKernels m_brgemm;
+    // Shared by the nodes of the same configuration (params cache of the graph context); it owns the AMX kernels of the
+    // prefill path and the buffers of the K/V cache write.
     std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> m_executor;
 };
 

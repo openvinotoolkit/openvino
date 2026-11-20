@@ -301,22 +301,14 @@ if(X86_64)
             ARCH AVX512F AVX2 ANY
                         src/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
             API         src/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
-            NAME        make_dense_qsa_executor
+            NAME        make_indexer_executor
             NAMESPACE   ov::Extensions::Cpu::XARCH
     )
     cross_compiled_file(${TARGET_NAME}
             ARCH AVX512F AVX2 ANY
                         src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
             API         src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
-            NAME        make_paged_qsa_executor
-            NAMESPACE   ov::Extensions::Cpu::XARCH
-    )
-    ## The brgemm block scorer of the QSA nodes exists for AVX-512 only (the ANY build is a stub that throws).
-    cross_compiled_file(${TARGET_NAME}
-            ARCH AVX512F ANY
-                        src/nodes/kernels/sparse_attn/qsa_brgemm_kernel.cpp
-            API         src/nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp
-            NAME        make_dense_qsa_scorer make_paged_qsa_scorer
+            NAME        make_paged_indexer_executor
             NAMESPACE   ov::Extensions::Cpu::XARCH
     )
 endif()
