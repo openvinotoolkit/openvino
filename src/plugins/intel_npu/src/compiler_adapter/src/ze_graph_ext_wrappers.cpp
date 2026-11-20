@@ -699,7 +699,7 @@ std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_gra
                         static_cast<uint32_t>(result));
         return std::nullopt;
     }
-    if (size <= NULL_TERMINATOR_SIZE) {
+    if (size == 0) {
         return std::nullopt;
     }
 
@@ -712,18 +712,20 @@ std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_gra
         return std::nullopt;
     }
 
-    if (size > descriptor.size()) {
-        _logger.warning("zeDeviceGetRuntimeRequirements returned inconsistent size: %zu > %zu",
+    if (size != descriptor.size()) {
+        _logger.warning("zeDeviceGetRuntimeRequirements returned inconsistent size: %zu != %zu",
                         size,
                         descriptor.size());
         return std::nullopt;
     }
 
-    size_t outSize = size;
-    if (descriptor[outSize - 1] == '\0') {
-        --outSize;
+    if (descriptor.back() == '\0') {
+        if (size == NULL_TERMINATOR_SIZE) {
+            return std::nullopt;
+        }
+
+        descriptor.erase(descriptor.end() - 1);
     }
-    descriptor.resize(outSize);
 
     _logger.debug("Fetched runtime requirements from driver: %s", descriptor.c_str());
 
