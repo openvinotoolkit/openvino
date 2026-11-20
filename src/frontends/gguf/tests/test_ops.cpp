@@ -19,6 +19,7 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
@@ -318,6 +319,28 @@ TEST(GGUFOps, ConvTranspose1DAccumulatesOverlappingTaps) {
                              {{"w", make_f32_tensor({2, 1, 3}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f})},
                               {"x", make_f32_tensor({1, 2, 2}, {1.f, 2.f, 3.f, 4.f})}});
     expect_near(output, {13.f, 17.f, 39.f, 24.f, 30.f}, 0.f);
+}
+
+TEST(GGUFOps, ConvTranspose1DUsesTwoDimensionalConvolution) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_TRANSPOSE_1D")
+                     .input("w", ov::element::f32, {2, 1, 3})
+                     .input("x", ov::element::f32, {1, 2, -1})
+                     .output("out", ov::element::f32, {1, 1, -1})
+                     .attr<int64_t>("stride", 1)
+                     .build();
+    const auto ops = model->get_ordered_ops();
+    const auto it = std::find_if(ops.begin(), ops.end(), [](const auto& node) {
+        return ov::is_type<ov::op::v1::ConvolutionBackpropData>(node);
+    });
+    ASSERT_NE(it, ops.end());
+    EXPECT_EQ((*it)->get_input_partial_shape(0), (ov::PartialShape{1, 2, 1, -1}));
+    EXPECT_EQ((*it)->get_input_partial_shape(1), (ov::PartialShape{2, 1, 1, 3}));
+    expect_near(run_on_cpu(model,
+                           {{"w", make_f32_tensor({2, 1, 3}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f})},
+                            {"x", make_f32_tensor({1, 2, 2}, {1.f, 2.f, 3.f, 4.f})}}),
+                {13.f, 35.f, 45.f, 30.f},
+                0.f);
 }
 
 TEST(GGUFOps, ConvTranspose1DPreservesChannelsAndDynamicLength) {
