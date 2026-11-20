@@ -259,7 +259,11 @@ int tmain(int argc, tchar* argv[]) {
         copy_memory(command_list.get(), output_tensor.data(), output_pointer, remote_output.get_byte_size());
 
         // Print classification results
-        ClassificationResult classification_result(output_tensor, {image_path});
+        const auto& output_shape = output_tensor.get_shape();
+        OPENVINO_ASSERT(output_shape.size() >= 2 && output_shape[0] == 1 && output_tensor.get_size() > 0,
+                        "Sample requires a nonempty classification output with rank >= 2 and batch dimension 1");
+        const size_t num_of_top = output_tensor.get_size() < 10 ? output_tensor.get_size() : 10;
+        ClassificationResult classification_result(output_tensor, {image_path}, 1, num_of_top);
         classification_result.show();
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& ex) {
