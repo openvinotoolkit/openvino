@@ -4378,7 +4378,9 @@ TEST_P(sdpa_opt_large_scores_test, matches_reference) {
     const layout q_layout(q_shape, data_types::f16, format::bfyx);
     const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
     const layout dyn_layout(ov::PartialShape{1, static_cast<int64_t>(heads), -1, static_cast<int64_t>(head_size)}, data_types::f16, format::bfyx);
-    const layout scalar_layout({1}, data_types::f16, format::bfyx);
+    // Only a rank-0 mask is a placeholder: a rank-1 {1} mask is extended to [1,1,1,1] and read as a real mask, 16
+    // elements per key block from a one-element buffer.
+    const layout scalar_layout(ov::PartialShape{}, data_types::f16, format::bfyx);
 
     // Values on a 1/8 grid are exact in f16, and so is every f32 partial sum of their products (|score| < 2^17 with 6
     // fraction bits). The f32 scores are then exact even where two of them almost tie, and only the f16 probabilities

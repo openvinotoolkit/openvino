@@ -1059,6 +1059,8 @@ KERNEL(sdpa_opt)(
 // cannot make it exact, and it keeps the INPUT0_COMPUTE_TYPE accumulation. FlashAttention-2 is the default for LLMs,
 // whose prefill runs this kernel on GPUs without systolic arrays.
 // QK_ACC_MAD(key, lane, query, acc) adds key[lane] * query to acc, where key holds one head element per lane.
+// The scores are multiplied by a QK_SCALE_TYPE scale. FlashAttention-2 keeps OUTPUT_COMPUTE_TYPE: with an f32 output,
+// an f16 scale would be rounded before the multiplication and change the scores.
 #if IS_FLASHATTEN_V2
 #define QK_ACC_TYPE INPUT0_COMPUTE_TYPE
 #define TO_QK_ACC_TYPE(val) TO_INPUT0_COMPUTE_TYPE(val)
@@ -1069,6 +1071,8 @@ KERNEL(sdpa_opt)(
 #define QK_ACC_MIN_FUNC INPUT0_MIN_FUNC
 #define QK_ACC_MAX_FUNC INPUT0_MAX_FUNC
 #define QK_ACC_MAD(key, lane, query, acc) mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key, lane)), query, acc)
+#define QK_SCALE_TYPE OUTPUT_COMPUTE_TYPE
+#define TO_QK_SCALE_TYPE(val) TO_OUTPUT_COMPUTE_TYPE(val)
 #else
 #define QK_ACC_TYPE SOFTMAX_ACCUMULATOR_TYPE
 #define TO_QK_ACC_TYPE(val) TO_SOFTMAX_ACCUMULATOR_TYPE(val)
@@ -1080,6 +1084,8 @@ KERNEL(sdpa_opt)(
 #define QK_ACC_MAX_FUNC SOFTMAX_ACCUMULATOR_MAX_FUNC
 // Convert the key before the broadcast: one conversion per key row instead of one per multiply-add.
 #define QK_ACC_MAD(key, lane, query, acc) mad(sub_group_broadcast(TO_SOFTMAX_ACCUMULATOR_TYPE(key), lane), TO_SOFTMAX_ACCUMULATOR_TYPE(query), acc)
+#define QK_SCALE_TYPE SOFTMAX_ACCUMULATOR_TYPE
+#define TO_QK_SCALE_TYPE(val) TO_SOFTMAX_ACCUMULATOR_TYPE(val)
 #endif
 #define QK_ACC_VEC_TYPE MAKE_VECTOR_TYPE(QK_ACC_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
 #define MASK_VECTOR_TYPE QK_ACC_VEC_TYPE
@@ -2077,9 +2083,9 @@ KERNEL(sdpa_opt)(
 
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-                        const QK_ACC_TYPE scale_val = TO_QK_ACC_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
+                        const QK_SCALE_TYPE scale_val = TO_QK_SCALE_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #else
-                        const QK_ACC_TYPE scale_val = TO_QK_ACC_TYPE(STATIC_SCALE_VALUE);
+                        const QK_SCALE_TYPE scale_val = TO_QK_SCALE_TYPE(STATIC_SCALE_VALUE);
 #endif
                         qk_acc[i] *= scale_val;
 #endif // !APPLY_SCALES_TO_QUERY
@@ -2855,6 +2861,8 @@ KERNEL(sdpa_opt)(
 // The Q*K^T type depends on IS_FLASHATTEN_V2, so do not leak it into other kernels compiled in the same batch.
 #undef MASK_VECTOR_TYPE
 #undef QK_ACC_MAD
+#undef TO_QK_SCALE_TYPE
+#undef QK_SCALE_TYPE
 #undef QK_ACC_VEC_TYPE
 #undef QK_ACC_MAX_FUNC
 #undef QK_ACC_MIN_FUNC
