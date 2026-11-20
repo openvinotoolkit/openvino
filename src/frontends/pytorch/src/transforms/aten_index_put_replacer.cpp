@@ -303,8 +303,8 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 index = rg.make<v1::Transpose>(nonzero, input_order);
                 // ScatterNDUpdate needs values of shape [number of selected elements, input dimensions not
-                // covered by the mask]. Broadcast only values that provably differ from it, such as lower-rank
-                // values or a size-1 dimension against a dimension that is not 1.
+                // covered by the mask]. Broadcast unless values provably have that shape: dynamic dimensions may
+                // be 1 at runtime, as may a static 1 against a dimension that is not 1.
                 broadcast_values = false;
                 const auto& values_pshape = values.get_partial_shape();
                 const auto& index_pshape = index.get_partial_shape();
@@ -316,7 +316,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                     for (auto i = mask_rank; i < input_pshape.rank().get_length(); ++i) {
                         expected.push_back(input_pshape[i]);
                     }
-                    broadcast_values = values_pshape.size() < expected.size();
+                    broadcast_values = !values_pshape.is_static() || values_pshape.size() < expected.size();
                     for (size_t i = 0; !broadcast_values && i < values_pshape.size() && i < expected.size(); ++i) {
                         broadcast_values = values_pshape[i] == 1 && expected[i] != 1;
                     }

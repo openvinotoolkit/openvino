@@ -355,6 +355,7 @@ class TestIndexPut_MaskAccumulate(PytorchLayerTest):
         ([2, 3, 4], MASK_2D, True, []),
         ([2, 3, 4], MASK_2D, True, [2, 5]),
         ([2, 3, 4], MASK_2D, True, [5]),
+        ([2, 3, 4], MASK_2D, True, [2, 1]),
         ([2, 3, 4], MASK_2D, True, [1]),
         ([3, 4, 2], MASK_2D, False, []),
         ([3, 4, 2], MASK_2D, False, [5, 2]),
