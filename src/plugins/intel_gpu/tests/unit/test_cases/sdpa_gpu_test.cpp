@@ -4647,4 +4647,143 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_opt_bf16_scale_input,
                                            sdpa_opt_bf16_scale_input_params{1, false}),
                          sdpa_opt_bf16_scale_input_test::PrintToStringParamName);
 
+// f16 Q/K/V with an f32 SDPA output, a real mask and a runtime scale input. master did not build the multi-token
+// kernel for these types (half16 *= float). The kernel starts the scores at mask / scale and multiplies them by the
+// scale after Q*K^T, and the FlashAttention-2 path keeps them in f16, so it has to take the reciprocal in the f32 scale
+// type: in f16, 1 / 2^-16 overflows, and 0 * inf turns the unmasked scores into NaN, which makes the attention uniform.
+// The mask stays above -1, so that mask / 2^-16 still fits the f16 scores.
+struct sdpa_opt_f32_output_scale_input_params {
+    int scale_log2;
+    bool flashattn_v2;
+};
+
+class sdpa_opt_f32_output_scale_input_test : public ::testing::TestWithParam<sdpa_opt_f32_output_scale_input_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_opt_f32_output_scale_input_params>& info) {
+        const auto& p = info.param;
+        return "scale_2_pow_m" + std::to_string(-p.scale_log2) + (p.flashattn_v2 ? "_flashattn_v2" : "_no_flashattn_v2");
+    }
+};
+
+TEST_P(sdpa_opt_f32_output_scale_input_test, matches_reference) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const size_t heads = 2, seq_q = 32, seq_kv = 64, head_size = 64;
+    const float scale = std::ldexp(1.0f, p.scale_log2);
+    const ov::Shape q_shape{1, heads, seq_q, head_size};
+    const ov::Shape kv_shape{1, heads, seq_kv, head_size};
+    const ov::Shape mask_shape{1, 1, seq_q, seq_kv};
+    const layout q_layout(q_shape, data_types::f16, format::bfyx);
+    const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
+    const layout mask_layout(mask_shape, data_types::f16, format::bfyx);
+    const layout scale_layout(ov::PartialShape{}, data_types::f32, format::bfyx);
+
+    // On these grids the f16 scores of the FlashAttention-2 path are exact for scale 2^-2.
+    const auto q_data = rg.generate_random_1d<ov::float16>(q_layout.count(), -1.0f, 1.0f, 8);
+    const auto k_data = rg.generate_random_1d<ov::float16>(kv_layout.count(), -1.0f, 1.0f, 8);
+    const auto v_data = rg.generate_random_1d<ov::float16>(kv_layout.count(), -1.0f, 1.0f, 64);
+    const auto mask_data = rg.generate_random_1d<ov::float16>(mask_layout.count(), -0.875f, 0.0f, 8);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+    set_values(scale_mem, {scale});
+
+    topology topo;
+    topo.add(input_layout("q", q_layout));
+    topo.add(input_layout("k", kv_layout));
+    topo.add(input_layout("v", kv_layout));
+    topo.add(input_layout("mask", mask_layout));
+    topo.add(input_layout("scale", scale_layout));
+    auto sdpa_prim = scaled_dot_product_attention("sdpa",
+                                                  {input_info("q"), input_info("k"), input_info("v"), input_info("mask"), input_info("scale")},
+                                                  false,
+                                                  -1,
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3});
+    sdpa_prim.output_data_types = {optional_data_type{data_types::f32}};
+    topo.add(sdpa_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+    config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.flashattn_v2));
+    auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    net->set_input_data("mask", mask_mem);
+    net->set_input_data("scale", scale_mem);
+    auto output = net->execute().at("sdpa").get_memory();
+
+    const auto inst = net->get_primitive("sdpa");
+    const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+    ASSERT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+
+    // Double reference on the f16 inputs.
+    std::vector<double> expected(heads * seq_q * head_size, 0.0);
+    std::vector<double> weights(seq_kv);
+    for (size_t h = 0; h < heads; ++h) {
+        for (size_t i = 0; i < seq_q; ++i) {
+            double max_logit = -std::numeric_limits<double>::infinity();
+            for (size_t j = 0; j < seq_kv; ++j) {
+                double dot = 0.0;
+                for (size_t e = 0; e < head_size; ++e) {
+                    dot += static_cast<double>(q_data[(h * seq_q + i) * head_size + e]) * static_cast<double>(k_data[(h * seq_kv + j) * head_size + e]);
+                }
+                weights[j] = dot * scale + static_cast<double>(mask_data[i * seq_kv + j]);
+                max_logit = std::max(max_logit, weights[j]);
+            }
+            double sum = 0.0;
+            for (auto& w : weights) {
+                w = std::exp(w - max_logit);
+                sum += w;
+            }
+            auto* out = &expected[(h * seq_q + i) * head_size];
+            for (size_t j = 0; j < seq_kv; ++j) {
+                for (size_t e = 0; e < head_size; ++e) {
+                    out[e] += weights[j] / sum * static_cast<double>(v_data[(h * seq_kv + j) * head_size + e]);
+                }
+            }
+        }
+    }
+
+    ASSERT_EQ(output->get_layout().data_type, data_types::f32);
+    ASSERT_EQ(output->get_layout().get_shape(), q_shape);
+    cldnn::mem_lock<float, mem_lock_type::read> output_data(output, get_test_stream());
+    ASSERT_EQ(output_data.size(), expected.size());
+    double max_diff = 0.0;
+    size_t max_diff_idx = 0;
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const double diff = std::abs(static_cast<double>(output_data[i]) - expected[i]);
+        ASSERT_TRUE(std::isfinite(diff)) << "Non-finite difference at index " << i;
+        if (diff > max_diff) {
+            max_diff = diff;
+            max_diff_idx = i;
+        }
+    }
+    RecordProperty("max_abs_diff", std::to_string(max_diff));
+    // With an f16 reciprocal of 2^-16, the FlashAttention-2 output was off by 0.084.
+    ASSERT_LE(max_diff, 1e-2) << "index " << max_diff_idx << ": " << output_data[max_diff_idx] << " vs " << expected[max_diff_idx];
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_opt_f32_output_scale_input,
+                         sdpa_opt_f32_output_scale_input_test,
+                         ::testing::Values(sdpa_opt_f32_output_scale_input_params{-2, true},
+                                           sdpa_opt_f32_output_scale_input_params{-16, true},
+                                           sdpa_opt_f32_output_scale_input_params{-2, false},
+                                           sdpa_opt_f32_output_scale_input_params{-16, false}),
+                         sdpa_opt_f32_output_scale_input_test::PrintToStringParamName);
+
 } // namespace
