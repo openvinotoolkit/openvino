@@ -47,11 +47,8 @@ private:
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
     // Outer-facing tensor for dynamic KV-cache/attention-bias ports, keyed by port name.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_tensors;
-    // Dynamic-axis inputs currently bound directly onto the caller's exact-capacity
-    // tensor; must be restored before a shorter set_tensor() reuses the port.
-    mutable std::unordered_set<std::string> m_dynamic_kv_cache_input_aliased;
-    // Private static-capacity buffer stashed when a port gets aliased (see above);
-    // restored once a shorter tensor is bound to the same port.
+    // Static-capacity fallback buffers, allocated only when inference needs padding.
+    // Released when a full-capacity caller tensor replaces the fallback.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_private_buffers;
     // Outer-facing tensors for dynamic present_key/present_value outputs; allocated
     // lazily and refreshed from the inner static buffer after every infer().

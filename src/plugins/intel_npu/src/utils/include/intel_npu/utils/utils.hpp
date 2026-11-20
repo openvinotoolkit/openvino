@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <iostream>
 
 #include "openvino/runtime/allocator.hpp"
@@ -16,6 +17,13 @@ constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
 
 constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
 constexpr std::size_t BATCH_AXIS = 0;
+
+/**
+ * @brief Batch size value stored by the plugin for a model whose batch is dynamic (e.g. an "ov::Dimension" with bounds)
+ * and handled by the plugin. The batch size is known only at inference time in this case. It is also stored in the
+ * blob metadata, where the absence of a batch size is encoded as 0.
+ */
+constexpr std::int64_t DYNAMIC_BATCH_SIZE = -1;
 
 struct AlignedAllocator {
 public:

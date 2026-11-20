@@ -30,8 +30,17 @@ std::vector<layout> moe_gather_inst::calc_output_layouts(const moe_gather_node& 
         return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
                 in_layout.data_type, in_layout.format}};
     }
-    const auto num_tokens = input_shape.size() == 2 ? input_shape[0] : desc->has_batch_dim ? input_shape[1] : input_shape[0];
-    if (desc->has_batch_dim) {
+    // Token count must match moe_mask_gen, which counts every routed token regardless of the [1,T,H] / [T,1,H] arrangement
+    ov::Dimension num_tokens = 1;
+    for (size_t i = 0; i + 1 < input_shape.size(); ++i) {
+        num_tokens = num_tokens * input_shape[i];
+    }
+    // has_batch_dim comes from the compile-time shape and can't tell [T,1,H] (PagedAttention) from [1,T,H]
+    bool batch_layout = desc->has_batch_dim;
+    if (input_shape.size() == 3 && (input_shape[0] == ov::Dimension(1)) != (input_shape[1] == ov::Dimension(1))) {
+        batch_layout = input_shape[0] == ov::Dimension(1);
+    }
+    if (batch_layout) {
         const auto& out_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(hidden_size)};
         return {layout{out_shape, in_layout.data_type, in_layout.format}};
     }

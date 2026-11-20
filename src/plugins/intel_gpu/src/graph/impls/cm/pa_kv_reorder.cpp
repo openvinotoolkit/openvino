@@ -97,7 +97,10 @@ public:
 
         const bool is_kv_compressed = desc->is_kv_compressed;
         const bool is_key_by_channel = desc->is_key_by_channel;
-        const int compression_mode = !is_kv_compressed ? 0 : (is_key_by_channel ? 2 : 1);
+        int compression_mode = 0;
+        if (is_kv_compressed) {
+            compression_mode = is_key_by_channel ? 2 : 1;
+        }
         jit.make("KV_CACHE_COMPRESSION", compression_mode);
         jit.make("SUB_BLOCK_SIZE", reorder_sub_block_size);
 

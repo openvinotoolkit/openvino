@@ -23,7 +23,7 @@ public:
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list);
     ze_stream(const ze_stream& other) = delete;
-    ~ze_stream();
+    ~ze_stream() override;
 
     void flush() const override;
     void finish() const override;

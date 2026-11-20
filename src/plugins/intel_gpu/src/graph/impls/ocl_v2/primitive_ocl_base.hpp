@@ -207,7 +207,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     void update_stages_flags(const cldnn::primitive_inst& instance) {
         const auto current_flags = instance.get_impl_params()->flags.to_ulong();
         constexpr size_t mask_args = (1 << cldnn::ExecutionFlags::ARG_UPDATE_REQUIRED) | (1 << cldnn::ExecutionFlags::IMPL_CHANGED);
-        constexpr size_t mask_dispatch = (1 << cldnn::ExecutionFlags::SHAPE_CHANGED);
+        // A cached static impl taking over for an unchanged shape (IMPL_CHANGED without SHAPE_CHANGED) has never run its
+        // dispatch data function, so its dispatch data and scalars must be refreshed as well.
+        constexpr size_t mask_dispatch = (1 << cldnn::ExecutionFlags::SHAPE_CHANGED) | (1 << cldnn::ExecutionFlags::IMPL_CHANGED);
         for (auto& stage : _stages) {
             stage->kd.need_args_update = (current_flags & mask_args) != 0;
             stage->kd.need_dispatch_data_update = (current_flags & mask_dispatch) != 0;
@@ -316,7 +318,15 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            _stages[sub_kernel_idx]->kernel = kernel;
+            // sub_kernel_idx is a LOCAL index (0..get_kernels_source().size()-1), i.e. a position
+            // within the source list returned by get_kernels_source(), which iterates `_order` -
+            // it is NOT a global `_stages` index. Multi-stage impls (any node whose add_stage()
+            // calls registered more than one stage, or a single-stage node whose stage isn't at
+            // _stages[0]) need
+            // the same local->global translation init_kernels()/init_by_cached_kernels() already do
+            // via `_order[i]`, otherwise this silently binds the compiled kernel to the wrong Stage
+            // object (or leaves the real stage's kernel null) - a guaranteed crash on execute().
+            _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }
 
