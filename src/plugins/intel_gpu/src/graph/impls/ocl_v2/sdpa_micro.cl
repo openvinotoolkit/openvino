@@ -619,13 +619,19 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
 #if WITH_SCALE
         /* Load scale */
+    #if SCALE_IS_BF16
+        #define LOAD_SCALE_VAL(p) _convert_as_bfloat16_float(*(p))
+    #else
+        #define LOAD_SCALE_VAL(p) convert_float(*(p))
+    #endif
     #if INVERT_SCALE
-        float iscale = convert_float(*scale_ptr);
+        float iscale = LOAD_SCALE_VAL(scale_ptr);
         float scale = native_recip(iscale);
     #else
-        float scale = convert_float(*scale_ptr);
+        float scale = LOAD_SCALE_VAL(scale_ptr);
         float iscale = native_recip(scale);
     #endif
+    #undef LOAD_SCALE_VAL
 #else
 #ifdef STATIC_SCALE_VALUE
     #if INVERT_SCALE
@@ -654,12 +660,18 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     float masked_scale = sat_mask(iscale * STATIC_SCALAR_ATTN_MASK_VALUE);
 #endif
 #ifdef HAS_SINK_INPUT
+    #if SINK_IS_BF16
+        #define LOAD_SINK_VAL(v) _convert_as_bfloat16_float(v)
+    #else
+        #define LOAD_SINK_VAL(v) convert_float(v)
+    #endif
     #if IS_GQA_SINGLE_TOKEN
         int sink_idx = b0 * KV_GROUP_SIZE + get_sub_group_local_id();
-        const float sink_val = convert_float(sink_ptr[sink_idx]);
+        const float sink_val = LOAD_SINK_VAL(sink_ptr[sink_idx]);
     #else
-        const float sink_val = convert_float(sink_ptr[b0]);
+        const float sink_val = LOAD_SINK_VAL(sink_ptr[b0]);
     #endif
+    #undef LOAD_SINK_VAL
     #define MULTI_TOKENS_PER_WI ((ugemm_kq_sg_tile_n/SUBGROUP_SIZE) > 1)
     #if MULTI_TOKENS_PER_WI
         #define VEC_SIZE (ugemm_kq_sg_tile_n / SUBGROUP_SIZE)
@@ -861,7 +873,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             ugemm_kq(K0, ldk, Q_slm, D_MAX, k_chunk, ugemm_kq_wg_tile_n, d, 0,
                            0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
             #if IS_KV_COMPRESSED_PA
-                           , (global half *)K0_scales, (global half *)K0_zp, ldkq
+                           , (global KV_SLM_T *)K0_scales, (global KV_SLM_T *)K0_zp, ldkq
             #endif
                     );
     #if !IS_GQA_SINGLE_TOKEN
@@ -1654,7 +1666,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     0, 0, 0, 
                     sg_i_vs, sg_j_vs, (local char *)ugemm_slm
                 #if IS_KV_COMPRESSED_PA
-                    , (global half *)Vb0_scales, (global half *)Vb0_zp, ldvq
+                    , (global KV_SLM_T *)Vb0_scales, (global KV_SLM_T *)Vb0_zp, ldvq
                 #endif
                     );
 

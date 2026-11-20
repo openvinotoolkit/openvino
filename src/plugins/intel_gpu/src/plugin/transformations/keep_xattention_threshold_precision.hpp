@@ -11,10 +11,12 @@ namespace ov::intel_gpu {
 // Keeps xattention threshold input in fp32 by marking it as precision-sensitive
 // before ConvertPrecision pass. This avoids down-conversion to fp16 which can
 // make thresholding unstable at certain boundary values.
+// For BF16 inference, also preserves the allowed types of the threshold and
+// rotation lookup table, which PagedAttention only accepts in FP16 or FP32.
 class KeepXAttentionThresholdPrecision : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::KeepXAttentionThresholdPrecision");
-    KeepXAttentionThresholdPrecision();
+    explicit KeepXAttentionThresholdPrecision(bool prevent_bf16 = false);
 };
 
 }  // namespace ov::intel_gpu

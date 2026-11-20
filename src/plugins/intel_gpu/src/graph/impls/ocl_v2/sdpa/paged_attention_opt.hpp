@@ -52,10 +52,12 @@ struct PagedAttentionOpt : public ImplementationManager {
         static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
         };
         static constexpr std::array supported_kv_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i8,
         };
 
@@ -76,12 +78,22 @@ struct PagedAttentionOpt : public ImplementationManager {
         const auto& q_layout = node.get_input_layout(0);
         const auto& k_layout = node.get_input_layout(1);
         const auto& v_layout = node.get_input_layout(2);
+        const auto& kc_layout = node.get_input_layout(3);
+        const auto& vc_layout = node.get_input_layout(4);
         const auto& out_layout = node.get_output_layout(0);
         if (!everyone_is(format::bfyx, q_layout.format, k_layout.format, v_layout.format, out_layout.format)) {
             return false;
         }
 
         if (!one_of(k_layout.data_type, supported_kv_types) || !one_of(v_layout.data_type, supported_kv_types)) {
+            return false;
+        }
+
+        // Uncompressed KV cache must match K/V precision (mixed bf16 QKV + f16 cache is unsupported).
+        if (data_type_traits::is_floating_point(kc_layout.data_type) && kc_layout.data_type != k_layout.data_type) {
+            return false;
+        }
+        if (data_type_traits::is_floating_point(vc_layout.data_type) && vc_layout.data_type != v_layout.data_type) {
             return false;
         }
 

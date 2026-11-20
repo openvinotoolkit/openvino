@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/common.cl"
 
 // Key cache offset macros (all offsets in bytes: int8=1, half=2)
@@ -64,22 +65,22 @@
 #if KV_CACHE_COMPRESSED
     #define LOAD_SCALE_ZP_BY_CHANNEL(physical_block, d, scale_var, zp_var) \
         do { \
-            __global const half* scale_ptr = \
-                (__global const half*)&key_cache[KEY_CACHE_SCALE_OFFSET(physical_block, d)]; \
-            __global const half* zp_ptr = \
-                (__global const half*)&key_cache[KEY_CACHE_ZP_OFFSET(physical_block, d)]; \
-            scale_var = (ACCUMULATOR_TYPE)(*scale_ptr); \
-            zp_var = (ACCUMULATOR_TYPE)(*zp_ptr); \
+            __global const UNCOMPRESSED_TYPE* scale_ptr = \
+                (__global const UNCOMPRESSED_TYPE*)&key_cache[KEY_CACHE_SCALE_OFFSET(physical_block, d)]; \
+            __global const UNCOMPRESSED_TYPE* zp_ptr = \
+                (__global const UNCOMPRESSED_TYPE*)&key_cache[KEY_CACHE_ZP_OFFSET(physical_block, d)]; \
+            scale_var = (ACCUMULATOR_TYPE)DECODE_UNCOMPRESSED_COMPUTE_TYPE(*scale_ptr); \
+            zp_var = (ACCUMULATOR_TYPE)DECODE_UNCOMPRESSED_COMPUTE_TYPE(*zp_ptr); \
         } while(0)
 
     #define LOAD_SCALE_ZP_BY_TOKEN(physical_block, token_offset, scale_var, zp_var) \
         do { \
-            __global const half* scale_ptr = \
-                (__global const half*)&key_cache[KEY_CACHE_SCALE_OFFSET(physical_block, token_offset)]; \
-            __global const half* zp_ptr = \
-                (__global const half*)&key_cache[KEY_CACHE_ZP_OFFSET(physical_block, token_offset)]; \
-            scale_var = (ACCUMULATOR_TYPE)(*scale_ptr); \
-            zp_var = (ACCUMULATOR_TYPE)(*zp_ptr); \
+            __global const UNCOMPRESSED_TYPE* scale_ptr = \
+                (__global const UNCOMPRESSED_TYPE*)&key_cache[KEY_CACHE_SCALE_OFFSET(physical_block, token_offset)]; \
+            __global const UNCOMPRESSED_TYPE* zp_ptr = \
+                (__global const UNCOMPRESSED_TYPE*)&key_cache[KEY_CACHE_ZP_OFFSET(physical_block, token_offset)]; \
+            scale_var = (ACCUMULATOR_TYPE)DECODE_UNCOMPRESSED_COMPUTE_TYPE(*scale_ptr); \
+            zp_var = (ACCUMULATOR_TYPE)DECODE_UNCOMPRESSED_COMPUTE_TYPE(*zp_ptr); \
         } while(0)
 #endif
 
@@ -107,7 +108,7 @@
 #define LOAD_AND_NORMALIZE_KEY(buffer, physical_block, token_offset) \
     do { \
         for (int d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) { \
-            buffer[d] = (ACCUMULATOR_TYPE)key_cache[KEY_CACHE_OFFSET(physical_block, token_offset, d)]; \
+            buffer[d] = (ACCUMULATOR_TYPE)DECODE_INPUT0_COMPUTE_TYPE(key_cache[KEY_CACHE_OFFSET(physical_block, token_offset, d)]); \
         } \
         NORMALIZE_BUFFER(buffer, K_HEAD_SIZE); \
     } while(0)
@@ -235,7 +236,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
 #else
                     // Uncompressed: direct loading
                     for (int d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) {
-                        ACCUMULATOR_TYPE key_j_val = (ACCUMULATOR_TYPE)key_cache[KEY_CACHE_OFFSET(physical_block_j, token_offset_j, d)];
+                        ACCUMULATOR_TYPE key_j_val = (ACCUMULATOR_TYPE)DECODE_INPUT0_COMPUTE_TYPE(key_cache[KEY_CACHE_OFFSET(physical_block_j, token_offset_j, d)]);
                         dot_product += normalized_key_i[d] * key_j_val;
                         norm_sq_j += key_j_val * key_j_val;
                     }
@@ -316,7 +317,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
         // Write block sums to output
         for (int col = sglid; col < evictable_size; col += SUBGROUP_SIZE) {
             const int output_offset = diversity_output_offset + block_idx * evictable_size + col;
-            diversity_output[output_offset] = (OUTPUT_TYPE)block_sums_batch[col];
+            diversity_output[output_offset] = TO_OUTPUT_TYPE(block_sums_batch[col]);
         }
         barrier(mem_fence);
     }

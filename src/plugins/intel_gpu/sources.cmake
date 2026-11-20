@@ -189,6 +189,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_gqa_kv_scale_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_moe_3gemm_const_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_xattention_threshold_precision.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/paged_attention_bf16_fallback.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_compression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/l2_norm_to_rms.cpp

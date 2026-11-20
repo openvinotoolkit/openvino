@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/bf16_utils.cl"
 
 #if IS_KV_COMPRESSED
 #define SUBGROUPS_PER_WG 1
@@ -73,19 +74,19 @@ KERNEL(pa_kv_cache_rotate)(
 
 #if IS_KV_COMPRESSED
     #if IS_KEY_BY_CHANNEL
-        UNCOMPRESSED_TYPE min_value[HEAD_SIZE];
-        UNCOMPRESSED_TYPE max_value[HEAD_SIZE];
+        UNCOMPRESSED_COMPUTE_TYPE min_value[HEAD_SIZE];
+        UNCOMPRESSED_COMPUTE_TYPE max_value[HEAD_SIZE];
         for (uint i = 0; i < HEAD_SIZE; i++) {
             min_value[i] = UNCOMPRESSED_VAL_MAX;
             max_value[i] = UNCOMPRESSED_VAL_MIN;
         }
     #else
-        UNCOMPRESSED_TYPE min_value = UNCOMPRESSED_VAL_MAX;
-        UNCOMPRESSED_TYPE max_value = UNCOMPRESSED_VAL_MIN;
+        UNCOMPRESSED_COMPUTE_TYPE min_value = UNCOMPRESSED_VAL_MAX;
+        UNCOMPRESSED_COMPUTE_TYPE max_value = UNCOMPRESSED_VAL_MIN;
         const uint comp_offset = block_base_offset + HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
         UNCOMPRESSED_TYPE* comp_ptr = key_cache + comp_offset;
-        UNCOMPRESSED_TYPE comp_scale = comp_ptr[0 + sglid];
-        UNCOMPRESSED_TYPE comp_zp = comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+        UNCOMPRESSED_COMPUTE_TYPE comp_scale = DECODE_UNCOMPRESSED_COMPUTE_TYPE(comp_ptr[0 + sglid]);
+        UNCOMPRESSED_COMPUTE_TYPE comp_zp = DECODE_UNCOMPRESSED_COMPUTE_TYPE(comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid]);
     #endif
 
     // Reuse SLM to store dequantized rotated values
@@ -102,34 +103,34 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
         const uint comp_offset_second = cache_offset_second - sglid + PAGED_ATTENTION_BLOCK_SIZE;
 
         UNCOMPRESSED_TYPE* comp_ptr_first = key_cache + comp_offset_first;
-        UNCOMPRESSED_TYPE comp_scale_first = comp_ptr_first[0];
-        UNCOMPRESSED_TYPE comp_zp_first = comp_ptr_first[1];
+        UNCOMPRESSED_COMPUTE_TYPE comp_scale_first = DECODE_UNCOMPRESSED_COMPUTE_TYPE(comp_ptr_first[0]);
+        UNCOMPRESSED_COMPUTE_TYPE comp_zp_first = DECODE_UNCOMPRESSED_COMPUTE_TYPE(comp_ptr_first[1]);
         
         UNCOMPRESSED_TYPE* comp_ptr_second = key_cache + comp_offset_second;
-        UNCOMPRESSED_TYPE comp_scale_second = comp_ptr_second[0];
-        UNCOMPRESSED_TYPE comp_zp_second = comp_ptr_second[1];
+        UNCOMPRESSED_COMPUTE_TYPE comp_scale_second = DECODE_UNCOMPRESSED_COMPUTE_TYPE(comp_ptr_second[0]);
+        UNCOMPRESSED_COMPUTE_TYPE comp_zp_second = DECODE_UNCOMPRESSED_COMPUTE_TYPE(comp_ptr_second[1]);
     #else
         const uint cache_offset = token_offset + i * PAGED_ATTENTION_BLOCK_SIZE;
     #endif
 
     #if IS_KV_COMPRESSED
         #if IS_KEY_BY_CHANNEL
-            UNCOMPRESSED_TYPE cache_value_first = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset_first] - comp_zp_first) * comp_scale_first;
-            UNCOMPRESSED_TYPE cache_value_second = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset_second] - comp_zp_second) * comp_scale_second;
+            UNCOMPRESSED_COMPUTE_TYPE cache_value_first = (TO_UNCOMPRESSED_COMPUTE_TYPE(key_cache[cache_offset_first]) - comp_zp_first) * comp_scale_first;
+            UNCOMPRESSED_COMPUTE_TYPE cache_value_second = (TO_UNCOMPRESSED_COMPUTE_TYPE(key_cache[cache_offset_second]) - comp_zp_second) * comp_scale_second;
         #else
-             UNCOMPRESSED_TYPE cache_value_first = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset] - comp_zp) * comp_scale;
-             UNCOMPRESSED_TYPE cache_value_second = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE] - comp_zp) * comp_scale;
+             UNCOMPRESSED_COMPUTE_TYPE cache_value_first = (TO_UNCOMPRESSED_COMPUTE_TYPE(key_cache[cache_offset]) - comp_zp) * comp_scale;
+             UNCOMPRESSED_COMPUTE_TYPE cache_value_second = (TO_UNCOMPRESSED_COMPUTE_TYPE(key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE]) - comp_zp) * comp_scale;
          #endif
     #else
-         UNCOMPRESSED_TYPE cache_value_first = key_cache[cache_offset];
-         UNCOMPRESSED_TYPE cache_value_second = key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE];
+         UNCOMPRESSED_COMPUTE_TYPE cache_value_first = DECODE_UNCOMPRESSED_COMPUTE_TYPE(key_cache[cache_offset]);
+         UNCOMPRESSED_COMPUTE_TYPE cache_value_second = DECODE_UNCOMPRESSED_COMPUTE_TYPE(key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE]);
     #endif
     
-    INPUT2_TYPE rotation_value_cos = rotation_coefficients[i][token_coefficient_idx];
-    INPUT2_TYPE rotation_value_sin = rotation_coefficients[i + (HEAD_SIZE / 2)][token_coefficient_idx];
+    UNCOMPRESSED_COMPUTE_TYPE rotation_value_cos = TO_UNCOMPRESSED_COMPUTE_TYPE(DECODE_INPUT2_COMPUTE_TYPE(rotation_coefficients[i][token_coefficient_idx]));
+    UNCOMPRESSED_COMPUTE_TYPE rotation_value_sin = TO_UNCOMPRESSED_COMPUTE_TYPE(DECODE_INPUT2_COMPUTE_TYPE(rotation_coefficients[i + (HEAD_SIZE / 2)][token_coefficient_idx]));
 
-    UNCOMPRESSED_TYPE new_cache_value_first = cache_value_first * rotation_value_cos - cache_value_second * rotation_value_sin;
-    UNCOMPRESSED_TYPE new_cache_value_second = cache_value_first * rotation_value_sin + cache_value_second * rotation_value_cos;
+    UNCOMPRESSED_COMPUTE_TYPE new_cache_value_first = cache_value_first * rotation_value_cos - cache_value_second * rotation_value_sin;
+    UNCOMPRESSED_COMPUTE_TYPE new_cache_value_second = cache_value_first * rotation_value_sin + cache_value_second * rotation_value_cos;
     
     #if IS_KV_COMPRESSED
         #if !IS_KEY_BY_CHANNEL
@@ -137,17 +138,17 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
             min_value = fmin(fmin(min_value, new_cache_value_first), new_cache_value_second);
         #endif
         
-        rotated_data[(i + 0) * PAGED_ATTENTION_BLOCK_SIZE + sglid] = new_cache_value_first;
-        rotated_data[(i + (HEAD_SIZE / 2)) * PAGED_ATTENTION_BLOCK_SIZE + sglid] = new_cache_value_second;
+        rotated_data[(i + 0) * PAGED_ATTENTION_BLOCK_SIZE + sglid] = TO_UNCOMPRESSED_TYPE(new_cache_value_first);
+        rotated_data[(i + (HEAD_SIZE / 2)) * PAGED_ATTENTION_BLOCK_SIZE + sglid] = TO_UNCOMPRESSED_TYPE(new_cache_value_second);
     #else
-        key_cache[cache_offset] = new_cache_value_first;
-        key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE] = new_cache_value_second;
+        key_cache[cache_offset] = TO_UNCOMPRESSED_TYPE(new_cache_value_first);
+        key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE] = TO_UNCOMPRESSED_TYPE(new_cache_value_second);
     #endif
 }
 
 #if IS_KV_COMPRESSED
-    UNCOMPRESSED_TYPE scale;
-    UNCOMPRESSED_TYPE zp;
+    UNCOMPRESSED_COMPUTE_TYPE scale;
+    UNCOMPRESSED_COMPUTE_TYPE zp;
     ACCUMULATOR_TYPE diff_value;
     ACCUMULATOR_TYPE scale_tmp;
     ACCUMULATOR_TYPE zp_tmp;
@@ -157,7 +158,7 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
     for (uint i = 0; i < HEAD_SIZE; i++) {
         // Re-quantize cache data
         ACCUMULATOR_TYPE grp_max = 0.001;
-        UNCOMPRESSED_TYPE rotated_res = rotated_data[i * PAGED_ATTENTION_BLOCK_SIZE + sglid];
+        UNCOMPRESSED_COMPUTE_TYPE rotated_res = DECODE_UNCOMPRESSED_COMPUTE_TYPE(rotated_data[i * PAGED_ATTENTION_BLOCK_SIZE + sglid]);
         #if IS_KEY_BY_CHANNEL
             max_value[i] = fmax(max_value[i], rotated_res);
             min_value[i] = fmin(min_value[i], rotated_res);
@@ -173,8 +174,8 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
             scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
             zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
         #endif
-        scale = (UNCOMPRESSED_TYPE)(scale_tmp);
-        zp = (UNCOMPRESSED_TYPE)(zp_tmp);
+        scale = TO_UNCOMPRESSED_COMPUTE_TYPE(scale_tmp);
+        zp = TO_UNCOMPRESSED_COMPUTE_TYPE(zp_tmp);
 
         OUTPUT_TYPE quantized_res = convert_char_rte(rotated_res * scale + zp);
         const uint cache_offset = token_offset + i * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
@@ -182,15 +183,15 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
             if(sglid == 0)
             {
                 UNCOMPRESSED_TYPE* comp_ptr = key_cache + cache_offset + PAGED_ATTENTION_BLOCK_SIZE;
-                comp_ptr[0] = 1.0 / scale;
-                comp_ptr[1] = zp;
+                comp_ptr[0] = TO_UNCOMPRESSED_TYPE(1.0f / scale);
+                comp_ptr[1] = TO_UNCOMPRESSED_TYPE(zp);
             }
         #endif
         key_cache[cache_offset] = quantized_res;
     }
     #if !IS_KEY_BY_CHANNEL
-        comp_ptr[0 + sglid] = 1.0 / scale;
-        comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid] = zp;
+        comp_ptr[0 + sglid] = TO_UNCOMPRESSED_TYPE(1.0f / scale);
+        comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid] = TO_UNCOMPRESSED_TYPE(zp);
     #endif
 #endif
 }

@@ -498,6 +498,7 @@ public:
         if (desc->has_sink_input) {
             const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("SINK_IS_BF16", sink_layout.data_type == ov::element::bf16 ? 1 : 0);
             jit.make("HAS_SINK_INPUT", 1);
         }
         if (desc->has_scores_output()) {
@@ -1136,6 +1137,7 @@ protected:
         jit.make("KEY_CACHE_QUANT_MODE", key_cache_quant_mode);
 
         jit.add(make_type_jit_constants("ACCUMULATOR", softmax_accumulator_type));
+        jit.add(make_type_jit_constants("UNCOMPRESSED", params.get_input_layout(PagedAttentionInputIdx::KEY).data_type));
         return jit;
     }
 
@@ -1658,7 +1660,8 @@ public:
     // token_type_ids does not change the choice: micro and OCL kernels both support it.
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
         // Speculative decoding MIXED case is faster with the GQA multi-token kernel than with micro SDPA
-        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) && !can_use_gqa_multi_tokens_kernel(params, stage);
+        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) &&
+                                        !can_use_gqa_multi_tokens_kernel(params, stage);
         GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
                                << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
                                << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;

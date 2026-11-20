@@ -1642,3 +1642,70 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_by_channel_large_head, kv_cache_by_chann
     paged_attention_test_params{ {{1, 10}, {1, 14}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 },
 }));
 
+class paged_attention_bf16_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(paged_attention_bf16_test, basic) {
+    auto p = GetParam();
+    const bool is_int4 = (p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4);
+    this->tolerance = is_int4 ? 0.1f : (p.kv_cache_compression ? 5e-2f : 25e-3f);
+    execute(p);
+}
+
+static paged_attention_test_params make_bf16_pa_params(std::vector<SubsequenceDescriptor> subsequences,
+                                                       int num_heads,
+                                                       int num_kv_heads,
+                                                       int head_size,
+                                                       bool kv_compression,
+                                                       ov::internal::CacheQuantMode quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL,
+                                                       ov::element::Type kv_cache_precision = ov::element::dynamic,
+                                                       bool disable_fa_v2 = ENABLE_FA_V2,
+                                                       ScoresMode scores_mode = DISABLE_SCORES,
+                                                       CacheRotationDescriptor rotation = DISABLE_ROTATION,
+                                                       bool enable_diversity = DISABLE_DIVERSITY,
+                                                       int adaptive_rkv_start_size = 0,
+                                                       std::vector<int> adaptive_rkv_evictable_sizes = {}) {
+    paged_attention_test_params p{ std::move(subsequences), num_heads, num_kv_heads, head_size, head_size, 16, 0,
+                                   kv_compression, quant_mode, STATIC_INPUT_PAD, scores_mode, rotation, disable_fa_v2,
+                                   enable_diversity, adaptive_rkv_start_size, std::move(adaptive_rkv_evictable_sizes) };
+    p.kv_cache_precision = kv_cache_precision;
+    p.data_type = ov::element::bf16;
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_bf16, paged_attention_bf16_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Prefill (sdpa_micro_prefill_sa on systolic array GPUs): Llama-like GQA (32/8 heads, head_size=128)
+    make_bf16_pa_params({{64, 0}}, 32, 8, 128, DISABLE_CACHE_COMPRESSION),
+    make_bf16_pa_params({{64, 0}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8),
+    make_bf16_pa_params({{64, 0}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),
+    make_bf16_pa_params({{128, 0}}, 32, 8, 128, DISABLE_CACHE_COMPRESSION),
+    // Decode single-partition (paged_attention_opt_gqa_single_token_sa): past_len <= 256
+    make_bf16_pa_params({{1, 64}}, 32, 8, 128, DISABLE_CACHE_COMPRESSION),
+    make_bf16_pa_params({{1, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8),
+    make_bf16_pa_params({{1, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8),
+    make_bf16_pa_params({{1, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),
+    // Decode multi-partition (exercises pa_sdpa_finalization_stage): past_len > 256
+    make_bf16_pa_params({{1, 300}}, 32, 8, 128, DISABLE_CACHE_COMPRESSION),
+    make_bf16_pa_params({{1, 300}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8),
+    make_bf16_pa_params({{1, 300}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),
+    // Multi-sequence decode
+    make_bf16_pa_params({{1, 48}, {1, 80}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),
+    // Mixed stage (small Q -> gqa_multi_tokens_fallback)
+    make_bf16_pa_params({{16, 64}}, 32, 8, 128, DISABLE_CACHE_COMPRESSION),
+    make_bf16_pa_params({{16, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8),
+    make_bf16_pa_params({{16, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),
+    // Mixed stage (large Q -> sdpa_micro__generate on XMX)
+    make_bf16_pa_params({{64, 64}}, 32, 8, 128, DISABLE_CACHE_COMPRESSION),
+    make_bf16_pa_params({{64, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8),
+    make_bf16_pa_params({{64, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8),
+    make_bf16_pa_params({{64, 64}}, 32, 8, 128, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4),
+    // Scores output (BF16 scores_output write in paged_attention_opt.cl)
+    make_bf16_pa_params({{1, 64}}, 32, 8, 128, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::dynamic, ENABLE_FA_V2, ENABLE_SCORES),
+    // KV-cache rotation (pa_kv_cache_rotate_ref.cl with f16 LUT + bf16/i8 cache)
+    make_bf16_pa_params({{1, 64}}, 4, 2, 64, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::dynamic, DISABLE_FA_V2, DISABLE_SCORES, PER_BLOCK_ROTATION),
+    make_bf16_pa_params({{1, 64}}, 4, 2, 64, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8, DISABLE_FA_V2, DISABLE_SCORES, PER_TOKEN_ROTATION),
+    make_bf16_pa_params({{1, 64}}, 4, 2, 64, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8, DISABLE_FA_V2, DISABLE_SCORES, PER_BLOCK_ROTATION),
+    // Adaptive R-KV diversity (pa_adaptive_rkv_diversity_ref.cl with bf16/i8 cache)
+    make_bf16_pa_params({{64, 0}}, 2, 2, 64, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::dynamic, DISABLE_FA_V2, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_DIVERSITY, 16, {32}),
+    make_bf16_pa_params({{64, 0}}, 2, 2, 64, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8, DISABLE_FA_V2, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_DIVERSITY, 16, {32}),
+}));
+
+

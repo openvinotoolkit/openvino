@@ -1266,6 +1266,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         if (desc->has_sink_input) {
             const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("SINK_IS_BF16", sink_layout.data_type == ov::element::bf16 ? 1 : 0);
             jit.make("HAS_SINK_INPUT", 1);
         }
 
@@ -1288,6 +1289,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         if (desc->has_sink_input) {
             const auto& sink_layout = params.input_layouts[ScaledDotProductAttentionInputIdx::SINK];
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("SINK_IS_BF16", sink_layout.data_type == ov::element::bf16 ? 1 : 0);
             jit.make("HAS_SINK_INPUT", 1);
         }
 
@@ -1320,7 +1322,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("D_MAX", d_max);
     jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
     jit.make("INVERT_SCALE", false);
-    jit.make("SCALE_DATA_T", "half");
+    const auto scale_dt = config.is_paged_attention ? params.input_layouts[PagedAttentionInputIdx::SCALE].data_type : Q.data_type;
+    jit.make("SCALE_DATA_T", to_ocl_type(scale_dt));
+    jit.make("SCALE_IS_BF16", scale_dt == ov::element::bf16 ? 1 : 0);
     jit.make("HEAD_SIZE", k_head_size);
 
     auto data_inputs_num = micro_get_input_num(params, config);
@@ -1959,13 +1963,13 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem.Ta = micro::Type::s8;
         }
 
-        const auto scale_dt = convert_type(ov::element::f16);
+        const auto scale_dt = convert_type(Q.data_type);
         problem_kq.Ta_scale = scale_dt;
         problem_kq.A_scale.setAlignment(scale_dt.size());
         problem_kq.A_scale.layout = micro::MatrixLayout::N;
         problem_kq.asPtrDims = 2;
 
-        const auto zp_dt = convert_type(ov::element::f16);
+        const auto zp_dt = convert_type(Q.data_type);
         problem_kq.Tao = zp_dt;
         problem_kq.AO.setAlignment(zp_dt.size());
         problem_kq.AO.layout = micro::MatrixLayout::N;
@@ -2122,13 +2126,13 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.A.layout = transpose_v ? micro::MatrixLayout::T : micro::MatrixLayout::N;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
-        auto scale_dt = convert_type(ov::element::f16);
+        auto scale_dt = convert_type(Q.data_type);
         problem_vs.Ta_scale = scale_dt;
         problem_vs.A_scale.setAlignment(scale_dt.size());
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
         problem_vs.asPtrDims = 2;
 
-        auto zp_dt = convert_type(ov::element::f16);
+        auto zp_dt = convert_type(Q.data_type);
         problem_vs.Tao = zp_dt;
         problem_vs.AO.setAlignment(zp_dt.size());
         problem_vs.AO.layout = micro::MatrixLayout::N;

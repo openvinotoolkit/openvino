@@ -90,6 +90,7 @@ struct PagedAttentionManager {
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     ov::element::Type kv_cache_precision = ov::element::dynamic;
+    ov::element::Type data_type = ov::element::f16;
     bool has_score_aggregation;
     CacheRotationDescriptor rotation_config;
     std::vector<SubsequenceDescriptor> subsequence_descs;
@@ -153,7 +154,8 @@ struct PagedAttentionManager {
                           bool has_score_aggregation,
                           bool has_xattention,
                           CacheRotationDescriptor rotation_config,
-                          ov::element::Type kv_cache_precision = ov::element::dynamic)
+                          ov::element::Type kv_cache_precision = ov::element::dynamic,
+                          ov::element::Type data_type = ov::element::f16)
         : num_heads(num_heads),
           num_kv_heads(num_kv_heads),
           k_head_size(k_head_size),
@@ -163,6 +165,7 @@ struct PagedAttentionManager {
           kv_cache_compression(kv_cache_compression),
           key_cache_quant_mode(key_cache_quant_mode),
           kv_cache_precision(kv_cache_precision),
+          data_type(data_type),
           has_score_aggregation(has_score_aggregation),
           rotation_config(rotation_config),
           subsequence_descs(subsequence_descs),
@@ -369,8 +372,12 @@ struct PagedAttentionManager {
         return kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
     }
 
+    bool is_bf16() const {
+        return data_type == ov::element::bf16;
+    }
+
     cldnn::memory::ptr get_key_cache_memory() {
-        auto key_cache_dt = cldnn::data_types::f16;
+        auto key_cache_dt = data_type;
         auto adjusted_head_size = k_head_size;
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
@@ -456,12 +463,10 @@ struct PagedAttentionManager {
                                     }
                                     set_values(test_stream, memory, packed_data.data(), static_cast<size_t>(packed_block), row_offset);
 
-                                    // Write comp: 2 fp16 (inv_scale, zp) at row_offset + packed_block
+                                    // Write comp: 2 f16/bf16 (inv_scale, zp) at row_offset + packed_block
                                     const size_t comp_offset_fp16 = (row_offset + packed_block) / 2;
-                                    ov::float16 inv_scale_val = static_cast<float>(1.0f / scale);
-                                    ov::float16 fp16_zp = static_cast<float>(zp_val);
-                                    set_values(test_stream, memory, &inv_scale_val, 1, comp_offset_fp16 + 0);
-                                    set_values(test_stream, memory, &fp16_zp, 1, comp_offset_fp16 + 1);
+                                    set_f16_or_bf16_scalar(test_stream, memory, 1.0f / scale, comp_offset_fp16 + 0);
+                                    set_f16_or_bf16_scalar(test_stream, memory, zp_val, comp_offset_fp16 + 1);
                                 }
                             }
                         } else {
@@ -479,8 +484,8 @@ struct PagedAttentionManager {
                                     size_t output_offset = output_block_offset + k_head_size_idx * adjusted_block_size;
                                     set_values(test_stream, memory, quantized_data.data(), last_token_idx, output_offset);
                                     size_t comp_offset = (output_offset + block_size) / 2;
-                                    set_values(test_stream, memory, &scale, 1, comp_offset);
-                                    set_values(test_stream, memory, &zp, 1, comp_offset + 1);
+                                    set_f16_or_bf16_scalar(test_stream, memory, static_cast<float>(scale), comp_offset);
+                                    set_f16_or_bf16_scalar(test_stream, memory, static_cast<float>(zp), comp_offset + 1);
                                 }
                             }
                         }
@@ -538,12 +543,10 @@ struct PagedAttentionManager {
                                             size_t offset = output_block_offset + static_cast<size_t>(y) * block_size + token_idx;
                                             set_values(test_stream, memory, &packed_byte, 1, offset);
                                         }
-                                        // Write inv_scale and zp as fp16 in the comp region
+                                        // Write inv_scale and zp as fp16/bf16 in the comp region
                                         size_t comp_offset_fp16 = (output_block_offset + static_cast<size_t>(packed_head_size) * block_size) / 2;
-                                        ov::float16 fp16_inv_scale = static_cast<float>(1.0f / token_scale);
-                                        ov::float16 fp16_zp = static_cast<float>(token_zp);
-                                        set_values(test_stream, memory, &fp16_inv_scale, 1, comp_offset_fp16 + token_idx);
-                                        set_values(test_stream, memory, &fp16_zp, 1, comp_offset_fp16 + block_size + token_idx);
+                                        set_f16_or_bf16_scalar(test_stream, memory, 1.0f / token_scale, comp_offset_fp16 + token_idx);
+                                        set_f16_or_bf16_scalar(test_stream, memory, token_zp, comp_offset_fp16 + block_size + token_idx);
                                     } else {
                                         auto [quantized_data, scale, zp] = quantize_data(data_ptr, k_head_size);
                                         for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
@@ -554,8 +557,8 @@ struct PagedAttentionManager {
                                             set_values(test_stream, memory, quantized_data_ptr, 1, output_offset);
                                         }
                                         size_t comp_offset = (output_block_offset + k_head_size * block_size) / 2;
-                                        set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
-                                        set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
+                                        set_f16_or_bf16_scalar(test_stream, memory, static_cast<float>(scale), comp_offset + token_idx);
+                                        set_f16_or_bf16_scalar(test_stream, memory, static_cast<float>(zp), comp_offset + block_size + token_idx);
                                     }
                                 }
                             } else {
@@ -568,7 +571,7 @@ struct PagedAttentionManager {
                                     size_t output_offset = (start_block_idx + block_idx) * num_kv_heads * k_head_size * block_size +
                                                            head_idx * k_head_size * block_size + k_head_size_idx * block_size + token_idx;
 
-                                    set_values(test_stream, memory, data_ptr, 1, output_offset);
+                                    set_f16_or_bf16_values(test_stream, memory, data_ptr, 1, output_offset);
                                 }
                             }
                         }
@@ -581,7 +584,7 @@ struct PagedAttentionManager {
     }
 
     cldnn::memory::ptr get_value_cache_memory() {
-        auto value_cache_dt = cldnn::data_types::f16;
+        auto value_cache_dt = data_type;
         const int head_size = v_head_size;
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
@@ -624,7 +627,7 @@ struct PagedAttentionManager {
                                                  static_cast<size_t>(block_size) * static_cast<size_t>(head_size)) +
                                                 (static_cast<size_t>(head_idx) * static_cast<size_t>(block_size) * static_cast<size_t>(head_size));
                             const size_t off = base + static_cast<size_t>(token_idx) * static_cast<size_t>(head_size);
-                            set_values(test_stream, memory, src_ptr, head_size, off);
+                            set_f16_or_bf16_values(test_stream, memory, src_ptr, head_size, off);
                         } else if (is_int4_kv_cache()) {
                             // INT4 (u4) BY_TOKEN value cache: inline per-token comp layout.
                             // [num_blocks, kv_heads, block_size, PACKED_ADJUSTED_V_HEAD_SIZE] u8
@@ -646,8 +649,6 @@ struct PagedAttentionManager {
                                 diff += std::max(1.0f, min_range);
                             float scale_val = 15.0f / diff;
                             float zp_val = -min_val * scale_val;
-                            ov::float16 inv_scale_fp16 = ov::float16(1.0f / scale_val);
-                            ov::float16 zp_fp16 = ov::float16(zp_val);
 
                             const size_t block_stride = static_cast<size_t>(adjusted_head_size) * static_cast<size_t>(block_size);
                             const size_t block_base =
@@ -673,11 +674,11 @@ struct PagedAttentionManager {
                                 }
                             }
 
-                            // Write inline comp: scale (fp16) and zp (fp16) right after packed data
+                            // Write inline comp: scale (fp16/bf16) and zp (fp16/bf16) right after packed data
                             const size_t comp_byte_off = token_base + static_cast<size_t>(packed_head_size);
                             const size_t comp_f16_off = comp_byte_off / 2;
-                            set_values(test_stream, memory, &inv_scale_fp16, 1, comp_f16_off);
-                            set_values(test_stream, memory, &zp_fp16, 1, comp_f16_off + 1);
+                            set_f16_or_bf16_scalar(test_stream, memory, 1.0f / scale_val, comp_f16_off);
+                            set_f16_or_bf16_scalar(test_stream, memory, zp_val, comp_f16_off + 1);
                         } else {
                             // Compressed Value cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
@@ -701,8 +702,8 @@ struct PagedAttentionManager {
                             const size_t scale_off_f16 = (scale_base_i8 >> 1) + static_cast<size_t>(token_idx);
                             const size_t zp_off_f16 = (zp_base_i8 >> 1) + static_cast<size_t>(token_idx);
 
-                            set_values(test_stream, memory, &scale, 1, scale_off_f16);
-                            set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                            set_f16_or_bf16_scalar(test_stream, memory, static_cast<float>(scale), scale_off_f16);
+                            set_f16_or_bf16_scalar(test_stream, memory, static_cast<float>(zp), zp_off_f16);
                         }
                     }
                 }
@@ -728,6 +729,10 @@ struct PagedAttentionManager {
     }
 
     cldnn::memory::ptr get_scale_memory() {
+        if (is_bf16()) {
+            std::vector<ov::bfloat16> scale = {ov::bfloat16(get_default_scale())};
+            return get_memory_from_vec(scale);
+        }
         std::vector<ov::float16> scale = {ov::float16(get_default_scale())};
         return get_memory_from_vec(scale);
     }
@@ -738,6 +743,10 @@ struct PagedAttentionManager {
     }
 
     cldnn::memory::ptr get_alibi_memory() {
+        if (is_bf16()) {
+            std::vector<ov::bfloat16> alibi;
+            return get_memory_from_vec(alibi);
+        }
         std::vector<ov::float16> alibi;
         return get_memory_from_vec(alibi);
     }
@@ -790,7 +799,15 @@ struct PagedAttentionManager {
     }
 
     cldnn::memory::ptr get_sinks_memory() {
-        auto mem = get_memory_from_vec(sinks);
+        cldnn::memory::ptr mem;
+        if (is_bf16()) {
+            std::vector<ov::bfloat16> sinks_bf16(sinks.size());
+            for (size_t i = 0; i < sinks.size(); i++)
+                sinks_bf16[i] = ov::bfloat16(static_cast<float>(sinks[i]));
+            mem = get_memory_from_vec(sinks_bf16);
+        } else {
+            mem = get_memory_from_vec(sinks);
+        }
         auto layout = mem->get_layout();
         layout.set_partial_shape(ov::PartialShape{1, num_heads, 1, 1});
 
@@ -873,7 +890,7 @@ private:
             total_tokens += subsequence_desc.num_tokens;
 
         auto query_shape = ov::PartialShape{total_tokens, num_heads * head_size};
-        auto query_layout = cldnn::layout{query_shape, cldnn::data_types::f16, cldnn::format::bfyx};
+        auto query_layout = cldnn::layout{query_shape, data_type, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(query_layout);
 
         for (int subsequence_idx = 0; subsequence_idx < static_cast<int>(subsequence_descs.size()); subsequence_idx++) {
@@ -889,12 +906,36 @@ private:
                     size_t output_token_offset = subsequence_begins[subsequence_idx] + token_idx;
                     size_t output_offset = output_token_offset * num_heads * head_size + head_idx * head_size;
 
-                    set_values(test_stream, memory, data_ptr, head_size, output_offset);
+                    set_f16_or_bf16_values(test_stream, memory, data_ptr, head_size, output_offset);
                 }
             }
         }
 
         return memory;
+    }
+
+    void set_f16_or_bf16_values(cldnn::stream& stream, cldnn::memory::ptr mem, const ov::float16* vals, size_t size, size_t dst_offset) const {
+        if (is_bf16()) {
+            cldnn::mem_lock<ov::bfloat16, cldnn::mem_lock_type::write> mem_ptr(mem, stream);
+            for (size_t i = 0; i < size; i++) {
+                mem_ptr[dst_offset + i] = ov::bfloat16(static_cast<float>(vals[i]));
+            }
+        } else {
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::write> mem_ptr(mem, stream);
+            for (size_t i = 0; i < size; i++) {
+                mem_ptr[dst_offset + i] = vals[i];
+            }
+        }
+    }
+
+    void set_f16_or_bf16_scalar(cldnn::stream& stream, cldnn::memory::ptr mem, float val, size_t dst_offset) const {
+        if (is_bf16()) {
+            cldnn::mem_lock<ov::bfloat16, cldnn::mem_lock_type::write> mem_ptr(mem, stream);
+            mem_ptr[dst_offset] = ov::bfloat16(val);
+        } else {
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::write> mem_ptr(mem, stream);
+            mem_ptr[dst_offset] = ov::float16(val);
+        }
     }
 
     template <typename T>
@@ -1537,9 +1578,14 @@ public:
 
         const bool is_compressed = pam.kv_cache_compression;
 
+        auto read_f16_or_bf16 = [&](const void* ptr) -> float {
+            return pam.is_bf16() ? static_cast<float>(*reinterpret_cast<const ov::bfloat16*>(ptr))
+                                 : static_cast<float>(*reinterpret_cast<const ov::float16*>(ptr));
+        };
+
         if (!is_compressed) {
-            // Uncompressed case: read as float16
-            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+            // Uncompressed case: read as float16 or bfloat16
+            cldnn::mem_lock<uint16_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
 
             for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                 const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1557,7 +1603,7 @@ public:
 
                         for (int dim = 0; dim < pam.k_head_size; dim++) {
                             const size_t cache_offset = cache_base + static_cast<size_t>(dim) * pam.block_size + token_offset;
-                            key_data[output_base + dim] = cache_ptr[cache_offset];
+                            key_data[output_base + dim] = ov::float16(read_f16_or_bf16(&cache_ptr[cache_offset]));
                         }
                     }
                 }
@@ -1567,7 +1613,7 @@ public:
                 if (pam.is_int4_kv_cache()) {
                     // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size, block_size/2+4] u8
                     // block_size dim is packed: 2 u4 tokens per byte.
-                    // Comp at [d, packed_block..packed_block+3]: 2 fp16 = inv_scale, zp per head dim.
+                    // Comp at [d, packed_block..packed_block+3]: 2 fp16/bf16 = inv_scale, zp per head dim.
                     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int packed_block = pam.block_size / 2;
                     const int adj_block_size = packed_block + 4;  // block_size/2 + sizeof(fp16)*2
@@ -1583,9 +1629,8 @@ public:
                             for (int d = 0; d < pam.k_head_size; d++) {
                                 // Read inv_scale and zp from comp region
                                 const size_t comp_byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + packed_block;
-                                const ov::float16* comp = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_off]);
-                                float inv_scale = static_cast<float>(comp[0]);
-                                float zp_val = static_cast<float>(comp[1]);
+                                float inv_scale = read_f16_or_bf16(&cache_ptr[comp_byte_off]);
+                                float zp_val = read_f16_or_bf16(&cache_ptr[comp_byte_off + 2]);
 
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                     const int token_idx = block_idx * pam.block_size + token_offset;
@@ -1617,8 +1662,8 @@ public:
                             for (int dim = 0; dim < pam.k_head_size; dim++) {
                                 // Read scale and zero-point for this dimension
                                 const size_t scale_offset = cache_base + static_cast<size_t>(dim) * adj_block_size + pam.block_size;
-                                ov::float16 scale = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset]);
-                                ov::float16 zp = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset + 2]);
+                                float scale = read_f16_or_bf16(&cache_ptr[scale_offset]);
+                                float zp = read_f16_or_bf16(&cache_ptr[scale_offset + 2]);
 
                                 // Dequantize all tokens for this dimension
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
@@ -1628,7 +1673,7 @@ public:
                                         static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size + dim;
 
                                     int8_t quantized_value = cache_ptr[cache_offset];
-                                    float dequantized = (static_cast<float>(quantized_value) - static_cast<float>(zp)) * static_cast<float>(scale);
+                                    float dequantized = (static_cast<float>(quantized_value) - zp) * scale;
                                     key_data[output_offset] = ov::float16(dequantized);
                                 }
                             }
@@ -1643,7 +1688,7 @@ public:
                     //   Y = pack_group*16 + sglid, where pack_group = d/(2*16), sglid = d%16
                     //   lower nibble = q(dim[pack_group*32 + sglid])
                     //   upper nibble = q(dim[pack_group*32 + sglid + 16])
-                    // Scale/ZP: fp16 in comp region at base + packed_head_size*block_size
+                    // Scale/ZP: fp16/bf16 in comp region at base + packed_head_size*block_size
                     //   inv_scale[t] at comp_ptr[t], zp[t] at comp_ptr[block_size + t]
                     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int packed_head_size = pam.k_head_size / 2;
@@ -1659,13 +1704,11 @@ public:
                                                       static_cast<size_t>(head_idx) * adj_head_size * pam.block_size;
                             // Scale and ZP are in the comp region after the packed data
                             const size_t comp_byte_base = cache_base + static_cast<size_t>(packed_head_size) * pam.block_size;
-                            const auto* inv_scale_arr = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_base]);
-                            const auto* zp_arr = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_base + pam.block_size * 2]);
 
                             for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                 const int token_idx = block_idx * pam.block_size + token_offset;
-                                float inv_scale = static_cast<float>(inv_scale_arr[token_offset]);
-                                float zp_val = static_cast<float>(zp_arr[token_offset]);
+                                float inv_scale = read_f16_or_bf16(&cache_ptr[comp_byte_base + token_offset * 2]);
+                                float zp_val = read_f16_or_bf16(&cache_ptr[comp_byte_base + pam.block_size * 2 + token_offset * 2]);
                                 const size_t out_base =
                                     static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size;
 
@@ -1688,7 +1731,7 @@ public:
 
                 // BY_TOKEN: [num_blocks, num_kv_heads, head_size+4, block_size]
                 // Token-wise quantization with shared scale/zp per token
-                // Layout: data rows [0..head_size-1], scale at [head_size], zp at [head_size+2] (fp16)
+                // Layout: data rows [0..head_size-1], scale at [head_size], zp at [head_size+2] (fp16/bf16)
                 cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                 for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                     const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1703,11 +1746,11 @@ public:
 
                             // Read scale and zero-point for this token
                             // Scale is at [head_size][token], ZP is at [head_size+2][token] (2 rows below)
-                            // token_offset * 2 because each half is 2 bytes (token 0 at offset 0-1, token 1 at offset 2-3, etc.)
+                            // token_offset * 2 because each half/bf16 is 2 bytes (token 0 at offset 0-1, token 1 at offset 2-3, etc.)
                             const size_t scale_offset = cache_base + static_cast<size_t>(pam.k_head_size) * pam.block_size + token_offset * 2;
                             const size_t zp_offset = scale_offset + 2 * pam.block_size;  // ZP is 2 rows below scale
-                            ov::float16 scale = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset]);
-                            ov::float16 zp = *reinterpret_cast<const ov::float16*>(&cache_ptr[zp_offset]);
+                            ov::float16 scale = ov::float16(read_f16_or_bf16(&cache_ptr[scale_offset]));
+                            ov::float16 zp = ov::float16(read_f16_or_bf16(&cache_ptr[zp_offset]));
 
                             const size_t output_base =
                                 static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size;
@@ -1801,7 +1844,8 @@ public:
                     p.scores_mode == ScoresMode::SNAPKV,
                     p.has_xattention,
                     p.rotation_config,
-                    p.kv_cache_precision);
+                    p.kv_cache_precision,
+                    p.data_type);
 
         if (p.zero_key_data) {
             for (auto& sequence_key_data : pam->key_data) {
@@ -2055,17 +2099,30 @@ public:
 
             auto new_query_memory = tests::get_test_engine().allocate_memory(padded_query_data_layout, false);
 
-            cldnn::mem_lock<ov::float16> query_mem_lock(query_mem, tests::get_test_stream());
-            cldnn::mem_lock<ov::float16> new_query_mem_lock(new_query_memory, tests::get_test_stream());
-
             auto query_data_shape = query_data_layout.get_shape();
-            for (size_t b = 0; b < query_data_shape[0]; b++) {
-                for (size_t f = 0; f < query_data_shape[1]; f++) {
-                    auto input_offset = query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
-                    auto output_offset =
-                        padded_query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+            if (p.data_type == ov::element::bf16) {
+                cldnn::mem_lock<ov::bfloat16, cldnn::mem_lock_type::read> query_mem_lock(query_mem, tests::get_test_stream());
+                cldnn::mem_lock<ov::bfloat16, cldnn::mem_lock_type::write> new_query_mem_lock(new_query_memory, tests::get_test_stream());
+                for (size_t b = 0; b < query_data_shape[0]; b++) {
+                    for (size_t f = 0; f < query_data_shape[1]; f++) {
+                        auto input_offset = query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+                        auto output_offset =
+                            padded_query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
 
-                    new_query_mem_lock[output_offset] = query_mem_lock[input_offset];
+                        new_query_mem_lock[output_offset] = query_mem_lock[input_offset];
+                    }
+                }
+            } else {
+                cldnn::mem_lock<ov::float16> query_mem_lock(query_mem, tests::get_test_stream());
+                cldnn::mem_lock<ov::float16> new_query_mem_lock(new_query_memory, tests::get_test_stream());
+                for (size_t b = 0; b < query_data_shape[0]; b++) {
+                    for (size_t f = 0; f < query_data_shape[1]; f++) {
+                        auto input_offset = query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+                        auto output_offset =
+                            padded_query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+
+                        new_query_mem_lock[output_offset] = query_mem_lock[input_offset];
+                    }
                 }
             }
             query_mem = new_query_memory;
@@ -2145,15 +2202,15 @@ public:
                      cldnn::input_layout("max_context_len", max_context_len_layout),
                      cldnn::input_layout("score_aggregation_window", score_aggregation_window_layout),
                      pa_prim,
-                     cldnn::reorder("output_data", cldnn::input_info("paged_attention", 0), cldnn::format::bfyx, cldnn::data_types::f16));
+                     cldnn::reorder("output_data", cldnn::input_info("paged_attention", 0), cldnn::format::bfyx, p.data_type));
 
         int output_idx = 1;
         if (p.scores_mode != ScoresMode::DISABLED) {
-            topology.add(cldnn::reorder("output_scores", cldnn::input_info("paged_attention", output_idx), cldnn::format::bfyx, cldnn::data_types::f16));
+            topology.add(cldnn::reorder("output_scores", cldnn::input_info("paged_attention", output_idx), cldnn::format::bfyx, p.data_type));
             output_idx++;
         }
         if (p.has_adaptive_rkv) {
-            topology.add(cldnn::reorder("output_diversity", cldnn::input_info("paged_attention", output_idx), cldnn::format::bfyx, cldnn::data_types::f16));
+            topology.add(cldnn::reorder("output_diversity", cldnn::input_info("paged_attention", output_idx), cldnn::format::bfyx, p.data_type));
         }
 
         {
@@ -2273,30 +2330,33 @@ public:
                  cldnn::memory::ptr scores_output_mem,
                  cldnn::memory::ptr diversity_output_mem,
                  std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
-        if (data_output_mem) {
-            ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
-            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
-            for (size_t i = 0; i < data_output_mem->count(); i++) {
-                ASSERT_NEAR(mem_ptr[i], std::get<0>(ref_data)[i], tolerance) << " at index=" << i;
+        auto compare_mem = [](cldnn::memory::ptr mem, const std::vector<ov::float16>& ref, float tol) {
+            ASSERT_EQ(mem->count(), ref.size());
+            if (mem->get_layout().data_type == cldnn::data_types::bf16) {
+                cldnn::mem_lock<ov::bfloat16, cldnn::mem_lock_type::read> mem_ptr(mem, tests::get_test_stream());
+                for (size_t i = 0; i < mem->count(); i++) {
+                    ASSERT_NEAR(static_cast<float>(mem_ptr[i]), static_cast<float>(ref[i]), tol) << " at index=" << i;
+                }
+            } else {
+                cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(mem, tests::get_test_stream());
+                for (size_t i = 0; i < mem->count(); i++) {
+                    ASSERT_NEAR(mem_ptr[i], ref[i], tol) << " at index=" << i;
+                }
             }
+        };
+
+        if (data_output_mem) {
+            compare_mem(data_output_mem, std::get<0>(ref_data), tolerance);
         }
 
         if (scores_output_mem) {
-            ASSERT_EQ(scores_output_mem->count(), std::get<1>(ref_data).size());
-            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(scores_output_mem, tests::get_test_stream());
-            for (size_t i = 0; i < scores_output_mem->count(); i++) {
-                ASSERT_NEAR(mem_ptr[i], std::get<1>(ref_data)[i], tolerance) << " at index=" << i;
-            }
+            compare_mem(scores_output_mem, std::get<1>(ref_data), tolerance);
         }
 
         if (diversity_output_mem) {
-            ASSERT_EQ(diversity_output_mem->count(), std::get<2>(ref_data).size());
-            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(diversity_output_mem, tests::get_test_stream());
             // Relaxed tolerance due to float32 (GPU) vs float16 (reference) accumulator difference
             float diversity_tolerance = tolerance * 10.0f;
-            for (size_t i = 0; i < diversity_output_mem->count(); i++) {
-                ASSERT_NEAR(mem_ptr[i], std::get<2>(ref_data)[i], diversity_tolerance) << " at index=" << i;
-            }
+            compare_mem(diversity_output_mem, std::get<2>(ref_data), diversity_tolerance);
         }
     }
 
@@ -3008,6 +3068,8 @@ struct paged_attention_test_params {
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
+
+    ov::element::Type data_type = ov::element::f16;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;

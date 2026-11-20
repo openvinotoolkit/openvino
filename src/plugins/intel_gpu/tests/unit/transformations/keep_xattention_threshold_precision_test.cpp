@@ -9,10 +9,17 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
+#include "plugin/transformations/paged_attention_bf16_fallback.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -118,4 +125,129 @@ TEST_F(TransformationTestsF, KeepXAttentionThresholdPrecisionMarksF16Threshold) 
     model_ref = make_ref_pa_model_with_precision_sensitive_threshold(ov::element::f16);
 
     manager.register_pass<KeepXAttentionThresholdPrecision>();
+}
+
+TEST_F(TransformationTestsF, KeepXAttentionThresholdPrecisionPreservesPagedAttentionInputsInBF16) {
+    using InputIdx = cldnn::paged_attention::PagedAttentionInputIdx;
+    constexpr auto lut_idx = InputIdx::ROTATION_TRIG_LUT;
+    constexpr auto threshold_idx = InputIdx::XATTENTION_THRESHOLD;
+    model = make_pa_model_with_threshold_et(ov::element::f16);
+    auto pa = get_pa_ext(model);
+    model->remove_parameter(ov::as_type_ptr<ov::op::v0::Parameter>(pa->get_input_node_shared_ptr(lut_idx)));
+    auto empty_lut = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, {});
+    pa->input(lut_idx).replace_source_output(empty_lut);
+    pa->validate_and_infer_types();
+
+    model_ref = model->clone();
+    auto ref_pa = get_pa_ext(model_ref);
+    auto threshold = ov::as_type_ptr<ov::op::v0::Parameter>(ref_pa->get_input_node_shared_ptr(threshold_idx));
+    for (const auto& param : model_ref->get_parameters()) {
+        if (param != threshold && param->get_element_type().is_real()) {
+            param->set_element_type(ov::element::bf16);
+        }
+    }
+    ov::mark_as_precision_sensitive(ref_pa->input(threshold_idx));
+    ov::disable_conversion(threshold, ov::element::f16, ov::element::bf16);
+    ov::disable_conversion(ref_pa->get_input_node_shared_ptr(lut_idx), ov::element::f32, ov::element::bf16);
+    model_ref->validate_nodes_and_infer_types();
+
+    manager.register_pass<KeepXAttentionThresholdPrecision>(true);
+    manager.register_pass<ov::pass::ConvertPrecision>(
+        precisions_map{{ov::element::f16, ov::element::bf16}, {ov::element::f32, ov::element::bf16}},
+        type_to_fuse_map{},
+        true,
+        true);
+}
+
+TEST_F(TransformationTestsF, PagedAttentionBF16FallbackUsesFP16AndKeepsBF16ModelOutput) {
+    using Idx = cldnn::paged_attention::PagedAttentionInputIdx;
+    model = make_pa_model_with_threshold_et(ov::element::f32);
+    auto pa = get_pa_ext(model);
+    for (const auto idx : {Idx::QUERY, Idx::KEY, Idx::VALUE, Idx::KEY_CACHE, Idx::VALUE_CACHE}) {
+        auto param = ov::as_type_ptr<ov::op::v0::Parameter>(pa->get_input_node_shared_ptr(idx));
+        param->set_element_type(idx == Idx::KEY_CACHE || idx == Idx::VALUE_CACHE ? ov::element::f32 : ov::element::bf16);
+    }
+    model->validate_nodes_and_infer_types();
+
+    model_ref = model->clone();
+    auto ref_pa = get_pa_ext(model_ref);
+    for (const auto idx : {Idx::KEY_CACHE, Idx::VALUE_CACHE}) {
+        auto param = ov::as_type_ptr<ov::op::v0::Parameter>(ref_pa->get_input_node_shared_ptr(idx));
+        param->set_element_type(ov::element::f16);
+        ov::enable_keep_const_precision(param);
+    }
+    for (const auto idx : {Idx::QUERY, Idx::KEY, Idx::VALUE}) {
+        ref_pa->input(idx).replace_source_output(
+            std::make_shared<ov::op::v0::Convert>(ref_pa->input_value(idx), ov::element::f16));
+    }
+    ref_pa->validate_and_infer_types();
+    model_ref->get_results().front()->input(0).replace_source_output(
+        std::make_shared<ov::op::v0::Convert>(ref_pa, ov::element::bf16));
+    model_ref->validate_nodes_and_infer_types();
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cache_config;
+    cache_config.inferencePrecision = ov::element::f16;
+    cache_config.keyCachePrecision = ov::element::f16;
+    cache_config.valueCachePrecision = ov::element::f16;
+    manager.register_pass<ov::pass::ConvertPagedAttnInputs>(
+        cache_config,
+        [](ov::element::Type, bool, size_t, int64_t&, int64_t&) {});
+    manager.register_pass<PagedAttentionBF16Fallback>();
+}
+
+TEST_F(TransformationTestsF, PagedAttentionBF16FallbackConvertsAuxInputsAndConnectedOutputs) {
+    using Idx = cldnn::paged_attention::PagedAttentionInputIdx;
+    model = make_pa_model_with_threshold_et(ov::element::f32);
+    auto pa = get_pa_ext(model);
+    for (const auto idx : {Idx::QUERY, Idx::KEY, Idx::VALUE, Idx::SCALE, Idx::ALIBI, Idx::SINKS}) {
+        auto param = ov::as_type_ptr<ov::op::v0::Parameter>(pa->get_input_node_shared_ptr(idx));
+        param->set_element_type(ov::element::bf16);
+    }
+    auto res1 = std::make_shared<ov::op::v0::Result>(pa->output(1));
+    auto res2 = std::make_shared<ov::op::v0::Result>(pa->output(2));
+    model->add_results({res1, res2});
+    model->validate_nodes_and_infer_types();
+
+    model_ref = model->clone();
+    auto ref_pa = get_pa_ext(model_ref);
+    for (const auto idx : {Idx::QUERY, Idx::KEY, Idx::VALUE, Idx::SCALE, Idx::ALIBI, Idx::SINKS}) {
+        ref_pa->input(idx).replace_source_output(
+            std::make_shared<ov::op::v0::Convert>(ref_pa->input_value(idx), ov::element::f16));
+    }
+    for (int i = 0; i < 3; ++i) {
+        ref_pa->set_out_type(i, ov::element::f16);
+    }
+    ref_pa->validate_and_infer_types();
+    for (size_t i = 0; i < 3; ++i) {
+        model_ref->get_results().at(i)->input(0).replace_source_output(
+            std::make_shared<ov::op::v0::Convert>(ref_pa->output(i), ov::element::bf16));
+    }
+    model_ref->validate_nodes_and_infer_types();
+
+    manager.register_pass<PagedAttentionBF16Fallback>();
+}
+
+TEST_F(TransformationTestsF, PagedAttentionBF16FallbackSkipsNativeBF16AndQuantizedCache) {
+    using Idx = cldnn::paged_attention::PagedAttentionInputIdx;
+    for (const auto cache_et : {ov::element::bf16, ov::element::i8}) {
+        model = make_pa_model_with_threshold_et(ov::element::f32);
+        auto pa = get_pa_ext(model);
+        for (const auto idx : {Idx::QUERY, Idx::KEY, Idx::VALUE}) {
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(pa->get_input_node_shared_ptr(idx));
+            param->set_element_type(ov::element::bf16);
+        }
+        for (const auto idx : {Idx::KEY_CACHE, Idx::VALUE_CACHE}) {
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(pa->get_input_node_shared_ptr(idx));
+            param->set_element_type(cache_et);
+        }
+        model->validate_nodes_and_infer_types();
+        model_ref = model->clone();
+
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<PagedAttentionBF16Fallback>();
+        pass_manager.run_passes(model);
+
+        auto res = compare_functions(model, model_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
 }
