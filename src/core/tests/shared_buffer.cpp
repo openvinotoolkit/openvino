@@ -691,7 +691,8 @@ TEST_F(SharedBufferTest, mutable_buffer_data_matches_shared_region) {
                                                                                         mock);
     EXPECT_EQ(buffer->data(), mock->data() + buf_offset);
     EXPECT_EQ(buffer->size(), buf_size);
-    EXPECT_EQ(buffer->get_properties().offset, 0u);
+    EXPECT_EQ(buffer->get_properties().offset, buf_offset);
+    EXPECT_EQ(buffer->get_id(), mock->get_id());
 }
 
 class MockBuffer final : public ov::util::IMutableBuffer {

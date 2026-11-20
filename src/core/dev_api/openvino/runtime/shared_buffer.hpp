@@ -26,17 +26,25 @@ public:
         return m_descriptor;
     }
 
+    const util::MemoryProperties& get_properties() const noexcept override {
+        return m_properties;
+    }
+
+    std::optional<uint64_t> get_id() const noexcept override {
+        return m_descriptor ? std::optional<uint64_t>{m_descriptor->get_id()} : std::nullopt;
+    }
+
     virtual ~SharedBufferBase() {
         m_aligned_buffer = nullptr;
         m_byte_size = 0;
     }
 
     virtual void hint_evict() noexcept override {
-        hint_evict(get_offset(), m_byte_size);
+        hint_evict(m_properties.offset, m_byte_size);
     }
 
     util::PrefetchToken hint_prefetch() noexcept override {
-        return hint_prefetch_async(get_offset(), m_byte_size);
+        return hint_prefetch_async(m_properties.offset, m_byte_size);
     }
 
 protected:
@@ -104,7 +112,8 @@ protected:
               } else {
                   return std::shared_ptr<IBufferDescriptor>{};
               }
-          }()} {
+          }()},
+          m_properties{m_descriptor ? m_descriptor->get_offset() : size_t{0}} {
         m_aligned_buffer = data;
         m_byte_size = size;
     }
@@ -117,14 +126,6 @@ protected:
         m_byte_size = size;
     }
 
-    size_t get_offset() const {
-        if (m_source_buffer) {
-            return reinterpret_cast<uintptr_t>(m_aligned_buffer) -
-                   reinterpret_cast<uintptr_t>(m_source_buffer->get_ptr());
-        }
-        return 0;
-    }
-
     // Owns the underlying data and keeps it alive for the lifetime of this buffer
     T m_shared_object;
     // Points to the root AlignedBuffer used for offset calculation and
@@ -132,6 +133,7 @@ protected:
     // may or may not reference the same data as m_shared_object
     std::shared_ptr<ov::AlignedBuffer> m_source_buffer;
     std::shared_ptr<IBufferDescriptor> m_descriptor;
+    util::MemoryProperties m_properties;
 };
 
 template <typename T>
