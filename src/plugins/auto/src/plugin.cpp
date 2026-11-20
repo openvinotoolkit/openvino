@@ -1437,7 +1437,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
-    // disable CPU_HELP and runtime fallback if model is stateful, including the single candidate case
+    // disable the startup helper and runtime fallback if model is stateful, including the single candidate case
     disable_startup_runtime_fallback();
 
     if (meta_devices.size() == 1) {

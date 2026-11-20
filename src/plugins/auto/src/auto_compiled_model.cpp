@@ -231,11 +231,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             }
         }
         ov::Any execution_devices;
-        auto get_execution_devices = [&execution_devices](std::string exe_devices_string) {
+        auto get_execution_devices = [&execution_devices](const ModelInstanceKey& instance) {
             std::vector<std::string> exe_devices = {};
-            if (exe_devices_string == "CPU_HELP")
-                exe_devices_string = "(CPU)";
-            exe_devices.push_back(exe_devices_string);
+            exe_devices.push_back(instance.is_startup_helper() ? "(" + instance.device + ")" : instance.device);
             execution_devices = decltype(ov::execution_devices)::value_type {exe_devices};
         };
         {
@@ -245,7 +243,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                     if (i == 0 && !m_scheduler->m_compile_context[CPU].compiled_model()._ptr) {
                         continue;
                     } else {
-                        get_execution_devices(m_scheduler->m_compile_context[i].m_worker_name);
+                        get_execution_devices(m_scheduler->m_compile_context[i].instance_key());
                         break;
                     }
                 }

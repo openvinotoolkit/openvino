@@ -257,3 +257,15 @@ TEST_F(DeviceExecutionContextTest, logSummaryIncludesReleasedWorkers) {
     ASSERT_TRUE(context.try_release());
     EXPECT_NO_THROW(context.log_summary("AUTO", start - std::chrono::seconds(1), true));
 }
+
+TEST_F(DeviceExecutionContextTest, startupHelperIsADifferentInstanceOfTheSameDevice) {
+    const ov::auto_plugin::ModelInstanceKey main{"CPU"};
+    const ov::auto_plugin::ModelInstanceKey helper{"CPU", ov::auto_plugin::ModelInstanceKey::Profile::StartupHelper};
+    EXPECT_NE(main, helper);
+    EXPECT_TRUE(main < helper || helper < main);
+    EXPECT_TRUE(helper.is_startup_helper());
+    EXPECT_FALSE(main.is_startup_helper());
+    DeviceExecutionContext context(helper);
+    EXPECT_EQ(context.name(), "CPU");
+    EXPECT_EQ(context.key(), helper);
+}

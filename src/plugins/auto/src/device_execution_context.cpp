@@ -12,12 +12,12 @@ SoCompiledModel AutoCompileContext::compiled_model() const {
     return device_context ? device_context->compiled_model() : SoCompiledModel{};
 }
 
-DeviceExecutionContext::DeviceExecutionContext(DeviceName name) : m_name(std::move(name)) {}
+DeviceExecutionContext::DeviceExecutionContext(ModelInstanceKey key) : m_key(std::move(key)) {}
 
 void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
                                         size_t num_requests,
                                         const WorkerSetup& setup_worker) {
-    OPENVINO_ASSERT(m_state != State::Ready, "Device ", m_name, " already has workers");
+    OPENVINO_ASSERT(m_state != State::Ready, "Device ", m_key.to_string(), " already has workers");
     exchange_model(model);
     try {
         m_workers.resize(num_requests);
@@ -99,8 +99,12 @@ const std::string& DeviceExecutionContext::last_error() const {
     return m_last_error;
 }
 
+const ModelInstanceKey& DeviceExecutionContext::key() const {
+    return m_key;
+}
+
 const DeviceName& DeviceExecutionContext::name() const {
-    return m_name;
+    return m_key.device;
 }
 
 SoCompiledModel DeviceExecutionContext::compiled_model() const {
@@ -179,11 +183,12 @@ void DeviceExecutionContext::log_summary(const std::string& log_tag,
         }
     }
     if (n >= 1) {
-        LOG_INFO_TAG("%s: first inference time:%lf ms", m_name.c_str(), first_infer_duration.count());
-        LOG_INFO_TAG("%s:infer:%lu", m_name.c_str(), static_cast<unsigned long>(count));
+        const auto name = m_key.to_string();
+        LOG_INFO_TAG("%s: first inference time:%lf ms", name.c_str(), first_infer_duration.count());
+        LOG_INFO_TAG("%s:infer:%lu", name.c_str(), static_cast<unsigned long>(count));
         std::chrono::duration<double, std::milli> durtation =
             busy_duration.count() > 0.0 ? busy_duration : req_all_end_times.back() - time;
-        LOG_INFO_TAG("%s:fps:%lf", m_name.c_str(), n * 1000 / durtation.count());
+        LOG_INFO_TAG("%s:fps:%lf", name.c_str(), n * 1000 / durtation.count());
     }
 }
 

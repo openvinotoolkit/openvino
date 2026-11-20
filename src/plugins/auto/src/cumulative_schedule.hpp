@@ -27,7 +27,7 @@ private:
     bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") override;
     SoCompiledModel try_to_compile_model(AutoCompileContext& context,
                                          const std::shared_ptr<ov::Model>& model) override;
-    bool select_other_device(const std::string& cur_dev_name) override;
+    bool select_other_device(const ModelInstanceKey& failed_instance) override;
 };
 } // namespace auto_plugin
 } // namespace ov

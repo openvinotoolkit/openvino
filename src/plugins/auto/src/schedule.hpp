@@ -38,30 +38,31 @@ protected:
     virtual void release_execution_slot() {}
     static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
                                   const DeviceName& preferred_device);
-    virtual void generate_workers(const std::string& device_name, const SoCompiledModel& compiled_model);
+    virtual void generate_workers(const ModelInstanceKey& key, const SoCompiledModel& compiled_model);
     // the result is empty if the compilation failed or the context reuses a ready device
     virtual SoCompiledModel try_to_compile_model(AutoCompileContext& context,
                                                  const std::shared_ptr<ov::Model>& model) = 0;
     virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
-    virtual bool select_other_device(const std::string& cur_dev_name) = 0;
+    // picks another device after an inference failed on the given instance
+    virtual bool select_other_device(const ModelInstanceKey& failed_instance) = 0;
     virtual SoCompiledModel wait_first_compiled_model_ready() = 0;
     std::string get_log_tag() const noexcept;
     // keeps the ports and the remote context of the first compiled model, the model itself is not kept
     void capture_hw_metadata(const SoCompiledModel& first_compiled_model);
     // add_device_context() is idempotent and must not be called once the scheduler serves requests
-    DeviceExecutionContext& add_device_context(const DeviceName& name);
-    // asserts if the device was not added by init()
-    DeviceExecutionContext& get_device_context(const DeviceName& name);
-    DeviceExecutionContext* find_device_context(const DeviceName& name);
-    // moves a successful compilation into the context named by m_worker_name (it differs from the device name only
-    // for CPU_HELP): creates the workers, and the context becomes the owner of the model
+    DeviceExecutionContext& add_device_context(const ModelInstanceKey& key);
+    // asserts if the instance was not added by init()
+    DeviceExecutionContext& get_device_context(const ModelInstanceKey& key);
+    DeviceExecutionContext* find_device_context(const ModelInstanceKey& key);
+    // moves a successful compilation into the context of context.instance_key(): creates the workers, and the
+    // context becomes the owner of the model
     void register_compile_result(AutoCompileContext& context, SoCompiledModel compiled_model);
     // records a failed compilation in the context of the device the compile context targets
     void mark_compile_failure(const AutoCompileContext& context, const std::string& reason);
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     TaskQueue                                                            m_infer_pipeline_tasks;
     // created by init() only, the map is never modified afterwards so the contexts keep their address
-    DeviceMap<std::unique_ptr<DeviceExecutionContext>>                   m_device_contexts;
+    std::map<ModelInstanceKey, std::unique_ptr<DeviceExecutionContext>>  m_device_contexts;
     // the context holding the compiled model that serves every request directly, null if requests are scheduled
     DeviceExecutionContext*                                              m_passthrough_context = nullptr;
     // set before compiling: the model is only held by its context, no worker is created for it

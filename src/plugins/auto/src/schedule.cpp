@@ -97,48 +97,39 @@ void Schedule::capture_hw_metadata(const SoCompiledModel& first_compiled_model) 
     m_context->m_hw_metadata = std::move(metadata);
 }
 
-DeviceExecutionContext& Schedule::add_device_context(const DeviceName& name) {
-    auto& context = m_device_contexts[name];
+DeviceExecutionContext& Schedule::add_device_context(const ModelInstanceKey& key) {
+    auto& context = m_device_contexts[key];
     if (!context) {
-        context = std::make_unique<DeviceExecutionContext>(name);
+        context = std::make_unique<DeviceExecutionContext>(key);
     }
     return *context;
 }
 
-DeviceExecutionContext& Schedule::get_device_context(const DeviceName& name) {
-    const auto context = find_device_context(name);
-    OPENVINO_ASSERT(context, get_log_tag(), ": device ", name, " has no execution context");
+DeviceExecutionContext& Schedule::get_device_context(const ModelInstanceKey& key) {
+    const auto context = find_device_context(key);
+    OPENVINO_ASSERT(context, get_log_tag(), ": device ", key.to_string(), " has no execution context");
     return *context;
 }
 
-DeviceExecutionContext* Schedule::find_device_context(const DeviceName& name) {
-    const auto iter = m_device_contexts.find(name);
+DeviceExecutionContext* Schedule::find_device_context(const ModelInstanceKey& key) {
+    const auto iter = m_device_contexts.find(key);
     return iter == m_device_contexts.end() ? nullptr : iter->second.get();
 }
 
 void Schedule::register_compile_result(AutoCompileContext& context, SoCompiledModel compiled_model) {
-    OPENVINO_ASSERT(compiled_model,
-                    get_log_tag(),
-                    ": no compiled model to register for ",
-                    context.m_worker_name);
-    generate_workers(context.m_worker_name, compiled_model);
-    context.m_device_context = &get_device_context(context.m_worker_name);
+    const auto key = context.instance_key();
+    OPENVINO_ASSERT(compiled_model, get_log_tag(), ": no compiled model to register for ", key.to_string());
+    generate_workers(key, compiled_model);
+    context.m_device_context = &get_device_context(key);
 }
 
 void Schedule::mark_compile_failure(const AutoCompileContext& context, const std::string& reason) {
-    const auto& name = context.m_worker_name.empty() ? context.m_device_info.device_name : context.m_worker_name;
-    if (auto* device_context = find_device_context(name)) {
+    if (auto* device_context = find_device_context(context.instance_key())) {
         device_context->mark_faulted(reason);
     }
 }
-void Schedule::generate_workers(const std::string& device_name, const SoCompiledModel& compiled_model) {
-    std::string real_devicename;
-    if (device_name == "CPU_HELP") {
-        real_devicename = "CPU";
-    } else {
-        real_devicename = device_name;
-    }
-    auto it_numrequests = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(real_devicename, m_context->m_device_priorities, true);
+void Schedule::generate_workers(const ModelInstanceKey& key, const SoCompiledModel& compiled_model) {
+    auto it_numrequests = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(key.device, m_context->m_device_priorities, true);
     unsigned int optimal_num = 0;
     try {
         optimal_num = compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>();
@@ -154,7 +145,7 @@ void Schedule::generate_workers(const std::string& device_name, const SoCompiled
         // inference is serialized per compiled model in this mode, so a single worker per device is enough and it
         // guarantees the device carries no other inference when the next target device is re-selected
         num_requests = 1;
-        LOG_DEBUG_TAG("device:%s, worker infer request number:%d", device_name.c_str(), static_cast<int>(num_requests));
+        LOG_DEBUG_TAG("device:%s, worker infer request number:%d", key.to_string().c_str(), static_cast<int>(num_requests));
     } else {
         num_requests = (num_requests == 1) ? 2 : num_requests;
     }
@@ -164,7 +155,7 @@ void Schedule::generate_workers(const std::string& device_name, const SoCompiled
     auto setup_worker = [this](DeviceExecutionContext& context, WorkerInferRequest& worker_request) {
         auto* worker_request_ptr = &worker_request;
         auto* device_context = &context;
-        worker_request.m_is_cpu_helper = context.name() == "CPU_HELP";
+        worker_request.m_is_cpu_helper = context.key().is_startup_helper();
         worker_request.m_inferrequest->set_callback(
             [worker_request_ptr, this, device_context](std::exception_ptr exception_ptr) mutable {
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, device_context->idle_workers()};
@@ -179,7 +170,7 @@ void Schedule::generate_workers(const std::string& device_name, const SoCompiled
                         bool select_other_device_flag = false;
                         // select other device
                         try {
-                            select_other_device_flag = select_other_device(device_context->name());
+                            select_other_device_flag = select_other_device(device_context->key());
                         } catch (const ov::Exception&) {
                             select_other_device_flag = false;
                         }
@@ -223,7 +214,7 @@ void Schedule::generate_workers(const std::string& device_name, const SoCompiled
                 }
             });
     };
-    get_device_context(device_name).make_ready(compiled_model, num_requests, setup_worker);
+    get_device_context(key).make_ready(compiled_model, num_requests, setup_worker);
 }
 
 Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, WorkerInferRequest** worker_infer_request) {

@@ -30,7 +30,7 @@ std::string CumuSchedule::schedule_to_next_device(const std::vector<DeviceInform
     return selected_device_name;
 }
 
-bool CumuSchedule::select_other_device(const std::string& cur_dev_name) {
+bool CumuSchedule::select_other_device(const ModelInstanceKey& failed_instance) {
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
 
@@ -47,7 +47,7 @@ bool CumuSchedule::select_other_device(const std::string& cur_dev_name) {
         };
 
         if (m_p_ctput_loadcontext) {
-            return remove_inferfail_device(cur_dev_name);
+            return remove_inferfail_device(failed_instance.device);
         }
         return false;
     }
@@ -89,9 +89,6 @@ void CumuSchedule::init() {
                                 const std::shared_ptr<ov::Model>& model) {
         auto compiled_model = try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
-            if (context_ptr->m_worker_name.empty()) {
-                context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
-            }
             register_compile_result(*context_ptr, std::move(compiled_model));
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]

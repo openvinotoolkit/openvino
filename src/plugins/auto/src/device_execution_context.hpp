@@ -35,7 +35,7 @@ public:
     // binds the completion callback of one worker, it must capture the context rather than a queue pointer
     using WorkerSetup = std::function<void(DeviceExecutionContext&, WorkerInferRequest&)>;
 
-    explicit DeviceExecutionContext(DeviceName name);
+    explicit DeviceExecutionContext(ModelInstanceKey key);
     DeviceExecutionContext(const DeviceExecutionContext&) = delete;
     DeviceExecutionContext& operator=(const DeviceExecutionContext&) = delete;
 
@@ -54,6 +54,8 @@ public:
     State state() const;
     bool is_ready() const;
     bool is_kept_alive() const;
+    const ModelInstanceKey& key() const;
+    // the device the instance runs on
     const DeviceName& name() const;
     // reason of the latest compile failure, empty unless Faulted
     const std::string& last_error() const;
@@ -76,7 +78,7 @@ private:
     // swaps the model handle and returns the previous one, so that it is destroyed outside of the lock
     SoCompiledModel exchange_model(SoCompiledModel model);
 
-    const DeviceName m_name;
+    const ModelInstanceKey m_key;
     bool m_keep_alive = false;
     std::atomic<State> m_state{State::Unloaded};
     std::string m_last_error;

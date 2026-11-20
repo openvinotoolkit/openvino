@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <tuple>
 
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -42,6 +43,33 @@ using Pipeline = std::vector<Stage>;
 
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
+
+// Identifies one compiled model owned by AUTO. The startup helper is a second model on the CPU, compiled with a
+// latency config and without cache, so it is a different instance than the CPU model that serves as a device.
+struct ModelInstanceKey {
+    enum class Profile { Main, StartupHelper };
+    ModelInstanceKey(DeviceName device_name = {}, Profile instance_profile = Profile::Main)
+        : device(std::move(device_name)),
+          profile(instance_profile) {}
+    ModelInstanceKey(const char* device_name) : ModelInstanceKey(DeviceName(device_name)) {}
+    bool is_startup_helper() const {
+        return profile == Profile::StartupHelper;
+    }
+    std::string to_string() const {
+        return is_startup_helper() ? device + "(startup helper)" : device;
+    }
+    bool operator==(const ModelInstanceKey& other) const {
+        return device == other.device && profile == other.profile;
+    }
+    bool operator!=(const ModelInstanceKey& other) const {
+        return !(*this == other);
+    }
+    bool operator<(const ModelInstanceKey& other) const {
+        return std::tie(device, profile) < std::tie(other.device, other.profile);
+    }
+    DeviceName device;
+    Profile profile;
+};
 // Bell to do, check if needed, or just use immediate exectutor is enough
 struct AutoImmediateExecutor : public ov::threading::ITaskExecutor {
 public:
@@ -298,11 +326,15 @@ struct AutoCompileContext {
     std::string m_model_precision;
     std::string m_err_message;
     ov::threading::Task m_task;
-    std::string m_worker_name = "";
+    ModelInstanceKey::Profile m_profile = ModelInstanceKey::Profile::Main;
     // the priority registration of m_device_info has already been dropped by the caller
     bool m_priority_released = false;
     // the compiled model of the device context, empty before the compile result was handed over
     SoCompiledModel compiled_model() const;
+    // the instance the compilation result goes to; follows m_device_info when the compilation falls back
+    ModelInstanceKey instance_key() const {
+        return {m_device_info.device_name, m_profile};
+    }
 };
 
 enum AutoCompileContextIndex {
