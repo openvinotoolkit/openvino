@@ -17,6 +17,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "llm_test_helpers.hpp"
 #include "npuw_transformations/relayout_token_major.hpp"
+#include "npuw_transformations/untie_lm_head_weights.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -492,6 +493,12 @@ TEST(PARelayoutTokenMajor, LeavesTheOneTokenVariantAlone) {
     EXPECT_EQ(model->get_ops().size(), ops);
 }
 
+void untie_lm_head_weights(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::npuw::UntieLMHeadWeights>();
+    manager.run_passes(model);
+}
+
 // Tied embeddings: one decompressed table feeds the embedding Gather and the
 // LM head MatMul.
 std::shared_ptr<ov::Model> make_tied_embedding_model() {
@@ -517,10 +524,10 @@ std::shared_ptr<ov::Model> make_tied_embedding_model() {
     return std::make_shared<ov::Model>(ov::OutputVector{embed, lm_head}, ov::ParameterVector{ids, hidden});
 }
 
-TEST(PAUntieMatMulWeights, GivesTheLMHeadItsOwnDecompression) {
+TEST(PAUntieLMHeadWeights, GivesTheLMHeadItsOwnDecompression) {
     const auto reference = make_tied_embedding_model();
     auto model = reference->clone();
-    ov::npuw::pa::untie_matmul_weights(model);
+    untie_lm_head_weights(model);
 
     std::shared_ptr<ov::Node> lm_head, embed;
     for (const auto& node : model->get_ordered_ops()) {
@@ -542,7 +549,7 @@ TEST(PAUntieMatMulWeights, GivesTheLMHeadItsOwnDecompression) {
 
     // Untying is idempotent and keeps the results.
     const auto ops = model->get_ops().size();
-    ov::npuw::pa::untie_matmul_weights(model);
+    untie_lm_head_weights(model);
     EXPECT_EQ(model->get_ops().size(), ops);
 
     ov::TensorVector inputs = {ov::Tensor(ov::element::i64, {4}), ov::Tensor(ov::element::f32, {2, 16})};

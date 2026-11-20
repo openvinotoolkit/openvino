@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <functional>
 #include <map>
 #include <optional>
 #include <sstream>
@@ -21,9 +20,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/relayout_token_major.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/util/op_types.hpp"
+#include "npuw_transformations/untie_lm_head_weights.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -126,8 +123,8 @@ std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov:
     auto derived = base_model->clone();
     derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}},
                       {"position_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}}});
-    ov::npuw::pa::untie_matmul_weights(derived);
-    ov::pass::Manager manager("PA variant relayout");
+    ov::pass::Manager manager("PA variant");
+    manager.register_pass<ov::npuw::UntieLMHeadWeights>();
     manager.register_pass<ov::npuw::RelayoutTokenMajor>(chunk_size);
     manager.run_passes(derived);
     derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(chunk_size));
@@ -153,68 +150,6 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
 }
 
 }  // anonymous namespace
-
-void ov::npuw::pa::untie_matmul_weights(const std::shared_ptr<ov::Model>& model) {
-    // True when `out` is computed from constants alone.
-    std::function<bool(const ov::Output<ov::Node>&)> from_constants = [&](const ov::Output<ov::Node>& out) {
-        const auto node = out.get_node_shared_ptr();
-        if (ov::op::util::is_constant(node)) {
-            return true;
-        }
-        if (ov::op::util::is_parameter(node) || node->get_input_size() == 0) {
-            return false;
-        }
-        for (const auto& input : node->input_values()) {
-            if (!from_constants(input)) {
-                return false;
-            }
-        }
-        return true;
-    };
-    // True when an op on the way to the constants has other consumers.
-    std::function<bool(const ov::Output<ov::Node>&)> shared = [&](const ov::Output<ov::Node>& out) {
-        const auto node = out.get_node_shared_ptr();
-        if (ov::op::util::is_constant(node)) {
-            return false;
-        }
-        if (out.get_target_inputs().size() > 1) {
-            return true;
-        }
-        for (const auto& input : node->input_values()) {
-            if (shared(input)) {
-                return true;
-            }
-        }
-        return false;
-    };
-    // Copies the ops above the constants; the constants themselves are shared.
-    std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&)> copy = [&](const ov::Output<ov::Node>& out) {
-        const auto node = out.get_node_shared_ptr();
-        if (ov::op::util::is_constant(node)) {
-            return out;
-        }
-        ov::OutputVector inputs;
-        for (const auto& input : node->input_values()) {
-            inputs.push_back(copy(input));
-        }
-        auto copied = node->clone_with_new_inputs(inputs);
-        copied->set_friendly_name(node->get_friendly_name() + "/untied");
-        ov::copy_runtime_info(node, copied);
-        return copied->output(out.get_index());
-    };
-
-    for (const auto& node : model->get_ordered_ops()) {
-        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
-        if (!matmul) {
-            continue;
-        }
-        const auto weights = matmul->input_value(1);
-        if (!from_constants(weights) || !shared(weights)) {
-            continue;
-        }
-        matmul->input(1).replace_source_output(copy(weights));
-    }
-}
 
 ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
                                                           const std::string& pa_device,
