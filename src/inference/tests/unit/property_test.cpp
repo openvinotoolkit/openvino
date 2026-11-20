@@ -318,11 +318,11 @@ TEST(PropertyQoS, NameAndMutability) {
 
 TEST(PropertyQoS, PrintAndParseAllLevels) {
     const std::vector<std::pair<ov::QoS, std::string>> levels = {{ov::QoS::DEFAULT, "DEFAULT"},
-                                                                  {ov::QoS::HIGH, "HIGH"},
-                                                                  {ov::QoS::MEDIUM, "MEDIUM"},
-                                                                  {ov::QoS::LOW, "LOW"},
-                                                                  {ov::QoS::UTILITY, "UTILITY"},
-                                                                  {ov::QoS::ECO, "ECO"}};
+                                                                 {ov::QoS::HIGH, "HIGH"},
+                                                                 {ov::QoS::MEDIUM, "MEDIUM"},
+                                                                 {ov::QoS::LOW, "LOW"},
+                                                                 {ov::QoS::UTILITY, "UTILITY"},
+                                                                 {ov::QoS::ECO, "ECO"}};
     for (const auto& [level, name] : levels) {
         std::stringstream out;
         out << level;
