@@ -184,7 +184,7 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 // Scale always occupies the fixed SCALE input slot (index 4) of the SDPA primitive,
 // regardless of whether the attention-mask input is actually used at runtime
 // (a placeholder attn_mask input is still present whenever scale is provided).
-// SCALE_TYPE is the storage type (ushort bits for bf16): read the scale with DECODE_INPUT4_COMPUTE_TYPE.
+// bf16 scales are stored as ushort: read them with DECODE_INPUT4_COMPUTE_TYPE.
 #define SCALE_TYPE INPUT4_TYPE
 #endif
 
@@ -1052,16 +1052,8 @@ KERNEL(sdpa_opt)(
 #define APPLY_SCALES_TO_QUERY 1
 #endif
 
-// Type of the Q*K^T scores. The regular path keeps them in SOFTMAX_ACCUMULATOR_TYPE until SoftMax, as the single-token
-// kernel does (bf16 inputs already compute in f32): SoftMax depends on the absolute difference between scores, which
-// f16 cannot hold once the scores grow (its ulp is 8 for |score| >= 8192), and the scores can leave the f16 range.
-// The FlashAttention-2 path rounds the scores to OUTPUT_COMPUTE_TYPE when it stores them to SLM, so f32 accumulation
-// cannot make it exact, and it keeps the INPUT0_COMPUTE_TYPE accumulation. FlashAttention-2 is the default for LLMs,
-// whose prefill runs this kernel on GPUs without systolic arrays.
-// QK_ACC_MAD(key, lane, query, acc) adds key[lane] * query to acc, where key holds one head element per lane.
-// The scores are multiplied by a QK_SCALE_TYPE scale and the mask by its reciprocal. FlashAttention-2 keeps
-// OUTPUT_COMPUTE_TYPE: with an f32 output, an f16 scale would be rounded before the multiplication and change the
-// scores, and the f16 reciprocal of a scale below 2^-16 would overflow.
+// Q*K^T score type: f32 until SoftMax, since f16 loses the differences between large scores. FlashAttention-2 rounds
+// the scores to OUTPUT_COMPUTE_TYPE in SLM anyway and keeps INPUT0_COMPUTE_TYPE.
 #if IS_FLASHATTEN_V2
 #define QK_ACC_TYPE INPUT0_COMPUTE_TYPE
 #define TO_QK_ACC_TYPE(val) TO_INPUT0_COMPUTE_TYPE(val)
@@ -1082,7 +1074,7 @@ KERNEL(sdpa_opt)(
 #define QK_ACC_VAL_MAX SOFTMAX_ACCUMULATOR_VAL_MAX
 #define QK_ACC_MIN_FUNC SOFTMAX_ACCUMULATOR_MIN_FUNC
 #define QK_ACC_MAX_FUNC SOFTMAX_ACCUMULATOR_MAX_FUNC
-// Convert the key before the broadcast: one conversion per key row instead of one per multiply-add.
+// Convert before the broadcast: once per key row instead of once per multiply-add.
 #define QK_ACC_MAD(key, lane, query, acc) mad(sub_group_broadcast(TO_SOFTMAX_ACCUMULATOR_TYPE(key), lane), TO_SOFTMAX_ACCUMULATOR_TYPE(query), acc)
 #define QK_SCALE_TYPE SOFTMAX_ACCUMULATOR_TYPE
 #define TO_QK_SCALE_TYPE(val) TO_SOFTMAX_ACCUMULATOR_TYPE(val)
@@ -1182,7 +1174,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 
     // Apply scale to attn_mask
 #if IS_CAUSAL || HAS_ATTN_MASK_INPUT || defined(STATIC_SCALAR_ATTN_MASK_VALUE)
-    // One element at a time: OpenCL does not multiply an f16 vector by an f32 scalar.
+    // Per element: an f16 vector cannot be multiplied by an f32 scalar.
     unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
         mask_vec[i] = TO_QK_ACC_TYPE(mask_vec[i] * scale_val);
     }
@@ -2099,9 +2091,7 @@ KERNEL(sdpa_opt)(
                         qk_acc[i] += alibi_slopes[num_heads_dim] * alibi_val;
 #endif
 
-                        // Clamp to the QK_ACC_TYPE range, which also turns the NaN mask of keys past the sequence end into
-                        // the minimum. f32 scores must not be clamped to the f16 range: scores beyond it would tie, and
-                        // scores below -65504 would tie with those masked keys.
+                        // Also turns the NaN mask of keys past the sequence end into the minimum.
                         qk_acc[i] = QK_ACC_MIN_FUNC(QK_ACC_MAX_FUNC(qk_acc[i], QK_ACC_VAL_MIN), QK_ACC_VAL_MAX);
 #if IS_CAUSAL
                     } else {
@@ -2862,7 +2852,6 @@ KERNEL(sdpa_opt)(
     }
 }
 
-// The Q*K^T type depends on IS_FLASHATTEN_V2, so do not leak it into other kernels compiled in the same batch.
 #undef MASK_VECTOR_TYPE
 #undef QK_ACC_MAD
 #undef QK_SCALE_VAL_ONE
