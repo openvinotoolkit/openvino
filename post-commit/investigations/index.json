@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 151,
+  "total": 152,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1516,6 +1516,15 @@
       "category": "Network",
       "signature_hash": "1808e665f1f70825",
       "commit_sha": "e8d09770824e05d1a36fcb5d67fe83edff11921a"
+    },
+    {
+      "investigation_id": "2026-11-20-20-33-54-728-44799752720",
+      "run_id": "44799752720",
+      "timestamp": "2026-11-20T20:33:54Z",
+      "title": "smoke_ScatterElementsUpdateOutOfRangeIndices and smoke_GatherND8OutOfRangeIndices tests fail - expected ov::Exception not thrown",
+      "category": "Code Issue",
+      "signature_hash": "c679b29f4fb1c2b4",
+      "commit_sha": "1073978ace364aae0f729a6128cde21ffaea987f"
     }
   ]
 }

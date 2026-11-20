@@ -4,16 +4,19 @@
   "signature_hash": "c679b29f4fb1c2b4",
   "title": "smoke_ScatterElementsUpdateOutOfRangeIndices and smoke_GatherND8OutOfRangeIndices tests fail - expected ov::Exception not thrown",
   "category": "Code Issue",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-20T11:47:11Z",
-  "last_seen": "2026-11-20T11:47:11Z",
+  "last_seen": "2026-11-20T20:33:54Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44799752720",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44713158000"
   ],
   "affected_commits": [
+    "1073978ace364aae0f729a6128cde21ffaea987f",
     "0c3ff7aa2378cc512ee2e87856b5c97cb12c8e65"
   ],
   "recent_timestamps": [
+    "2026-11-20T20:33:54Z",
     "2026-11-20T11:47:11Z"
   ]
 }
