@@ -247,6 +247,9 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
 
     // Weights were already reordered for the impl the main program selected; keep the internal program on the same impl type.
     // A non-empty force_implementations map would silently re-enable optimize_data, so pin it on the nodes instead.
+    // primitive_impl only exposes is_onednn()/is_cpu() (no general impl_types getter), and convolution currently only
+    // ever selects ocl or onednn, so is_onednn() fully determines the impl type here; revisit if a non-oneDNN,
+    // non-OCL convolution impl (e.g. cm/sycl) is ever registered.
     for (const auto& node : nodes) {
         if (node->is_type<convolution>() && node->get_selected_impl() != nullptr) {
             node->set_forced_impl_type(node->get_selected_impl()->is_onednn() ? impl_types::onednn : impl_types::ocl);
@@ -264,6 +267,7 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
         }
     }
     cf_config.set_property(ov::intel_gpu::force_implementations(cf_forcing_map));
+    // Only takes effect when cf_forcing_map ends up empty above; otherwise finalize() below forces optimize_data back to true.
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     cf_config.finalize(engine);

@@ -240,6 +240,9 @@ TEST(propagate_constants, constant_padded_conv_chain_matches_fp64_with_runtime_o
     set_values(second_weights, second_weights_values);
     set_values(runtime_weights, runtime_weights_values);
 
+    // runtime_conv is intentionally on its own branch (fed by the non-constant "runtime_input"), not downstream of
+    // constant_conv_2: it must stay outside propagate_constants' internal program so this test also covers that the
+    // internal-program's cloned force_implementations map is filtered to the internal graph's own node ids.
     topology topology(
         input_layout("runtime_input", input_tensor_layout),
         data("runtime_weights", runtime_weights),
@@ -260,6 +263,11 @@ TEST(propagate_constants, constant_padded_conv_chain_matches_fp64_with_runtime_o
         ov::intel_gpu::ImplForcingMap{{"runtime_conv", runtime_conv_impl}}));
 
     network network(engine, topology, config);
+    // Guard against a false-positive pass if implementation forcing were ignored/fell back for this configuration.
+    auto runtime_conv_impl_inst = network.get_primitive("runtime_conv")->get_impl();
+    ASSERT_NE(runtime_conv_impl_inst, nullptr);
+    ASSERT_TRUE(runtime_conv_impl_inst->is_onednn()) << "runtime_conv was expected to run with oneDNN due to implementation forcing";
+
     network.set_input_data("runtime_input", runtime_input);
     auto outputs = network.execute();
     ASSERT_NE(outputs.find("runtime_conv"), outputs.end());
