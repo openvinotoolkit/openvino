@@ -2118,7 +2118,125 @@ void checkSamplesWereComputed(const ov::Tensor& tensor, const size_t batch) {
     }
 }
 
+// Runs a chain of requests (the output of a request is the input of the next one) several times, changing the batch
+// size between the runs. Request i adds '1' to each element, so output i must be (value + i + 1).
+// - reshapeInPlace == false: new tensors are created and set on every request for each batch size.
+// - reshapeInPlace == true: the tensors are set once and then reshaped with set_shape, without calling the setters.
+void runSequentialChainWithChangingBatch(ov::CompiledModel& compiledModel,
+                                         ov::RemoteContext& context,
+                                         const std::vector<size_t>& batches,
+                                         const bool reshapeInPlace) {
+    constexpr uint32_t inferences = 8;
+    constexpr size_t maxBatch = 10;
+    const Shape sampleShape{2, 64, 64};
+    auto makeShape = [&](const size_t batch) {
+        Shape shape{batch};
+        shape.insert(shape.end(), sampleShape.begin(), sampleShape.end());
+        return shape;
+    };
+
+    std::vector<ov::InferRequest> requests(inferences);
+    // tensors[0] is the input of the first request, tensors[i + 1] is the output of the request i
+    std::vector<ov::Tensor> tensors(inferences + 1);
+    for (auto& request : requests) {
+        request = compiledModel.create_infer_request();
+    }
+
+    auto bindTensors = [&]() {
+        for (uint32_t i = 0; i < inferences; i++) {
+            requests[i].set_input_tensor(tensors[i]);
+            requests[i].set_output_tensor(tensors[i + 1]);
+        }
+    };
+
+    if (reshapeInPlace) {
+        // Allocated once with the max batch, so the memory (and the pointers) stay the same while the shape changes
+        for (auto& tensor : tensors) {
+            tensor = context.create_host_tensor(ov::element::f32, makeShape(maxBatch));
+        }
+        for (auto& tensor : tensors) {
+            tensor.set_shape(makeShape(batches.front()));
+        }
+        bindTensors();
+    }
+
+    for (size_t run = 0; run < batches.size(); ++run) {
+        const size_t batch = batches[run];
+        const auto shape = makeShape(batch);
+        if (reshapeInPlace) {
+            for (auto& tensor : tensors) {
+                tensor.set_shape(shape);
+            }
+        } else {
+            for (auto& tensor : tensors) {
+                tensor = context.create_host_tensor(ov::element::f32, shape);
+            }
+            bindTensors();
+        }
+
+        const float value = static_cast<float>(run);
+        auto* inputData = tensors[0].data<float>();
+        std::fill(inputData, inputData + tensors[0].get_size(), value);
+
+        for (uint32_t i = 0; i < inferences; i++) {
+            requests[i].start_async();  // Adds '1' to each element
+        }
+        requests[inferences - 1].wait();
+
+        for (uint32_t i = 0; i < inferences; i++) {
+            const auto& output = tensors[i + 1];
+            ASSERT_EQ(output.get_shape(), shape) << "Run=" << run << " Output=" << i;
+            const auto* outputData = output.data<float>();
+            const float expected = value + static_cast<float>(i) + 1.f;
+            for (size_t j = 0; j < output.get_size(); ++j) {
+                ASSERT_NEAR(outputData[j], expected, 1e-5)
+                    << "Run=" << run << " Batch=" << batch << " Output=" << i << " Expected=" << expected
+                    << ", actual=" << outputData[j] << " for index " << j;
+            }
+        }
+    }
+}
+
 }  // namespace
+
+// RUN_INFERENCES_SEQUENTIALLY with a dynamic batch handled by the plugin, changing the batch size between the runs by
+// setting new tensors. Only for the drivers that support running the inferences sequentially.
+TEST_P(DynamicBatchingTests, DynamicBatchRunsSeqChangingBatchSetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!isRunInferencesSequentiallySupported()) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    auto context = core->get_default_context(target_device);
+
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+
+    ASSERT_NO_FATAL_FAILURE(
+        runSequentialChainWithChangingBatch(compiledModel, context, {4, 2, 7, 7, 1, 10, 3, 5, 8, 4}, false));
+}
+
+// Same, but the tensors are set once and reshaped with set_shape, without calling the setters again
+TEST_P(DynamicBatchingTests, DynamicBatchRunsSeqChangingBatchSetShape) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!isRunInferencesSequentiallySupported()) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    auto context = core->get_default_context(target_device);
+
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+
+    ASSERT_NO_FATAL_FAILURE(
+        runSequentialChainWithChangingBatch(compiledModel, context, {4, 2, 7, 7, 1, 10, 3, 5, 8, 4}, true));
+}
 
 // The same tensor object is reshaped (its batch changes) without calling set_tensor again. The plugin must detect the
 // new batch size before running the inference.
