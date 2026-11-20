@@ -1021,11 +1021,9 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         return false;
     }
 
-    if (!ov::with_cpu_x86_avx2()) {
-        // Capability check: if AVX2 is not available, NSPC convolution is not supported.
-        // Returning false allows higher-level logic to pick a supported implementation/layout.
-        return false;
-    }
+    // Capability check: if AVX2 is not available, NSPC convolution is not supported.
+    // Returning false allows higher-level logic to pick a supported implementation/layout.
+    return ov::with_cpu_x86_avx2();
 
     return true;
 }
