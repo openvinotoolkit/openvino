@@ -517,4 +517,65 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
                          ActivationsScalingSDPAMaskWithPositionBias,
                          ::testing::Bool(),
                          ActivationsScalingSDPAMaskWithPositionBias::getTestCaseName);
+
+// The product of two scaled MatMul outputs carries the scale-up ASF^2 after the activations scaling LPT run
+// (MultiplyPartialTransformation). It has to move through the residual Add down to the RMS, which absorbs it: the
+// product exceeds the f16 range at full magnitude. With ASF 16 the composed scale-up is 256, so a bound on the scale of
+// the branches moved through an Add would apply it in front of the Add.
+//
+//               input
+//          /      |      \
+//      MatMul  MatMul  MatMul
+//         |       \      /
+//         |       Multiply
+//          \        /
+//             Add
+//              |
+//             RMS
+class ActivationsScalingComposedScaleUp : public ov::test::SubgraphBaseTest {
+protected:
+    static constexpr int64_t hidden_size = 64;
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        init_input_shapes({{{-1, -1, hidden_size}, {{1, 8, hidden_size}}}});
+        inType = outType = ov::element::f32;
+        abs_threshold = 0.02f;
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+        configuration.insert(ov::hint::activations_scale_factor(16.f));
+
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        int seed = 1;
+        auto linear = [&](const ov::Output<ov::Node>& data) {
+            const auto weights =
+                ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, ov::Shape{hidden_size, hidden_size}, -100.f, 100.f, seed++);
+            return std::make_shared<ov::op::v0::MatMul>(data, std::make_shared<ov::op::v0::Constant>(weights), false, true);
+        };
+        const auto residual = linear(input);
+        const auto product = std::make_shared<ov::op::v1::Multiply>(linear(input), linear(input));
+        const auto sum = std::make_shared<ov::op::v1::Add>(residual, product);
+
+        const auto power = std::make_shared<ov::op::v1::Power>(sum, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f}));
+        const auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), true);
+        const auto eps = std::make_shared<ov::op::v1::Add>(mean, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f}));
+        const auto reciprocal =
+            std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f}), std::make_shared<ov::op::v0::Sqrt>(eps));
+        const auto gamma = ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, ov::Shape{hidden_size}, 0.5f, 1.5f, seed++);
+        const auto rms =
+            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Constant>(gamma), std::make_shared<ov::op::v1::Multiply>(sum, reciprocal));
+
+        function = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input}, "ActivationsScalingComposedScaleUp");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& model_inputs = function->inputs();
+        inputs.insert({model_inputs[0].get_node_shared_ptr(),
+                       ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, target_input_static_shapes[0], -1.f, 1.f, 1)});
+    }
+};
+
+TEST_F(ActivationsScalingComposedScaleUp, smoke_Inference) {
+    run();
+}
 } // namespace
