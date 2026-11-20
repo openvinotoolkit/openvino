@@ -13,6 +13,7 @@
 #include <iostream>
 #include <optional>
 #include <sstream>
+#include <string_view>
 #include <typeinfo>
 #include <unordered_set>
 #include <utility>
@@ -295,6 +296,20 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     return {config, stage};
 }
 
+std::string_view gqa_case_name(ov::npuw::GQACompiledModel::Case gqa_case) {
+    switch (gqa_case) {
+    case ov::npuw::GQACompiledModel::Case::V0:
+        return "V0";
+    case ov::npuw::GQACompiledModel::Case::V1:
+        return "V1";
+    case ov::npuw::GQACompiledModel::Case::V2:
+        return "V2";
+    case ov::npuw::GQACompiledModel::Case::Unknown:
+        break;
+    }
+    return "Unknown";
+}
+
 std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {
     if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
         return it->second.as<ov::EncryptionCallbacks>().encrypt;
@@ -319,7 +334,9 @@ std::function<std::string(const std::string&)> get_encrypt_callback(const ov::An
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto [prepared_properties, stage] = with_gqa_defaults(model, properties, identify_case(model));
+    const auto gqa_case = identify_case(model);
+    LOG_INFO("Detected GQA model version: " << gqa_case_name(gqa_case));
+    auto [prepared_properties, stage] = with_gqa_defaults(model, properties, gqa_case);
 
     static std::atomic<std::size_t> mcount{0u};
 
@@ -477,8 +494,8 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     // Each matched name must also be forward-reachable to the GQA op (not just same-named).
     const auto* gqa_node = gqa.get();
 
-    // V1 uses `position_ids` for RoPE; V0/V2 use `past_seq_len`/`total_seq_len` instead.
-    // V2 is further distinguished by 2-bit group-quantized (u2) weights.
+    // V2 is identified by 2-bit group-quantized (u2) weights, whatever its position signal.
+    // Otherwise V1 uses `position_ids` for RoPE and V0 uses `past_seq_len`/`total_seq_len`.
     bool has_activation_input = false;
     bool has_position_ids = false;
     bool has_seq_len_signal = false;
@@ -510,10 +527,10 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
         return Case::Unknown;
     }
 
-    if (has_position_ids) {
-        return Case::V1;
+    if (has_2bit_group_quantized_weights(model)) {
+        return Case::V2;
     }
-    return has_2bit_group_quantized_weights(model) ? Case::V2 : Case::V0;
+    return has_position_ids ? Case::V1 : Case::V0;
 }
 
 bool ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(const std::shared_ptr<const ov::Model>& model) {
