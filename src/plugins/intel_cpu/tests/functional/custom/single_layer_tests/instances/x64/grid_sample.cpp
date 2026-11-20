@@ -69,7 +69,6 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_2,
                                             ::testing::Values(additionalConfigX64[1])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
-// 5D (volumetric) GridSample is executed by the reference fallback.
 INSTANTIATE_TEST_SUITE_P(
     x64_smoke_5D,
     GridSampleLayerTestCPU,

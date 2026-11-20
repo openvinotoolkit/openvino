@@ -468,8 +468,6 @@ void grid_sample_3d_spatial(DATA_ET* output,
 
     const auto denormalize_fn = align_corners ? rescale_align<GRID_ET> : rescale_noalign<GRID_ET>;
 
-    // `bicubic` is undefined for volumetric input and is rejected by the operator validation,
-    // so only `bilinear` (trilinear) and `nearest` reach this point.
     interpolate_3d_fn_t<DATA_ET, GRID_ET> interpolate_fn;
     switch (interpolation_mode) {
     default:
@@ -481,7 +479,6 @@ void grid_sample_3d_spatial(DATA_ET* output,
         break;
     }
 
-    // Parallel: CPU plugin runs 5D GridSample through this reference (no JIT kernel for 5D).
     ov::parallel_for3d(N, C, D_out, [&](size_t n, size_t c, size_t z) {
         for (size_t y = 0; y < H_out; ++y) {
             for (size_t x = 0; x < W_out; ++x) {
