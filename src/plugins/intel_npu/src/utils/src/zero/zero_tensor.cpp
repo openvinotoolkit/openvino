@@ -60,7 +60,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _user_tensor(user_tensor),
       _element_type{_user_tensor->get_element_type()},
       _shape{_user_tensor->get_shape()},
-      _strides{_element_type.bitwidth() >= 8 ? _user_tensor->get_strides() : ov::Strides{}},
+      _strides{ov::util::can_compute_byte_strides(_element_type, _shape) ? _user_tensor->get_strides() : ov::Strides{}},
       _strides_once{} {
     OPENVINO_ASSERT(_element_type.is_static());
 
@@ -147,36 +147,26 @@ const ov::Shape& ZeroTensor::get_shape() const {
 }
 
 void ZeroTensor::update_strides() const {
-    if (_element_type.bitwidth() < 8) {
-        return;
-    }
-
     auto& shape = get_shape();
-    if (_strides.empty() && !shape.empty()) {
-        _strides.resize(shape.size());
-        _strides.back() = shape.back() == 0 ? 0 : _element_type.size();
-        std::transform(shape.crbegin(),
-                       shape.crend() - 1,
-                       _strides.rbegin(),
-                       _strides.rbegin() + 1,
-                       std::multiplies<size_t>());
+    if (_strides.empty() && ov::util::can_compute_byte_strides(_element_type, shape)) {
+        _strides = ov::util::get_dense_byte_strides(_element_type, shape);
     }
 }
 
 size_t ZeroTensor::get_bytes_capacity() const {
     size_t original_shape_size = ov::shape_size(_shape);
 
-    if (_user_tensor == nullptr || _element_type.bitwidth() < 8 || original_shape_size == 0 || _shape.empty() ||
-        _strides.empty()) {
+    if (_user_tensor == nullptr || !ov::util::can_compute_byte_strides(_element_type, _shape) ||
+        original_shape_size == 0 || _shape.empty() || _strides.empty()) {
         return ov::util::get_memory_size(_element_type, original_shape_size);
     }
 
-    return intel_npu::zeroUtils::get_capacity_size(_shape, _strides);
+    return intel_npu::zeroUtils::get_capacity_size(_element_type, _shape, _strides);
 }
 
 const ov::Strides& ZeroTensor::get_strides() const {
-    OPENVINO_ASSERT(_element_type.bitwidth() >= 8,
-                    "Could not get strides for types with bitwidths less than 8 bit. Tensor type: ",
+    OPENVINO_ASSERT(ov::util::can_compute_byte_strides(_element_type, _shape),
+                    "Could not get strides for tensor type: ",
                     _element_type);
 
     std::call_once(_strides_once, &ZeroTensor::update_strides, this);

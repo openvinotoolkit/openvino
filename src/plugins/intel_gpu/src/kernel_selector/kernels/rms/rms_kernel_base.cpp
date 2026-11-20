@@ -27,7 +27,7 @@ bool RMSKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelBase::DispatchData) const {
+JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelBase::DispatchData /*unused*/) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto normalization_axis = GetNormalizationAxis(params);
@@ -147,7 +147,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
     return {kd};
 }
 
-Datatype RMSKernelBase::GetAccumulatorType(const rms_params& params) const {
+Datatype RMSKernelBase::GetAccumulatorType(const rms_params& params) {
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
