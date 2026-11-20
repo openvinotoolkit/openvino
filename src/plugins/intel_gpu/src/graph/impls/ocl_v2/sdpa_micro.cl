@@ -190,18 +190,53 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
 #define MICRO_K0_SG_SHIFT PAGED_ATTENTION_BLOCK_SIZE
 #endif
 #if MICRO_CHUNKED_KV
-// Global table as u64 slots: [2] C_max, [4] granule_shift, [5] live granules, [6] D_max, u32 directory from slot 16,
-// then the per-layer K/V chunk base pointers (see pa_resolve_chunk_block() in paged_attention_opt.cl).
+// Global table as u64 slots: [1] L, [2] C_max, [4] granule_shift, [5] live granules, [6] D_max, u32 directory from slot 16,
+// then the per-layer K/V chunk base pointers and the u32 chunk_end[] array (see kv_chunk_table.hpp and
+// pa_resolve_chunk_block() in paged_attention_opt.cl).
 // K0 is also built for the subgroups past the last past block, whose block index may be stale, so the granule is clamped.
-inline ulong FUNC(micro_resolve_chunk_block)(const __global ulong *table, uint layer, uint is_value, uint gbid, uint *local_block) {
-    const uint max_chunks = (uint)table[2];
-    const uint granule_shift = (uint)table[4];
-    const uint num_granules = (uint)table[5];
-    const uint max_granules = (uint)table[6];
-    const __global uint *directory = (const __global uint *)(table + 16);
-    const uint entry = directory[min(gbid >> granule_shift, num_granules - 1u)];
-    *local_block = ((entry & 0xFFFFFu) << granule_shift) | (gbid & ((1u << granule_shift) - 1u));
-    return table[16 + ((max_granules + 1u) >> 1) + (ulong)layer * 2u * max_chunks + (is_value ? max_chunks : 0u) + (entry >> 20)];
+// Table header values are loop-invariant, so they are decoded once per kernel (see micro_chunk_ctx below). A chunk maps the
+// dense global blocks [first_blk, first_blk + nblk) linearly onto its own storage, so each call site remembers the range and
+// base pointer of the last chunk it touched: later blocks of that chunk resolve as `gbid - first_blk` without any dependent
+// global load, whatever the granule size is. Only a block outside the remembered range reads the directory, chunk_end[] and
+// the chunk pointer.
+typedef struct {
+    uint shift;          // granule shift
+    uint last_granule;   // live granules - 1
+    ulong ptr_slot;      // table slot of this layer's chunk-0 K base pointer
+    ulong end_slot;      // table slot of chunk_end[0] (u32 elements)
+    uint max_chunks;     // V pointers start max_chunks slots after the K pointers
+} micro_chunk_ctx_t;
+typedef struct {
+    uint first_blk;      // first global block of the remembered chunk
+    uint nblk;           // its block count (0: nothing remembered yet)
+    ulong base;          // its base pointer for this call site's K or V
+} micro_chunk_memo_t;
+inline micro_chunk_ctx_t FUNC(micro_chunk_ctx_init)(const __global ulong *table, uint layer) {
+    micro_chunk_ctx_t ctx;
+    ctx.max_chunks = (uint)table[2];
+    ctx.shift = (uint)table[4];
+    ctx.last_granule = (uint)table[5] - 1u;
+    ctx.ptr_slot = 16 + ((table[6] + 1u) >> 1) + (ulong)layer * 2u * ctx.max_chunks;
+    ctx.end_slot = 16 + ((table[6] + 1u) >> 1) + table[1] * 2u * ctx.max_chunks;
+    return ctx;
+}
+inline ulong FUNC(micro_resolve_chunk_block)(const __global ulong *table, const micro_chunk_ctx_t *ctx, uint is_value, uint gbid,
+                                             uint *local_block, micro_chunk_memo_t *memo) {
+    const uint rel = gbid - memo->first_blk;
+    if (rel < memo->nblk) {
+        *local_block = rel;
+        return memo->base;
+    }
+    const uint granule = min(gbid >> ctx->shift, ctx->last_granule);
+    const uint entry = ((const __global uint *)(table + 16))[granule];
+    const uint chunk = entry >> 20;
+    const uint granule_in_chunk = entry & 0xFFFFFu;
+    const uint chunk_end = ((const __global uint *)(table + ctx->end_slot))[chunk];
+    memo->first_blk = (granule - granule_in_chunk) << ctx->shift;
+    memo->nblk = (chunk_end - (granule - granule_in_chunk)) << ctx->shift;
+    memo->base = table[ctx->ptr_slot + (is_value ? ctx->max_chunks : 0u) + chunk];
+    *local_block = (granule_in_chunk << ctx->shift) | (gbid & ((1u << ctx->shift) - 1u));
+    return memo->base;
 }
 #endif
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
@@ -554,6 +589,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         // K/V are chunk tables: the head offset is added to each resolved block pointer instead.
         const size_t k_head_off = (size_t)b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         const size_t v_head_off = (size_t)b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+        const micro_chunk_ctx_t chunk_ctx = FUNC_CALL(micro_chunk_ctx_init)(kv_chunk_table, kv_layer_idx);
+        micro_chunk_memo_t k_chunk_memo = {0u, 0u, 0ul};
+        micro_chunk_memo_t v_chunk_memo = {0u, 0u, 0ul};
     #else
         K += b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         V += b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
@@ -859,7 +897,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
             #if MICRO_CHUNKED_KV
                 uint k_local_block;
-                const ulong k_chunk_base = FUNC_CALL(micro_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 0u, block_indices[base_block_index + k_block_num], &k_local_block);
+                const ulong k_chunk_base = FUNC_CALL(micro_resolve_chunk_block)(kv_chunk_table, &chunk_ctx, 0u, block_indices[base_block_index + k_block_num], &k_local_block, &k_chunk_memo);
                 global KEY_DATA_T *K0 = (global KEY_DATA_T *)k_chunk_base
                                         + (size_t)k_local_block * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + k_head_off
                                         - MICRO_K0_SG_SHIFT * sg_i_kq;
@@ -1665,7 +1703,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             uint v_block_num = (k0 + kb0) / PAGED_ATTENTION_BLOCK_SIZE;
             #if MICRO_CHUNKED_KV
             uint v_local_block;
-            const ulong v_chunk_base = FUNC_CALL(micro_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 1u, block_indices[base_block_index + v_block_num], &v_local_block);
+            const ulong v_chunk_base = FUNC_CALL(micro_resolve_chunk_block)(kv_chunk_table, &chunk_ctx, 1u, block_indices[base_block_index + v_block_num], &v_local_block, &v_chunk_memo);
             global VAL_DATA_T *Vb0 = (global VAL_DATA_T *)v_chunk_base
                                      + (size_t)v_local_block * KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + v_head_off;
             #else

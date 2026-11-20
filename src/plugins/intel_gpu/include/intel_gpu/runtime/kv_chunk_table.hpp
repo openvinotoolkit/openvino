@@ -20,13 +20,16 @@ namespace ov::intel_gpu::kv_chunk_table {
 //   slots [16, 16 + ceil(D_max/2))   directory: D_max u32 entries, two per slot, low half first:
 //                                    dir[k] = (chunk_id << 20) | granule_in_chunk
 //   then, per layer l, 2 * C_max slots: K chunk pointers [0, C_max) followed by V chunk pointers [0, C_max)
+//   then ceil(C_max/2) slots: C_max u32 chunk_end[c] = global granule index one past the last granule of chunk c
 //
 // A granule is 2^granule_shift consecutive blocks; every chunk holds a whole number of granules and global block ids
 // (GBID) are dense across chunks in allocation order. The OpenCL kernels resolve a block as
 //   entry       = dir[gbid >> g]
 //   local_block = ((entry & 0xFFFFF) << g) | (gbid & ((1 << g) - 1))
 //   address     = slot[bases_offset + layer * 2 * C_max + (is_value ? C_max : 0) + (entry >> 20)] + local_block * block_bytes
-// (see pa_resolve_chunk_block() in the .cl files).
+// (see pa_resolve_chunk_block() in the .cl files). A chunk covers the dense global blocks
+// [(chunk_end[c] - chunk_granules) << g, chunk_end[c] << g) and maps them linearly, so the micro SDPA kernel remembers that
+// range per call site and resolves further blocks of the same chunk as `gbid - first_block` without a directory load.
 constexpr uint64_t kMagic = 0x50414348554E4B33ull;  // "PACHUNK3"
 constexpr uint32_t kGranuleInChunkBits = 20;
 constexpr uint32_t kMaxChunkId = (1u << 12) - 1;
@@ -63,8 +66,12 @@ inline size_t bases_offset(size_t max_granules) {
     return kHeaderSlots + directory_slots(max_granules);
 }
 
-inline size_t total_slots(size_t num_layers, size_t max_chunks, size_t max_granules) {
+inline size_t chunk_ends_offset(size_t num_layers, size_t max_chunks, size_t max_granules) {
     return bases_offset(max_granules) + num_layers * 2 * max_chunks;
+}
+
+inline size_t total_slots(size_t num_layers, size_t max_chunks, size_t max_granules) {
+    return chunk_ends_offset(num_layers, max_chunks, max_granules) + (max_chunks + 1) / 2;
 }
 
 // First slot of the K chunk pointers of `layer`; V pointers start max_chunks slots later.
@@ -125,6 +132,15 @@ inline std::vector<uint64_t> build(uint32_t granule_shift,
     slots[MAX_GRANULES] = max_granules;
     slots[GENERATION] = generation;
     std::memcpy(slots.data() + kHeaderSlots, directory.data(), directory.size() * sizeof(uint32_t));
+    {
+        std::vector<uint32_t> chunk_ends;
+        size_t granules = 0;
+        for (const size_t blocks : chunk_blocks) {
+            granules += blocks / granule_blocks;
+            chunk_ends.push_back(static_cast<uint32_t>(granules));
+        }
+        std::memcpy(slots.data() + chunk_ends_offset(num_layers, max_chunks, max_granules), chunk_ends.data(), chunk_ends.size() * sizeof(uint32_t));
+    }
     const Header header = read_header(slots.data());
     for (size_t layer = 0; layer < num_layers; ++layer) {
         if (key_ptrs[layer].size() != chunk_blocks.size() || value_ptrs[layer].size() != chunk_blocks.size()) {
