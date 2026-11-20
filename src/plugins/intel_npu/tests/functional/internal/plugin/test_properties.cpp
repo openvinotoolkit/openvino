@@ -143,10 +143,6 @@ public:
             }
         }
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        REGISTER_OPTION(ENABLE_CPU_PINNING);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-
         // NPUW properties are requested by OV Core during caching and
         // have no effect on the NPU plugin. But we still need to enable
         // those for OV Core to query. Note: do this last to not filter
