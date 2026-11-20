@@ -37,6 +37,12 @@ void LRUCache::evict_one() {
     evict_one_unlocked();
 }
 
+bool LRUCache::contains(size_t expert) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_map.find(Key{expert});
+    return it != m_map.end() && m_filled_list[it->second->lru_expert_no];
+}
+
 std::pair<size_t, bool> LRUCache::get_lru_item(size_t expert) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
