@@ -228,6 +228,8 @@ const std::vector<std::vector<float>> signedIntervals{{-1.28f}, {1.27f}, {-1.28f
 const std::vector<std::vector<float>> unsignedIntervals{{0.f}, {2.55f}, {0.f}, {2.55f}};
 
 #if defined(OPENVINO_ARCH_ARM64)
+// Nudge the ResNeXt upper bound so -255 * low / (high - low) is just below 128 in float.
+// Truncating the fused destination zero point to 127 shifts the output by one quantization bin.
 const QuantizationParams zeroPointRoundingParams{{{0.F}, {0.64194745F}, {0.F}, {0.64194745F}},
                                                  {{-0.78389084F}, {0.777767F}, {-0.78389084F}, {0.777767F}},
                                                  {},
