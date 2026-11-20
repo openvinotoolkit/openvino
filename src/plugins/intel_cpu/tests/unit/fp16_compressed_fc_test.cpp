@@ -3,6 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/core/visibility.hpp"
+
 #if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
 #    include <cstddef>
 #    include <cstdint>
@@ -47,7 +49,12 @@ private:
     std::optional<std::string> m_previous;
 };
 
-void check_fc(ov::element::Type weight_type, size_t k, bool fractional_zero_point, bool compressed) {
+void check_fc(ov::element::Type weight_type,
+              size_t k,
+              bool fractional_zero_point,
+              bool compressed,
+              bool oversized_zero_point = false,
+              int streams = 1) {
     using namespace ov::opset13;
     constexpr size_t n = 17;
     const size_t group = k == 33 ? 33 : 32;
@@ -57,7 +64,8 @@ void check_fc(ov::element::Type weight_type, size_t k, bool fractional_zero_poin
     for (size_t i = 0; i < values.size(); ++i) {
         values[i] = static_cast<int32_t>(i * 7 % 16) - (signed_weights ? 8 : 0);
     }
-    const float zero = (signed_weights ? -2.F : 3.F) + (fractional_zero_point ? 0.25F : 0.F);
+    const float zero =
+        (signed_weights ? -2.F : 3.F) + (fractional_zero_point ? 0.25F : 0.F) + (oversized_zero_point ? 32.F : 0.F);
     auto weights = Constant::create(weight_type, ov::Shape{n, groups, group}, values);
     auto converted = std::make_shared<Convert>(weights, ov::element::f16);
     auto zero_points = Constant::create(ov::element::f16, ov::Shape{n, groups, 1}, {zero});
@@ -65,7 +73,7 @@ void check_fc(ov::element::Type weight_type, size_t k, bool fractional_zero_poin
     auto dequantized = std::make_shared<Multiply>(std::make_shared<Subtract>(converted, zero_points), scales);
     auto flattened =
         std::make_shared<Reshape>(dequantized, Constant::create(ov::element::i64, ov::Shape{2}, {n, k}), false);
-    auto input = std::make_shared<Parameter>(ov::element::f16, ov::PartialShape{-1, k});
+    auto input = std::make_shared<Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(k)});
     auto matmul = std::make_shared<MatMul>(input, flattened, false, true);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
     ov::Core core;
@@ -74,7 +82,7 @@ void check_fc(ov::element::Type weight_type, size_t k, bool fractional_zero_poin
                                        {ov::hint::inference_precision(ov::element::f16),
                                         ov::hint::dynamic_quantization_group_size(32),
                                         ov::inference_num_threads(2),
-                                        ov::num_streams(1)});
+                                        ov::num_streams(streams)});
     auto request = compiled.create_infer_request();
     for (const size_t m : {31U, 1U, 2U, 1U}) {
         ov::Tensor source(ov::element::f16, ov::Shape{m, k});
@@ -135,7 +143,18 @@ TEST(FP16CompressedFC, UnsupportedDecompressionKeepsMaterializedFallback) {
     for (const auto type : {ov::element::i4, ov::element::u4}) {
         check_fc(type, 33, false, false);
         check_fc(type, 64, true, false);
+        check_fc(type, 64, false, false, true);
     }
+}
+
+TEST(FP16CompressedFC, MultipleStreamsRetainCompressedExecution) {
+    if (!ov::with_cpu_x86_avx512_core_fp16()) {
+        GTEST_SKIP();
+    }
+    const ScopedEnvironment route("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC", "1");
+    const ScopedEnvironment cache("OV_FC_DECODE_CACHE_MIB", "1");
+    const ScopedEnvironment selection("OV_FC_DECODE_CACHE_NODES", nullptr);
+    check_fc(ov::element::i4, 64, false, true, false, 2);
 }
 }  // namespace ov::intel_cpu::test
 #endif

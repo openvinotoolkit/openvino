@@ -161,6 +161,21 @@ class DecodeCache : public Executor {
     bool failed = false, active = false;
     int cachedNuma = -1;
     bool tracedUpdate = false;
+    void reset_cache() {
+        args.clear();
+        weights.reset();
+        scratch.reset();
+        primitive.reset();
+        shapeData.reset();
+        srcDesc.reset();
+        dstDesc.reset();
+        active = false;
+        cachedNuma = -1;
+        if (charged) {
+            budget->release(charged);
+            charged = 0;
+        }
+    }
     void initialize(const MemoryArgs& memory) {
         const auto quant = memory.at(ARG_WEI);
         const auto type = quant->getPrecision();
@@ -180,9 +195,16 @@ class DecodeCache : public Executor {
         std::unique_ptr<Params> zp;
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
             zp = std::make_unique<Params>(it->second, n, k);
+            const float minimum = type == ov::element::i4 ? -8.F : type == ov::element::i8 ? -128.F : 0.F;
+            const float maximum = type == ov::element::i4   ? 7.F
+                                  : type == ov::element::u4 ? 15.F
+                                  : type == ov::element::i8 ? 127.F
+                                                            : 255.F;
             for (size_t i = 0; i < it->second->getShape().getElementsCount(); ++i) {
                 const float value = read(it->second, i);
-                OPENVINO_ASSERT(std::isfinite(value) && value == std::trunc(value), "Fractional ZP excluded");
+                OPENVINO_ASSERT(
+                    std::isfinite(value) && value == std::trunc(value) && value >= minimum && value <= maximum,
+                    "Decode cache requires in-range integer zero points");
             }
         }
         auto rawDesc = std::make_shared<DnnlBlockedMemoryDesc>(ov::element::f16, Shape(dims));
@@ -284,14 +306,7 @@ public:
                 false);
             initialize(native);
         } catch (const std::exception& e) {
-            weights.reset();
-            scratch.reset();
-            primitive.reset();
-            shapeData.reset();
-            args.clear();
-            if (charged)
-                budget->release(charged);
-            charged = 0;
+            reset_cache();
             failed = true;
             if (budget->trace)
                 std::fprintf(stderr, "[FC-CACHE] REJECT preparation name=%s reason=%s\n", name.c_str(), e.what());
@@ -330,14 +345,7 @@ public:
                 active = primitive && weights && srcDesc->isCompatible(memory.at(ARG_SRC)->getDesc()) &&
                          dstDesc->isCompatible(memory.at(ARG_DST)->getDesc());
             } catch (const std::exception& e) {
-                weights.reset();
-                scratch.reset();
-                primitive.reset();
-                shapeData.reset();
-                args.clear();
-                if (charged)
-                    budget->release(charged);
-                charged = 0;
+                reset_cache();
                 failed = true;
                 if (budget->trace)
                     std::fprintf(stderr, "[FC-CACHE] REJECT eligibility name=%s reason=%s\n", name.c_str(), e.what());
@@ -378,13 +386,7 @@ public:
                          compressedCalls,
                          packedBytes,
                          name.c_str());
-        args.clear();
-        weights.reset();
-        scratch.reset();
-        primitive.reset();
-        shapeData.reset();
-        if (charged)
-            budget->release(charged);
+        reset_cache();
     }
 };
 }  // namespace fc_decode_cache

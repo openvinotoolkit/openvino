@@ -554,6 +554,14 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
             ctx.current_K_iters = K;
             (*brgCopyBKernel)(&ctx);
         }
+        if (f16_copy && b_transposed && weiType == ov::element::f32 && N_tail != 0) {
+            // The oneDNN transpose helper can leave nonzero values in padded columns.
+            const size_t packed_ld = rnd_up(N, N_blk);
+            auto* packed = static_cast<float*>(scratch_b);
+            for (size_t k = 0; k < K; ++k) {
+                std::fill(packed + k * packed_ld + N, packed + (k + 1) * packed_ld, 0.F);
+            }
+        }
     }
 }
 

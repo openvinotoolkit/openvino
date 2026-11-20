@@ -2683,7 +2683,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         bool typed_kv_storage = false;
 #    if defined(OPENVINO_ARCH_X86_64) && defined(CPU_DEBUG_CAPS)
-        if (ov::intel_cpu::getEnvBool("OV_PA_ADAPTIVE_KV")) {
+        if (getEnvBool("OV_PA_ADAPTIVE_KV")) {
             size_t max_q_blocks = 0;
             bool any_multi_token = false;
             for (size_t seq = 0; seq + 1 < subsequence_begins.size(0); ++seq) {

@@ -45,6 +45,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
@@ -217,7 +218,7 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         if (useMatmulPrim &&
             (op->get_input_element_type(DATA) == ov::element::f16 || config.inferencePrecision == ov::element::f16)) {
             // The oneDNN compressed FP16 route needs even INT4 rows and aligned K groups.
-            // Floating zero points are converted to integers by its primitive attributes.
+            // Its primitive attributes require integer zero points in the quantized type's range.
             const auto& weights_shape = op->get_input_shape(WEIGHTS);
             if (weights_shape.size() != 2 || weights_shape[0] != OC || weights_shape[1] != IC || G == 0 ||
                 IC % G != 0 || (G > 1 && (IC / G) % 32 != 0) ||
@@ -225,14 +226,20 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
                 return false;
             }
             if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-                op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic &&
-                op->get_input_element_type(WEIGHT_ZERO_POINTS).is_real()) {
+                op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
                 const auto zero_points = ov::util::get_constant_from_source(op->input_value(WEIGHT_ZERO_POINTS));
                 if (!zero_points) {
                     return false;
                 }
+                const float minimum = weightsPrecision == ov::element::i4   ? -8.F
+                                      : weightsPrecision == ov::element::i8 ? -128.F
+                                                                            : 0.F;
+                const float maximum = weightsPrecision == ov::element::i4   ? 7.F
+                                      : weightsPrecision == ov::element::u4 ? 15.F
+                                      : weightsPrecision == ov::element::i8 ? 127.F
+                                                                            : 255.F;
                 for (const float value : zero_points->cast_vector<float>()) {
-                    if (!std::isfinite(value) || value != std::trunc(value)) {
+                    if (!std::isfinite(value) || value != std::trunc(value) || value < minimum || value > maximum) {
                         return false;
                     }
                 }
@@ -834,6 +841,7 @@ void FullyConnected::createPrimitive() {
     executor = factory->make(memory);
 #if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC") && !tp_cfg.enable_tensor_parallel &&
+        context->getConfig().streamExecutorConfig.get_streams() == 1 && context->getConfig().numSubStreams == 0 &&
         std::getenv("OV_FC_DECODE_CACHE_MIB") != nullptr) {
         auto cache_context = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
         auto cache = std::make_shared<fc_decode_cache::DecodeCache>(executor,
