@@ -62,6 +62,23 @@ def test_export_symbolic_min_max_topk(operation, constant_bound):
             np.testing.assert_array_equal(result, reference.numpy())
 
 
+def test_export_upsample_recompute_scale_factor():
+    import openvino as ov
+
+    model = torch.nn.Upsample(scale_factor=2.0, mode="nearest", recompute_scale_factor=True).eval()
+    exported = torch.export.export(
+        model, (torch.rand(1, 3, 8, 10),),
+        dynamic_shapes=({2: torch.export.Dim.AUTO, 3: torch.export.Dim.AUTO},))
+    targets = {node.target for node in exported.graph.nodes}
+    assert math.trunc in targets and torch.sym_float in targets
+    converted = ov.convert_model(exported)
+    compiled = ov.Core().compile_model(converted, "CPU", default_cfg)
+    for h, w in [(8, 10), (5, 7), (16, 3)]:
+        x = torch.rand(1, 3, h, w)
+        actual = compiled(x.numpy())[0]
+        np.testing.assert_array_equal(actual, model(x).numpy())
+
+
 class aten_relu(torch.nn.Module):
     def forward(self, x):
         return x, torch.nn.functional.relu(x)
