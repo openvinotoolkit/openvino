@@ -38,9 +38,10 @@ namespace ov::intel_gpu {
 namespace {
 ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
-    if (element_type.bitwidth() < 8) { {
-        if (ov::util::can_compute_byte_strides(element_type, shape))
+    if (element_type.bitwidth() < 8) {
+        if (ov::util::can_compute_byte_strides(element_type, shape)) {
             strides = ov::util::get_dense_byte_strides(element_type, shape);
+        }
         return strides;
     }
 

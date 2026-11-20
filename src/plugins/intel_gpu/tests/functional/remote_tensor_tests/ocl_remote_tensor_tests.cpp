@@ -2692,14 +2692,8 @@ TEST_P(RemoteTensorSubByteStrides, smoke_StridesAndCopy) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorSubByteStrides,
                          RemoteTensorSubByteStrides,
-                         ::testing::Combine(::testing::Values(ov::element::u1,
-                                                              ov::element::u2,
-                                                              ov::element::u4,
-                                                              ov::element::i4),
-                                            ::testing::Values(ov::Shape{16},
-                                                              ov::Shape{2, 3, 8},
-                                                              ov::Shape{1, 4, 32},
-                                                              ov::Shape{3, 5})),
+                         ::testing::Combine(::testing::Values(ov::element::u1, ov::element::u2, ov::element::u4, ov::element::i4),
+                                            ::testing::Values(ov::Shape{16}, ov::Shape{2, 3, 8}, ov::Shape{1, 4, 32}, ov::Shape{3, 5})),
                          RemoteTensorSubByteStrides::getTestCaseName);
 
 TEST(RemoteTensor, smoke_EmptyRoiTensor) {
