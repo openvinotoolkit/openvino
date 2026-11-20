@@ -97,9 +97,9 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: ${{ runner.os != 'macOS' }}
-          self-hosted-runner: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' && inputs.runner != 'windows-11-arm' }}
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
@@ -107,7 +107,17 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
+      - name: Setup MSVC dev environment
+      # required so pip builds old numpy wihout errors
+        if: ${{ runner.os == 'Windows' && runner.arch == 'ARM64' }}
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        with:
+          arch: arm64
+
       - name: Install Pytorch Layer tests dependencies
+        env:
+          CC: cl
+          CXX: cl
         run: |
           # pytorch test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch

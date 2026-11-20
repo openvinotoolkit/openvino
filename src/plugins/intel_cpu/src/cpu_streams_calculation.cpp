@@ -1140,6 +1140,27 @@ static void configure_arm64_linux_threads(Config& config,
 }
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(_WIN32)
+void configure_arm64_win_threads(Config& config,
+                                 const std::vector<std::vector<int>>& proc_type_table,
+                                 bool int8_intensive,
+                                 bool is_LLM) {
+    using namespace ThreadPreferenceConstants;
+    config.modelPreferThreadsThroughput = ARM64_THREADS_DEFAULT;
+
+    const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
+    const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
+
+    bool use_all_cores = should_use_all_cores_for_latency(main_cores, efficient_cores, int8_intensive);
+
+    if (use_all_cores && (!is_LLM || should_use_ecores_for_llm(efficient_cores, main_cores))) {
+        config.modelPreferThreadsLatency = main_cores + efficient_cores;
+    } else {
+        config.modelPreferThreadsLatency = main_cores;
+    }
+}
+#endif
+
 #if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
 void configure_arm_linux_threads(Config& config,
                                  const std::vector<std::vector<int>>& proc_type_table,
@@ -1320,6 +1341,9 @@ int get_model_prefer_threads(const int num_streams,
 
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
         configure_arm64_linux_threads(config, proc_type_table, int8_intensive, is_LLM);
+        (void)isaSpecificThreshold;
+#elif defined(OPENVINO_ARCH_ARM64) && defined(_WIN32)
+        configure_arm64_win_threads(config, proc_type_table, int8_intensive, is_LLM);
         (void)isaSpecificThreshold;
 #else
 

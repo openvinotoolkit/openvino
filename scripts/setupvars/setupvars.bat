@@ -38,10 +38,18 @@ if exist "%OpenVINO_DIR%\OpenVINOGenAIConfig.cmake" (
    :: If GenAI is installed, export it as well.
    set "OpenVINOGenAI_DIR=%OpenVINO_DIR%"
 )
-set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OPENVINO_LIB_PATHS%"
+
+if exist "%INTEL_OPENVINO_DIR%\runtime\bin\arm64" (
+    set "ARCHDIR=arm64"
+) else (
+    set "ARCHDIR=intel64"
+)
+
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\Release;%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\Debug;%OPENVINO_LIB_PATHS%"
+
 :: Multi-config generator dirs (RelWithDebInfo, MinSizeRel) are only present in local builds
-if exist "%INTEL_OPENVINO_DIR%\runtime\bin\intel64\RelWithDebInfo" set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\RelWithDebInfo;%OPENVINO_LIB_PATHS%"
-if exist "%INTEL_OPENVINO_DIR%\runtime\bin\intel64\MinSizeRel" set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\MinSizeRel;%OPENVINO_LIB_PATHS%"
+if exist "%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\RelWithDebInfo" set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\RelWithDebInfo;%OPENVINO_LIB_PATHS%"
+if exist "%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\MinSizeRel" set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\MinSizeRel;%OPENVINO_LIB_PATHS%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
