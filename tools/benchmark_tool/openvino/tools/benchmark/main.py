@@ -266,7 +266,7 @@ def main():
             def update_device_config_for_virtual_device(value, config, key):
                 # check if the element contains the hardware device property
                 if len(value.split(':')) == 1:
-                    config[device][key] = device_infer_precision[device]
+                    config[device][key] = value
                 else:
                     # set device nstreams properties in the AUTO/MULTI plugin
                     value_vec = value[value.find('{') + 1:value.rfind('}')].split(',')
