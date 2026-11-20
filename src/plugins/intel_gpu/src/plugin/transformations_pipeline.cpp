@@ -76,6 +76,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
@@ -98,6 +99,8 @@
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
+#include "plugin/transformations/convert_paged_sparse_attention_to_sparse_pa.hpp"
+#include "plugin/transformations/convert_sparse_attention_to_sparse_sdpa.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
@@ -921,6 +924,7 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     manager.register_pass<ov::pass::RoPEFusion>(true);
     manager.register_pass<ov::pass::FuseQSAIndexer>(true);
     manager.register_pass<ov::pass::FuseQSAIndexerQuery>();
+    manager.register_pass<ov::intel_gpu::ConvertSparseAttentionToSparseSDPA>();
     manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
     pass_config->disable<ov::pass::RoPEFusionGPTJ>();
     pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
@@ -1439,6 +1443,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
                 });
         }
+        // SparsePA reads its own cache layout, not the PagedAttention one: ConvertPagedAttnInputs leaves
+        // PagedSparseAttention to ConvertPagedSparseAttentionToSparsePA, which lays out its caches and lowers it.
+        pass_config->set_callback<ov::pass::ConvertPagedAttnInputs>([](const std::shared_ptr<const ov::Node>& node) {
+            return ov::is_type<ov::op::internal::PagedSparseAttention>(node);
+        });
+        ov::intel_gpu::ConvertPagedSparseAttentionToSparsePA::CacheConfig sparse_cache_config;
+        sparse_cache_config.precision = config.get_kv_cache_precision();
+        sparse_cache_config.key_by_channel = config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+        sparse_cache_config.page_size = cldnn::paged_attention::block_size;
+        manager.register_pass<ov::intel_gpu::ConvertPagedSparseAttentionToSparsePA>(sparse_cache_config);
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             // Never decompose if mlir-path is enabled
