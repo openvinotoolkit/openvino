@@ -306,7 +306,8 @@ std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(co
     if (auto weights_reorder_params = impl->get_weights_reorder_params()) {
         const auto& input_layout = params.get_input_layout(0);
         if (input_layout.get_partial_shape().size() == 3) {
-            const auto& weights_pshape = node.get_input_layout(1).get_partial_shape();
+            // Runtime weights may have a dynamic shape in the node, the params have the actual one
+            const auto& weights_pshape = params.get_input_layout(1).get_partial_shape();
             auto weights_input_layout = weights_reorder_params->get_input_layout();
             weights_input_layout.set_partial_shape(weights_pshape);
             weights_reorder_params->set_input_layout(weights_input_layout);

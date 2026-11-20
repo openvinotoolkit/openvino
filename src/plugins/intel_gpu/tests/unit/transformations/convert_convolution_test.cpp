@@ -306,6 +306,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_RuntimeWeightsDynamicO
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input, weights});
     }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 // The groups count is the first dimension of grouped weights, so it must stay static for the internal Convolution
