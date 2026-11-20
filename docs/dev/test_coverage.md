@@ -85,8 +85,9 @@ coverage/intel_npu_plugin/index.html
 
 ## Local Windows NPU coverage experiment
 
-The Windows coverage branch includes two experimental PowerShell scripts. They do
-not change the CI workflow, upload results, or install coverage tools automatically.
+The Windows coverage branch includes experimental PowerShell build/run scripts.
+They do not change the CI workflow, upload results, or install coverage tools
+automatically. A separate, explicitly invoked installer is available for OpenCppCoverage.
 Use PowerShell 7 and an **x64 VS2022 Developer PowerShell** environment, with the
 C++ workload, Windows SDK, CMake 3.26+, Ninja, Git and Python 3.11+ on PATH.
 VS2022 Professional is sufficient to build; availability of native coverage is
@@ -175,6 +176,57 @@ pwsh -File scripts/run_windows_npu_coverage.ps1 -Mode Console -ToolPath $collect
 
 This uses the workflow's static native instrumentation approach. `CodeCoverage.exe`
 from the NuGet packages is **not** compatible with this command line.
+
+### Try OpenCppCoverage
+
+From a PowerShell terminal **running as administrator**, use:
+
+```powershell
+.\scripts\install_windows_opencppcoverage.ps1
+```
+
+This downloads the **x64** installer from the official
+[OpenCppCoverage 0.9.9.0 release](https://github.com/OpenCppCoverage/OpenCppCoverage/releases/tag/release-0.9.9.0).
+It checks a pinned SHA256, installs silently without restarting Windows or closing
+running applications, then checks `OpenCppCoverage.exe --help`. The checksum pins
+the downloaded release artifact; upstream does not publish a separate checksum.
+The installer and timestamped installation log remain under
+`build-windows-npu-coverage/tools` (override with `-DownloadDir`).
+The default destination is `C:\Program Files\OpenCppCoverage` (override with
+`-InstallDir`, and use that same location in `-ToolPath` below).
+The helper works with Windows PowerShell 5.1; no NuGet or `pwsh` is needed.
+Keep its installed dependencies alongside the executable. The project is archived;
+compatibility with this MSVC build must be established by the experiment.
+
+Use the existing package and matching PDBs first, without rebuilding. From the
+repository root, in Windows PowerShell 5.1 or PowerShell 7:
+
+```powershell
+.\scripts\run_windows_npu_coverage.ps1 `
+    -Mode OpenCppCoverage `
+    -ToolPath 'C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe'
+```
+
+This launches the NPU unit-test EXE directly under OpenCppCoverage's debugger-based
+collector. It needs neither VSTest nor a Google Test adapter nor Microsoft's
+`covinstrc64.exe`. Do not pass `-Instrumentation Static`: that parameter selects
+Microsoft collector modes, not OpenCppCoverage instrumentation.
+
+The script collects both the EXE and NPU plugin DLL, excludes test/third-party
+sources, and lets expected C++ exceptions reach the test program's handlers.
+It keeps module coverage separate (`--no_aggregate_by_file`) so the shared
+validator can require hits from both modules before merging source lines.
+It does not enable `--optimized_build`: upstream documents that heuristic as
+unnecessary for x64. Release optimization can still affect source-line mapping;
+a higher percentage alone does not prove better coverage than VSTest.
+
+Each run retains `tests.xml`, `coverage.cobertura.xml`, `html/index.html`,
+`run.log` and the collector's `LastCoverageResults.log` in its results directory.
+The root-relative `src\...` PDB paths from the local build are mapped to the
+current checkout for source display. Keep that checkout at the build revision.
+HTML and XML are raw collector reports; the deduplicated production-only console
+summary can differ from their totals. This mode does not upload to Codecov or
+normalize the XML for upload.
 
 Every invocation writes to a new directory under `build-windows-npu-coverage/results`
 (override with `-ResultsDir`). It retains console logs, generated settings, test

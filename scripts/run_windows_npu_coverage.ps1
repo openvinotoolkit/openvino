@@ -3,7 +3,7 @@
 
 # Local experiment only; no NPU device preflight, CI lane split, or Codecov upload.
 param(
-    [ValidateSet('Plain', 'VSTest', 'Console')][string]$Mode = 'Plain',
+    [ValidateSet('Plain', 'VSTest', 'Console', 'OpenCppCoverage')][string]$Mode = 'Plain',
     [string]$PackageDir = "$PSScriptRoot/../build-windows-npu-coverage/package",
     [string]$ToolPath,
     [string]$AdapterPath,
@@ -12,6 +12,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Mode -eq 'OpenCppCoverage' -and $Instrumentation -eq 'Static') {
+    throw 'OpenCppCoverage does not use Microsoft static instrumentation. Omit -Instrumentation.'
+}
 function Invoke-TestTool {
     param([string]$FilePath, [string[]]$Arguments, [string]$LogPath)
     Get-Command $FilePath -ErrorAction Stop | Out-Null
@@ -133,6 +136,27 @@ try {
     switch ($Mode) {
         'Plain' {
             $result = Invoke-TestTool $exe @('--gtest_filter=*', "--gtest_output=xml:$testXml") "$ResultsDir/run.log"
+        }
+        'OpenCppCoverage' {
+            $sourceRoot = (Resolve-Path "$PSScriptRoot/..").Path
+            # Keep the collector's LastCoverageResults.log in this run, not in the package.
+            Push-Location $ResultsDir
+            try {
+                $result = Invoke-TestTool $ToolPath @(
+                    '--verbose', '--continue_after_cpp_exception', '--no_aggregate_by_file',
+                    '--modules', $exe, '--modules', $modules[1].FullName,
+                    '--sources', 'src\plugins\intel_npu\', '--sources', 'src/plugins/intel_npu/',
+                    '--excluded_sources', '\tests\', '--excluded_sources', '/tests/',
+                    '--excluded_sources', '\thirdparty\', '--excluded_sources', '/thirdparty/',
+                    '--substitute_pdb_source_path', "src\?$sourceRoot\src\",
+                    '--working_dir', $modules[0].DirectoryName,
+                    '--export_type', "cobertura:$ResultsDir/coverage.cobertura.xml",
+                    '--export_type', "html:$ResultsDir/html",
+                    '--', $exe, '--gtest_filter=*', "--gtest_output=xml:$testXml"
+                ) "$ResultsDir/run.log"
+            } finally {
+                Pop-Location
+            }
         }
         'Console' {
             $settings = Join-Path $ResultsDir 'coverage.config'

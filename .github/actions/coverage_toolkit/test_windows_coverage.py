@@ -508,6 +508,18 @@ $summary = Get-NpuCoverageSummary @(Get-Item $raw, $copy) $env:SOURCE_ROOT
 if ($summary.Covered -ne 2 -or $summary.Total -ne 3 -or $summary.Files -ne 1) {
     throw "Incorrect summary: $summary"
 }
+[xml]$openCpp = Get-Content $raw -Raw
+foreach ($module in $openCpp.coverage.packages.package) {
+    $module.name = "C:/package with spaces/$($module.name)"
+    foreach ($class in $module.classes.class) {
+        $class.filename = $class.filename.Replace('C:\build\openvino\', 'build\openvino\')
+    }
+}
+$openCpp.Save($copy)
+$summary = Get-NpuCoverageSummary @(Get-Item $copy) $env:SOURCE_ROOT
+if ($summary.Covered -ne 2 -or $summary.Total -ne 3 -or $summary.Files -ne 1) {
+    throw "Incorrect OpenCppCoverage summary: $summary"
+}
 foreach ($failure in @('missing-module', 'zero-hits', 'generated-only')) {
     [xml]$coverage = Get-Content $raw -Raw
     switch ($failure) {
@@ -539,6 +551,137 @@ foreach ($failure in @('missing-module', 'zero-hits', 'generated-only')) {
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is required to validate OpenCppCoverage invocation")
+    def test_local_opencppcoverage_invocation(self):
+        command = r"""
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile(
+    $env:RUNNER_SCRIPT, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+$switch = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.SwitchStatementAst]
+}, $true)
+$Mode = 'OpenCppCoverage'
+$PSScriptRoot = Split-Path $env:RUNNER_SCRIPT
+$ResultsDir = Join-Path $env:TEST_ROOT 'results with spaces'
+$package = Join-Path $env:TEST_ROOT 'package with spaces'
+New-Item -ItemType Directory $ResultsDir, "$package/tests", "$package/runtime" | Out-Null
+New-Item -ItemType File "$package/tests/ov_npu_unit_tests.exe",
+    "$package/runtime/openvino_intel_npu_plugin.dll" | Out-Null
+$modules = @(Get-Item "$package/tests/ov_npu_unit_tests.exe",
+    "$package/runtime/openvino_intel_npu_plugin.dll")
+$exe = $modules[0].FullName
+$testXml = Join-Path $ResultsDir 'tests.xml'
+$ToolPath = 'C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe'
+function Invoke-TestTool {
+    param([string]$FilePath, [string[]]$Arguments, [string]$LogPath)
+    if ($FilePath -ne $ToolPath -or $LogPath -ne "$ResultsDir/run.log") {
+        throw 'Wrong collector or log path'
+    }
+    if ($PWD.Path -ne $ResultsDir) { throw 'Collector log would be written outside results' }
+    foreach ($flag in @('--continue_after_cpp_exception', '--no_aggregate_by_file')) {
+        if ($flag -notin $Arguments) { throw "Missing $flag" }
+    }
+    if ('--optimized_build' -in $Arguments) { throw 'Unwanted x86 heuristics' }
+    $values = @{}
+    for ($i = 0; $i -lt $Arguments.IndexOf('--'); $i++) {
+        if ($Arguments[$i] -in @('--modules', '--sources', '--excluded_sources',
+                                '--working_dir', '--export_type', '--substitute_pdb_source_path')) {
+            $values[$Arguments[$i]] += @($Arguments[$i + 1])
+        }
+    }
+    if (($values['--modules'] -join '|') -ne (($modules.FullName) -join '|')) {
+        throw 'Must include EXE and DLL'
+    }
+    if ($values['--working_dir'][0] -ne $modules[0].DirectoryName) { throw 'Wrong test cwd' }
+    foreach ($export in @("cobertura:$ResultsDir/coverage.cobertura.xml", "html:$ResultsDir/html")) {
+        if ($export -notin $values['--export_type']) { throw "Missing export: $export" }
+    }
+    $tail = $Arguments[($Arguments.IndexOf('--') + 1)..($Arguments.Count - 1)]
+    if (($tail -join '|') -ne (@($exe, '--gtest_filter=*', "--gtest_output=xml:$testXml") -join '|')) {
+        throw 'Incorrect test arguments'
+    }
+    if ($env:MOCK_THROW -eq '1') { throw 'collector failed' }
+    return 7
+}
+$cwd = $PWD.Path
+. ([scriptblock]::Create($switch.Extent.Text))
+if ($result -ne 7 -or $PWD.Path -ne $cwd) { throw 'Exit code or working directory lost' }
+$env:MOCK_THROW = '1'
+$rejected = $false
+try { . ([scriptblock]::Create($switch.Extent.Text)) } catch {
+    if ($_.Exception.Message -ne 'collector failed') { throw }
+    $rejected = $true
+}
+if (!$rejected -or $PWD.Path -ne $cwd) { throw 'Failure swallowed or working directory changed' }
+"""
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-NonInteractive", "-Command", command],
+            env={**os.environ, "RUNNER_SCRIPT": str(REPO / "scripts/run_windows_npu_coverage.ps1"),
+                 "TEST_ROOT": str(self.workspace), "MOCK_THROW": "0"},
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is required to validate installer checks")
+    def test_opencppcoverage_installer_checks(self):
+        command = r"""
+$ErrorActionPreference = 'Stop'
+$text = Get-Content $env:INSTALL_SCRIPT -Raw
+$body = [scriptblock]::Create($text.Substring($text.IndexOf('$version =')))
+$DownloadDir = Join-Path $env:TEST_ROOT 'download with spaces'
+$InstallDir = Join-Path $env:TEST_ROOT 'install with spaces'
+function Invoke-WebRequest { param($Uri, $OutFile, [switch]$UseBasicParsing) }
+function Get-FileHash {
+    param($LiteralPath, $Algorithm)
+    @{ Hash = $(if ($script:scenario -eq 'bad-hash') { 'bad' } else { $expectedHash }) }
+}
+function Test-Path { param($LiteralPath, $PathType) return $true }
+function Start-Process {
+    param($FilePath, $ArgumentList, $WorkingDirectory, [switch]$NoNewWindow,
+          [switch]$Wait, [switch]$PassThru)
+    $script:calls++
+    if ($script:calls -eq 1) {
+        foreach ($flag in @('/NORESTART', '/NOCLOSEAPPLICATIONS', '/NORESTARTAPPLICATIONS',
+                            "/DIR=`"$InstallDir`"")) {
+            if ($flag -notin $ArgumentList) { throw "Missing installer argument: $flag" }
+        }
+        return @{ ExitCode = $(if ($script:scenario -eq 'setup-failure') { 5 } else { 0 }) }
+    }
+    if ($ArgumentList -ne '--help') { throw 'Missing executable readiness check' }
+    return @{ ExitCode = $(if ($script:scenario -eq 'help-failure') { 1 } else { 0 }) }
+}
+foreach ($scenario in @('bad-hash', 'setup-failure', 'help-failure', 'success')) {
+    $script:scenario = $scenario
+    $script:calls = 0
+    $failure = $null
+    $protocol = [Net.ServicePointManager]::SecurityProtocol
+    try { . $body } catch { $failure = $_.Exception.Message }
+    if ([Net.ServicePointManager]::SecurityProtocol -ne $protocol) { throw 'TLS settings leaked' }
+    switch ($scenario) {
+        'bad-hash' {
+            if ($calls -ne 0 -or $failure -notlike '*SHA256 mismatch*') { throw 'Unverified installer executed' }
+        }
+        'setup-failure' {
+            if ($calls -ne 1 -or $failure -notlike '*installer exited with code 5*') { throw 'Setup failure hidden' }
+        }
+        'help-failure' {
+            if ($failure -notlike '*--help failed*') { throw 'Readiness failure hidden' }
+        }
+        'success' { if ($failure -or $calls -ne 2) { throw "Install check failed: $failure" } }
+    }
+}
+"""
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-NonInteractive", "-Command", command],
+            env={**os.environ, "INSTALL_SCRIPT": str(REPO / "scripts/install_windows_opencppcoverage.ps1"),
+                 "TEST_ROOT": str(self.workspace)},
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_powershell_syntax(self):
         if shutil.which("pwsh") is None:
             self.skipTest("PowerShell is not installed")
@@ -546,7 +689,8 @@ foreach ($failure in @('missing-module', 'zero-hits', 'generated-only')) {
         import yaml
 
         scripts = []
-        for filename in ("build_windows_npu_coverage.ps1", "run_windows_npu_coverage.ps1"):
+        for filename in ("build_windows_npu_coverage.ps1", "run_windows_npu_coverage.ps1",
+                         "install_windows_opencppcoverage.ps1"):
             scripts.append({"name": filename, "text": (REPO / "scripts" / filename).read_text()})
         for filename in ("coverage.yml", "job_build_windows.yml"):
             workflow = yaml.safe_load((REPO / ".github/workflows" / filename).read_text())
