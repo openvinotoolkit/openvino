@@ -17,10 +17,12 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -28,10 +30,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "ov_ops/gather_matmul.hpp"
-#include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/disable_constant_folding.hpp"
-#include "transformations/rt_info/disable_precision_conversion.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
@@ -239,10 +237,44 @@ ov::Output<ov::Node> translate_mul_mat_id_gathermatmul(ov::Output<ov::Node> expe
     //   down   : b is [.., T, K, cols] (already per-slot)                         -> A = [K, T, cols]
     const auto& bps = b.get_partial_shape();
     const int64_t cols = bps[bps.size() - 1].get_length();
-    const bool has_k =
+    // A plain [1, T, cols] input can also have T == K. Count all leading axes,
+    // since a decoder can place the dynamic token dimension before a unit axis.
+    ov::Dimension id_tokens(1);
+    for (int i = 0; i < ids_rank - 1; ++i) {
+        id_tokens *= ids.get_partial_shape()[i];
+    }
+    ov::Dimension activation_tokens(1);
+    std::vector<int> activation_batch_dims;
+    for (size_t i = 0; i + 2 < bps.size(); ++i) {
+        activation_tokens *= bps[i];
+        activation_batch_dims.push_back(static_cast<int>(i));
+    }
+    const bool token_axis_matches = activation_tokens.compatible(id_tokens);
+    const bool has_k_axis =
         K > 1 && bps.size() >= 2 && bps[bps.size() - 2].is_static() && bps[bps.size() - 2].get_length() == K;
+    const bool has_k = has_k_axis && token_axis_matches;
     ov::Output<ov::Node> a;
-    if (has_k) {
+    if (has_k_axis && (activation_tokens.is_dynamic() != id_tokens.is_dynamic())) {
+        // Resolve mixed static/dynamic layouts at runtime without changing the usual dynamic down path.
+        auto ids_shape = std::make_shared<ov::op::v3::ShapeOf>(ids_2d, ov::element::i64);
+        auto tokens = gather_dims(ids_shape, {0});
+        auto b_shape = std::make_shared<ov::op::v3::ShapeOf>(b, ov::element::i64);
+        ov::Output<ov::Node> b_tokens = const_i64({1});
+        if (!activation_batch_dims.empty()) {
+            b_tokens = std::make_shared<ov::op::v1::ReduceProd>(gather_dims(b_shape, activation_batch_dims),
+                                                                const_i64({0}),
+                                                                true);
+        }
+        auto matches = std::make_shared<ov::op::v1::Equal>(tokens, b_tokens);
+        auto slots = std::make_shared<ov::op::v1::Select>(matches, const_i64({K}), const_i64({1}));
+        auto tkc_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{tokens, slots, const_i64({cols})}, 0);
+        auto b_tkc = std::make_shared<ov::op::v1::Reshape>(b, tkc_shape, false);
+        auto target = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{tokens, const_i64({K, cols})}, 0);
+        auto per_expert = std::make_shared<ov::op::v3::Broadcast>(b_tkc, target);
+        a = std::make_shared<ov::op::v1::Transpose>(
+            per_expert,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 0, 2}));
+    } else if (has_k) {
         auto b_tkc = std::make_shared<ov::op::v1::Reshape>(
             b,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{-1, K, cols}),
@@ -330,91 +362,12 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(ov::Output<ov::Node> expert_we
     return result;
 }
 
-std::shared_ptr<ov::op::v0::Constant> half_expert_constant(const ov::Output<ov::Node>& weights) {
-    const auto& partial_shape = weights.get_partial_shape();
-    if (!partial_shape.is_static())
-        return nullptr;
-    const auto shape = partial_shape.to_shape();
-    if (shape.size() != 3 && (shape.size() != 4 || shape[0] != 1))
-        return nullptr;
-    auto source = weights;
-    if (const auto deferred = ov::as_type_ptr<GGUFConstant>(source.get_node_shared_ptr())) {
-        if (deferred->qtype() != GGUF_TYPE_F16 && deferred->qtype() != GGUF_TYPE_BF16)
-            return nullptr;
-        source = deferred->materialize()->output(0);
-        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(source.get_node_shared_ptr()))
-            source = reshape->input_value(0);
-    }
-    if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source.get_node_shared_ptr())) {
-        if (convert->get_destination_type() != ov::element::f32) {
-            return nullptr;
-        }
-        source = convert->input_value(0);
-    }
-    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(source.get_node_shared_ptr());
-    if (!constant ||
-        (source.get_element_type() != ov::element::f16 && source.get_element_type() != ov::element::bf16)) {
-        return nullptr;
-    }
-    return constant->get_shape() == shape ? constant : std::make_shared<ov::op::v0::Constant>(*constant, shape);
-}
-
-ov::Output<ov::Node> translate_mul_mat_id_half(std::shared_ptr<ov::op::v0::Constant> weights,
-                                               ov::Output<ov::Node> activations,
-                                               ov::Output<ov::Node> ids) {
-    auto shape = weights->get_shape();
-    if (shape.size() == 4) {
-        shape.erase(shape.begin());
-        weights = std::make_shared<ov::op::v0::Constant>(*weights, shape);
-    }
-    // Gather in storage precision so only selected experts are expanded to F32.
-    ov::enable_keep_const_precision(weights);
-    ov::disable_conversion(weights, weights->get_element_type(), ov::element::f32);
-    const auto ids_rank = static_cast<int>(ids.get_partial_shape().size());
-    auto ids_shape = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
-    ids = std::make_shared<ov::op::v1::Reshape>(ids, gather_dims(ids_shape, {ids_rank - 2, ids_rank - 1}), false);
-    if (ids.get_element_type() != ov::element::i32 && ids.get_element_type() != ov::element::i64) {
-        ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
-    }
-    const auto acts_rank = static_cast<int>(activations.get_partial_shape().size());
-    if (acts_rank == 2) {
-        activations = std::make_shared<ov::op::v0::Unsqueeze>(activations, const_i64({0}));
-    } else if (acts_rank != 3) {
-        auto acts_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
-        activations = std::make_shared<ov::op::v1::Reshape>(
-            activations,
-            gather_dims(acts_shape, {acts_rank - 3, acts_rank - 2, acts_rank - 1}),
-            false);
-    }
-    auto selected =
-        std::make_shared<ov::op::v8::Gather>(weights,
-                                             ids,
-                                             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
-    ov::disable_conversion(selected, weights->get_element_type(), ov::element::f32);
-    auto expanded_weights = std::make_shared<ov::op::v0::Convert>(selected, ov::element::f32);
-    ov::mark_as_decompression(expanded_weights);
-    ov::disable_constant_folding(expanded_weights);
-
-    auto ids_shape_2d = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
-    auto acts_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
-    auto per_expert = activations_per_expert(activations, acts_shape, ids, ids_shape_2d);
-    auto expanded_acts = std::make_shared<ov::op::v0::Unsqueeze>(per_expert, const_i64({2}));
-    auto result = std::make_shared<ov::op::v0::MatMul>(expanded_acts, expanded_weights, false, true);
-    auto output_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1}),
-                                                              gather_dims(ids_shape_2d, {0, 1}),
-                                                              const_i64({static_cast<int64_t>(shape[1])})},
-                                             0);
-    return std::make_shared<ov::op::v1::Reshape>(result, output_shape, false);
-}
-
 }  // namespace
 
 // GGML_OP_MUL_MAT_ID: per-token MoE expert matmul. ids select which expert row of the weight
 // tensor each token uses; activations are gathered/broadcast accordingly and matmul'd. Dispatch:
 //   - packed MXFP4 experts -> on-graph dequant + per-expert matmul;
-//   - plain half constants -> Gather in half precision + F32 MatMul;
-//   - other constant-backed experts -> internal GatherMatmul;
+//   - constant-backed experts -> internal GatherMatmul;
 //   - non-constant experts (single-op tests / dynamic) -> portable Gather + MatMul fallback.
 OutputVector translate_mul_mat_id(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
@@ -440,8 +393,6 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     if (expert_weights.get_element_type() == ov::element::u8 && expert_weights.get_partial_shape().rank().is_static() &&
         expert_weights.get_partial_shape().rank().get_length() == 5) {
         result = translate_mul_mat_id_mxfp4_packed(expert_weights, activations, safe_ids);
-    } else if (auto half_weights = half_expert_constant(expert_weights)) {
-        result = translate_mul_mat_id_half(std::move(half_weights), activations, safe_ids);
     } else if (ov::op::util::is_on_path<ov::op::v0::Constant, GGUFConstant>(expert_weights)) {
         result = translate_mul_mat_id_gathermatmul(expert_weights, activations, safe_ids);
     } else {

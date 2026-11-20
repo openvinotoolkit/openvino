@@ -402,13 +402,13 @@ During compilation a device may fuse decompression into its matrix kernel, reord
 weights, or expand them to floating point. Full F16 and F32 expansions require `2*N` and
 `4*N` bytes respectively, potentially alongside packed storage. In particular, CPU compressed
 expert matmul does not support `u2` in this implementation, so Q2 MoE weights can expand.
-Plain F16/BF16 expert constants use a half-precision Gather followed by F32 conversion
-and MatMul. Only the selected experts expand; serializable precision guards retain the
-full expert storage in its source precision after IR loading. This trades the fused
-expert kernel for explicit selection and does not change quantized expert lowering.
-Selected-weight buffers scale with the number of tokens submitted in one inference.
-For long MoE media prefills, limit GenAI PA `scheduler_config.max_num_batched_tokens`
-and enable `dynamic_split_fuse` rather than submitting the whole prompt at once.
+Plain F16/BF16 expert constants use `GatherMatmul`, avoiding a per-token copy of
+the selected expert weights. CPU compilation may expand the entire expert tensor
+to F32, doubling its payload relative to the original half-precision storage.
+On GPUs without systolic support, these layers cannot compile. On supported GPUs,
+an explicit F32 inference precision hint may also fail; lower-precision execution
+can round differently from F32.
+See [internal-op serialization limits](runtime.md#internal-operations-and-serialization).
 
 Weight reorders and temporary buffers add to these costs; reducing context length does not
 remove them. KV caches, activation buffers and Hadamard transforms are separate from weight
