@@ -18,6 +18,7 @@
  #include <numeric>
 
 #include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/device.hpp"
 #include "gemm_inst.h"
 #include "permute_inst.h"
 #include "layout_optimizer.h"
@@ -2006,6 +2007,36 @@ TEST_F(gemm_gpu_tests, dynamic_multi_inference_same_shape) {
 TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape) {
     this->test_dynamic_multi_inference_different_shape(false);
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST_F(gemm_gpu_tests, dynamic_onednn_implementation_vendor_selection) {
+    auto& engine = get_test_engine();
+    const auto& info = engine.get_device_info();
+    if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        GTEST_SKIP() << "oneDNN GEMM is not supported on this device";
+
+    topology topology;
+    topology.add(input_layout("input1", layout{ov::PartialShape{1, 1, ov::Dimension(1, 10), 4}, data_types::f16, format::bfyx}),
+                 input_layout("input2", layout{ov::PartialShape{4, ov::Dimension(1, 10)}, data_types::f16, format::bfyx}),
+                 gemm("gemm", {input_info("input1"), input_info("input2")}, data_types::f16, false, false, 1.0f, 0.0f, 4, 2));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    const auto& node = prog->get_node("gemm");
+    const auto supported = node.type()->get_supported_implementations(node);
+    const auto has_impl = [&](impl_types type, shape_types shape) {
+        return std::any_of(supported.begin(), supported.end(), [&](const std::shared_ptr<ImplementationManager>& impl) {
+            return impl->get_impl_type() == type && impl->get_shape_type() == shape;
+        });
+    };
+
+    EXPECT_TRUE(has_impl(impl_types::onednn, shape_types::static_shape));
+    EXPECT_EQ(has_impl(impl_types::onednn, shape_types::dynamic_shape), info.vendor_id != INTEL_VENDOR_ID);
+    EXPECT_TRUE(has_impl(impl_types::ocl, shape_types::static_shape));
+    EXPECT_TRUE(has_impl(impl_types::ocl, shape_types::dynamic_shape));
+}
+#endif
 
 TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_f16_onednn) {
     this->test_dynamic_multi_inference_different_shape_onednn<ov::float16>(false, data_types::f16);
