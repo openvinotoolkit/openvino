@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -436,13 +438,13 @@ const auto params3InputsDynamic_v8 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In1, DetectionOutputLayerGPUTest,
                          params3InputsDynamic1,
-                         DetectionOutputLayerGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(DetectionOutputLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In2, DetectionOutputLayerGPUTest,
                          params3InputsDynamic2,
-                         DetectionOutputLayerGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(DetectionOutputLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputV8Dynamic3In, DetectionOutputLayerGPUTest,
                          params3InputsDynamic_v8,
-                         DetectionOutputLayerGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(DetectionOutputLayerGPUTest::getTestCaseName));
 } // namespace

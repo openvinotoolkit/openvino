@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -129,26 +131,26 @@ INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest2D,
                          ::testing::Combine(testing::ValuesIn(netPrecisions),
                                             testing::ValuesIn(inputShapes2D),
                                             testing::ValuesIn(axis2D)),
-                         SoftMaxLayerGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(SoftMaxLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest3D,
         SoftMaxLayerGPUTest,
                          ::testing::Combine(testing::ValuesIn(netPrecisions),
                                             testing::ValuesIn(inputShapes3D),
                                             testing::ValuesIn(axis3D)),
-                         SoftMaxLayerGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(SoftMaxLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest4D,
         SoftMaxLayerGPUTest,
                          ::testing::Combine(testing::ValuesIn(netPrecisions),
                                             testing::ValuesIn(inputShapes4D),
                                             testing::ValuesIn(axis4D)),
-                         SoftMaxLayerGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(SoftMaxLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest5D,
         SoftMaxLayerGPUTest,
                          ::testing::Combine(testing::ValuesIn(netPrecisions),
                                             testing::ValuesIn(inputShapes5D),
                                             testing::ValuesIn(axis5D)),
-                         SoftMaxLayerGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(SoftMaxLayerGPUTest::getTestCaseName));
 }  // namespace

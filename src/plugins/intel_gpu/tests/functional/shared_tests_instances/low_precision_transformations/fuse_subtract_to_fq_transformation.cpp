@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "low_precision_transformations/fuse_subtract_to_fake_quantize_transformation.hpp"
 #include <vector>
 #include <gtest/gtest.h>
@@ -30,5 +32,5 @@ namespace {
         ::testing::Combine(
             ::testing::Values(ov::test::utils::DEVICE_GPU),
             ::testing::ValuesIn(testValues)),
-        FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
+        ov::test::utils::make_hyphen_free_test_name(FuseSubtractToFakeQuantizeTransformation::getTestCaseName));
 }  // namespace

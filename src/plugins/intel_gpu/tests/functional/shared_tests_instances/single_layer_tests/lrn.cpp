@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "single_op_tests/lrn.hpp"
 
 #include <vector>
@@ -31,6 +33,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck, LrnLayerTest,
                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>(
                                                                 {{{10, 10, 3, 2}}}))),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        LrnLayerTest::getTestCaseName);
+                        ov::test::utils::make_hyphen_free_test_name(LrnLayerTest::getTestCaseName));
 
 }  // namespace

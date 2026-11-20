@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "single_op_tests/reduce_ops.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -81,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceOneAxis,
                                           testing::Values(ov::element::f32),
                                           testing::ValuesIn(inputShapesOneAxis),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogicalOneAxis,
                          ReduceOpsLayerTest,
@@ -92,7 +94,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogicalOneAxis,
                                           testing::Values(ov::element::boolean),
                                           testing::ValuesIn(inputShapes),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Precisions,
                          ReduceOpsLayerTest,
@@ -104,7 +106,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Precisions,
                                                           ov::element::i32),
                                           testing::Values(std::vector<size_t>{2, 2, 2, 2}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Ranks,
                          ReduceOpsLayerTest,
@@ -118,7 +120,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Ranks,
                                           testing::Values(std::vector<size_t>{2, 3, 4, 5, 4, 3, 2, 3},
                                                           std::vector<size_t>{2, 3, 4, 5, 4, 3, 2}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_InputShapes,
                          ReduceOpsLayerTest,
@@ -134,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_InputShapes,
                                                           std::vector<size_t>{2, 2, 2, 2, 2},
                                                           std::vector<size_t>{2, 2, 2, 2, 2, 2}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Axes,
                          ReduceOpsLayerTest,
@@ -145,7 +147,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Axes,
                                           testing::Values(ov::element::f32),
                                           testing::ValuesIn(inputShapes),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_ReductionTypes,
                          ReduceOpsLayerTest,
@@ -156,7 +158,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_ReductionTypes,
                                           testing::Values(ov::element::f32),
                                           testing::Values(std::vector<size_t>{2, 9, 2, 9}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogical_ReductionTypes,
                          ReduceOpsLayerTest,
@@ -167,7 +169,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogical_ReductionTypes,
                                           testing::Values(ov::element::boolean),
                                           testing::Values(std::vector<size_t>{2, 9, 2, 9}),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ReduceOpsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ReduceOpsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce,
                          ReduceOpsLayerWithSpecificInputTest,

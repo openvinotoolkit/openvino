@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <intel_gpu/graph/network.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -740,7 +742,7 @@ const std::vector<bool> run_caching_test = {false};
                              matrix_nms_gpu_test_##input_type##func,                                       \
                              testing::Combine(testing::Values(func()), testing::ValuesIn(layout_formats),  \
                                               testing::ValuesIn(run_caching_test)),                        \
-                             matrix_nms_gpu_test_##input_type##func::PrintToStringParamName);
+                             ov::test::utils::make_hyphen_free_test_name(matrix_nms_gpu_test_##input_type##func::PrintToStringParamName));
 
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_smoke_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_gaussian_inputs)
@@ -780,7 +782,7 @@ INSTANTIATE_TEST_SUITE_P(matrix_nms_test_float16get_matrix_nms_smoke_inputs_cach
                          matrix_nms_gpu_test_float16get_matrix_nms_smoke_inputs,
                          testing::Combine(testing::Values(get_matrix_nms_smoke_inputs()), testing::ValuesIn(layout_formats),
                                           testing::Values(true)),
-                         matrix_nms_gpu_test_float16get_matrix_nms_smoke_inputs::PrintToStringParamName);
+                         ov::test::utils::make_hyphen_free_test_name(matrix_nms_gpu_test_float16get_matrix_nms_smoke_inputs::PrintToStringParamName));
 #endif
 
 #undef INSTANTIATE_MATRIX_NMS_TEST_SUITE

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -440,7 +442,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerGPUTes
             ::testing::ValuesIn(shapeParams4D_Smoke),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test, InterpolateLayerGPUTest,
          ::testing::Combine(
@@ -448,7 +450,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test, InterpolateLayerGPUTest,
             ::testing::ValuesIn(shapeParams4DReducedAxis_Full),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-     InterpolateLayerGPUTest::getTestCaseName);
+     ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 const auto interpolateCasesLinearOnnx_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX),
@@ -474,7 +476,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLay
             ::testing::ValuesIn(shapeParams4D_Smoke),
             ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
@@ -482,7 +484,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerGPUT
             ::testing::ValuesIn(shapeParams4D_Full),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 const auto interpolateCasesLinear_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v4::Interpolate::InterpolateMode::LINEAR),
@@ -508,7 +510,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerGP
             ::testing::ValuesIn(shapeParams4D_Smoke),
             ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
@@ -516,7 +518,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerGPUTest,
             ::testing::ValuesIn(shapeParams4DReducedAxis_Full),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 const auto interpolateCasesCubic_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v4::Interpolate::InterpolateMode::CUBIC),
@@ -542,7 +544,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerGPU
             ::testing::ValuesIn(shapeParams4D_Smoke),
             ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(InterpolateCubic_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
@@ -550,7 +552,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateCubic_Layout_Test, InterpolateLayerGPUTest,
             ::testing::ValuesIn(shapeParams4DReducedAxis_Full),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 ////////////////////////5D/////////////////////////////
 
@@ -660,7 +662,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx5D_Layout_Test, InterpolateL
             ::testing::ValuesIn(shapeParams5D_Smoke),
             ::testing::Values(ov::element::f32),
             ::testing::Values(false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
@@ -668,7 +670,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerGP
             ::testing::ValuesIn(shapeParams5D_Full),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 const auto interpolateCasesNN5D_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v4::Interpolate::InterpolateMode::NEAREST),
@@ -694,7 +696,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerGPUT
             ::testing::ValuesIn(shapeParams5D_Smoke),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNN5D_Layout_Test, InterpolateLayerGPUTest,
         ::testing::Combine(
@@ -702,7 +704,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN5D_Layout_Test, InterpolateLayerGPUTest,
             ::testing::ValuesIn(shapeParams5D_Full),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerGPUTest::getTestCaseName));
 
 
 //
@@ -741,7 +743,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCacheG
             ::testing::ValuesIn(shapeParams4D_Smoke_single),
             ::testing::Values(ov::element::f32),
             ::testing::Values(true, false)),
-    InterpolateLayerCacheGPUTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerCacheGPUTest::getTestCaseName));
 
 TEST_P(InterpolateLayerCacheGPUTest, InferenceCache) {
     std::string cacheDirName = ov::test::utils::generateTestFilePrefix() + "_gpu_model_cache";

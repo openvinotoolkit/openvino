@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "single_op_tests/grouped_matmul.hpp"
 
 #include <algorithm>
@@ -129,7 +131,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnected")),
                                             ::testing::Values(ov::AnyMap{})),
-                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(GroupedMatMulCompressedLayerTest_GPU::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d,
                          GroupedMatMulCompressedLayerTest_GPU,
@@ -145,5 +147,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d,
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(expected_primitive("GroupedMatMulCompressed", "Gemm")),
                                             ::testing::Values(ov::AnyMap{})),
-                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(GroupedMatMulCompressedLayerTest_GPU::getTestCaseName));
 }  // namespace

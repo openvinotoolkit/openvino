@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <string>
 #include <tuple>
 #include <vector>
@@ -420,7 +422,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(sortResultType),
                        ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    MulticlassNmsLayerTestGPU::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(MulticlassNmsLayerTestGPU::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MulticlassNmsLayerTest_v9_3inputs,
@@ -435,7 +437,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(sortResultType),
                        ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    MulticlassNmsLayerTestGPU::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(MulticlassNmsLayerTestGPU::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MulticlassNmsLayerTest_v8,
@@ -450,7 +452,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(sortResultType),
                        ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    MulticlassNmsLayerTestGPU8::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(MulticlassNmsLayerTestGPU8::getTestCaseName));
 
 }  // namespace
 }  // namespace GPULayerTestsDefinitions

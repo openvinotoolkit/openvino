@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/istft.hpp>
@@ -219,4 +221,5 @@ std::vector<ISTFTTestParams> generateTestParams() {
 
 ISTFT_TEST_P(f32);
 
-INSTANTIATE_TEST_SUITE_P(istft_test_suit, istft_test, testing::ValuesIn(generateTestParams()), istft_test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(istft_test_suit, istft_test, testing::ValuesIn(generateTestParams()),
+                         ov::test::utils::make_hyphen_free_test_name(istft_test::getTestCaseName));

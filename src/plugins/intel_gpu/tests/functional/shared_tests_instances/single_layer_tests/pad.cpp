@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "test_name.hpp"
+
 #include "single_op_tests/pad.hpp"
 
 namespace {
@@ -33,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad2DConst,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{13, 5}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
                          PadLayerTest,
@@ -45,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{13, 5}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 1, 0}, {0, 3, 0, 1}};
 const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 0, 1}, {1, 3, 2, 0}};
@@ -60,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad4DConst,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{3, 5, 10, 11}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
                          PadLayerTest,
@@ -72,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{3, 5, 10, 11}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 const std::vector<std::vector<int64_t>> padsBegin2DMixed = {{0, 0}, {1, 1}, {-2, 0}, {0, 3}, {2, -2}};
 const std::vector<std::vector<int64_t>> padsEnd2DMixed   = {{0, 0}, {1, 1}, {0, 1}, {-3, -2}, {2, -1}};
@@ -87,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad2DConst,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{13, 5}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
                          Pad12LayerTest,
@@ -99,7 +101,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{13, 5}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 const std::vector<std::vector<int64_t>> padsBegin4DMixed = {{0, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 0, 1}, {0, 0, -1, 1}, {2, 0, 0, 0}, {0, 3, 0, -1}};
 const std::vector<std::vector<int64_t>> padsEnd4DMixed   = {{0, 0, 0, 0}, {0, 3, 0, 0}, {1, 0, 0, 0}, {0, 0, 0, 2}, {1, -3, 0, 0}, {0, 3, 0, -1}};
@@ -114,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad4DConst,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{3, 5, 10, 11}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
                          Pad12LayerTest,
@@ -126,6 +128,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
                                           testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>{{3, 5, 10, 11}})),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PadLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(PadLayerTest::getTestCaseName));
 
 }  // namespace

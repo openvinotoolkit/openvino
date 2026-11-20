@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -98,6 +100,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsGPUTest,
                     ::testing::ValuesIn(std::vector<ov::element::Type>({ov::element::f16, ov::element::f32})),
                     ::testing::Values(ov::element::i32),
                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
-        GatherElementsGPUTest::getTestCaseName);
+        ov::test::utils::make_hyphen_free_test_name(GatherElementsGPUTest::getTestCaseName));
 
 } // namespace

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <vector>
 
 #include "single_op_tests/softmax.hpp"
@@ -40,7 +42,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(axis2D),
                      testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
-    SoftMax8LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(SoftMax8LayerTest::getTestCaseName));
 
 const std::vector<ov::Shape> inputShapes3D = {
     {16, 64, 64},
@@ -63,7 +65,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax3D,
         SoftMax8LayerTest,
         params3D,
-        SoftMax8LayerTest::getTestCaseName
+        ov::test::utils::make_hyphen_free_test_name(SoftMax8LayerTest::getTestCaseName)
 );
 
 const std::vector<ov::Shape> inputShapes4D = {
@@ -85,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(axis4D),
                      testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
-    SoftMax8LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(SoftMax8LayerTest::getTestCaseName));
 
 const std::vector<ov::Shape> stableDiffusionShapes = {
     {16, 4096, 4096},
@@ -102,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(-1),
                      testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
-    SoftMax8LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(SoftMax8LayerTest::getTestCaseName));
 
 const std::vector<ov::Shape> inputShapes5D = {
     {1, 100, 1, 1, 1},
@@ -122,6 +124,6 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(axis5D),
                      testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
-    SoftMax8LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(SoftMax8LayerTest::getTestCaseName));
 
 }  // namespace

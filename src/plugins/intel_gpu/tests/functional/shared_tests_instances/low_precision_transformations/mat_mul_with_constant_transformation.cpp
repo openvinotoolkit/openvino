@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <vector>
 #include <gtest/gtest.h>
 #include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
@@ -104,5 +106,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithConstantTransformation,
         ::testing::ValuesIn(precisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),
-    MatMulWithConstantTransformation::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(MatMulWithConstantTransformation::getTestCaseName));
 }  // namespace

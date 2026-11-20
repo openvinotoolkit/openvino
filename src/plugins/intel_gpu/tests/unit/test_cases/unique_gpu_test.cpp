@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <test_utils/test_utils.h>
 
 #include <intel_gpu/primitives/unique.hpp>
@@ -371,7 +373,7 @@ const std::vector<format::type> layout_formats = {format::bfyx, format::b_fs_yx_
                              unique_gpu_test_##elem_type##index_type##count_type,                                      \
                              testing::Combine(testing::ValuesIn(getUniqueParams<elem_type, index_type, count_type>()), \
                                               testing::ValuesIn(layout_formats)),                                      \
-                             unique_gpu_test_##elem_type##index_type##count_type::PrintToStringParamName);
+                             ov::test::utils::make_hyphen_free_test_name(unique_gpu_test_##elem_type##index_type##count_type::PrintToStringParamName));
 
 INSTANTIATE_UNIQUE_TEST_SUITE(float, int64_t, int32_t);
 

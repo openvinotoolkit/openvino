@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -206,7 +208,7 @@ const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputSha
                                                  ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_01, RangeDynamicGPUTest,
-                         testParams_smoke, RangeDynamicGPUTest::getTestCaseName);
+                         testParams_smoke, ov::test::utils::make_hyphen_free_test_name(RangeDynamicGPUTest::getTestCaseName));
 
 
 const std::vector<std::vector<float>> inputFloatValues = {
@@ -232,7 +234,7 @@ const auto testFloatParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInp
                                                       ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_02, RangeDynamicGPUTest,
-                         testFloatParams_smoke, RangeDynamicGPUTest::getTestCaseName);
+                         testFloatParams_smoke, ov::test::utils::make_hyphen_free_test_name(RangeDynamicGPUTest::getTestCaseName));
 
 const std::vector<std::vector<float>> inputMixedValues = {
     {
@@ -253,5 +255,5 @@ const auto testMixedParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInp
                                                       ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_diff_types, RangeDynamicGPUTest,
-                         testMixedParams_smoke, RangeDynamicGPUTest::getTestCaseName);
+                         testMixedParams_smoke, ov::test::utils::make_hyphen_free_test_name(RangeDynamicGPUTest::getTestCaseName));
 } // namespace

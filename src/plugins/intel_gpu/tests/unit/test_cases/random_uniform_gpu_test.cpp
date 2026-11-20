@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/data.hpp>
@@ -171,7 +173,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int64,
                                                                       1242L, 2672L, -1585L, -2271L, 3536L, -1502L, 400L,
                                                                       2241L, 3126L, 908L, 1073L, -2110L}}
                          ),
-                         PrintToStringParamName());
+                         ov::test::utils::make_hyphen_free_test_name(PrintToStringParamName()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f32,
                          random_uniform_gpu_test_f32,
@@ -212,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f16,
                                                               ov::float16(-1.17773438), ov::float16(-1.16992188)}
                                  }
                          ),
-                         PrintToStringParamName());
+                         ov::test::utils::make_hyphen_free_test_name(PrintToStringParamName()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_bf16,
                          random_uniform_gpu_test_bf16,
@@ -233,7 +235,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_bf16,
                                                               ov::bfloat16(-1.42187500), ov::bfloat16(-1.35937500)}
                                  }
                          ),
-                         PrintToStringParamName());
+                         ov::test::utils::make_hyphen_free_test_name(PrintToStringParamName()));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(random_uniform_gpu_test_i32, random_int32_cached) {

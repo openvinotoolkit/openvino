@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <vector>
 
 #include "single_op_tests/shuffle_channels.hpp"
@@ -30,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_ShuffleChannels,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ShuffleChannelsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ShuffleChannelsLayerTest::getTestCaseName));
 
 // ND support tests
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D,
@@ -40,7 +42,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D,
                                             ::testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>({{18, 30, 36}}))),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ShuffleChannelsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ShuffleChannelsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D,
                          ShuffleChannelsLayerTest,
@@ -49,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D,
                                             ::testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>({{18, 30}}))),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ShuffleChannelsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ShuffleChannelsLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D,
                          ShuffleChannelsLayerTest,
@@ -58,4 +60,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D,
                                             ::testing::Values(ov::test::static_shapes_to_test_representation(
                                                 std::vector<ov::Shape>({{30}}))),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ShuffleChannelsLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(ShuffleChannelsLayerTest::getTestCaseName));

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "single_op_tests/segment_max.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -66,7 +68,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SegmentMax,
                          ::testing::Combine(::testing::ValuesIn(segmentMaxParams),
                                             precisions,
                                             targetDevice),
-                         SegmentMaxLayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(SegmentMaxLayerTest::getTestCaseName));
 
 // ---------------------------------------------------------------------------
 // Large-data profiling tests.
@@ -123,7 +125,7 @@ INSTANTIATE_TEST_SUITE_P(perf_SegmentMax,
                          ::testing::Combine(::testing::ValuesIn(segmentMaxPerfParams),
                                             testing::Values(ElementType::f32),
                                             targetDevice),
-                         perfTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(perfTestCaseName));
 
 }  // namespace
 }  // namespace test

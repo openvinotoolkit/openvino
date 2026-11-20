@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -135,7 +137,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static,
                                             ::testing::ValuesIn(flat_or_axis),
                                             ::testing::ValuesIn(sorted),
                                             ::testing::ValuesIn(model_types)),
-                         UniqueLayerDynamicGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(UniqueLayerDynamicGPUTest::getTestCaseName));
 
 std::vector<std::vector<InputShape>> getDynamicShapes() {
     return {
@@ -152,6 +154,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic,
                                             ::testing::ValuesIn(flat_or_axis),
                                             ::testing::ValuesIn(sorted),
                                             ::testing::ValuesIn(model_types)),
-                         UniqueLayerDynamicGPUTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(UniqueLayerDynamicGPUTest::getTestCaseName));
 
 }  // namespace

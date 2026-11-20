@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <vector>
 
 #include "single_op_tests/cum_sum.hpp"
@@ -33,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CumSum1D, CumSumLayerTest,
                                 ::testing::ValuesIn(exclusive),
                                 ::testing::ValuesIn(reverse),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        CumSumLayerTest::getTestCaseName);
+                        ov::test::utils::make_hyphen_free_test_name(CumSumLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CumSum, CumSumLayerTest,
                         ::testing::Combine(
@@ -43,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CumSum, CumSumLayerTest,
                                 ::testing::ValuesIn(exclusive),
                                 ::testing::ValuesIn(reverse),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        CumSumLayerTest::getTestCaseName);
+                        ov::test::utils::make_hyphen_free_test_name(CumSumLayerTest::getTestCaseName));
 
 const std::vector<std::vector<ov::Shape>> inShapesWithBigDims = {
         {{64, 64}},
@@ -59,5 +61,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CumSumBigDims, CumSumLayerTest,
                                 ::testing::ValuesIn(exclusive),
                                 ::testing::ValuesIn(reverse),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        CumSumLayerTest::getTestCaseName);
+                        ov::test::utils::make_hyphen_free_test_name(CumSumLayerTest::getTestCaseName));
 }  // namespace

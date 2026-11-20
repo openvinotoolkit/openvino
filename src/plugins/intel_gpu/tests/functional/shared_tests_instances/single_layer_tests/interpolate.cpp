@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "single_op_tests/interpolate.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -210,7 +212,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testin
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    InterpolateLayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_BasicEmptyAxes, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearestEmptyAxes,
@@ -219,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_BasicEmptyAxes, InterpolateLayerTest,
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    InterpolateLayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesNearesMode,
@@ -228,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::test
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    InterpolateLayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dLinearOnnx, GPUInterpolateLayerTest, ::testing::Combine(
         interpolate5dCasesLinearOnnxMode,
@@ -237,7 +239,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dLinearOnnx, GPUInterpolateLayerTest
         ::testing::ValuesIn(target5dShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    InterpolateLayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dNearest, GPUInterpolateLayerTest, ::testing::Combine(
         interpolate5dCasesNearestMode,
@@ -246,7 +248,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dNearest, GPUInterpolateLayerTest, :
         ::testing::ValuesIn(target5dShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    InterpolateLayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(InterpolateLayerTest::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Basic, Interpolate11LayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
@@ -255,7 +257,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Basic, Interpolate11LayerTest, ::t
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(Interpolate11LayerTest::getTestCaseName));
 
 const std::vector<ov::op::util::InterpolateBase::InterpolateMode> modesPillow = {
         ov::op::util::InterpolateBase::InterpolateMode::BILINEAR_PILLOW,
@@ -284,7 +286,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow, Interpolate11LayerTest, ::
         ::testing::Values(ov::Shape{1, 1, 50, 50}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(Interpolate11LayerTest::getTestCaseName));
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, Interpolate11LayerTest, ::testing::Combine(
@@ -304,7 +306,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, Interpolate11La
         ::testing::Values(ov::Shape{1, 1, 25, 50}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(Interpolate11LayerTest::getTestCaseName));
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, Interpolate11LayerTest, ::testing::Combine(
@@ -324,7 +326,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, Interpolate11Laye
         ::testing::Values(ov::Shape{1, 1, 50, 25}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(Interpolate11LayerTest::getTestCaseName));
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, Interpolate11LayerTest, ::testing::Combine(
@@ -344,7 +346,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, Interpolate11L
         ::testing::Values(ov::Shape{52, 26, 2, 2}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(Interpolate11LayerTest::getTestCaseName));
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Same, Interpolate11LayerTest, ::testing::Combine(
@@ -364,5 +366,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Same, Interpolate11LayerTes
         ::testing::Values(ov::Shape{1, 32, 32, 16}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    ov::test::utils::make_hyphen_free_test_name(Interpolate11LayerTest::getTestCaseName));
 } // namespace

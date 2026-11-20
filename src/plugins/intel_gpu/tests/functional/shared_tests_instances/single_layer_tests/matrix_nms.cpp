@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include <tuple>
 #include <string>
 #include <random>
@@ -289,7 +291,7 @@ const auto nmsParamsStatic =
 INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTestGPU_static,
                          MatrixNmsLayerTestGPU,
                          nmsParamsStatic,
-                         MatrixNmsLayerTestGPU::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(MatrixNmsLayerTestGPU::getTestCaseName));
 
 } // namespace
 } // namespace test

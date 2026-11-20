@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "single_op_tests/normalize_l2.hpp"
 
 namespace {
@@ -32,5 +34,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2,
                                                 std::vector<ov::Shape>{{1, 3, 10, 5}})),
                                           testing::ValuesIn(netPrecisions),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
-                         NormalizeL2LayerTest::getTestCaseName);
+                         ov::test::utils::make_hyphen_free_test_name(NormalizeL2LayerTest::getTestCaseName));
 }  // namespace

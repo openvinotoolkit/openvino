@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -124,7 +126,7 @@ INSTANTIATE_TEST_SUITE_P(Inference_without_convert, BF16WeightsDecompression,
                             BF16WeightsDecompressionParams(-55340232221128654848.0f,
                                  BF16WeightsDecompression::float_to_ushort(-55340232221128654848.0f*4)),
                             BF16WeightsDecompressionParams(-3.0f, BF16WeightsDecompression::float_to_ushort(-3.0f*4))),
-                            BF16WeightsDecompression::get_test_case_name);
+                            ov::test::utils::make_hyphen_free_test_name(BF16WeightsDecompression::get_test_case_name));
 
 
 TEST_F(BF16WeightsDecompression, Inference_input_Add_without_convert) {

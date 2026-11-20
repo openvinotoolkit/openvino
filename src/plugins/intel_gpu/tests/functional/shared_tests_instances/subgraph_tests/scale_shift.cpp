@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_name.hpp"
+
 #include "subgraph_tests/scaleshift.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -51,5 +53,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScaleShift, ScaleShiftLayerTest,
                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(Scales),
                                 ::testing::ValuesIn(Shifts)),
-                        ScaleShiftLayerTest::getTestCaseName);
+                        ov::test::utils::make_hyphen_free_test_name(ScaleShiftLayerTest::getTestCaseName));
 }  // namespace
