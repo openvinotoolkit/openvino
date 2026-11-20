@@ -9,10 +9,10 @@
 #include <thread>
 #include <vector>
 
-#include "common_test_utils/test_assertions.hpp"
 #include "cpu_memory.h"
 #include "dnnl_scratch_pad.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -33,15 +33,13 @@ TEST(MemoryTest, ConcurrentGetPrimitive) {
 
     std::atomic<bool> lock{true};
 
-    std::thread worker1([&]() {
-        while (lock.load()) {
-        }
+    std::thread worker1([&](){
+        while (lock.load()) {}
         dnnl_mem1 = cpu_mem1.getPrimitive();
     });
 
-    std::thread worker2([&]() {
-        while (lock.load()) {
-        }
+    std::thread worker2([&](){
+        while (lock.load()) {}
         dnnl_mem2 = cpu_mem1.getPrimitive();
     });
 
@@ -54,7 +52,7 @@ TEST(MemoryTest, ConcurrentGetPrimitive) {
 }
 
 TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
-    constexpr size_t number_of_attempts = 10;  // just to increase the probability of a collision
+    constexpr size_t number_of_attempts = 10; //just to increase the probability of a collision
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     for (size_t i = 0; i < number_of_attempts; ++i) {
         dnnl::memory dnnl_mem;
@@ -65,15 +63,13 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
 
         std::atomic<bool> lock{true};
 
-        std::thread worker1([&]() {
-            while (lock.load()) {
-            }
+        std::thread worker1([&](){
+            while (lock.load()) {}
             dnnl_mem = cpu_mem1.getPrimitive();
         });
 
-        std::thread worker2([&]() {
-            while (lock.load()) {
-            }
+        std::thread worker2([&](){
+            while (lock.load()) {}
             cpu_mem2.redefineDesc(desc2);
         });
 

@@ -405,7 +405,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
             const auto* src_row = residual_bytes + (tile_start + row) * CD * residual_elem_size;
             for (size_t c = 0; c < C; c++) {
                 kernel::jit_rms_call_args args{src_row + c * D * residual_elem_size,
-                                               reinterpret_cast<const float*>(gain_bytes + c * D * residual_elem_size),
+                                               gain_bytes + c * D * residual_elem_size,
                                                reinterpret_cast<uint8_t*>(rbar_row + c * D)};
                 (*m_rms_kernel)(&args);
                 if (gemm_lowp) {

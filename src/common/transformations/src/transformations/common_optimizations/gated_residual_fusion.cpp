@@ -66,6 +66,11 @@ auto last_dims_static(size_t count) {
     };
 }
 
+/// The element type is floating-point: the op takes the residual, the gain and plain weights in one real type.
+bool is_real_type(const ov::Output<ov::Node>& out) {
+    return out.get_element_type().is_real();
+}
+
 /// Both dimensions are static and equal, or both are dynamic.
 bool same_dimension(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     return lhs.is_static() == rhs.is_static() && (lhs.is_dynamic() || lhs == rhs);
@@ -228,7 +233,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
 
     // Static dimensions are named: equal names are equal sizes. The residual is [..., CD] and splits into [..., C, D];
     // W_down is [L, CD] and W_up [CD, L].
-    auto residual = any_input(shape_matches("[..., CD]") && rank_more_than(1));
+    auto residual = any_input(shape_matches("[..., CD]") && rank_more_than(1) && is_real_type);
     auto residual_3d =
         wrap_type<ov::op::v1::Reshape>({residual, any_input()},
                                        shape_matches("[..., C, D]") && last_dims_static(2) && adds_dimension);
@@ -238,8 +243,10 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
     auto w_up = any_input(shape_matches("[CD, L]") && has_static_shape());
 
     // Normalization: a fused RMS op, or the decomposed form (Power -> ReduceMean -> Add(eps) -> Sqrt -> Divide ->
-    // Multiply).
-    auto norm_fused = wrap_type<ov::op::internal::RMS>({residual_3d, any_input()});
+    // Multiply). The fused RMS must normalize the last axis D (an RMS with another axis is not this normalization), and
+    // its gain is static: the callback reads its size.
+    auto norm_fused = wrap_type<ov::op::internal::RMS>({residual_3d, any_input(has_static_shape())},
+                                                       {{"axis", int64_t{-1}}});
     auto rbar_fused = wrap_type<ov::op::v1::Reshape>({norm_fused, any_input()});
 
     auto sq = wrap_type<ov::op::v1::Power>({residual_3d, two});
@@ -253,15 +260,15 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
     auto inv_rms = inv_rms_div | inv_rms_pow;
     auto normalized = wrap_type<ov::op::v1::Multiply>({residual_3d, inv_rms});
     auto normalized_flat = wrap_type<ov::op::v1::Reshape>({normalized, any_input()});
-    // The gain multiplies the flattened normalization: a `1 + w` Add or a folded Constant. Its size is checked in the
-    // callback.
-    auto decomposed_gain = any_input();
+    // The gain multiplies the flattened normalization: a `1 + w` Add or a folded Constant. It is static; its size
+    // depends on C and is checked in the callback.
+    auto decomposed_gain = any_input(has_static_shape());
     auto rbar_decomposed = wrap_type<ov::op::v1::Multiply>({normalized_flat, decomposed_gain});
 
     // RMSFusion turns the gain-less normalization into a single-input RMS; the gain follows the flattening Reshape.
-    auto norm_nogamma = wrap_type<ov::op::internal::RMS>({residual_3d});
+    auto norm_nogamma = wrap_type<ov::op::internal::RMS>({residual_3d}, {{"axis", int64_t{-1}}});
     auto nogamma_flat = wrap_type<ov::op::v1::Reshape>({norm_nogamma, any_input()});
-    auto gain_nogamma = any_input();
+    auto gain_nogamma = any_input(has_static_shape());
     auto rbar_nogamma = wrap_type<ov::op::v1::Multiply>({nogamma_flat, gain_nogamma});
 
     // A gain of ones may be folded away by the exporter.
@@ -368,8 +375,9 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
             gain_flat = ones;
         } else {
             // A [D]-wide gain would be valid, but the op takes the expanded [C * D] form; leave such graphs alone.
+            // The pattern guarantees a static gain; its size depends on C.
             const auto& gain_ps = gain.get_partial_shape();
-            if (!gain_ps.is_static() || ov::shape_size(gain_ps.to_shape()) != C * D) {
+            if (ov::shape_size(gain_ps.to_shape()) != C * D) {
                 return false;
             }
             gain_flat = gain;
@@ -381,7 +389,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
                 new_ops.push_back(gain_flat.get_node_shared_ptr());
             }
         }
-        if (!data_type.is_real() || gain_flat.get_element_type() != data_type ||
+        if (gain_flat.get_element_type() != data_type ||
             w_down.get_element_type() != data_type || w_up_out.get_element_type() != data_type) {
             return false;
         }

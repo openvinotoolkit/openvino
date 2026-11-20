@@ -118,6 +118,7 @@ struct ReadOptions {
     float low_scale_factor = 1.0F;
     float gate_scale_factor = 1.0F;
     size_t gain_size = CD;  // elements of the norm gain; C*D is what the op takes
+    int64_t rms_axis = -1;  // axis of a fused RMS; the op normalizes the last one
 };
 
 // The projection weight of a GEMM: [N, K] stored with transpose_b.
@@ -158,12 +159,18 @@ Output<Node> getNormalizedFlat(const ReadOptions& opt, const Output<Node>& resid
     auto r3 = reshape_to(residual, split);
     switch (opt.norm) {
     case Norm::FusedRms:
-        return reshape_to(std::make_shared<ov::op::internal::RMS>(r3, filled_f32(Shape{C, D}, 1.0F), EPS), flat);
+        return reshape_to(std::make_shared<ov::op::internal::RMS>(r3,
+                                                                  filled_f32(Shape{C, D}, 1.0F),
+                                                                  EPS,
+                                                                  element::dynamic,
+                                                                  opt.rms_axis),
+                          flat);
     case Norm::GammalessRms:
-        return std::make_shared<op::v1::Multiply>(reshape_to(std::make_shared<ov::op::internal::RMS>(r3, EPS), flat),
-                                                  gain);
+        return std::make_shared<op::v1::Multiply>(
+            reshape_to(std::make_shared<ov::op::internal::RMS>(r3, EPS, element::dynamic, opt.rms_axis), flat),
+            gain);
     case Norm::GammalessRmsNoGain:
-        return reshape_to(std::make_shared<ov::op::internal::RMS>(r3, EPS), flat);
+        return reshape_to(std::make_shared<ov::op::internal::RMS>(r3, EPS, element::dynamic, opt.rms_axis), flat);
     case Norm::Decomposed:
     default: {
         auto sq = std::make_shared<op::v1::Power>(r3, scalar(2.0F));
@@ -519,6 +526,21 @@ TEST_F(GatedResidualFusionTests, Read_WriteGateWithAnotherConsumerStaysDecompose
 TEST_F(GatedResidualFusionTests, Read_GainOfWrongSizeIsNotFused) {
     ReadOptions opt;
     opt.gain_size = 1;
+    model = getReadModel(opt);
+}
+
+// An RMS over another axis (RMSFusion's feature-axis form) is not the normalization over D.
+TEST_F(GatedResidualFusionTests, Read_FusedRmsOverAnotherAxisIsNotFused) {
+    ReadOptions opt;
+    opt.norm = Norm::FusedRms;
+    opt.rms_axis = 1;
+    model = getReadModel(opt);
+}
+
+TEST_F(GatedResidualFusionTests, Read_GammalessRmsOverAnotherAxisIsNotFused) {
+    ReadOptions opt;
+    opt.norm = Norm::GammalessRms;
+    opt.rms_axis = 1;
     model = getReadModel(opt);
 }
 

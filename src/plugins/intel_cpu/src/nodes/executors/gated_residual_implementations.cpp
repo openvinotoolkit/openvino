@@ -20,6 +20,7 @@
 #    include "nodes/executors/precision_translation.hpp"
 #    include "nodes/executors/type_mask.hpp"
 #    include "openvino/core/type/element_type.hpp"
+#    include "openvino/runtime/system_conf.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -34,8 +35,15 @@ using namespace TypeMaskAlias;
 // are not mapped and keep their types.
 static const TypeMapping dnnlGatedResidualTypeMapping {
     // compressed weights and their scales keep their types
-    {{_f32 | _bf16, _any, _u8 | _i8 | _u4 | _i4, _any, _any, _any, _any},
+    {{_f32, _any, _u8 | _i8 | _u4 | _i4, _any, _any, _any, _any},
      {bypass(), use<0>(), bypass(), bypass(), bypass(), use<0>(), use<0>()}},
+    // bf16 with compressed weights needs native bf16, as in the FullyConnected mapping: without it oneDNN cannot
+    // build the bf16-output projection from f32 activations and int weights
+    {{_bf16, _any, _u8 | _i8 | _u4 | _i4, _any, _any, _any, _any},
+     {bypass(), use<0>(), bypass(), bypass(), bypass(), use<0>(), use<0>()},
+     []() { return ov::with_cpu_x86_bfloat16(); }},
+    {{_bf16, _any, _u8 | _i8 | _u4 | _i4, _any, _any, _any, _any},
+     {just<f32>(), just<f32>(), bypass(), bypass(), bypass(), just<f32>(), just<f32>()}},
     // float weights take the data precision
     {{_f32 | _bf16, _any, _any, _any, _any, _any, _any},
      {bypass(), use<0>(), use<0>(), use<0>(), use<0>(), use<0>(), use<0>()}},

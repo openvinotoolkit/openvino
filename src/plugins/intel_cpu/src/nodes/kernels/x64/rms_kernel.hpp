@@ -36,7 +36,7 @@ struct jit_rms_compile_params {
 
 struct jit_rms_call_args {
     const uint8_t* src;
-    const float* scale;
+    const uint8_t* scale;  // elements of jcp.scale_prc
     uint8_t* dst;
 };
 

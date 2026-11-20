@@ -87,7 +87,7 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const kernel::jit_
 static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
                           const uint8_t* src,
                           uint8_t* dst,
-                          const float* scale) {
+                          const uint8_t* scale) {
     kernel::jit_rms_call_args call_args{src, scale, dst};
     (*ker)(&call_args);
 }
@@ -116,7 +116,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         auto* src = inputs[0]->getDataAs<uint8_t>();
         auto* dst = output->getDataAs<uint8_t>();
         // With a bf16/f16 gain this points at elements of that type; the kernel reads it at jcp.scale_prc.
-        const auto* scale = inputs.size() > 1 ? reinterpret_cast<const float*>(inputs[1]->getData()) : &identity_scale;
+        const auto* scale = inputs.size() > 1 ? inputs[1]->getDataAs<const uint8_t>()
+                                              : reinterpret_cast<const uint8_t*>(&identity_scale);
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
