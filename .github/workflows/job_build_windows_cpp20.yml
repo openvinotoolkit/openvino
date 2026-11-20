@@ -10,7 +10,7 @@ on:
         type: string
         required: true
       target-branch:
-        description: 'Target branch for the build'
+        description: 'Retained for compatibility; remote ccache is shared across branches'
         type: string
         required: true
       cmake-options:
@@ -47,9 +47,10 @@ jobs:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}_cpp20\\${{ inputs.target-branch }}"
+      CCACHE_SECONDARY_STORAGE: "file:///C:/mount/caches/ccache/shared/windows/${{ inputs.build-variant }}/x86_64/${{ inputs.build-type }}_cpp20|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
@@ -77,15 +78,14 @@ jobs:
         run: python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
       - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-cpp20-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-cpp20-ccache
+        run: |
+          ccache --version
+          $config = ccache --show-config | Out-String
+          Write-Output $config
+          if (-not $config.Contains($env:CCACHE_SECONDARY_STORAGE)) {
+            Write-Error "ccache remote storage is not configured: expected $env:CCACHE_SECONDARY_STORAGE"
+            exit 1
+          }
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -109,7 +109,7 @@ jobs:
 
       - name: Show ccache stats
         if: always()
-        run: '& ccache --show-stats'
+        run: '& ccache --show-stats --verbose'
 
       - name: Report non-blocking failure
         if: failure()
