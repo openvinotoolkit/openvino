@@ -51,6 +51,8 @@ flowchart TD
 
 OpenVINO PyTorch Frontend supports extensions. To add an extension, use
 `ov::frontend::pytorch::Frontend::add_extension()` API.
+In FX graphs, `ConversionExtension` matches plain Python function targets by their
+defining `module.qualified_name`, which can differ from an import alias.
 The following extension types are supported:
 
 * `ov::frontend::tensorflow::ConversionExtension` or `ov::frontend::ConversionExtension` - add a new Loader into the conversion pipeline.
