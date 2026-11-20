@@ -16,6 +16,7 @@ const char* ov_property_key_device_capabilities = "OPTIMIZATION_CAPABILITIES";
 const char* ov_property_key_model_name = "NETWORK_NAME";
 const char* ov_property_key_optimal_batch_size = "OPTIMAL_BATCH_SIZE";
 const char* ov_property_key_max_batch_size = "MAX_BATCH_SIZE";
+const char* ov_property_key_qos_info = "QOS_INFO";
 
 // Read-write property key
 const char* ov_property_key_cache_dir = "CACHE_DIR";
@@ -41,3 +42,4 @@ const char* ov_property_key_intel_gpu_config_file = "CONFIG_FILE";
 
 // Write-only property key
 const char* ov_property_key_cache_encryption_callbacks = "CACHE_ENCRYPTION_CALLBACKS";
+const char* ov_property_key_qos = "QOS";

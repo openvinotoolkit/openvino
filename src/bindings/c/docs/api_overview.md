@@ -306,6 +306,8 @@ OPENVINO_C_VAR(const char*) ov_property_key_optimal_batch_size;
 
 OPENVINO_C_VAR(const char*) ov_property_key_max_batch_size;
 
+OPENVINO_C_VAR(const char*) ov_property_key_qos_info;
+
 OPENVINO_C_VAR(const char*) ov_property_key_cache_dir;
 
 OPENVINO_C_VAR(const char*) ov_property_key_num_streams;
@@ -341,6 +343,8 @@ OPENVINO_C_VAR(const char*) ov_property_key_force_tbb_terminate;
 OPENVINO_C_VAR(const char*) ov_property_key_enable_mmap;
 
 OPENVINO_C_VAR(const char*) ov_property_key_auto_batch_timeout;
+
+OPENVINO_C_VAR(const char*) ov_property_key_qos;
 ```
 
 ### AUTO plugin specified properties
