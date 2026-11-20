@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-01-09-36-408-44641581499",
+  "timestamp": "2026-11-20T01:09:36Z",
+  "run_id": "44641581499",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44641581499",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "c64f0fe07bbede1c83fba898c886e3c56b0543e0",
+  "pr_number": "39608",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39608",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Ninja build of ov_template_func_tests and several sample executables fails with repeated MSVC cl.exe 'fatal error C1060: compiler is out of heap space' and linker 'LNK1102: out of memory' during the Cmake build - CC COLLECT step."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build_And_Run_Collect_Mode failed upstream."
+    }
+  ],
+  "key_errors": [
+    "FAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/convert_color_to_nv12.cpp.obj\nC:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\vector(2202): fatal error C1060: compiler is out of heap space",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/hello_reshape_ssd.exe\nLINK : fatal error LNK1102: out of memory",
+    "ninja: build stopped: subcommand failed.\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Conditional Compilation (CC) Release build runs with high ninja parallelism on a memory-constrained self-hosted/hosted Windows runner. Once several parallel cl.exe/link.exe processes are active simultaneously compiling template functional tests and sample executables, available heap/virtual memory is exhausted, causing MSVC's cl.exe to emit 'fatal error C1060: compiler is out of heap space' and link.exe to emit 'fatal error LNK1102: out of memory'. This is the 15th recorded occurrence of the identical signature (first seen 2026-11-03), confirming it is an infrastructure/runner capacity issue rather than a code defect introduced by PR #39608 (a small, unrelated PyTorch FE accuracy fix to log1p/expm1 touching only 3 files).",
+  "reproduction_steps": "N/A - not reliably reproducible outside the CI runner's exact memory/parallelism conditions; locally reproducible only by building the same CMake CC configuration with an equally high ninja -j parallelism on a machine with comparable (constrained) RAM, e.g. `cmake --build build-modules/template --target ov_template_func_tests -- -j<high>` on a <=16GB Windows VM.",
+  "recommended_actions": [
+    "Reduce ninja/MSBuild parallelism (-j) for the Windows CC build job to a level proportional to available runner RAM (rule of thumb: 1.5-2 GB per parallel MSVC process for Release builds with heavy templates).",
+    "Investigate switching large template-heavy functional test compilation units to use /Zm (increase precompiled header memory allocation) or split heavily templated test files (e.g., op_reference/*.cpp) into smaller translation units.",
+    "Consider moving this job to a larger-memory runner SKU, given 15 occurrences since 2026-11-03.",
+    "Disable or reduce ccache/parallel linking concurrency specifically for the CC Release configuration, since linker LNK1102 failures also occur concurrently with compiler OOM.",
+    "Track this as a known recurring infrastructure issue in a tracking ticket referencing this pattern (signature_hash 80cfa127185fbf3e) so it is prioritized for a permanent fix rather than being re-investigated on every occurrence."
+  ],
+  "prevention_strategies": "Right-size CI parallelism (-j flag) to the runner's physical memory for Windows Release/CC builds; add a monitoring check that fails fast with a clear infra-OOM message rather than cascading into tens of FAILED compilation units; consider dedicated higher-memory runners for Windows Conditional Compilation jobs given its history of recurrent OOM.",
+  "historical_context": "Identical signature recorded 14 times previously between 2026-11-03 and 2026-11-19 (runs including 44603426744, 44599895950, 44588231549, 44581373590, 44292102363, 44238082087, 44082333313, 43907658756, 43398622571, 43369333911). No permanent fix has yet landed; this remains an open, unresolved recurring infrastructure problem."
+}
