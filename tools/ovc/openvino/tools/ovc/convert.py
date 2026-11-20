@@ -105,7 +105,7 @@ def convert_model(
             Non-PyTorch models are not exported with torch.export.
             The exported model uses static shapes from example_input by default.
             To enable dynamic dimensions, combine with the input parameter:
-            dynamic and bounded dimensions use torch.export.Dim constraints.
+            dynamic and bounded dimensions use torch.export.Dim.AUTO.
             The input shape must be compatible with example_input; export can
             reject dimensions that it cannot keep dynamic. Export failures are
             not retried with TorchScript.

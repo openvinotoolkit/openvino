@@ -234,7 +234,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
         self._shared_memory = shared_memory
-        self._use_exported_example_shape = False
         self._is_exported_program = constant_inputs is not None
         self._flat_input_is_constant = []
         self.input_types = input_types or []
@@ -379,28 +378,24 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                       output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec),
                       shared_memory=shared_memory, constant_inputs=constant_inputs)
         if not dynamic_shapes:
-            placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
-            input_index = 0
-            for node, is_constant in zip(placeholders, constant_inputs):
-                if is_constant:
-                    continue
-                shape = cls.get_found_shape(node)
+            constraints = exported_program.range_constraints
+            for input_index, node_index in enumerate(decoder._inputs):
+                shape = cls.get_found_shape(decoder._nodes[node_index])
                 if shape is not None:
-                    dimensions = []
-                    for dim in shape:
-                        if not isinstance(dim, torch.SymInt):
-                            dimensions.append(int(dim))
-                            continue
-                        bounds = exported_program.range_constraints.get(dim.node.expr)
-                        if bounds is None:
-                            dimensions.append(-1)
-                            continue
-                        lower = int(bounds.lower) if bounds.lower > 2 else 0
-                        upper = int(bounds.upper) if math.isfinite(bounds.upper) else -1
-                        dimensions.append(Dimension(lower, upper))
-                    decoder.input_shapes[input_index] = PartialShape(dimensions)
-                input_index += 1
+                    decoder.input_shapes[input_index] = PartialShape(
+                        [cls._exported_dim(dim, constraints) for dim in shape])
         return decoder
+
+    @staticmethod
+    def _exported_dim(dim, range_constraints):
+        if not isinstance(dim, torch.SymInt):
+            return int(dim)
+        bounds = range_constraints.get(dim.node.expr)
+        if bounds is None:
+            return -1
+        lower = int(bounds.lower) if bounds.lower > 2 else 0
+        upper = int(bounds.upper) if math.isfinite(bounds.upper) else -1
+        return Dimension(lower, upper)
 
     @staticmethod
     def _output_names_from_spec(out_spec):
@@ -457,7 +452,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """
         from openvino.frontend.pytorch import quantized
         from openvino.frontend.pytorch.patch_model import (
-            patch_model_for_export, unpatch_model, wrap_dataclass_outputs, _clear_export_cache)
+            patch_model_for_export, unpatch_model, patched_dataclass_outputs, _clear_export_cache)
 
         orig_forward_name = "_openvino_module_extension_patch_orig_forward"
 
@@ -493,7 +488,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 quant_patched = False
 
         try:
-            exported_program = cls._export(wrap_dataclass_outputs(model), example_inputs, dynamic_shapes)
+            with patched_dataclass_outputs(model):
+                exported_program = cls._export(model, example_inputs, dynamic_shapes)
         finally:
             if quant_patched:
                 quantized.unpatch_quantized_for_export(model)
@@ -501,31 +497,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 unpatch_model(model, orig_forward_name)
 
         try:
-            decoder = cls.from_exported_program(
-                exported_program, dynamic_shapes=False,
-                op_type_mapping=op_type_mapping, shared_memory=shared_memory)
-            cls._restore_wrapped_attr_names(decoder.pt_module)
-            decoder._use_exported_example_shape = True
-            return decoder
+            return cls.from_exported_program(
+                exported_program, op_type_mapping=op_type_mapping, shared_memory=shared_memory)
         finally:
             _clear_export_cache()
-
-    @staticmethod
-    def _restore_wrapped_attr_names(graph_module):
-        nodes = list(graph_module.graph.nodes)
-        wrapped = [node for node in nodes
-                   if node.op == "get_attr" and str(node.target).startswith("wrapped_model.")]
-        wrapped_nodes = set(wrapped)
-        namespace = type(graph_module.graph._graph_namespace)()
-        for node in nodes:
-            if node not in wrapped_nodes:
-                namespace.create_name(node.name, node)
-        for node in wrapped:
-            base = node.name.removeprefix("wrapped_model_")
-            if base[0].isdigit():
-                base = "_" + base
-            node.name = namespace.create_name(base, node)
-        graph_module.graph._graph_namespace = namespace
 
     @staticmethod
     def _export(model, inputs, dynamic_shapes=None):
@@ -580,12 +555,17 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             is_container_leaf += [not spec.is_leaf()] * len(leaves)
         if len(names) != len(placeholder_names):
             return None
+        return TorchFXPythonDecoder._disambiguate_leaf_names(names, is_container_leaf)
+
+    @staticmethod
+    def _disambiguate_leaf_names(names, is_container_leaf):
         # A plain argument keeps its own name. A container leaf whose placeholder name is already taken,
         # e.g. pair[0] -> "pair_0" next to an argument called "pair_0", gets a suffix instead.
+        names = list(names)
         taken = {name for name, leaf in zip(names, is_container_leaf) if not leaf}
         reserved = taken | {name for name, leaf in zip(names, is_container_leaf) if leaf}
         for i, name in enumerate(names):
-            if is_container_leaf[i] and name in taken:
+            if name is not None and is_container_leaf[i] and name in taken:
                 suffix = 1
                 while f"{name}_{suffix}" in reserved:
                     suffix += 1
@@ -812,6 +792,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
+            if self.pt_module.target in (torch.sym_float, torch.sym_min, torch.sym_max):
+                return "aten." + self.pt_module.target.__name__
             if type(self.pt_module.target).__name__ == "EdgeOpOverload":
                 name = self.pt_module.target.__name__
             else:

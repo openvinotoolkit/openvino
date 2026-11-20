@@ -245,10 +245,12 @@ use an example dimension greater than one when possible. Pass ``dynamo=False`` t
 TorchScript when export cannot support the requested shapes.
 Use separate tensor objects for distinct example inputs: passing the same tensor more than
 once can cause ``torch.export`` to specialize them as aliases and is rejected.
+OpenVINO does not enforce every export guard, including cross-input equality and divisibility,
+so inference inputs must also satisfy the original program's guards.
 
 You can also specify constrained dimensions using ``Dimension`` with min/max bounds.
-This maps to ``torch.export.Dim`` with explicit constraints, enabling tighter shape
-validation during export:
+This maps to ``torch.export.Dim.AUTO`` with the requested bounds. If export infers
+tighter bounds, the requested shape must be within them:
 
 .. code-block:: py
    :force:

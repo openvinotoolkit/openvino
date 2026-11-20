@@ -15,7 +15,6 @@ from pathlib import Path
 import torch
 import numpy as np
 import pytest
-from packaging import version
 
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino import PartialShape, Type
@@ -27,6 +26,57 @@ logging.basicConfig(level=logging.DEBUG)
 orig_compile = torch.compile
 torch.compile = lambda func: func
 default_cfg = {hints.inference_precision: Type.f32}
+
+
+@pytest.mark.parametrize("operation", [torch.sym_min, torch.sym_max])
+@pytest.mark.parametrize("constant_bound", [False, True])
+def test_export_symbolic_min_max_topk(operation, constant_bound):
+    import openvino as ov
+
+    class Model(torch.nn.Module):
+        def forward(self, x, y):
+            k = operation(x.shape[1], 8 if constant_bound else y.shape[1])
+            if operation is torch.sym_min and not constant_bound:
+                result = x.topk(k, dim=1).values
+            else:
+                result = y.new_zeros((y.shape[0], k))
+            return result, y
+
+    model = Model().eval()
+    example = (torch.rand(2, 20), torch.rand(2, 8))
+    exported = torch.export.export(
+        model, example,
+        dynamic_shapes=({1: torch.export.Dim("n", min=2)},
+                        {1: torch.export.Dim("m", min=2)}))
+    assert any(node.target is operation for node in exported.graph.nodes)
+    converted = ov.convert_model(exported)
+    compiled = ov.Core().compile_model(converted, "CPU", default_cfg)
+    for n, m in [(20, 8), (4, 12), (8, 8)]:
+        inputs = (torch.arange(n, dtype=torch.float32).repeat(2, 1),
+                  torch.arange(m, dtype=torch.float32).repeat(2, 1))
+        expected = model(*inputs)
+        actual = list(compiled([x.numpy() for x in inputs]).values())
+        assert len(actual) == len(expected)
+        for result, reference in zip(actual, expected):
+            assert result.shape == tuple(reference.shape)
+            np.testing.assert_array_equal(result, reference.numpy())
+
+
+def test_export_upsample_recompute_scale_factor():
+    import openvino as ov
+
+    model = torch.nn.Upsample(scale_factor=2.0, mode="nearest", recompute_scale_factor=True).eval()
+    exported = torch.export.export(
+        model, (torch.rand(1, 3, 8, 10),),
+        dynamic_shapes=({2: torch.export.Dim.AUTO, 3: torch.export.Dim.AUTO},))
+    targets = {node.target for node in exported.graph.nodes}
+    assert math.trunc in targets and torch.sym_float in targets
+    converted = ov.convert_model(exported)
+    compiled = ov.Core().compile_model(converted, "CPU", default_cfg)
+    for h, w in [(8, 10), (5, 7), (16, 3)]:
+        x = torch.rand(1, 3, h, w)
+        actual = compiled(x.numpy())[0]
+        np.testing.assert_array_equal(actual, model(x).numpy())
 
 
 class aten_relu(torch.nn.Module):
@@ -1240,10 +1290,11 @@ def test_dataclasses_to_dicts_leaves_supported_containers_alone():
     assert _dataclasses_to_dicts(dict_output) is dict_output
 
 
-def test_wrap_dataclass_outputs():
+def test_patched_dataclass_outputs():
+    """patched_dataclass_outputs temporarily converts a bare @dataclass model
+    output into a dict, and restores the original forward on exit."""
     import dataclasses
-    import inspect
-    from openvino.frontend.pytorch.patch_model import wrap_dataclass_outputs
+    from openvino.frontend.pytorch.patch_model import patched_dataclass_outputs
 
     @dataclasses.dataclass
     class Output:
@@ -1258,12 +1309,13 @@ def test_wrap_dataclass_outputs():
     orig_forward = model.forward
     x = torch.tensor([1.0, 2.0])
 
-    wrapped_model = wrap_dataclass_outputs(model)
-    assert inspect.signature(wrapped_model.forward) == inspect.signature(orig_forward)
-    result = wrapped_model(x)
-    assert isinstance(result, dict) and list(result) == ["first"]
-    assert torch.equal(result["first"], x + 1)
+    with patched_dataclass_outputs(model):
+        assert model.forward != orig_forward
+        result = model(x)
+        assert isinstance(result, dict) and list(result) == ["first"]
+        assert torch.equal(result["first"], x + 1)
 
+    # Original forward (and its dataclass output) is restored after exit.
     assert model.forward == orig_forward
     restored = model(x)
     assert dataclasses.is_dataclass(restored)
@@ -2030,13 +2082,11 @@ def test_inlined_inputs():
 
 def _torch_version_at_least(version_str):
     from packaging.version import parse
-    return parse(torch.__version__.split('+')[0].split('dev')[0]) >= parse(version_str)
+    return parse(torch.__version__).release >= parse(version_str).release
 
 
 @pytest.mark.skipif(not _torch_version_at_least("2.6"),
                     reason="Dim.AUTO requires PyTorch >= 2.6")
-@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
-                    reason="torch.export conversion requires torch>=2.6.0")
 class TestBuildDynamicShapes:
     """Unit tests for _build_dynamic_shapes covering many input combinations."""
 
@@ -2045,16 +2095,6 @@ class TestBuildDynamicShapes:
         """Create an _InputCutInfo with the given PartialShape."""
         from openvino.tools.ovc.cli_parser import _InputCutInfo
         return _InputCutInfo(name=None, shape=PartialShape(shape))
-
-    @staticmethod
-    def _assert_unbounded_dim(dim):
-        assert dim.min == 0
-        assert str(dim.max) in ("int_oo", "oo")
-
-    def _assert_unbounded_dims(self, spec, indices):
-        assert set(spec) == set(indices)
-        for dim in spec.values():
-            self._assert_unbounded_dim(dim)
 
     # ── input_specs=None → always None ──────────────────────────────
 
@@ -2087,64 +2127,72 @@ class TestBuildDynamicShapes:
 
     def test_all_dims_dynamic_1d(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(5),)
         inp = [self._make_spec([-1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         assert isinstance(result, tuple)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
 
     def test_all_dims_dynamic_2d(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 3),)
         inp = [self._make_spec([-1, -1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0, 1])
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO}
 
     def test_all_dims_dynamic_4d(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(1, 3, 224, 224),)
         inp = [self._make_spec([-1, -1, -1, -1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0, 1, 2, 3])
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
 
     # ── Only batch dynamic ──────────────────────────────────────────
 
     def test_batch_only_dynamic_4d(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 3, 32, 32),)
         inp = [self._make_spec([-1, 3, 32, 32])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
 
     def test_batch_only_dynamic_3d(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(4, 10, 512),)
         inp = [self._make_spec([-1, 10, 512])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
 
     # ── Mixed dynamic / static dims ─────────────────────────────────
 
     def test_batch_and_seqlen_dynamic(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(1, 128, 768),)
         inp = [self._make_spec([-1, -1, 768])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0, 1])
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO}
 
     def test_only_spatial_dynamic(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(1, 3, 64, 64),)
         inp = [self._make_spec([1, 3, -1, -1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [2, 3])
+        assert result[0] == {2: Dim.AUTO, 3: Dim.AUTO}
 
     def test_only_middle_dim_dynamic(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(4, 10, 16),)
         inp = [self._make_spec([4, -1, 16])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [1])
+        assert result[0] == {1: Dim.AUTO}
 
     # ── All static dims → None per input ────────────────────────────
 
@@ -2160,45 +2208,50 @@ class TestBuildDynamicShapes:
 
     def test_two_inputs_both_dynamic(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 8), torch.randn(2, 8))
         inp = [self._make_spec([-1, 8]), self._make_spec([-1, 8])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
-        self._assert_unbounded_dims(result[1], [0])
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] == {0: Dim.AUTO}
 
     def test_two_inputs_one_dynamic_one_static(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 3, 32, 32), torch.randn(2, 10))
         inp = [self._make_spec([-1, 3, 32, 32]), self._make_spec([2, 10])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
         assert result[1] is None
 
     def test_three_inputs_mixed(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(1, 128, 64), torch.randn(1, 128, 64), torch.randn(1, 128, 64))
         inp = [self._make_spec([-1, -1, 64])] * 3
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         for i in range(3):
-            self._assert_unbounded_dims(result[i], [0, 1])
+            assert result[i] == {0: Dim.AUTO, 1: Dim.AUTO}
 
     # ── Dict inputs ─────────────────────────────────────────────────
 
     def test_dict_input_single_dynamic(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = {"x": torch.randn(4, 16), "y": torch.randn(4, 16)}
         inp = [self._make_spec([-1, 16]), self._make_spec([-1, 16])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result["x"], [0])
-        self._assert_unbounded_dims(result["y"], [0])
+        assert result["x"] == {0: Dim.AUTO}
+        assert result["y"] == {0: Dim.AUTO}
 
     def test_dict_input_mixed_shapes(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = {"image": torch.randn(1, 3, 64, 64), "mask": torch.randn(1, 1, 64, 64)}
         inp = [self._make_spec([-1, 3, -1, -1]), self._make_spec([-1, 1, -1, -1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result["image"], [0, 2, 3])
-        self._assert_unbounded_dims(result["mask"], [0, 2, 3])
+        assert result["image"] == {0: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
+        assert result["mask"] == {0: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
 
     def test_dict_input_all_static(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
@@ -2212,19 +2265,21 @@ class TestBuildDynamicShapes:
 
     def test_list_input(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = [torch.randn(3, 5)]
         inp = [self._make_spec([-1, 5])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
 
     # ── Bare single tensor input ────────────────────────────────────
 
     def test_bare_tensor_input(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = torch.randn(2, 10)
         inp = [self._make_spec([-1, 10])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
 
     # ── Scalar tensor → None ────────────────────────────────────────
 
@@ -2250,49 +2305,55 @@ class TestBuildDynamicShapes:
 
     def test_extra_specs_ignored(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 4),)
         inp = [self._make_spec([-1, 4]), self._make_spec([-1, 8])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
 
     # ── Fewer specs than inputs (missing specs → None) ──────────────
 
     def test_fewer_specs_than_inputs(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 4), torch.randn(2, 4))
         inp = [self._make_spec([-1, 4])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
         assert result[1] is None  # no spec → static
 
     # ── High-dimensional tensors ────────────────────────────────────
 
     def test_5d_tensor(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 3, 16, 224, 224),)
         inp = [self._make_spec([-1, 3, -1, 224, 224])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0, 2])
+        assert result[0] == {0: Dim.AUTO, 2: Dim.AUTO}
 
     def test_6d_tensor_all_dynamic(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(1, 2, 3, 4, 5, 6),)
         inp = [self._make_spec([-1, -1, -1, -1, -1, -1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0, 1, 2, 3, 4, 5])
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO,
+                              3: Dim.AUTO, 4: Dim.AUTO, 5: Dim.AUTO}
 
     # ── Multiple inputs with different ranks ────────────────────────
 
     def test_inputs_different_ranks(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(8), torch.randn(4, 8), torch.randn(2, 4, 8))
         inp = [self._make_spec([-1]), self._make_spec([-1, -1]), self._make_spec([-1, -1, -1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
-        self._assert_unbounded_dims(result[1], [0, 1])
-        self._assert_unbounded_dims(result[2], [0, 1, 2])
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] == {0: Dim.AUTO, 1: Dim.AUTO}
+        assert result[2] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO}
 
-    # ── Spec shape shorter than tensor rank ─────────────────────────
+    # ── Spec shape shorter than tensor rank (extra dims stay static)
 
     def test_spec_shorter_than_tensor(self):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
@@ -2308,10 +2369,12 @@ class TestBuildDynamicShapes:
         """Dimension(1, 10) → Dim with min=1, max=10."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
         from openvino import Dimension
+        from torch.export import Dim
         example_input = (torch.randn(2, 3, 32, 32),)
         inp = [self._make_spec([Dimension(1, 10), 3, 32, 32])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         d = result[0][0]
+        assert d is not Dim.AUTO
         assert d.min == 1
         assert d.max == 10
 
@@ -2319,35 +2382,41 @@ class TestBuildDynamicShapes:
         """Dimension(1, -1) → Dim with min=1, unbounded max."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
         from openvino import Dimension
+        from torch.export import Dim
         example_input = (torch.randn(4, 16),)
         inp = [self._make_spec([Dimension(1, -1), 16])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         d = result[0][0]
+        assert d is not Dim.AUTO
         assert d.min == 1
 
     def test_constrained_upper_bound_only(self):
         """Dimension(0, 100) → Dim with max=100."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
         from openvino import Dimension
+        from torch.export import Dim
         example_input = (torch.randn(4, 16),)
         inp = [self._make_spec([Dimension(0, 100), 16])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         d = result[0][0]
+        assert d is not Dim.AUTO
         assert d.max == 100
 
     def test_constrained_mixed_with_fully_dynamic(self):
         """Mix constrained dims, fully dynamic dims, and static dims."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
         from openvino import Dimension
+        from torch.export import Dim
         example_input = (torch.randn(1, 3, 64, 64),)
         inp = [self._make_spec([Dimension(1, 8), 3, -1, -1])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         # dim 0: constrained
+        assert result[0][0] is not Dim.AUTO
         assert result[0][0].min == 1
         assert result[0][0].max == 8
         # dims 2,3: fully dynamic
-        self._assert_unbounded_dim(result[0][2])
-        self._assert_unbounded_dim(result[0][3])
+        assert result[0][2] is Dim.AUTO
+        assert result[0][3] is Dim.AUTO
         # dim 1 (static 3) not present
         assert 1 not in result[0]
 
@@ -2367,6 +2436,7 @@ class TestBuildDynamicShapes:
         """Two inputs, each with different constraints."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
         from openvino import Dimension
+        from torch.export import Dim
         example_input = (torch.randn(2, 8), torch.randn(2, 16))
         inp = [self._make_spec([Dimension(1, 4), 8]),
                self._make_spec([-1, Dimension(8, 32)])]
@@ -2375,7 +2445,7 @@ class TestBuildDynamicShapes:
         assert result[0][0].min == 1
         assert result[0][0].max == 4
         # Input 1: dim 0 fully dynamic, dim 1 constrained
-        self._assert_unbounded_dim(result[1][0])
+        assert result[1][0] is Dim.AUTO
         assert result[1][1].min == 8
         assert result[1][1].max == 32
 
@@ -2383,6 +2453,7 @@ class TestBuildDynamicShapes:
         """Dict input with constrained dimensions."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
         from openvino import Dimension
+        from torch.export import Dim
         example_input = {"x": torch.randn(2, 3), "y": torch.randn(2, 3)}
         inp = [self._make_spec([Dimension(1, 8), 3]),
                self._make_spec([-1, 3])]
@@ -2391,7 +2462,7 @@ class TestBuildDynamicShapes:
         assert result["x"][0].min == 1
         assert result["x"][0].max == 8
         # "y": dim 0 fully dynamic
-        self._assert_unbounded_dim(result["y"][0])
+        assert result["y"][0] is Dim.AUTO
 
     def test_constrained_all_static_still_none(self):
         """Static Dimension values should be treated same as plain ints."""
@@ -2419,12 +2490,13 @@ class TestBuildDynamicShapes:
     ])
     def test_parametrized_dynamic_dims(self, ndim, dyn_dims):
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         tensor_shape = [(d + 2) for d in range(ndim)]
         example_input = (torch.randn(*tensor_shape),)
         inp = [self._make_spec([(-1 if d in dyn_dims else (d + 2)) for d in range(ndim)])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         if dyn_dims:
-            self._assert_unbounded_dims(result[0], dyn_dims)
+            assert result[0] == {d: Dim.AUTO for d in dyn_dims}
         else:
             assert result[0] is None
 
@@ -2433,6 +2505,7 @@ class TestBuildDynamicShapes:
     def test_nested_tuple_single_layer(self):
         """past_key_values with one layer: ((key, value),)."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         x = torch.randn(2, 4)
         past_kv = ((torch.randn(2, 4, 3, 8), torch.randn(2, 4, 3, 8)),)
         example_input = (x, past_kv)
@@ -2442,13 +2515,14 @@ class TestBuildDynamicShapes:
                self._make_spec([-1, 4, 3, 8])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
         # Result must mirror nested structure: (dims_x, ((dims_k, dims_v),))
-        self._assert_unbounded_dims(result[0], [0])
-        self._assert_unbounded_dims(result[1][0][0], [0])
-        self._assert_unbounded_dims(result[1][0][1], [0])
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0][0] == {0: Dim.AUTO}
+        assert result[1][0][1] == {0: Dim.AUTO}
 
     def test_nested_tuple_two_layers(self):
         """past_key_values with two layers: ((k0, v0), (k1, v1))."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         x = torch.randn(1, 16)
         past_kv = (
             (torch.randn(1, 8, 5, 64), torch.randn(1, 8, 5, 64)),
@@ -2462,13 +2536,13 @@ class TestBuildDynamicShapes:
                self._make_spec([-1, 8, -1, 64]),
                self._make_spec([-1, 8, -1, 64])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
+        assert result[0] == {0: Dim.AUTO}
         for layer in range(2):
             for kv in range(2):
                 d = result[1][layer][kv]
                 assert 0 in d and 2 in d
-                self._assert_unbounded_dim(d[0])
-                self._assert_unbounded_dim(d[2])
+                assert d[0] is Dim.AUTO
+                assert d[2] is Dim.AUTO
 
     def test_nested_tuple_static_specs(self):
         """Nested inputs with all-static specs → None per leaf."""
@@ -2485,20 +2559,86 @@ class TestBuildDynamicShapes:
     def test_nested_list_input(self):
         """List containing tensors (auto-converted by pytree)."""
         from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
         example_input = (torch.randn(2, 4), [torch.randn(2, 8), torch.randn(2, 8)])
         inp = [self._make_spec([-1, 4]),
                self._make_spec([-1, 8]),
                self._make_spec([-1, 8])]
         result = _build_dynamic_shapes(example_input, input_specs=inp)
-        self._assert_unbounded_dims(result[0], [0])
-        self._assert_unbounded_dims(result[1][0], [0])
-        self._assert_unbounded_dims(result[1][1], [0])
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0] == {0: Dim.AUTO}
+        assert result[1][1] == {0: Dim.AUTO}
 
 
-@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
-                    reason="torch.export conversion requires torch>=2.6.0")
 class TestConvertModelDynamo:
     """Tests for convert_model with dynamo=True (torch.export path)."""
+
+    def test_numeric_input_alias_applies_dynamic_shape(self):
+        from openvino import compile_model, convert_model
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x * 2
+
+        example = torch.ones(3, 2)
+        converted = convert_model(Model(), example_input=example, input={"0": [-1, 2]}, dynamo=True)
+        assert converted.input(0).get_partial_shape() == PartialShape([-1, 2])
+        sample = torch.ones(5, 2)
+        result = compile_model(converted, "CPU", default_cfg)([sample.numpy()])[0]
+        np.testing.assert_array_equal(result, Model()(sample).numpy())
+
+    @pytest.mark.parametrize("as_file", [False, True])
+    def test_exported_program_partial_example_alias_is_validated_after_normalization(self, as_file, tmp_path):
+        from openvino import Dimension, convert_model, compile_model
+        from openvino.tools.ovc.error import Error
+        from torch.export import Dim
+
+        class DictModel(torch.nn.Module):
+            def forward(self, values):
+                return values["first"].reshape(values["first"].shape[0], 3, 1) + values["second"].sum()
+
+        model = DictModel()
+        first, second = torch.ones(3, 3), torch.ones(4, 3)
+        example = ({"first": first, "second": second},)
+        program = torch.export.export(
+            model, example,
+            dynamic_shapes=({"first": {0: Dim("first_batch", min=3, max=7)}, "second": None},))
+        if as_file:
+            path = tmp_path / "model.pt2"
+            torch.export.save(program, path)
+            program = path
+
+        requested_shape = PartialShape([Dimension(3, 7), 3])
+        converted = convert_model(program, example_input=example, input={"first": requested_shape})
+        assert converted.input("values_first").get_partial_shape() == requested_shape
+
+        new_first = torch.ones(5, 3)
+        result = compile_model(converted, "CPU", default_cfg)(
+            {"values_first": new_first.numpy(), "values_second": second.numpy()})[0]
+        np.testing.assert_allclose(result, model({"first": new_first, "second": second}).numpy())
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(program, example_input=example,
+                          input={"first": PartialShape([Dimension(2, 6), 3])})
+
+    def test_exported_program_cli_input_checks_bounds(self, tmp_path):
+        from argparse import Namespace
+        from openvino.tools.ovc.cli_parser import _InputCutInfo
+        from openvino.tools.ovc.error import Error
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder_for_model_on_disk
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x * 2 if x.shape[0] > 2 else x * 3
+
+        path = tmp_path / "model.pt2"
+        torch.export.save(torch.export.export(Model(), (torch.ones(3, 2),)), path)
+        argv = Namespace(input_model=str(path),
+                         input=[_InputCutInfo("x", PartialShape([-1, 2]), None, None)],
+                         framework=None,
+                         share_weights=True)
+
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            get_pytorch_decoder_for_model_on_disk(argv, {})
 
     @pytest.mark.parametrize("as_file", [False, True])
     def test_exported_program_preserves_specialized_input_shape(self, as_file, tmp_path):
@@ -2521,11 +2661,11 @@ class TestConvertModelDynamo:
             actual = compile_model(ov_model, "CPU")([example.numpy()])[0]
             np.testing.assert_array_equal(actual, Model()(example).numpy())
         with pytest.raises(Error, match="not contained in the exported shape"):
-            convert_model(program, input=PartialShape([-1, 2]))
-        assert convert_model(program, input={"0": PartialShape([3, 2])}).input(0).get_partial_shape() == \
+            convert_model(program, input=PartialShape([-1, 2]), dynamo=True)
+        assert convert_model(program, input={"0": PartialShape([3, 2])}, dynamo=True).input(0).get_partial_shape() == \
             PartialShape([3, 2])
         with pytest.raises(Error, match="not contained in the exported shape"):
-            convert_model(program, input={"0": PartialShape([-1, 2])})
+            convert_model(program, input={"0": PartialShape([-1, 2])}, dynamo=True)
 
     def test_exported_program_retains_symbolic_dimensions(self):
         from openvino import convert_model, compile_model
@@ -2536,11 +2676,11 @@ class TestConvertModelDynamo:
 
         example = torch.ones(3, 2)
         program = torch.export.export(Model(), (example,), dynamic_shapes=({0: torch.export.Dim("batch")},))
-        ov_model = convert_model(program)
+        ov_model = convert_model(program, dynamo=True)
         assert ov_model.input(0).get_partial_shape() == PartialShape([-1, 2])
         sample = torch.ones(5, 2)
         np.testing.assert_array_equal(compile_model(ov_model, "CPU")([sample.numpy()])[0], Model()(sample).numpy())
-        assert convert_model(program, input=PartialShape([5, 2])).input(0).get_partial_shape() == PartialShape([5, 2])
+        assert convert_model(program, input=PartialShape([5, 2]), dynamo=True).input(0).get_partial_shape() == PartialShape([5, 2])
 
     def test_exported_program_retains_dimension_bounds(self):
         from openvino import convert_model, Dimension
@@ -2557,7 +2697,7 @@ class TestConvertModelDynamo:
             ov_model = convert_model(program, **options)
             assert ov_model.input(0).get_partial_shape() == PartialShape([Dimension(3, 7), 2])
         with pytest.raises(Error, match="not contained in the exported shape"):
-            convert_model(program, input=PartialShape([-1, 2]))
+            convert_model(program, input=PartialShape([-1, 2]), dynamo=True)
 
     @pytest.mark.parametrize("as_keyword", [False, True])
     def test_list_argument_preserves_container_type(self, as_keyword):
@@ -2574,7 +2714,8 @@ class TestConvertModelDynamo:
         actual = compile_model(ov_model, "CPU", default_cfg)([values[0].numpy()])[0]
         np.testing.assert_array_equal(actual, model(values).numpy())
 
-    def test_repeated_example_tensor_is_rejected(self):
+    @pytest.mark.parametrize("dynamo_kwargs", [{}, {"dynamo": True}])
+    def test_repeated_example_tensor_is_rejected(self, dynamo_kwargs):
         from openvino import convert_model
         from openvino.tools.ovc.error import Error
 
@@ -2584,31 +2725,7 @@ class TestConvertModelDynamo:
 
         example = torch.ones(2, 3)
         with pytest.raises(Error, match="same tensor in multiple positions"):
-            convert_model(Subtract(), example_input=(example, example), dynamo=True)
-
-    @pytest.mark.parametrize("collision", [False, True])
-    def test_dataclass_wrapper_preserves_weight_names(self, collision):
-        from openvino import convert_model
-
-        class Model(torch.nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.l1 = torch.nn.Linear(4, 4)
-
-            def forward(self, l1_weight):
-                return self.l1(l1_weight)
-
-        model = Model().eval() if collision else torch.nn.Sequential(torch.nn.Linear(4, 4)).eval()
-        example = torch.ones(2, 4)
-        exported = convert_model(torch.export.export(model, (example,)))
-        wrapped = convert_model(model, example_input=example, dynamo=True)
-
-        def weight_names(ov_model):
-            return {name for node in ov_model.get_ops() if node.get_type_name() == "Constant"
-                    for name in node.output(0).get_names() if "weight" in name}
-
-        assert weight_names(wrapped) == weight_names(exported)
-        assert weight_names(exported)
+            convert_model(Subtract(), example_input=(example, example), **dynamo_kwargs)
 
     def test_basic(self):
         from openvino import convert_model, compile_model
@@ -2690,6 +2807,7 @@ class TestConvertModelDynamo:
             res = cm([inp])
             np.testing.assert_allclose(res[0], inp * 2.0, atol=1e-5, rtol=1e-5)
 
+
     def test_default_uses_export_and_torchscript_can_be_selected(self):
         from openvino import convert_model, compile_model
 
@@ -2707,6 +2825,24 @@ class TestConvertModelDynamo:
         assert traced.input(0).get_partial_shape() == PartialShape([-1, -1])
         result = compile_model(traced, "CPU", default_cfg)([np.ones((3, 4), dtype=np.float32)])
         np.testing.assert_array_equal(result[0], np.full((3, 4), 2, dtype=np.float32))
+
+    @pytest.mark.parametrize("source", ["decoder", "file"])
+    def test_existing_torchscript_keeps_dynamic_shape(self, source, tmp_path):
+        from openvino import convert_model, compile_model
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+        example = torch.ones(2, 4)
+        scripted = torch.jit.trace(torch.nn.ReLU(), example)
+        if source == "file":
+            model = tmp_path / "model.pt"
+            torch.jit.save(scripted, model)
+        else:
+            model = TorchScriptPythonDecoder(scripted, example_input=(example,))
+
+        converted = convert_model(model, example_input=example)
+        assert converted.input(0).get_partial_shape() == PartialShape([-1, -1])
+        result = compile_model(converted, "CPU", default_cfg)([np.ones((3, 4), dtype=np.float32)])
+        np.testing.assert_array_equal(result[0], np.ones((3, 4), dtype=np.float32))
 
     @pytest.mark.parametrize("dynamo_kwargs", [{}, {"dynamo": True}])
     def test_no_example_input_is_an_error(self, dynamo_kwargs):
@@ -2763,7 +2899,8 @@ class TestConvertModelDynamo:
         result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
         np.testing.assert_array_equal(result[0], example.numpy())
 
-    def test_export_failure_is_not_retried_with_torchscript(self, monkeypatch):
+    @pytest.mark.parametrize("dynamo_kwargs", [{}, {"dynamo": True}])
+    def test_export_failure_is_not_retried_with_torchscript(self, monkeypatch, dynamo_kwargs):
         from openvino import convert_model
         from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
@@ -2772,48 +2909,36 @@ class TestConvertModelDynamo:
 
         monkeypatch.setattr(TorchFXPythonDecoder, "_export", fail_export)
         with pytest.raises(RuntimeError, match="export failed"):
-            convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4))
+            convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4), **dynamo_kwargs)
 
     @pytest.mark.parametrize("batch", [1, 6])
     def test_dynamic_shape_cannot_bypass_export_guards(self, batch):
         from openvino import convert_model
+        from openvino.tools.ovc.error import Error
 
         class ShapeBranch(torch.nn.Module):
             def forward(self, x):
                 return x + 1 if x.shape[0] > 5 else x * 3
 
-        with pytest.raises(torch._dynamo.exc.UserError, match="Constraints violated"):
-            convert_model(ShapeBranch(), example_input=torch.ones(batch, 3), input=PartialShape([-1, 3]))
-
-    def test_related_dynamic_shapes_cannot_bypass_export_guards(self):
-        from openvino import convert_model
-
-        class ShapeBranch(torch.nn.Module):
-            def forward(self, a, b):
-                return a + 1 if a.shape[0] == b.shape[0] else a + 2
-
-        with pytest.raises(torch._dynamo.exc.UserError, match="Constraints violated"):
-            convert_model(ShapeBranch(), example_input=(torch.ones(2, 3), torch.ones(2, 3)),
-                          input=[[-1, 3], [-1, 3]])
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(ShapeBranch(), example_input=torch.ones(batch, 3), input=PartialShape([-1, 3]), dynamo=True)
 
     def test_example_must_match_requested_static_shape(self):
         from openvino import convert_model
         from openvino.tools.ovc.error import Error
 
         with pytest.raises(Error, match="incompatible with example_input shape"):
-            convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 3), input=PartialShape([4, 3]))
+            convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 3), input=PartialShape([4, 3]), dynamo=True)
 
-    def test_repeated_example_tensor_is_not_specialized_as_alias(self):
+    def test_torchscript_failure_suggests_dynamo(self, monkeypatch):
         from openvino import convert_model
-        from openvino.tools.ovc.error import Error
 
-        class TwoInputs(torch.nn.Module):
-            def forward(self, a, b):
-                return a + b
-
-        example = torch.ones(2, 3)
-        with pytest.raises(Error, match="same tensor in multiple positions"):
-            convert_model(TwoInputs(), example_input=(example, example))
+        model, example = torch.nn.ReLU(), torch.ones(2, 3)
+        monkeypatch.delattr(torch.jit, "trace", raising=False)
+        with pytest.raises(RuntimeError, match=r"Try convert_model\(.*dynamo=True"):
+            convert_model(model, example_input=example, dynamo=False)
+        converted = convert_model(model, example_input=example, dynamo=True)
+        assert converted.input(0).get_partial_shape() == PartialShape([2, 3])
 
     def test_model_without_inputs(self):
         from openvino import convert_model, compile_model
@@ -2822,7 +2947,7 @@ class TestConvertModelDynamo:
             def forward(self):
                 return torch.tensor([3.0])
 
-        converted = convert_model(NoInputs(), example_input=())
+        converted = convert_model(NoInputs(), example_input=(), dynamo=True)
         assert len(converted.inputs) == 0
         np.testing.assert_array_equal(compile_model(converted, "CPU", default_cfg)()[0], [3.0])
 
@@ -2837,39 +2962,25 @@ class TestConvertModelDynamo:
         converted = convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4), dynamo=False)
         assert converted.input(0).get_partial_shape() == PartialShape([-1, -1])
 
-    @pytest.mark.parametrize("exported_program", [False, True])
+    @pytest.mark.parametrize("source", ["module", "program", "file"])
     @pytest.mark.parametrize("share_weights", [False, True])
-    def test_share_weights(self, exported_program, share_weights):
+    def test_share_weights(self, source, share_weights, tmp_path, monkeypatch):
         from openvino import convert_model, compile_model
 
         model = torch.nn.Linear(2, 1, bias=False).eval()
         with torch.no_grad():
             model.weight.fill_(1)
         example = torch.ones(1, 2)
-        original = torch.export.export(model, (example,)) if exported_program else model
-        converted = convert_model(original, example_input=example, share_weights=share_weights)
+        original = model if source == "module" else torch.export.export(model, (example,))
+        options = {"example_input": example}
+        if source == "file":
+            program, original, options = original, tmp_path / "model.pt2", {}
+            torch.export.save(program, original)
+            monkeypatch.setattr(torch.export, "load", lambda _: program)
+        converted = convert_model(original, share_weights=share_weights, dynamo=True, **options)
         with torch.no_grad():
             model.weight.fill_(7)
 
-        result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
-        np.testing.assert_array_equal(result[0], [[14 if share_weights else 2]])
-
-    @pytest.mark.parametrize("share_weights", [False, True])
-    def test_share_weights_for_exported_program_on_disk(self, tmp_path, monkeypatch, share_weights):
-        from openvino import convert_model, compile_model
-
-        model = torch.nn.Linear(2, 1, bias=False).eval()
-        with torch.no_grad():
-            model.weight.fill_(1)
-        example = torch.ones(1, 2)
-        program = torch.export.export(model, (example,))
-        path = tmp_path / "model.pt2"
-        torch.export.save(program, path)
-        monkeypatch.setattr(torch.export, "load", lambda _: program)
-
-        converted = convert_model(path, share_weights=share_weights)
-        with torch.no_grad():
-            model.weight.fill_(7)
         result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
         np.testing.assert_array_equal(result[0], [[14 if share_weights else 2]])
 
@@ -2889,7 +3000,7 @@ class TestConvertModelDynamo:
             shapes = {"b": shapes["b"], "a": shapes["a"]}
         model = NamedModel()
 
-        converted = convert_model(model, example_input=example, input=shapes)
+        converted = convert_model(model, example_input=example, input=shapes, dynamo=True)
         assert converted.input("a").get_partial_shape() == PartialShape([-1, 3])
         compiled = compile_model(converted, "CPU", default_cfg)
         new_a = torch.ones(3, 3)
@@ -2912,9 +3023,9 @@ class TestConvertModelDynamo:
         if exported_program:
             program = torch.export.export(
                 model, example, dynamic_shapes=(({0: Dim.AUTO}, None), {0: Dim.AUTO}, None))
-            converted = convert_model(program)
+            converted = convert_model(program, dynamo=True)
         else:
-            converted = convert_model(model, example_input=example, input=[[-1, 3], [-1, 3]])
+            converted = convert_model(model, example_input=example, input=[[-1, 3], [-1, 3]], dynamo=True)
 
         assert len(converted.inputs) == 2
         assert all(port.partial_shape[0].is_dynamic for port in converted.inputs)
@@ -2943,14 +3054,14 @@ class TestConvertModelDynamo:
             torch.export.save(program, path)
             program = path
 
-        converted = convert_model(program)
+        converted = convert_model(program, dynamo=True)
         assert converted.input("a").get_partial_shape() == PartialShape([Dimension(3, 7), 3])
         assert converted.input("b").get_partial_shape() == PartialShape([Dimension(8, 12), 3])
         a, b = torch.ones(5, 3), torch.ones(10, 3)
         result = compile_model(converted, "CPU", default_cfg)([a.numpy(), b.numpy()])
         np.testing.assert_array_equal(result[0], model(a, 2, b).numpy())
         with pytest.raises(Error, match="not contained in the exported shape"):
-            convert_model(program, input={"b": PartialShape([-1, 3])})
+            convert_model(program, input={"b": PartialShape([-1, 3])}, dynamo=True)
 
     @pytest.mark.parametrize("exported_program", [False, True])
     def test_specialized_inputs_with_renamed_placeholders(self, exported_program):
@@ -2968,14 +3079,14 @@ class TestConvertModelDynamo:
         x = torch.ones(2, 3)
         example = (None, x, 3)
         original = torch.export.export(model, example) if exported_program else model
-        converted = convert_model(original, example_input=example)
+        converted = convert_model(original, example_input=example, dynamo=True)
 
         assert len(converted.inputs) == 1
         assert converted.input(0).get_any_name() == "x"
         result = compile_model(converted, "CPU", default_cfg)([x.numpy()])
         np.testing.assert_allclose(result[0], model(*example).numpy())
 
-    @pytest.mark.parametrize("named_shapes", [None, "keys", "ports", "mixed"])
+    @pytest.mark.parametrize("named_shapes", [None, "keys", "ports", "mixed", "partial_key"])
     def test_nested_dict_example_inputs(self, named_shapes):
         from openvino import convert_model, compile_model
 
@@ -2992,9 +3103,11 @@ class TestConvertModelDynamo:
             shapes = {"values_second": [4, 3], "values_first": [-1, 3]}
         elif named_shapes == "mixed":
             shapes = {"second": [4, 3], "values_first": [-1, 3]}
+        elif named_shapes == "partial_key":
+            shapes = {"first": [-1, 3]}
         else:
             shapes = None
-        converted = convert_model(model, example_input=({"first": first, "second": second},), input=shapes)
+        converted = convert_model(model, example_input=({"first": first, "second": second},), input=shapes, dynamo=True)
         if named_shapes is not None:
             assert converted.input("values_first").partial_shape == PartialShape([-1, 3])
             first = torch.ones(3, 3)
@@ -3012,7 +3125,7 @@ class TestConvertModelDynamo:
         first = torch.ones(2, 3)
         second = torch.ones(4, 3)
         converted = convert_model(ListModel(), example_input=([first, second],),
-                                  input={"pair_1": [4, 3], "pair_0": [-1, 3]})
+                                  input={"pair_1": [4, 3], "pair_0": [-1, 3]}, dynamo=True)
         assert converted.input("pair_0").partial_shape == PartialShape([-1, 3])
         first = torch.ones(3, 3)
         result = compile_model(converted, "CPU", default_cfg)(
@@ -3044,7 +3157,7 @@ class TestConvertModelDynamo:
             shapes = [[2, 3], [4, 3]]
         else:
             shapes = [Type.f32, Type.f32]
-        converted = convert_model(model, example_input=(first, second), input=shapes)
+        converted = convert_model(model, example_input=(first, second), input=shapes, dynamo=True)
         if spec_kind in ("named", "positional"):
             assert converted.input(names[0]).partial_shape == PartialShape([-1, 3])
             first = torch.ones(3, 3)
@@ -3062,7 +3175,7 @@ class TestConvertModelDynamo:
         a = torch.full((2, 3), 2.0)
         b = torch.full((2, 3), 7.0)
         example = {"b": b, "a": a}
-        converted = convert_model(TwoInputs(), example_input=example)
+        converted = convert_model(TwoInputs(), example_input=example, dynamo=True)
 
         assert list(example) == ["b", "a"]
         assert [port.get_any_name() for port in converted.inputs] == ["a", "b"]
@@ -3124,6 +3237,7 @@ class TestConvertModelDynamo:
             inp = np.random.randn(batch, 3, 32, 32).astype(np.float32)
             res = cm([inp])
             assert res[0].shape[0] == batch
+
 
 # ──────────────────────────────────────────────────────────────────────
 #  Tests for torch.export path with ov_ext custom ops (quantized models)

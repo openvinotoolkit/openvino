@@ -13,4 +13,9 @@ OutputVector translate_int(const NodeContext& context) {
     return {context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(0), element::i64))};
 };
 
+OutputVector translate_sym_float(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    return {context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(0), element::f32))};
+};
+
 }  // namespace ov::frontend::pytorch::op

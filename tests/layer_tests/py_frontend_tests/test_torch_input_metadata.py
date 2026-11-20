@@ -39,7 +39,7 @@ def test_torchscript_dict_example_matches_graph_inputs(dtype, saved, reverse_inp
         inputs = inputs[::-1]
         tensors = tensors[::-1]
 
-    converted = ov.convert_model(model, example_input=examples, input=inputs)
+    converted = ov.convert_model(model, example_input=examples, input=inputs, dynamo=False)
 
     expected_types = [ov.Type.f32, ov.Type.f16 if dtype == torch.float16 else ov.Type.f32]
     if reverse_inputs:
@@ -94,7 +94,7 @@ def test_torchscript_function_example_matches_graph_input(dtype):
     timestep = torch.tensor(7.0, dtype=dtype)
     name = next(model.inlined_graph.inputs()).debugName()
 
-    converted = ov.convert_model(model, example_input={'timestep': timestep}, input=[(name, [])])
+    converted = ov.convert_model(model, example_input={'timestep': timestep}, input=[(name, [])], dynamo=False)
 
     assert converted.input().get_element_type() == (ov.Type.f16 if dtype == torch.float16 else ov.Type.f32)
     compiled = ov.Core().compile_model(converted, 'CPU')
@@ -102,14 +102,14 @@ def test_torchscript_function_example_matches_graph_input(dtype):
 
 
 @pytest.mark.parametrize("script_module", [False, True])
-def test_default_keeps_scripted_models_dynamic(script_module):
+def test_explicit_torchscript_keeps_scripted_models_dynamic(script_module):
     class Model(torch.nn.Module):
         def forward(self, x):
             return x.relu()
 
     example = torch.ones(2, 4)
     scripted = torch.jit.trace(Model(), example) if script_module else torch.jit.trace(lambda x: x.relu(), example)
-    converted = ov.convert_model(scripted, example_input=example)
+    converted = ov.convert_model(scripted, example_input=example, dynamo=False)
 
     assert converted.input().get_partial_shape() == ov.PartialShape([-1, -1])
     compiled = ov.Core().compile_model(converted, "CPU")

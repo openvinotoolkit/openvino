@@ -200,6 +200,32 @@ class TestStatistics():
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand_like", "randn_like"])
+    def test_export_random_like_out(self, operation, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                out = torch.empty_like(x)
+                getattr(torch.ops.aten, operation).out(x, out=out)
+                return out, x + out
+
+        example = torch.zeros(3, 256)
+        program = torch.export.export(Model(), (example,))
+        converted = ov.convert_model(program)
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        outputs = ov.Core().compile_model(converted, ie_device, config)([example.numpy()])
+        first, second = outputs[0], outputs[1]
+        assert first.shape == tuple(example.shape)
+        assert np.isfinite(first).all()
+        np.testing.assert_array_equal(second, first)
+        if operation == "rand_like":
+            assert np.all((first >= 0) & (first < 1))
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("operation", ["rand", "randn"])
     def test_export_random_default_dtype(self, operation, ie_device, precision):
         import numpy as np
