@@ -260,9 +260,7 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
         }
         auto selected_device_name =
             preferred_device.empty() ? schedule_to_next_device(devices, current_device_index) : preferred_device;
-        if (run_pipeline_task(pipeline_task,
-                              get_device_context(selected_device_name).idle_workers(),
-                              preferred_device)) {
+        if (run_pipeline_task(pipeline_task, get_device_context(selected_device_name).pool())) {
             return true;
         } else {
             current_device_index++;
@@ -271,7 +269,7 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
 
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
-        get_device_context(preferred_device).pending_tasks().push(std::move(pipeline_task));
+        get_device_context(preferred_device).pool().enqueue(std::move(pipeline_task));
     } else {
         m_infer_pipeline_tasks.push(std::move(pipeline_task));
     }

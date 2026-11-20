@@ -198,51 +198,7 @@ struct deviceChecker {
         }
 };
 
-using NotBusyPriorityWorkerRequests = ov::threading::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
-using NotBusyWorkerRequests = ov::threading::ThreadSafeBoundedQueue<WorkerInferRequest*>;
 using TaskQueue = ov::threading::ThreadSafeQueue<ov::threading::Task>;
-
-template <typename T>
-struct IdleGuard {};
-template<>
-struct IdleGuard<NotBusyWorkerRequests> {
-    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr, NotBusyWorkerRequests& not_busy_worker_requests) :
-        m_worker_inferrequest_ptr{worker_inferrequest_ptr},
-        m_not_busy_worker_requests{&not_busy_worker_requests} {
-    }
-    ~IdleGuard() {
-        if (nullptr != m_not_busy_worker_requests) {
-            m_not_busy_worker_requests->try_push(m_worker_inferrequest_ptr);
-        }
-    }
-    NotBusyWorkerRequests* release() {
-        auto not_busy_worker_requests = m_not_busy_worker_requests;
-        m_not_busy_worker_requests = nullptr;
-        return not_busy_worker_requests;
-    }
-    WorkerInferRequest* m_worker_inferrequest_ptr = nullptr;
-    NotBusyWorkerRequests*  m_not_busy_worker_requests = nullptr;
-};
-
-template<>
-struct IdleGuard<NotBusyPriorityWorkerRequests> {
-    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr, NotBusyPriorityWorkerRequests& not_busy_worker_requests) :
-        m_worker_inferrequest_ptr{worker_inferrequest_ptr},
-        m_not_busy_worker_requests{&not_busy_worker_requests} {
-    }
-    ~IdleGuard() {
-        if (nullptr != m_not_busy_worker_requests) {
-            m_not_busy_worker_requests->try_push(std::make_pair(m_worker_inferrequest_ptr->m_index, m_worker_inferrequest_ptr));
-        }
-    }
-    NotBusyPriorityWorkerRequests* release() {
-        auto not_busy_worker_requests_queue = m_not_busy_worker_requests;
-        m_not_busy_worker_requests = nullptr;
-        return not_busy_worker_requests_queue;
-    }
-    WorkerInferRequest* m_worker_inferrequest_ptr = nullptr;
-    NotBusyPriorityWorkerRequests*  m_not_busy_worker_requests = nullptr;
-};
 
 class Plugin;
 class DeviceExecutionContext;

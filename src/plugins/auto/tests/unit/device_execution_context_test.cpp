@@ -25,17 +25,7 @@ public:
     }
 
     static size_t count_idle(DeviceExecutionContext& context) {
-        size_t count = 0;
-        std::pair<int, WorkerInferRequest*> idle;
-        std::vector<std::pair<int, WorkerInferRequest*>> popped;
-        while (context.idle_workers().try_pop(idle)) {
-            popped.push_back(idle);
-            count++;
-        }
-        for (auto& worker : popped) {
-            context.idle_workers().try_push(std::move(worker));
-        }
-        return count;
+        return context.pool().idle_count();
     }
 };
 
@@ -46,7 +36,7 @@ TEST_F(DeviceExecutionContextTest, startsUnloaded) {
     EXPECT_FALSE(context.is_ready());
     EXPECT_FALSE(context.is_kept_alive());
     EXPECT_TRUE(context.last_error().empty());
-    EXPECT_TRUE(context.workers().empty());
+    EXPECT_EQ(context.pool().size(), 0u);
     EXPECT_EQ(count_idle(context), 0u);
 }
 
@@ -55,9 +45,9 @@ TEST_F(DeviceExecutionContextTest, makeReadyCreatesWorkersAndSetsUpEachOne) {
     EXPECT_EQ(make_ready(context, 3), 3u);
     EXPECT_EQ(context.state(), State::Ready);
     EXPECT_TRUE(context.compiled_model()._ptr);
-    ASSERT_EQ(context.workers().size(), 3u);
-    for (size_t i = 0; i < context.workers().size(); i++) {
-        EXPECT_EQ(context.workers()[i].m_index, static_cast<int>(i));
+    ASSERT_EQ(context.pool().size(), 3u);
+    for (size_t i = 0; i < context.pool().size(); i++) {
+        EXPECT_EQ(context.pool().worker(i).m_index, static_cast<int>(i));
     }
     EXPECT_EQ(count_idle(context), 3u);
 }
@@ -66,7 +56,7 @@ TEST_F(DeviceExecutionContextTest, makeReadyWhileReadyThrows) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context);
     EXPECT_THROW(make_ready(context), ov::Exception);
-    EXPECT_EQ(context.workers().size(), 2u);
+    EXPECT_EQ(context.pool().size(), 2u);
     EXPECT_EQ(count_idle(context), 2u);
 }
 
@@ -79,7 +69,7 @@ TEST_F(DeviceExecutionContextTest, failedMakeReadyLeavesContextUnloaded) {
                                     }),
                  ov::Exception);
     EXPECT_EQ(context.state(), State::Unloaded);
-    EXPECT_TRUE(context.workers().empty());
+    EXPECT_EQ(context.pool().size(), 0u);
     EXPECT_FALSE(context.compiled_model()._ptr);
     EXPECT_EQ(count_idle(context), 0u);
     EXPECT_NO_THROW(make_ready(context));
@@ -91,7 +81,7 @@ TEST_F(DeviceExecutionContextTest, releaseDropsWorkersAndModel) {
     make_ready(context);
     EXPECT_TRUE(context.try_release());
     EXPECT_EQ(context.state(), State::Released);
-    EXPECT_TRUE(context.workers().empty());
+    EXPECT_EQ(context.pool().size(), 0u);
     EXPECT_FALSE(context.compiled_model()._ptr);
     EXPECT_FALSE(context.try_release());
 }
@@ -99,12 +89,12 @@ TEST_F(DeviceExecutionContextTest, releaseDropsWorkersAndModel) {
 TEST_F(DeviceExecutionContextTest, releaseIsRefusedWhileATaskIsQueued) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context);
-    context.pending_tasks().push([] {});
+    context.pool().enqueue([] {});
     EXPECT_FALSE(context.try_release());
     EXPECT_EQ(context.state(), State::Ready);
     EXPECT_EQ(count_idle(context), 2u);
     ov::threading::Task task;
-    ASSERT_TRUE(context.pending_tasks().try_pop(task));
+    ASSERT_TRUE(context.pool().try_dequeue(task));
     EXPECT_TRUE(context.try_release());
 }
 
@@ -134,9 +124,9 @@ TEST_F(DeviceExecutionContextTest, modelCopyTakenBeforeReleaseStaysValid) {
 TEST_F(DeviceExecutionContextTest, releasedContextRejectsLateIdleWorkers) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context, 1);
-    WorkerInferRequest* worker = &context.workers().front();
+    WorkerInferRequest* worker = &context.pool().worker(0);
     ASSERT_TRUE(context.try_release());
-    EXPECT_FALSE(context.idle_workers().try_push(std::make_pair(0, worker)));
+    EXPECT_FALSE(context.pool().adopt(worker).give_back());
 }
 
 TEST_F(DeviceExecutionContextTest, contextKeptAliveIsNeverReleased) {
@@ -152,14 +142,14 @@ TEST_F(DeviceExecutionContextTest, contextKeptAliveIsNeverReleased) {
 TEST_F(DeviceExecutionContextTest, busyWorkerBlocksReleaseWithoutSideEffects) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context, 2);
-    std::pair<int, WorkerInferRequest*> busy;
-    ASSERT_TRUE(context.idle_workers().try_pop(busy));
+    auto busy = context.pool().try_acquire();
+    ASSERT_TRUE(busy);
     EXPECT_FALSE(context.try_release());
     EXPECT_EQ(context.state(), State::Ready);
-    EXPECT_EQ(context.workers().size(), 2u);
+    EXPECT_EQ(context.pool().size(), 2u);
     EXPECT_EQ(count_idle(context), 1u);
     // the busy worker comes back and the device can be released
-    ASSERT_TRUE(context.idle_workers().try_push(std::move(busy)));
+    ASSERT_TRUE(busy.give_back());
     EXPECT_EQ(count_idle(context), 2u);
     EXPECT_TRUE(context.try_release());
 }
@@ -170,7 +160,7 @@ TEST_F(DeviceExecutionContextTest, makeReadyAfterReleaseRestoresWorkers) {
     ASSERT_TRUE(context.try_release());
     EXPECT_EQ(make_ready(context, 1), 1u);
     EXPECT_EQ(context.state(), State::Ready);
-    EXPECT_EQ(context.workers().size(), 1u);
+    EXPECT_EQ(context.pool().size(), 1u);
     EXPECT_EQ(count_idle(context), 1u);
 }
 
@@ -209,10 +199,11 @@ TEST_F(DeviceExecutionContextTest, releasedContextCanBecomeFaulted) {
 TEST_F(DeviceExecutionContextTest, stopSchedulingRejectsIdleWorkers) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context, 1);
-    std::pair<int, WorkerInferRequest*> busy;
-    ASSERT_TRUE(context.idle_workers().try_pop(busy));
+    auto busy = context.pool().try_acquire();
+    ASSERT_TRUE(busy);
     context.stop_scheduling();
-    EXPECT_FALSE(context.idle_workers().try_push(std::move(busy)));
+    EXPECT_FALSE(busy.give_back());
+    EXPECT_FALSE(context.pool().try_acquire());
     EXPECT_EQ(context.state(), State::Ready);
 }
 
@@ -221,8 +212,8 @@ TEST_F(DeviceExecutionContextTest, releaseKeepsInferTimesForTheSummary) {
     make_ready(context, 1);
     const auto start = std::chrono::steady_clock::now();
     const auto end = start + std::chrono::milliseconds(5);
-    context.workers().front().m_start_times.push_back(start);
-    context.workers().front().m_end_times.push_back(end);
+    context.pool().worker(0).m_start_times.push_back(start);
+    context.pool().worker(0).m_end_times.push_back(end);
     ASSERT_TRUE(context.try_release());
     auto [starts, ends] = context.take_released_stats();
     ASSERT_EQ(starts.size(), 1u);
@@ -238,22 +229,23 @@ TEST_F(DeviceExecutionContextTest, releaseKeepsInferTimesForTheSummary) {
 TEST_F(DeviceExecutionContextTest, pendingTasksAreOwnedByTheContext) {
     DeviceExecutionContext context("GPU.0");
     bool ran = false;
-    context.pending_tasks().push([&ran] {
+    context.pool().enqueue([&ran] {
         ran = true;
     });
+    EXPECT_TRUE(context.pool().has_queued_tasks());
     ov::threading::Task task;
-    ASSERT_TRUE(context.pending_tasks().try_pop(task));
+    ASSERT_TRUE(context.pool().try_dequeue(task));
     task();
     EXPECT_TRUE(ran);
-    EXPECT_FALSE(context.pending_tasks().try_pop(task));
+    EXPECT_FALSE(context.pool().try_dequeue(task));
 }
 
 TEST_F(DeviceExecutionContextTest, logSummaryIncludesReleasedWorkers) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context, 1);
     const auto start = std::chrono::steady_clock::now();
-    context.workers().front().m_start_times.push_back(start);
-    context.workers().front().m_end_times.push_back(start + std::chrono::milliseconds(5));
+    context.pool().worker(0).m_start_times.push_back(start);
+    context.pool().worker(0).m_end_times.push_back(start + std::chrono::milliseconds(5));
     ASSERT_TRUE(context.try_release());
     EXPECT_NO_THROW(context.log_summary("AUTO", start - std::chrono::seconds(1), true));
 }
@@ -268,4 +260,48 @@ TEST_F(DeviceExecutionContextTest, startupHelperIsADifferentInstanceOfTheSameDev
     DeviceExecutionContext context(helper);
     EXPECT_EQ(context.name(), "CPU");
     EXPECT_EQ(context.key(), helper);
+}
+
+TEST_F(DeviceExecutionContextTest, leaseGivesTheWorkerBackWhenDestroyed) {
+    DeviceExecutionContext context("GPU.0");
+    make_ready(context, 2);
+    {
+        auto lease = context.pool().try_acquire();
+        ASSERT_TRUE(lease);
+        EXPECT_EQ(lease.get()->m_index, 0);
+        EXPECT_EQ(context.pool().leased_count(), 1u);
+        EXPECT_EQ(count_idle(context), 1u);
+    }
+    EXPECT_EQ(context.pool().leased_count(), 0u);
+    EXPECT_EQ(count_idle(context), 2u);
+}
+
+TEST_F(DeviceExecutionContextTest, detachedLeaseKeepsTheWorkerUntilItIsAdopted) {
+    DeviceExecutionContext context("GPU.0");
+    make_ready(context, 2);
+    WorkerInferRequest* in_flight = nullptr;
+    {
+        auto lease = context.pool().try_acquire();
+        in_flight = lease.detach();
+    }
+    ASSERT_NE(in_flight, nullptr);
+    EXPECT_EQ(context.pool().leased_count(), 1u);
+    EXPECT_FALSE(context.try_release());
+    // the next lease gets the other worker
+    {
+        auto other = context.pool().try_acquire();
+        ASSERT_TRUE(other);
+        EXPECT_NE(other.get(), in_flight);
+    }
+    EXPECT_TRUE(context.pool().adopt(in_flight).give_back());
+    EXPECT_EQ(context.pool().leased_count(), 0u);
+    EXPECT_TRUE(context.try_release());
+}
+
+TEST_F(DeviceExecutionContextTest, noWorkerIsLeasedFromAnExhaustedPool) {
+    DeviceExecutionContext context("GPU.0");
+    make_ready(context, 1);
+    auto first = context.pool().try_acquire();
+    ASSERT_TRUE(first);
+    EXPECT_FALSE(context.pool().try_acquire());
 }

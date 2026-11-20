@@ -31,16 +31,18 @@ ISyncInferPtr Schedule::create_sync_infer_request() {
             if (!context) {
                 continue;
             }
-            auto& dev_requests = context->workers();
-            if ((request_id - sum) <  dev_requests.size()) {
-                request_to_share_tensors_with = dev_requests.at(request_id - sum).m_inferrequest;
+            auto& pool = context->pool();
+            const auto pool_size = pool.size();
+            if ((request_id - sum) < pool_size) {
+                auto* worker = &pool.worker(request_id - sum);
+                request_to_share_tensors_with = worker->m_inferrequest;
                 INFO_RUN([&]() {
                     std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
-                    m_dev_infer.insert(std::make_pair(request_to_share_tensors_with._ptr, &dev_requests.at(request_id - sum)));
+                    m_dev_infer.insert(std::make_pair(request_to_share_tensors_with._ptr, worker));
                 });
                 break;
             }
-            sum += dev_requests.size();
+            sum += pool_size;
         }
         if (!request_to_share_tensors_with) {
             OPENVINO_THROW("binder mode does not allow oversubsciption of infer requests, please use optimal infer request");
@@ -57,23 +59,19 @@ void Schedule::run(ov::threading::Task pipeline_task) {
     schedule_to_worker_infer_request(std::move(pipeline_task), m_this_preferred_device_name);
 }
 
-bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
-    NotBusyPriorityWorkerRequests& idle_workerrequests,
-    const DeviceName& preferred_device) {
-    WorkerInferRequest* worker_request_ptr = nullptr;
-    std::pair<int, WorkerInferRequest*> worker;
-    if (idle_workerrequests.try_pop(worker)) {
-        worker_request_ptr = worker.second;
-        IdleGuard<NotBusyPriorityWorkerRequests> idle_guard{worker_request_ptr, idle_workerrequests};
-        m_this_worker_infer_request = worker_request_ptr;
-        {
-            auto captured_task = std::move(pipeline_task);
-            captured_task();
-        }
-        idle_guard.release();
-        return true;
+bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task, WorkerPool& pool) {
+    auto lease = pool.try_acquire();
+    if (!lease) {
+        return false;
     }
-    return false;
+    m_this_worker_infer_request = lease.get();
+    {
+        auto captured_task = std::move(pipeline_task);
+        captured_task();
+    }
+    // the inference has been started, its completion callback gives the worker back
+    lease.detach();
+    return true;
 }
 
 void Schedule::capture_hw_metadata(const SoCompiledModel& first_compiled_model) {
@@ -158,7 +156,7 @@ void Schedule::generate_workers(const ModelInstanceKey& key, const SoCompiledMod
         worker_request.m_is_cpu_helper = context.key().is_startup_helper();
         worker_request.m_inferrequest->set_callback(
             [worker_request_ptr, this, device_context](std::exception_ptr exception_ptr) mutable {
-                IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, device_context->idle_workers()};
+                auto lease = device_context->pool().adopt(worker_request_ptr);
                 worker_request_ptr->m_exception_ptr = std::move(exception_ptr);
                 {
                     auto stop_retry_and_continue = [worker_request_ptr]() {
@@ -186,8 +184,7 @@ void Schedule::generate_workers(const ModelInstanceKey& key, const SoCompiledMod
                         stop_retry_and_continue();
                     }
                     // try to return the request to the idle list (fails if the overall object destruction has began)
-                    bool returned_to_idle =
-                        idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr));
+                    const bool returned_to_idle = lease.give_back();
                     if (m_context->m_dynamic_device_selection) {
                         // only recorded here, it is logged by the next dispatch so the slot is released without delay
                         INFO_RUN([&] {
@@ -207,9 +204,9 @@ void Schedule::generate_workers(const ModelInstanceKey& key, const SoCompiledMod
                         do {
                             m_infer_pipeline_tasks.try_pop(t);
                         } while (t && schedule_to_worker_infer_request(std::move(t)));
-                        do {
-                            device_context->pending_tasks().try_pop(t);
-                        } while (t && schedule_to_worker_infer_request(std::move(t), device_context->name()));
+                        while (device_context->pool().try_dequeue(t) &&
+                               schedule_to_worker_infer_request(std::move(t), device_context->name())) {
+                        }
                     }
                 }
             });

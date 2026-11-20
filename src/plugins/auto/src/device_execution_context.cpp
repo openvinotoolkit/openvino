@@ -12,6 +12,175 @@ SoCompiledModel AutoCompileContext::compiled_model() const {
     return device_context ? device_context->compiled_model() : SoCompiledModel{};
 }
 
+WorkerLease::WorkerLease(WorkerPool* pool, WorkerInferRequest* worker) : m_pool(pool), m_worker(worker) {}
+
+WorkerLease::WorkerLease(WorkerLease&& other) noexcept
+    : m_pool(std::exchange(other.m_pool, nullptr)),
+      m_worker(std::exchange(other.m_worker, nullptr)) {}
+
+WorkerLease& WorkerLease::operator=(WorkerLease&& other) noexcept {
+    if (this != &other) {
+        give_back();
+        m_pool = std::exchange(other.m_pool, nullptr);
+        m_worker = std::exchange(other.m_worker, nullptr);
+    }
+    return *this;
+}
+
+WorkerLease::~WorkerLease() {
+    give_back();
+}
+
+WorkerInferRequest* WorkerLease::detach() {
+    m_pool = nullptr;
+    return std::exchange(m_worker, nullptr);
+}
+
+bool WorkerLease::give_back() {
+    auto* worker = std::exchange(m_worker, nullptr);
+    auto* pool = std::exchange(m_pool, nullptr);
+    return worker && pool && pool->give_back(worker);
+}
+
+void WorkerPool::open(const SoCompiledModel& model, size_t num_requests, const WorkerSetup& setup_worker) {
+    std::vector<WorkerInferRequest> workers(num_requests);
+    int index = 0;
+    for (auto& worker : workers) {
+        worker.m_inferrequest = {model->create_infer_request(), model._so};
+        worker.m_index = index++;
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        OPENVINO_ASSERT(!m_open && m_workers.empty(), "The worker pool is already open");
+        m_workers = std::move(workers);
+    }
+    // the callbacks capture the address of the worker, so they are bound once the workers are in place
+    try {
+        for (auto& worker : m_workers) {
+            setup_worker(worker);
+        }
+    } catch (...) {
+        std::vector<WorkerInferRequest> dropped;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            dropped.swap(m_workers);
+        }
+        throw;
+    }
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (const auto& worker : m_workers) {
+        m_idle.insert(worker.m_index);
+    }
+    m_leased = 0;
+    m_open = true;
+}
+
+bool WorkerPool::try_close_idle() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_leased != 0 || !m_tasks.empty()) {
+        return false;
+    }
+    m_open = false;
+    m_idle.clear();
+    return true;
+}
+
+void WorkerPool::close() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_open = false;
+    m_idle.clear();
+}
+
+void WorkerPool::clear() {
+    std::vector<WorkerInferRequest> dropped;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        OPENVINO_ASSERT(!m_open, "An open worker pool cannot be cleared");
+        dropped.swap(m_workers);
+        m_leased = 0;
+    }
+}
+
+WorkerLease WorkerPool::try_acquire() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_open || m_idle.empty()) {
+        return {};
+    }
+    const auto index = *m_idle.begin();
+    m_idle.erase(m_idle.begin());
+    m_leased++;
+    return {this, &m_workers[index]};
+}
+
+WorkerLease WorkerPool::adopt(WorkerInferRequest* worker) {
+    return {this, worker};
+}
+
+bool WorkerPool::give_back(WorkerInferRequest* worker) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_leased > 0) {
+        m_leased--;
+    }
+    if (!m_open) {
+        return false;
+    }
+    m_idle.insert(worker->m_index);
+    return true;
+}
+
+void WorkerPool::enqueue(ov::threading::Task task) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_tasks.push_back(std::move(task));
+}
+
+bool WorkerPool::try_dequeue(ov::threading::Task& task) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_tasks.empty()) {
+        return false;
+    }
+    task = std::move(m_tasks.front());
+    m_tasks.pop_front();
+    return true;
+}
+
+size_t WorkerPool::size() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_workers.size();
+}
+
+size_t WorkerPool::idle_count() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_idle.size();
+}
+
+size_t WorkerPool::leased_count() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_leased;
+}
+
+bool WorkerPool::has_queued_tasks() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return !m_tasks.empty();
+}
+
+WorkerInferRequest& WorkerPool::worker(size_t index) {
+    return m_workers.at(index);
+}
+
+const std::vector<WorkerInferRequest>& WorkerPool::workers() const {
+    return m_workers;
+}
+
+void WorkerPool::wait_all(const std::function<void(const ov::Exception&)>& on_error) {
+    for (auto& worker : m_workers) {
+        try {
+            worker.m_inferrequest._ptr->wait();
+        } catch (const ov::Exception& ex) {
+            on_error(ex);
+        }
+    }
+}
+
 DeviceExecutionContext::DeviceExecutionContext(ModelInstanceKey key) : m_key(std::move(key)) {}
 
 void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
@@ -20,22 +189,11 @@ void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
     OPENVINO_ASSERT(m_state != State::Ready, "Device ", m_key.to_string(), " already has workers");
     exchange_model(model);
     try {
-        m_workers.resize(num_requests);
-        m_idle_workers.set_capacity(num_requests);
-        int index = 0;
-        for (auto& worker : m_workers) {
-            worker.m_inferrequest = {model->create_infer_request(), model._so};
-            worker.m_index = index++;
-            OPENVINO_ASSERT(m_idle_workers.try_push(std::make_pair(worker.m_index, &worker)));
+        m_pool.open(model, num_requests, [this, &setup_worker](WorkerInferRequest& worker) {
             setup_worker(*this, worker);
-        }
+        });
     } catch (...) {
-        // leave the context as it was, the requests go before the model
-        std::pair<int, WorkerInferRequest*> idle;
-        while (m_idle_workers.try_pop(idle)) {
-        }
-        m_idle_workers.set_capacity(0);
-        m_workers.clear();
+        // leave the context as it was
         exchange_model({});
         throw;
     }
@@ -44,25 +202,12 @@ void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
 }
 
 bool DeviceExecutionContext::try_release() {
-    if (m_keep_alive || m_state != State::Ready || !m_pending_tasks.empty()) {
-        return false;
-    }
-    // an empty idle queue means a worker is still running
-    std::vector<std::pair<int, WorkerInferRequest*>> idle_workers;
-    std::pair<int, WorkerInferRequest*> idle;
-    while (m_idle_workers.try_pop(idle)) {
-        idle_workers.push_back(idle);
-    }
-    if (idle_workers.size() != m_workers.size()) {
-        for (auto& worker : idle_workers) {
-            m_idle_workers.try_push(std::move(worker));
-        }
+    if (m_keep_alive || m_state != State::Ready || !m_pool.try_close_idle()) {
         return false;
     }
     collect_worker_stats();
-    m_idle_workers.set_capacity(0);
     // the requests keep the compiled model alive, so they go first
-    m_workers.clear();
+    m_pool.clear();
     exchange_model({});
     m_state = State::Released;
     return true;
@@ -80,7 +225,7 @@ void DeviceExecutionContext::keep_alive() {
 }
 
 void DeviceExecutionContext::stop_scheduling() {
-    m_idle_workers.set_capacity(0);
+    m_pool.close();
 }
 
 DeviceExecutionContext::State DeviceExecutionContext::state() const {
@@ -118,20 +263,13 @@ SoCompiledModel DeviceExecutionContext::exchange_model(SoCompiledModel model) {
     return model;
 }
 
-std::vector<WorkerInferRequest>& DeviceExecutionContext::workers() {
-    return m_workers;
-}
-
-NotBusyPriorityWorkerRequests& DeviceExecutionContext::idle_workers() {
-    return m_idle_workers;
-}
-
-TaskQueue& DeviceExecutionContext::pending_tasks() {
-    return m_pending_tasks;
+WorkerPool& DeviceExecutionContext::pool() {
+    return m_pool;
 }
 
 void DeviceExecutionContext::collect_worker_stats() {
-    for (auto& worker : m_workers) {
+    for (size_t i = 0; i < m_pool.size(); i++) {
+        auto& worker = m_pool.worker(i);
         m_released_start_times.splice(m_released_start_times.end(), worker.m_start_times);
         m_released_end_times.splice(m_released_end_times.end(), worker.m_end_times);
     }
@@ -149,7 +287,7 @@ void DeviceExecutionContext::log_summary(const std::string& log_tag,
     };
     std::list<Time> req_all_start_times = m_released_start_times;
     std::list<Time> req_all_end_times = m_released_end_times;
-    for (const auto& request : m_workers) {
+    for (const auto& request : m_pool.workers()) {
         req_all_start_times.insert(req_all_start_times.end(),
                                    request.m_start_times.begin(),
                                    request.m_start_times.end());

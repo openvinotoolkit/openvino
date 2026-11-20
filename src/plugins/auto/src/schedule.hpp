@@ -36,8 +36,8 @@ public:
 protected:
     virtual void init() = 0;
     virtual void release_execution_slot() {}
-    static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
-                                  const DeviceName& preferred_device);
+    // runs the task on an idle worker of the pool, which stays leased until the inference completes
+    static bool run_pipeline_task(ov::threading::Task& pipeline_task, WorkerPool& pool);
     virtual void generate_workers(const ModelInstanceKey& key, const SoCompiledModel& compiled_model);
     // the result is empty if the compilation failed or the context reuses a ready device
     virtual SoCompiledModel try_to_compile_model(AutoCompileContext& context,

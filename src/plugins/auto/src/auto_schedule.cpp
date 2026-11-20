@@ -280,16 +280,13 @@ void AutoSchedule::init() {
                 m_compile_context[CPU].m_future.wait();
                 // clean up helper infer requests
                 // first, wait for all the remaining requests to finish
-                for (auto& iter : cpu_help.workers()) {
-                    try {
-                        iter.m_inferrequest._ptr->wait();
-                    } catch (const ov::Exception& iie) {
-                        LOG_DEBUG_TAG("No infer results expected, infer in the startup helper throw some errors: %s", iie.what());
-                    }
-                }
+                cpu_help.pool().wait_all([this](const ov::Exception& iie) {
+                    LOG_DEBUG_TAG("No infer results expected, infer in the startup helper throw some errors: %s",
+                                  iie.what());
+                });
                 // late enough to check the idle queue now
                 // second, release the helper once all its requests are in place, nothing to wait for if it never loaded
-                const auto destroynum = cpu_help.workers().size();
+                const auto destroynum = cpu_help.pool().size();
                 // no lock is held, the model queries cope with a helper that is released under them
                 if (!cpu_help.is_ready() || cpu_help.try_release()) {
                     auto released_stats = cpu_help.take_released_stats();
@@ -588,13 +585,13 @@ bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
         if (!preferred_device.empty() && (instance.device != preferred_device)) {
             continue;
         }
-        if (run_pipeline_task(pipeline_task, get_device_context(instance).idle_workers(), preferred_device)) {
+        if (run_pipeline_task(pipeline_task, get_device_context(instance).pool())) {
             return true;
         }
     }
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
-        get_device_context(preferred_device).pending_tasks().push(std::move(pipeline_task));
+        get_device_context(preferred_device).pool().enqueue(std::move(pipeline_task));
     } else {
         m_infer_pipeline_tasks.push(std::move(pipeline_task));
     }
@@ -708,7 +705,7 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
         }
         m_dynamic_infer_count++;
         const bool dispatched =
-            run_pipeline_task(pipeline_task, get_device_context(device_name).idle_workers(), device_name);
+            run_pipeline_task(pipeline_task, get_device_context(device_name).pool());
         OPENVINO_ASSERT(dispatched, get_log_tag(), ": no idle infer request available on device ", device_name);
         // a failure to start the request is swallowed by the pipeline and no callback returns the worker, so give
         // it back here and open the gate
@@ -721,7 +718,7 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
                     worker->m_start_times.pop_back();
                 }
             });
-            get_device_context(device_name).idle_workers().try_push(std::make_pair(worker->m_index, worker));
+            get_device_context(device_name).pool().adopt(worker).give_back();
             release_execution_slot();
         }
         // off the critical path: the next dispatch runs on this single stream executor, so it waits for the release
