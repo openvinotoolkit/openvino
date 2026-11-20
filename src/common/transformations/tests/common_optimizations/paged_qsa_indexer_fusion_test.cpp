@@ -966,6 +966,8 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQuerySplitRoPE) {
     options.split_rope = true;
     model = getQueryModel<op_internal::QSAIndexer>(options);
     model_ref = getQueryModelRef<op_internal::QSAIndexer>(options);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
