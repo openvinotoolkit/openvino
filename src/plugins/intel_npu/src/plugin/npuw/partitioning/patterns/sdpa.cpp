@@ -848,9 +848,7 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (!fold_shapeof_concat) {
         const auto ordered_ops = model->get_ordered_ops();
         fold_shapeof_concat = std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const auto& node) {
-            const auto& rt_info = node->get_rt_info();
-            const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY);
-            return it != rt_info.end() && it->second.template as<int64_t>() >= 0;
+            return ov::npuw::has_sliding_window_mask_annotation(*node);
         });
     }
     if (fold_shapeof_concat) {
