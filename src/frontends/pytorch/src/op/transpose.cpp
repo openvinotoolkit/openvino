@@ -58,8 +58,12 @@ OutputVector translate_mT(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     const auto input = context.get_input(0);
     const auto input_rank = input.get_partial_shape().rank();
-    PYTORCH_OP_CONVERSION_CHECK(input_rank.is_dynamic() || input_rank.get_length() >= 2,
-                                "mT requires a tensor with at least 2 dimensions.");
+    if (input_rank.is_static()) {
+        if (input_rank.get_length() == 0) {
+            return {input};
+        }
+        PYTORCH_OP_CONVERSION_CHECK(input_rank.get_length() >= 2, "mT requires a tensor with at least 2 dimensions.");
+    }
     Output<Node> rank;
     std::tie(std::ignore, rank) = get_shape_rank(context, input, true);
     const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));

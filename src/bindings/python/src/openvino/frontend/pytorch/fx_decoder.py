@@ -644,6 +644,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
+        if name == "__openvino_legacy_op_type":
+            return OVAny(self.get_legacy_op_type())
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):
@@ -744,6 +746,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
             return "UNKNOWN_TYPE_" + str(self.pt_module.op)
+
+    def get_legacy_op_type(self):
+        if (isinstance(self.pt_module, torch.fx.Node) and self.pt_module.op == "call_function"
+                and inspect.isfunction(self.pt_module.target)):
+            return str(self.pt_module.target)
+        return ""
 
     def get_schema(self):
         schema = getattr(getattr(self.pt_module, "target", None), "_schema", None)

@@ -126,9 +126,9 @@ class TestTSmall(PytorchLayerTest):
 
 class TestMatrixTranspose(PytorchLayerTest):
     def _prepare_input(self, shape):
-        return (self.random.randn(*shape).astype(np.float32),)
+        return (np.asarray(self.random.randn(*shape), dtype=np.float32),)
 
-    @pytest.mark.parametrize("shape", [(3, 5), (2, 3, 5), (2, 4, 3, 5)])
+    @pytest.mark.parametrize("shape", [(), (3, 5), (2, 3, 5), (2, 4, 3, 5)])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export

@@ -1151,8 +1151,9 @@ def test_pytorch_fx_decoder_python_function_names(monkeypatch):
     assert TorchFXPythonDecoder(node, nodes=list(graph.nodes)).get_op_type() == "aten.relu.default"
 
 
+@pytest.mark.parametrize("legacy_name", [False, True])
 @pytest.mark.precommit
-def test_pytorch_fx_python_function_conversion_extension():
+def test_pytorch_fx_python_function_conversion_extension(legacy_name):
     import numpy as np
     import openvino as ov
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
@@ -1168,7 +1169,7 @@ def test_pytorch_fx_python_function_conversion_extension():
     decoder = TorchFXPythonDecoder(graph_module)
     frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
     frontend.add_extension(ov.frontend.ConversionExtension(
-        f"{__name__}.{custom_function.__qualname__}",
+        str(custom_function) if legacy_name else f"{__name__}.{custom_function.__qualname__}",
         lambda context: ops.negative(context.get_input(0)).outputs()))
     input_model = frontend.load(decoder)
     input_model.set_element_type(input_model.get_inputs()[0], ov.Type.f32)
