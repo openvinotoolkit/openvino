@@ -43,8 +43,9 @@ KERNEL(normalize_gpu_across_spatial_ref)
         for (uint y = 0; y < INPUT0_SIZE_Y; y++) {
             for (uint x = 0; x < INPUT0_SIZE_X; x++) {
                 input_idx = INPUT0_GET_INDEX(b, f, y, x);
-                ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(norm) * TO_ACTIVATION_TYPE(input[input_idx]) *
-                                         TO_ACTIVATION_TYPE(scale_input[scale_index]);
+                // Normalize in f32: the scale of a slice with a tiny norm (1/sqrt(eps) = 1e6 for an all-zero slice) can
+                // exceed the f16 range, the normalized value can't.
+                ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(norm * (float)input[input_idx] * (float)scale_input[scale_index]);
                 output_idx = OUTPUT_GET_INDEX(b, f, y, x);
 #if HAS_FUSED_OPS
                 FUSED_OPS;

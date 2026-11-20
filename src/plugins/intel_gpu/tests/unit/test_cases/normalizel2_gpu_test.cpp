@@ -198,10 +198,12 @@ TYPED_TEST(normalize_basic, basic) {
 }
 
 // Slices whose sum of squares is far below 1 (e.g. NetVLAD clusters that receive almost no soft-assignment) must still be
-// normalized to unit L2 norm instead of being flushed to zero.
+// normalized to unit L2 norm instead of being flushed to zero. All-zero slices must stay zero: their scale
+// 1/sqrt(eps) = 1e6 exceeds the f16 range, and 0 * inf would be NaN.
 struct normalize_small_norm_params {
     data_types data_type;
     bool across_spatial;
+    bool zero_input = false;
 };
 
 class normalize_small_norm : public testing::TestWithParam<normalize_small_norm_params> {};
@@ -217,7 +219,7 @@ TEST_P(normalize_small_norm, matches_reference) {
     // Sum of squares of every normalized slice is below 1e-4 (5.8e-6..4.9e-5); values are normal f16 numbers.
     std::vector<float> input_vals(b * f * spatial);
     for (size_t i = 0; i < input_vals.size(); ++i) {
-        const float v = (i % 2 ? -1.f : 1.f) * static_cast<float>(i + 1) * 1e-4f;
+        const float v = p.zero_input ? 0.f : (i % 2 ? -1.f : 1.f) * static_cast<float>(i + 1) * 1e-4f;
         input_vals[i] = p.data_type == data_types::f16 ? static_cast<float>(ov::float16(v)) : v;
     }
 
@@ -273,7 +275,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_normalize_small_norm,
                          testing::Values(normalize_small_norm_params{data_types::f32, false},
                                          normalize_small_norm_params{data_types::f32, true},
                                          normalize_small_norm_params{data_types::f16, false},
-                                         normalize_small_norm_params{data_types::f16, true}));
+                                         normalize_small_norm_params{data_types::f16, true},
+                                         normalize_small_norm_params{data_types::f32, false, true},
+                                         normalize_small_norm_params{data_types::f32, true, true},
+                                         normalize_small_norm_params{data_types::f16, false, true},
+                                         normalize_small_norm_params{data_types::f16, true, true}));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(normalize_basic, basic_cached) {

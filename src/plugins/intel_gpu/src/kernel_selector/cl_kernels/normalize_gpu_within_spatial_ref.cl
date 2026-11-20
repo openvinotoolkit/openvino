@@ -43,7 +43,9 @@ KERNEL (normalize_gpu_within_spatial_ref)(
 #else
         const uint scale_index = SCALE_TABLE_GET_INDEX(0, f % SCALE_TABLE_FEATURE_NUM, 0, 0);
 #endif
-        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(norm) * TO_ACTIVATION_TYPE(input[input_idx]) * TO_ACTIVATION_TYPE(scale_input[scale_index]);
+        // Normalize in f32: the scale of a slice with a tiny norm (1/sqrt(eps) = 1e6 for an all-zero slice) can exceed
+        // the f16 range, the normalized value can't.
+        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(norm * (float)input[input_idx] * (float)scale_input[scale_index]);
 #if HAS_FUSED_OPS
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
