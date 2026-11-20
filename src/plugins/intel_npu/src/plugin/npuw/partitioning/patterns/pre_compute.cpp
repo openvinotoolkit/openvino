@@ -119,10 +119,9 @@ bool is_valid_longrope_matmul(const std::shared_ptr<ov::Node>& input) {
     if (ov::is_type<ov::op::v3::Broadcast>(matmul->input_value(0).get_node())) {
         return true;
     }
-    // Without Broadcast, only [1, N, 1] is supported: a batch dimension must not be
-    // flattened into the frequency axis when the constants become LUT rows.
+    // Without Broadcast, only untransposed [1, N, 1] frequencies are supported.
     const auto& shape = matmul->get_input_partial_shape(0);
-    return shape.is_static() && shape.rank() == 3 && shape[0] == 1 && shape[2] == 1;
+    return !matmul->get_transpose_a() && shape.is_static() && shape.rank() == 3 && shape[0] == 1 && shape[2] == 1;
 }
 
 bool is_valid_longrope_frequency_concat(const std::shared_ptr<ov::Node>& input) {
