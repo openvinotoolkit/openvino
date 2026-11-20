@@ -24,6 +24,7 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     static constexpr int PER_OC = 2;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
+    friend FullyConnectedPredictionEntry make_fc_prediction_entry(primitive_inst& instance, const layout* input_layout);
 
 private:
     int _ds_group_size;
@@ -37,6 +38,12 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        set_weights_arguments(instance, args, instance.get_input_layout(0));
+        return args;
+    }
+
+    void set_weights_arguments(fully_connected_inst& instance, std::unordered_map<int, dnnl::memory>& args,
+                              const layout& input_layout) const {
         {
             auto weights = instance.weights_memory();
             auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
@@ -70,7 +77,7 @@ protected:
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
 
-            const auto input_dt = instance.get_input_layout(0).data_type;
+            const auto input_dt = input_layout.data_type;
             const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f4e2m1, data_types::f8e4m3, data_types::f8e5m2});
 
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
@@ -95,7 +102,6 @@ protected:
             }
         }
 
-        return args;
     }
 
     static std::shared_ptr<dnnl::matmul::primitive_desc>
@@ -469,6 +475,60 @@ public:
 std::unique_ptr<primitive_impl> FullyConnectedImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<fully_connected>());
     return onednn::fully_connected_onednn::create(static_cast<const fully_connected_node&>(node), params);
+}
+
+FullyConnectedPredictionEntry make_fc_prediction_entry(primitive_inst& instance, const layout* input_layout) {
+    OPENVINO_ASSERT(instance.type() == fully_connected::type_id(), "Lookahead projection must be fully connected");
+    auto params = *instance.get_impl_params();
+    OPENVINO_ASSERT(!params.has_fused_primitives(), "Lookahead FC does not support fused post-operations");
+    const auto rank = params.typed_desc<fully_connected>()->input_size;
+    auto single_token = [rank](layout value) {
+        auto shape = value.get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static() && rank >= 2 && shape.size() >= rank && shape[rank - 1].is_static(),
+                        "Lookahead FC requires a static feature dimension");
+        shape.resize(rank);
+        for (size_t axis = 0; axis + 1 < shape.size(); ++axis)
+            shape[axis] = 1;
+        value.set_partial_shape(shape);
+        return value;
+    };
+    auto source_layout = input_layout ? *input_layout : params.input_layouts[0];
+    if (input_layout) {
+        const auto shape = input_layout->get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static() && shape.size() > 0 && shape[shape.size() - 1].is_static(),
+                        "Lookahead hidden requires static feature width");
+        ov::PartialShape source_shape;
+        for (size_t axis = 0; axis + 1 < rank; ++axis)
+            source_shape.push_back(1);
+        source_shape.push_back(shape[shape.size() - 1]);
+        source_layout.set_partial_shape(source_shape);
+    }
+    params.input_layouts[0] = single_token(source_layout);
+    params.output_layouts[0] = single_token(params.output_layouts[0]);
+    std::shared_ptr<primitive_impl> implementation = fully_connected_onednn::create(instance.get_node().as<fully_connected>(), params);
+    auto* projection = dynamic_cast<fully_connected_onednn*>(implementation.get());
+    OPENVINO_ASSERT(projection, "Cannot prepare oneDNN lookahead FC entry");
+    std::unordered_map<int, dnnl::memory> arguments;
+    projection->set_weights_arguments(static_cast<fully_connected_inst&>(instance), arguments, params.input_layouts[0]);
+    memory::ptr scratchpad;
+    if (projection->_scratchpad_md.get_size()) {
+        auto& engine = instance.get_network().get_engine();
+        scratchpad = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(projection->_scratchpad_md.get_size())},
+                                                  data_types::u8, format::bfyx}, allocation_type::usm_device, false);
+        arguments[DNNL_ARG_SCRATCHPAD] = scratchpad->get_onednn_memory(projection->_scratchpad_md);
+    }
+    auto* stream = &instance.get_network().get_stream();
+    const auto source_desc = projection->_pd.src_desc(0);
+    const auto destination_desc = projection->_pd.dst_desc(0);
+    return {params.input_layouts[0], params.output_layouts[0],
+            [implementation, projection, stream, arguments = std::move(arguments), scratchpad, source_desc, destination_desc]
+            (const memory::ptr& hidden, const memory::ptr& logits, const std::vector<event::ptr>& events) mutable {
+                arguments[DNNL_ARG_SRC] = hidden->get_onednn_memory(source_desc);
+                arguments[DNNL_ARG_DST] = logits->get_onednn_memory(destination_desc);
+                stream->enqueue_barrier(events);
+                projection->_prim.execute(stream->get_onednn_stream(), arguments);
+                return stream->enqueue_marker({}, true);
+            }};
 }
 
 }  // namespace onednn

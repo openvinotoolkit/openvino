@@ -157,6 +157,34 @@ public:
 
 }  // namespace
 
+RouterPredictionEntry make_router_prediction_entry(cldnn::primitive_inst& instance) {
+    auto* implementation = dynamic_cast<MoeRouterFusedImpl*>(instance.get_impl());
+    OPENVINO_ASSERT(implementation, "Lookahead requires the compiled fused-router implementation");
+    const auto config = instance.get_typed_desc<moe_router_fused>()->_config;
+    auto kernel = config.routing_type == MoERouterFused::RoutingType::SOFTMAX
+                      ? implementation->softmax_topk->kernel : implementation->sigmoid_bias_topk->kernel;
+    auto* stream = &instance.get_network().get_stream();
+    return [kernel, config, stream](const std::vector<cldnn::memory::ptr>& inputs,
+                                    const std::vector<cldnn::memory::ptr>& outputs,
+                                    const std::vector<cldnn::event::ptr>& events) {
+        cldnn::kernel_arguments_data arguments;
+        cldnn::kernel_arguments_desc descriptor;
+        const size_t input_count = config.routing_type == MoERouterFused::RoutingType::SOFTMAX ? 1 : 3;
+        OPENVINO_ASSERT(inputs.size() == input_count && outputs.size() == 2, "Invalid prediction router arguments");
+        for (uint32_t index = 0; index < inputs.size(); ++index) {
+            descriptor.arguments.push_back({ArgumentDescriptor::Types::INPUT, index});
+            arguments.inputs.push_back(inputs[index]);
+        }
+        descriptor.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        descriptor.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
+        arguments.outputs = {outputs[1], outputs[0]};
+        descriptor.workGroups.global = {1, config.num_expert};
+        descriptor.workGroups.local = {1, config.num_expert};
+        stream->set_arguments(*kernel, descriptor, arguments);
+        return stream->enqueue_kernel(*kernel, descriptor, {}, events, true);
+    };
+}
+
 std::unique_ptr<primitive_impl> MoeRouterFusedOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<moe_router_fused>());
     return std::make_unique<MoeRouterFusedImpl>(node, params);

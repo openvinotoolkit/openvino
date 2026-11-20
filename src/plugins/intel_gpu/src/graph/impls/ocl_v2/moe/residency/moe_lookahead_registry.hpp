@@ -33,6 +33,7 @@ public:
         cldnn::event::ptr prediction_ready;
         std::shared_ptr<std::atomic<bool>> consumed;
         bool submitted = false;
+        std::shared_ptr<std::vector<uint32_t>> cpu_indices;
     };
 
     explicit LookaheadContext(cldnn::network& network);

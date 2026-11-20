@@ -4,15 +4,25 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "intel_gpu/primitives/moe_router_fused.hpp"
+#include "primitive_inst.h"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
+
+using RouterPredictionEntry = std::function<cldnn::event::ptr(
+    const std::vector<cldnn::memory::ptr>&,
+    const std::vector<cldnn::memory::ptr>&,
+    const std::vector<cldnn::event::ptr>&)>;
+
+RouterPredictionEntry make_router_prediction_entry(cldnn::primitive_inst& instance);
 
 struct MoeRouterFusedOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::moe::moe_router_fused_opt")

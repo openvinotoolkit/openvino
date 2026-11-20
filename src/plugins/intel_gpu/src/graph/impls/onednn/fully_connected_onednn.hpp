@@ -20,6 +20,14 @@
 namespace cldnn {
 namespace onednn {
 
+struct FullyConnectedPredictionEntry {
+    layout input_layout;
+    layout output_layout;
+    std::function<event::ptr(const memory::ptr&, const memory::ptr&, const std::vector<event::ptr>&)> enqueue;
+};
+
+FullyConnectedPredictionEntry make_fc_prediction_entry(primitive_inst& instance, const layout* input_layout = nullptr);
+
 struct FullyConnectedImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::fc")
     FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}

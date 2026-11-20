@@ -7,6 +7,7 @@
 #include "ocl_v2/moe/residency/lookahead_router.hpp"
 #include "ocl_v2/moe/residency/moe_lookahead_registry.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 #include <array>
 #include <chrono>
 #include <fstream>
@@ -212,7 +213,7 @@ TEST_F(moe_les_upload, staging_reuse_preserves_large_tensor_source) {
 
 TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent) {
     auto& engine = get_test_engine();
-    const layout hidden_layout{ov::PartialShape{1, 16}, data_types::f16, format::bfyx};
+    const layout hidden_layout{ov::PartialShape{1, 1, 16}, data_types::f16, format::bfyx};
     auto actual_hidden = engine.allocate_memory(hidden_layout);
     auto predicted_hidden = engine.allocate_memory(hidden_layout);
     auto weights = engine.allocate_memory(layout{ov::PartialShape{16, 16}, data_types::f16, format::bfyx});
@@ -233,12 +234,14 @@ TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent)
     config.routing_type = MoERouterFused::RoutingType::SOFTMAX;
     topology graph;
     graph.add(input_layout("hidden", hidden_layout));
+    graph.add(reshape("flattened_hidden", input_info("hidden"), false,
+                      std::vector<int64_t>{1, 16}, ov::PartialShape{1, 16}));
     graph.add(data("weights", weights));
-    graph.add(fully_connected("projection", input_info("hidden"), "weights"));
+    graph.add(fully_connected("projection", input_info("flattened_hidden"), "weights"));
     graph.add(moe_router_fused("router", {input_info("projection")}, config));
     network actual(engine, graph, get_test_default_config(engine));
     actual.set_input_data("hidden", actual_hidden);
-    ov::intel_gpu::ocl::moe::LookaheadRouter lookahead(actual, "hidden", "router");
+    ov::intel_gpu::ocl::moe::LookaheadRouter lookahead(actual, "hidden", "router", "projection");
     write(std::vector<uint8_t>(256, 11));
     MOECompressed::Config expert_config{};
     expert_config.num_expert = 16;
@@ -295,17 +298,23 @@ TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent)
     EXPECT_EQ(before_prediction, std::future_status::ready);
     auto prediction = current_finished.get();
     prediction.ready->wait();
-    uint32_t predicted_id = 0;
-    EXPECT_EQ(prediction.indices->get_allocation_type(), allocation_type::usm_host);
-    {
-        mem_lock<uint32_t, mem_lock_type::read> indices(prediction.indices, compute);
-        predicted_id = indices[0];
-    }
-    EXPECT_EQ(predicted_id, 5U);
+    ASSERT_TRUE(prediction.cpu_indices);
+    EXPECT_EQ(prediction.indices->get_allocation_type(), allocation_type::usm_device);
+    EXPECT_EQ(*prediction.cpu_indices, std::vector<uint32_t>{5});
+    EXPECT_FALSE(engine.is_the_same_buffer(*prediction.indices, *actual.get_primitive("router")->output_memory_ptr(1)));
+    EXPECT_FALSE(engine.is_the_same_buffer(*prediction.weights, *actual.get_primitive("router")->output_memory_ptr(0)));
     EXPECT_EQ(actual_id, 2U);
+    hidden[5] = 0;
+    hidden[7] = 4;
+    set_values(predicted_hidden, hidden);
+    auto next_prediction = lookahead.enqueue(predicted_hidden, compute.enqueue_marker({}, true));
+    compute.flush();
+    next_prediction.ready->wait();
+    EXPECT_EQ(*next_prediction.cpu_indices, std::vector<uint32_t>{7});
+    EXPECT_EQ(*prediction.cpu_indices, std::vector<uint32_t>{5});
     prefetcher.advance(1, 0);
     auto consumed = std::make_shared<std::atomic<bool>>(false);
-    prefetcher.submit_prefetch({1, 1, prediction.indices, prediction.ready, provider, consumed});
+    prefetcher.submit_prefetch({1, 1, prediction.indices, prediction.ready, provider, consumed, prediction.cpu_indices});
     prefetcher.drain();
     EXPECT_TRUE(consumed->load(std::memory_order_acquire));
     auto predicted = provider->cache().partition_3way({5}, [&] { return prefetcher.make_ready_event(); });
