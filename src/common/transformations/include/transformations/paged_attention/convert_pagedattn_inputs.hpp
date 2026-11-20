@@ -32,7 +32,6 @@ public:
         size_t valueCacheGroupSize = 0;
         bool keyCacheQuantBychannel = false;
         bool valueCacheQuantBychannel = false;
-        bool separateSparseCacheFormat = false;  // Leave sparse cache compression to the backend.
         std::vector<size_t> keyCacheDimOrder = {0, 1, 2, 3};
         std::vector<size_t> valueCacheDimOrder = {0, 1, 2, 3};
     };

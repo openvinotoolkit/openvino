@@ -14,7 +14,6 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
-#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -40,8 +39,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                                        ov::op::internal::PagedSparseAttention,
                                        ov::op::internal::PagedCausalConv1D,
                                        ov::op::internal::PagedGatedDeltaNet,
-                                       ov::op::internal::PagedSelectiveSSM,
-                                       ov::op::internal::PagedQSAIndexer>();
+                                       ov::op::internal::PagedSelectiveSSM>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto root = m.get_match_root();
         bool status = false;
@@ -49,10 +47,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
         // PagedAttentionExtension and PagedSparseAttention share the key/value cache inputs (3, 4) and the
         // `num_k_heads`/`k_head_size`/`num_v_heads`/`v_head_size` runtime info that defines the cache shape.
         const auto pa_op =
-            ov::is_type<ov::op::PagedAttentionExtension>(root) ||
-                    (!m_config.separateSparseCacheFormat && ov::is_type<ov::op::internal::PagedSparseAttention>(root))
-                ? root
-                : nullptr;
+            ov::is_type_any_of<ov::op::PagedAttentionExtension, ov::op::internal::PagedSparseAttention>(root) ? root
+                                                                                                              : nullptr;
         if (pa_op) {
             auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
             auto value_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
@@ -198,45 +194,6 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             enable_keep_const_precision(ssm_state_table);
             ssm_state_table->validate_and_infer_types();
             return true;
-        }
-
-        auto set_sparse_cache = [&](const ov::Output<ov::Node>& input, size_t block_axis, size_t block_extent) {
-            const auto cache = ov::as_type_ptr<v0::Parameter>(input.get_node_shared_ptr());
-            if (!cache || cache->get_partial_shape().rank().is_dynamic() ||
-                block_axis >= cache->get_partial_shape().size()) {
-                return false;
-            }
-            auto cache_precision = m_config.inferencePrecision;
-            if (m_update_precision_func) {
-                m_update_precision_func(cache_precision);
-            }
-            auto shape = cache->get_partial_shape();
-            shape[block_axis] = static_cast<int64_t>(block_extent);
-            cache->set_element_type(cache_precision);
-            cache->set_partial_shape(shape);
-            enable_keep_const_precision(cache);
-            cache->validate_and_infer_types();
-            return true;
-        };
-        if (m_config.separateSparseCacheFormat) {
-            if (const auto sparse = ov::as_type_ptr<ov::op::internal::PagedSparseAttention>(root)) {
-                return set_sparse_cache(sparse->input_value(3), 2, m_config.keyCacheBlockSize) &&
-                       set_sparse_cache(sparse->input_value(4), 2, m_config.valueCacheBlockSize);
-            }
-        }
-        if (const auto indexer = ov::as_type_ptr<ov::op::internal::PagedQSAIndexer>(root)) {
-            using InputIdx = ov::op::internal::PagedQSAIndexer::InputIdx;
-            const size_t block_size = m_config.keyCacheBlockSize;
-            const size_t key_block_size = indexer->get_config().key_block_size;
-            OPENVINO_ASSERT(key_block_size > 0 && block_size % key_block_size == 0,
-                            "The KV cache block size ",
-                            block_size,
-                            " is not a multiple of the QSA key block size ",
-                            key_block_size);
-            const size_t blocks_per_page = block_size / key_block_size;
-            return set_sparse_cache(indexer->input_value(InputIdx::INDEX_KEY_CACHE), 2, block_size) &&
-                   set_sparse_cache(indexer->input_value(InputIdx::INDEX_BLOCK_ROPE_CACHE), 1, blocks_per_page) &&
-                   set_sparse_cache(indexer->input_value(InputIdx::BLOCK_INDEX_KEYS_CACHE), 2, blocks_per_page);
         }
 
         return status;
