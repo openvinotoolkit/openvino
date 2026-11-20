@@ -390,7 +390,8 @@ TEST_F(ActivationsScalingFakeQuantizeSDPA, smoke_Inference) {
 // T5 adds an integer attention mask, turned into (1 - Convert(mask)) * lowest, to the relative position bias and feeds
 // the sum to SDPA as the attention mask. The activations scaling LPT run sees the mask arithmetic as a dequantization
 // with a zero point. If it moves that dequantization through the Add, the position bias is computed as
-// (bias - 65504) / 65504 in f16 and is lost, so every attention layer runs without it.
+// (bias - 65504) / 65504 in f16 and is lost, so every attention layer runs without it. The test parameter selects a
+// floating-point attention mask input instead (no Convert), whose arithmetic LPT takes for the same dequantization.
 //
 //          input                       bucket        attention_mask
 //            |                           |                 |
@@ -409,7 +410,13 @@ TEST_F(ActivationsScalingFakeQuantizeSDPA, smoke_Inference) {
 //                                Reshape
 //                                   |
 //                                MatMul
-class ActivationsScalingSDPAMaskWithPositionBias : public ov::test::SubgraphBaseTest {
+class ActivationsScalingSDPAMaskWithPositionBias : public testing::WithParamInterface<bool>,
+                                                   virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        return obj.param ? "float_mask" : "integer_mask";
+    }
+
 protected:
     static constexpr int64_t num_heads = 2;
     static constexpr int64_t head_size = 64;
@@ -428,7 +435,8 @@ protected:
 
         const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
         const auto bucket = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
-        const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[2]);
+        const bool float_mask = GetParam();
+        const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(float_mask ? ov::element::f32 : ov::element::i64, inputDynamicShapes[2]);
 
         int seed = 1;
         auto linear = [&](const ov::Output<ov::Node>& data) {
@@ -452,9 +460,9 @@ protected:
         const auto position_bias = std::make_shared<ov::op::v0::Unsqueeze>(bias_heads, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
 
         // Extended attention mask [batch, 1, 1, seq_len]: 0 for tokens to attend to, lowest for padding
-        const auto mask = std::make_shared<ov::op::v0::Convert>(
-            std::make_shared<ov::op::v0::Unsqueeze>(attention_mask, ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 2})),
-            ov::element::f32);
+        const auto unsqueezed_mask = std::make_shared<ov::op::v0::Unsqueeze>(attention_mask, ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 2}));
+        const std::shared_ptr<ov::Node> mask =
+            float_mask ? unsqueezed_mask : std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(unsqueezed_mask, ov::element::f32));
         const auto inverted = std::make_shared<ov::op::v1::Subtract>(ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}), mask);
         const auto extended_mask =
             std::make_shared<ov::op::v1::Multiply>(inverted, ov::op::v0::Constant::create(ov::element::f32, {}, {std::numeric_limits<float>::lowest()}));
@@ -487,17 +495,26 @@ protected:
         }
         inputs.insert({model_inputs[1].get_node_shared_ptr(), bucket});
 
-        ov::Tensor attention_mask(ov::element::i64, target_input_static_shapes[2]);
-        auto* mask_data = attention_mask.data<int64_t>();
+        ov::Tensor attention_mask(model_inputs[2].get_element_type(), target_input_static_shapes[2]);
         for (size_t i = 0; i < attention_mask.get_size(); ++i) {
-            mask_data[i] = (i % seq_len) < valid_len ? 1 : 0;
+            const bool attend = (i % seq_len) < valid_len;
+            if (attention_mask.get_element_type() == ov::element::f32) {
+                attention_mask.data<float>()[i] = attend ? 1.f : 0.f;
+            } else {
+                attention_mask.data<int64_t>()[i] = attend ? 1 : 0;
+            }
         }
         inputs.insert({model_inputs[2].get_node_shared_ptr(), attention_mask});
     }
 };
 
-TEST_F(ActivationsScalingSDPAMaskWithPositionBias, smoke_Inference) {
+TEST_P(ActivationsScalingSDPAMaskWithPositionBias, Inference) {
     core->set_property(targetDevice, ov::hint::activations_scale_factor(8.f));
     run();
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
+                         ActivationsScalingSDPAMaskWithPositionBias,
+                         ::testing::Bool(),
+                         ActivationsScalingSDPAMaskWithPositionBias::getTestCaseName);
 } // namespace
