@@ -34,6 +34,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/hash_util.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "quant/weights.hpp"
@@ -483,6 +484,9 @@ TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
 class GGUFParserGpu : public GGUFParser, public ::testing::WithParamInterface<GgufRawFormat> {};
 
 TEST_F(GGUFParser, RawWeightsPublicIrRoundTrip) {
+    EXPECT_EQ(ov::util::fnv1a_64("", 0), 0xcbf29ce484222325ULL);
+    EXPECT_EQ(ov::util::fnv1a_64("hello", 5), 0xa430d84680aabd0bULL);
+    EXPECT_EQ(ov::util::fnv1a_64("\0\xff", 2), 0x0831c907b4ea2b60ULL);
     ov::Core core;
     for (const auto& format : kRawFormats) {
         SCOPED_TRACE(format.name);
@@ -1345,6 +1349,8 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                 if (const auto source = layer.child("data").attribute("source")) {
                     ++chained_sources;
                     EXPECT_EQ(std::string(source.value()), std::filesystem::path(m_path).filename().string());
+                    EXPECT_EQ(std::string(layer.child("data").attribute("checksum").value()),
+                              "fnv1a64:" + std::to_string(ov::util::fnv1a_64(payload.data(), payload.size())));
                 }
             }
             EXPECT_EQ(chained_sources, 1);
@@ -1431,6 +1437,50 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         invalid_reference("source", std::filesystem::path(m_path).filename().string() + ".missing");
         invalid_reference("offset", "18446744073709551615");
         invalid_reference("size", std::to_string(payload.size() - 1));
+        invalid_reference("checksum", "");
+        invalid_reference("checksum", "fnv1a64:0");
+        invalid_reference("checksum", "unknown:0");
+        {
+            pugi::xml_document document;
+            ASSERT_TRUE(document.load_string(external_xml.str().c_str()));
+            for (const auto layer : document.child("net").child("layers").children("layer")) {
+                layer.child("data").remove_attribute("checksum");
+            }
+            {
+                std::ofstream file(m_path + ".xml");
+                ASSERT_TRUE(file);
+                document.save(file);
+            }
+            EXPECT_NO_THROW(core.read_model(m_path + ".xml"));
+        }
+        {
+            const auto raw_path = m_path + ".raw";
+            std::filesystem::copy_file(m_path, raw_path);
+            {
+                std::fstream file(raw_path, std::ios::binary | std::ios::in | std::ios::out);
+                file.write("RAW!", 4);
+                ASSERT_TRUE(file);
+            }
+            pugi::xml_document document;
+            ASSERT_TRUE(document.load_string(external_xml.str().c_str()));
+            for (const auto layer : document.child("net").child("layers").children("layer")) {
+                if (auto source = layer.child("data").attribute("source")) {
+                    source.set_value(std::filesystem::path(raw_path).filename().string().c_str());
+                }
+            }
+            {
+                std::ofstream file(m_path + ".xml");
+                ASSERT_TRUE(file);
+                document.save(file);
+            }
+            EXPECT_NO_THROW({
+                const auto raw_model = core.read_model(m_path + ".xml");
+                std::stringstream raw_xml;
+                std::stringstream raw_binary;
+                serialize_ir(raw_model, raw_xml, raw_binary);
+            });
+            std::filesystem::remove(raw_path);
+        }
         info["gguf_ext_size"] = static_cast<uint64_t>(payload.size() - 1);
         std::stringstream invalid_xml, invalid_binary;
         EXPECT_ANY_THROW(serialize_ir(model, invalid_xml, invalid_binary));
@@ -1473,13 +1523,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     std::rotate(replacement_payload.begin(), replacement_payload.begin() + 2 * row_bytes, replacement_payload.end());
     ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", format.type, columns, channels, replacement_payload));
     {
-        const auto replacement_model = core.read_model(m_path + ".xml");
-        const auto replacement_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
-            replacement_model->get_results().at(0)->get_input_node_shared_ptr(0));
-        ASSERT_TRUE(replacement_fc);
-        const auto replacement_raw = ov::as_type_ptr<ov::op::v0::Constant>(replacement_fc->get_input_node_shared_ptr(1));
-        ASSERT_TRUE(replacement_raw);
-        EXPECT_EQ(std::memcmp(replacement_raw->get_data_ptr(), replacement_payload.data(), payload.size()), 0);
+        EXPECT_ANY_THROW(core.read_model(m_path + ".xml"));
         const auto original_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
             model->get_results().at(0)->get_input_node_shared_ptr(0));
         ASSERT_TRUE(original_fc);
@@ -1509,9 +1553,6 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         const auto materialized_raw = ov::as_type_ptr<ov::op::v0::Constant>(materialized_fc->get_input_node_shared_ptr(1));
         ASSERT_TRUE(materialized_raw);
         EXPECT_EQ(std::memcmp(materialized_raw->get_data_ptr(), payload.data(), payload.size()), 0);
-        std::stringstream fresh_xml, fresh_binary;
-        EXPECT_NO_THROW(serialize_ir(replacement_model, fresh_xml, fresh_binary));
-        EXPECT_LT(fresh_binary.str().size(), payload.size());
     }
     run("64", "0");
     run("64", "1", ov::element::f16);

@@ -27,6 +27,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/hash_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/gather_compressed.hpp"
@@ -915,16 +916,16 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
         auto found = m_external_weights->find(key);
         if (found == m_external_weights->end()) {
             auto provider = std::make_shared<FileWeightsProvider>(path);
-            OPENVINO_ASSERT(provider->size() >= sizeof(uint32_t), "Invalid GGUF external weight source");
-            const auto header = provider->make_region(0, sizeof(uint32_t));
-            uint32_t magic = 0;
-            std::memcpy(&magic, header->get_ptr(), sizeof(magic));
-            OPENVINO_ASSERT(magic == 0x46554747, "Invalid GGUF external weight source");
             found = m_external_weights->emplace(key, std::move(provider)).first;
         }
         OPENVINO_ASSERT(is_valid_weights_range(found->second->size(), offset, size),
                         "GGUF external weights exceed source file range");
-        adapter.set(found->second->make_region(offset, size));
+        auto buffer = found->second->make_region(offset, size);
+        if (const auto checksum = dn.attribute("checksum")) {
+            const auto actual = "fnv1a64:" + std::to_string(ov::util::fnv1a_64(buffer->get_ptr(), size));
+            OPENVINO_ASSERT(actual == checksum.value(), "External weight checksum mismatch for ", source);
+        }
+        adapter.set(buffer);
         return;
     }
     OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");

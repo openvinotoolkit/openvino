@@ -4,11 +4,22 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <initializer_list>
 #include <vector>
 
 namespace ov::util {
+
+inline uint64_t fnv1a_64(const void* data, size_t size) {
+    const auto* bytes = static_cast<const unsigned char*>(data);
+    uint64_t hash = 14695981039346656037ULL;
+    for (size_t index = 0; index < size; ++index) {
+        hash ^= bytes[index];
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
 
 /**
  * @brief Combines two hash values.

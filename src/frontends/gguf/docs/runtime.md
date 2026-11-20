@@ -152,23 +152,30 @@ internal operations do not automatically gain IR support from this path.
 
 Explicit external references are supported for unchanged raw Constants carrying all three internal
 `gguf_ext_source`, `gguf_ext_offset` and `gguf_ext_size` metadata fields. The serializer writes the bare
-GGUF filename, byte offset and exact block-aware payload size into the Const data attributes instead
-of copying that payload to BIN. Load the paired XML/BIN through the model-file entrance: the reader
-resolves the source relative to the weights-file directory and checks the filename, GGUF magic,
-type/shape/size and overflow-safe file range. In-memory XML has no such directory and is rejected.
+source filename, byte offset and exact block-aware payload size into the Const data attributes instead
+of copying that payload to BIN. New exports also write `checksum="fnv1a64:<unsigned decimal>"`,
+computed over the referenced Constant bytes using FNV-1a-64. Load the paired XML/BIN through the model-file entrance: the reader
+resolves the source relative to the weights-file directory and checks the filename,
+type/shape/size and overflow-safe file range, without inspecting the source container's magic.
+When a checksum is present, the reader verifies the
+actual buffer passed to the Constant and rejects mismatched, malformed or unsupported checksums.
+In-memory XML has no such directory and is rejected.
 The current entrance also requires the accompanying BIN path; external-only XML without BIN is not
 covered. The target FileWeightsProvider shares providers/regions within a read and returns owned,
 copy-backed buffers with existing descriptors, not mx's zero-copy mmap. Its no-mmap guard is unchanged.
-Loaded payloads remain snapshots if the source is subsequently replaced; a fresh read observes the
-replacement. This is not a content-integrity check or a symlink-confinement guarantee.
+Loaded payloads remain snapshots if the source is subsequently replaced; a fresh read of a
+checksummed reference rejects changed payloads. Legacy XML without a checksum remains readable
+without content verification. FNV-1a-64 detects accidental replacement or corruption; it is not a
+cryptographic integrity or authenticity guarantee and does not provide symlink confinement.
 
 Reading an external reference restores its three metadata fields and an internal resolved
 `gguf_ext_source_path`. Before another external export, the serializer checks that resolved file's
-identity, magic, range and complete payload against the loaded Constant snapshot. Missing, truncated
+identity, range and complete payload against the loaded Constant snapshot. Missing, truncated
 or changed sources raise an error instead of silently exporting a stale reference. Explicitly remove
 all four fields to materialize the snapshot into an ordinary BIN. Manually supplied three-field
 metadata without a resolved path remains caller-explicit and does not receive this snapshot check.
-File regressions cover successive same-directory exports/read-backs, stale-source rejection and
+File regressions cover successive same-directory exports/read-backs, load-time checksum rejection,
+legacy references without checksums, stale-source rejection and
 explicit BIN materialization. This does not guarantee relocation to another directory or atomic
 integrity if a source changes after validation; snapshot comparison also reads the complete payload.
 

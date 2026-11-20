@@ -33,6 +33,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/util/hash_util.hpp"
 #include "openvino/util/native_stream.hpp"
 #include "openvino/xml_util/constant_writer.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -755,6 +756,8 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 m_xml_node.append_attribute("source").set_value(m_gguf_ext_source.c_str());
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(m_gguf_ext_offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(m_gguf_ext_size));
+                const auto checksum = "fnv1a64:" + std::to_string(ov::util::fnv1a_64(a->get()->get_ptr(), m_gguf_ext_size));
+                m_xml_node.append_attribute("checksum").set_value(checksum.c_str());
                 if (m_deterministic) {
                     size_t new_size = 0;
                     get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
@@ -1169,10 +1172,6 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                     OPENVINO_ASSERT(file_size >= 0 && offset <= static_cast<uint64_t>(file_size) &&
                                         size <= static_cast<uint64_t>(file_size) - offset,
                                     "GGUF external weight source range changed");
-                    source.seekg(0);
-                    uint32_t magic = 0;
-                    source.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-                    OPENVINO_ASSERT(source && magic == 0x46554747, "GGUF external weight source is no longer GGUF");
                     source.seekg(static_cast<std::streamoff>(offset));
                     std::array<char, 4096> buffer;
                     size_t consumed = 0;
