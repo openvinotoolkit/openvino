@@ -82,7 +82,8 @@ public:
     explicit GatedResidualShapeInferFactory(const std::shared_ptr<ov::Node>& op) {
         const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
         OPENVINO_ASSERT(gr, "Expected GatedResidual node");
-        m_config = {gr->get_hc_count(), gr->get_hidden_size(), gr->get_produce_write_gate()};
+        const auto& config = gr->get_config();
+        m_config = {config.hc_count, config.hidden_size, config.produce_write_gate};
     }
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
@@ -103,12 +104,13 @@ GatedResidual::GatedResidual(const std::shared_ptr<ov::Node>& op, const GraphCon
     }
     const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
     OPENVINO_ASSERT(gr, "Expected GatedResidual node");
-    m_attrs.hc_count = gr->get_hc_count();
-    m_attrs.hidden_size = gr->get_hidden_size();
-    m_attrs.lowrank = gr->get_lowrank();
-    m_attrs.epsilon = gr->get_epsilon();
-    m_attrs.norm_gain_plus_one = gr->get_norm_gain_plus_one();
-    m_attrs.produce_write_gate = gr->get_produce_write_gate();
+    const auto& config = gr->get_config();
+    m_attrs.hc_count = config.hc_count;
+    m_attrs.hidden_size = config.hidden_size;
+    m_attrs.lowrank = config.lowrank;
+    m_attrs.epsilon = config.epsilon;
+    m_attrs.norm_gain_plus_one = config.norm_gain_plus_one;
+    m_attrs.produce_write_gate = config.produce_write_gate;
     const auto layout = gr->get_read_layout();
     OPENVINO_ASSERT(layout.has_value(), "GatedResidual (READ/FINAL_MIX) has an unexpected number of inputs");
     m_attrs.read_layout = *layout;
@@ -232,7 +234,7 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         }
 
         // WRITE is not executed here: GatedResidualWriteSinkReshape turns that pattern into one Eltwise.
-        if (gr->get_mode() == Mode::WRITE) {
+        if (gr->get_config().mode == Mode::WRITE) {
             errorMessage = "GatedResidual WRITE mode is not supported; the CPU plugin runs the pattern as Eltwise.";
             return false;
         }

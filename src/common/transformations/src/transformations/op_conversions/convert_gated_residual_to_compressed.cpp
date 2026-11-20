@@ -104,9 +104,10 @@ ConvertGatedResidualToCompressed::ConvertGatedResidualToCompressed(
         OPENVINO_ASSERT(gr, "ConvertGatedResidualToCompressed: matched node is expected to be GatedResidual");
         const bool with_gate = pm.count(gated_residual_with_gate) != 0;
 
-        const size_t C = gr->get_hc_count();
-        const size_t CD = C * gr->get_hidden_size();
-        const size_t L = gr->get_lowrank();
+        const auto& gr_config = gr->get_config();
+        const size_t C = gr_config.hc_count;
+        const size_t CD = C * gr_config.hidden_size;
+        const size_t L = gr_config.lowrank;
         ov::NodeVector result_nodes;
         const auto down = prepare_compressed_weight(w_down, pm, L, CD, result_nodes);
         const auto up = prepare_compressed_weight(w_up, pm, CD, L, result_nodes);
@@ -136,14 +137,7 @@ ConvertGatedResidualToCompressed::ConvertGatedResidualToCompressed(
                 inputs.push_back(inject->zp);
             }
         }
-        auto compressed = std::make_shared<ov::op::internal::GatedResidual>(inputs,
-                                                                            gr->get_mode(),
-                                                                            C,
-                                                                            gr->get_hidden_size(),
-                                                                            L,
-                                                                            gr->get_epsilon(),
-                                                                            gr->get_norm_gain_plus_one(),
-                                                                            gr->get_produce_write_gate());
+        auto compressed = std::make_shared<ov::op::internal::GatedResidual>(inputs, gr_config);
         if (supports_config && !supports_config(compressed)) {
             return false;
         }

@@ -261,7 +261,7 @@ std::shared_ptr<Model> getReadModelRef(const ReadOptions& opt, bool keep_gate_br
         inputs.push_back(weight(C, CD, opt));
     }
 
-    auto gr = std::make_shared<Gr>(inputs, Gr::Mode::READ, C, D, L, EPS, false, op_gate);
+    auto gr = std::make_shared<Gr>(inputs, Gr::Config{Gr::Mode::READ, C, D, L, EPS, false, op_gate});
     ResultVector results{std::make_shared<op::v0::Result>(gr->output(0))};
     if (op_gate) {
         results.push_back(std::make_shared<op::v0::Result>(gate_consumer(opt, gr->output(1))));
@@ -319,7 +319,8 @@ std::shared_ptr<Model> getWriteRef(const PartialShape& rows) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, CD));
     auto y = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, D));
     auto gate = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, C));
-    auto gr = std::make_shared<Gr>(OutputVector{residual, y, gate}, Gr::Mode::WRITE, C, D, 0, 0.0F, false, false);
+    auto gr =
+        std::make_shared<Gr>(OutputVector{residual, y, gate}, Gr::Config{Gr::Mode::WRITE, C, D, 0, 0.0F, false, false});
     return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(gr)},
                                    ParameterVector{residual, y, gate});
 }

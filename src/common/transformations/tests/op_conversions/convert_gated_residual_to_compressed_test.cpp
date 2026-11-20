@@ -119,7 +119,7 @@ std::shared_ptr<Model> getModel(const ModelOptions& opt) {
     if (opt.with_gate) {
         inputs.push_back(compressed_weight(C, CD, opt, opt.zp));
     }
-    auto gr = std::make_shared<Gr>(inputs, Gr::Mode::READ, C, D, L, EPS, false, opt.with_gate);
+    auto gr = std::make_shared<Gr>(inputs, Gr::Config{Gr::Mode::READ, C, D, L, EPS, false, opt.with_gate});
     ResultVector results{std::make_shared<op::v0::Result>(gr->output(0))};
     if (opt.with_gate) {
         results.push_back(std::make_shared<op::v0::Result>(gr->output(1)));
@@ -162,7 +162,7 @@ std::shared_ptr<Model> getModelRef(const ModelOptions& opt) {
             inputs.push_back(inject.zp);
         }
     }
-    auto gr = std::make_shared<Gr>(inputs, Gr::Mode::READ, C, D, L, EPS, false, opt.with_gate);
+    auto gr = std::make_shared<Gr>(inputs, Gr::Config{Gr::Mode::READ, C, D, L, EPS, false, opt.with_gate});
     ResultVector results{std::make_shared<op::v0::Result>(gr->output(0))};
     if (opt.with_gate) {
         results.push_back(std::make_shared<op::v0::Result>(gr->output(1)));

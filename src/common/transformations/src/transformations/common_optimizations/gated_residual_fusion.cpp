@@ -410,14 +410,15 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
                 inputs.insert(inputs.end(), gate_inputs.begin(), gate_inputs.end());
             }
             // The gain already carries any `1 + w` fold.
-            return std::make_shared<ov::op::internal::GatedResidual>(inputs,
-                                                                     ov::op::internal::GatedResidual::Mode::READ,
-                                                                     C,
-                                                                     D,
-                                                                     L,
-                                                                     epsilon_value,
-                                                                     /*norm_gain_plus_one=*/false,
-                                                                     /*produce_write_gate=*/with_gate);
+            return std::make_shared<ov::op::internal::GatedResidual>(
+                inputs,
+                ov::op::internal::GatedResidual::Config{ov::op::internal::GatedResidual::Mode::READ,
+                                                        C,
+                                                        D,
+                                                        L,
+                                                        epsilon_value,
+                                                        /*norm_gain_plus_one=*/false,
+                                                        /*produce_write_gate=*/with_gate});
         };
         bool with_gate = !gate_inputs.empty();
         auto gr = make_gr(with_gate);
@@ -536,14 +537,15 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         const ov::Output<ov::Node> gate_out = pm.at(write_gate);
         const ov::Output<ov::Node> residual_out = pm.count(result_a) != 0 ? pm.at(residual_a) : pm.at(residual_flat);
 
-        auto gr = std::make_shared<ov::op::internal::GatedResidual>(ov::OutputVector{residual_out, y_out, gate_out},
-                                                                    ov::op::internal::GatedResidual::Mode::WRITE,
-                                                                    C,
-                                                                    D,
-                                                                    /*lowrank=*/0,
-                                                                    /*epsilon=*/0.0F,
-                                                                    /*norm_gain_plus_one=*/false,
-                                                                    /*produce_write_gate=*/false);
+        auto gr = std::make_shared<ov::op::internal::GatedResidual>(
+            ov::OutputVector{residual_out, y_out, gate_out},
+            ov::op::internal::GatedResidual::Config{ov::op::internal::GatedResidual::Mode::WRITE,
+                                                    C,
+                                                    D,
+                                                    /*lowrank=*/0,
+                                                    /*epsilon=*/0.0F,
+                                                    /*norm_gain_plus_one=*/false,
+                                                    /*produce_write_gate=*/false});
         if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
             return false;
         }
