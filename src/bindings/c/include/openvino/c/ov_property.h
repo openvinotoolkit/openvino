@@ -90,6 +90,17 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_max_batch_size;
 
 /**
+ * @brief Read-only compiled model property<string> to get the effective Quality of Service level and whether it was
+ * requested by the application. The value is returned in the "{level: <LEVEL> is_overridden: <0|1>}" format,
+ * e.g. "{level: LOW is_overridden: 1}". The level is never DEFAULT: when no level was requested, it is the level the
+ * driver/OS default resolved to.
+ * This is only supported by NPU.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_qos_info;
+
+/**
  * @brief Read-write property<string> to set/get the directory which will be used to store any data cached
  * by plugins.
  * @ingroup ov_property_c_api
@@ -115,6 +126,16 @@ ov_property_key_cache_mode;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_cache_encryption_callbacks;
+
+/**
+ * @brief Write-only property<string> to request the Quality of Service level of the device queues.
+ * Supported values: "DEFAULT", "HIGH", "MEDIUM", "LOW", "UTILITY", "ECO". Setting "DEFAULT" reverts to the
+ * driver/OS-selected level. Use ov_property_key_qos_info on the compiled model to query the effective level.
+ * This is only supported by NPU.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_qos;
 
 /**
  * @brief Read-write property<uint32_t string> to set/get the number of executor logical partitions.
