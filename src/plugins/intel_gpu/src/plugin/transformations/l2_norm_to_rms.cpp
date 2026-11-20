@@ -4,6 +4,7 @@
 
 #include "l2_norm_to_rms.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include "openvino/core/graph_util.hpp"
@@ -32,12 +33,10 @@ bool is_residual_add(const ov::Output<ov::Node>& output) {
     if (!ov::is_type<ov::op::v1::Add>(node) || !output.get_element_type().is_real()) {
         return false;
     }
-    for (const auto& input : node->input_values()) {
-        if (ov::util::get_constant_from_source(input)) {
-            return false;
-        }
-    }
-    return true;
+    const auto inputs = node->input_values();
+    return std::all_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& input) {
+        return !ov::util::get_constant_from_source(input);
+    });
 }
 }  // namespace
 
