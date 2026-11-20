@@ -226,6 +226,46 @@ TEST_P(pooling_f32_scale, fp16_scale_out) {
     execute(p);
 }
 
+TEST_P(pooling_f32_scale, fp16_scale_out_overflow) {
+    auto p = GetParam();
+    if (p.data_type != data_types::f32)
+        GTEST_SKIP();
+
+    const float value = 131072.0f;
+    const float scale = 1.0f / 16.0f;
+    const float expected = 8192.0f;
+
+    const layout input_layout_f32{ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 3 } };
+    const layout scale_layout{ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } };
+    const ov::Shape kernel(2, 3);
+    const ov::Strides stride(2, 1);
+    const ov::Shape pads_begin(2, 0);
+    const ov::Shape pads_end(2, 0);
+
+    create_topologies(
+        input_layout("input", input_layout_f32),
+        data("scale_data", get_mem(scale_layout, scale)),
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
+        reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc impl = { format::bfyx, "pooling_gpu_ref", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", impl } }));
+
+    network net(this->engine, this->topology_fused, config);
+    net.set_input_data("input", get_mem(input_layout_f32, value));
+
+    auto outputs = net.execute();
+    auto output = get_output_values_to_float(net, outputs.begin()->second);
+
+    ASSERT_EQ(output.size(), size_t(1));
+    ASSERT_TRUE(std::isfinite(output[0]));
+    EXPECT_FLOAT_EQ(output[0], expected);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, pooling_f32_scale, ::testing::ValuesIn(std::vector<pooling_test_params>{
     pooling_test_params{ CASE_POOLING_F32_1, 2, 2, 3, pooling_mode::max, "" },
     pooling_test_params{ CASE_POOLING_F32_1, 2, 2, 3, pooling_mode::average, "" },
