@@ -93,6 +93,18 @@ void Schedule::capture_hw_metadata(const SoCompiledModel& first_compiled_model) 
     } catch (ov::NotImplemented&) {
         LOG_INFO_TAG("underlying hardware does not support hardware context");
     }
+    if (metadata->context) {
+        // the default context belongs to the device plugin, so it does not depend on the first compiled model, which
+        // the dynamic selection may release
+        try {
+            if (auto default_context = m_context->m_ov_core->get_default_context(metadata->context->get_device_name())) {
+                metadata->context = std::move(default_context);
+            }
+        } catch (const ov::Exception&) {
+            LOG_DEBUG_TAG("no default context for device %s, keeping the context of the first compiled model",
+                          metadata->context->get_device_name().c_str());
+        }
+    }
     m_context->m_hw_metadata = std::move(metadata);
 }
 

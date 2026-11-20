@@ -46,7 +46,7 @@ protected:
     virtual bool select_other_device(const ModelInstanceKey& failed_instance) = 0;
     virtual SoCompiledModel wait_first_compiled_model_ready() = 0;
     std::string get_log_tag() const noexcept;
-    // keeps the ports and the remote context of the first compiled model, the model itself is not kept
+    // keeps the ports of the first compiled model and the default remote context of its device, not the model
     void capture_hw_metadata(const SoCompiledModel& first_compiled_model);
     // add_device_context() is idempotent and must not be called once the scheduler serves requests
     DeviceExecutionContext& add_device_context(const ModelInstanceKey& key);

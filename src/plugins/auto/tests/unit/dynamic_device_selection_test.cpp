@@ -189,6 +189,24 @@ private:
     ov::element::Type m_element_type;
     ov::Shape m_shape;
 };
+class NamedRemoteContext : public ov::IRemoteContext {
+public:
+    explicit NamedRemoteContext(std::string device_name) : m_device_name(std::move(device_name)) {}
+    const std::string& get_device_name() const override {
+        return m_device_name;
+    }
+    const ov::AnyMap& get_property() const override {
+        return m_properties;
+    }
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type&, const ov::Shape&, const ov::AnyMap&) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+private:
+    std::string m_device_name;
+    ov::AnyMap m_properties;
+};
+
 }  // namespace
 
 // Covers the per inference device selection which AUTO turns on as soon as one of the resource aware
@@ -1554,6 +1572,25 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_that_failed_to_compile_is_re
     std::this_thread::sleep_for(std::chrono::milliseconds(1100));
     OV_ASSERT_NO_THROW(infer_request->infer());
     EXPECT_EQ(gpu1_compile_count.load(), 2);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, remote_context_is_the_default_context_of_the_initial_device) {
+    const auto compiled_model_context = std::make_shared<NamedRemoteContext>("GPU");
+    const auto default_context = std::make_shared<NamedRemoteContext>("GPU");
+    // a compiled model takes the context of its plugin when it is created
+    ON_CALL(*mock_plugin_gpu, get_default_context(_))
+        .WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>{compiled_model_context, {}}));
+    ON_CALL(*core, get_default_context(StrEq("GPU")))
+        .WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>{default_context, {}}));
+    track_gpu0_with_cache_blob();
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    switch_between_devices(true, &compiled_model);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_TRUE(wait_until([this] {
+        return m_gpu0_model.expired();
+    }));
+    // owned by the device plugin, so it does not go away with the initial device
+    EXPECT_EQ(compiled_model->get_context()._ptr, default_context);
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_new_device_fails_to_compile) {
