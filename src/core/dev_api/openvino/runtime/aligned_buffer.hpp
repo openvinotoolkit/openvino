@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <memory>
+#include <utility>
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
@@ -24,7 +25,7 @@ public:
 };
 
 /// \brief Allocates a block of memory which starts at an aligned address determined by \p alignment.
-class OPENVINO_API AlignedBuffer {
+class OPENVINO_API AlignedBuffer : public util::IMutableBuffer {
 public:
     // Allocator objects and the allocation interfaces are owned by the
     // creators of AlignedBuffers. They need to ensure that the lifetime of
@@ -32,20 +33,28 @@ public:
     AlignedBuffer(size_t byte_size, size_t alignment = 64);
 
     AlignedBuffer();
-    virtual ~AlignedBuffer();
+    ~AlignedBuffer() override;
 
     AlignedBuffer(AlignedBuffer&& other);
     AlignedBuffer& operator=(AlignedBuffer&& other);
 
-    size_t size() const {
+    const std::byte* data() const noexcept override final {
+        return m_aligned_buffer;
+    }
+    std::byte* data() noexcept override final {
+        return m_aligned_buffer;
+    }
+    size_t size() const noexcept override final {
         return m_byte_size;
     }
+    const util::MemoryProperties& get_properties() const noexcept override;
+
     void* get_ptr(size_t offset) const {
         hint_prefetch();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
-        hint_prefetch();
+        std::as_const(*this).hint_prefetch();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
@@ -54,7 +63,7 @@ public:
     }
     template <typename T>
     T* get_ptr() {
-        hint_prefetch();
+        std::as_const(*this).hint_prefetch();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
@@ -73,7 +82,10 @@ public:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
-    virtual void hint_evict() noexcept;
+    void hint_evict() noexcept override;
+
+    /// \brief Starts populating the buffer in the background (IMemoryHints), same as hint_prefetch_async().
+    util::PrefetchToken hint_prefetch() noexcept override;
 
     /// \brief Ensures the buffer is available and populated with actual data.
     virtual void hint_prefetch() const;
@@ -94,7 +106,7 @@ protected:
                                                           size_t offset,
                                                           size_t size) noexcept;
 
-    char* m_aligned_buffer;
+    std::byte* m_aligned_buffer;
     size_t m_byte_size;
 };
 
