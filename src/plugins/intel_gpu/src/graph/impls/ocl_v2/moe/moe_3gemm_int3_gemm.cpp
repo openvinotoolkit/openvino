@@ -32,12 +32,10 @@ bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
             return false;
         }
     }
-    for (auto proj : {Projection::GATE_UP, Projection::DOWN}) {
-        if (get_group_size(config, MoE3GemmDynQuan::get_k(config, proj)) % 64 != 0 || MoE3GemmDynQuan::get_activation_group_size(params, proj) % 64 != 0) {
-            return false;
-        }
-    }
-    return true;
+    const auto groups_of_64 = [&](Projection proj) {
+        return get_group_size(config, MoE3GemmDynQuan::get_k(config, proj)) % 64 == 0 && MoE3GemmDynQuan::get_activation_group_size(params, proj) % 64 == 0;
+    };
+    return groups_of_64(Projection::GATE_UP) && groups_of_64(Projection::DOWN);
 }
 
 // On Xe2, gate and up run faster on one column block in the 128 GRF mode (twice the threads per EU) than on two

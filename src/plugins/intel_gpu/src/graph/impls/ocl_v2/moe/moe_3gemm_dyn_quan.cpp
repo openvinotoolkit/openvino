@@ -47,16 +47,17 @@ bool MoE3GemmDynQuan::is_supported(const RuntimeParams& params) {
                                            << exec_config.get_dynamic_quantization_group_size_max() << std::endl;
         return false;
     }
-    for (auto proj : {Projection::GATE_UP, Projection::DOWN}) {
-        if (get_activation_group_size(params, proj) == 0) {
-            const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-            GPU_DEBUG_TAGGED(TRACE, "dynquan") << id << " turned off: no activation group of 128 or 64 values that is at most group_size "
-                                               << dyn_quan_group_size << " divides the " << (proj == Projection::DOWN ? "down" : "gate/up")
-                                               << " weight group of " << get_group_size(config, get_k(config, proj)) << std::endl;
-            return false;
+    const auto has_activation_group = [&](Projection proj) {
+        if (get_activation_group_size(params, proj) != 0) {
+            return true;
         }
-    }
-    return true;
+        const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << id << " turned off: no activation group of 128 or 64 values that is at most group_size " << dyn_quan_group_size
+                                           << " divides the " << (proj == Projection::DOWN ? "down" : "gate/up") << " weight group of "
+                                           << get_group_size(config, get_k(config, proj)) << std::endl;
+        return false;
+    };
+    return has_activation_group(Projection::GATE_UP) && has_activation_group(Projection::DOWN);
 }
 
 JitConstants MoE3GemmDynQuanQuantize::get_jit_constants(const RuntimeParams& params) const {

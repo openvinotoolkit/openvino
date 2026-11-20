@@ -28,7 +28,7 @@ public:
 
     // gate: the gate GEMM of GATE_UP, with the act(gate) * up epilogue, rather than the up GEMM
     explicit MoE3GemmInt3Gemm(Projection proj, bool gate = false)
-        : KernelGenerator("moe_3gemm_int3_gemm", proj == Projection::DOWN ? "down" : (gate ? "gate" : "up")),
+        : KernelGenerator("moe_3gemm_int3_gemm", get_kernel_suffix(proj, gate)),
           m_proj(proj),
           m_gate(gate) {}
 
@@ -40,6 +40,13 @@ public:
     static size_t get_max_tiles(size_t num_experts, size_t rows);
 
 protected:
+    static const char* get_kernel_suffix(Projection proj, bool gate) {
+        if (proj == Projection::DOWN) {
+            return "down";
+        }
+        return gate ? "gate" : "up";
+    }
+
     Projection m_proj;
     bool m_gate;
 

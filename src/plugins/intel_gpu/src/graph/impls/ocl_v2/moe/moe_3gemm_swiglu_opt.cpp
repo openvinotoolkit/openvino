@@ -129,11 +129,18 @@ public:
     // memory descriptor), and an extra row_lut output (inverse of tokens_per_expert) is written.
     // int3_tiles (with use_grouped_gemm): also writes the row tiles of the u3 expert GEMMs (MoE3GemmInt3Gemm).
     explicit MoE3GemmSwigluPrefillMaskGen(bool use_grouped_gemm = false, bool int3_tiles = false)
-        : KernelGenerator("moe_mask_gen", int3_tiles ? "grouped_mask_gen_int3" : (use_grouped_gemm ? "grouped_mask_gen" : "prefill_mask_gen")),
+        : KernelGenerator("moe_mask_gen", get_kernel_suffix(use_grouped_gemm, int3_tiles)),
           m_use_grouped_gemm(use_grouped_gemm),
           m_int3_tiles(int3_tiles) {}
 
 protected:
+    static const char* get_kernel_suffix(bool use_grouped_gemm, bool int3_tiles) {
+        if (int3_tiles) {
+            return "grouped_mask_gen_int3";
+        }
+        return use_grouped_gemm ? "grouped_mask_gen" : "prefill_mask_gen";
+    }
+
     bool m_use_grouped_gemm;
     bool m_int3_tiles;
 
@@ -240,12 +247,20 @@ enum class MoeGatherRows : uint8_t { hidden_states, dq_hidden_states, dq_hidden_
 class MoE3GemmSwigluPrefillGather : public KernelGenerator {
 public:
     explicit MoE3GemmSwigluPrefillGather(bool use_grouped_gemm = false, MoeGatherRows rows = MoeGatherRows::hidden_states)
-        : KernelGenerator("moe_gather_ref",
-                          rows == MoeGatherRows::hidden_states      ? "prefill_gather"
-                          : rows == MoeGatherRows::dq_hidden_states ? "prefill_gather_i8"
-                                                                    : "prefill_gather_scales"),
+        : KernelGenerator("moe_gather_ref", get_kernel_suffix(rows)),
           m_use_grouped_gemm(use_grouped_gemm),
           m_rows(rows) {}
+
+    static const char* get_kernel_suffix(MoeGatherRows rows) {
+        switch (rows) {
+        case MoeGatherRows::dq_hidden_states:
+            return "prefill_gather_i8";
+        case MoeGatherRows::dq_hidden_states_scales:
+            return "prefill_gather_scales";
+        default:
+            return "prefill_gather";
+        }
+    }
 
     static ov::element::Type get_data_type(MoeGatherRows rows) {
         return rows == MoeGatherRows::dq_hidden_states ? ov::element::i8 : ov::element::f16;
@@ -2995,7 +3010,9 @@ public:
 
     // Tile list of the u3 expert GEMMs: {expert, first row} of every MoE3GemmInt3Gemm::TILE_ROWS-row tile that holds
     // rows, so the grid covers only experts with work. Returns the tile count.
-    size_t upload_int3_tiles(cldnn::stream& stream, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, const std::vector<int32_t>& grouped_offsets) {
+    static size_t upload_int3_tiles(cldnn::stream& stream,
+                                    typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                    const std::vector<int32_t>& grouped_offsets) {
         std::vector<int32_t> tiles;
         int32_t begin = 0;
         for (size_t e = 0; e < grouped_offsets.size(); ++e) {
@@ -3060,7 +3077,7 @@ public:
     cldnn::event::ptr exec_prefill_gather(cldnn::event::ptr ret_event,
                                           typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                           int total_rows,
-                                          bool quantize) {
+                                          bool quantize) const {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto hidden_states = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto gemm_input = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
@@ -3106,25 +3123,19 @@ public:
         const auto& impl_params = *instance.get_impl_params();
 
         // w: weight index (gate, up, down). The gate GEMM reads the up output for its act(gate) * up epilogue.
-        const auto gemm = [&](int w, memory::ptr output) {
+        const auto gemm = [&](int w, Stage& stage, memory::ptr output) {
             const auto n = static_cast<size_t>(w == 2 ? _hidden_size : _intermediate_size);
             const auto nb = MoE3GemmInt3Gemm::get_tile_nb(impl_params, w == 2 ? MoE3GemmInt3Gemm::Projection::DOWN : MoE3GemmInt3Gemm::Projection::GATE_UP);
             std::vector<memory::ptr> inputs{gemm_input, gemm_input_scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets, tiles};
             if (w == 0) {
                 inputs.push_back(scratch.up);
             }
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      w == 0 ? *int3_gate : (w == 1 ? *int3_up : *int3_down),
-                                      inputs,
-                                      {output},
-                                      {n / nb, tile_count * sg_m, 1},
-                                      {simd, sg_m, 1});
+            ret_event = execute_stage({ret_event}, instance, stage, inputs, {output}, {n / nb, tile_count * sg_m, 1}, {simd, sg_m, 1});
         };
 
         ret_event = exec_prefill_gather(ret_event, instance, total_rows, /*quantize=*/true);
-        gemm(1, scratch.up);
-        gemm(0, scratch.gate);
+        gemm(1, *int3_up, scratch.up);
+        gemm(0, *int3_gate, scratch.gate);
         // Down input: act(gate) * up, which the gate GEMM wrote to scratch.gate
         ret_event = exec_dyn_quan_quantize(ret_event,
                                            instance,
@@ -3133,7 +3144,7 @@ public:
                                            gemm_input,
                                            gemm_input_scales,
                                            static_cast<size_t>(total_rows));
-        gemm(2, scratch.y);
+        gemm(2, *int3_down, scratch.y);
         return ret_event;
     }
 
