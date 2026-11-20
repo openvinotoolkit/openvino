@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 149,
+  "total": 150,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1495,6 +1495,17 @@
       "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
       "category": "Infrastructure",
       "signature_hash": "80cfa127185fbf3e",
+      "commit_sha": "0c3ff7aa2378cc512ee2e87856b5c97cb12c8e65"
+    },
+    {
+      "investigation_id": "2026-11-20-11-47-11-623-44713158000",
+      "run_id": "44713158000",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44713158000",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-20T11:47:11Z",
+      "title": "smoke_ScatterElementsUpdateOutOfRangeIndices and smoke_GatherND8OutOfRangeIndices tests fail - expected ov::Exception not thrown",
+      "category": "Code Issue",
+      "signature_hash": "c679b29f4fb1c2b4",
       "commit_sha": "0c3ff7aa2378cc512ee2e87856b5c97cb12c8e65"
     }
   ]

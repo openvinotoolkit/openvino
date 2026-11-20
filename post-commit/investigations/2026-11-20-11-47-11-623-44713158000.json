@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-11-47-11-623-44713158000",
+  "timestamp": "2026-11-20T11:47:11Z",
+  "run_id": "44713158000",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44713158000",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "0c3ff7aa2378cc512ee2e87856b5c97cb12c8e65",
+  "pr_number": "40041",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40041",
+  "author": "byungilm",
+  "category": "Code Issue",
+  "title": "smoke_ScatterElementsUpdateOutOfRangeIndices and smoke_GatherND8OutOfRangeIndices tests fail - expected ov::Exception not thrown",
+  "signature": "test ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices and GatherND8LayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices failed: Expected exception ov::Exception was not thrown|Code Issue",
+  "signature_hash": "c679b29f4fb1c2b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "7 of 179795 smoke tests failed: ScatterElementsUpdateLayerCPUErrorConditionTest and GatherND8LayerCPUErrorConditionTest ThrowsOnOutOfRangeIndices variants expected ov::Exception to be thrown but it was not."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the CPU functional tests job failed."
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_elements_update.cpp:183: Failure\nFailed\nExpected exception ov::Exception\n[  FAILED  ] smoke_ScatterElementsUpdateOutOfRangeIndices/ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/i32_IS=[?.?]_[?.?]_[?.?]_TS=((2.2)_)_((2.2)_)_((2.2)_)__indices_values=(_1000.1.0.0)axis=0_idx_precision=i32 (61 ms)",
+    "src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/gather_nd.cpp:192: Failure\nFailed\nExpected exception ov::Exception\n[  FAILED  ] smoke_GatherND8OutOfRangeIndices/GatherND8LayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/IS=[4.4]_TS=(4.4)_IDXShape=(1.2)_SRCPrc=i8_IDXPrc=i32_BD=0_ (41 ms)",
+    "[  FAILED  ] smoke_GatherND8OutOfRangeIndices/GatherND8LayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/IS=[4.4]_TS=(4.4)_IDXShape=(1.2)_SRCPrc=bf16_IDXPrc=i32_BD=0_ (45 ms)",
+    "INFO:test_parallel_runner:passed test counter is: 163630 / failed test counter is: 7 / ERROR:test_parallel_runner:Printing [7/7] failed tests"
+  ],
+  "root_cause": "ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices (scatter_elements_update.cpp:183) and GatherND8LayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices (gather_nd.cpp:192) are negative tests supplying out-of-range indices expecting the CPU plugin to raise ov::Exception during inference via OV_EXPECT_THROW. All 7 parameterizations (ScatterElementsUpdate i32/i64 index x f32/i32 data, and GatherND8 i8/f32/bf16 data x i32 index) failed because no exception was thrown, meaning the CPU kernels for ScatterElementsUpdate and GatherND still accept out-of-range indices silently instead of validating and rejecting them. The triggering commit (#40041, 'Match exact input port in FC horizontal fusion') only touches src/plugins/intel_gpu/src/plugin/transformations/fc_horizontal_fusion.cpp (GPU plugin fusion pass) and its unit test, entirely unrelated to the CPU plugin's ScatterElementsUpdate/GatherND kernels (src/plugins/intel_cpu/src/nodes/). This closely mirrors a previously recorded recurring pattern (signature_hash c7d3b823733ac934, ScatterUpdateLayerCPUErrorConditionTest, 4 occurrences) affecting a sibling scatter-family op, suggesting a broader systemic gap in CPU plugin bounds-checking for indexed-update/gather ops rather than an isolated regression from this push.",
+  "reproduction_steps": "Build the CPU plugin functional test binary and run: ./bin/intel64/Release/ov_cpu_func_tests --gtest_filter='*smoke_ScatterElementsUpdateOutOfRangeIndices/ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices*:*smoke_GatherND8OutOfRangeIndices/GatherND8LayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices*'. Confirm no ov::Exception is thrown for the out-of-range index value 1000 on axis 0 (ScatterElementsUpdate) or index (1,0) against a (4,4) tensor (GatherND8).",
+  "recommended_actions": [
+    "Add bounds-checking to the ScatterElementsUpdate CPU kernel (src/plugins/intel_cpu/src/nodes/scatter_update.cpp) so out-of-range indices throw ov::Exception during execution.",
+    "Add bounds-checking to the GatherND CPU kernel (src/plugins/intel_cpu/src/nodes/gather_nd.cpp) so out-of-range indices throw ov::Exception during execution.",
+    "Cross-reference with pattern c7d3b823733ac934 (ScatterUpdateLayerCPUErrorConditionTest) since it affects a sibling op family; consider a single shared index-validation fix across all scatter/gather CPU kernels.",
+    "Escalate to CPU plugin owners as a systemic bounds-validation gap rather than triaging each op's failing test independently."
+  ],
+  "prevention_strategies": "Add explicit op-level unit tests asserting bounds validation for ScatterElementsUpdate and GatherND indices across all CPU kernels, and track this signature (c679b29f4fb1c2b4) alongside the related c7d3b823733ac934 pattern so repeated recurrences across the scatter/gather op family trigger prioritized triage instead of being re-reported silently on every push.",
+  "historical_context": "No prior investigation recorded for this exact signature (ScatterElementsUpdate + GatherND8 OutOfRangeIndices); this is the first occurrence. However, a closely related pattern (signature_hash c7d3b823733ac934, ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices) has recurred 4 times since 2026-11-13, always failing for the same reason (missing CPU-side index bounds validation) and always unrelated to the triggering commit. The two patterns likely share a common root cause in CPU plugin index-validation infrastructure."
+}
