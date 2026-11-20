@@ -55,23 +55,13 @@ const util::MemoryProperties& AlignedBuffer::get_properties() const noexcept {
 void AlignedBuffer::hint_evict() noexcept {}
 
 util::PrefetchToken AlignedBuffer::hint_prefetch() noexcept {
-    return hint_prefetch_async();
+    return {};
 }
 
 void AlignedBuffer::hint_evict(size_t offset, size_t size) noexcept {}
 
 void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept {
     buffer.hint_evict(offset, size);
-}
-
-void AlignedBuffer::hint_prefetch() const {}
-
-void AlignedBuffer::invoke_hint_prefetch(const AlignedBuffer& buffer) {
-    buffer.hint_prefetch();
-}
-
-util::PrefetchToken AlignedBuffer::hint_prefetch_async() const noexcept {
-    return {};
 }
 
 util::PrefetchToken AlignedBuffer::hint_prefetch_async(size_t, size_t) const noexcept {

@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <utility>
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
@@ -50,25 +49,20 @@ public:
     const util::MemoryProperties& get_properties() const noexcept override;
 
     void* get_ptr(size_t offset) const {
-        hint_prefetch();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
-        std::as_const(*this).hint_prefetch();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
-        hint_prefetch();
         return m_aligned_buffer;
     }
     template <typename T>
     T* get_ptr() {
-        std::as_const(*this).hint_prefetch();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
     const T* get_ptr() const {
-        hint_prefetch();
         return reinterpret_cast<const T*>(m_aligned_buffer);
     }
 
@@ -84,22 +78,11 @@ public:
 
     void hint_evict() noexcept override;
 
-    /// \brief Starts populating the buffer in the background (IMemoryHints), same as hint_prefetch_async().
     util::PrefetchToken hint_prefetch() noexcept override;
-
-    /// \brief Ensures the buffer is available and populated with actual data.
-    virtual void hint_prefetch() const;
-
-    /// \brief Starts populating the buffer in the background and returns immediately.
-    /// \return A handle that can be waited on to know when the data is actually resident; an
-    ///         invalid handle means there is nothing to wait for.
-    virtual util::PrefetchToken hint_prefetch_async() const noexcept;
 
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
-
-    static void invoke_hint_prefetch(const AlignedBuffer& buffer);
 
     virtual util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) const noexcept;
     static util::PrefetchToken invoke_hint_prefetch_async(const AlignedBuffer& buffer,

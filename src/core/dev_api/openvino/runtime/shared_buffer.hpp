@@ -35,11 +35,9 @@ public:
         hint_evict(get_offset(), m_byte_size);
     }
 
-    util::PrefetchToken hint_prefetch_async() const noexcept override {
+    util::PrefetchToken hint_prefetch() noexcept override {
         return hint_prefetch_async(get_offset(), m_byte_size);
     }
-
-    using AlignedBuffer::hint_prefetch;
 
 protected:
     // Shared object implementing the common util::IBuffer interface (MappedMemory, AlignedBuffer, ...).
@@ -80,16 +78,6 @@ protected:
             }
         }
         return {};
-    }
-
-    void hint_prefetch() const override {
-        if constexpr (is_buffer_ptr_v<T>) {
-            if (m_shared_object) {
-                if (auto* aligned = dynamic_cast<ov::AlignedBuffer*>(m_shared_object.get())) {
-                    AlignedBuffer::invoke_hint_prefetch(*aligned);
-                }
-            }
-        }
     }
 
     // protected to not create SharedBufferBase directly

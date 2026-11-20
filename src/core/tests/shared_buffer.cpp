@@ -628,7 +628,7 @@ TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_prefetch_async_to_mmap
         std::static_pointer_cast<ov::AlignedBuffer>(parent));
 
     EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
-    child->hint_prefetch_async();
+    child->hint_prefetch();
 }
 
 TEST_F(SharedBufferTest, memory_hints_interface_evict_propagates_to_mmap) {
