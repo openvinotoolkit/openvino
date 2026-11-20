@@ -128,6 +128,9 @@ const std::vector<std::vector<InputShape>> convolution_shapes = {
     // Static weights shape, dynamic data
     {{{1, 8, -1, -1}, {{1, 8, 12, 12}, {1, 8, 12, 12}, {1, 8, 7, 9}, {1, 8, 7, 9}}},
      {{16, 8, 3, 3}, {{16, 8, 3, 3}, {16, 8, 3, 3}, {16, 8, 3, 3}, {16, 8, 3, 3}}}},
+    // Static data, dynamic weights shape
+    {{{1, 8, 12, 12}, {{1, 8, 12, 12}, {1, 8, 12, 12}, {1, 8, 12, 12}, {1, 8, 12, 12}}},
+     {{-1, 8, -1, -1}, {{16, 8, 3, 3}, {16, 8, 3, 3}, {5, 8, 1, 2}, {5, 8, 1, 2}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionRuntimeWeightsDynamic,
@@ -154,6 +157,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionRuntimeWeightsDynamic,
 const std::vector<std::vector<InputShape>> convolution_backprop_data_shapes = {
     {{{1, -1, -1, -1}, {{1, 16, 10, 10}, {1, 16, 10, 10}, {1, 5, 7, 6}, {1, 5, 7, 6}, {1, 16, 10, 10}}},
      {{-1, 8, -1, -1}, {{16, 8, 3, 3}, {16, 8, 3, 3}, {5, 8, 2, 1}, {5, 8, 2, 1}, {16, 8, 3, 3}}}},
+    // Static data, dynamic weights shape: the output shape is known only at inference time
+    {{{1, 16, 10, 10}, {{1, 16, 10, 10}, {1, 16, 10, 10}, {1, 16, 10, 10}, {1, 16, 10, 10}}},
+     {{-1, 8, -1, -1}, {{16, 8, 3, 3}, {16, 8, 3, 3}, {16, 8, 2, 1}, {16, 8, 2, 1}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropDataRuntimeWeightsDynamic,
@@ -167,6 +173,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropDataRuntimeWeightsDynamic,
 const std::vector<std::vector<InputShape>> group_convolution_backprop_data_shapes = {
     {{{1, 8, -1, -1}, {{1, 8, 10, 10}, {1, 8, 10, 10}, {1, 8, 7, 6}, {1, 8, 7, 6}}},
      {{2, 4, -1, -1, -1}, {{2, 4, 3, 3, 3}, {2, 4, 3, 3, 3}, {2, 4, 5, 2, 1}, {2, 4, 5, 2, 1}}}},
+    // Static data, dynamic weights shape
+    {{{1, 8, 10, 10}, {{1, 8, 10, 10}, {1, 8, 10, 10}, {1, 8, 10, 10}, {1, 8, 10, 10}}},
+     {{2, 4, -1, -1, -1}, {{2, 4, 3, 3, 3}, {2, 4, 3, 3, 3}, {2, 4, 5, 2, 1}, {2, 4, 5, 2, 1}}}},
+    // One group: the weights still have the groups dimension
+    {{{1, 4, -1, -1}, {{1, 4, 10, 10}, {1, 4, 10, 10}, {1, 4, 7, 6}, {1, 4, 7, 6}}},
+     {{1, 4, -1, -1, -1}, {{1, 4, 3, 3, 3}, {1, 4, 3, 3, 3}, {1, 4, 5, 2, 1}, {1, 4, 5, 2, 1}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropDataRuntimeWeightsDynamic,
