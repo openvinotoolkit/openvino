@@ -27,6 +27,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
@@ -34,7 +35,6 @@
 #include "openvino/util/codec_xor.hpp"
 #include "plugin_property_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "vcl_provider_utils.hpp"
 #include "zero_backend.hpp"
 
 using ::testing::AllOf;
@@ -83,7 +83,10 @@ public:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
-        vclFunctionsProvider = npu::vcl_provider::fake({"DUMMY_PROPERTY", "Dummy_Property"});
+        const auto vclLoader = std::make_shared<VCLLoader>();
+        vclFunctionsProvider = [vclLoader] {
+            return vclLoader->sharedFunctions();
+        };
         options->reset();
 #define REGISTER_OPTION(OPT_TYPE) \
     do {                          \

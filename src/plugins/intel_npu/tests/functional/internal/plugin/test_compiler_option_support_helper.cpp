@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
@@ -18,10 +19,10 @@
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "vcl_provider_utils.hpp"
 #include "zero_backend.hpp"
 
 namespace ov {
@@ -54,14 +55,13 @@ std::string bulkLoadMarkerFor(ov::intel_npu::CompilerType compilerType) {
 
 }  // namespace
 
-// Exercises CompilerOptionSupportHelper against a backend and fake VCL provider, complementing the
+// Exercises CompilerOptionSupportHelper against a real backend and the driver compiler, complementing the
 // backend-agnostic unit tests in tests/unit/npu/compiler_option_support_helper_test.cpp.
 class CompilerOptionSupportHelperFunctionalTests : public ov::test::behavior::OVPluginTestBase,
                                                    public testing::WithParamInterface<ov::intel_npu::CompilerType> {
 protected:
     ov::SoPtr<IEngineBackend> backend;
     std::shared_ptr<OptionSupportCache> optionSupportCache;
-    VCLFunctionTableProvider vclFunctionsProvider;
     std::unique_ptr<CompilerOptionSupportHelper> helper;
     ov::intel_npu::CompilerType compilerType;
 
@@ -76,9 +76,9 @@ protected:
         compilerType = GetParam();
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         optionSupportCache = std::make_shared<OptionSupportCache>();
-        vclFunctionsProvider = npu::vcl_provider::fake();
+        // The driver compiler does not need the VCL entry points.
         helper = std::make_unique<CompilerOptionSupportHelper>(
-            std::make_shared<const CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache));
+            std::make_shared<const CompilerAdapterFactory>(backend, VCLFunctionTableProvider{}, optionSupportCache));
     }
 
     void TearDown() override {
@@ -183,7 +183,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, AddsNewOptionToCacheAndReturn
     ASSERT_EQ(logs.find(startMarkerFor(compilerType)), std::string::npos);
 }
 
-// "DUMMY_OPTION_NOT_IN_BULK_LIST" is not part of the fake's bulk "get_supported_options()" dump,
+// "DUMMY_OPTION_NOT_IN_BULK_LIST" is not part of any compiler's bulk "get_supported_options()" dump,
 // so unlike "knownSupportedOptions" above, the first lookup cannot be answered from the bulk-populated
 // cache and must fall through to the individual "is_option_supported" probe on the compiler adapter.
 TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOptionOutsideBulkList) {
@@ -234,7 +234,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOpti
 TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirectCompilerProbe) {
     const std::string batchModeOption = ov::intel_npu::batch_mode.name();
 
-    const CompilerAdapterFactory factory{backend, vclFunctionsProvider};
+    const CompilerAdapterFactory factory{backend, VCLFunctionTableProvider{}};
     auto adapterCompilerType = compilerType;
     std::unique_ptr<ICompilerAdapter> compilerAdapter;
     OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(adapterCompilerType, ""));
@@ -316,7 +316,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ConcurrentLookupsForSameKeyLo
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          CompilerOptionSupportHelperFunctionalTests,
-                         ::testing::Values(ov::intel_npu::CompilerType::DRIVER, ov::intel_npu::CompilerType::PLUGIN),
+                         ::testing::Values(ov::intel_npu::CompilerType::DRIVER),
                          CompilerOptionSupportHelperFunctionalTests::getTestCaseName);
 
 class CompilerOptionSupportHelperConcurrencyTests : public ov::test::behavior::OVPluginTestBase {
@@ -329,10 +329,16 @@ protected:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
 
+        // The compiler-in-plugin key of this test needs the real VCL entry points.
+        const auto loader = std::make_shared<VCLLoader>();
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         optionSupportCache = std::make_shared<OptionSupportCache>();
-        helper = std::make_unique<CompilerOptionSupportHelper>(
-            std::make_shared<const CompilerAdapterFactory>(backend, npu::vcl_provider::fake(), optionSupportCache));
+        helper = std::make_unique<CompilerOptionSupportHelper>(std::make_shared<const CompilerAdapterFactory>(
+            backend,
+            [loader] {
+                return loader->sharedFunctions();
+            },
+            optionSupportCache));
     }
 
     void TearDown() override {
