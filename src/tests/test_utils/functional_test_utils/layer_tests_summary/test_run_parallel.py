@@ -4,6 +4,7 @@
 import sys
 import tempfile
 import unittest
+from itertools import product
 from subprocess import CompletedProcess, list2cmdline
 from unittest.mock import patch
 
@@ -81,21 +82,32 @@ class TestSuiteBatches(unittest.TestCase):
         discovered = runner._TestParallelRunner__get_test_list_by_runtime()
         self.assertEqual(list(discovered), ["Brgemm/Params.simpleGemmTest/Prec=f32"])
 
+    def test_discovery_accepts_legacy_quoted_filter(self):
+        self.test_list = "Ordinary.\n  smoke_first\n"
+        runner = self.make_runner('"Ordinary.*"')
+        discovered = runner._TestParallelRunner__get_test_list_by_runtime()
+        self.assertEqual(list(discovered), ["Ordinary.smoke_first"])
+        discovery_args = [sys.executable, "--gtest_filter=Ordinary.*", "--gtest_list_tests"]
+        if run_parallel.constants.IS_WIN:
+            discovery_args = list2cmdline(discovery_args)
+        self.assertEqual(self.discovery.call_args.args[0], discovery_args)
+
     def test_negative_filter_with_spaces_reaches_discovery_and_worker(self):
         negative_suffix = "-*fmt=bfyx; *"
+        test_filter = f"Unique/Params.*{negative_suffix}"
         self.test_list = "Unique/Params.\n  test/data_shape=(5); fmt=other;   # GetParam() = value\n"
-        for is_win in (False, True):
-            with self.subTest(is_win=is_win), \
+        for is_win, supplied_filter in product((False, True), (test_filter, f'"{test_filter}"')):
+            with self.subTest(is_win=is_win, supplied_filter=supplied_filter), \
                     patch.object(run_parallel.constants, "IS_WIN", is_win), \
                     patch.object(run_parallel.TaskManager, "exit_codes", {}), \
                     patch.object(run_parallel, "Popen") as launch:
                 launch.return_value.poll.return_value = 0
                 launch.return_value.wait.return_value = 0
-                runner = self.make_runner(f"Unique/Params.*{negative_suffix}")
+                runner = self.make_runner(supplied_filter)
                 cached, uncached = runner._TestParallelRunner__get_filters()
                 runner._TestParallelRunner__execute_tests(cached + uncached)
 
-                discovery_args = [sys.executable, f"--gtest_filter=Unique/Params.*{negative_suffix}", "--gtest_list_tests"]
+                discovery_args = [sys.executable, f"--gtest_filter={test_filter}", "--gtest_list_tests"]
                 worker_args = [sys.executable, f"--gtest_filter=Unique/Params.*:{negative_suffix}"]
                 if is_win:
                     discovery_args = list2cmdline(discovery_args)

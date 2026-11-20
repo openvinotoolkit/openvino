@@ -378,7 +378,10 @@ class TestParallelRunner:
                 command += " --input_folders="
                 argument = argument[argument.find("=") + 1 :]
             elif argument.startswith("--gtest_filter="):
-                self._original_gtest_filter = argument.partition("=")[2]
+                test_filter = argument.partition("=")[2]
+                if len(test_filter) >= 2 and test_filter[0] == test_filter[-1] == '"':
+                    test_filter = test_filter[1:-1]
+                self._original_gtest_filter = test_filter
                 is_input_folder = False
                 continue
             if is_input_folder and argument[0] != "-":
