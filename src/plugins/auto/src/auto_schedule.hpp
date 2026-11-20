@@ -12,6 +12,7 @@
 #include "schedule.hpp"
 #include "async_infer_request.hpp"
 #include "cache_manager.hpp"
+#include "schedule_policies.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -62,7 +63,11 @@ private:
      */
     void release_inactive_devices(const DeviceName& active_device);
     // whether the device can be recompiled from its cache blob; only used on the dynamic dispatch thread
-    bool is_evictable(const DeviceName& device_name);
+    bool is_reloadable(const DeviceName& device_name);
+    // the candidates the failure policy lets the dynamic selection try now; the caller holds m_fallback_mutex
+    std::vector<DeviceInformation> available_candidates() const;
+    // backs the devices off, and excludes the ones that failed too often for good
+    void handle_compile_failures(const std::vector<DeviceName>& devices);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
@@ -78,7 +83,12 @@ private:
     bool                                                                 m_exitflag = {false};
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_dynamic_executor;
     std::shared_ptr<ov::Model>                                           m_dynamic_model;
-    std::map<DeviceName, bool>                                           m_evictable_devices;
+    // the members below belong to the dynamic dispatch thread
+    std::map<DeviceName, bool>                                           m_reloadable_devices;
+    std::map<DeviceName, Time>                                           m_last_used;
+    // null keeps every compiled model
+    std::unique_ptr<EvictionPolicy>                                      m_eviction_policy;
+    FailurePolicy                                                        m_failure_policy;
     mutable std::mutex                                                   m_gate_mutex;
     bool                                                                 m_gate_busy = false;
     // guarded by m_gate_mutex; set once in ~AutoSchedule() so in-flight dynamic tasks stop touching

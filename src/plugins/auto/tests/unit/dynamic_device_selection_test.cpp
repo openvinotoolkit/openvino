@@ -1528,6 +1528,34 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_whose_workers_fail_to_be_cre
     EXPECT_EQ(gpu1_compile_count.load(), 1);
 }
 
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_that_failed_to_compile_is_retried_after_a_backoff) {
+    std::atomic<int> gpu1_compile_count{0};
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault([this, &gpu1_compile_count](const std::shared_ptr<const ov::Model>&,
+                                                   const std::string&,
+                                                   const ov::AnyMap&) -> ov::SoPtr<ov::ICompiledModel> {
+            if (++gpu1_compile_count == 1) {
+                OPENVINO_THROW("mock transient GPU.1 compile failure");
+            }
+            return {make_tracked_gpu_model(), {}};
+        });
+    // startup, GPU.0, GPU.1 failing and falling back, GPU.1 while it backs off, GPU.1 after the backoff
+    expect_selected_devices({"GPU.0", "GPU.0", "GPU.1", "GPU.0", "GPU.1", "GPU.1"});
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    auto infer_request = compiled_model->create_infer_request();
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    EXPECT_EQ(gpu1_compile_count.load(), 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    EXPECT_EQ(gpu1_compile_count.load(), 2);
+}
+
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_new_device_fails_to_compile) {
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

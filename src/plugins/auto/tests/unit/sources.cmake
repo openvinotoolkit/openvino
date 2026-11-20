@@ -27,6 +27,7 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/perf_curve_table_validator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/release_helper_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime_fallback_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/schedule_policies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/select_device_failed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/select_device_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/set_log_level_test.cpp
@@ -62,6 +63,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin_config.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule_policies.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule_policies.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log.cpp
