@@ -456,8 +456,8 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_activation_params {
     ActivationFunction function = ActivationFunction::NONE;
-    float m = 1.f;
-    float n = 0.f;
+    float m = 1.F;
+    float n = 0.F;
 
     base_activation_params() = default;
     base_activation_params(const float m, const float n) : m(m), n(n) {}
@@ -650,7 +650,7 @@ struct fused_operation_desc {
 
         return p;
     }
-    bool has_outer_dep() {
+    bool has_outer_dep() const {
         return dep_idx_start != -1;
     }
 };

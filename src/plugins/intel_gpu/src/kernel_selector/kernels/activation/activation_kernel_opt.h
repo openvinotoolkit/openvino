@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ public:
 
 protected:
     static const int NUM_COLS_WI = 4;
-    DispatchData SetDefault(const activation_params& arg) const override;
+    DispatchData SetDefault(const activation_params& params) const override;
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
