@@ -14,9 +14,12 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::GroupQueryAttentionDecomposition");
     // fuse_compressed_kv: keep quantized (per-channel) K/V compressed into SDPA instead of dequantizing them first.
     // Needs an SDPA kernel that reads per-channel scales: sdpa_ocl (transformations_pipeline.cpp sets it on its lane).
-    GroupQueryAttentionDecomposition(bool sdpa_support_immad, bool fuse_compressed_kv)
+    // fuse_transposed_v: hand a [B, KV heads, head size, S] V cache to SDPA as value order {0,1,3,2} instead of through a
+    // Transpose. Needs sdpa_ocl's transposed-V reader (transformations_pipeline.cpp sets it where that runs).
+    GroupQueryAttentionDecomposition(bool sdpa_support_immad, bool fuse_compressed_kv, bool fuse_transposed_v = false)
         : m_sdpa_support_immad(sdpa_support_immad),
-          m_fuse_compressed_kv(fuse_compressed_kv) {}
+          m_fuse_compressed_kv(fuse_compressed_kv),
+          m_fuse_transposed_v(fuse_transposed_v) {}
 
 protected:
     struct StatelessKVMetadata;
@@ -65,6 +68,7 @@ protected:
                                
     bool m_sdpa_support_immad;
     bool m_fuse_compressed_kv;
+    bool m_fuse_transposed_v;
 };
 
 }  // namespace ov::intel_gpu

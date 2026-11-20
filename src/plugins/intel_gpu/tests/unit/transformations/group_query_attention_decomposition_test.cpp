@@ -55,6 +55,7 @@ struct GQAConfig {
     bool transpose_v = false;
     bool sdpa_support_immad = true;
     bool fuse_compressed_kv = true;  // the pass's mode; the GPU pipeline sets it on the sdpa_ocl lane only
+    bool fuse_transposed_v = false;  // the pass's mode; the GPU pipeline sets it where sdpa_ocl reads a transposed V
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -171,7 +172,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
 std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     auto model = make_gqa_model(cfg);
     ov::pass::Manager manager;
-    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.sdpa_support_immad, cfg.fuse_compressed_kv);
+    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.sdpa_support_immad, cfg.fuse_compressed_kv, cfg.fuse_transposed_v);
     manager.run_passes(model);
     return model;
 }
@@ -206,6 +207,11 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     const auto model = decompose_gqa_model(cfg);
     const auto parameters = model->get_parameters();
     const bool need_qk_output = cfg.qk_output != QKOutput::NONE;
+    // An 8-bit cache only where it reaches SDPA compressed (per-channel, i8, fused), not dequantized or packed 4-bit.
+    const bool compressed_i8 = cfg.kv_cache_bit_width == 8 && cfg.kv_quant == QuantType::PER_CHANNEL && cfg.out_quant == QuantType::PER_CHANNEL &&
+                               cfg.cache_type == ov::element::i8 && cfg.sdpa_support_immad && cfg.fuse_compressed_kv;
+    const bool fused_transposed_v =
+        cfg.transpose_v && cfg.fuse_transposed_v && !need_qk_output && cfg.softcap == 0.0f && (cfg.kv_cache_bit_width == 0 || compressed_i8);
     EXPECT_EQ(parameters[3]->get_partial_shape().is_static(), cfg.static_past_cache);
 
     std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
@@ -323,7 +329,6 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         const auto value_transpose = as_transpose_v(value->input_value(1));
         ASSERT_NE(value_transpose, nullptr);
         expect_current_kv(value_transpose->input_value(0), parameters[2]);
-        // The attention gets V back in the default layout through an explicit Transpose of the cache.
         std::shared_ptr<ov::op::v1::Transpose> attention_value_transpose;
         for (const auto& target : value->output(kv_output_index).get_target_inputs()) {
             const auto transpose = as_transpose_v(target.get_node()->output(0));
@@ -331,15 +336,24 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
                 attention_value_transpose = transpose;
             }
         }
-        ASSERT_NE(attention_value_transpose, nullptr);
+        if (fused_transposed_v) {
+            // SDPA reads the cache itself as value order {0,1,3,2}.
+            EXPECT_EQ(attention_value_transpose, nullptr);
+            ASSERT_NE(sdpa, nullptr);
+            EXPECT_EQ(sdpa->input_value(2), value->output(kv_output_index));
+        } else {
+            // The attention gets V back in the default layout through an explicit Transpose of the cache.
+            ASSERT_NE(attention_value_transpose, nullptr);
+        }
     } else {
         expect_current_kv(value->input_value(1), parameters[2]);
     }
     EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
 
-    // No SDPA kernel reads V with a strided head dim, so V always reaches SDPA in the default order.
+    // V reaches SDPA in the default order unless the pass fuses the transposed cache (fuse_transposed_v).
     if (sdpa) {
-        EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
+        const std::vector<int64_t> transposed_order{0, 1, 3, 2};
+        EXPECT_EQ(sdpa->get_input2_transpose_order(), fused_transposed_v ? transposed_order : ov::intel_gpu::op::SDPA::default_order(4));
     }
 
     if (cfg.sliding_window_cache) {
@@ -556,6 +570,35 @@ TEST(GQADecompositionTest, transpose_v_keeps_cache_layout_without_immad) {
     expect_stateless_kv_cache_connections(cfg);
 }
 
+// With fuse_transposed_v (sdpa_ocl's transposed-V readers) SDPA reads the [B, KVH, head_size, S] cache as value order
+// {0,1,3,2}; a 4-bit or dequantized cache, softcap and qk_output keep the explicit Transpose (checked in their own tests).
+TEST(GQADecompositionTest, transpose_v_fused_into_sdpa) {
+    GQAConfig cfg;
+    cfg.transpose_v = true;
+    cfg.fuse_transposed_v = true;
+
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, sliding_window_cache_transpose_v_fused_into_sdpa) {
+    GQAConfig cfg;
+    cfg.local_window_size = 128;
+    cfg.sliding_window_cache = true;
+    cfg.transpose_v = true;
+    cfg.fuse_transposed_v = true;
+
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, qk_output_transpose_v_not_fused_into_sdpa) {
+    GQAConfig cfg;
+    cfg.transpose_v = true;
+    cfg.fuse_transposed_v = true;
+    cfg.qk_output = QKOutput::AFTER_SOFTMAX;
+
+    expect_stateless_kv_cache_connections(cfg);
+}
+
 // The explicit attention chain (softcap) gets the same cache layout as SDPA; StatelessKV -> Transpose -> present_value is
 // rejected by the runtime ("stateless_kv should directly connect to an output").
 TEST(GQADecompositionTest, softcap_transpose_v_keeps_cache_layout) {
@@ -639,6 +682,62 @@ TEST(GQADecompositionTest, int4_per_channel_kv_with_transpose_v_keeps_cache_layo
     ASSERT_NE(sdpa, nullptr);
     ASSERT_TRUE(sdpa->get_kv_compressed());
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
+    EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
+}
+
+// A packed 4-bit cache keeps the explicit Transpose even with fuse_transposed_v: the transposed-V readers take f16 and i8.
+TEST(GQADecompositionTest, int4_per_channel_kv_with_transpose_v_not_fused_into_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.transpose_v = true;
+    cfg.fuse_transposed_v = true;
+
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+// The fused 8-bit per-channel cache: SDPA reads it compressed and as value order {0,1,3,2}.
+TEST(GQADecompositionTest, i8_per_channel_kv_with_transpose_v_fused_into_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.transpose_v = true;
+    cfg.fuse_transposed_v = true;
+
+    expect_stateless_kv_cache_connections(cfg);
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
+    const std::vector<int64_t> transposed_order{0, 1, 3, 2};
+    EXPECT_EQ(sdpa->get_input2_transpose_order(), transposed_order);
+}
+
+// The same cache dequantized before SDPA (no compressed-KV fusion): the dequantization expects the default layout.
+TEST(GQADecompositionTest, i8_per_channel_kv_dequantized_with_transpose_v_not_fused_into_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.transpose_v = true;
+    cfg.fuse_transposed_v = true;
+    cfg.fuse_compressed_kv = false;
+
+    expect_stateless_kv_cache_connections(cfg);
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_FALSE(sdpa->get_kv_compressed());
     EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
 }
 

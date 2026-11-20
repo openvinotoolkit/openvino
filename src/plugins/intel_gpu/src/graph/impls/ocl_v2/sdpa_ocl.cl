@@ -226,6 +226,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const uint ldk = KEY_S2;
     const uint ldv = VAL_S2;
     const uint lda = DST_S2;
+    #if V_TRANSPOSED
+    // V order {..,3,2}: the head dim has the stride, a row is one value column over the keys.
+    const uint ldvt = VAL_S3;
+    #endif
 #endif
 
 #if IS_PAGED_ATTENTION
@@ -377,6 +381,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
+#if V_TRANSPOSED
+    // 2D block surface of the transposed V, used where the block rules hold (B70: pitch % 16 B, a 4 B aligned start, width
+    // and pitch >= 64 B; a key count of whole dwords so the last one is whole). Uniform; the readers go per lane otherwise.
+    const uint vt_prem = (uint)(as_long(V) & 63);
+    const global void *VT_b2d = (const global void *)((const global char *)V - vt_prem);
+    const int VT_w = k * (int)sizeof(VAL_DATA_T) + (int)vt_prem;
+    const int VT_p = (int)ldvt * (int)sizeof(VAL_DATA_T);
+    const int VT_x0 = (int)(vt_prem / 4);
+    const bool vt_2d = V_T_2D && (VT_p % 16) == 0 && (vt_prem % 4) == 0 && ((k * (int)sizeof(VAL_DATA_T)) % 4) == 0 && VT_w >= 64 &&
+                       VT_p >= 64;
+#endif
 #if WIDE_Q_SLM
     // Read as ulong4: 8 B alignment, which a uint array alone does not guarantee.
     local uint  Q_slm[DKS_ACTIVE * q_blocks * Q_DWORDS * SUBGROUP_SIZE] __attribute__((aligned(8)));
@@ -1136,7 +1151,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 A_tile1[r][cd] = (float8)0.0f;
 #endif
 
-        #if USE_2D_BLOCK_IO_V_I8
+        #if USE_2D_BLOCK_IO_V_I8 || (V_TRANSPOSED && KV_COMP_PER_CHANNEL)
             // Declared outside the cp loop because one read serves two consecutive cp blocks (see below).
             uint vt[8 * sv_value_blocks];
         #elif USE_2D_BLOCK_IO_V_U4
@@ -1174,6 +1189,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 const int vt_half = (cp & 1) * 4;
                 if ((cp & 1) == 0)
                     FUNC_CALL(v_u4_read)(vt, V, VD_w, VD_h, VD_p, sg_j0_sv, k0, cp);
+            #elif V_TRANSPOSED && KV_COMP_PER_CHANNEL
+                const int vt_half = (cp & 1) * 4;
+                if ((cp & 1) == 0)
+                    FUNC_CALL(v_t_i8_read)(vt, V, ldvt, k0, cp, k, dv, sg_j0_sv, lane, vt_2d, VT_b2d, VT_w, VT_p, VT_x0);
             #endif
 
             DPAS_A_T pA[sv_score_blocks];
@@ -1247,6 +1266,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 #endif
             }
             #endif
+            #elif V_TRANSPOSED
+              #if KV_COMP_PER_CHANNEL
+                FUNC_CALL(v_i8_dequant_ch)(vb, vt, vt_half, v_zp_ch);
+              #else
+                FUNC_CALL(v_tile_t)(vb, V, ldvt, k0, cp, k, dv, sg_j0_sv, lane, vt_2d, VT_b2d, VT_w, VT_p, VT_x0);
+              #endif
             #elif USE_2D_BLOCK_IO_V_I8
                 // The paired read above gives a 32-key x 16-value tile (lane = value, 4 keys per
                 // uint); this cp block uses the 4 uints at vt_half.

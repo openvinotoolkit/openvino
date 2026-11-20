@@ -76,6 +76,12 @@ struct SDPABase : public KernelGenerator {
     // token: the GPU GroupQueryAttentionDecomposition's quantized cache, scale tensors [B or 1, KV heads or 1, 1, head
     // size]. Per-token compression (kv_cache_compression.cpp) groups the head dim instead and has [B, KV heads, tokens, 1].
     static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
+    // Plain SDPA whose V order swaps the last two dims ({.., 3, 2}): V is stored [value][key], e.g. the GPU
+    // GroupQueryAttentionDecomposition's [B, KV heads, head size, S] cache.
+    static bool has_transposed_v(const kernel_impl_params& params);
+    // has_transposed_v() with what sdpa_ocl's transposed-V readers take, on Xe2+: an f16 uncompressed V (v_tile_t) or a
+    // per-channel compressed i8 one (v_t_i8_read).
+    static bool transposed_v_reader_ok(const kernel_impl_params& params);
 
     // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
     // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor

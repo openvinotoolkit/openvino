@@ -47,6 +47,7 @@ struct sdpa_ocl_config_t {
     bool noncausal_kq_branch = false;  // plain non-causal PREFILL CAUSAL_TILE_SKIP (add_prefill_pipeline_jit())
     bool plain_decode = false;         // plain-SDPA decode tiling: the PREFILL loop flags above apply to that stage too
     bool causal_skip_off = false;      // plain d_max 512 PREFILL: no causal tile skip (add_prefill_pipeline_jit())
+    bool v_i8_convert = false;         // per-channel i8 V widened by convert_half4 (V_I8_CONVERT, v_i8_dequant_ch())
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -378,6 +379,7 @@ struct plain_prefill_shape {
     int64_t q_len = 0;
     bool f16_qkv = false;     // f16 Q, K and V (the tilings below take no bf16, no compressed KV)
     bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
+    bool i8_per_channel_kv = false;  // f16 Q with a per-channel compressed i8 K / V (the plain decode and its own PREFILL tiling)
 };
 
 // Plain (non-PA) SDPA PREFILL on xe_hpc and Xe2+ at d_max 128 with f16 Q / K / V: the "mirror" workgroup of 256 keys x
@@ -478,13 +480,43 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
     return true;
 }
 
-// Plain (non-PA) SDPA decode (one query) on xe2_tuned() arches with f16 Q / K / V: every subgroup takes keys, 32-key x
-// 16-query subgroup tiles in one row of 16 subgroups (8 at d_max 64, whose S*V cannot split a 64-wide head over 16),
-// 256 GRF, and the PREFILL loop changes except CAUSAL_TILE_SKIP (add_prefill_pipeline_jit()). The tiling reads no query
-// or key count, so a shape-agnostic stage gets the same one at compile time and dispatch ("Plain-SDPA decode tiling" in
-// the docs). False: keep the table tile.
-bool solve_plain_decode_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool f16_qkv, sdpa_ocl_config_t& config) {
-    if (!xe2_tuned(arch) || !f16_qkv || env_int("SDPA_OCL_PLAIN_DECODE", 1) == 0) {
+// Plain (non-PA) SDPA PREFILL on xe2_tuned() arches at d_max 128 with f16 Q and the per-channel compressed i8 K / V of the
+// GQA decomposition: 16-key x 32-query subgroup tiles, 4 x 1 subgroups (64 keys x 32 queries), 256 GRF, with the PA
+// PREFILL loop changes (the 8-bit reads take neither PREFETCH_V nor WIDE_READS). Each subgroup widens its V tile once for
+// 32 queries instead of the table tile's 16, by convert_half4 (v_i8_convert; slower on the decode tiling, which keeps the
+// shift-based widening). The choice reads no query or key count, so the compiled stage and its
+// dispatch (shape-agnostic or not) agree ("Plain-SDPA PREFILL tiling for the per-channel i8 cache" in the docs).
+bool solve_plain_prefill_i8_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
+    if (d_max != 128 || vd_max != 128 || !xe2_tuned(arch) || !shape.i8_per_channel_kv) {
+        return false;
+    }
+    sdpa_ocl_config_t t;
+    t.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+    t.kq_sg_tile_keys = 16;
+    t.kq_sg_tile_queries = 32;
+    t.kq_sg_per_wg_keys = 4;
+    t.kq_sg_per_wg_queries = 1;
+    t.large_grf = true;
+    t.prefill_pipeline = true;
+    t.noncausal_kq_branch = true;
+    t.micro_math = false;  // plain SDPA never emits MICRO_MATH
+    t.v_i8_convert = true;
+    if (!solve_sv_split(t, vd_max) || !tiling_fits_device(arch, d_max, t)) {
+        return false;
+    }
+    config = t;
+    return true;
+}
+
+// Plain (non-PA) SDPA decode (one query) on xe2_tuned() arches with f16 Q / K / V, or f16 Q with the per-channel
+// compressed i8 K / V of the GQA decomposition (types_ok): every subgroup takes keys, 32-key x 16-query subgroup tiles in
+// one row of 16 subgroups (8 at d_max 64, whose S*V cannot split a 64-wide head over 16), 256 GRF, and the PREFILL loop
+// changes except CAUSAL_TILE_SKIP (add_prefill_pipeline_jit()). The i8 cache keeps its 8-bit K / V reads, so neither
+// PREFETCH_V nor WIDE_READS (both on the f16 2D reads only). The tiling reads no query or key count, so a shape-agnostic
+// stage gets the same one at compile time and dispatch ("Plain-SDPA decode tiling" in the docs). False: keep the table
+// tile.
+bool solve_plain_decode_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool types_ok, sdpa_ocl_config_t& config) {
+    if (!xe2_tuned(arch) || !types_ok || env_int("SDPA_OCL_PLAIN_DECODE", 1) == 0) {
         return false;
     }
     sdpa_ocl_config_t dec;
@@ -544,7 +576,10 @@ bool solve_tiling(gpu_arch arch,
     if (plain_prefill && solve_plain_prefill_d512_tiling(arch, d_max, vd_max, plain_shape, config)) {
         return true;
     }
-    if (plain_decode && solve_plain_decode_tiling(arch, d_max, vd_max, plain_shape.f16_qkv, config)) {
+    if (plain_prefill && solve_plain_prefill_i8_tiling(arch, d_max, vd_max, plain_shape, config)) {
+        return true;
+    }
+    if (plain_decode && solve_plain_decode_tiling(arch, d_max, vd_max, plain_shape.f16_qkv || plain_shape.i8_per_channel_kv, config)) {
         return true;
     }
     config = choose_config_kq_only(arch, d_max);
@@ -587,6 +622,7 @@ void read_kq_override(sdpa_ocl_config_t& config) {
     config.noncausal_kq_branch = false;
     config.plain_decode = false;
     config.causal_skip_off = false;
+    config.v_i8_convert = false;
     config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
     config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
     config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
@@ -1074,6 +1110,10 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
     plain_shape.shape_agnostic = shape_agnostic;
     plain_shape.f16_qkv = params.input_layouts[0].data_type == data_types::f16 && params.input_layouts[1].data_type == data_types::f16 &&
                           params.input_layouts[2].data_type == data_types::f16;
+    plain_shape.i8_per_channel_kv = !is_pa && params.typed_desc<scaled_dot_product_attention>()->is_kv_compressed &&
+                                    SDPABase::has_per_channel_compressed_kv(params) && !plain_kv_u4(params) &&
+                                    params.input_layouts[0].data_type == data_types::f16 && params.input_layouts[1].data_type == data_types::i8 &&
+                                    params.input_layouts[2].data_type == data_types::i8;
     if (plain_prefill) {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         plain_shape.mask_input = desc->has_attn_mask_input && !desc->attn_mask_val.has_value();
@@ -1331,9 +1371,11 @@ void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
     const bool q_2d = in.problem.tiling.subgroup_size == 16 && ov::element::Type(in.q.data_type).size() == 2 && block2d_layout_ok(in.q, in.ldq);
     jit.make("USE_2D_BLOCK_IO_Q", block2d_env_int("SDPA_OCL_Q_2D", q_2d ? 1 : 0, allowed));
 
-    // f16 K/V only: the i8 cache takes the 8-bit paths below.
-    const bool kv_aligned = block2d_layout_ok(in.k, in.ldk) && block2d_layout_ok(in.v, in.ldv);
-    const bool kv_fixup_ok = block2d_layout_fixup_ok(in.k, in.ldk) && block2d_layout_fixup_ok(in.v, in.ldv);
+    // f16 K/V only: the i8 cache takes the 8-bit paths below. A transposed V has its own reader (v_tile_t), so only K
+    // decides; the V prefetches and wide V reads stay off for it (they read the [key][value] surface).
+    const bool v_t = SDPABase::has_transposed_v(in.params);
+    const bool kv_aligned = block2d_layout_ok(in.k, in.ldk) && (v_t || block2d_layout_ok(in.v, in.ldv));
+    const bool kv_fixup_ok = block2d_layout_fixup_ok(in.k, in.ldk) && (v_t || block2d_layout_fixup_ok(in.v, in.ldv));
     const int kv_2d = block2d_env_int("SDPA_OCL_KV_2D", (!in.config.is_kv_compressed && (kv_aligned || kv_fixup_ok)) ? 1 : 0, allowed);
     jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
     jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
@@ -1342,14 +1384,18 @@ void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
     const bool prefill_lane = in.is_prefill || in.problem.tiling.plain_decode;
     // The same V rows into L3 only, one request per 256 B line, replacing the block prefetch when on;
     // SDPA_OCL_V_PREFETCH_L3=0/1 forces it. PREFILL only (the kernel's #error).
-    const int v_prefetch_l3 = in.is_prefill ? env_int("SDPA_OCL_V_PREFETCH_L3", in.problem.tiling.v_prefetch_l3 ? 1 : 0) : 0;
+    const int v_prefetch_l3 = (in.is_prefill && !v_t) ? env_int("SDPA_OCL_V_PREFETCH_L3", in.problem.tiling.v_prefetch_l3 ? 1 : 0) : 0;
     jit.make("PREFETCH_V_L3", v_prefetch_l3);
-    jit.make("PREFETCH_V", (kv_2d && prefill_lane && !v_prefetch_l3) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
+    jit.make("PREFETCH_V", (kv_2d && prefill_lane && !v_prefetch_l3 && !v_t) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
     // Fewer, larger K (1) / V (2) / Q_slm (4) reads per key tile: the tiling's wide_reads mask, SDPA_OCL_WIDE_READS=<mask>
     // forces it. With a sliding window (PA or plain) d_max 64 keeps the narrow reads.
     const bool narrow_window = in.problem.d_max == 64 && (in.config.paged_attention_sliding_window != 0 || (!in.is_pa && in.config.sliding_window != 0));
     const int wide_reads = narrow_window ? 0 : in.problem.tiling.wide_reads;
-    jit.make("WIDE_READS", (kv_2d && prefill_lane) ? env_int("SDPA_OCL_WIDE_READS", wide_reads) : 0);
+    const int wide_mask = v_t ? ~2 : ~0;
+    jit.make("WIDE_READS", (kv_2d && prefill_lane) ? (env_int("SDPA_OCL_WIDE_READS", wide_reads) & wide_mask) : 0);
+    jit.make("V_TRANSPOSED", v_t ? 1 : 0);
+    // Its 2D block read where the runtime pitch allows (the kernel checks), SG16 only.
+    jit.make("V_T_2D", (v_t && allowed) ? 1 : 0);
 
     // The output is f16 whatever the KV precision, so KV compression must not disable it.
     jit.make("USE_2D_BLOCK_IO_A", block2d_env_int("SDPA_OCL_A_2D", block2d_layout_ok(in.out, in.lda) ? 1 : 0, allowed));
@@ -1497,6 +1543,8 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     // transform reads of the packed rows (ldk / ldv are head_size / 2 bytes there) instead of the i8 ones.
     const bool per_channel = !in.is_pa && config.is_kv_compressed && SDPABase::has_per_channel_compressed_kv(in.params);
     const bool kv_u4 = per_channel && plain_kv_u4(in.params);
+    // A transposed V (per-channel i8 only) has its own reader, v_t_i8_read; the V block reads take the [key][value] surface.
+    const bool v_t = SDPABase::has_transposed_v(in.params);
     if (kv_u4) {
         const auto qdt = in.params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;
         jit.make("PLAIN_KV_U4", 1);
@@ -1509,13 +1557,13 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
         const auto& t = in.problem.tiling;
         const int value_blocks = t.sv_sg_tile_values / t.subgroup_size;
         const bool v_u4_window_split_ok = value_blocks % 2 == 0 || (value_blocks == 1 && t.sv_sg_per_wg_values % 2 == 0);
-        jit.make("USE_2D_BLOCK_IO_V_U4", (allowed && block2d_layout_ok(in.v, in.ldv) && v_u4_window_split_ok) ? 1 : 0);
+        jit.make("USE_2D_BLOCK_IO_V_U4", (allowed && !v_t && block2d_layout_ok(in.v, in.ldv) && v_u4_window_split_ok) ? 1 : 0);
     }
     int v_i8_2d = (config.is_kv_compressed && !kv_u4 && block2d_layout_ok(in.v, in.ldv)) ? 1 : 0;
     if (config.is_kv_compressed) {
         v_i8_2d = block2d_env_int("SDPA_OCL_V_I8_2D", v_i8_2d, allowed);
     }
-    if (!allowed || kv_u4) {
+    if (!allowed || kv_u4 || v_t) {
         v_i8_2d = 0;
     }
     jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
@@ -1555,6 +1603,7 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     jit.add(unit_parameters("VAL_COMP"));
     if (per_channel) {
         jit.make("KV_COMP_PER_CHANNEL", 1);
+        jit.make("V_I8_CONVERT", in.problem.tiling.v_i8_convert ? 1 : 0);
         // Negative controls of the per-channel reads, each must fail the per-channel tests: 1 = K scale/zp of the
         // neighbouring channel, 2 = V scale/zp of the neighbouring column, 3 = K nibbles swapped, 4 = V nibbles swapped
         // (3, 4: 4-bit only). Absent unless asked for, so the default jit is unchanged.

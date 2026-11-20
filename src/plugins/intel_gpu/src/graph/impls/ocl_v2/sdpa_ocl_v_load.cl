@@ -161,10 +161,12 @@ SDPA_OCL_INLINE void FUNC(v_i8_read)(__private uint *vt, const __global VAL_DATA
 }
 #endif
 
-#if USE_2D_BLOCK_IO_V_I8 && KV_COMP_PER_CHANNEL
-// Per-channel int8 V from v_i8_read's paired read (lane = value column, 4 consecutive keys per uint; this cp block uses
-// the 4 uints at vt_half): the byte widens exactly and only the column's zp is subtracted here, exactly for an integer
-// zp. The column's scale multiplies the output instead (v_comp_per_channel()).
+#if (USE_2D_BLOCK_IO_V_I8 || V_TRANSPOSED) && KV_COMP_PER_CHANNEL
+// Per-channel int8 V from v_i8_read's (or a transposed V's v_t_i8_read's) paired read (lane = value column, 4 consecutive
+// keys per uint; this cp block uses the 4 uints at vt_half): the byte converts exactly and only the column's zp is
+// subtracted here (an asymmetric cache), exactly for an integer zp. The column's scale multiplies the output instead
+// (v_comp_per_channel()). V_I8_CONVERT (the i8 PREFILL tiling) takes convert_half4(char4) instead of I8_TO_HALF: the same
+// halves, faster there and slower on the decode tiling (docs, "Plain-SDPA PREFILL tiling for the per-channel i8 cache").
 SDPA_OCL_INLINE void FUNC(v_i8_dequant_ch)(__private int8 *vb, const __private uint *vt, const int vt_half,
                                            const __private half *v_zp_ch) {
     #pragma unroll
@@ -172,7 +174,13 @@ SDPA_OCL_INLINE void FUNC(v_i8_dequant_ch)(__private int8 *vb, const __private u
         #pragma unroll
         for (int u = 0; u < 4; ++u) {
             const uint w = vt[cd * 8 + vt_half + u];
+#if V_I8_CONVERT && VAL_ZERO_POINTS
+            const half4 deq4 = convert_half4(as_char4(w)) - (half4)v_zp_ch[cd];
+#elif V_I8_CONVERT
+            const half4 deq4 = convert_half4(as_char4(w));
+#else
             const half4 deq4 = (half4)(I8_TO_HALF(w, 0), I8_TO_HALF(w, 8), I8_TO_HALF(w, 16), I8_TO_HALF(w, 24)) - (half4)v_zp_ch[cd];
+#endif
             // f16 VNNI operand: vb[cd][key_pair] packs keys (2*key_pair, 2*key_pair+1).
             vb[cd][u * 2 + 0] = as_int(deq4.lo);
             vb[cd][u * 2 + 1] = as_int(deq4.hi);
@@ -758,6 +766,131 @@ SDPA_OCL_INLINE void FUNC(vc_tile_gather)(__private int8 *vb, const __global ush
                 vb[cd][key_pair] = (int)(lo | (hi << 16));
             }
         }
+    }
+}
+#endif
+
+#if V_TRANSPOSED && !KV_COMP_PER_CHANNEL
+// V stored [value][key] (value order {..,3,2}, e.g. the GQA decomposition's [B, KV heads, head size, S] cache): lane L of
+// value block cd needs the 16 keys of the cp block in its OWN row (ldvt elements apart), i.e. 32 contiguous bytes, read as
+// 8 dwords. A row that starts 2 B off a dword (value * ldvt + key odd, e.g. an odd S) reads one dword more and shifts by
+// 16 bits. A cp block reaching the last key reads key by key, zero past k, and one past it reads nothing, so nothing past
+// the key range is read (a windowed view's padding or the next row may hold anything). Lanes past dv read the last row
+// and are zeroed. Where the 2D block rules hold (vt_2d, decided once per workgroup) a 32b transpose read does it all.
+SDPA_OCL_INLINE void FUNC(v_tile_t)(__private int8 *vb, const __global VAL_DATA_T *V, const uint ldvt, const int k0,
+                                    const int cp, const int k, const int dv, const size_t sg_j0_sv, const size_t lane,
+                                    const bool vt_2d, const __global void *VT_b2d, const int VT_w, const int VT_p,
+                                    const int VT_x0) {
+    const int key0 = k0 + cp * DPAS_K;
+#if V_T_2D
+    if (vt_2d) {
+        // The [value rows][key-pair dwords] surface: the 32b transpose read gives lane L row y + L (a value) with dword
+        // i = keys (2i, 2i + 1), i.e. the B operand. The surface ends at the last key and the last value (zero past them).
+        #pragma unroll
+        for (int cd = 0; cd < sv_value_blocks; ++cd)
+            intel_sub_group_2d_block_read_transpose_32b_16r8x1c((global void *)VT_b2d, VT_w, dv, VT_p,
+                                                                (int2)(VT_x0 + key0 / 2, (int)sg_j0_sv + cd * SUBGROUP_SIZE),
+                                                                (private uint *)&vb[cd]);
+        return;
+    }
+#endif
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+        const int value = (int)sg_j0_sv + cd * SUBGROUP_SIZE + (int)lane;
+        const global ushort *row = (const global ushort *)V + (size_t)min(value, dv - 1) * ldvt + key0;
+        uint w[8];
+        if (key0 + DPAS_K < k) {
+            // Uniform. key0 + DPAS_K is still a key, so the extra dword of a shifted row stays inside the row.
+            const uint mis = (uint)as_long(row) & 2u;
+            const global uint *p = (const global uint *)((const global char *)row - mis);
+            const uint8 a = vload8(0, p);
+            const uint e = mis ? p[8] : 0u;
+            const uint sh = mis ? 16u : 0u;
+            const uint hm = mis ? 0xFFFF0000u : 0u;
+            const uint an[9] = {a.s0, a.s1, a.s2, a.s3, a.s4, a.s5, a.s6, a.s7, e};
+            #pragma unroll
+            for (int i = 0; i < 8; ++i)
+                w[i] = (an[i] >> sh) | ((an[i + 1] << 16) & hm);
+        } else if (key0 < k) {
+            #pragma unroll
+            for (int i = 0; i < 8; ++i) {
+                const int key = key0 + 2 * i;
+                const uint lo = (key < k) ? (uint)row[2 * i] : 0u;
+                const uint hi = (key + 1 < k) ? (uint)row[2 * i + 1] : 0u;
+                w[i] = lo | (hi << 16);
+            }
+        } else {
+            // A block past the last key (a decode tile is 512 keys) reads nothing. Here, not as an early exit: a branch
+            // ahead of the fast path slowed the large decode (docs, "Transposed V read in sdpa_ocl").
+            #pragma unroll
+            for (int i = 0; i < 8; ++i)
+                w[i] = 0u;
+        }
+        #pragma unroll
+        for (int i = 0; i < 8; ++i)
+            vb[cd][i] = (value < dv) ? as_int(w[i]) : 0;
+    }
+}
+#endif
+
+#if V_TRANSPOSED && KV_COMP_PER_CHANNEL
+// Per-channel i8 V stored [value][key]: lane L of value block cd needs the keys in its OWN row, 1 B each. As v_i8_read(),
+// one read serves two cp blocks (the caller issues it on even cp) and gives vt[cd * 8 + i] = keys 4i .. 4i + 3 of the pair,
+// the layout v_i8_dequant_ch() takes. Per lane: 8 dwords from the dword below the row start, plus one more and a shift by
+// 8 bits per byte when the row starts off a dword (value * ldvt + key not a multiple of 4). A pair reaching the last key
+// reads byte by byte, zero past k, and one past it reads nothing. Lanes past dv read the last row (zp 0, not stored).
+// Where the 2D block rules hold (vt_2d, decided once per workgroup) a 32b transpose read gives the same dwords.
+SDPA_OCL_INLINE void FUNC(v_t_i8_read)(__private uint *vt, const __global VAL_DATA_T *V, const uint ldvt, const int k0,
+                                       const int cp, const int k, const int dv, const size_t sg_j0_sv, const size_t lane,
+                                       const bool vt_2d, const __global void *VT_b2d, const int VT_w, const int VT_p,
+                                       const int VT_x0) {
+    const int key0 = k0 + cp * DPAS_K;
+#if V_T_2D
+    if (vt_2d) {
+        // The [value rows][4-key dwords] surface: lane L gets row y + L (a value), dword i = keys 4i .. 4i + 3. The
+        // surface ends at the last key and the last value (zero past them).
+        #pragma unroll
+        for (int cd = 0; cd < sv_value_blocks; ++cd)
+            intel_sub_group_2d_block_read_transpose_32b_16r8x1c((global void *)VT_b2d, VT_w, dv, VT_p,
+                                                                (int2)(VT_x0 + key0 / 4, (int)sg_j0_sv + cd * SUBGROUP_SIZE),
+                                                                (private uint *)&vt[cd * 8]);
+        return;
+    }
+#endif
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+        const int value = (int)sg_j0_sv + cd * SUBGROUP_SIZE + (int)lane;
+        const global uchar *row = (const global uchar *)V + (size_t)min(value, dv - 1) * ldvt + key0;
+        uint w[8];
+        if (key0 + 2 * DPAS_K + 2 < k) {
+            // Uniform. The extra dword of a shifted row ends at most 3 keys past the pair, all of them keys.
+            const uint mis = (uint)as_long(row) & 3u;
+            const global uint *p = (const global uint *)(row - mis);
+            const uint8 a = vload8(0, p);
+            const uint e = mis ? p[8] : 0u;
+            const uint sh = mis * 8u;
+            const uint hm = mis ? 0xFFFFFFFFu : 0u;
+            const uint an[9] = {a.s0, a.s1, a.s2, a.s3, a.s4, a.s5, a.s6, a.s7, e};
+            #pragma unroll
+            for (int i = 0; i < 8; ++i)
+                w[i] = (an[i] >> sh) | ((an[i + 1] << ((32u - sh) & 31u)) & hm);
+        } else if (key0 < k) {
+            #pragma unroll
+            for (int i = 0; i < 8; ++i) {
+                uint x = 0u;
+                #pragma unroll
+                for (int j = 0; j < 4; ++j)
+                    x |= (key0 + 4 * i + j < k) ? ((uint)row[4 * i + j] << (8 * j)) : 0u;
+                w[i] = x;
+            }
+        } else {
+            #pragma unroll
+            for (int i = 0; i < 8; ++i)
+                w[i] = 0u;
+        }
+        #pragma unroll
+        for (int i = 0; i < 8; ++i)
+            vt[cd * 8 + i] = w[i];
     }
 }
 #endif

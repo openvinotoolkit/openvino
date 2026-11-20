@@ -217,6 +217,13 @@
 #if PREFETCH_V_L3 && (IS_PA_MIXED || !IS_PREFILL || PREFETCH_V)
 #  error "sdpa_ocl.cl: PREFETCH_V_L3 needs the PREFILL V input and excludes PREFETCH_V"
 #endif
+// Transposed V (value order {..,3,2}): a plain-SDPA input, f16 (v_tile_t()) or a per-channel i8 cache (v_t_i8_read(), one
+// read per cp block pair); the V prefetches, wide V reads and other V block reads assume the [key][value] surface.
+#if V_TRANSPOSED && (IS_PAGED_ATTENTION || (defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL) || PLAIN_KV_U4 || \
+                     USE_2D_BLOCK_IO_V_I8 || USE_2D_BLOCK_IO_V_U4 || PREFETCH_V || PREFETCH_V_L3 || (WIDE_READS & 2) || \
+                     (KV_COMP_PER_CHANNEL && (sv_key_blocks % 2) != 0))
+#  error "sdpa_ocl.cl: V_TRANSPOSED is an f16 or per-channel i8 plain-SDPA input without V prefetch or other V reads"
+#endif
 
 // Keys are counted in two units that are equal only on Xe2:
 //  DPAS_K (16)     keys per DPAS step: the S*V "cp" block (one 16-token cache page), the S_slm row length,

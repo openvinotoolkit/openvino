@@ -22,10 +22,10 @@
 
 // GroupQueryAttention executed end to end (ONNX com.microsoft GroupQueryAttention -> the GPU GroupQueryAttentionDecomposition
 // -> StatelessKV + SDPA or the explicit attention chain), against the TEMPLATE plugin. transpose_v: the model keeps its V cache
-// as [B, kv_heads, head_size, S] (past_value -> Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value). Guards
-// that layout reaching SDPA as value order {0,1,3,2}, which sdpa_ocl and sdpa_opt read as if the head dim were contiguous
-// (wrong output), and StatelessKV -> Transpose -> Result on the explicit attention / quantized KV paths, which the runtime
-// rejects. The plain [B, kv_heads, S, head_size] layout is the control.
+// as [B, kv_heads, head_size, S] (past_value -> Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value). Covers
+// that layout reaching SDPA as value order {0,1,3,2} (sdpa_ocl's transposed-V readers on Xe2+, f16 and the fused per-channel
+// i8 cache; a Transpose elsewhere), and StatelessKV -> Transpose -> Result on the explicit attention / quantized KV paths,
+// which the runtime rejects. The plain [B, kv_heads, S, head_size] layout is the control.
 namespace {
 
 using QKOutput = ov::op::internal::GroupQueryAttentionQKOutput;
@@ -160,8 +160,8 @@ TEST_P(GQATransposedVCacheTest, MatchesTemplate) {
     const bool i8_kv = p.attention == Attention::I8_KV;
     const auto cache_type = i8_kv ? ov::element::i8 : ov::element::f16;
     std::mt19937 gen(static_cast<uint32_t>(p.head_size * 10 + static_cast<size_t>(p.attention) * 2 + (p.transpose_v ? 1 : 0)));
-    // {past, current}: prefill, decode, chunked prefill on a past.
-    const std::vector<std::pair<size_t, size_t>> steps = {{0, 17}, {17, 1}, {18, 40}};
+    // {past, current}: prefill, decode, chunked prefill on a past; then several key tiles with an odd key count.
+    const std::vector<std::pair<size_t, size_t>> steps = {{0, 17}, {17, 1}, {18, 40}, {300, 1}, {301, 77}};
     for (const auto& [past, current] : steps) {
         SCOPED_TRACE("past " + std::to_string(past) + ", current " + std::to_string(current));
         const size_t D = p.head_size;
