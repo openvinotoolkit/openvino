@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <tuple>
 #include <variant>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -2845,6 +2846,30 @@ TEST(constant, create_with_zero_dim_shape) {
     auto c = ov::op::v0::Constant(element::u8, Shape{10, 0});
 
     EXPECT_EQ(c.get_byte_size(), 0);
+}
+
+TEST(constant, shape_size_cache_and_reshape) {
+    std::vector<int32_t> values{1, 2, 3, 4, 5, 6};
+    ov::op::v0::Constant c1(element::i32, Shape{2, 3}, values);
+    EXPECT_EQ(c1.get_byte_size(), 6 * sizeof(int32_t));
+
+    // Reshape with identical total element count should succeed
+    ov::op::v0::Constant c2(c1, Shape{3, 2});
+    EXPECT_EQ(c2.get_byte_size(), 6 * sizeof(int32_t));
+    EXPECT_EQ(c2.get_shape(), (Shape{3, 2}));
+
+    // Reshape with mismatching element count should throw
+    EXPECT_THROW(std::ignore = ov::op::v0::Constant(c1, Shape{2, 2}), ov::Exception);
+
+    // Copy constructor should preserve byte size and cached shape size
+    ov::op::v0::Constant c3(c1);
+    EXPECT_EQ(c3.get_byte_size(), 6 * sizeof(int32_t));
+    EXPECT_EQ(c3.get_shape(), (Shape{2, 3}));
+}
+
+TEST(constant, construct_with_overflowing_shape_throws) {
+    const auto max_size = std::numeric_limits<size_t>::max();
+    EXPECT_THROW(std::ignore = ov::op::v0::Constant(element::u8, Shape{max_size, 2}), ov::Exception);
 }
 
 using ConstantInputValue = std::variant<bool,
