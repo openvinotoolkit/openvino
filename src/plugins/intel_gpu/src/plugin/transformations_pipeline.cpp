@@ -94,6 +94,7 @@
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
+#include "plugin/transformations/batch_replicated_branches.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
@@ -138,6 +139,7 @@
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
 #include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
+#include "plugin/transformations/scale_down_gated_mlp_input.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -150,6 +152,7 @@
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
@@ -245,8 +248,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/reverse_sequence.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "openvino/op/roll.hpp"
@@ -916,6 +917,8 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
     manager.register_pass<ov::pass::RoPEFusion>(true);
+    manager.register_pass<ov::pass::FuseQSAIndexer>(true);
+    manager.register_pass<ov::pass::FuseQSAIndexerQuery>();
     manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
     pass_config->disable<ov::pass::RoPEFusionGPTJ>();
     pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
@@ -997,46 +1000,6 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
-
-    // OTD: Stamp a plain "otd_bin_offset" rt_info entry on each constant that has
-    // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
-    // are automatically propagated by copy_runtime_info through all transformations.
-    // This allows moe.cpp to find bin offsets even when WCA is lost.
-    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() <= 100) {
-        // First stamp WCA on constants with mmap descriptors but no WCA yet
-        for (const auto& op : func->get_ops()) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node) {
-                continue;
-            }
-            if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0U) {
-                continue;
-            }
-            auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_node);
-            if (source_buf) {
-                size_t bin_offset = ov::weight_sharing::Extension::get_constant_id(*const_node);
-                size_t byte_size = const_node->get_byte_size();
-                auto dtype = const_node->get_element_type();
-                const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                    ov::WeightlessCacheAttribute(byte_size, bin_offset, dtype);
-            }
-        }
-
-        // Stamp "otd_bin_offset" as a plain int64_t on every constant with WCA.
-        // Plain ov::Any entries survive copy_runtime_info automatically.
-        for (const auto& op : func->get_ops()) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node) {
-                continue;
-            }
-            const auto& rt = const_node->get_rt_info();
-            auto it = rt.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (it != rt.end()) {
-                const auto& wca = it->second.as<ov::WeightlessCacheAttribute>();
-                const_node->get_rt_info()["otd_bin_offset"] = static_cast<int64_t>(wca.bin_offset);
-            }
-        }
-    }
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
@@ -1298,6 +1261,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        // After CommonOptimizations: ShapeOf consumers of static branches are folded and do not block batching
+        manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
@@ -1969,6 +1934,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
+        // After the horizontal fusion, so that the scales of a merged gate/up FC are the ones scaled.
+        // ActivationsScaling, when enabled, already scales every MatMul.
+        if (infer_precision == ov::element::f16 && !(config.get_activations_scale_factor() > 0.F)) {
+            manager.register_pass<ov::intel_gpu::ScaleDownGatedMLPInput>();
+        }
+
         // After the horizontal fusion so a merged gate/up FC absorbs the shared
         // rotation once. Only the TernOCL impl applies a fused rotation, so without it
         // the rotation stays in the graph.
