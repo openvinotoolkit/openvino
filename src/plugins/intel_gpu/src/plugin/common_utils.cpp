@@ -26,7 +26,7 @@ namespace {
 using namespace cldnn;
 using namespace std;
 
-static inline void get_linear_offset_params(layout& layout, tensor& start_pos, tensor& end_pos, vector<int64_t>& padded_sizes, vector<int64_t>& axes_map) {
+inline void get_linear_offset_params(layout& layout, tensor& start_pos, tensor& end_pos, vector<int64_t>& padded_sizes, vector<int64_t>& axes_map) {
     auto fmt = layout.get_format();
     auto data_padding = layout.get_padding();
     auto default_fmt = format::get_default_format(fmt.dimension(), format::is_weights_format(fmt), format::is_grouped(fmt));
@@ -51,7 +51,7 @@ static inline void get_linear_offset_params(layout& layout, tensor& start_pos, t
 }
 
 template <typename src_t, typename dst_t>
-static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* dst, layout& layout, bool transpose) {
+inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* dst, layout& layout, bool transpose) {
     tensor axes_start_pos, axes_end_pos;
     vector<int64_t> padded_sizes, axes_map;
 
@@ -256,8 +256,9 @@ bool data_types_are_supported(const ov::Node* node) {
 
 void PendingConversion::wait() {
     // An absent event does not prove submitted work completed.
-    if (!done)
+    if (!done) {
         return;
+    }
     done->wait();
     clear_after_completion();
 }
@@ -275,44 +276,52 @@ bool convert_and_copy_async(const ov::ITensor* src, const cldnn::memory::ptr& ds
         dst->get_layout().data_padding ||
         !cldnn::format::is_default_format(src_layout.format) ||
         src_layout.format != dst->get_layout().format ||
-        src->get_shape() != dst->get_layout().get_shape())
+        src->get_shape() != dst->get_layout().get_shape()) {
         return false;
+    }
 
     const cldnn::tensor_conversion_key key{static_cast<ov::element::Type_t>(src->get_element_type()), dst->get_layout().data_type};
-    if (!conversion->has_kernel(key))
+    if (!conversion->has_kernel(key)) {
         return false;
+    }
 
     cldnn::tensor_conversion_input input;
-    if (!cldnn::tensor_conversion::prepare_input(src_layout, src->get_strides(), transpose, input))
+    if (!cldnn::tensor_conversion::prepare_input(src_layout, src->get_strides(), transpose, input)) {
         return false;
+    }
     const auto source_span_bytes = input.source_span_bytes;
 
     auto* dst_engine = dst->get_engine();
     if (!dst_engine || dst_engine->runtime_type() != cldnn::runtime_types::ocl ||
         (dst->get_allocation_type() != cldnn::allocation_type::usm_device &&
          dst->get_allocation_type() != cldnn::allocation_type::cl_mem) ||
-        !conversion->compatible_with(*dst_engine))
+        !conversion->compatible_with(*dst_engine)) {
         return false;
+    }
 
-    if (!dst_engine->supports_allocation(cldnn::allocation_type::usm_host))
+    if (!dst_engine->supports_allocation(cldnn::allocation_type::usm_host)) {
         return false;
+    }
 
     const void* staging_source = nullptr;
     cldnn::memory::ptr input_memory;
     if (const auto* host = dynamic_cast<const USMHostTensor*>(src)) {
         input_memory = host->get_impl()->get_original_memory();
-        if (!input_memory)
+        if (!input_memory) {
             return false;
+        }
     } else if (const auto* remote = dynamic_cast<const RemoteTensorImpl*>(src)) {
         input_memory = remote->get_original_memory();
-        if (!input_memory)
+        if (!input_memory) {
             return false;
+        }
     } else if (dynamic_cast<const ov::IRemoteTensor*>(src)) {
         return false;
     } else {
         staging_source = src->data();
-        if (staging_source == nullptr)
+        if (staging_source == nullptr) {
             return false;
+        }
     }
 
     if (input_memory) {
@@ -322,8 +331,9 @@ bool convert_and_copy_async(const ov::ITensor* src, const cldnn::memory::ptr& ds
              input_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) ||
             !src_engine || src_engine->runtime_type() != cldnn::runtime_types::ocl ||
             src_engine->get_user_context(cldnn::runtime_types::ocl) !=
-                dst_engine->get_user_context(cldnn::runtime_types::ocl))
+                dst_engine->get_user_context(cldnn::runtime_types::ocl)) {
             return false;
+        }
     }
 
     // Preserve row gaps without reading beyond the view's last element.
@@ -405,7 +415,7 @@ void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor* dst, const cldn
         dst_ptr = dst->data();
     }
 
-    return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, src->get_layout());
+    ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, src->get_layout());
 }
 
 void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream) {
@@ -465,12 +475,7 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
         dst_ptr = dst->data();
     }
 
-    return ::convert_and_copy(src_ptr,
-                              src_et,
-                              dst_ptr,
-                              dst_et,
-                              size,
-                              cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
+    ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
 }
 
 void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et, size_t size, const cldnn::layout& layout) {
