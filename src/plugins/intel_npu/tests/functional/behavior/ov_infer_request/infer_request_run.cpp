@@ -9,6 +9,7 @@
 #include <array>
 #include <cstddef>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -2113,8 +2114,7 @@ void checkSamplesWereComputed(const ov::Tensor& tensor, const size_t batch) {
     const size_t sampleSize = tensor.get_size() / batch;
     const auto* data = tensor.data<float>();
     for (size_t j = 0; j < tensor.get_size(); ++j) {
-        ASSERT_EQ(data[j], static_cast<float>(j / sampleSize) + 1.f)
-            << "Sample " << j / sampleSize << ", index " << j;
+        ASSERT_EQ(data[j], static_cast<float>(j / sampleSize) + 1.f) << "Sample " << j / sampleSize << ", index " << j;
     }
 }
 
@@ -2122,7 +2122,9 @@ void checkSamplesWereComputed(const ov::Tensor& tensor, const size_t batch) {
 // size between the runs. Request i adds '1' to each element, so output i must be (value + i + 1).
 // - reshapeInPlace == false: new tensors are created and set on every request for each batch size.
 // - reshapeInPlace == true: the tensors are set once and then reshaped with set_shape, without calling the setters.
-void runSequentialChainWithChangingBatch(ov::CompiledModel& compiledModel,
+// The request i is created from the compiled model (i % compiledModels.size()), so with several compiled models the
+// chain goes through all of them.
+void runSequentialChainWithChangingBatch(std::vector<ov::CompiledModel>& compiledModels,
                                          ov::RemoteContext& context,
                                          const std::vector<size_t>& batches,
                                          const bool reshapeInPlace) {
@@ -2138,8 +2140,8 @@ void runSequentialChainWithChangingBatch(ov::CompiledModel& compiledModel,
     std::vector<ov::InferRequest> requests(inferences);
     // tensors[0] is the input of the first request, tensors[i + 1] is the output of the request i
     std::vector<ov::Tensor> tensors(inferences + 1);
-    for (auto& request : requests) {
-        request = compiledModel.create_infer_request();
+    for (size_t i = 0; i < requests.size(); ++i) {
+        requests[i] = compiledModels[i % compiledModels.size()].create_infer_request();
     }
 
     auto bindTensors = [&]() {
@@ -2213,10 +2215,10 @@ TEST_P(DynamicBatchingTests, DynamicBatchRunsSeqChangingBatchSetTensor) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
-    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    std::vector<ov::CompiledModel> compiledModels{core->compile_model(model, target_device, configuration)};
 
     ASSERT_NO_FATAL_FAILURE(
-        runSequentialChainWithChangingBatch(compiledModel, context, {4, 2, 7, 7, 1, 10, 3, 5, 8, 4}, false));
+        runSequentialChainWithChangingBatch(compiledModels, context, {4, 2, 7, 7, 1, 10, 3, 5, 8, 4}, false));
 }
 
 // Same, but the tensors are set once and reshaped with set_shape, without calling the setters again
@@ -2232,10 +2234,73 @@ TEST_P(DynamicBatchingTests, DynamicBatchRunsSeqChangingBatchSetShape) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
-    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    std::vector<ov::CompiledModel> compiledModels{core->compile_model(model, target_device, configuration)};
 
     ASSERT_NO_FATAL_FAILURE(
-        runSequentialChainWithChangingBatch(compiledModel, context, {4, 2, 7, 7, 1, 10, 3, 5, 8, 4}, true));
+        runSequentialChainWithChangingBatch(compiledModels, context, {4, 2, 7, 7, 1, 10, 3, 5, 8, 4}, true));
+}
+
+namespace {
+
+// Compiles several different dynamic batch models (different batch upper bounds) sharing the same command queue, so
+// the inferences of all of them have to be run sequentially, and runs a chain going through all of them.
+void runSequentialChainThroughMultipleModels(
+    ov::Core& core,
+    const std::string& targetDevice,
+    ov::AnyMap configuration,
+    const std::function<std::shared_ptr<ov::Model>(const PartialShape&)>& create,
+    const bool reshapeInPlace) {
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    configuration[ov::intel_npu::shared_common_queue.name()] = true;
+
+    auto context = core.get_default_context(targetDevice);
+    std::vector<ov::CompiledModel> compiledModels;
+    for (const int64_t upperBound : {10, 16, 12}) {
+        const auto modelShape = PartialShape{ov::Dimension(1, upperBound), 2, 64, 64};
+        compiledModels.push_back(core.compile_model(create(modelShape), targetDevice, configuration));
+    }
+
+    // The batch of the chain is limited by the smallest upper bound
+    ASSERT_NO_FATAL_FAILURE(
+        runSequentialChainWithChangingBatch(compiledModels, context, {4, 2, 7, 7, 1, 10, 3, 5, 8, 4}, reshapeInPlace));
+}
+
+}  // namespace
+
+// RUN_INFERENCES_SEQUENTIALLY + SHARED_COMMON_QUEUE with several dynamic batch models: the requests of the chain belong
+// to different compiled models and the batch changes between the runs, the inferences must still run in order.
+TEST_P(DynamicBatchingTests, DynamicBatchRunsSeqMultipleModelsSetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!isRunInferencesSequentiallySupported()) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
+
+    ASSERT_NO_FATAL_FAILURE(runSequentialChainThroughMultipleModels(
+        *core,
+        target_device,
+        configuration,
+        [this](const PartialShape& shape) {
+            return createModel(element::f32, shape, "N...");
+        },
+        false));
+}
+
+TEST_P(DynamicBatchingTests, DynamicBatchRunsSeqMultipleModelsSetShape) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!isRunInferencesSequentiallySupported()) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
+
+    ASSERT_NO_FATAL_FAILURE(runSequentialChainThroughMultipleModels(
+        *core,
+        target_device,
+        configuration,
+        [this](const PartialShape& shape) {
+            return createModel(element::f32, shape, "N...");
+        },
+        true));
 }
 
 // The same tensor object is reshaped (its batch changes) without calling set_tensor again. The plugin must detect the
@@ -2655,9 +2720,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchRecoverFromRejectedOutputByReshapingItW
     auto outputTensor = context.create_host_tensor(ov::element::f32, Shape{6, 2, 64, 64});
     OV_ASSERT_NO_THROW(inferenceRequest.set_output_tensor(outputTensor));
     fillSamplesWithIndex(inputTensor);
-    OV_EXPECT_THROW(inferenceRequest.infer(),
-                    ov::Exception,
-                    HasSubstr("while the batch size of the inputs is"));
+    OV_EXPECT_THROW(inferenceRequest.infer(), ov::Exception, HasSubstr("while the batch size of the inputs is"));
 
     // Reshape the bound output to the batch of the inputs, without binding it again
     outputTensor.set_shape(Shape{3, 2, 64, 64});
