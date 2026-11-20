@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 491,
+  "total": 492,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5342,6 +5342,15 @@
       "category": "Flaky Test",
       "signature_hash": "5c9adec102201520",
       "pr_number": "39963"
+    },
+    {
+      "investigation_id": "2026-11-20-17-11-58-180-44774146438",
+      "run_id": "44774146438",
+      "timestamp": "2026-11-20T17:11:58Z",
+      "title": "smoke_Interpolate_corner_Layout_Test fails with primType undef_f16 Expected acl_f16 on ARM64",
+      "category": "Flaky Test",
+      "signature_hash": "b3d3a7e173ee802a",
+      "pr_number": "39505"
     }
   ]
 }

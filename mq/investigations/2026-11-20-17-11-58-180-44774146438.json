@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-17-11-58-180-44774146438",
+  "timestamp": "2026-11-20T17:11:58Z",
+  "run_id": "44774146438",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44774146438",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "39505",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39505",
+  "author": "mryzhov",
+  "category": "Flaky Test",
+  "title": "smoke_Interpolate_corner_Layout_Test fails with primType undef_f16 Expected acl_f16 on ARM64",
+  "signature": "primType is unexpected undef_f16 Expected acl_f16|Flaky Test",
+  "signature_hash": "b3d3a7e173ee802a",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "1 of 72642 smoke tests failed: InterpolateLayerCPUTest primType assertion mismatch on ARM64/ACL"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f16 Expected : acl_f16",
+    "[  FAILED  ] smoke_Interpolate_corner_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=scales_IS=[1.11.4.4]..._PluginConf_INFERENCE_PRECISION_HINT=f16 (78 ms)"
+  ],
+  "root_cause": "The CPU functional test suite expects the Interpolate (nearest, nhwc, f32 model with INFERENCE_PRECISION_HINT=f16) kernel to be executed via the ARM Compute Library (acl) primitive, but the executed primitive's implementation type was reported as 'undef' instead. This is the same family of recurring ARM64/ACL primitive-selection flakiness already tracked under pattern eb0b94c864ee1a85 (smoke_MaxPoolV14, 9 occurrences) and several ConvertCPULayerTest patterns: on ARM64, ACL executor selection for certain precision/layout/shape combinations is non-deterministic or falls back silently to a generic (undef) implementation depending on runtime conditions (library initialization order, available ACL kernels for the shape, or threading), without the test itself or the PR's code changing. Only 1 of 72,642 smoke tests failed, and the PR's changes are entirely CI/cache/cmake-infrastructure (ccache, packaging, compile flags) with no touches to the interpolate kernel, ACL executor selection, or related CPU plugin code, which supports a pre-existing/environmental flake rather than a regression introduced by this PR.",
+  "reproduction_steps": "On an ARM64 Linux runner, build the CPU plugin functional tests and run: ./ov_cpu_func_tests --gtest_filter='*smoke_Interpolate_corner_Layout_Test*InterpolateLayerCPUTest.CompareWithRefs*ShapeCalcMode=scales_IS_1_11_4_4*PARAMETER_InterpolateMode=nearest*CoordinateTransformMode=asymmetric*NearestMode=simple*inFmts=nhwc*primitive=acl*INFERENCE_PRECISION_HINT=f16*' repeatedly (the failure did not reproduce in the previous validated runs listed in the PR description, suggesting it is intermittent).",
+  "recommended_actions": [
+    "Re-run the failed 'CPU functional tests' job (safe, since this PR's changes are unrelated to the CPU plugin or ACL executor selection logic)",
+    "If the failure recurs consistently (not just once), file a tracking ticket for ACL-backend Interpolate f16/nhwc primitive-selection flakiness referencing pattern b3d3a7e173ee802a and the related eb0b94c864ee1a85 (smoke_MaxPoolV14) pattern",
+    "Investigate ACL executor registration/fallback logic in src/plugins/intel_cpu/src/nodes/executors/acl/ for Interpolate to see whether a race condition or missing kernel-support check causes silent fallback to 'undef' instead of 'acl'"
+  ],
+  "prevention_strategies": "Add a retry/rerun mechanism for known-flaky ARM64/ACL primType assertions (already partially covered by the approved 'primType is unexpected' rerunner search string), and track recurrence counts per specific op (Interpolate, MaxPool, Convert, MatMul) to identify whether the flakiness is systemic in the ACL executor layer or isolated to specific ops/shapes needing dedicated fixes.",
+  "historical_context": "This is a new specific signature (Interpolate nearest nhwc f16, undef_f16 vs acl_f16) but belongs to a well-established family of ARM64 ACL primType-mismatch flaky failures: eb0b94c864ee1a85 (smoke_MaxPoolV14, undef_f32 vs acl_f32, 9 occurrences since 2026-09-11), plus multiple ConvertCPULayerTest and MatMulLayerCPUTest variants (unknown_* vs acl_*/ref_*). The existing 'primType is unexpected' rerunner search string (ticket 9999999, category Flaky Test) already covers this class of failure, so reruns of matching jobs are automatically retried by the workflow rerunner once merged."
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "primType is unexpected undef_f16 Expected acl_f16|Flaky Test",
+  "signature_hash": "b3d3a7e173ee802a",
+  "title": "smoke_Interpolate_corner_Layout_Test fails with primType undef_f16 Expected acl_f16 on ARM64",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-20T17:11:58Z",
+  "last_seen": "2026-11-20T17:11:58Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44774146438"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39505"
+  ],
+  "recent_timestamps": [
+    "2026-11-20T17:11:58Z"
+  ],
+  "rerun_search_string": "primType is unexpected"
+}
