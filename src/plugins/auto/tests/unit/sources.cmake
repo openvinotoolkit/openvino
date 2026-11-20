@@ -51,6 +51,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/device_execution_context.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/instance_registry.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/instance_registry.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/itt.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.hpp

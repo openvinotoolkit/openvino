@@ -3,6 +3,7 @@
 //
 
 #include "device_execution_context.hpp"
+#include "instance_registry.hpp"
 
 #include "include/auto_unit_test.hpp"
 
@@ -304,4 +305,37 @@ TEST_F(DeviceExecutionContextTest, noWorkerIsLeasedFromAnExhaustedPool) {
     auto first = context.pool().try_acquire();
     ASSERT_TRUE(first);
     EXPECT_FALSE(context.pool().try_acquire());
+}
+
+TEST_F(DeviceExecutionContextTest, registryAnswersWithThePublishedInstance) {
+    ov::auto_plugin::InstanceRegistry registry;
+    auto& gpu = registry.add("GPU.0");
+    auto& cpu = registry.add("CPU");
+    EXPECT_EQ(&registry.add("GPU.0"), &gpu);
+    EXPECT_FALSE(registry.active_device().compiled_model);
+    make_ready(gpu);
+    make_ready(cpu);
+    registry.publish(ov::auto_plugin::ModelInstanceKey("GPU.0"));
+    auto active = registry.active_device();
+    EXPECT_EQ(active.instance, ov::auto_plugin::ModelInstanceKey("GPU.0"));
+    EXPECT_TRUE(active.compiled_model);
+    registry.publish([]() -> std::optional<ov::auto_plugin::ModelInstanceKey> {
+        return ov::auto_plugin::ModelInstanceKey("CPU");
+    });
+    EXPECT_EQ(registry.active_device().instance, ov::auto_plugin::ModelInstanceKey("CPU"));
+    // the previous instance is released once the other one is published
+    EXPECT_TRUE(gpu.try_release());
+    EXPECT_TRUE(registry.active_device().compiled_model);
+}
+
+TEST_F(DeviceExecutionContextTest, registryReportsNothingForAReleasedInstance) {
+    ov::auto_plugin::InstanceRegistry registry;
+    auto& gpu = registry.add("GPU.0");
+    make_ready(gpu);
+    registry.publish(ov::auto_plugin::ModelInstanceKey("GPU.0"));
+    ASSERT_TRUE(gpu.try_release());
+    EXPECT_FALSE(registry.active_device().compiled_model);
+    registry.clear();
+    EXPECT_FALSE(registry.active_instance());
+    EXPECT_EQ(registry.find("GPU.0"), nullptr);
 }

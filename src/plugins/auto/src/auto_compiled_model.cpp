@@ -80,29 +80,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         // device priority does not support change on-the-fly
         return decltype(ov::device::priorities)::value_type(m_context->m_str_devices);
     } else if (name == ov::device::properties) {
-        if (m_context->m_dynamic_device_selection) {
-            // the initial device can be released, so the properties are the ones of the device in use
-            const auto active = require_active_device(*m_scheduler, get_log_tag());
-            return get_device_supported_properties(active.name, active.compiled_model);
-        }
-        ov::AnyMap all_devices = {};
-        {
-            std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-            if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
-                all_devices = get_device_supported_properties(m_scheduler->m_compile_context[FALLBACKDEVICE]);
-            }
-        }
-        std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        auto& cpu_context = m_scheduler->m_compile_context[CPU];
-        if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
-            all_devices = get_device_supported_properties(m_scheduler->m_compile_context[ACTUALDEVICE]);
-        } else if (const auto cpu_model = cpu_context.compiled_model()) {
-            all_devices = get_device_supported_properties(cpu_context.m_device_info.device_name, cpu_model);
-        } else {
-            // the CPU helper is released as soon as the actual device is ready
-            all_devices = get_device_supported_properties(m_scheduler->m_compile_context[ACTUALDEVICE]);
-        }
-        return all_devices;
+        // the properties of the instance that serves the requests right now
+        const auto active = require_active_device(*m_scheduler, get_log_tag());
+        return get_device_supported_properties(active.instance.device, active.compiled_model);
     } else if (name == ov::hint::model_priority) {
         auto value = m_context->m_model_priority;
         return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
@@ -224,32 +204,14 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
-        if (m_context->m_dynamic_device_selection) {
-            const auto active = m_scheduler->get_active_device();
-            if (!active.name.empty()) {
-                return decltype(ov::execution_devices)::value_type{active.name};
-            }
+        const auto active = m_scheduler->get_active_device();
+        if (!active.compiled_model) {
+            return decltype(ov::execution_devices)::value_type{};
         }
-        ov::Any execution_devices;
-        auto get_execution_devices = [&execution_devices](const ModelInstanceKey& instance) {
-            std::vector<std::string> exe_devices = {};
-            exe_devices.push_back(instance.is_startup_helper() ? "(" + instance.device + ")" : instance.device);
-            execution_devices = decltype(ov::execution_devices)::value_type {exe_devices};
-        };
-        {
-            std::lock_guard<std::mutex> lock(m_context->m_mutex);
-            for (int i = 0; i < CONTEXTNUM; i++) {
-                if (m_scheduler->m_compile_context[i].m_is_enabled && m_scheduler->m_compile_context[i].m_is_already) {
-                    if (i == 0 && !m_scheduler->m_compile_context[CPU].compiled_model()._ptr) {
-                        continue;
-                    } else {
-                        get_execution_devices(m_scheduler->m_compile_context[i].instance_key());
-                        break;
-                    }
-                }
-            }
-        }
-        return execution_devices;
+        const auto& instance = active.instance;
+        // the startup helper is reported in parentheses, it serves the requests only until the device is ready
+        return decltype(ov::execution_devices)::value_type{
+            instance.is_startup_helper() ? "(" + instance.device + ")" : instance.device};
     } else if (name == ov::model_name) {
         return m_context->m_hw_metadata->model_name;
     } else if (name == ov::loaded_from_cache) {
@@ -257,7 +219,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         try {
             return active.compiled_model ? active.compiled_model->get_property(name).as<bool>() : false;
         } catch (const ov::Exception&) {
-            LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed", active.name.c_str());
+            LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed", active.instance.to_string().c_str());
             return false;
         }
     }

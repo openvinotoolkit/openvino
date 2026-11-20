@@ -223,13 +223,6 @@ struct CompiledModelMetadata {
     std::string model_name;
 };
 
-// The device in use and its compiled model, taken as a pair so they never disagree.
-// The compiled model is empty if no device holds one.
-struct ActiveDevice {
-    DeviceName name;
-    SoCompiledModel compiled_model;
-};
-
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;

@@ -158,6 +158,17 @@ void CumuSchedule::init() {
         m_passthrough_context = m_p_ctput_loadcontext[0].m_device_context.load();
         m_passthrough_context->keep_alive();
     }
+    // the devices are never released in this mode, so the first ready one answers the model queries for good
+    m_instances.publish([this]() -> std::optional<ModelInstanceKey> {
+        for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
+            const auto* context = m_p_ctput_loadcontext[i].m_is_already ? m_p_ctput_loadcontext[i].m_device_context.load()
+                                                                         : nullptr;
+            if (context && context->is_ready()) {
+                return context->key();
+            }
+        }
+        return std::nullopt;
+    });
     capture_hw_metadata(wait_first_compiled_model_ready());
 }
 
@@ -208,18 +219,6 @@ SoCompiledModel CumuSchedule::try_to_compile_model(AutoCompileContext& context,
     return compiled_model;
 }
 
-ActiveDevice CumuSchedule::get_active_device() {
-    for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
-        auto* context = m_p_ctput_loadcontext[i].m_is_already ? m_p_ctput_loadcontext[i].m_device_context.load()
-                                                               : nullptr;
-        if (context) {
-            if (auto model = context->compiled_model()) {
-                return {context->name(), std::move(model)};
-            }
-        }
-    }
-    return {};
-}
 
 SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {
     std::ostringstream result;
@@ -284,10 +283,10 @@ CumuSchedule::~CumuSchedule() {
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */
-    for (auto&& device : m_device_contexts) {
-        // stop accepting any idle requests back (for re-scheduling)
-        device.second->stop_scheduling();
-    }
+    // stop accepting any idle requests back (for re-scheduling)
+    m_instances.for_each([](DeviceExecutionContext& context) {
+        context.stop_scheduling();
+    });
 }
 }  // namespace auto_plugin
 }  // namespace ov

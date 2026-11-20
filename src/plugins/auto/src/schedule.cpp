@@ -96,11 +96,7 @@ void Schedule::capture_hw_metadata(const SoCompiledModel& first_compiled_model) 
 }
 
 DeviceExecutionContext& Schedule::add_device_context(const ModelInstanceKey& key) {
-    auto& context = m_device_contexts[key];
-    if (!context) {
-        context = std::make_unique<DeviceExecutionContext>(key);
-    }
-    return *context;
+    return m_instances.add(key);
 }
 
 DeviceExecutionContext& Schedule::get_device_context(const ModelInstanceKey& key) {
@@ -110,8 +106,11 @@ DeviceExecutionContext& Schedule::get_device_context(const ModelInstanceKey& key
 }
 
 DeviceExecutionContext* Schedule::find_device_context(const ModelInstanceKey& key) {
-    const auto iter = m_device_contexts.find(key);
-    return iter == m_device_contexts.end() ? nullptr : iter->second.get();
+    return m_instances.find(key);
+}
+
+ActiveDevice Schedule::get_active_device() const {
+    return m_instances.active_device();
 }
 
 void Schedule::register_compile_result(AutoCompileContext& context, SoCompiledModel compiled_model) {
@@ -385,11 +384,11 @@ std::string Schedule::get_log_tag() const noexcept {
 Schedule::~Schedule() {
     INFO_RUN([this] {
         const bool serialized_inference = m_context && m_context->m_dynamic_device_selection;
-        for (auto&& device : m_device_contexts) {
-            device.second->log_summary(m_log_tag, m_cpuhelp_release_time, serialized_inference);
-        }
+        m_instances.for_each([&](DeviceExecutionContext& context) {
+            context.log_summary(m_log_tag, m_cpuhelp_release_time, serialized_inference);
+        });
     });
-    m_device_contexts.clear();
+    m_instances.clear();
     LOG_INFO_TAG("scheduler ending");
 }
 }  // namespace auto_plugin

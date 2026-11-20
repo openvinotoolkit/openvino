@@ -6,7 +6,7 @@
 #pragma once
 
 #include "common.hpp"
-#include "device_execution_context.hpp"
+#include "instance_registry.hpp"
 #include "itt.hpp"
 
 namespace ov {
@@ -22,9 +22,8 @@ public:
     void run(ov::threading::Task infer_task) override;
     virtual ~Schedule();
     virtual ISyncInferPtr create_sync_infer_request();
-    // the device that answers the model queries right now with a copy of its compiled model, which stays valid
-    // after a release
-    virtual ActiveDevice get_active_device() = 0;
+    // the published instance that answers the model queries, read without any lock of the scheduler
+    ActiveDevice get_active_device() const;
     static thread_local WorkerInferRequest* m_this_worker_infer_request;
     // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
@@ -61,8 +60,8 @@ protected:
     void mark_compile_failure(const AutoCompileContext& context, const std::string& reason);
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     TaskQueue                                                            m_infer_pipeline_tasks;
-    // created by init() only, the map is never modified afterwards so the contexts keep their address
-    std::map<ModelInstanceKey, std::unique_ptr<DeviceExecutionContext>>  m_device_contexts;
+    // filled by init() only, the contexts keep their address until the schedule is destroyed
+    InstanceRegistry                                                     m_instances;
     // the context holding the compiled model that serves every request directly, null if requests are scheduled
     DeviceExecutionContext*                                              m_passthrough_context = nullptr;
     // set before compiling: the model is only held by its context, no worker is created for it

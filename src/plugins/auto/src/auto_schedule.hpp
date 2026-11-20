@@ -21,8 +21,6 @@ public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     virtual ~AutoSchedule();
     AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
-    // the dynamic selection follows the device in use, the static modes the one that serves the requests
-    ActiveDevice get_active_device() override;
 
 private:
     void init() override;
@@ -71,6 +69,9 @@ private:
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
+    // publishes the instance that serves the requests in the static mode: a fallback device replaces the actual
+    // device it was selected for, and the actual device replaces the startup helper
+    void publish_active_instance();
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;

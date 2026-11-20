@@ -18,6 +18,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_schedule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/device_execution_context.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/instance_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/schedule.cpp

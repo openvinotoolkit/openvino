@@ -78,6 +78,7 @@ bool AutoSchedule::select_other_device(const ModelInstanceKey& failed_instance) 
                 m_compile_context[ACTUALDEVICE].m_is_enabled = false;
                 m_compile_context[ACTUALDEVICE].m_is_load_success = false;
                 m_compile_context[ACTUALDEVICE].m_is_already = false;
+                publish_active_instance();
                 LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
                 return true;
             } else {
@@ -100,25 +101,17 @@ bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::strin
     return false;
 }
 
-ActiveDevice AutoSchedule::get_active_device() {
-    if (m_context->m_dynamic_device_selection) {
-        // the device in use is released only after the gate switched away from it, which takes this mutex
-        std::lock_guard<std::mutex> lock(m_gate_mutex);
-        const auto* context = find_device_context(m_gate_current_device);
-        return context ? ActiveDevice{context->name(), context->compiled_model()} : ActiveDevice{};
-    }
-    std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-    // the precedence of the request routing: a fallback device replaces the actual device it was selected for
-    for (const auto role : {FALLBACKDEVICE, ACTUALDEVICE, CPU}) {
-        auto& compile_context = m_compile_context[role];
-        auto* context = compile_context.m_is_already ? compile_context.m_device_context.load() : nullptr;
-        if (context) {
-            if (auto model = context->compiled_model()) {
-                return {context->name(), std::move(model)};
+void AutoSchedule::publish_active_instance() {
+    m_instances.publish([this]() -> std::optional<ModelInstanceKey> {
+        for (const auto role : {FALLBACKDEVICE, ACTUALDEVICE, CPU}) {
+            const auto& compile_context = m_compile_context[role];
+            const auto* context = compile_context.m_is_already ? compile_context.m_device_context.load() : nullptr;
+            if (context && context->is_ready()) {
+                return context->key();
             }
         }
-    }
-    return {};
+        return std::nullopt;
+    });
 }
 
 void AutoSchedule::init() {
@@ -182,6 +175,9 @@ void AutoSchedule::init() {
             const_cast<std::shared_ptr<ov::Model>&>(model).reset();
             register_compile_result(*context_ptr, std::move(compiled_model));
             context_ptr->m_is_already = true;
+            if (!m_context->m_dynamic_device_selection) {
+                publish_active_instance();
+            }
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
             auto& device_name = context_ptr->m_device_info.device_name;
@@ -319,6 +315,7 @@ void AutoSchedule::init() {
                     });
                     LOG_INFO_TAG("release all work requests of the startup helper");
                     m_compile_context[CPU].m_is_already = false;
+                    publish_active_instance();
                     LOG_INFO_TAG("helper released!!");
                     break;
                 }
@@ -340,6 +337,7 @@ void AutoSchedule::init() {
             m_context->m_device_priorities = m_compile_context[ACTUALDEVICE].m_meta_devices;
             const auto& initial_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
             m_gate_current_device = initial_device;
+            m_instances.publish(ModelInstanceKey(initial_device));
             LOG_INFO_TAG("[dynamic] initial target device:%s", initial_device.c_str());
         }
     } else {
@@ -700,6 +698,8 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
                              m_gate_current_device.empty() ? "none" : m_gate_current_device.c_str(),
                              device_name.c_str());
                 m_gate_current_device = device_name;
+                // published before the previous device can be released by release_inactive_devices()
+                m_instances.publish(ModelInstanceKey(device_name));
                 m_dynamic_switch_count++;
             }
         }
@@ -893,21 +893,20 @@ void AutoSchedule::release_inactive_devices(const DeviceName& active_device) {
     if (!active || !active->is_ready()) {
         return;
     }
-    for (auto& device : m_device_contexts) {
-        auto& context = *device.second;
-        if (device.first == active_device || !context.is_ready()) {
-            continue;
+    m_instances.for_each([&](DeviceExecutionContext& context) {
+        if (context.key() == active_device || !context.is_ready()) {
+            return;
         }
-        if (!is_evictable(device.first.device)) {
+        if (!is_evictable(context.name())) {
             // recompiling it from scratch on every switch would cost more than the memory it frees
             context.keep_alive();
-            continue;
+            return;
         }
         if (context.try_release()) {
             LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released",
-                         device.first.to_string().c_str());
+                         context.key().to_string().c_str());
         }
-    }
+    });
 }
 
 bool AutoSchedule::is_evictable(const DeviceName& device_name) {
@@ -1024,10 +1023,10 @@ AutoSchedule::~AutoSchedule() {
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */
-    for (auto&& device : m_device_contexts) {
-        // stop accepting any idle requests back (for re-scheduling)
-        device.second->stop_scheduling();
-    }
+    // stop accepting any idle requests back (for re-scheduling)
+    m_instances.for_each([](DeviceExecutionContext& context) {
+        context.stop_scheduling();
+    });
 }
 }  // namespace auto_plugin
 }  // namespace ov
