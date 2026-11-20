@@ -6,11 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "llm_compiled_model.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -67,6 +69,38 @@ std::shared_ptr<ov::Model> build_attached_result_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{hidden_result, logits_result},
                                        ov::ParameterVector{hidden},
                                        "attached_result_lm_head");
+}
+
+// Tied u8 vocabulary: Gather and the LM-head MatMul share one dequantization chain.
+std::shared_ptr<ov::Model> build_shared_u8_vocabulary_model() {
+    auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, kSeq, kHidden});
+    auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, kSeq});
+
+    auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{kVocab, kHidden}, {1});
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+    auto zero_points = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{kVocab, 1}, {1});
+    auto zero_points_convert = std::make_shared<ov::op::v0::Convert>(zero_points, ov::element::f32);
+    auto dequantized = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_points_convert);
+    auto scales = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{kVocab, 1}, {0.5f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(dequantized, scales);
+
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(scaled, ids, axis);
+    auto embeddings = std::make_shared<ov::op::v0::Result>(gather);
+    embeddings->output(0).set_names({"embeddings"});
+
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(hidden, scaled, false, true);
+    auto logits = std::make_shared<ov::op::v0::Result>(matmul);
+    logits->output(0).set_names({LLMCompiledModel::layer_names::logits});
+
+    return std::make_shared<ov::Model>(ov::ResultVector{embeddings, logits}, ov::ParameterVector{hidden, ids});
+}
+
+std::size_t count_marked_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return std::count_if(ops.begin(), ops.end(), [](const auto& node) {
+        return node->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
+    });
 }
 
 std::shared_ptr<ov::op::v0::Result> find_result_by_name(const std::shared_ptr<ov::Model>& model,
@@ -171,6 +205,38 @@ TEST(CutLMHeadTest, NoLogitsIsUntouched) {
     EXPECT_EQ(lm_head_model, nullptr);
     ASSERT_EQ(model->get_results().size(), 1u);
     EXPECT_EQ(find_result_by_name(model, "not_logits"), result);
+}
+
+TEST(CutLMHeadTest, RestoresOriginalU8DequantizationInDetachedHead) {
+    auto model = build_shared_u8_vocabulary_model();
+
+    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
+    EXPECT_EQ(count_marked_sub128_shifts(model), 2u);
+
+    std::shared_ptr<ov::Model> lm_head_model;
+    ASSERT_TRUE(ov::npuw::CutLMHead(lm_head_model).run_on_model(model));
+    ASSERT_NE(lm_head_model, nullptr);
+
+    // The remaining Gather branch keeps the shared-vocabulary optimization.
+    EXPECT_EQ(count_marked_sub128_shifts(model), 2u);
+    // The detached MatMul uses the original U8 weight and zero-point dequantization.
+    EXPECT_EQ(count_marked_sub128_shifts(lm_head_model), 0u);
+    const auto ops = lm_head_model->get_ordered_ops();
+    const auto dequantization = std::find_if(ops.begin(), ops.end(), [](const auto& node) {
+        return ov::is_type<ov::op::v1::Subtract>(node) &&
+               !node->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO);
+    });
+    ASSERT_NE(dequantization, ops.end());
+    for (size_t input_idx = 0; input_idx < 2; ++input_idx) {
+        const auto convert =
+            ov::as_type_ptr<ov::op::v0::Convert>((*dequantization)->input_value(input_idx).get_node_shared_ptr());
+        ASSERT_NE(convert, nullptr);
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(convert->input_value(0).get_node_shared_ptr());
+        ASSERT_NE(constant, nullptr);
+        EXPECT_EQ(constant->get_element_type(), ov::element::u8);
+    }
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_NO_THROW(lm_head_model->validate_nodes_and_infer_types());
 }
 
 class CutLMHeadTiedWeightsTest : public testing::TestWithParam<bool> {};

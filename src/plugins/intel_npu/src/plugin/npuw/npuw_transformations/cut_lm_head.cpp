@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "../llm_compiled_model.hpp"
+#include "insert_vocab_sub128.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,6 +18,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -112,6 +115,24 @@ public:
             // both models and can cause incorrect behavior. Clone to isolate the graph nodes while
             // keeping constant data buffers shared.
             lm_head_model = lm_head_model->clone();
+
+            // Restore the original asymmetric u8 dequantization in the detached LM-head model.
+            // Sub128 remains in the shared Gather path, while keeping it here adds arithmetic to
+            // the full-vocabulary MatMul.
+            const auto is_sub128_shift = [](const ov::Output<ov::Node>& value) {
+                const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(value.get_node_shared_ptr());
+                return subtract && subtract->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
+            };
+            for (const auto& node : lm_head_model->get_ordered_ops()) {
+                const auto dequantization = ov::as_type_ptr<ov::op::v1::Subtract>(node);
+                if (dequantization && is_sub128_shift(dequantization->input_value(0)) &&
+                    is_sub128_shift(dequantization->input_value(1))) {
+                    const auto shifted_weight = dequantization->input_value(0).get_node_shared_ptr();
+                    const auto shifted_zero_point = dequantization->input_value(1).get_node_shared_ptr();
+                    dequantization->input(0).replace_source_output(shifted_weight->input_value(0));
+                    dequantization->input(1).replace_source_output(shifted_zero_point->input_value(0));
+                }
+            }
 
             return true;
         };
