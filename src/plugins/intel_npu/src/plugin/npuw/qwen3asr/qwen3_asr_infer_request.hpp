@@ -23,8 +23,7 @@ public:
 protected:
     void prepare_for_new_conversation() override;
 
-    void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
-                       ov::SoPtr<ov::ITensor> enc_hidden_states);
+    void infer_prefill(ov::SoPtr<ov::ITensor> input_ids, ov::SoPtr<ov::ITensor> enc_hidden_states);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids);
 };

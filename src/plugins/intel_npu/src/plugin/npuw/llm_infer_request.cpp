@@ -547,7 +547,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     if (input_ids_port.has_value()) {
         m_input_ids_name = layer_names::input_ids;
     } else if (auto dec_port = ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(),
-                                                                  layer_names::decoder_input_ids);
+                                                                 layer_names::decoder_input_ids);
                dec_port.has_value()) {
         m_input_ids_name = layer_names::decoder_input_ids;
     } else {
@@ -674,11 +674,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             // Share prefill output → LM head input only when sizes match (SliceOutEmbeds was applied).
             // If the prefill output is a full sequence tensor (e.g. Qwen3-ASR skips SliceOutEmbeds),
             // the subclass infer_prefill() will manually copy the last-token slice instead.
-            auto prefill_embed_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::output_embeds));
+            auto prefill_embed_tensor =
+                m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::output_embeds));
             auto lm_head_embed_tensor = m_lm_head_request->get_tensor(lm_head_embed_port);
             if (prefill_embed_tensor->get_byte_size() == lm_head_embed_tensor->get_byte_size()) {
-                m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                              lm_head_embed_tensor);
+                m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds), lm_head_embed_tensor);
             }
         }
 
@@ -978,8 +978,7 @@ void ov::npuw::LLMInferRequest::zero_prefill_staging() {
         type_ids_port != m_prefill_in_ports.end()) {
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
     }
-    if (auto attn_port = m_prefill_in_ports.find(layer_names::attention_mask);
-        attn_port != m_prefill_in_ports.end()) {
+    if (auto attn_port = m_prefill_in_ports.find(layer_names::attention_mask); attn_port != m_prefill_in_ports.end()) {
         auto prefill_attention_mask = m_prefill_request->get_tensor(attn_port->second);
         if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
             fill_additive_attention_mask(prefill_attention_mask);
@@ -1125,8 +1124,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
         } else {
             const auto [kv_start, kv_end] = get_prefill_kv_range();
-            auto prefill_out_slice =
-                uu::make_tensor_slice(prefill_out_tensor, pre_kv_dim, kv_start, kv_end);
+            auto prefill_out_slice = uu::make_tensor_slice(prefill_out_tensor, pre_kv_dim, kv_start, kv_end);
 
             auto kvcache_in_slice =
                 uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);

@@ -1269,7 +1269,8 @@ bool ov::npuw::util::isPastValueParam(const std::string& str) {
     //   - contiguous, e.g. past_key_values.0.value
     //   - block-split, e.g. past_key_values.0.value_block_3, past_key_values.0.value_block_tail
     //   - SWA-managed, e.g. past_key_values.0.swa.value
-    static const std::regex pattern(R"((?:input_restored\.)?past_key_values\.\d+(?:\.[^.]+)*\.value(_block_(\d+|tail))?)");
+    static const std::regex pattern(
+        R"((?:input_restored\.)?past_key_values\.\d+(?:\.[^.]+)*\.value(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
