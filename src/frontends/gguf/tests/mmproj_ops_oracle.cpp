@@ -81,6 +81,37 @@ int quantized_view(const std::filesystem::path& directory) {
     return status;
 }
 
+int im2col_3d(const std::filesystem::path& directory, bool mixed) {
+    auto* ctx = ggml_init({16 * 1024 * 1024, nullptr, false});
+    auto* input = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, mixed ? 3 : 2, 2, 2, mixed ? 4 : 1);
+    for (int i = 0; i < (mixed ? 48 : 8); ++i)
+        static_cast<float*>(input->data)[i] = static_cast<float>(i + 1);
+    auto* kernel = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, mixed ? 2 : 3, mixed ? 2 : 3, mixed ? 2 : 3, mixed ? 2 : 1);
+    auto* output = ggml_im2col_3d(ctx,
+                                  kernel,
+                                  input,
+                                  mixed ? 2 : 1,
+                                  2,
+                                  mixed ? 1 : 2,
+                                  mixed ? 1 : 2,
+                                  mixed ? 1 : 0,
+                                  0,
+                                  0,
+                                  mixed ? 2 : 1,
+                                  1,
+                                  1,
+                                  GGML_TYPE_F32);
+    auto* graph = ggml_new_graph(ctx);
+    ggml_build_forward_expand(graph, output);
+    const auto status = ggml_graph_compute_with_ctx(ctx, graph, 2);
+    if (status == GGML_STATUS_SUCCESS) {
+        std::ofstream file(directory / (mixed ? "im2col_3d_mixed.bin" : "im2col_3d_partial.bin"), std::ios::binary);
+        file.write(static_cast<char*>(output->data), ggml_nbytes(output));
+    }
+    ggml_free(ctx);
+    return status == GGML_STATUS_SUCCESS ? 0 : 1;
+}
+
 // One op per mode: vision/imrope RoPE, antialiased bilinear resize variants, or 2D im2col.
 int single_op(const std::string& mode, const std::filesystem::path& output) {
     const bool vision = mode == "vision";
@@ -160,6 +191,8 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories(directory);
     int status = geometry(directory);
     status = status ? status : quantized_view(directory);
+    status = status ? status : im2col_3d(directory, false);
+    status = status ? status : im2col_3d(directory, true);
     for (const char* mode :
          {"vision", "imrope", "resize", "resize_corners", "resize_down", "resize_down_corners", "im2col7", "im2col9"})
         status = status ? status : single_op(mode, directory / (std::string(mode) + ".bin"));

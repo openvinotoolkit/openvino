@@ -26,8 +26,6 @@ OutputVector translate_get_rows(const NodeContext& context) {
     const bool relative_shift = context.get_attribute<bool>("relative_shift", false);
     num_inputs_check(context, relative_shift ? 1 : 2, relative_shift ? 1 : 2);
 
-    int op_case = context.get_op_case();
-
     Output<Node> res;
     auto data = context.get_input(0);
     ov::Output<ov::Node> indices;
@@ -58,7 +56,30 @@ OutputVector translate_get_rows(const NodeContext& context) {
             std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v1::Subtract>(length, scalar(1)), row),
             column);
     }
-    if (context.get_attribute<bool>("gather_elements", false) || relative_shift) {
+    if (context.get_attribute<bool>("moe_weight_gather", false)) {
+        const auto ids_shape = indices.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(
+            ids_shape.rank().is_static() && ids_shape.rank().get_length() == 4 && ids_shape[3].is_static(),
+            "MoE weight gather expects rank-4 indices with a static selected-expert dimension");
+        const auto selected_experts = ids_shape[3].get_length();
+        auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
+        ov::Output<Node> gathered;
+        if (context.get_attribute<bool>("shared_row", false)) {
+            auto row = std::make_shared<ov::op::v1::Reshape>(data,
+                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                                             false);
+            gathered =
+                std::make_shared<ov::op::v8::Gather>(row, idx, ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+        } else {
+            gathered = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);
+        }
+        auto columns = std::make_shared<ov::op::v1::Reshape>(
+            gathered,
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, selected_experts, 1}),
+            false);
+        return rename_outputs_with_suffix({convert_rows(columns)}, context.get_name());
+    }
+    if (context.get_attribute<bool>("gather_row_elements", false) || relative_shift) {
         // Select a column independently in each row; singleton index batches broadcast.
         auto shape = std::make_shared<ov::op::v0::Concat>(
             ov::OutputVector{get_dimensions(data, {0, 1, 2}), get_dimensions(indices, {3})},
@@ -68,49 +89,22 @@ OutputVector translate_get_rows(const NodeContext& context) {
             {convert_rows(std::make_shared<ov::op::v6::GatherElements>(data, indices, 3))},
             context.get_name());
     }
-    if (op_case == 3) {
+    if (context.get_attribute<bool>("data_only", false)) {
         return {convert_rows(data)};
     }
 
-    if (op_case == 4) {
-        auto flat_indices =
-            std::make_shared<ov::op::v0::Squeeze>(indices,
-                                                  ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
-        auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {2});
-        res = std::make_shared<ov::op::v8::Gather>(data, flat_indices, axis);
+    // Rows gathered independently in every [ne3, ne2] batch: data [ne3, ne2, ne1, ne0], indices [1, ne3, ne2, k].
+    if (context.get_attribute<bool>("gather_rows", false)) {
+        auto batched =
+            std::make_shared<ov::op::v0::Squeeze>(indices, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
+        res = std::make_shared<ov::op::v8::Gather>(data,
+                                                   batched,
+                                                   ov::op::v0::Constant::create(ov::element::i64, {}, {2}),
+                                                   2);
         return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
     }
 
-    // MoE gating-weight gather (op_case 10): data = probs [1,1,T,E], indices = selected experts
-    // [1,1,T,K]; per-row (GatherElements) gather over the expert axis picks each token's K
-    // selected-expert probs -> [1,1,T,K], distinct from the embedding-style row gather below.
-    if (op_case == 10) {
-        // Reshape to [1,T,K,1] for the broadcast-multiply with experts [1,T,K,n_embd]. Use an
-        // explicit [1,-1,K,1] reshape (K is static, read via PartialShape to avoid .to_shape()
-        // throwing when T is dynamic) instead of Squeeze+Unsqueeze, which the CPU plugin
-        // implements as a Reshape internally and mis-infers the static pattern when T=1.
-        const auto ids_shape = indices.get_partial_shape();
-        const int64_t K = ids_shape[ids_shape.size() - 1].get_length();
-        auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
-        // A single shared row (per-expert scales [1,1,1,E]) is gathered directly instead of per token.
-        ov::Output<Node> ge;
-        if (context.get_attribute<bool>("shared_row", false)) {
-            auto row = std::make_shared<ov::op::v1::Reshape>(data,
-                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
-                                                             false);
-            ge =
-                std::make_shared<ov::op::v8::Gather>(row, idx, ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-        } else {
-            ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
-        }
-        auto col = std::make_shared<ov::op::v1::Reshape>(
-            ge,
-            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, K, 1}),
-            false);  // [1,T,K,1]
-        return rename_outputs_with_suffix({convert_rows(col)}, context.get_name());
-    }
-
-    if (op_case == 2) {
+    if (context.get_attribute<bool>("indices_view", false)) {
         // The input comes from a VIEW
         indices = process_view_input(context, 1);
     }

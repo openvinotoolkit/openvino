@@ -28,9 +28,14 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     auto sx_shape = context.get_input_shape(0);
     auto c_shape = context.get_input_shape(1);
 
-    int64_t n_s = sx_shape[1].get_length();
-    int64_t d_inner = sx_shape[2].get_length();
-    int64_t d_conv = c_shape[3].get_length();
+    FRONT_END_OP_CONVERSION_CHECK(sx_shape.rank().is_static() && sx_shape.rank().get_length() >= 3 &&
+                                      c_shape.rank().is_static() && c_shape.rank().get_length() >= 2,
+                                  "SSM_CONV requires static input ranks");
+    const auto sx_rank = sx_shape.rank().get_length();
+    const auto c_rank = c_shape.rank().get_length();
+    int64_t n_s = sx_shape[sx_rank - 3].get_length();
+    int64_t d_inner = sx_shape[sx_rank - 2].get_length();
+    int64_t d_conv = c_shape[c_rank - 1].get_length();
 
     // The conv-window length ncs (= n_t + d_conv - 1) and the token count n_t are token-dependent: the
     // stateful model is compiled once and reused across token counts, so keep those axes dynamic (-1)

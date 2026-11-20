@@ -20,6 +20,7 @@
 #include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -1023,4 +1024,85 @@ TEST(GGUFQ5KRequant, RejectsUnsupportedStorageLayouts) {
             EXPECT_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K), ov::Exception);
         }
     }
+}
+
+namespace {
+
+class WeightsFileDecoder : public SingleOpDecoder {
+public:
+    WeightsFileDecoder(const ov::Tensor& data, WeightsFileResolver resolver)
+        : SingleOpDecoder("GGML_OP_NONE",
+                          {},
+                          {},
+                          {"w", ov::element::f32, ov::Shape{4, 8}},
+                          {{"data", ov::Any(data)},
+                           {"quant_type", ov::Any(std::string("F32"))},
+                           {"output_type", ov::Any(ov::element::f32)}}),
+          m_resolver(std::move(resolver)) {}
+
+    WeightsFileResolver get_weights_file_resolver() const override {
+        return m_resolver;
+    }
+
+private:
+    WeightsFileResolver m_resolver;
+};
+
+std::shared_ptr<ov::op::v0::Constant> convert_weight(const ov::Tensor& data,
+                                                     GgufDecoder::WeightsFileResolver resolver) {
+    FrontEnd fe;
+    auto model = fe.convert(
+        fe.load(std::shared_ptr<GgufDecoder>(std::make_shared<WeightsFileDecoder>(data, std::move(resolver)))));
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto cnst = ov::as_type_ptr<ov::op::v0::Constant>(node); cnst && ov::shape_size(cnst->get_shape()) == 32)
+            return cnst;
+    }
+    return nullptr;
+}
+
+ov::Tensor f32_weight_bytes() {
+    std::vector<float> vals(32);
+    for (size_t i = 0; i < vals.size(); ++i)
+        vals[i] = static_cast<float>(i);
+    ov::Tensor data(ov::element::u8, ov::Shape{vals.size() * sizeof(float)});
+    std::memcpy(data.data(), vals.data(), data.get_byte_size());
+    return data;
+}
+
+}  // namespace
+
+TEST(GGUFWeightlessCache, DefaultTagsUniqueKeys) {
+    auto cnst = convert_weight(f32_weight_bytes(), {});
+    ASSERT_NE(cnst, nullptr);
+    const auto& rt_info = cnst->get_rt_info();
+    auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+    ASSERT_NE(it, rt_info.end());
+    EXPECT_EQ(it->second.as<ov::WeightlessCacheAttribute>().bin_offset, 0u);
+}
+
+TEST(GGUFWeightlessCache, ResolverPlacesConstantsInWeightsFile) {
+    std::vector<std::pair<const void*, size_t>> calls;
+    auto cnst = convert_weight(f32_weight_bytes(), [&](const void* data, size_t byte_size) {
+        calls.emplace_back(data, byte_size);
+        return std::optional<size_t>{4096};
+    });
+    ASSERT_NE(cnst, nullptr);
+    ASSERT_EQ(calls.size(), 1u);
+    EXPECT_EQ(calls[0].first, cnst->get_data_ptr());
+    EXPECT_EQ(calls[0].second, cnst->get_byte_size());
+    const auto& rt_info = cnst->get_rt_info();
+    auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+    ASSERT_NE(it, rt_info.end());
+    const auto& attr = it->second.as<ov::WeightlessCacheAttribute>();
+    EXPECT_EQ(attr.bin_offset, 4096u);
+    EXPECT_EQ(attr.original_size, cnst->get_byte_size());
+    EXPECT_EQ(attr.original_dtype, cnst->get_element_type());
+}
+
+TEST(GGUFWeightlessCache, ResolverLeavesRejectedConstantsUntagged) {
+    auto cnst = convert_weight(f32_weight_bytes(), [](const void*, size_t) {
+        return std::optional<size_t>{};
+    });
+    ASSERT_NE(cnst, nullptr);
+    EXPECT_EQ(cnst->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()), 0u);
 }

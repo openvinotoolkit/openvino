@@ -479,7 +479,7 @@ TEST(GGUFLfm3MediaAdapter, ProjectorSuppliedContractIsPreserved) {
                                                       {{"custom", {{"audio.embeddings"}, "audio.custom_state."}}}};
                 graph.configure_model_contract(contract);
                 auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 2});
-                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}), {}};
+                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.f}, {"bias", 0.f}}), {}};
             }),
         RegistrationMode::Replace));
     auto model = frontend.convert(frontend.load(fixture.path));

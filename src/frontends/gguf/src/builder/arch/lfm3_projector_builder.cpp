@@ -37,7 +37,6 @@ public:
             spatial = add(spatial,
                           g.node("GGML_OP_CONV_2D",
                                  {g.tensors().require("v.patch_embd.weight.1"), second},
-                                 0,
                                  {{"conv_params", std::vector<int64_t>{patch, patch, 0, 0, 1, 1}}}));
         }
         auto x = transpose(reshape(spatial, {1, 1, width, -1}));
@@ -67,7 +66,6 @@ public:
         // Unfold is channel-major; restore raster 2x2 patches with features innermost.
         x = g.node("GGML_OP_IM2COL",
                    {to_grid(x, spatial)},
-                   0,
                    {{"kernel_shape", ov::Shape{size_t(4 * width), size_t(width), 2, 2}},
                     {"im2col_params", std::vector<int32_t>{2, 2, 0, 0, 1, 1, 1}},
                     {"dst_type", ov::element::f32}});
@@ -99,7 +97,7 @@ public:
         const auto flat = g.tensors().require("a.pre_encode.out.weight").ne(0);
         x = linear(reshape(transpose(x, {0, 3, 1, 2}), {1, 1, -1, flat}), "a.pre_encode.out");
         auto index = scale(g.node("GGML_OP_CUMSUM", {transpose(scale(slice(x, 3, 0, 1), 0.f, 1.f))}), 1.f, -1.f);
-        auto positions = g.node("GGML_OP_CPY", {add(index, base_position)}, 0, {{"dst_type", ov::element::i32}});
+        auto positions = g.node("GGML_OP_CPY", {add(index, base_position)}, {{"dst_type", ov::element::i32}});
         update(base_position, add(base_position, scale(slice(index, 3, -1, 1), 1.f, 1.f)));
         for (int64_t layer = 0; layer < layers; ++layer) {
             const auto p = "a.blk." + std::to_string(layer) + ".";
@@ -143,13 +141,13 @@ private:
     }
 
     GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape) {
-        return g.node("GGML_OP_RESHAPE", {x}, 6, {{"reshape_target", std::move(shape)}});
+        return g.node("GGML_OP_RESHAPE", {x}, {{"reshape_target", std::move(shape)}});
     }
     GgufValue transpose(const GgufValue& x, std::vector<int64_t> perm = {0, 1, 3, 2}) {
-        return g.node("GGML_OP_TRANSPOSE", {x}, 0, {{"perm", std::move(perm)}});
+        return g.node("GGML_OP_TRANSPOSE", {x}, {{"perm", std::move(perm)}});
     }
     GgufValue slice(const GgufValue& x, int64_t axis, int64_t begin, int64_t count) {
-        return g.node("GGML_OP_VIEW", {x}, 3, {{"view_slice", std::vector<int64_t>{axis, begin, count}}});
+        return g.node("GGML_OP_VIEW", {x}, {{"view_slice", std::vector<int64_t>{axis, begin, count}}});
     }
     GgufValue add(const GgufValue& x, const GgufValue& y) {
         return g.node("GGML_OP_ADD", {x, y});
@@ -158,10 +156,10 @@ private:
         return g.node("GGML_OP_MUL", {x, y});
     }
     GgufValue concat(const GgufValue& x, const GgufValue& y, int64_t axis) {
-        return g.node("GGML_OP_CONCAT", {x, y}, 0, {{"concat_axis", int(3 - axis)}});
+        return g.node("GGML_OP_CONCAT", {x, y}, {{"concat_axis", int(3 - axis)}});
     }
     GgufValue scale(const GgufValue& x, float value, float bias = 0.f) {
-        return g.node("GGML_OP_SCALE", {x}, 0, {{"scale", value}, {"bias", bias}});
+        return g.node("GGML_OP_SCALE", {x}, {{"scale", value}, {"bias", bias}});
     }
     GgufValue linear(const GgufValue& x, const std::string& name) {
         auto y = g.node("GGML_OP_MUL_MAT", {g.tensors().require(name + ".weight"), x});
@@ -182,13 +180,11 @@ private:
     conv(const GgufValue& x, const std::string& name, int64_t sx, int64_t sy, int64_t px, int64_t py, bool dw = false) {
         return g.node("GGML_OP_CONV_2D",
                       {g.tensors().require(name + ".weight"), x},
-                      0,
                       {{"conv_params", std::vector<int64_t>{sx, sy, px, py, 1, 1}}, {"depthwise", dw}});
     }
     GgufValue to_grid(const GgufValue& tokens, const GgufValue& spatial) {
         return g.node("GGML_OP_RESHAPE",
                       {transpose(tokens), spatial},
-                      0,
                       {{"reshape_target", std::vector<int64_t>{1, width, 0, 0}},
                        {"shape_axes", std::vector<int64_t>{-1, -1, 2, 3}}});
     }
@@ -213,7 +209,7 @@ private:
         auto previous = state(slot, {1, shape[1], shape[2], 1});
         x = concat(previous, x, 3);
         update(previous, slice(x, 3, -1, 1));
-        x = g.node("GGML_OP_PAD", {x}, 0, {{"pad_params", std::vector<int32_t>{0, 1, 0, 0, 0, 0, 0, 0}}});
+        x = g.node("GGML_OP_PAD", {x}, {{"pad_params", std::vector<int32_t>{0, 1, 0, 0, 0, 0, 0, 0}}});
         return add(conv(x, name, 2, 2, 0, 1, dw), g.tensors().require(name + ".bias"));
     }
     GgufValue attention(const GgufValue& x,
@@ -240,8 +236,9 @@ private:
             rope.beta_slow = 1.f;
             rope.sections = {int32_t(head / 4), int32_t(head / 4), 0, 0};
         }
-        q = g.node("GGML_OP_ROPE", {q, positions}, (vision ? 3 : 1) << 16, {{"rope_config", rope}});
-        k = g.node("GGML_OP_ROPE", {k, positions}, (vision ? 3 : 1) << 16, {{"rope_config", rope}});
+        const std::string rope_mode = vision ? "vision" : "neox";
+        q = g.node("GGML_OP_ROPE", {q, positions}, {{"rope_mode", rope_mode}, {"rope_config", rope}});
+        k = g.node("GGML_OP_ROPE", {k, positions}, {{"rope_mode", rope_mode}, {"rope_config", rope}});
         std::vector<GgufValue> inputs{q, k, v};
         if (!vision) {
             auto previous_k = state("k_" + std::to_string(layer), {1, 1, prefix, kv_heads * head});
@@ -259,7 +256,7 @@ private:
                                        -1.f - float(prefix));
                 auto distance = g.node("GGML_OP_SUB", {transpose(index), key_index});
                 auto clamp = [&](const GgufValue& value) {
-                    return g.node("GGML_OP_CLAMP", {value}, 0, {{"clamp_min", 0.f}, {"clamp_max", 1.f}});
+                    return g.node("GGML_OP_CLAMP", {value}, {{"clamp_min", 0.f}, {"clamp_max", 1.f}});
                 };
                 auto inside = mul(clamp(scale(distance, 1.f, 1.f)), clamp(scale(distance, -1.f, float(prefix + 1))));
                 inside = mul(inside, clamp(scale(add(key_index, base_position), 1.f, 1.f)));
@@ -269,8 +266,9 @@ private:
         }
         return linear(reshape(g.node("GGML_OP_FLASH_ATTN_EXT",
                                      inputs,
-                                     100,
-                                     {{"f32_attention", true}, {"scale", 1.f / std::sqrt(float(head))}}),
+                                     {{"f32_attention", true},
+                                      {"scale", 1.f / std::sqrt(float(head))},
+                                      {"attention_layout", std::string("native")}}),
                               {1, 1, -1, width}),
                       p + "attn_out");
     }

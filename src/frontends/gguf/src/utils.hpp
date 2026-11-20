@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "node_context.hpp"
@@ -66,6 +68,13 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
 // x / max(sqrt(sum(x^2, -1)), eps), matching ggml's l2_norm.
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps);
 
+// ggml's per-head ALiBi slopes as a rank-`rank` constant with `n_head` values along `head_axis`.
+ov::Output<ov::Node> make_alibi_slopes(const ov::element::Type& type,
+                                       size_t rank,
+                                       size_t head_axis,
+                                       uint32_t n_head,
+                                       float max_bias);
+
 ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input, bool matrix_form = false);
 void decompose_hadamard(ov::Output<ov::Node> input);
 
@@ -89,9 +98,29 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
                                                            std::shared_ptr<ov::Node> inp_pos,
                                                            std::shared_ptr<ov::Node> rope_freqs_weight = nullptr,
                                                            bool imrope = false,
-                                                           bool stateful = false);
+                                                           bool stateful = false,
+                                                           bool mrope = false);
 
 ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_index, int slice_len = 0);
+
+// The runtime-sized KQ mask for an input that is a mask parameter itself; masks derived from it, e.g. the
+// rows gemma-4's KV-shared layers gather, are not replaced. Returns an empty output when there is none.
+ov::Output<ov::Node> get_sliced_kq_mask(const NodeContext& context, size_t input_index);
+
+// The [begin, begin + length) range a SCALE or FILL applies to: operands 1 and 2, or the decoder's recurrent cache
+// reset inputs when the "cache_reset" attribute is set. Returns nothing when the op covers its whole input.
+std::optional<std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> get_update_range(const NodeContext& context);
+
+// Replaces the [begin, begin + length) range of `value` along `axis` by `update` applied to that range.
+ov::Output<ov::Node> update_axis_range(const ov::Output<ov::Node>& value,
+                                       const ov::Output<ov::Node>& begin,
+                                       const ov::Output<ov::Node>& length,
+                                       int64_t axis,
+                                       const std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&)>& update);
+
+inline bool is_kvcache_4d_shape(const ov::PartialShape& shape) {
+    return shape.rank() == 4 && shape[0] == 1 && shape[1].is_dynamic() && shape[2].is_static() && shape[3].is_static();
+}
 
 namespace op {
 template <typename T>

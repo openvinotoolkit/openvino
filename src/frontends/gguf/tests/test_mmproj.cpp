@@ -138,7 +138,7 @@ TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
         "custom-audio",
         [](GgufGraphContext& graph) {
             auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 3});
-            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}}),
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.0f}, {"bias", 0.0f}}),
                                    {{"audio.merge", "1"}}};
         },
         {}});
@@ -268,7 +268,7 @@ TEST_F(GGUFMMProj, CustomProjectorOverridesSerializableGenAILayout) {
         "custom-layout",
         [](GgufGraphContext& graph) {
             auto input = graph.add_input("vision.custom_pixels", ov::element::f32, {1, 1, 2, 3});
-            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}),
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.f}, {"bias", 0.f}}),
                                    {},
                                    ProjectorLayout::Image};
         },
@@ -370,7 +370,7 @@ TEST_F(GGUFMMProj, ArbitraryProjectorCallbacksOverrideRecipesAndDefinitions) {
             "custom-callback",
             [callback](GgufGraphContext& graph) {
                 auto input = graph.add_input("vision.custom_pixels", ov::element::f32, {1, 1, 2, 3});
-                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}),
+                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.f}, {"bias", 0.f}}),
                                        {},
                                        ProjectorLayout::Image,
                                        callback};
@@ -636,7 +636,7 @@ TEST_F(GGUFMMProj, AdaptToGenAIRespectsAudioAdapterModels) {
             "custom-audio",
             [](GgufGraphContext& graph) {
                 auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 3});
-                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}), {}};
+                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.f}, {"bias", 0.f}}), {}};
             },
             {},
             {},
@@ -694,8 +694,7 @@ TEST_F(GGUFMMProj, EmbeddingsCallbacksOverrideBothModalitiesWithOptionalModelMap
                 "custom-embeddings",
                 [modality](GgufGraphContext& graph) {
                     auto input = graph.add_input(modality + ".custom_values", ov::element::f32, {1, 1, 2, 3});
-                    return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}),
-                                           {}};
+                    return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.f}, {"bias", 0.f}}), {}};
                 },
                 {},
                 {},
@@ -762,7 +761,7 @@ TEST_F(GGUFMMProj, ExtensionReplacesOnlyOneBuiltinComponent) {
         "gemma3",
         [](GgufGraphContext& graph) {
             auto input = graph.add_input("replacement", ov::element::f32, {1, 1, 2, 3});
-            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}}), {}};
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.0f}, {"bias", 0.0f}}), {}};
         },
         {}};
     FrontEnd frontend;

@@ -83,13 +83,13 @@ public:
                 const auto conv_state =
                     g.add_input("conv_state_l" + std::to_string(layer), ov::element::f32, {1, 1, conv_dim, kernel - 1});
                 const auto window =
-                    g.node("GGML_OP_CONCAT", {conv_state, g.node("GGML_OP_TRANSPOSE", {xbc})}, 0, {{"concat_axis", 0}});
+                    g.node("GGML_OP_CONCAT", {conv_state, g.node("GGML_OP_TRANSPOSE", {xbc})}, {{"concat_axis", 0}});
                 g.add_recurrent_state(conv_state, slice(window, -(kernel - 1), kernel - 1));
                 xbc = g.node("GGML_OP_SSM_CONV", {window, w("ssm_conv1d.weight")});
                 if (weights.has(prefix + "ssm_conv1d.bias"))
                     xbc = g.node("GGML_OP_ADD", {xbc, w("ssm_conv1d.bias")});
                 xbc = g.node("GGML_UNARY_OP_SILU", {xbc});
-                xbc = g.node("GGML_OP_VIEW", {xbc, xbc_layout}, 3);
+                xbc = g.node("GGML_OP_VIEW", {xbc, xbc_layout});
                 const auto x = reshape(slice(xbc, 0, inner), {0, -1, heads, head_dim});
                 const auto b = reshape(slice(xbc, inner, groups * state_size), {0, -1, groups, state_size});
                 const auto c =
@@ -103,7 +103,7 @@ public:
                     state,
                     reshape(slice(scan, -state_elements, state_elements), {1, heads, head_dim, state_size}));
                 auto y =
-                    g.node("GGML_OP_VIEW", {scan, x}, 3, {{"view_slice", std::vector<int64_t>{3, 0, -state_elements}}});
+                    g.node("GGML_OP_VIEW", {scan, x}, {{"view_slice", std::vector<int64_t>{3, 0, -state_elements}}});
                 y = g.node("GGML_OP_ADD", {y, g.node("GGML_OP_MUL", {x, w("ssm_d")})});
                 y = g.node("GGML_OP_MUL", {y, g.node("GGML_UNARY_OP_SILU", {z})});
                 y = reshape(y, {0, -1, groups, inner / groups});
@@ -126,11 +126,11 @@ public:
 
 private:
     GgufValue reshape(const GgufValue& value, const std::vector<int64_t>& shape) {
-        return g.node("GGML_OP_RESHAPE", {value}, 6, {{"reshape_target", shape}, {"special_zero", true}});
+        return g.node("GGML_OP_RESHAPE", {value}, {{"reshape_target", shape}, {"special_zero", true}});
     }
 
     GgufValue slice(const GgufValue& value, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{3, start, length}}});
+        return g.node("GGML_OP_VIEW", {value}, {{"view_slice", std::vector<int64_t>{3, start, length}}});
     }
 
     GgufGraphContext g;

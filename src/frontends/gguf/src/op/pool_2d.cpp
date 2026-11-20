@@ -19,8 +19,15 @@ namespace ov::frontend::gguf::op {
 OutputVector translate_pool_2d(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
-    const auto params = context.get_attribute<std::vector<int32_t>>("pool_params");
-    FRONT_END_OP_CONVERSION_CHECK(params.size() == 6, "POOL_2D requires 6 params");
+    auto params = context.get_attribute<std::vector<int32_t>>("pool_params");
+    const auto mode = context.get_attribute<std::string>("pool_mode", "max");
+    FRONT_END_OP_CONVERSION_CHECK(params.size() == 6 || params.size() == 7, "POOL_2D requires 6 or 7 params");
+    if (params.size() == 7) {
+        const auto ggml_mode = params.front();
+        params.erase(params.begin());
+        FRONT_END_OP_CONVERSION_CHECK((ggml_mode == 0 && mode == "max") || (ggml_mode == 1 && mode == "average"),
+                                      "POOL_2D pool_mode does not match pool_params");
+    }
     FRONT_END_OP_CONVERSION_CHECK(params[0] > 0 && params[1] > 0, "POOL_2D kernel dimensions must be positive");
     FRONT_END_OP_CONVERSION_CHECK(params[2] > 0 && params[3] > 0, "POOL_2D strides must be positive");
     FRONT_END_OP_CONVERSION_CHECK(params[4] >= 0 && params[5] >= 0, "POOL_2D padding must be nonnegative");
@@ -43,15 +50,12 @@ OutputVector translate_pool_2d(const NodeContext& context) {
     }
 
     ov::Output<Node> result;
-    switch (context.get_op_case()) {
-    case 1:
+    if (mode == "max") {
         result = std::make_shared<ov::op::v1::MaxPool>(input, strides, pads_begin, pads_end, kernel);
-        break;
-    case 2:
+    } else if (mode == "average") {
         result = std::make_shared<ov::op::v1::AvgPool>(input, strides, pads_begin, pads_end, kernel, false);
-        break;
-    default:
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported POOL_2D mode");
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported POOL_2D mode ", mode);
     }
 
     return rename_outputs_with_suffix({std::move(result)}, context.get_name());

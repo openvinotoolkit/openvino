@@ -29,8 +29,6 @@ struct GgufOp {
     std::vector<std::string> input_names;         // producer tensor names (weights / inputs / other nodes)
     std::string output_name;                      // this node's output tensor name
     std::vector<std::string> extra_output_names;  // further outputs of multi-output ops
-    int op_case = 0;
-
     // Typed scalar/struct op attributes consumed by translators via get_attribute<T>
     // (e.g. "eps", "scale", "bias", "max_bias", "swapped", "rope_config").
     std::map<std::string, ov::Any> attributes;

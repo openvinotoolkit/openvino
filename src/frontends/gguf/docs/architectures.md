@@ -266,7 +266,7 @@ Port one fragment at a time, keeping operand order. Use shared blocks only where
 | `ggml_new_tensor_*` for runtime data | `add_input(name, type, shape)` |
 | `ggml_add` / `ggml_sub` / `ggml_mul` | `node("GGML_OP_ADD" / "GGML_OP_SUB" / "GGML_OP_MUL", {a, b})` |
 | `ggml_mul_mat(ctx, weight, x)` | `node("GGML_OP_MUL_MAT", {weight, x})` |
-| `ggml_rms_norm(ctx, x, eps)` | `node("GGML_OP_RMS_NORM", {x}, 0, {{"eps", eps}})`; learned scale is a separate multiply |
+| `ggml_rms_norm(ctx, x, eps)` | `node("GGML_OP_RMS_NORM", {x}, {{"eps", eps}})`; learned scale is a separate multiply |
 | `ggml_reshape_*` | `GGML_OP_RESHAPE` case 6 with OpenVINO-order `reshape_target`, optional `special_zero` |
 | `ggml_permute` | `GGML_OP_PERMUTE` case 1 with OpenVINO-order `perm` |
 | `ggml_view_*` | Converter attributes describing the logical slice; never a ggml pointer |
@@ -278,7 +278,7 @@ Layout rules:
 
 - `ggml_permute` gives each source axis's destination; OpenVINO `perm` lists source axes in output
   order. For GGML axes `axes[i]`, `perm[3 - axes[i]] = 3 - i`. Derive it from axis meanings.
-- VIEW case 3 accepts `view_slice = {ov_axis, start, length}` and optional `view_reshape` for a
+- A sliced VIEW accepts `view_slice = {ov_axis, start, length}` and optional `view_reshape` for a
   contiguous subrange. Strided views need a suitable converter or explicit layout operations.
 - CONT case 1 is a passthrough, but `ggml_cont_2d/3d/4d` still carries a reshape. Keep real transposes.
 - Preserve dynamic token/item axes. A one-token graph does not validate broadcasting.
@@ -374,17 +374,17 @@ resulting `GgufValue` exposes OpenVINO's inferred `shape()`, `type()` and revers
 ```cpp
 auto sum = graph.node("GGML_OP_ADD", {a, b});
 auto projected = graph.node("GGML_OP_MUL_MAT", {weight, sum});
-auto experts = graph.node("GGML_OP_TOP_K", {scores}, 0, {{"k", int64_t{2}}});
-auto heads = graph.node("GGML_OP_RESHAPE", {projected}, 6,
+auto experts = graph.node("GGML_OP_TOP_K", {scores}, {{"k", int64_t{2}}});
+auto heads = graph.node("GGML_OP_RESHAPE", {projected},
                         {{"reshape_target", std::vector<int64_t>{0, -1, n_heads, head_size}},
                          {"special_zero", true}});
-auto merged = graph.node("GGML_OP_RESHAPE", {heads}, 2, {{"merge_heads", true}});
-auto half = graph.node("GGML_OP_CPY", {input}, 0, {{"dst_type", ov::element::f16}});
+auto merged = graph.node("GGML_OP_RESHAPE", {heads}, {{"reshape_mode", std::string("merge_heads")}});
+auto half = graph.node("GGML_OP_CPY", {input}, {{"dst_type", ov::element::f16}});
 ```
 
-Operands follow GGML order (weight before activation). `op_case` selects a converter's semantic
-variant; attributes carry operation parameters (`reshape_target`, `perm`, `view_slice`, `repeats`,
-GGML-order `concat_axis`, TopK `k`), never inferred output metadata. Architecture code does not supply
+Operands follow GGML order (weight before activation). Named mode attributes select a converter's
+semantic variant; other attributes carry operation parameters (`reshape_target`, `perm`, `view_slice`,
+`repeats`, GGML-order `concat_axis`, TopK `k`), never inferred output metadata. Architecture code does not supply
 output types; converters apply the [result-type rules](how_to_add_op.md#translator-shape), and only
 casts and `IM2COL` take `dst_type`. The builder API is not a drop-in `llm_graph_context`; local
 functions may name repeated fragments without extending it.

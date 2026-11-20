@@ -19,11 +19,33 @@ Check that an op translator is actually what is missing:
 
 - **A new architecture or projector** needs an appropriate [builder registration](extensions.md#choose-an-extension).
   Add a translator only when its computation needs an operation missing from the table.
-- **A structurally different use of an existing op** is an `op_case`, not a new translator. Read the
-  [tensor operation contracts](architectures.md#tensor-operations-and-shapes) before
-  adding a case. Its number selects a converter's semantic variant, not the decoder's identity.
+- **A structurally different use of an existing op** is a named operation mode or attribute, not a
+  new translator. Read the [tensor operation contracts](architectures.md#tensor-operations-and-shapes)
+  before adding a mode. The attribute selects the operation's semantic variant, not the decoder's identity.
 - Both decoder paths (native builder and llama.cpp cgraph) share translator bodies, so a change here
-  affects both. Keep the body path-agnostic; branch on `op_case`, never on "which decoder made this".
+  affects both. Keep the body path-agnostic; branch on named operation attributes, never on "which
+  decoder made this".
+
+Both native builders and supplied graph decoders describe operation variants with named attributes.
+Prefer inferred operand shapes over capture-time metadata when a named descriptor already supplies
+the operation's layout.
+
+| Operation | Supplied-decoder description |
+|-----------|-----------------------------|
+| `VIEW` | `view_slice` / `view_reshape`, raw byte strides and offset, or `kv_view` with runtime cache bounds |
+| `RESHAPE` / `CONT` | `reshape_target` / `cont_reshape`, with `-1` for the runtime dimension |
+| `PERMUTE` | `perm`, in OpenVINO axis order |
+| `ROPE` | `rope_mode` (`normal`, `neox`, `imrope`, `mrope`, `vision`) and `rope_config` |
+| `CPY` | Update `axis`, optional `source_slice` / `reshape_target`, destination and optional offset operands |
+| `SCALE` / `FILL` | Optional start and length operands, or `cache_reset` with the recurrent cache reset inputs, for an in-place range update along `axis` |
+| `PAD` | Eight `pad_params`; with a second operand, `pad_to_input_axis` extends that ggml axis to the operand's last dimension at run time (no-cache K/V padded to the KQ mask width) |
+| `POOL_1D` | Four `pool_params`: mode, kernel, stride and padding of the innermost axis |
+| `POOL_2D` | Seven `pool_params`: mode, kernel width/height, strides and padding |
+
+Graph-walk storage updates rebind later reads of a cache and its reshape aliases; `CONT` snapshots
+retain the pre-write value. Unsupported raw `VIEW` layouts fail conversion rather than silently
+returning a contiguous approximation. The supplied-decoder path also registers convolution,
+reduction and unary operations formerly translated by the llama.cpp OpenVINO backend.
 
 ## Checklist
 
@@ -55,7 +77,7 @@ OutputVector translate_<name>(const NodeContext& context) {
     num_inputs_check(context, 1, 2);        // min / max operand count
 
     float eps = context.get_attribute<float>("eps");
-    int op_case = context.get_op_case();
+    const auto mode = context.get_attribute<std::string>("mode", "default");
 
     std::shared_ptr<ov::Node> res = ...;
 
@@ -83,7 +105,6 @@ ggml's packed tensor.
 | `get_input_shape(idx)` | Source layout when supplied by a cgraph decoder; otherwise the inferred input shape padded to GGML rank four |
 | `get_output_shape()` | Legacy cgraph destination layout; unavailable for native builder operations |
 | `get_input_view_element_offset(idx)` | Element (not byte) offset for a ggml VIEW operand |
-| `get_op_case()` | Structural variant (convenience wrapper, defaults to 0) |
 | `get_attribute<T>(name[, default])` | Any other typed op parameter |
 
 Helpers in [`src/utils.hpp`](../src/utils.hpp): `num_inputs_check`, `get_dimensions`,
@@ -180,7 +201,7 @@ rg -n '^TEST\(' src/frontends/gguf/tests/test_ops.cpp
 
 Follow [testing.md](testing.md) for build flags, binary paths, filters, and CI coverage.
 Run the frontend binary unfiltered before finishing so the operation-coverage gate executes.
-Shared translator or VIEW/`op_case` changes also need architecture fingerprints and numerical
+Shared translator or VIEW/mode changes also need architecture fingerprints and numerical
 regressions: a guard that fixes one model can reject another's legitimately contiguous view.
 
 ## Bringing up a model that hits a missing op

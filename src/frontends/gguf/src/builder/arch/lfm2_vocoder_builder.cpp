@@ -71,12 +71,13 @@ public:
             auto q = heads(0, width, "operator.attention.q_layernorm.weight");
             auto k = heads(width, kv_width, "operator.attention.k_layernorm.weight");
             auto v = heads(width + kv_width, kv_width, "");
-            q = g.node("GGML_OP_ROPE", {q, pos}, 0, {{"rope_config", rope}});
-            k = g.node("GGML_OP_ROPE", {k, pos}, 0, {{"rope_config", rope}});
+            q = g.node("GGML_OP_ROPE", {q, pos}, {{"rope_mode", std::string("normal")}, {"rope_config", rope}});
+            k = g.node("GGML_OP_ROPE", {k, pos}, {{"rope_mode", std::string("normal")}, {"rope_config", rope}});
             auto attention = g.node("GGML_OP_FLASH_ATTN_EXT",
                                     {q, k, v, causal},
-                                    100,
-                                    {{"f32_attention", true}, {"scale", 1.f / std::sqrt(float(head))}});
+                                    {{"f32_attention", true},
+                                     {"scale", 1.f / std::sqrt(float(head))},
+                                     {"attention_layout", std::string("native")}});
             x = add(x, linear(reshape(attention, {1, 1, books, width}), p + "operator.out_proj"));
             normalized = g.build_norm(x, weights.require(p + "ffn_norm.weight"), 1e-5f);
             auto gated = g.node("GGML_OP_MUL",
@@ -108,23 +109,23 @@ public:
             codec = codec ? add(codec, frame) : frame;
         }
         g.set_output(feedback, "audio.feedback");
-        g.set_output(g.node("GGML_OP_SCALE", {codec}, 0, {{"scale", 1.f / float(books)}}), "audio.codec_features");
+        g.set_output(g.node("GGML_OP_SCALE", {codec}, {{"scale", 1.f / float(books)}}), "audio.codec_features");
         g.set_output(weights.require("istft.window"), "audio.istft_window");
         return g.finish();
     }
 
 private:
     GgufValue reshape(const GgufValue& value, const std::vector<int64_t>& shape) {
-        return g.node("GGML_OP_RESHAPE", {value}, 0, {{"reshape_target", shape}});
+        return g.node("GGML_OP_RESHAPE", {value}, {{"reshape_target", shape}});
     }
     GgufValue slice(const GgufValue& value, int64_t axis, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{axis, start, length}}});
+        return g.node("GGML_OP_VIEW", {value}, {{"view_slice", std::vector<int64_t>{axis, start, length}}});
     }
     GgufValue add(const GgufValue& a, const GgufValue& b) {
         return g.node("GGML_OP_ADD", {a, b});
     }
     GgufValue concat(const GgufValue& a, const GgufValue& b, int axis) {
-        return g.node("GGML_OP_CONCAT", {a, b}, 0, {{"concat_axis", axis}});
+        return g.node("GGML_OP_CONCAT", {a, b}, {{"concat_axis", axis}});
     }
     GgufValue linear(const GgufValue& value, const std::string& name) {
         auto result = g.node("GGML_OP_MUL_MAT", {g.tensors().require(name + ".weight"), value});

@@ -55,6 +55,8 @@ struct RopeConfig {
     float attn_factor = 0.0f;
     float beta_fast = 0.0f;
     float beta_slow = 0.0f;
+    // Rounds the YaRN correction dims to whole dims, as ggml does unless ggml_rope_set_truncate disables it.
+    bool yarn_truncate = true;
     // When true, each ROPE op builds its own sin/cos from its per-op config (e.g. gemma4, where
     // SWA and global layers use different n_dims), so the shared rope_cos/rope_sin table that
     // TranslateSession::preprocess would otherwise pre-build is skipped.
@@ -87,7 +89,7 @@ public:
     // ── Node scope (the bound node; used by the op translators) ──────────────────────────────
 
     // Typed attribute access. The op translators use this to read scalar operation parameters
-    // (e.g. "eps", "scale", "bias", "swapped", "op_case", "output_type", "rope_config") without
+    // (e.g. "eps", "scale", "bias", "swapped", "output_type", "rope_config") without
     // dereferencing ggml's raw op_params layout.
     ov::Any get_attribute(const std::string& name) const override = 0;
 
@@ -195,6 +197,20 @@ public:
     virtual const ModelAdapters& get_model_adapters() const {
         static const ModelAdapters empty;
         return empty;
+    }
+
+    /// \brief Maps Constant data to its byte offset in a caller-written weights file, or std::nullopt to keep the
+    /// Constant out of that file.
+    using WeightsFileResolver = std::function<std::optional<size_t>(const void* data, size_t byte_size)>;
+
+    /// \brief Weights-file layout for weightless caching.
+    ///
+    /// Conversion tags large Constants with a weightless-cache attribute. By default the attribute
+    /// offset is only a unique key. A caller that writes the weights file itself (for example, a
+    /// weightless NPU blob export) returns a resolver: each Constant is tagged with the offset it
+    /// returns, and Constants it rejects stay untagged so compiled blobs embed them.
+    virtual WeightsFileResolver get_weights_file_resolver() const {
+        return {};
     }
 
     // RoPE configuration, exposed through get_attribute<RopeConfig>("rope_config"):

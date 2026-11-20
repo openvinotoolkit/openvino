@@ -136,15 +136,15 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
         rope_config.attn_factor /= magnitude;
         rope_config_swa.attn_factor /= magnitude;
     }
-    rope_op_case = p.attention.rope_mode == RopeMode::Interleaved ? ROPE_OP_CASE_IMROPE
-                   : p.attention.rope_mode == RopeMode::Neox      ? ROPE_OP_CASE_NEOX
-                                                                  : ROPE_OP_CASE_NORMAL;
-    if (rope_op_case == ROPE_OP_CASE_IMROPE) {
+    rope_mode = p.attention.rope_mode == RopeMode::Interleaved ? "imrope"
+                : p.attention.rope_mode == RopeMode::Neox      ? "neox"
+                                                               : "normal";
+    if (rope_mode == "imrope") {
         rope_config.is_imrope = true;
         rope_config_swa.is_imrope = true;
         rope_config_swa.sections = rope_config.sections;
     }
-    OPENVINO_ASSERT(rope_config.is_imrope == (rope_op_case == ROPE_OP_CASE_IMROPE),
+    OPENVINO_ASSERT(rope_config.is_imrope == (rope_mode == "imrope"),
                     "[GGUF] RoPE configuration must match the selected position layout");
     has_sinks = p.attention.sinks.value_or(has("blk.0.attn_sinks.weight"));
     has_swa = has_swa || has_sinks;
@@ -245,7 +245,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
                         "[GGUF] per-layer RoPE must use the shared position layout");
         use_per_op_rope = use_per_op_rope || !same_rope(settings.rope, rope_config);
     }
-    use_per_op_rope = use_per_op_rope || rope_op_case == ROPE_OP_CASE_IMROPE || rope_config.per_op;
+    use_per_op_rope = use_per_op_rope || rope_mode == "imrope" || rope_config.per_op;
 }
 
 void DecoderConfig::configure_graph(GraphEmitter& emitter, const GgufMetadata& metadata) const {
