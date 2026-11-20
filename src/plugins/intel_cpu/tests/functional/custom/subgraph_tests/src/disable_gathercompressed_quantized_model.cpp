@@ -28,23 +28,26 @@ namespace test {
  *              \       /
  *               \     /
  *               MatMul
+ *
+ * With a per-row (non-scalar) weights scale and non-constant indices, LPT can't move the dequantization
+ * through Gather, so GatherCompressed must be kept for i8/u8 weights as well.
  */
-using DisableGatherCompressedForQuantizedModelParams = std::tuple<element::Type, InputShape, InputShape>;
+using DisableGatherCompressedForQuantizedModelParams = std::tuple<element::Type, InputShape, InputShape, bool>;
 class DisableGatherCompressedForQuantizedModel : public testing::WithParamInterface<DisableGatherCompressedForQuantizedModelParams>,
                                                  virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DisableGatherCompressedForQuantizedModelParams>& obj) {
-        const auto& [weight_prec, inputShape1, inputShape2] = obj.param;
+        const auto& [weight_prec, inputShape1, inputShape2, per_row_scale] = obj.param;
         std::ostringstream result;
         result << "weight_prec=" << weight_prec << "_" << "inputShape1=" << inputShape1 << "_"
-               << "inputShape2=" << inputShape2;
+               << "inputShape2=" << inputShape2 << "_" << "per_row_scale=" << per_row_scale;
         return result.str();
     }
 
 protected:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-        const auto& [weight_prec, inputShape1, inputShape2] = GetParam();
+        const auto& [weight_prec, inputShape1, inputShape2, per_row_scale] = GetParam();
         init_input_shapes({inputShape1, inputShape2});
 
         targetDevice = utils::DEVICE_CPU;
@@ -63,7 +66,10 @@ protected:
         auto weights_shape = Shape{64, 64};
         auto weights = utils::make_constant(weight_prec, weights_shape, utils::InputGenerateData(-1, 2, 32768));
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(type, {1, 1}, {0.625}));
+        auto scale = per_row_scale
+                         ? utils::make_constant(type, Shape{weights_shape[0], 1}, utils::InputGenerateData(1, 1, 1000))
+                         : op::v0::Constant::create(type, {1, 1}, {0.625});
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
         // Indics
         auto softmax = std::make_shared<op::v1::Softmax>(input2, 0);
         auto multiply2 = std::make_shared<op::v1::Multiply>(softmax, op::v0::Constant::create(type, {1}, {64}));
@@ -80,6 +86,7 @@ protected:
     void check_results() {
         const auto& test_param = GetParam();
         const auto compressed_weights_precision = std::get<0>(test_param);
+        const auto per_row_scale = std::get<3>(test_param);
 
         const auto runtime_model = compiledModel.get_runtime_model();
         const auto matmul = runtime_model->get_result()->get_input_node_shared_ptr(0);
@@ -96,6 +103,12 @@ protected:
                     have_gather = true;
                 }
             }
+        }
+
+        if (per_row_scale) {
+            EXPECT_TRUE(have_gather_compressed);
+            EXPECT_FALSE(have_gather);
+            return;
         }
 
         switch (compressed_weights_precision) {
@@ -137,7 +150,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_DisableGatherCompressedForQuantizedModel_basic,
                          DisableGatherCompressedForQuantizedModel,
                          ::testing::Combine(::testing::ValuesIn(weightsPrecisions),
                                             ::testing::ValuesIn(inputShapes1),
-                                            ::testing::ValuesIn(inputShapes2)),
+                                            ::testing::ValuesIn(inputShapes2),
+                                            ::testing::Values(false)),
+                         DisableGatherCompressedForQuantizedModel::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DisableGatherCompressedForQuantizedModel_per_row_scale,
+                         DisableGatherCompressedForQuantizedModel,
+                         ::testing::Combine(::testing::Values(element::i8, element::u8),
+                                            ::testing::ValuesIn(inputShapes1),
+                                            ::testing::ValuesIn(inputShapes2),
+                                            ::testing::Values(true)),
                          DisableGatherCompressedForQuantizedModel::getTestCaseName);
 
 }  // namespace

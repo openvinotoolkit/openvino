@@ -31,6 +31,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/avg_pool.hpp"
@@ -293,6 +294,41 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+// Mirrors ov::pass::low_precision::GatherTransformation::canBeTransformed for GatherCompressed inputs
+// (data, indices, axis, scale[, zero_point]).
+static bool can_lpt_move_dequantization_through_gather(const_node_ptr& gather) {
+    const auto& data_shape = gather->get_input_partial_shape(0);
+    if (data_shape.rank().is_dynamic()) {
+        return false;
+    }
+    const auto axis_const = ov::as_type_ptr<const ov::op::v0::Constant>(gather->get_input_node_shared_ptr(2));
+    if (!axis_const) {
+        return false;
+    }
+    const auto rank = static_cast<size_t>(data_shape.rank().get_length());
+    const auto axis = ov::util::try_normalize_axis(axis_const->cast_vector<int64_t>()[0], data_shape.rank(), *gather);
+    const auto indices_const = ov::as_type_ptr<const ov::op::v0::Constant>(gather->get_input_node_shared_ptr(1));
+    const bool foldable_indices = indices_const && indices_const->get_shape().size() <= 1;
+
+    for (size_t i = 3; i < gather->get_input_size(); ++i) {
+        const auto& deq_pshape = gather->get_input_partial_shape(i);
+        if (deq_pshape.is_dynamic()) {
+            return false;
+        }
+        auto deq_shape = deq_pshape.to_shape();
+        if (ov::shape_size(deq_shape) == 1) {
+            continue;
+        }
+        while (deq_shape.size() < rank) {
+            deq_shape.insert(deq_shape.begin(), 1);
+        }
+        if (axis < deq_shape.size() && deq_shape[axis] != 1 && !foldable_indices) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
         const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
@@ -505,11 +541,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
 
                 // Prioritize LPT pipeline to handle dequantization part for quantized models as it more optimal in
-                // general case
+                // general case. Keep GatherCompressed when LPT can't move the dequantization through Gather,
+                // otherwise the compressed table would be decompressed to f32.
                 if (ov::intel_cpu::any_of(node->get_input_node_shared_ptr(0)->get_element_type(),
                                           ov::element::u8,
                                           ov::element::i8) &&
-                    useLpt) {
+                    useLpt && can_lpt_move_dequantization_through_gather(node)) {
                     return true;
                 }
             }
