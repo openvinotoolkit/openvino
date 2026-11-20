@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <unordered_map>
 
@@ -87,7 +88,7 @@ bool is_sparse_score(const std::shared_ptr<Node>& node) {
            name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-void lower_real_qsa(const std::shared_ptr<Model>& model) {
+void lower_real_qsa(const std::shared_ptr<Model>& model, bool dense = false) {
     const auto exported = exported_sparse_count(model);
     ov::npuw::QwenSparseAttentionFusion fusion;
     fusion.run_on_model(model);
@@ -97,7 +98,11 @@ void lower_real_qsa(const std::shared_ptr<Model>& model) {
         model->validate_nodes_and_infer_types();
     }
     const auto mask_parameter = model->input("attention_mask").get_node_shared_ptr();
-    ASSERT_TRUE(ov::npuw::LowerSparseAttentionToGathered(mask_parameter).run_on_model(model));
+    if (dense) {
+        ASSERT_TRUE(ov::npuw::LowerSparseAttention(mask_parameter).run_on_model(model));
+    } else {
+        ASSERT_TRUE(ov::npuw::LowerSparseAttentionToGathered(mask_parameter).run_on_model(model));
+    }
     fusion.lower_indexers();
     if (exported) {
         ASSERT_TRUE(ov::npuw::LowerSparseAttentionIndexer().run_on_model(model));
@@ -146,27 +151,12 @@ TEST(PrepareQSAIndexCacheTest, RealQwen4PaddedPrefillMatchesUnpaddedReference) {
                (name.size() >= 4 && name.compare(name.size() - 4, 4, ".key") == 0) ||
                (name.size() >= 6 && name.compare(name.size() - 6, 6, ".value") == 0);
     };
-    auto run = [&](const std::shared_ptr<Model>& target, size_t width, bool stateful) {
+    auto run = [&](const std::shared_ptr<Model>& target, size_t width) {
         auto compiled = core.compile_model(target, "CPU", hint::inference_precision(element::f32));
         auto request = compiled.create_infer_request();
         for (const auto& port : compiled.inputs()) {
             const auto names = port.get_names();
-            Tensor tensor;
-            if (stateful) {
-                if (names.count("inputs_embeds")) {
-                    tensor = Tensor(element::f32, Shape{1, width, hidden});
-                } else if (names.count("attention_mask")) {
-                    tensor = Tensor(element::i64, Shape{1, width});
-                } else if (names.count("position_ids")) {
-                    tensor = Tensor(element::i64, Shape{4, 1, width});
-                } else if (names.count("beam_idx")) {
-                    tensor = Tensor(element::i32, Shape{1});
-                } else {
-                    OPENVINO_THROW("Unexpected reference input: ", port.get_any_name());
-                }
-            } else {
-                tensor = Tensor(port.get_element_type(), port.get_shape());
-            }
+            Tensor tensor(port.get_element_type(), port.get_shape());
             if (tensor.get_byte_size() != 0) {
                 std::memset(tensor.data(), 0, tensor.get_byte_size());
             }
@@ -191,51 +181,26 @@ TEST(PrepareQSAIndexCacheTest, RealQwen4PaddedPrefillMatchesUnpaddedReference) {
         const auto* last = output.data<const float>() + output.get_size() - output.get_shape().back();
         InferenceData data;
         data.logits.assign(last, last + output.get_shape().back());
-        if (stateful) {
-            for (const auto& state : request.query_state()) {
-                const auto name = state.get_name();
+        for (const auto& port : compiled.outputs()) {
+            for (const auto& name : port.get_names()) {
                 if (!is_recurrent_state(name) && !is_kv_state(name)) {
                     continue;
                 }
-                const auto present = name.find("cache_params.present.");
-                OPENVINO_ASSERT(present != std::string::npos, "Unexpected state name: ", name);
-                const auto tensor = state.get_state();
+                const auto tensor = request.get_tensor(port);
                 OPENVINO_ASSERT(tensor.get_element_type() == element::f32);
                 if (is_kv_state(name)) {
-                    const auto kind_start = present + std::string("cache_params.present.").size();
-                    const auto kind_end = name.find('.', kind_start);
-                    OPENVINO_ASSERT(kind_end != std::string::npos, "Unexpected KV state name: ", name);
-                    const auto normalized =
-                        "present." + name.substr(kind_end + 1) + "." + name.substr(kind_start, kind_end - kind_start);
-                    data.kv_states.emplace(normalized, tensor);
+                    data.kv_states.emplace(name, tensor);
                 } else {
                     const auto* values = tensor.data<const float>();
-                    data.recurrent_states.emplace(name.substr(present),
-                                                  std::vector<float>(values, values + tensor.get_size()));
-                }
-            }
-        } else {
-            for (const auto& port : compiled.outputs()) {
-                for (const auto& name : port.get_names()) {
-                    if (!is_recurrent_state(name) && !is_kv_state(name)) {
-                        continue;
-                    }
-                    const auto tensor = request.get_tensor(port);
-                    OPENVINO_ASSERT(tensor.get_element_type() == element::f32);
-                    if (is_kv_state(name)) {
-                        data.kv_states.emplace(name, tensor);
-                    } else {
-                        const auto* values = tensor.data<const float>();
-                        data.recurrent_states.emplace(name, std::vector<float>(values, values + tensor.get_size()));
-                    }
+                    data.recurrent_states.emplace(name, std::vector<float>(values, values + tensor.get_size()));
                 }
             }
         }
         return data;
     };
 
-    const auto reference_data = run(reference_model, prompt, false);
-    const auto actual_data = run(model, 64, false);
+    const auto reference_data = run(reference_model, prompt);
+    const auto actual_data = run(model, 64);
     const auto& reference = reference_data.logits;
     const auto& actual = actual_data.logits;
     ASSERT_EQ(actual.size(), reference.size());
@@ -305,6 +270,15 @@ TEST(PrepareQSAIndexCacheTest, RealQwen4StaticDecodeMatchesStatefulReference) {
     Core core;
     auto model = core.read_model(path);
     auto reference_model = model->clone();
+    if (exported_sparse_count(reference_model)) {
+        const auto supported = core.query_model(reference_model, "CPU");
+        for (const auto& node : reference_model->get_ordered_ops()) {
+            if (ov::is_type<ov::op::v17::QSAPrepare>(node) && supported.count(node->get_friendly_name()) == 0) {
+                GTEST_SKIP() << "The CPU plugin does not support the exported QSAPrepare reference; "
+                                "RealQwen4GatheredDecodeMatchesDenseReference tests the NPUW paths independently.";
+            }
+        }
+    }
     ASSERT_TRUE(ov::pass::StatefulToStateless().run_on_model(model));
     ASSERT_TRUE(ov::npuw::PrepareQSAIndexCache(capacity).run_on_model(model));
     ASSERT_TRUE(ov::npuw::ReshapeToStatic(1, capacity, ov::npuw::KVAxesPosition{0u, 2u}, 0u).run_on_model(model));
@@ -445,6 +419,111 @@ TEST(PrepareQSAIndexCacheTest, RealQwen4StaticDecodeMatchesStatefulReference) {
                     std::copy_n(output.data<const float>() + (head * capacity + capacity - 1) * shape[3],
                                 shape[3],
                                 input.data<float>() + (head * shape[2] + position) * shape[3]);
+                }
+            }
+        }
+    }
+}
+
+TEST(PrepareQSAIndexCacheTest, RealQwen4GatheredDecodeMatchesDenseReference) {
+    const auto* path = std::getenv("NPUW_QSA_TEST_MODEL");
+    if (!path) {
+        GTEST_SKIP() << "Set NPUW_QSA_TEST_MODEL to the Qwen4 language-model XML";
+    }
+    constexpr size_t capacity = 128;
+    constexpr size_t hidden = 2560;
+    Core core;
+    auto gathered_model = core.read_model(path);
+    auto dense_model = gathered_model->clone();
+    for (const auto& model : {gathered_model, dense_model}) {
+        ASSERT_TRUE(ov::pass::StatefulToStateless().run_on_model(model));
+        ASSERT_TRUE(ov::npuw::PrepareQSAIndexCache(capacity).run_on_model(model));
+        ASSERT_TRUE(ov::npuw::ReshapeToStatic(1, capacity, ov::npuw::KVAxesPosition{0u, 2u}, 0u).run_on_model(model));
+    }
+    ASSERT_NO_FATAL_FAILURE(lower_real_qsa(gathered_model));
+    ASSERT_NO_FATAL_FAILURE(lower_real_qsa(dense_model, true));
+
+    auto gathered_compiled = core.compile_model(gathered_model, "CPU", hint::inference_precision(element::f32));
+    auto dense_compiled = core.compile_model(dense_model, "CPU", hint::inference_precision(element::f32));
+    const auto embedding_path = std::filesystem::path(path).parent_path() / "openvino_text_embeddings_model.xml";
+    ASSERT_TRUE(std::filesystem::exists(embedding_path)) << embedding_path.string();
+    auto embedding_model = core.read_model(embedding_path.string());
+    auto embedding_compiled = core.compile_model(embedding_model, "CPU", hint::inference_precision(element::f32));
+    auto embedding_request = embedding_compiled.create_infer_request();
+    auto gathered = gathered_compiled.create_infer_request();
+    auto dense = dense_compiled.create_infer_request();
+    for (auto* request : {&gathered, &dense}) {
+        const auto compiled = request->get_compiled_model();
+        for (const auto& port : compiled.inputs()) {
+            auto tensor = request->get_tensor(port);
+            if (tensor.get_byte_size()) {
+                std::memset(tensor.data(), 0, tensor.get_byte_size());
+            }
+        }
+    }
+
+    const std::vector<int64_t> token_ids{760, 6511, 314, 9338, 369, 11751};
+    for (size_t step = 0; step < token_ids.size(); ++step) {
+        SCOPED_TRACE(step);
+        Tensor token(element::i64, Shape{1, 1});
+        token.data<int64_t>()[0] = token_ids[step];
+        embedding_request.set_input_tensor(token);
+        embedding_request.infer();
+        const auto embedding = embedding_request.get_output_tensor();
+        ASSERT_EQ(embedding.get_shape(), (Shape{1, 1, hidden}));
+        Tensor positions(element::i64, Shape{4, 1, 1});
+        std::fill_n(positions.data<int64_t>(), 4, static_cast<int64_t>(step));
+        for (auto* request : {&gathered, &dense}) {
+            auto mask = request->get_tensor("attention_mask");
+            std::fill_n(mask.data<int64_t>(), capacity, 0);
+            std::fill_n(mask.data<int64_t>(), step, 1);
+            mask.data<int64_t>()[capacity - 1] = 1;
+            request->set_tensor("inputs_embeds", embedding);
+            request->set_tensor("position_ids", positions);
+            request->infer();
+        }
+        const auto expected = dense.get_tensor("logits");
+        const auto actual = gathered.get_tensor("logits");
+        ASSERT_EQ(expected.get_shape(), actual.get_shape());
+        double dot = 0., expected_norm = 0., actual_norm = 0.;
+        for (size_t i = 0; i < expected.get_size(); ++i) {
+            const double x = expected.data<const float>()[i];
+            const double y = actual.data<const float>()[i];
+            dot += x * y;
+            expected_norm += x * x;
+            actual_norm += y * y;
+        }
+        ASSERT_GT(expected_norm, 0.);
+        ASSERT_GT(actual_norm, 0.);
+        EXPECT_GT(dot / std::sqrt(expected_norm * actual_norm), 0.997);
+        EXPECT_EQ(std::max_element(expected.data<const float>(), expected.data<const float>() + expected.get_size()) -
+                      expected.data<const float>(),
+                  std::max_element(actual.data<const float>(), actual.data<const float>() + actual.get_size()) -
+                      actual.data<const float>());
+
+        // Use the same reference cache on the next step so accumulated FP32 rounding does not obscure attention errors.
+        for (auto* request : {&gathered, &dense}) {
+            const auto compiled = request->get_compiled_model();
+            for (const auto& port : compiled.inputs()) {
+                const auto name = port.get_any_name();
+                if (name.find("cache_params.past.") == 0) {
+                    auto input = request->get_tensor(port);
+                    const auto output_name =
+                        "cache_params.present." + name.substr(std::string("cache_params.past.").size());
+                    const auto output = dense.get_tensor(output_name);
+                    ASSERT_EQ(input.get_byte_size(), output.get_byte_size());
+                    std::memcpy(input.data(), output.data(), input.get_byte_size());
+                } else if (name.find("past_key_values.") == 0) {
+                    auto input = request->get_tensor(port);
+                    const auto output_name = "present." + name.substr(std::string("past_key_values.").size());
+                    const auto output = dense.get_tensor(output_name);
+                    const auto& shape = input.get_shape();
+                    ASSERT_EQ(shape.size(), 4u);
+                    for (size_t head = 0; head < shape[1]; ++head) {
+                        std::copy_n(output.data<const float>() + (head * capacity + capacity - 1) * shape[3],
+                                    shape[3],
+                                    input.data<float>() + (head * shape[2] + step) * shape[3]);
+                    }
                 }
             }
         }
