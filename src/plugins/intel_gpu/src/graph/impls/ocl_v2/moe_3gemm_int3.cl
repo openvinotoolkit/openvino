@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/common.cl"
 #include "moe_gate_activation.cl"
+#include "moe_3gemm_int3_decode.cl"
 
 // Batched GEMV decode of the fused MoE for u3 (3-bit unsigned) weights, on f16
 // activations: one work-group per (token, top-k slot) pair and SGN * NB output
@@ -27,8 +28,6 @@
 #pragma OPENCL EXTENSION cl_intel_subgroups : enable
 
 #define SIMD          16
-#define K_CHUNK       32                    // u3 values per 3-uint granule
-#define GRANULE_UINTS 3
 #define CHUNKS_K      (K_SIZE / K_CHUNK)
 #define W_GROUPS_K    (K_SIZE / WEI_GROUP_SIZE)
 #define CHUNK         (SIMD * K_CHUNK)
@@ -46,18 +45,6 @@
 #else
 #   define EXPERTS_PER_TOKEN MAX_TOPK
 #endif
-
-// Eight consecutive u3 values (the low 24 bits of f; higher bits are ignored)
-// spread into the eight nibbles of an int: into 12-bit halves at bits 0 and 16,
-// then 6-bit quarters at each byte, then 3-bit values at each nibble. Each step
-// keeps the low part in place and takes the rest from the shifted copy (one bfn);
-// the bits the steps leave over are cleared at the end.
-inline int FUNC(u3_spread8_nib)(uint f) {
-    uint u = bitselect(f << 4, f, 0x00000FFFu);
-    u = bitselect(u << 2, u, 0x003F003Fu);
-    u = bitselect(u << 1, u, 0x07070707u);
-    return as_int(u & 0x77777777u);
-}
 
 // Dot product of one granule with its 32 activations. Values i and i + 4 of each
 // group of eight sit in the low and high half of a nibble pair; or-ing them into

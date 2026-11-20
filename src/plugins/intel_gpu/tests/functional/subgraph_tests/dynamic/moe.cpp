@@ -616,7 +616,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                                             ::testing::Values(true)),        // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
-// Gelu gate on u3: applied by the batched GEMV (decode) and by OneDNN (prefill).
+// Gelu gate on u3: applied by the batched GEMV (decode) and by the epilogue of the int8 gate GEMM (prefill).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed_u3,
                          MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),

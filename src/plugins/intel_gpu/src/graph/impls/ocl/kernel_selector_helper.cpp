@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "activation_inst.h"
+#include "common_utils/device_queries.hpp"
 #include "dynamic_quantize_inst.h"
 #include "eltwise_inst.h"
 #include "impls/ocl/kernels_cache.hpp"
@@ -198,40 +199,6 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
     kernel_string->str = kernel_code;
     kernel_string->options = "";
     kernel_string->entry_point = "igc_check";
-    kernel_string->batch_compilation = true;
-
-    try {
-        cldnn::kernel_impl_params dummy_params;
-        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
-        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
-        _kernels_cache_device_query->build_all();
-        cache[device] = true;
-    } catch (std::exception&) {
-        cache[device] = false;
-    }
-
-    return cache.at(device);
-}
-
-bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
-    auto* device = e.get_device().get();
-    if (device->get_info().arch < gpu_arch::xe3) {
-        return false;
-    }
-
-    static std::mutex m;
-    std::lock_guard<std::mutex> lock(m);
-    static std::map<cldnn::device*, bool> cache;
-    if (cache.find(device) != cache.end()) {
-        return cache.at(device);
-    }
-
-    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
-    const char* kernel_code = "kernel void reg_file_size_check() {}";
-
-    kernel_string->str = kernel_code;
-    kernel_string->options = "-ze-exp-register-file-size 128";
-    kernel_string->entry_point = "reg_file_size_check";
     kernel_string->batch_compilation = true;
 
     try {

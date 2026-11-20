@@ -7,6 +7,15 @@
 #define VLOAD CAT(vload, VEC_BLK_SIZE)
 #define VSTORE CAT(vstore, VEC_BLK_SIZE)
 
+// vload/vstore only assume the alignment of one element. When rows are a multiple of VEC_BLK_SIZE elements, every
+// block starts at a multiple of its own size, and a vector pointer lets the compiler use full-width block accesses.
+#if HIDDEN_SIZE % VEC_BLK_SIZE == 0
+#    define VEC_TYPE CAT(INPUT0_TYPE, VEC_BLK_SIZE)
+#    define COPY_BLOCK(src, dst) (*(__global VEC_TYPE*)(dst) = *(const __global VEC_TYPE*)(src))
+#else
+#    define COPY_BLOCK(src, dst) VSTORE(VLOAD(0, src), 0, dst)
+#endif
+
 KERNEL(moe_gather_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -37,7 +46,7 @@ KERNEL(moe_gather_ref)(
 
             const uint input_pos = token_index + threads_index * VEC_BLK_SIZE * BATCHES_PER_THREAD;
             const uint output_pos = dest_index + threads_index * VEC_BLK_SIZE * BATCHES_PER_THREAD;
-            VSTORE(VLOAD(0, &input[input_pos]), 0, &output[output_pos]);
+            COPY_BLOCK(&input[input_pos], &output[output_pos]);
         }
 #if UNALIGNED_ELEMENTS > 0
     }

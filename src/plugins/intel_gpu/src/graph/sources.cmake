@@ -16,6 +16,8 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/col2im.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/dispatch_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/dispatch_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_utils/device_queries.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_utils/device_queries.hpp
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/jit_term.hpp
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/jitter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/jitter.hpp

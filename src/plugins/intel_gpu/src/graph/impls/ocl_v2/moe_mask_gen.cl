@@ -15,6 +15,9 @@ KERNEL(moe_mask_gen)(
 #if ROW_LUT_ENABLE
     , __global OUTPUT5_TYPE* row_lut
 #endif
+#if INT3_TILES_ENABLE
+    , __global int2* tiles
+#endif
 #if SET_TOKEN_LEN
     , const int token_len
 #endif
@@ -38,6 +41,22 @@ KERNEL(moe_mask_gen)(
 
     int tokens_per_expert_iter = work_group_scan_exclusive_add(num_tokens_per_curr_expert);
     int experts_id_iter = work_group_scan_exclusive_add(is_used);
+
+#if INT3_TILES_ENABLE
+    // {expert, first row} per TILE_ROWS-row tile, in expert order. Before the early return: the scans are collective.
+    // The host launches get_max_tiles() tiles; the rest is padded with (0, INT_MAX), which the GEMM skips.
+    const int expert_tiles = (num_tokens_per_curr_expert + TILE_ROWS - 1) / TILE_ROWS;
+    const int first_tile = work_group_scan_exclusive_add(expert_tiles);
+    const int used_tiles = work_group_reduce_add(expert_tiles);
+    for (int i = 0; i < expert_tiles; ++i) {
+        tiles[first_tile + i] = (int2)(expert_id, i * TILE_ROWS);
+    }
+    const int num_rows = num_tokens * NUM_EXPERTS_PER_TOKEN;
+    const int max_tiles = min((int)get_local_size(0), num_rows) + num_rows / TILE_ROWS;
+    for (int i = used_tiles + expert_id; i < max_tiles; i += get_local_size(0)) {
+        tiles[i] = (int2)(0, INT_MAX);
+    }
+#endif
 
     if ((expert_id + 1) == get_local_size(0)) {
         num_actual_used_experts[0] = experts_id_iter + is_used;
