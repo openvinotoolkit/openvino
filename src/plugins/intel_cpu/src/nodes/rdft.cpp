@@ -310,8 +310,8 @@ static void adjustInputSize(VectorDims& inputShape,
         size_t signalSize = signalSizes[i];
         if (signalSize <= inputSize) {
             inputShape[axis] = signalSize;
-        } else if (!isInverse) {
-            OPENVINO_ASSERT(false, "Signal size greater than input size is not supported yet");
+        } else {
+            OPENVINO_ASSERT(isInverse, "Signal size greater than input size is not supported yet");
         }
     }
     if (isInverse) {
@@ -554,7 +554,6 @@ void RDFTExecutor::fft(float* input,
             if (type == complex_to_real) {
                 fftCopyInverseInputData(scratchSpace.data(), input, inputSize, signalSize, parallelize, cpuParallel);
             } else {
-                std::fill_n(scratchSpace.data(), 2 * signalSize, 0.0F);
                 cpu_memcpy(scratchSpace.data(), input, inputSize * complex_type_size<float>());
             }
         } else if (type == real_to_complex) {
@@ -818,7 +817,7 @@ void RDFTExecutor::irdftNd(float* inputPtr,
         auto axis = axes[i];
         const std::vector<size_t> currentRange(currentShape.begin(), currentShape.end() - 1);
         if (i > 0 && currentShape[axis] == static_cast<size_t>(signalSizes[i])) {
-            // Each work item gathers and scatters a distinct line of the intermediate.
+            // dftOnAxis gathers each complete, independent line before scattering its result.
             dftOnAxis(complex_to_complex,
                       inputPtr,
                       inputPtr,
@@ -1021,7 +1020,8 @@ struct RDFTJitExecutor : public RDFTExecutor {
             const int cachelineSize = 64;
             const size_t alignment = 4 * cachelineSize / sizeof(float);
             const size_t numBlocks = (outputSize + alignment - 1) / alignment;
-            parallel_nt(numBlocks, [&](size_t i, size_t nthr) {
+            const auto numThreads = std::min(numBlocks, static_cast<size_t>(parallel_get_max_threads()));
+            parallel_nt(static_cast<int>(numThreads), [&](size_t i, size_t nthr) {
                 const size_t blocksPerThread = (numBlocks + nthr - 1) / nthr;
                 const size_t blockSize = blocksPerThread * alignment;
                 const size_t start = i * blockSize;
