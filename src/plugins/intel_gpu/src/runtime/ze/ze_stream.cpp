@@ -60,32 +60,34 @@ ze_result_t set_kernel_arg_scalar(ze_kernel_handle_t& kernel, uint32_t idx, cons
 }
 
 ze_result_t set_kernel_arg_local_memory(ze_kernel_handle_t& kernel, uint32_t idx, size_t size) {
-    if (size == 0)
+    if (size == 0) {
         return ZE_RESULT_ERROR_INVALID_ARGUMENT;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg " << idx << " local memory size: " << size << std::endl;
-    return ze::zeKernelSetArgumentValue(kernel, idx, size, NULL);
+    return ze::zeKernelSetArgumentValue(kernel, idx, size, nullptr);
 }
 
 ze_result_t set_kernel_arg(ze_kernel_handle_t& kernel, uint32_t idx, cldnn::memory::cptr mem) {
-    if (!mem)
+    if (!mem) {
         return ZE_RESULT_ERROR_INVALID_ARGUMENT;
+    }
 
     if (mem->get_layout().format.is_image_2d()) {
-        auto &image = downcast<const ze::gpu_image2d>(*mem);
-        auto handle = image.get_handle();
+        const auto& image = downcast<const ze::gpu_image2d>(*mem);
+        auto* handle = image.get_handle();
         GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (image) " << idx << " mem: " << handle << " size: " << mem->size() << std::endl;
         return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(handle), &handle);
-    } else if (memory_capabilities::is_usm_type(mem->get_allocation_type()) || mem->get_allocation_type() == allocation_type::cl_mem) {
-        auto &usm = downcast<const ze::gpu_usm>(*mem);
-        auto ptr = usm.buffer_ptr();
+    }
+    if (memory_capabilities::is_usm_type(mem->get_allocation_type()) || mem->get_allocation_type() == allocation_type::cl_mem) {
+        const auto& usm = downcast<const ze::gpu_usm>(*mem);
+        auto* ptr = usm.buffer_ptr();
         auto mem_type = usm.get_allocation_type();
         GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (" << mem_type << ") " << idx
                             << " mem: " << ptr << " size: " << mem->size() << std::endl;
         return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(ptr), &ptr);
-    } else {
-        return ZE_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    return ZE_RESULT_ERROR_INVALID_ARGUMENT;
 }
 
 void set_arguments_impl(ze_kernel_handle_t kernel,
@@ -199,7 +201,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
 
 QueueTypes detect_queue_type(ze_command_list_resource cmd_list) {
     OPENVINO_ASSERT(cmd_list.has_ocl_handle<ocl_resource_type::command_queue>(), "[GPU] Queue type detection requires OpenCL handle");
-    auto queue = cmd_list.ocl_handle<ocl_resource_type::command_queue>();
+    auto* queue = cmd_list.ocl_handle<ocl_resource_type::command_queue>();
     cl_command_queue_properties properties;
 
     auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
@@ -228,15 +230,15 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
 
     zex_intel_queue_copy_operations_offload_hint_exp_desc_t cp_offload_desc = {};
     cp_offload_desc.stype = ZEX_INTEL_STRUCTURE_TYPE_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_PROPERTIES;
-    cp_offload_desc.copyOffloadEnabled = true;
+    cp_offload_desc.copyOffloadEnabled = 1U;
     cp_offload_desc.pNext = nullptr;
     bool use_cp_offload = info.supports_cp_offload;
     if (use_cp_offload) {
         command_queue_desc.pNext = &cp_offload_desc;
     }
 
-    auto ctx_handle = engine.get_context().handle();
-    auto device_handle = engine.get_device().handle();
+    auto* ctx_handle = engine.get_context().handle();
+    auto* device_handle = engine.get_device().handle();
     ze_command_list_handle_t cmd_list = nullptr;
     OV_ZE_EXPECT(ze::zeCommandListCreateImmediate(ctx_handle, device_handle, &command_queue_desc, &cmd_list));
     m_imm_cmd_list = ze_command_list_resource(cmd_list);
@@ -303,7 +305,7 @@ void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_
     std::lock_guard<std::mutex> guard(m);
 
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
-    auto kern = ze_kernel.get_kernel_handle();
+    auto* kern = ze_kernel.get_kernel_handle();
     set_arguments_impl(kern, args_desc.arguments, args);
 }
 
@@ -314,7 +316,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                      bool is_output) {
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
 
-    auto kern = ze_kernel.get_kernel_handle();
+    auto* kern = ze_kernel.get_kernel_handle();
 
     std::vector<ze_event_handle_t> dep_events;
     std::vector<ze_event_handle_t>* dep_events_ptr = nullptr;
@@ -334,11 +336,11 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
     OV_ZE_EXPECT(ze::zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
     OV_ZE_EXPECT(ze::zeCommandListAppendLaunchKernel(get_command_list().handle(),
-                                             kern,
-                                             &args,
-                                             set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle() : nullptr,
-                                             dep_events_ptr == nullptr ? 0 : static_cast<uint32_t>(dep_events_ptr->size()),
-                                             dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
+                                                     kern,
+                                                     &args,
+                                                     set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle() : nullptr,
+                                                     dep_events_ptr == nullptr ? 0 : static_cast<uint32_t>(dep_events_ptr->size()),
+                                                     dep_events_ptr == nullptr ? nullptr : &dep_events_ptr->front()));
 
     return ev;
 }
@@ -360,14 +362,15 @@ void ze_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
 event::ptr ze_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     // Implemented with barriers as there is no marker concept in Level Zero
     auto ev = std::static_pointer_cast<ze_base_event>(create_base_event());
-    auto ev_handle = ev->get_handle();
-    auto cmd_list_handle = get_command_list().handle();
+    auto* ev_handle = ev->get_handle();
+    auto* cmd_list_handle = get_command_list().handle();
 
     if (deps.empty()) {
         // Wait for all previous commands
         OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, 0, nullptr));
         return ev;
-    } else if (m_sync_method  == SyncMethods::events) {
+    }
+    if (m_sync_method == SyncMethods::events) {
         auto dep_event_handles = ze_base_event::get_event_handles(deps, true);
         if (!dep_event_handles.empty()) {
             OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, static_cast<uint32_t>(dep_event_handles.size()), dep_event_handles.data()));
@@ -394,8 +397,9 @@ void ze_stream::wait() {
 event::ptr ze_stream::create_user_event(bool set) {
     auto ev = m_user_ev_factory->create_event(++m_queue_counter);
     ev->set_command_recorder(get_recorder());
-    if (set)
+    if (set) {
         ev->set();
+    }
 
     return ev;
 }
@@ -423,7 +427,7 @@ void ze_stream::finish() const {
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     bool needs_sync = false;
-    for (auto& ev : events) {
+    for (const auto& ev : events) {
         auto* ze_base_ev = dynamic_cast<ze_base_event*>(ev.get());
         if (ze_base_ev->get_handle() != nullptr) {
             ze_base_ev->wait();
@@ -442,7 +446,7 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
 void ze_stream::sync_events(std::vector<event::ptr> const& deps) {
     // Enqueue global barrier based on deps stamps
     bool needs_barrier = false;
-    for (auto& dep : deps) {
+    for (const auto& dep : deps) {
         auto stamp = static_cast<ze_base_event*>(dep.get())->get_queue_stamp();
         if (stamp > m_last_barrier) {
             needs_barrier = true;
