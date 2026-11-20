@@ -4,6 +4,12 @@
 
 #include "fullyconnected.h"
 
+#include <cmath>
+#include <cstdlib>
+#if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/executors/dnnl/fc_decode_cache.hpp"
+#endif
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -72,7 +78,11 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
 
     if (useMatmulPrim) {
+#if defined(OPENVINO_ARCH_X86_64)
+        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+#else
         return {Type_t::u8, Type_t::i8};
+#endif
     }
 #if defined(OPENVINO_ARCH_X86_64)
     return {Type_t::u8,
@@ -202,6 +212,31 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         // (subject to change once we completely switch to dnnl::matmul).
         if (!useMatmulPrim && op->get_input_element_type(DATA) == ov::element::f16) {
             return false;
+        }
+
+        if (useMatmulPrim &&
+            (op->get_input_element_type(DATA) == ov::element::f16 || config.inferencePrecision == ov::element::f16)) {
+            // The oneDNN compressed FP16 route needs even INT4 rows and aligned K groups.
+            // Floating zero points are converted to integers by its primitive attributes.
+            const auto& weights_shape = op->get_input_shape(WEIGHTS);
+            if (weights_shape.size() != 2 || weights_shape[0] != OC || weights_shape[1] != IC || G == 0 ||
+                IC % G != 0 || (G > 1 && (IC / G) % 32 != 0) ||
+                (any_of(weightsPrecision, ov::element::i4, ov::element::u4) && IC % 2 != 0)) {
+                return false;
+            }
+            if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic &&
+                op->get_input_element_type(WEIGHT_ZERO_POINTS).is_real()) {
+                const auto zero_points = ov::util::get_constant_from_source(op->input_value(WEIGHT_ZERO_POINTS));
+                if (!zero_points) {
+                    return false;
+                }
+                for (const float value : zero_points->cast_vector<float>()) {
+                    if (!std::isfinite(value) || value != std::trunc(value)) {
+                        return false;
+                    }
+                }
+            }
         }
 
         if (ov::with_cpu_x86_avx512_core_amx() && config.inferencePrecision == ov::element::bf16) {
@@ -797,6 +832,19 @@ void FullyConnected::createPrimitive() {
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
     executor = factory->make(memory);
+#if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
+    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC") && !tp_cfg.enable_tensor_parallel &&
+        std::getenv("OV_FC_DECODE_CACHE_MIB") != nullptr) {
+        auto cache_context = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+        auto cache = std::make_shared<fc_decode_cache::DecodeCache>(executor,
+                                                                    attrs,
+                                                                    cache_context,
+                                                                    fc_decode_cache::model_budget(context),
+                                                                    getName());
+        cache->prepare(memory);
+        executor = std::move(cache);
+    }
+#endif
 
     Node::createPrimitive();
 }

@@ -159,6 +159,10 @@ static const TypeMapping dnnlMatMulTypeMapping {
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights
     {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
+#if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
+    {{_f16, _u4 | _i4, _any, _any},                         {bypass(), bypass(), use<0>(), use<0>()},
+     []() { return getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC"); }},
+#endif
     // fp8 weights are decompressed inside the matmul kernel
     {{_bf16, _f8e4m3 | _f8e5m2, _any, _any},                  {bypass(), bypass(), use<0>(), use<0>()},
      []() { return hasFp8WeightsDecompressionSupport(ov::element::bf16); }},
