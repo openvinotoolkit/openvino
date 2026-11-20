@@ -127,6 +127,29 @@ CacheStateBlock make_cache_params_lin_state(const ov::Output<ov::Node>& beam_idx
     return make_cache_state(beam_idx, var_name, precision, var_shape, init_shape);
 }
 
+TEST(StatefulToStatelessQSA, PreservesIndexerStateNames) {
+    auto beam = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    beam->output(0).set_names({"beam_idx"});
+    ov::SinkVector sinks;
+    ov::ResultVector results;
+    for (const auto& type : {"block_index_key", "incomplete_index_key", "incomplete_index_rope"}) {
+        const auto shape = std::string(type) == "incomplete_index_rope" ? ov::PartialShape{-1, 128}
+                                                                        : ov::PartialShape{-1, -1, 128};
+        const auto initial = std::string(type) == "incomplete_index_rope" ? ov::Shape{1, 128}
+                                                                           : ov::Shape{1, 3, 128};
+        auto state = make_cache_params_lin_state(beam, 2, type, ov::element::f32, shape, initial);
+        sinks.push_back(state.assign);
+        results.push_back(std::make_shared<ov::op::v0::Result>(state.output));
+    }
+    auto model = std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{beam});
+    ASSERT_TRUE(ov::pass::StatefulToStateless().run_on_model(model));
+    EXPECT_TRUE(model->get_sinks().empty());
+    for (const auto& type : {"block_index_key", "incomplete_index_key", "incomplete_index_rope"}) {
+        EXPECT_NO_THROW(model->input("cache_params.past." + std::string(type) + ".2"));
+        EXPECT_NO_THROW(model->output("cache_params.present." + std::string(type) + ".2"));
+    }
+}
+
 // Builds a model matching TinyLlama-1.1B caches (scaled down to 2 layers):
 //   - Standard KV cache naming: past_key_values.N.key/value  (f32, {?,4,?,64})
 //   - All connected via beam_idx.

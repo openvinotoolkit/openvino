@@ -85,9 +85,9 @@ KERNEL(paged_gated_delta_net_ref)
         int base = initial_block_base + curr_iv * K_HEAD_DIM;
         for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
             const int k_idx = lid + ks * SUBGROUP_SIZE;
-            if (k_idx < K_HEAD_DIM) {
-                state[v_idx][ks] = convert_float(recurrent_state_table[base + k_idx]);
-            }
+            // The lanes past K_HEAD_DIM (K_HEAD_DIM < SUBGROUP_SIZE) take part in the sub-group reductions: they
+            // have to hold zeros, not uninitialized registers that may be NaN.
+            state[v_idx][ks] = k_idx < K_HEAD_DIM ? convert_float(recurrent_state_table[base + k_idx]) : 0.0f;
         }
     }
 

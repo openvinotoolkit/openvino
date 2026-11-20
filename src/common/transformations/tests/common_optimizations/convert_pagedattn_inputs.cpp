@@ -6,19 +6,41 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
+#include "openvino/op/qsa_prepare.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/sparse_attention.hpp"
+#include "openvino/op/sparse_attention_indexer.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/paged_attention/paged_qsa_fusion.hpp"
+#include "transformations/pattern_blocks/qsa_index_query_block.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::test;
 using namespace ov;
@@ -756,6 +778,274 @@ TEST(ConvertPagedAttnInputsSparseTest, PagedSparseAttentionQuantizedCaches) {
     // The padded caches must still validate against the unpadded key/value widths.
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
     EXPECT_EQ(psa->get_output_partial_shape(0), (PartialShape{-1, num_heads * value_head_size}));
+}
+
+TEST(ConvertPagedAttnInputsSparseTest, SeparateSparseCachesKeepLogicalShapeAndInferencePrecision) {
+    ParameterVector params;
+    auto parameter = [&](const element::Type& type, const PartialShape& shape) {
+        auto node = std::make_shared<v0::Parameter>(type, shape);
+        params.push_back(node);
+        return node;
+    };
+    auto query = parameter(element::f32, {-1, 128});
+    auto key = parameter(element::f32, {-1, 64});
+    auto value = parameter(element::f32, {-1, 32});
+    auto key_cache = parameter(element::dynamic, {-1, 2, -1, 32});
+    auto value_cache = parameter(element::dynamic, {-1, 2, -1, 16});
+    auto past = parameter(element::i32, {-1});
+    auto subsequences = parameter(element::i32, {-1});
+    auto blocks = parameter(element::i32, {-1});
+    auto block_begins = parameter(element::i32, {-1});
+    auto selected = parameter(element::i32, {-1, 1, 8});
+    auto count = parameter(element::i32, {-1, 1});
+    auto scale = v0::Constant::create(element::f32, Shape{}, {0.5f});
+    auto sinks = v0::Constant::create(element::f32, Shape{0}, {});
+    auto sparse = std::make_shared<op::internal::PagedSparseAttention>(OutputVector{query,
+                                                                                    key,
+                                                                                    value,
+                                                                                    key_cache,
+                                                                                    value_cache,
+                                                                                    past,
+                                                                                    subsequences,
+                                                                                    blocks,
+                                                                                    block_begins,
+                                                                                    selected,
+                                                                                    count,
+                                                                                    scale,
+                                                                                    sinks},
+                                                                       4);
+    auto model = std::make_shared<Model>(OutputVector{sparse}, params);
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig config;
+    config.inferencePrecision = element::f32;
+    config.keyCachePrecision = element::u8;
+    config.valueCachePrecision = element::u8;
+    config.keyCacheBlockSize = 32;
+    config.valueCacheBlockSize = 16;
+    config.separateSparseCacheFormat = true;
+    bool shape_callback_called = false;
+    auto update_shape = [&](const element::Type&, bool, size_t, int64_t&, int64_t&) {
+        shape_callback_called = true;
+    };
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConvertPagedAttnInputs>(config, update_shape);
+    manager.run_passes(model);
+
+    EXPECT_FALSE(shape_callback_called);
+    EXPECT_EQ(key_cache->get_element_type(), element::f32);
+    EXPECT_EQ(value_cache->get_element_type(), element::f32);
+    EXPECT_EQ(key_cache->get_partial_shape(), (PartialShape{-1, 2, 32, 32}));
+    EXPECT_EQ(value_cache->get_partial_shape(), (PartialShape{-1, 2, 16, 16}));
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+TEST(ConvertPagedAttnInputsSparseTest, PagedQSAIndexerCachePageSizes) {
+    ParameterVector params;
+    auto parameter = [&](const element::Type& type, const PartialShape& shape) {
+        auto node = std::make_shared<v0::Parameter>(type, shape);
+        params.push_back(node);
+        return node;
+    };
+    OutputVector args{parameter(element::f32, {-1, 8}),
+                      parameter(element::f32, {-1, 4}),
+                      parameter(element::f32, {-1, 2}),
+                      parameter(element::f32, {-1, 2}),
+                      parameter(element::f32, {4}),
+                      parameter(element::f32, {4}),
+                      parameter(element::i32, {-1}),
+                      parameter(element::i32, {-1}),
+                      parameter(element::i32, {-1}),
+                      parameter(element::i32, {-1}),
+                      parameter(element::f32, {-1, 1, -1, 4}),
+                      parameter(element::f32, {-1, -1, 4}),
+                      parameter(element::f32, {-1, 1, -1, 4})};
+    op::internal::PagedQSAIndexer::Config indexer_config;
+    indexer_config.key_block_size = 4;
+    indexer_config.block_topk = 3;
+    indexer_config.num_selection_heads = 1;
+    indexer_config.indexer_rotary_dim = 2;
+    indexer_config.indexer_head_dim = 4;
+    auto indexer = std::make_shared<op::internal::PagedQSAIndexer>(args, indexer_config);
+    auto model = std::make_shared<Model>(OutputVector{indexer->output(0), indexer->output(1)}, params);
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig config;
+    config.inferencePrecision = element::f32;
+    config.keyCacheBlockSize = 32;
+    auto update_shape = [](const element::Type&, bool, size_t, int64_t&, int64_t&) {};
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConvertPagedAttnInputs>(config, update_shape);
+    manager.run_passes(model);
+
+    EXPECT_EQ(params[10]->get_partial_shape(), (PartialShape{-1, 1, 32, 4}));
+    EXPECT_EQ(params[11]->get_partial_shape(), (PartialShape{-1, 8, 4}));
+    EXPECT_EQ(params[12]->get_partial_shape(), (PartialShape{-1, 1, 8, 4}));
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    config.keyCacheBlockSize = 10;
+    ov::pass::Manager invalid_manager;
+    invalid_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(config, update_shape);
+    EXPECT_THROW(invalid_manager.run_passes(model), ov::Exception);
+}
+
+struct PagedQSAFusionGraph {
+    std::shared_ptr<Model> model;
+    ov::pass::paged_attention::PaParams pa_params;
+    std::unordered_set<std::string> removed_variables;
+};
+
+PagedQSAFusionGraph make_paged_qsa_fusion_graph(bool per_layer, bool expose_key_cache) {
+    ParameterVector params;
+    auto parameter = [&](const element::Type& type, const PartialShape& shape) {
+        auto node = std::make_shared<v0::Parameter>(type, shape);
+        params.push_back(node);
+        return node;
+    };
+    auto variable = [](const std::string& name, const PartialShape& shape) {
+        return std::make_shared<op::util::Variable>(op::util::VariableInfo{shape, element::f32, name});
+    };
+    auto key_var = variable("key", {1, 2, -1, 16});
+    auto value_var = variable("value", {1, 2, -1, 16});
+    auto block_var = variable("block", {1, -1, 16});
+    auto raw_var = variable("raw", {1, 3, 16});
+    auto rope_var = variable("rope", {1, 16});
+    auto key_read = std::make_shared<op::v6::ReadValue>(key_var);
+    auto value_read = std::make_shared<op::v6::ReadValue>(value_var);
+    auto block_read = std::make_shared<op::v6::ReadValue>(block_var);
+    auto raw_read = std::make_shared<op::v6::ReadValue>(raw_var);
+    auto rope_read = std::make_shared<op::v6::ReadValue>(rope_var);
+
+    auto raw_query = parameter(element::f32, {1, -1, 2, 16});
+    auto raw_keys = parameter(element::f32, {1, -1, 16});
+    auto key_length = parameter(element::i32, {1});
+    auto cos = parameter(element::f32, {1, -1, 8});
+    auto sin = parameter(element::f32, {1, -1, 8});
+    auto gain = v0::Constant::create(element::f32, Shape{16}, std::vector<float>(16, 1.0f));
+    auto norm = std::make_shared<op::internal::RMS>(raw_query, gain, 1e-5f);
+    auto axis = v0::Constant::create(element::i64, Shape{1}, {2});
+    auto cos_expanded = std::make_shared<op::v0::Unsqueeze>(cos, axis);
+    auto sin_expanded = std::make_shared<op::v0::Unsqueeze>(sin, axis);
+    op::internal::RoPE::Config rope_config;
+    rope_config.rotary_ndims = 8;
+    rope_config.cos_sin_ndims = 8;
+    rope_config.head_cnt = 2;
+    rope_config.head_size = 16;
+    auto rope = std::make_shared<op::internal::RoPE>(OutputVector{norm, cos_expanded, sin_expanded}, rope_config);
+    auto order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
+    auto index_query = std::make_shared<op::v1::Transpose>(rope, order);
+    auto prepare = std::make_shared<
+        op::v17::QSAPrepare>(raw_keys, block_read, key_length, cos, sin, gain, raw_read, rope_read, 4, 1e-5f);
+    auto indexer =
+        std::make_shared<op::v17::SparseAttentionIndexer>(OutputVector{index_query, prepare->output(0), key_length},
+                                                          4,
+                                                          8,
+                                                          1);
+    auto query = parameter(element::f32, {1, 4, -1, 16});
+    auto current_key = parameter(element::f32, {1, 2, -1, 16});
+    auto current_value = parameter(element::f32, {1, 2, -1, 16});
+    auto input_ids = parameter(element::i32, {1, -1});
+    input_ids->set_friendly_name("input_ids");
+    input_ids->output(0).set_names({"input_ids"});
+    auto key = std::make_shared<op::v0::Concat>(OutputVector{key_read, current_key}, 2);
+    auto value = std::make_shared<op::v0::Concat>(OutputVector{value_read, current_value}, 2);
+    auto attention = std::make_shared<op::v17::SparseAttention>(
+        OutputVector{query, key, value, indexer->output(0), indexer->output(1), key_length},
+        4,
+        1,
+        true);
+    SinkVector sinks{std::make_shared<op::v6::Assign>(key, key_var),
+                     std::make_shared<op::v6::Assign>(value, value_var),
+                     std::make_shared<op::v6::Assign>(prepare->output(0), block_var),
+                     std::make_shared<op::v6::Assign>(prepare->output(1), raw_var),
+                     std::make_shared<op::v6::Assign>(prepare->output(2), rope_var)};
+    OutputVector outputs{attention};
+    if (expose_key_cache) {
+        outputs.push_back(key);
+    }
+
+    PagedQSAFusionGraph graph;
+    graph.model = std::make_shared<Model>(outputs, sinks, params);
+    for (const auto* name : {"past_lens", "subsequence_begins", "block_indices_begins"}) {
+        graph.pa_params.add(name, element::i32, {-1});
+    }
+    if (!per_layer) {
+        graph.pa_params.add("block_indices", element::i32, {-1});
+    }
+    return graph;
+}
+
+TEST(PagedQSAFusionTest, ConvertsStatefulLayerWithSharedOrPerLayerBlockIndices) {
+    for (bool per_layer : {false, true}) {
+        auto graph = make_paged_qsa_fusion_graph(per_layer, false);
+        std::shared_ptr<op::v17::SparseAttentionIndexer> original_indexer;
+        for (const auto& node : graph.model->get_ordered_ops()) {
+            if (auto match = ov::as_type_ptr<op::v17::SparseAttentionIndexer>(node)) {
+                original_indexer = match;
+            }
+        }
+        ASSERT_NE(original_indexer, nullptr);
+        auto index_query = std::make_shared<ov::pass::pattern::op::QSAIndexQueryBlock>();
+        auto indexer_pattern = ov::pass::pattern::wrap_type<op::v17::SparseAttentionIndexer>(
+            {index_query, ov::pass::pattern::wrap_type<op::v17::QSAPrepare>(), ov::pass::pattern::any_input()});
+        ov::pass::pattern::Matcher matcher(indexer_pattern, "QSAIndexerTest");
+        ASSERT_TRUE(matcher.match(original_indexer->output(0)));
+        ASSERT_TRUE(index_query->get_match(matcher.get_pattern_value_map(), original_indexer));
+        ov::pass::Manager manager;
+        manager.set_per_pass_validation(false);
+        manager.register_pass<ov::pass::PagedQSAFusion>(graph.pa_params, graph.removed_variables, per_layer);
+        manager.run_passes(graph.model);
+        std::shared_ptr<op::internal::PagedSparseAttention> sparse;
+        std::shared_ptr<op::internal::PagedQSAIndexer> indexer;
+        for (const auto& node : graph.model->get_ordered_ops()) {
+            if (auto match = ov::as_type_ptr<op::internal::PagedSparseAttention>(node)) {
+                sparse = match;
+            } else if (auto match = ov::as_type_ptr<op::internal::PagedQSAIndexer>(node)) {
+                indexer = match;
+            }
+        }
+        ASSERT_NE(sparse, nullptr);
+        ASSERT_NE(indexer, nullptr);
+        EXPECT_EQ(graph.removed_variables.size(), 5);
+        EXPECT_TRUE(graph.pa_params.exists(per_layer ? "block_indices.0" : "block_indices"));
+        EXPECT_EQ(sparse->input_value(7), indexer->input_value(op::internal::PagedQSAIndexer::InputIdx::BLOCK_INDICES));
+        EXPECT_EQ(sparse->get_rt_info().at("num_k_heads").as<int64_t>(), 2);
+        EXPECT_EQ(sparse->get_rt_info().at("k_head_size").as<int64_t>(), 16);
+    }
+}
+
+TEST(PagedQSAFusionTest, DoesNotRemoveStateWithOtherConsumers) {
+    auto graph = make_paged_qsa_fusion_graph(false, true);
+    ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ov::pass::PagedQSAFusion>(graph.pa_params, graph.removed_variables, false);
+    manager.run_passes(graph.model);
+    EXPECT_TRUE(graph.removed_variables.empty());
+    EXPECT_FALSE(graph.pa_params.exists("key_cache.0"));
+    EXPECT_TRUE(ov::op::util::has_op_with_type<op::v17::SparseAttention>(graph.model));
+}
+
+TEST(SDPAToPagedAttentionSparseTest, ConvertsStatefulSparseModel) {
+    for (bool per_layer : {false, true}) {
+        auto graph = make_paged_qsa_fusion_graph(per_layer, false);
+        ov::pass::SDPAToPagedAttention pass(per_layer);
+        EXPECT_TRUE(pass.run_on_model(graph.model));
+        EXPECT_TRUE(graph.model->get_sinks().empty());
+        EXPECT_TRUE(ov::op::util::has_op_with_type<op::internal::PagedQSAIndexer>(graph.model));
+        EXPECT_TRUE(ov::op::util::has_op_with_type<op::internal::PagedSparseAttention>(graph.model));
+        EXPECT_FALSE(ov::op::util::has_op_with_type<op::v17::SparseAttention>(graph.model));
+        const auto inputs = graph.model->inputs();
+        EXPECT_NE(std::find_if(inputs.begin(),
+                               inputs.end(),
+                               [&](const auto& input) {
+                                   return input.get_names().count(per_layer ? "block_indices.0" : "block_indices") != 0;
+                               }),
+                  inputs.end());
+    }
+}
+
+TEST(SDPAToPagedAttentionSparseTest, RejectsSparseStateWithOtherConsumers) {
+    auto graph = make_paged_qsa_fusion_graph(false, true);
+    ov::pass::SDPAToPagedAttention pass;
+    EXPECT_THROW(pass.run_on_model(graph.model), ov::Exception);
 }
 
 }  // namespace

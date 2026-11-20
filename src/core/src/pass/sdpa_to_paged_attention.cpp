@@ -11,17 +11,21 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_ssm.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
+#include "transformations/paged_attention/paged_qsa_fusion.hpp"
 #include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
@@ -82,9 +86,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
                     "of --task text-generation");
 
-    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
-                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
-                    "the SDPAToPagedAttention transformation.");
+    const bool has_sparse_attention = ov::op::util::has_op_with_type<ov::op::v17::SparseAttention>(model);
+    OPENVINO_ASSERT(
+        ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model) || has_sparse_attention,
+        "No ScaledDotProductAttention or SparseAttention operation observed in the graph, cannot perform "
+        "the SDPAToPagedAttention transformation.");
 
     m_params = PaParams{model->get_parameters()};
     m_results = PaResults{model->get_results()};
@@ -153,6 +159,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.set_per_pass_validation(false);
     manager.register_pass<EliminateDropBatch>();
     manager.register_pass<RoPEUnsqueezeAxisReplacer>();
+    if (has_sparse_attention) {
+        manager.register_pass<RMSFusion>(false, true);
+        manager.register_pass<RoPEFusion>(true);
+        manager.get_pass_config()->disable<RoPEFusionGPTJ>();
+        manager.get_pass_config()->disable<RoPEFusionIOSlicing>();
+        manager.get_pass_config()->disable<RoPEShareCosSin>();
+    }
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();  // This pass is required to ensure that all GatedDeltaNet
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
@@ -176,7 +189,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
     manager.register_pass<PositionIDsReplacerGranite>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen3_5>(unsqueezed_position_ids);
+    if (has_sparse_attention) {
+        manager.register_pass<PagedQSAFusion>(m_params,
+                                              var_ids_to_remove,
+                                              m_options.use_per_layer_block_indices_inputs);
+    }
     manager.run_passes(model);
+
+    OPENVINO_ASSERT(!has_sparse_attention || !ov::op::util::has_op_with_type<ov::op::v17::SparseAttention>(model),
+                    "A SparseAttention layer could not be converted to paged attention; its state cannot be removed.");
 
     OPENVINO_ASSERT(ssm_fusion->get_fused_count() == paged_ssm_fusion->get_fused_count(),
                     "SelectiveSSMFusion fused ",

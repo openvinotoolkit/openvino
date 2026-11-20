@@ -36,7 +36,7 @@ struct Variable {
         // Pattern 2: Convention for models with Linear Attention (e.g.,
         // cache_params.past.key.0cache_params.present.key.0)
         const std::regex lin_cache_naming_convention = std::regex(
-            R"((cache_params)\.past\.(key|value|conv|ssm)\.(\d+)cache_params\.present\.(key|value|conv|ssm)\.(\d+))");
+            R"((cache_params)\.past\.(key|value|conv|ssm|block_index_key|incomplete_index_key|incomplete_index_rope)\.(\d+)cache_params\.present\.(key|value|conv|ssm|block_index_key|incomplete_index_key|incomplete_index_rope)\.(\d+))");
         // Pattern 3: GGUF frontend variable ids, e.g. cache_k_l3, cache_v_l3, conv_state_l0, ssm_state_l0
         const std::regex gguf_naming_convention = std::regex(R"((cache_k|cache_v|conv_state|ssm_state)_l(\d+))");
     };
@@ -72,7 +72,8 @@ struct Variable {
                 if (type == "key" || type == "value") {
                     std::string prefix = past_or_present == "past" ? "past_key_values" : "present";
                     return prefix + "." + idx + "." + type;
-                } else if (type == "conv" || type == "ssm") {
+                } else if (type == "conv" || type == "ssm" || type == "block_index_key" ||
+                           type == "incomplete_index_key" || type == "incomplete_index_rope") {
                     return original_prefix + "." + past_or_present + "." + type + "." + idx;
                 }
                 OPENVINO_THROW("Incorrect type of state: ", type);

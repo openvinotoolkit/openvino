@@ -287,6 +287,31 @@ TEST_F(ReshapeToStaticPassTest, LinCacheInputsOnlyBatchIsReshaped) {
     EXPECT_EQ(*kv_value_shape, (ov::Shape{1, 4, 191, 64}));
 }
 
+TEST_F(ReshapeToStaticPassTest, QSAIndexerStateUsesBlockCapacityAndFixedTailShapes) {
+    auto model = build_model_with_lincache_inputs();
+    auto blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 128});
+    blocks->output(0).set_names({"cache_params.past.block_index_key.2"});
+    auto pending = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, 128});
+    pending->output(0).set_names({"cache_params.past.incomplete_index_key.2"});
+    auto rope = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 128});
+    rope->output(0).set_names({"cache_params.past.incomplete_index_rope.2"});
+    model->add_parameters({blocks, pending, rope});
+
+    ASSERT_TRUE(ov::npuw::ReshapeToStatic(1, 192, ov::npuw::KVAxesPosition{0u, 2u}, 0u).run_on_model(model));
+    EXPECT_EQ(blocks->get_shape(), (ov::Shape{1, 48, 128}));
+    EXPECT_EQ(pending->get_shape(), (ov::Shape{1, 3, 128}));
+    EXPECT_EQ(rope->get_shape(), (ov::Shape{1, 128}));
+}
+
+TEST_F(ReshapeToStaticPassTest, QSAIndexerStateRequiresMatchingIncompleteCache) {
+    auto model = build_model_with_lincache_inputs();
+    auto blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 128});
+    blocks->output(0).set_names({"cache_params.past.block_index_key.2"});
+    model->add_parameters({blocks});
+    EXPECT_THROW(ov::npuw::ReshapeToStatic(1, 192, ov::npuw::KVAxesPosition{0u, 2u}, 0u).run_on_model(model),
+                 ov::Exception);
+}
+
 }  // namespace
 
 

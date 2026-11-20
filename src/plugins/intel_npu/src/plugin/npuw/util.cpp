@@ -1193,11 +1193,48 @@ bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::st
     return std::regex_match(input, regex_pattern);
 }
 
+bool ov::npuw::util::matchQSAIndexCacheString(const std::string& input, const std::string& past_or_present) {
+    static const std::regex past_pattern(
+        R"(^cache_params\.past\.(block_index_key|incomplete_index_key|incomplete_index_rope)\.\d+$)");
+    static const std::regex present_pattern(
+        R"(^cache_params\.present\.(block_index_key|incomplete_index_key|incomplete_index_rope)\.\d+$)");
+    return std::regex_match(input, past_or_present == "past" ? past_pattern : present_pattern);
+}
+
+bool ov::npuw::util::isQSABlockIndexCache(const std::string& input, const std::string& past_or_present) {
+    return matchQSAIndexCacheString(input, past_or_present) &&
+           input.find(".block_index_key.") != std::string::npos;
+}
+
+size_t ov::npuw::util::qsaIndexBlockSize(const std::shared_ptr<const ov::Model>& model,
+                                         const std::string& block_cache_name) {
+    OPENVINO_ASSERT(isQSABlockIndexCache(block_cache_name),
+                    "Invalid QSA block-index cache name: ",
+                    block_cache_name);
+    auto tail_name = block_cache_name;
+    const auto position = tail_name.find(".block_index_key.");
+    tail_name.replace(position, std::string(".block_index_key.").size(), ".incomplete_index_key.");
+    for (const auto& input : model->inputs()) {
+        if (input.get_names().count(tail_name) == 0) {
+            continue;
+        }
+        const auto shape = input.get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static() && shape.size() == 3 && shape[1].is_static() &&
+                            shape[1].get_length() > 0,
+                        "QSA incomplete-index-key cache must have static shape [batch, block_size - 1, head_dim]: ",
+                        tail_name,
+                        " has ",
+                        shape);
+        return static_cast<size_t>(shape[1].get_length()) + 1;
+    }
+    OPENVINO_THROW("QSA block-index cache ", block_cache_name, " has no matching ", tail_name, " input.");
+}
+
 bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
     static constexpr const char* past_lin_conv_cache = "cache_params.past.conv";
     static constexpr const char* past_lin_ssm_cache = "cache_params.past.ssm";
     return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
-           ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
+           ov::npuw::util::starts_with(input_name, past_lin_ssm_cache) || matchQSAIndexCacheString(input_name);
 }
 
 bool ov::npuw::util::is_swa_kv_cache_name(const std::string& input_name) {

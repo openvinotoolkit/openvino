@@ -186,14 +186,16 @@ void add_required_reorders::run(program& p) {
         // If usr is assign and input and output data types are different
         // add reorder with usr's output data type between dep and usr
         if (usr->is_type<assign>()) {
-            auto& dep = usr->get_dependency(0);
-            auto dep_layout = dep.get_output_layout();
+            // The reorder has to read the very output the assign reads, which may be any port of a multi-output dependency.
+            const auto [dep, dep_port] = usr->get_dependency_with_port(0);
+            auto dep_layout = dep->get_output_layout(false, dep_port);
             auto out_layout = usr->get_output_layout();
             bool required_reorder = out_layout.data_type != dep_layout.data_type;
             if (required_reorder) {
-                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
+                auto new_reorder =
+                    std::make_shared<reorder>(dep->id() + "_reorder_" + usr->id(), input_info(dep->id(), dep_port), out_layout.format, out_layout.data_type);
                 auto& new_reorder_node = p.get_or_create(new_reorder);
-                p.add_intermediate(new_reorder_node, *usr, dep);
+                p.add_intermediate(new_reorder_node, *usr, 0);
                 new_reorder_node.recalc_output_layouts(false);
             }
         }

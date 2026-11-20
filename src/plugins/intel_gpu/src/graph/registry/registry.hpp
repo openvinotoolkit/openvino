@@ -195,6 +195,7 @@ REGISTER_IMPLS(gather_matmul);
 REGISTER_IMPLS(mlir_primitive);
 #endif
 REGISTER_IMPLS(grouped_matmul);
+REGISTER_IMPLS(gated_residual);
 REGISTER_IMPLS(paged_qsa_indexer);
 REGISTER_IMPLS(qsa_indexer);
 REGISTER_IMPLS(sparse_pa);

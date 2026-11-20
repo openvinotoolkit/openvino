@@ -464,7 +464,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!get_node().is_type<kv_cache>() && !get_node().is_type<stateless_kv>() && !get_node().is_type<strided_slice>() &&
+    if (!get_node().is_type<kv_cache>() && !get_node().is_type<stateless_kv>() && !get_node().is_type<strided_slice>() && !get_node().is_type<assign>() &&
         !input_shape_changed && _impl_params->get_output_layout().is_static()) {
         return;
     }

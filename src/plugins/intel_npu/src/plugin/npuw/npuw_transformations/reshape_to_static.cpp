@@ -137,6 +137,21 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                 NPUW_ASSERT(proj_dim.is_static());    // projection_dim must be resolved
                 new_shape = ov::PartialShape({1, input_size, num_layers, proj_dim});
             }
+        } else if (ov::npuw::util::matchQSAIndexCacheString(input_name)) {
+            new_shape = input.get_partial_shape();
+            OPENVINO_ASSERT(new_shape.rank().is_static() && new_shape.size() >= 2,
+                            "QSA index cache has an invalid rank: ",
+                            input_name);
+            new_shape[0] = 1;
+            if (ov::npuw::util::isQSABlockIndexCache(input_name)) {
+                OPENVINO_ASSERT(new_shape.size() == 3 && new_shape[2].is_static(),
+                                "QSA block-index cache must have shape [batch, blocks, head_dim]: ",
+                                input_name,
+                                " has ",
+                                new_shape);
+                const auto block_size = ov::npuw::util::qsaIndexBlockSize(model, input_name);
+                new_shape[1] = static_cast<int64_t>(kvcache_size / block_size);
+            }
         } else if (ov::npuw::util::matchLinCacheString(input_name)) {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;

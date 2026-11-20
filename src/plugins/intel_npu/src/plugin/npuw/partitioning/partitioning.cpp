@@ -611,7 +611,10 @@ void Partitioner::identifySubgraphs() {
                 // Note: doing so REQUIRES a Convert node to be present here
                 // to maintain graph contracts. See handling where parameter_from is called.
                 auto otype = output.get_element_type();
-                if (otype == ov::element::f32 && connect_in_f16) {
+                if (otype == ov::element::boolean) {
+                    // NPU exposes boolean outputs as u8, including across device fallbacks.
+                    otype = ov::element::u8;
+                } else if (otype == ov::element::f32 && connect_in_f16) {
                     if (!is_hp_tag(output)) {
                         otype = ov::element::f16;
                         LOG_DEBUG("Found parameter  " << output << ", will be computed in fp16 precision");
@@ -688,13 +691,17 @@ void Partitioner::identifySubgraphs() {
 
                         std::shared_ptr<ov::Node> new_src;
                         if (new_param->get_element_type() != input_desc.get_element_type()) {
-                            // This is the only case where types may not match
-                            NPUW_ASSERT(input_desc.get_element_type() == ov::element::f32);
-                            NPUW_ASSERT(new_param->get_element_type() == ov::element::f16);
-                            NPUW_ASSERT(connect_in_f16);
-                            new_src = new_f16ic_cvt(new_param, ov::element::f32);
-                            LOG_DEBUG("Added F16IC Param Convert " << new_src << " on top of " << new_param << " for "
-                                                                   << input_desc);
+                            if (input_desc.get_element_type() == ov::element::boolean &&
+                                new_param->get_element_type() == ov::element::u8) {
+                                new_src = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::boolean);
+                            } else {
+                                NPUW_ASSERT(input_desc.get_element_type() == ov::element::f32);
+                                NPUW_ASSERT(new_param->get_element_type() == ov::element::f16);
+                                NPUW_ASSERT(connect_in_f16);
+                                new_src = new_f16ic_cvt(new_param, ov::element::f32);
+                                LOG_DEBUG("Added F16IC Param Convert " << new_src << " on top of " << new_param
+                                                                       << " for " << input_desc);
+                            }
                         } else {
                             new_src = new_param;
                         }
@@ -848,6 +855,20 @@ void Partitioner::identifySubgraphs() {
                     group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(maybe_result));
                     result_cache[output_desc] =
                         LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(maybe_result)};
+                    if (has_external_readers && (output_desc.get_element_type() == ov::element::boolean ||
+                                                 (output_desc.get_element_type() == ov::element::f32 &&
+                                                  connect_in_f16 && !is_hp_tag(output_desc)))) {
+                        ov::Output<ov::Node> result_src;
+                        if (output_desc.get_element_type() == ov::element::boolean) {
+                            result_src = std::make_shared<ov::op::v0::Convert>(output_desc, ov::element::u8);
+                        } else {
+                            result_src = new_f16ic_cvt(output_desc, ov::element::f16);
+                        }
+                        auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
+                        ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
+                        group.sg._results.push_back(new_result);
+                        result_cache[output_desc] = LinkPtrFrom{this_group_idx, std::move(new_result)};
+                    }
                 } else if (has_external_readers) {
                     // Introduce and record a new Result
                     // As the graph is processed in the topological order,
@@ -865,7 +886,9 @@ void Partitioner::identifySubgraphs() {
                     } else {
                         // Register a new Result. Optionally, lower it to f16
                         ov::Output<ov::Node> result_src = output_desc;
-                        if (output_desc.get_element_type() == ov::element::f32 && connect_in_f16) {
+                        if (output_desc.get_element_type() == ov::element::boolean) {
+                            result_src = std::make_shared<ov::op::v0::Convert>(output_desc, ov::element::u8);
+                        } else if (output_desc.get_element_type() == ov::element::f32 && connect_in_f16) {
                             if (!is_hp_tag(output_desc)) {
                                 auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
                                 LOG_VERB("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);

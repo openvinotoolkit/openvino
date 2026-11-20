@@ -75,6 +75,8 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Con
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, output_reclaim_min_size, 32 * 1024 * 1024, "Output buffers of dynamic primitives up to this many bytes are kept when the shape shrinks instead of being reallocated")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, false, "Enforce asymmetric mode for dynamically quantized activations")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, could_use_flashattn_v2, true, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, qsa_key_cache_group_size, 16, "Tokens per scale/zero-point group of a BY_CHANNEL quantized QSA key cache (16 or 32)")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, qsa_kv_cache_symmetric, false, "Use symmetric (no zero point) quantization for the QSA KV caches")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Apply dynamic quantization only when batch size is larger than this value in OneDNN")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")

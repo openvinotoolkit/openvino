@@ -61,6 +61,10 @@ public:
     // to the reference compiled model.
     bool has_switched_to_reference() const;
 
+    ov::SoPtr<ov::ICompiledModel> main_compiled_model() const {
+        return m_main_compiled;
+    }
+
 private:
     friend class InferRequest;
 
