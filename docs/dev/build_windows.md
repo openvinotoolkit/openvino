@@ -85,7 +85,7 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
   ```sh
   python -m openvino.tools.ovc <path/to/model>
   ```
-  This requires the `PYTHONPATH` shown above, which contains both `<openvino_repo>/bin/<arch>/Release/python` and `<openvino_repo>/tools/ovc`.
+  This requires the `PYTHONPATH` and `OPENVINO_LIB_PATHS` shown above: `PYTHONPATH` must contain both `<openvino_repo>/bin/<arch>/Release/python` and `<openvino_repo>/tools/ovc`, and `OPENVINO_LIB_PATHS` must point to the build output directory that contains `openvino.dll`.
 
 ### Building OpenVINO with Ninja* Build System
 
