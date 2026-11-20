@@ -259,8 +259,12 @@ TEST(propagate_constants, constant_padded_conv_chain_matches_fp64_with_runtime_o
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     const ov::intel_gpu::ImplementationDesc runtime_conv_impl{format::any, "", impl_types::onednn};
-    config.set_property(ov::intel_gpu::force_implementations(
-        ov::intel_gpu::ImplForcingMap{{"runtime_conv", runtime_conv_impl}}));
+    // constant_conv_1 also carries a forcing entry whose impl_type is left at its default `any` (as a kernel- or
+    // format-only forcing entry would be), covering the case where propagate_constants must keep its own backend
+    // pin instead of letting graph_initializations reset it back to `any`.
+    const ov::intel_gpu::ImplementationDesc constant_conv_format_only{};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"runtime_conv", runtime_conv_impl}, {"constant_conv_1", constant_conv_format_only}}));
 
     network network(engine, topology, config);
     // Guard against a false-positive pass if implementation forcing were ignored/fell back for this configuration.

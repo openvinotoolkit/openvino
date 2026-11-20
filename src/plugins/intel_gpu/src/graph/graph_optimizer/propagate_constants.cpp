@@ -261,6 +261,12 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
     ov::intel_gpu::ImplForcingMap cf_forcing_map;
     const auto& forcing_map = config.get_force_implementations();
     for (const auto& node : nodes) {
+        // Convolutions pinned above already carry forced_impl_type through node copying (program.cpp); including
+        // them here too would let graph_initializations::run() re-apply this entry's original impl_type and undo
+        // the pin whenever that entry's impl_type defaults to `any` (e.g. a format/kernel-only forcing).
+        if (node->is_type<convolution>() && node->get_selected_impl() != nullptr) {
+            continue;
+        }
         const auto forced = forcing_map.find(node->id());
         if (forced != forcing_map.end()) {
             cf_forcing_map.insert(*forced);
