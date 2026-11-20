@@ -14,7 +14,6 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include "cpu_types.h"
@@ -27,7 +26,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/float4_e2m1.hpp"
 #include "openvino/core/type/float8_e4m3.hpp"
@@ -145,9 +143,8 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto& cpu_parallel = context->getCpuParallel();
         cpu_parallel->parallel_for((dataSize + 1) / 2, [&](size_t i) {
             const auto low = static_cast<ov::float4_e2m1>(values[2 * i]).to_bits();
-            const auto high = 2 * i + 1 < dataSize
-                                  ? static_cast<ov::float4_e2m1>(values[2 * i + 1]).to_bits()
-                                  : uint8_t{0};
+            const auto high =
+                2 * i + 1 < dataSize ? static_cast<ov::float4_e2m1>(values[2 * i + 1]).to_bits() : uint8_t{0};
             dst_data[i] = static_cast<uint8_t>(low | static_cast<uint8_t>(high << 4));
         });
         break;
