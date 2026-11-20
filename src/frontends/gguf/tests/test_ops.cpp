@@ -2888,8 +2888,9 @@ TEST(GGUFOps, GatedDeltaNetFused) {
     expect_near(out, expected, 1e-4f);
 }
 
-// Requested Q/K normalization follows ggml, x / max(||x||, eps), also for vectors below eps-scale
-// norms: q = k = [1e-4, 0] normalize to [1, 0], so one update with v = [1, 0] attends 1/sqrt(2).
+// Requested Q/K normalization follows ggml, x / max(||x||, eps), also for small vectors (the fused
+// op uses eps^2 under the square root): q = k = [1e-4, 0] normalize to ~[1, 0], so one update with
+// v = [1, 0] attends 1/sqrt(2).
 TEST(GGUFOps, GatedDeltaNetFusedQkNormFollowsGgmlForSmallVectors) {
     const int64_t B = 1, T = 1, H = 1, D = 2;
     auto qkv_shp = ov::PartialShape{B, T, H, D};
