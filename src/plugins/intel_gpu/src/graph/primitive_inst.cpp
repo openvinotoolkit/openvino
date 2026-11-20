@@ -2630,6 +2630,12 @@ void primitive_inst::prepare_primitive() {
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
             get_unfused_subgraph();
+            const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
+            if (out_of_order_queue) {
+                for (auto& input : _exec_deps) {
+                    add_dep_event(input->get_impl_params()->out_event);
+                }
+            }
             return;
         }
 
