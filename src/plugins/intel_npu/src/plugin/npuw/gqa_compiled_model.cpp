@@ -13,6 +13,7 @@
 #include <iostream>
 #include <optional>
 #include <sstream>
+#include <string_view>
 #include <typeinfo>
 #include <unordered_set>
 #include <utility>
@@ -23,6 +24,7 @@
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
 #include "npuw_transformations/drop_zp_subtract.hpp"
+#include "npuw_transformations/fold_scalar_dq.hpp"
 #include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -293,6 +295,20 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     return {config, stage};
 }
 
+std::string_view gqa_case_name(ov::npuw::GQACompiledModel::Case gqa_case) {
+    switch (gqa_case) {
+    case ov::npuw::GQACompiledModel::Case::V0:
+        return "V0";
+    case ov::npuw::GQACompiledModel::Case::V1:
+        return "V1";
+    case ov::npuw::GQACompiledModel::Case::V2:
+        return "V2";
+    case ov::npuw::GQACompiledModel::Case::Unknown:
+        break;
+    }
+    return "Unknown";
+}
+
 }  // namespace
 
 // Prints a "[GQA-TRACE]" line when OPENVINO_NPUW_GQA_LOG=1 is set; no-op otherwise.
@@ -310,7 +326,9 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto [prepared_properties, stage] = with_gqa_defaults(model, properties, identify_case(model));
+    const auto gqa_case = identify_case(model);
+    LOG_INFO("Detected GQA model version: " << gqa_case_name(gqa_case));
+    auto [prepared_properties, stage] = with_gqa_defaults(model, properties, gqa_case);
 
     static std::atomic<std::size_t> mcount{0u};
 
@@ -325,6 +343,9 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     // multiple layers; NPUW's FOLD pass requires per-instance scalars.
     ov::npuw::UntangleDQScale untangle_dq_scale;
     untangle_dq_scale.run_on_model(model);
+    // Fold single-element all-Constant DQ chains into one Constant.
+    ov::npuw::FoldScalarDQ fold_scalar_dq;
+    fold_scalar_dq.run_on_model(model);
     // Drop all-zero zero-point Subtract nodes so ConvToMatMul sees a clean
     // Convert(Parameter) → Multiply(scale) weight chain.
     ov::npuw::DropZPSubtract drop_zp_subtract;
@@ -468,8 +489,8 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     // Each matched name must also be forward-reachable to the GQA op (not just same-named).
     const auto* gqa_node = gqa.get();
 
-    // V1 uses `position_ids` for RoPE; V0/V2 use `past_seq_len`/`total_seq_len` instead.
-    // V2 is further distinguished by 2-bit group-quantized (u2) weights.
+    // V2 is identified by 2-bit group-quantized (u2) weights, whatever its position signal.
+    // Otherwise V1 uses `position_ids` for RoPE and V0 uses `past_seq_len`/`total_seq_len`.
     bool has_activation_input = false;
     bool has_position_ids = false;
     bool has_seq_len_signal = false;
@@ -501,10 +522,10 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
         return Case::Unknown;
     }
 
-    if (has_position_ids) {
-        return Case::V1;
+    if (has_2bit_group_quantized_weights(model)) {
+        return Case::V2;
     }
-    return has_2bit_group_quantized_weights(model) ? Case::V2 : Case::V0;
+    return has_position_ids ? Case::V1 : Case::V0;
 }
 
 bool ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(const std::shared_ptr<const ov::Model>& model) {
