@@ -24,6 +24,7 @@ set(OV_RUNTIME_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/hsm_deferred_writer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/hsm_model_id_codec.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/hsm_reader.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/hsm_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/hsm_writer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/iasync_infer_request.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/icompiled_model.cpp
