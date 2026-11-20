@@ -130,10 +130,11 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
     if (decompression_subtract_type != DecompressionType::empty) {
         auto subtract_shape =
             decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
-        auto shift_const_tensor =
-            ov::test::utils::create_and_fill_tensor(weights_precision,
-                                                    subtract_shape,
-                                                    ov::test::utils::InputGenerateData(start_from, up_to, 1, seed));
+        // Per-weight zero points have the same shape as the weights; use different data to avoid an all-zero result.
+        auto shift_const_tensor = ov::test::utils::create_and_fill_tensor(
+            weights_precision,
+            subtract_shape,
+            ov::test::utils::InputGenerateData(start_from, up_to, 1, seed + (group_size == 1 ? 1 : 0)));
         auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_const_tensor);
 
         std::shared_ptr<ov::Node> shift_convert =
