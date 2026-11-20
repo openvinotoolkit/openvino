@@ -1290,10 +1290,11 @@ def test_dataclasses_to_dicts_leaves_supported_containers_alone():
     assert _dataclasses_to_dicts(dict_output) is dict_output
 
 
-def test_wrap_dataclass_outputs():
+def test_patched_dataclass_outputs():
+    """patched_dataclass_outputs temporarily converts a bare @dataclass model
+    output into a dict, and restores the original forward on exit."""
     import dataclasses
-    import inspect
-    from openvino.frontend.pytorch.patch_model import wrap_dataclass_outputs
+    from openvino.frontend.pytorch.patch_model import patched_dataclass_outputs
 
     @dataclasses.dataclass
     class Output:
@@ -1308,12 +1309,13 @@ def test_wrap_dataclass_outputs():
     orig_forward = model.forward
     x = torch.tensor([1.0, 2.0])
 
-    wrapped_model = wrap_dataclass_outputs(model)
-    assert inspect.signature(wrapped_model.forward) == inspect.signature(orig_forward)
-    result = wrapped_model(x)
-    assert isinstance(result, dict) and list(result) == ["first"]
-    assert torch.equal(result["first"], x + 1)
+    with patched_dataclass_outputs(model):
+        assert model.forward != orig_forward
+        result = model(x)
+        assert isinstance(result, dict) and list(result) == ["first"]
+        assert torch.equal(result["first"], x + 1)
 
+    # Original forward (and its dataclass output) is restored after exit.
     assert model.forward == orig_forward
     restored = model(x)
     assert dataclasses.is_dataclass(restored)
@@ -2723,30 +2725,6 @@ class TestConvertModelDynamo:
         example = torch.ones(2, 3)
         with pytest.raises(Error, match="same tensor in multiple positions"):
             convert_model(Subtract(), example_input=(example, example), dynamo=True)
-
-    @pytest.mark.parametrize("collision", [False, True])
-    def test_dataclass_wrapper_preserves_weight_names(self, collision):
-        from openvino import convert_model
-
-        class Model(torch.nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.l1 = torch.nn.Linear(4, 4)
-
-            def forward(self, l1_weight):
-                return self.l1(l1_weight)
-
-        model = Model().eval() if collision else torch.nn.Sequential(torch.nn.Linear(4, 4)).eval()
-        example = torch.ones(2, 4)
-        exported = convert_model(torch.export.export(model, (example,)), dynamo=True)
-        wrapped = convert_model(model, example_input=example, dynamo=True)
-
-        def weight_names(ov_model):
-            return {name for node in ov_model.get_ops() if node.get_type_name() == "Constant"
-                    for name in node.output(0).get_names() if "weight" in name}
-
-        assert weight_names(wrapped) == weight_names(exported)
-        assert weight_names(exported)
 
     def test_basic(self):
         from openvino import convert_model, compile_model

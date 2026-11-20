@@ -212,10 +212,7 @@ class TestStatistics():
                 return out, x + out
 
         example = torch.zeros(3, 256)
-        try:
-            program = torch.export.export(Model(), (example,))
-        except Exception as error:
-            pytest.skip(f"torch.export cannot capture aten.{operation}.out: {error}")
+        program = torch.export.export(Model(), (example,))
         converted = ov.convert_model(program)
         config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
         outputs = ov.Core().compile_model(converted, ie_device, config)([example.numpy()])

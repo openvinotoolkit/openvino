@@ -45,7 +45,7 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
     if input_specs is None:
         return None
 
-    def _dims_for_tensor(tensor, spec_shape, input_idx):
+    def _dims_for_tensor(tensor, spec_shape):
         """Return a per-dim dict mapping dim index to Dim hint.
 
         - Fully dynamic dims (-1) → Dim.AUTO
@@ -69,7 +69,7 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
                     kwargs['min'] = min_val
                 if max_val != -1:  # -1 means unbounded
                     kwargs['max'] = max_val
-                dims[d] = Dim.AUTO(**kwargs) if callable(Dim.AUTO) else Dim(f"d{input_idx}_{d}", **kwargs)
+                dims[d] = Dim.AUTO(**kwargs)
             elif sd == -1:
                 dims[d] = Dim.AUTO
         # If no dynamic dims, return None
@@ -189,7 +189,7 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
                 raise Error(f"Input shape {spec.shape} is incompatible with example_input shape {list(leaf.shape)}. "
                             "Provide a matching example_input or use dynamo=False.")
         ss = spec_shapes[assigned[i]] if assigned[i] is not None else None
-        flat_dim_specs.append(_dims_for_tensor(leaf, ss, i))
+        flat_dim_specs.append(_dims_for_tensor(leaf, ss))
 
     return tree_unflatten(flat_dim_specs, tree_spec)
 

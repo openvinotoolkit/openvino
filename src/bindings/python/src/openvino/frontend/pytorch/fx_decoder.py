@@ -452,7 +452,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """
         from openvino.frontend.pytorch import quantized
         from openvino.frontend.pytorch.patch_model import (
-            patch_model_for_export, unpatch_model, wrap_dataclass_outputs, _clear_export_cache)
+            patch_model_for_export, unpatch_model, patched_dataclass_outputs, _clear_export_cache)
 
         orig_forward_name = "_openvino_module_extension_patch_orig_forward"
 
@@ -488,7 +488,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 quant_patched = False
 
         try:
-            exported_program = cls._export(wrap_dataclass_outputs(model), example_inputs, dynamic_shapes)
+            with patched_dataclass_outputs(model):
+                exported_program = cls._export(model, example_inputs, dynamic_shapes)
         finally:
             if quant_patched:
                 quantized.unpatch_quantized_for_export(model)
@@ -496,29 +497,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 unpatch_model(model, orig_forward_name)
 
         try:
-            decoder = cls.from_exported_program(
+            return cls.from_exported_program(
                 exported_program, op_type_mapping=op_type_mapping, shared_memory=shared_memory)
-            cls._restore_wrapped_attr_names(decoder.pt_module)
-            return decoder
         finally:
             _clear_export_cache()
-
-    @staticmethod
-    def _restore_wrapped_attr_names(graph_module):
-        nodes = list(graph_module.graph.nodes)
-        wrapped = [node for node in nodes
-                   if node.op == "get_attr" and str(node.target).startswith("wrapped_model.")]
-        wrapped_nodes = set(wrapped)
-        namespace = type(graph_module.graph._graph_namespace)()
-        for node in nodes:
-            if node not in wrapped_nodes:
-                namespace.create_name(node.name, node)
-        for node in wrapped:
-            base = node.name.removeprefix("wrapped_model_")
-            if base[0].isdigit():
-                base = "_" + base
-            node.name = namespace.create_name(base, node)
-        graph_module.graph._graph_namespace = namespace
 
     @staticmethod
     def _export(model, inputs, dynamic_shapes=None):

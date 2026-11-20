@@ -4,9 +4,9 @@
 
 # mypy: ignore-errors
 
+import contextlib
 import dataclasses
 import functools
-import inspect
 import logging
 import threading
 import torch
@@ -604,28 +604,25 @@ def _get_16bit_extensions(patch_condition=None):
     return extensions, supported
 
 
-def wrap_dataclass_outputs(model: torch.nn.Module):
-    """Wrap bare dataclass outputs while preserving the original forward signature."""
-    if isinstance(model, getattr(torch.jit, "ScriptModule", ())):
-        return model
-    signature = inspect.signature(model.forward)
+@contextlib.contextmanager
+def patched_dataclass_outputs(model: torch.nn.Module):
+    """Temporarily patch model.forward so a bare @dataclass output can be captured."""
+    orig_forward = model.forward
 
-    class OutputWrapper(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.wrapped_model = model
+    @functools.wraps(orig_forward)
+    def forward(*args, **kwargs):
+        return _dataclasses_to_dicts(orig_forward(*args, **kwargs))
 
-        def forward(self, *args, **kwargs):
-            return _dataclasses_to_dicts(self.wrapped_model(*args, **kwargs))
-
-    self_parameter = inspect.Parameter("_openvino_wrapper_self", inspect.Parameter.POSITIONAL_ONLY)
-    OutputWrapper.forward.__signature__ = signature.replace(parameters=[self_parameter, *signature.parameters.values()])
-    return OutputWrapper()
+    model.forward = forward
+    try:
+        yield
+    finally:
+        model.forward = orig_forward
 
 
 def _dataclasses_to_dicts(value):
     """Recursively convert bare ``@dataclass`` instances in ``value`` into dicts, keyed by field name."""
-    if not isinstance(value, (type, list, tuple, dict)) and hasattr(value, "__dataclass_fields__"):
+    if dataclasses.is_dataclass(value) and not isinstance(value, (type, list, tuple, dict)):
         return {f.name: _dataclasses_to_dicts(getattr(value, f.name))
                 for f in dataclasses.fields(value)
                 if getattr(value, f.name) is not None}
