@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -64,7 +65,8 @@ def image_tensor(path, shape):
 def benchmark(name, shape, args):
     case = TestKeypointDetectorsConvertModel()
     case.mode = args.mode
-    model = case.load_model(name, shape)
+    model_args = (shape, case.get_aliked_repo()) if name.startswith("aliked-") else shape
+    model = case.load_model(name, model_args)
     examples = [image_tensor(path, shape) for path in args.images]
     case.example = (examples[0],)
     start = time.perf_counter()
@@ -219,7 +221,8 @@ def main():
         shapes = [(1, 3, *map(int, shape.split("x"))) for shape in args.shapes]
         cases = [(name, shape) for name in args.models for shape in shapes]
     failures = 0
-    with torch.inference_mode():
+    with torch.inference_mode(), contextlib.ExitStack() as cleanup:
+        cleanup.callback(TestKeypointDetectorsConvertModel.teardown_class, TestKeypointDetectorsConvertModel)
         for name, shape in cases:
             try:
                 result = benchmark(name, shape, args)
