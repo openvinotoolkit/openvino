@@ -1,9 +1,10 @@
-import shlex
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import sys
 import tempfile
 import unittest
-from pathlib import Path
-from subprocess import CompletedProcess
+from subprocess import CompletedProcess, list2cmdline
 from unittest.mock import patch
 
 import run_parallel
@@ -28,11 +29,11 @@ class TestSuiteBatches(unittest.TestCase):
         self.addCleanup(work_dir.cleanup)
         self.work_dir = work_dir.name
         list_tests_patch = patch.object(run_parallel, "run", side_effect=self.list_tests)
-        list_tests_patch.start()
+        self.discovery = list_tests_patch.start()
         self.addCleanup(list_tests_patch.stop)
 
-    def list_tests(self, command, **_kwargs):
-        (Path(self.work_dir) / "test_list.lst").write_text(self.test_list, encoding="utf-8")
+    def list_tests(self, command, *, stdout, **_kwargs):
+        stdout.write(self.test_list)
         return CompletedProcess(command, 0)
 
     test_list = TEST_LIST
@@ -47,7 +48,7 @@ class TestSuiteBatches(unittest.TestCase):
         return {
             pattern
             for batch in cached + uncached
-            for pattern in shlex.split(batch)[0].split(":")
+            for pattern in batch.split(":")
             if pattern
         }
 
@@ -79,6 +80,31 @@ class TestSuiteBatches(unittest.TestCase):
         runner = self.make_runner("*")
         discovered = runner._TestParallelRunner__get_test_list_by_runtime()
         self.assertEqual(list(discovered), ["Brgemm/Params.simpleGemmTest/Prec=f32"])
+
+    def test_negative_filter_with_spaces_reaches_discovery_and_worker(self):
+        negative_suffix = "-*fmt=bfyx; *"
+        self.test_list = "Unique/Params.\n  test/data_shape=(5); fmt=other;   # GetParam() = value\n"
+        for is_win in (False, True):
+            with self.subTest(is_win=is_win), \
+                    patch.object(run_parallel.constants, "IS_WIN", is_win), \
+                    patch.object(run_parallel.TaskManager, "exit_codes", {}), \
+                    patch.object(run_parallel, "Popen") as launch:
+                launch.return_value.poll.return_value = 0
+                launch.return_value.wait.return_value = 0
+                runner = self.make_runner(f"Unique/Params.*{negative_suffix}")
+                cached, uncached = runner._TestParallelRunner__get_filters()
+                runner._TestParallelRunner__execute_tests(cached + uncached)
+
+                discovery_args = [sys.executable, f"--gtest_filter=Unique/Params.*{negative_suffix}", "--gtest_list_tests"]
+                worker_args = [sys.executable, f"--gtest_filter=Unique/Params.*:{negative_suffix}"]
+                if is_win:
+                    discovery_args = list2cmdline(discovery_args)
+                    worker_args = list2cmdline(worker_args)
+                self.assertEqual(self.discovery.call_args.args[0], discovery_args)
+                self.assertFalse(self.discovery.call_args.kwargs.get("shell", False))
+                launch.assert_called_once()
+                self.assertEqual(launch.call_args.args[0], worker_args)
+                self.assertFalse(launch.call_args.kwargs["shell"])
 
 
 class TestWorkerLaunch(unittest.TestCase):

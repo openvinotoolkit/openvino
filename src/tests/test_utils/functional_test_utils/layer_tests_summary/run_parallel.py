@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
-from subprocess import Popen, TimeoutExpired, run, call
+from subprocess import Popen, TimeoutExpired, run, call, list2cmdline
 from tarfile import open as tar_open
 
 import defusedxml.ElementTree as ET
@@ -338,10 +338,10 @@ class TestParallelRunner:
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._conformance_ir_filelists = list()
-        self._gtest_filter = ""
+        self._original_gtest_filter = None
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
         # gtest treats everything after the first '-' as negative patterns; keep them for every batch filter
-        self._gtest_filter, _, self._gtest_negative_filter = self._gtest_filter.strip('"').partition("-")
+        self._gtest_filter, _, self._gtest_negative_filter = (self._original_gtest_filter or "").partition("-")
         self._worker_num = worker_num
         os.makedirs(self._working_dir, exist_ok=True)
         if cache_path == "" or not os.path.exists(cache_path):
@@ -370,15 +370,17 @@ class TestParallelRunner:
             self._timeout = DEFAULT_TEST_TIMEOUT if self._split_unit == constants.TEST_UNIT_NAME else DEFAULT_SUITE_TIMEOUT
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
-        command = f"{self._exec_file_path}"
+        command = self.__quote_command_argument(self._exec_file_path)
         is_input_folder = False
         for argument in test_command_line:
             if "--input_folders" in argument:
                 is_input_folder = True
                 command += " --input_folders="
                 argument = argument[argument.find("=") + 1 :]
-            elif "--gtest_filter" in argument:
-                self._gtest_filter = argument[argument.find("=") + 1 :]
+            elif argument.startswith("--gtest_filter="):
+                self._original_gtest_filter = argument.partition("=")[2]
+                is_input_folder = False
+                continue
             if is_input_folder and argument[0] != "-":
                 buf = ""
                 for _ in argument.split(","):
@@ -400,6 +402,16 @@ class TestParallelRunner:
         return command
 
     @staticmethod
+    def __quote_command_argument(argument):
+        return list2cmdline([argument]) if constants.IS_WIN else shlex.quote(argument)
+
+    def __command_with_gtest_filter(self, test_filter):
+        if test_filter is None:
+            return self._command
+        argument = self.__quote_command_argument(f"--gtest_filter={test_filter}")
+        return f"{self._command} {argument}"
+
+    @staticmethod
     def __replace_restricted_symbols(input_string: str):
         restricted_symbols = '!@$%^&-+`~:;",<>?'
         for symbol in restricted_symbols:
@@ -410,23 +422,11 @@ class TestParallelRunner:
         self._total_test_cnt = 0
         self._disabled_tests.clear()
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
-        if os.path.isfile(test_list_file_name):
-            try:
-                os.remove(test_list_file_name)
-            except Exception as err:
-                logger.warning(f"Impossible to remove {test_list_file_name}. Error: {err}")
-        command_to_get_test_list = self._command + f' --gtest_list_tests > {test_list_file_name}'
+        command_to_get_test_list = self.__command_with_gtest_filter(self._original_gtest_filter) + " --gtest_list_tests"
         logger.info(f"Get test list using command: {command_to_get_test_list}")
-        run_res = run(command_to_get_test_list, check=True, shell=True)
-        if run_res.stderr not in ('', None):
-            logger.error(f"Ooops! Something is going wrong... {run_res.stderr}")
-            sys.exit(-1)
-
-        if not os.path.isfile(test_list_file_name):
-            logger.error(
-                "The test list file does not exists! Please check the process output!"
-            )
-            sys.exit(-1)
+        args = command_to_get_test_list if constants.IS_WIN else shlex.split(command_to_get_test_list)
+        with open(test_list_file_name, "w", encoding=constants.ENCODING) as test_list_file:
+            run(args, check=True, stdout=test_list_file)
 
         tests_dict = {}
         with open(test_list_file_name, encoding=constants.ENCODING) as test_list_file:
@@ -522,12 +522,12 @@ class TestParallelRunner:
         return f"-{self._gtest_negative_filter}" if self._gtest_negative_filter else ""
 
     def __prepare_smart_filters(self, proved_test_dict: dict, partial_suites: dict):
-        def_length = len(self._command) + len(" --gtest_filter=") + len(self.__get_negative_filter_suffix())
+        longest_device = max(self._available_devices, key=len, default=self._device)
+        negative_suffix = self.__get_negative_filter_suffix()
 
-        longest_device = ""
-        for device in self._available_devices:
-            if len(device) > len(longest_device):
-                longest_device = device
+        def command_length(positive_patterns):
+            command = self.__command_with_gtest_filter(positive_patterns + negative_suffix)
+            return len(command.replace(self._device, longest_device))
 
         real_worker_num = self._worker_num * len(self._available_devices)
 
@@ -543,20 +543,19 @@ class TestParallelRunner:
             else:
                 names = [name]
 
-            patterns = []
-            length = def_length
+            patterns = ""
+            pattern_count = 0
             for test_name in names:
-                pattern = f'"{self.__replace_restricted_symbols(test_name)}":'
-                pattern_length = len(pattern.replace(self._device, longest_device))
-                if patterns and length + pattern_length >= MAX_LENGHT:
-                    weight = -1 if duration == -1 else duration * len(patterns) / len(names)
-                    tasks.append((weight, "".join(patterns)))
-                    patterns = []
-                    length = def_length
-                patterns.append(pattern)
-                length += pattern_length
-            weight = -1 if duration == -1 else duration * len(patterns) / len(names)
-            tasks.append((weight, "".join(patterns)))
+                pattern = f"{self.__replace_restricted_symbols(test_name)}:"
+                if patterns and command_length(patterns + pattern) >= MAX_LENGHT:
+                    weight = -1 if duration == -1 else duration * pattern_count / len(names)
+                    tasks.append((weight, patterns))
+                    patterns = ""
+                    pattern_count = 0
+                patterns += pattern
+                pattern_count += 1
+            weight = -1 if duration == -1 else duration * pattern_count / len(names)
+            tasks.append((weight, patterns))
 
         for test_time, test_pattern in sorted(tasks, reverse=True):
 
@@ -565,12 +564,7 @@ class TestParallelRunner:
             else:
                 while len(tasks_not_full) > 0:
                     t_time, t_pattern = tasks_not_full[0]
-                    length = (
-                        len(t_pattern)
-                        + def_length
-                        + len(test_pattern.replace(self._device, longest_device))
-                    )
-                    if length < MAX_LENGHT:
+                    if command_length(t_pattern + test_pattern) < MAX_LENGHT:
                         break
                     else:
                         tasks_full.append(heapq.heappop(tasks_not_full))
@@ -633,7 +627,7 @@ class TestParallelRunner:
 
     def __execute_tests(self, filters: [], prev_worker_cnt=0):
         negative_suffix = self.__get_negative_filter_suffix()
-        commands = [f"{self._command} --gtest_filter={filter}{negative_suffix}" for filter in filters]
+        commands = [self.__command_with_gtest_filter(pattern + negative_suffix) for pattern in filters]
         tmp_log_dir = os.path.join(self._working_dir, "temp")
         if not os.path.isdir(tmp_log_dir):
             os.mkdir(tmp_log_dir)
@@ -717,14 +711,14 @@ class TestParallelRunner:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
                 not_runned_test_filters = [
-                    f'"{self.__replace_restricted_symbols(test)}"'
+                    self.__replace_restricted_symbols(test)
                     for test in not_runned_tests
                 ]
                 worker_cnt += self.__execute_tests(not_runned_test_filters, worker_cnt)
             if len(interapted_tests) > 0:
                 logger.info(f"Execute interapted {len(interapted_tests)} tests")
                 interapted_tests_filters = [
-                    f'"{self.__replace_restricted_symbols(test)}"'
+                    self.__replace_restricted_symbols(test)
                     for test in interapted_tests
                 ]
                 worker_cnt += self.__execute_tests(interapted_tests_filters, worker_cnt)
