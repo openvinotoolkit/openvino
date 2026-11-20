@@ -35,6 +35,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
@@ -448,7 +449,11 @@ bool FuseQSAIndexerQuery::run_on_model(const std::shared_ptr<ov::Model>& model) 
     RUN_ON_MODEL_SCOPE(FuseQSAIndexerQuery);
     // QSAIndexer normalizes before it rotates, so RoPE is absorbed over the whole model before RMS.
     GraphRewrite rope;
-    rope.set_pass_config(get_pass_config());
+    auto rope_pass_config = std::make_shared<PassConfig>(*get_pass_config());
+    rope_pass_config->enable<RoPEFusionIOSlicing>();
+    rope.set_pass_config(rope_pass_config);
+    rope.add_matcher<RoPEFusionIOSlicing>();
+    rope.add_matcher<RoPEFusionPreprocess>();
     rope.add_matcher<FuseQSAIndexerQueryRoPE<op_internal::QSAIndexer>>();
     rope.add_matcher<FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>>();
     GraphRewrite norm;

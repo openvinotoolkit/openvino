@@ -37,6 +37,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -45,6 +46,7 @@
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -633,6 +635,8 @@ struct QueryOptions {
     // A static single-token query whose head transposes around a head-first RoPE are Reshapes, as in SDPAToPA output.
     bool single_token_head_first = false;
     bool query_is_reshape = false;
+    // A partial RoPE left as Transpose -> VariadicSplit -> RoPE -> Concat, as when RoPEFusionIOSlicing is disabled.
+    bool split_rope = false;
     int64_t rope_length = -1;
     int64_t rope_axis = 1;
     // Reshape target expressing the cos / sin head-axis Unsqueeze; empty keeps the Unsqueeze.
@@ -716,10 +720,20 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
         if (o.single_token_head_first) {
             rope_input = std::make_shared<v1::Reshape>(input, i64({0, query_heads, 1, head_size}), true);
         }
+        std::shared_ptr<v1::VariadicSplit> split;
+        if (o.split_rope) {
+            config.input_trans0213 = false;
+            rope_input = std::make_shared<v1::Transpose>(rope_input, i64({0, 2, 1, 3}));
+            split = std::make_shared<v1::VariadicSplit>(rope_input, i64({3}), i64({rotary_dim, -1}));
+            rope_input = split->output(0);
+        }
         rope = std::make_shared<op_internal::RoPE>(OutputVector{rope_input,
                                                                 with_head_axis(o.distinct_cos ? other_rows(cos) : cos),
                                                                 with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
                                                    config);
+        if (split) {
+            rope = std::make_shared<v0::Concat>(OutputVector{rope, split->output(1)}, -1);
+        }
         if (o.single_token_head_first) {
             return rope;
         }
@@ -934,6 +948,24 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          [](const testing::TestParamInfo<QueryOptions>& info) {
                              return info.param.name;
                          });
+
+template <class Indexer>
+void check_split_query_rope_fusion(TransformationTestsF& test) {
+    QueryOptions options;
+    options.split_rope = true;
+    test.model = getQueryModel<Indexer>(options);
+    test.model_ref = getQueryModelRef<Indexer>(options);
+    test.manager.get_pass_config()->disable<pass::RoPEFusionIOSlicing>();
+    test.manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQuerySplitRoPEWithIOSlicingDisabled) {
+    check_split_query_rope_fusion<op_internal::QSAIndexer>(*this);
+}
+
+TEST_F(TransformationTestsF, FusePagedQSAIndexerQuerySplitRoPEWithIOSlicingDisabled) {
+    check_split_query_rope_fusion<op_internal::PagedQSAIndexer>(*this);
+}
 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryWithDynamicHeadFirstReshapeTarget) {
     QueryOptions options;
