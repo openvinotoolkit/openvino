@@ -75,6 +75,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14CeilTorch_CPU_3D, AvgPoolingV14LayerCPU
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          AvgPoolingV14LayerCPUTest::getTestCaseName);
 
+// CEIL_TORCH with padding counted in the divisor, where the last window reaches past pads_end (#39847).
+// Only the explicit padding may count, as in ONNX and PyTorch. Uses CEIL_TORCH on every architecture.
+const std::vector<poolSpecificParams> paramsAvgV144D_CeilTorchOverhang = {
+        poolSpecificParams{ utils::PoolingTypes::AVG, {3, 3}, {3, 3}, {1, 1}, {1, 1},
+                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, false },
+        poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 1}, {0, 0},
+                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, false },
+};
+
+const std::vector<InputShape> inputShapes4D_CeilTorchOverhang = {
+        { {}, {{1, 3, 6, 6}} },
+        { {}, {{1, 3, 9, 9}} },
+        { {}, {{1, 2, 4, 4}} },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_CeilTorchOverhang, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvgV144D_CeilTorchOverhang),
+                                 ::testing::ValuesIn(inputShapes4D_CeilTorchOverhang),
+                                 ::testing::Values(ElementType::f32),
+                                 ::testing::Values(false),
+                                 ::testing::Values(expectedCpuConfigAnyLayout()),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         AvgPoolingV14LayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_3D_NotOptimized, AvgPoolingV14LayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsAvg3D_RefOnly),
