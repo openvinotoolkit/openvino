@@ -113,15 +113,15 @@ ActiveDevice Schedule::get_active_device() const {
     return m_instances.active_device();
 }
 
-void Schedule::register_compile_result(AutoCompileContext& context, SoCompiledModel compiled_model) {
-    const auto key = context.instance_key();
+DeviceExecutionContext& Schedule::register_compile_result(const CompileRequest& request, SoCompiledModel compiled_model) {
+    const auto key = request.instance_key();
     OPENVINO_ASSERT(compiled_model, get_log_tag(), ": no compiled model to register for ", key.to_string());
     generate_workers(key, compiled_model);
-    context.m_device_context = &get_device_context(key);
+    return get_device_context(key);
 }
 
-void Schedule::mark_compile_failure(const AutoCompileContext& context, const std::string& reason) {
-    if (auto* device_context = find_device_context(context.instance_key())) {
+void Schedule::mark_compile_failure(const CompileRequest& request, const std::string& reason) {
+    if (auto* device_context = find_device_context(request.instance_key())) {
         device_context->mark_faulted(reason);
     }
 }

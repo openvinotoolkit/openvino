@@ -7,7 +7,7 @@
 namespace ov {
 namespace auto_plugin {
 
-SoCompiledModel AutoCompileContext::compiled_model() const {
+SoCompiledModel RoleSlot::compiled_model() const {
     const auto* device_context = m_device_context.load();
     return device_context ? device_context->compiled_model() : SoCompiledModel{};
 }

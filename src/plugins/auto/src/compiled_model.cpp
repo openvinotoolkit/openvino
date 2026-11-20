@@ -57,8 +57,8 @@ std::string ov::auto_plugin::CompiledModel::get_log_tag() const noexcept {
     return m_context->m_log_tag;
 }
 
-ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoCompileContext& context) {
-    return get_device_supported_properties(context.m_device_info.device_name, context.compiled_model());
+ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(RoleSlot& role) {
+    return get_device_supported_properties(role.m_device_info.device_name, role.compiled_model());
 }
 
 ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(const std::string& device_name,

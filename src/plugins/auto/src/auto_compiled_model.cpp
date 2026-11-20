@@ -94,7 +94,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         const unsigned int default_num_for_tput = 4u;
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
-        if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
+        if (m_scheduler->m_compile_context[ACTUALDEVICE].is_ready()) {
             real = m_scheduler->m_compile_context[ACTUALDEVICE].compiled_model()->get_property(name).as<unsigned int>();
         } else {
             DeviceInformation device_info;

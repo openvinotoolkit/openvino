@@ -677,7 +677,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                                                        auto_s_context,
                                                        scheduler);
     } else {
-        if (std::static_pointer_cast<AutoSchedule>(scheduler)->m_compile_context[ACTUALDEVICE].m_is_already) {
+        if (std::static_pointer_cast<AutoSchedule>(scheduler)->m_compile_context[ACTUALDEVICE].is_ready()) {
             // release all the models here if actual device finish compiling model.
             auto_s_context->m_model.reset();
         }

@@ -39,8 +39,7 @@ protected:
     static bool run_pipeline_task(ov::threading::Task& pipeline_task, WorkerPool& pool);
     virtual void generate_workers(const ModelInstanceKey& key, const SoCompiledModel& compiled_model);
     // the result is empty if the compilation failed or the context reuses a ready device
-    virtual SoCompiledModel try_to_compile_model(AutoCompileContext& context,
-                                                 const std::shared_ptr<ov::Model>& model) = 0;
+    virtual CompileResult try_to_compile_model(CompileRequest& request, const std::shared_ptr<ov::Model>& model) = 0;
     virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
     // picks another device after an inference failed on the given instance
     virtual bool select_other_device(const ModelInstanceKey& failed_instance) = 0;
@@ -53,11 +52,11 @@ protected:
     // asserts if the instance was not added by init()
     DeviceExecutionContext& get_device_context(const ModelInstanceKey& key);
     DeviceExecutionContext* find_device_context(const ModelInstanceKey& key);
-    // moves a successful compilation into the context of context.instance_key(): creates the workers, and the
+    // moves a successful compilation into the context of request.instance_key(): creates the workers, and the
     // context becomes the owner of the model
-    void register_compile_result(AutoCompileContext& context, SoCompiledModel compiled_model);
+    DeviceExecutionContext& register_compile_result(const CompileRequest& request, SoCompiledModel compiled_model);
     // records a failed compilation in the context of the device the compile context targets
-    void mark_compile_failure(const AutoCompileContext& context, const std::string& reason);
+    void mark_compile_failure(const CompileRequest& request, const std::string& reason);
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     TaskQueue                                                            m_infer_pipeline_tasks;
     // filled by init() only, the contexts keep their address until the schedule is destroyed

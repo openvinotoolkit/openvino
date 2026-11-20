@@ -65,7 +65,7 @@ void CumuSchedule::init() {
         // Total number of devices in CTPUT
         m_n_ctput_devicenums = valid_devices.size();
         // Generate contexts for loading each device
-        m_p_ctput_loadcontext.reset(new AutoCompileContext[m_n_ctput_devicenums]);
+        m_p_ctput_loadcontext.reset(new RoleSlot[m_n_ctput_devicenums]);
         int idx = 0;
         DeviceInformation cpu_device_information;
         for (auto& device : valid_devices) {
@@ -85,14 +85,12 @@ void CumuSchedule::init() {
         m_context->m_performance_hint = ov::hint::PerformanceMode::THROUGHPUT;
     }
 
-    auto load_device_task = [&](AutoCompileContext* context_ptr,
-                                const std::shared_ptr<ov::Model>& model) {
-        auto compiled_model = try_to_compile_model(*context_ptr, model);
-        if (context_ptr->m_is_load_success) {
-            register_compile_result(*context_ptr, std::move(compiled_model));
-            context_ptr->m_is_already = true;
-            // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
-            context_ptr->m_is_reload_success = true;
+    auto load_device_task = [&](RoleSlot* context_ptr, const std::shared_ptr<ov::Model>& model) {
+        auto result = try_to_compile_model(*context_ptr, model);
+        context_ptr->m_err_message += result.m_error;
+        if (result.m_succeeded) {
+            context_ptr->m_device_context = &register_compile_result(*context_ptr, std::move(result.m_compiled_model));
+            context_ptr->m_state = RoleState::Ready;
             auto& device_name = context_ptr->m_device_info.device_name;
             LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
@@ -110,7 +108,8 @@ void CumuSchedule::init() {
             });
         }
         // Handle device load failure in case of ctput
-        if (!context_ptr->m_is_load_success) {
+        if (!result.m_succeeded) {
+            context_ptr->m_state = RoleState::Failed;
             std::string failedDeviceName = context_ptr->m_device_info.device_name;
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
             const auto DeviceIter = deviceChecker().check_and_return_if_device_in_list(failedDeviceName, m_context->m_device_priorities);
@@ -154,15 +153,15 @@ void CumuSchedule::init() {
         // Wait for CPU to compile the model
         m_executor->run_and_wait(cpu_loads);
     }
-    if (m_n_ctput_devicenums == 1 && m_p_ctput_loadcontext[0].m_is_already) {
+    if (m_n_ctput_devicenums == 1 && m_p_ctput_loadcontext[0].is_ready()) {
         m_passthrough_context = m_p_ctput_loadcontext[0].m_device_context.load();
         m_passthrough_context->keep_alive();
     }
     // the devices are never released in this mode, so the first ready one answers the model queries for good
     m_instances.publish([this]() -> std::optional<ModelInstanceKey> {
         for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
-            const auto* context = m_p_ctput_loadcontext[i].m_is_already ? m_p_ctput_loadcontext[i].m_device_context.load()
-                                                                         : nullptr;
+            const auto* context =
+                m_p_ctput_loadcontext[i].is_ready() ? m_p_ctput_loadcontext[i].m_device_context.load() : nullptr;
             if (context && context->is_ready()) {
                 return context->key();
             }
@@ -172,11 +171,11 @@ void CumuSchedule::init() {
     capture_hw_metadata(wait_first_compiled_model_ready());
 }
 
-SoCompiledModel CumuSchedule::try_to_compile_model(AutoCompileContext& context,
-                                                   const std::shared_ptr<ov::Model>& model) {
-    SoCompiledModel compiled_model;
-    auto& device = context.m_device_info.device_name;
-    auto& device_config = context.m_device_info.config;
+CompileResult CumuSchedule::try_to_compile_model(CompileRequest& request,
+                                                 const std::shared_ptr<ov::Model>& model) {
+    CompileResult result;
+    auto& device = request.m_device_info.device_name;
+    auto& device_config = request.m_device_info.config;
     bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
@@ -202,21 +201,21 @@ SoCompiledModel CumuSchedule::try_to_compile_model(AutoCompileContext& context,
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            result.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
-            compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
+            result.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
-        context.m_is_load_success = true;
+        result.m_succeeded = true;
     } catch (const ov::Exception& e) {
-        context.m_err_message += device + ":" + e.what();
-        context.m_is_load_success = false;
-        mark_compile_failure(context, e.what());
+        result.m_error += device + ":" + e.what();
+        result.m_succeeded = false;
+        mark_compile_failure(request, e.what());
     } catch (const std::exception& e) {
-        context.m_err_message += device + ":" + e.what();
-        context.m_is_load_success = false;
-        mark_compile_failure(context, e.what());
+        result.m_error += device + ":" + e.what();
+        result.m_succeeded = false;
+        mark_compile_failure(request, e.what());
     }
-    return compiled_model;
+    return result;
 }
 
 
@@ -225,7 +224,7 @@ SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {
     result << "compile model failed, ";
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
         // check if device loaded successfully
-        if (m_p_ctput_loadcontext[i].m_is_already) {
+        if (m_p_ctput_loadcontext[i].is_ready()) {
             return m_p_ctput_loadcontext[i].compiled_model();
         } else {
             result << m_p_ctput_loadcontext[i].m_err_message.c_str();

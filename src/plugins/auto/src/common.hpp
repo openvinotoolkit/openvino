@@ -261,32 +261,56 @@ public:
     virtual ~ScheduleContext() = default;
 };
 
-struct AutoCompileContext {
-    std::atomic<bool> m_is_enabled = {false};
-    std::atomic<bool> m_is_already = {false};
-    std::atomic<bool> m_is_load_success = {false};
-    std::atomic<bool> m_is_reload_success = {false};
-    std::future<void> m_future;
-    std::promise<void> m_promise;
-    // owner of the compiled model after the hand-over, never reset so readers keep seeing the last loaded model
-    std::atomic<DeviceExecutionContext*> m_device_context = {nullptr};
+// Input of a compilation. The device is updated in place when the compilation falls back to another candidate, and
+// the candidates that failed are removed from m_meta_devices.
+struct CompileRequest {
     DeviceInformation  m_device_info;
     std::vector<DeviceInformation> m_meta_devices;
     std::string m_model_precision;
-    std::string m_err_message;
-    ov::threading::Task m_task;
     ModelInstanceKey::Profile m_profile = ModelInstanceKey::Profile::Main;
     // the priority registration of m_device_info has already been dropped by the caller
     bool m_priority_released = false;
-    // the compiled model of the device context, empty before the compile result was handed over
-    SoCompiledModel compiled_model() const;
     // the instance the compilation result goes to; follows m_device_info when the compilation falls back
     ModelInstanceKey instance_key() const {
         return {m_device_info.device_name, m_profile};
     }
 };
 
-enum AutoCompileContextIndex {
+// Outcome of a compilation. A success without a model means the device already had a ready instance to reuse.
+struct CompileResult {
+    SoCompiledModel m_compiled_model;
+    bool m_succeeded = false;
+    // the failure of every device that was tried, in order
+    std::string m_error;
+};
+
+// Lifecycle of a role. The model and the workers belong to the DeviceExecutionContext of the instance, the role only
+// records whether that instance currently plays it.
+enum class RoleState {
+    Idle,     // not compiled yet, or reset for the next fallback attempt
+    Ready,    // the instance plays the role, its context is m_device_context
+    Failed,   // the compilation failed on every candidate
+    Retired   // replaced by another role: the startup helper after the actual device, or the actual device after a fallback
+};
+
+// One role of the AUTO schedule (startup helper, actual device or runtime fallback device).
+struct RoleSlot : CompileRequest {
+    std::atomic<bool> m_is_enabled = {false};
+    std::atomic<RoleState> m_state = {RoleState::Idle};
+    std::future<void> m_future;
+    std::promise<void> m_promise;
+    // the instance that played the role last, never reset so readers keep seeing the last loaded model
+    std::atomic<DeviceExecutionContext*> m_device_context = {nullptr};
+    std::string m_err_message;
+    ov::threading::Task m_task;
+    bool is_ready() const {
+        return m_state == RoleState::Ready;
+    }
+    // the compiled model of the instance, empty unless it is ready
+    SoCompiledModel compiled_model() const;
+};
+
+enum ExecutionRole {
     CPU = 0,
     ACTUALDEVICE = 1,
     FALLBACKDEVICE = 2,

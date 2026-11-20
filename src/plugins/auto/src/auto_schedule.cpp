@@ -47,12 +47,11 @@ bool AutoSchedule::select_other_device(const ModelInstanceKey& failed_instance) 
                 // an out-of-list low power target is absent from m_device_priorities, but its first failure
                 // still needs a fallback
                 LOG_DEBUG_TAG("Already selected the fallback device");
-                return m_compile_context[FALLBACKDEVICE].m_is_reload_success ? true : false;
+                return m_compile_context[FALLBACKDEVICE].is_ready();
             }
             m_compile_context[FALLBACKDEVICE].m_meta_devices = m_context->m_device_priorities;
-            m_compile_context[FALLBACKDEVICE].m_is_load_success = false;
             m_compile_context[FALLBACKDEVICE].m_profile = ModelInstanceKey::Profile::Main;
-            m_compile_context[FALLBACKDEVICE].m_is_reload_success = false;
+            m_compile_context[FALLBACKDEVICE].m_state = RoleState::Idle;
             // a previous fallback device is being replaced, drop its reservation
             if (!m_compile_context[FALLBACKDEVICE].m_priority_released &&
                 !m_compile_context[FALLBACKDEVICE].m_device_info.unique_name.empty()) {
@@ -74,10 +73,9 @@ bool AutoSchedule::select_other_device(const ModelInstanceKey& failed_instance) 
             } catch (const ov::Exception& iie) {
                 LOG_DEBUG_TAG("Load context in FALLBACKDEVICE with error: %s", iie.what());
             }
-            if (m_compile_context[FALLBACKDEVICE].m_is_reload_success) {
+            if (m_compile_context[FALLBACKDEVICE].is_ready()) {
                 m_compile_context[ACTUALDEVICE].m_is_enabled = false;
-                m_compile_context[ACTUALDEVICE].m_is_load_success = false;
-                m_compile_context[ACTUALDEVICE].m_is_already = false;
+                m_compile_context[ACTUALDEVICE].m_state = RoleState::Retired;
                 publish_active_instance();
                 LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
                 return true;
@@ -105,7 +103,7 @@ void AutoSchedule::publish_active_instance() {
     m_instances.publish([this]() -> std::optional<ModelInstanceKey> {
         for (const auto role : {FALLBACKDEVICE, ACTUALDEVICE, CPU}) {
             const auto& compile_context = m_compile_context[role];
-            const auto* context = compile_context.m_is_already ? compile_context.m_device_context.load() : nullptr;
+            const auto* context = compile_context.is_ready() ? compile_context.m_device_context.load() : nullptr;
             if (context && context->is_ready()) {
                 return context->key();
             }
@@ -168,18 +166,17 @@ void AutoSchedule::init() {
         m_compile_context[FALLBACKDEVICE].m_is_enabled = true;
     }
 
-    auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
-        auto compiled_model = try_to_compile_model(*context_ptr, model);
-        if (context_ptr->m_is_load_success) {
+    auto load_device_task = [&](RoleSlot* context_ptr, const std::shared_ptr<ov::Model>& model) {
+        auto result = try_to_compile_model(*context_ptr, model);
+        context_ptr->m_err_message += result.m_error;
+        if (result.m_succeeded) {
             // release cloned model here
             const_cast<std::shared_ptr<ov::Model>&>(model).reset();
-            register_compile_result(*context_ptr, std::move(compiled_model));
-            context_ptr->m_is_already = true;
+            context_ptr->m_device_context = &register_compile_result(*context_ptr, std::move(result.m_compiled_model));
+            context_ptr->m_state = RoleState::Ready;
             if (!m_context->m_dynamic_device_selection) {
                 publish_active_instance();
             }
-            // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
-            context_ptr->m_is_reload_success = true;
             auto& device_name = context_ptr->m_device_info.device_name;
             LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
@@ -195,6 +192,8 @@ void AutoSchedule::init() {
                     }
                 }
             });
+        } else {
+            context_ptr->m_state = RoleState::Failed;
         }
         context_ptr->m_promise.set_value();
         // the first compile model process finished
@@ -203,7 +202,7 @@ void AutoSchedule::init() {
         });
     };
     auto customize_helper_context_from_cache_setting = [this](bool is_actual_cpu,
-                                                              AutoCompileContext m_compile_context[],
+                                                              RoleSlot m_compile_context[],
                                                               ScheduleContext::Ptr& m_context) {
         m_compile_context[CPU].m_is_enabled = true;
         const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
@@ -271,7 +270,7 @@ void AutoSchedule::init() {
         auto recycleTask = [this]() mutable {
             wait_actual_compiled_model_ready();
             auto& cpu_help = get_device_context(m_compile_context[CPU].instance_key());
-            while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
+            while (!m_exitflag && m_compile_context[ACTUALDEVICE].is_ready()) {
                 // handle the case of ACTUAL faster than CPU
                 m_compile_context[CPU].m_future.wait();
                 // clean up helper infer requests
@@ -314,7 +313,7 @@ void AutoSchedule::init() {
                         }
                     });
                     LOG_INFO_TAG("release all work requests of the startup helper");
-                    m_compile_context[CPU].m_is_already = false;
+                    m_compile_context[CPU].m_state = RoleState::Retired;
                     publish_active_instance();
                     LOG_INFO_TAG("helper released!!");
                     break;
@@ -332,7 +331,7 @@ void AutoSchedule::init() {
                      true)))) {
         // The performance will has some drop then the passthrough compiled model when enable ENABLE_RUNTIME_FALLBACK
         m_compile_context[ACTUALDEVICE].m_task();
-        if (m_context->m_dynamic_device_selection && m_compile_context[ACTUALDEVICE].m_is_already) {
+        if (m_context->m_dynamic_device_selection && m_compile_context[ACTUALDEVICE].is_ready()) {
             // devices that failed to compile at startup were pruned from this copy only
             m_context->m_device_priorities = m_compile_context[ACTUALDEVICE].m_meta_devices;
             const auto& initial_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
@@ -353,7 +352,7 @@ void AutoSchedule::init() {
     }
     capture_hw_metadata(wait_first_compiled_model_ready());
     // compile_for_all disables the CPU helper, so the pre-compilation can start as soon as the actual device is ready.
-    if (m_cache_precompiler && m_compile_context[ACTUALDEVICE].m_is_already) {
+    if (m_cache_precompiler && m_compile_context[ACTUALDEVICE].is_ready()) {
         // Failed startup devices were already removed from the actual context's candidates.
         m_cache_precompiler->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
                                    m_compile_context[ACTUALDEVICE].m_meta_devices,
@@ -364,12 +363,12 @@ void AutoSchedule::init() {
     }
 }
 
-SoCompiledModel AutoSchedule::try_to_compile_model(AutoCompileContext& context,
-                                                   const std::shared_ptr<ov::Model>& model) {
-    SoCompiledModel compiled_model;
-    auto& device = context.m_device_info.device_name;
-    auto& device_config = context.m_device_info.config;
-    auto& device_list = context.m_meta_devices;
+CompileResult AutoSchedule::try_to_compile_model(CompileRequest& request,
+                                                 const std::shared_ptr<ov::Model>& model) {
+    CompileResult result;
+    auto& device = request.m_device_info.device_name;
+    auto& device_config = request.m_device_info.config;
+    auto& device_list = request.m_meta_devices;
     bool cur_dev_is_cpu = (device.find("CPU") != std::string::npos);
     bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
     {
@@ -400,11 +399,11 @@ SoCompiledModel AutoSchedule::try_to_compile_model(AutoCompileContext& context,
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
         if (!(m_context->m_model_path.empty())) {
-            compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            result.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
-            compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
+            result.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
-        context.m_is_load_success = true;
+        result.m_succeeded = true;
         auto compile_end_time = std::chrono::high_resolution_clock::now();
         auto compiled_time =
             std::chrono::duration_cast<std::chrono::nanoseconds>(compile_end_time - compile_start_time).count() *
@@ -412,7 +411,7 @@ SoCompiledModel AutoSchedule::try_to_compile_model(AutoCompileContext& context,
         const char* loaded_from_cache = "unknown";
         try {
             loaded_from_cache =
-                compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>() ? "yes" : "no";
+                result.m_compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>() ? "yes" : "no";
         } catch (const ov::Exception&) {
         }
         LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms, loaded from cache: %s",
@@ -420,23 +419,23 @@ SoCompiledModel AutoSchedule::try_to_compile_model(AutoCompileContext& context,
                      compiled_time,
                      loaded_from_cache);
     } catch (const ov::Exception& e) {
-        context.m_err_message += device + ":" + e.what();
+        result.m_error += device + ":" + e.what();
         LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
-        context.m_is_load_success = false;
-        mark_compile_failure(context, e.what());
+        result.m_succeeded = false;
+        mark_compile_failure(request, e.what());
     } catch (const std::exception& e) {
-        context.m_err_message += device + ":" + e.what();
+        result.m_error += device + ":" + e.what();
         LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
-        context.m_is_load_success = false;
-        mark_compile_failure(context, e.what());
+        result.m_succeeded = false;
+        mark_compile_failure(request, e.what());
     }
     const bool low_power_first_failure =
-        !context.m_is_load_success && check_and_disable_if_low_power_device_failed(device);
+        !result.m_succeeded && check_and_disable_if_low_power_device_failed(device);
     // a failed low power CPU picked at startup must still cascade to the candidates
     const bool retry_actual_low_power_device =
-        low_power_first_failure && &context == &m_compile_context[ACTUALDEVICE];
-    if (context.m_is_load_success || (cur_dev_is_cpu && !retry_actual_low_power_device)) {
-        return compiled_model;
+        low_power_first_failure && &request == &m_compile_context[ACTUALDEVICE];
+    if (result.m_succeeded || (cur_dev_is_cpu && !retry_actual_low_power_device)) {
+        return result;
     }
     // need to recompile model, unregister it's priority
     // there maybe potential issue.
@@ -444,41 +443,41 @@ SoCompiledModel AutoSchedule::try_to_compile_model(AutoCompileContext& context,
     // configure 0 dGPU, 1 NPU, if dGPU compile failed,
     // the result will be not sure, maybe two models are compiled into NPU,
     // maybe 0 is compiled to NPU, 1 is compiled to iGPU
-    if (!context.m_priority_released) {
-        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
-        context.m_priority_released = true;
+    if (!request.m_priority_released) {
+        m_plugin->unregister_priority(m_context->m_model_priority, request.m_device_info.unique_name);
+        request.m_priority_released = true;
     }
     // remove the current device from device_list
     auto erase_device = deviceChecker().check_and_return_if_device_in_list(device, device_list, true);
     if (erase_device != device_list.end())
         device_list.erase(erase_device);
     if (device_list.empty()) {
-        return {};
+        return result;
     }
     // select next candidate device
     try {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        context.m_device_info = m_plugin->select_device(device_list,
-                                                        context.m_model_precision,
+        request.m_device_info = m_plugin->select_device(device_list,
+                                                        request.m_model_precision,
                                                         m_context->m_model_priority,
                                                         m_context->m_selection_policy,
                                                         (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
     } catch (const ov::Exception&) {
-        return {};
+        return result;
     }
     // select_device() registered the reselected device, so a failure on it has to unregister it again, unless
     // the dynamic selection reserved nothing
-    context.m_priority_released = m_context->m_dynamic_device_selection;
+    request.m_priority_released = m_context->m_dynamic_device_selection;
     if (m_context->m_dynamic_device_selection) {
-        if (const auto* ready_context = find_device_context(context.m_device_info.device_name);
+        if (const auto* ready_context = find_device_context(request.m_device_info.device_name);
             ready_context && ready_context->is_ready()) {
-            context.m_is_load_success = true;
-            return {};
+            result.m_succeeded = true;
+            return result;
         }
     }
     // if the select device is CPU, need to check the config of m_compile_context[CPU]
     // if they are same, do not need to compile again (only when the CPU helper is enabled)
-    cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);
+    cur_dev_is_cpu = (request.m_device_info.device_name.find("CPU") != std::string::npos);
     if (cur_dev_is_cpu && m_compile_context[CPU].m_is_enabled) {
         auto compare = [](ov::AnyMap& a, ov::AnyMap& b) -> bool {
             if (a.size() != b.size()) {
@@ -496,13 +495,15 @@ SoCompiledModel AutoSchedule::try_to_compile_model(AutoCompileContext& context,
             }
             return true;
         };
-        if (compare(context.m_device_info.config, m_compile_context[CPU].m_device_info.config)) {
-            return {};
+        if (compare(request.m_device_info.config, m_compile_context[CPU].m_device_info.config)) {
+            return result;
         }
     }
-    LOG_DEBUG_TAG("try to compile %s", context.m_device_info.device_name.c_str());
+    LOG_DEBUG_TAG("try to compile %s", request.m_device_info.device_name.c_str());
     // try to compile this candidate device
-    return try_to_compile_model(context, model);
+    auto next = try_to_compile_model(request, model);
+    next.m_error = result.m_error + next.m_error;
+    return next;
 }
 
 SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
@@ -512,7 +513,7 @@ SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
     }
     // check if there is any device that have compiled model successfully
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
-        if (m_compile_context[i].m_is_enabled && m_compile_context[i].m_is_already) {
+        if (m_compile_context[i].m_is_enabled && m_compile_context[i].is_ready()) {
             return m_compile_context[i].compiled_model();
         }
     }
@@ -521,7 +522,7 @@ SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
         if (m_compile_context[i].m_is_enabled) {
             m_compile_context[i].m_future.wait();
             // check if compiling is successful
-            if (m_compile_context[i].m_is_already) {
+            if (m_compile_context[i].is_ready()) {
                 return m_compile_context[i].compiled_model();
             }
         }
@@ -570,9 +571,9 @@ bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
             instances.push_back(m_compile_context[ACTUALDEVICE].instance_key());
         } else {
             // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
-            if (m_compile_context[FALLBACKDEVICE].m_is_already) {
+            if (m_compile_context[FALLBACKDEVICE].is_ready()) {
                 instances.push_back(m_compile_context[FALLBACKDEVICE].instance_key());
-            } else if (m_compile_context[ACTUALDEVICE].m_is_already) {
+            } else if (m_compile_context[ACTUALDEVICE].is_ready()) {
                 instances.push_back(m_compile_context[ACTUALDEVICE].instance_key());
             } else {
                 instances.push_back(m_compile_context[CPU].instance_key());
@@ -771,14 +772,14 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     const auto start_time = std::chrono::steady_clock::now();
     const auto requested_device_name = device.device_name;
-    AutoCompileContext context;
-    context.m_device_info = device;
-    context.m_model_precision = m_context->m_model_precision;
+    CompileRequest request;
+    request.m_device_info = device;
+    request.m_model_precision = m_context->m_model_precision;
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        context.m_meta_devices = m_context->m_device_priorities;
+        request.m_meta_devices = m_context->m_device_priorities;
     }
-    const auto candidate_devices = context.m_meta_devices;
+    const auto candidate_devices = request.m_meta_devices;
     const auto state = device_context ? device_context->state() : DeviceExecutionContext::State::Unloaded;
     if (state == DeviceExecutionContext::State::Released) {
         LOG_INFO_TAG("[dynamic] device:%s was released, compiling the model again", device.device_name.c_str());
@@ -790,22 +791,22 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
     }
     // select_dynamic_device() reserved nothing for the requested device
-    context.m_priority_released = true;
+    request.m_priority_released = true;
     if (m_cache_precompiler) {
         // avoids compiling the device twice at the same time; the blob it leaves is loaded below
         m_cache_precompiler->claim_device(requested_device_name);
     }
-    auto compiled_model = try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
-    const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;
+    auto result = try_to_compile_model(request, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
+    const bool fell_back_to_other_device = request.m_device_info.device_name != requested_device_name;
     // try_to_compile_model() drops every device that failed to compile from its own candidate list
     std::vector<std::string> failed_devices;
     for (const auto& candidate : candidate_devices) {
-        const auto remaining = std::find_if(context.m_meta_devices.begin(),
-                                            context.m_meta_devices.end(),
+        const auto remaining = std::find_if(request.m_meta_devices.begin(),
+                                            request.m_meta_devices.end(),
                                             [&candidate](const DeviceInformation& remaining_device) {
                                                 return remaining_device.device_name == candidate.device_name;
                                             });
-        if (remaining == context.m_meta_devices.end()) {
+        if (remaining == request.m_meta_devices.end()) {
             failed_devices.push_back(candidate.device_name);
         }
     }
@@ -814,12 +815,12 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
             failed_devices.push_back(name);
         }
     };
-    if (fell_back_to_other_device || !context.m_is_load_success) {
+    if (fell_back_to_other_device || !result.m_succeeded) {
         add_failed_device(requested_device_name);
     }
-    if (!context.m_is_load_success) {
+    if (!result.m_succeeded) {
         // a failed CPU is never erased from the candidate list by try_to_compile_model(), so it is not found above
-        add_failed_device(context.m_device_info.device_name);
+        add_failed_device(request.m_device_info.device_name);
     }
     // exclude them from the shared candidate list so future inferences stop retrying them
     const auto exclude_from_selection = [this](const std::vector<std::string>& names) {
@@ -837,19 +838,19 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     if (!failed_devices.empty()) {
         exclude_from_selection(failed_devices);
     }
-    if (!context.m_is_load_success) {
+    if (!result.m_succeeded) {
         LOG_WARNING_TAG("[dynamic] compiling the model on device:%s failed, %s",
                         device.device_name.c_str(),
-                        context.m_err_message.c_str());
+                        result.m_error.c_str());
         return false;
     }
-    device = context.m_device_info;
+    device = request.m_device_info;
     if (!get_device_context(device.device_name).is_ready()) {
         try {
-            register_compile_result(context, std::move(compiled_model));
+            register_compile_result(request, std::move(result.m_compiled_model));
         } catch (const std::exception& ex) {
             // the compilation worked but the workers could not be created; without this the device is retried forever
-            mark_compile_failure(context, ex.what());
+            mark_compile_failure(request, ex.what());
             exclude_from_selection({device.device_name});
             LOG_WARNING_TAG("[dynamic] creating the workers on device:%s failed, %s",
                             device.device_name.c_str(),

@@ -25,7 +25,7 @@ public:
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     std::string get_log_tag() const noexcept;
-    static ov::AnyMap get_device_supported_properties(AutoCompileContext& context);
+    static ov::AnyMap get_device_supported_properties(RoleSlot& role);
     static ov::AnyMap get_device_supported_properties(const std::string& device_name,
                                                       const SoCompiledModel& compiled_model);
     ScheduleContext::Ptr   m_context;

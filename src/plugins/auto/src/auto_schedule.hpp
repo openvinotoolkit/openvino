@@ -20,7 +20,7 @@ class AutoSchedule : public Schedule {
 public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     virtual ~AutoSchedule();
-    AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
+    RoleSlot                                                               m_compile_context[CONTEXTNUM];
 
 private:
     void init() override;
@@ -34,8 +34,7 @@ private:
      * @note An exception will be thrown if all loading of model to hw device fails.
      */
     SoCompiledModel wait_first_compiled_model_ready() override;
-    SoCompiledModel try_to_compile_model(AutoCompileContext& context,
-                                         const std::shared_ptr<ov::Model>& model) override;
+    CompileResult try_to_compile_model(CompileRequest& request, const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const ModelInstanceKey& failed_instance) override;
     // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
     std::shared_ptr<CachePrecompiler>                                    m_cache_precompiler;

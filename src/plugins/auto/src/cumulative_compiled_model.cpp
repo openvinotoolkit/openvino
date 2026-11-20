@@ -76,7 +76,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::device::properties) {
         ov::AnyMap all_devices = {};
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
                 auto temp = get_device_supported_properties(m_scheduler->m_p_ctput_loadcontext[i]);
                 all_devices.insert(temp.begin(), temp.end());
             }
@@ -90,7 +90,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         unsigned int res = 0u;
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
             try {
-                if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+                if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
                     res += (m_scheduler->m_p_ctput_loadcontext[i])
                                 .compiled_model()->get_property(ov::optimal_number_of_infer_requests.name())
                                 .as<unsigned int>();
@@ -111,7 +111,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
                 return m_scheduler->m_p_ctput_loadcontext[i].compiled_model()->get_property(name);
             }
         }
@@ -120,7 +120,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         bool loaded_from_cache = true;
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].is_ready()) {
                 try {
                     loaded_from_cache &=
                         (m_scheduler->m_p_ctput_loadcontext[i].compiled_model()->get_property(name).as<bool>());
