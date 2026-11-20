@@ -872,6 +872,71 @@ TEST_F(AutoCachePrecompileTest, skipsDeviceWhoseModelIsAlreadyCompiledByTheOwner
     precompiler->stop();
 }
 
+TEST_F(AutoCachePrecompileTest, claimedDeviceIsNotPrecompiled) {
+    set_global_cache("test_cache_dir");
+    std::atomic<int> claimed_count{0};
+    std::atomic<int> other_count{0};
+    auto precompile_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        claimed_count++;
+        return {precompile_compiled_model, {}};
+    });
+    on_compile("NPU", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        other_count++;
+        return {precompile_compiled_model, {}};
+    });
+    ov::auto_plugin::CacheManager manager;
+    auto precompiler = std::make_shared<ov::auto_plugin::CachePrecompiler>(manager,
+                                                                           core,
+                                                                           model,
+                                                                           std::filesystem::path{},
+                                                                           "test");
+    precompiler->claim_device("GPU.0");
+    precompiler->start(actual_device, {{"GPU.0", {}, -1}, {"NPU", {}, -1}});
+    EXPECT_TRUE(wait_until([&] {
+        return other_count.load() == 1;
+    }));
+    EXPECT_EQ(claimed_count.load(), 0);
+    precompiler->stop();
+}
+
+TEST_F(AutoCachePrecompileTest, claimWaitsForTheInFlightPrecompile) {
+    set_global_cache("test_cache_dir");
+    std::promise<void> gate;
+    auto gate_future = gate.get_future().share();
+    std::atomic<bool> compiling{false};
+    auto precompile_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        compiling = true;
+        gate_future.wait();
+        return {precompile_compiled_model, {}};
+    });
+    ov::auto_plugin::CacheManager manager;
+    auto precompiler = std::make_shared<ov::auto_plugin::CachePrecompiler>(manager,
+                                                                           core,
+                                                                           model,
+                                                                           std::filesystem::path{},
+                                                                           "test");
+    precompiler->start(actual_device, {{"GPU.0", {}, -1}});
+    ASSERT_TRUE(wait_until([&] {
+        return compiling.load();
+    }));
+    std::atomic<bool> claimed{false};
+    std::thread claimer([&] {
+        precompiler->claim_device("GPU.0");
+        claimed = true;
+    });
+    EXPECT_FALSE(wait_until(
+        [&] {
+            return claimed.load();
+        },
+        std::chrono::milliseconds(300)));
+    gate.set_value();
+    claimer.join();
+    EXPECT_TRUE(claimed.load());
+    precompiler->stop();
+}
+
 TEST_F(AutoCachePrecompileTest, skipsDeviceWithCachingDisabled) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, "GPU.0", "NPU", actual_device});

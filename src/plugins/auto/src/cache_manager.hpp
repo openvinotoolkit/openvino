@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -67,6 +68,9 @@ public:
     void start(const std::string& actual_device,
                const std::vector<DeviceInformation>& candidates,
                DeviceLoadedCheck is_device_loaded = {});
+    // Called before the owner compiles the device itself: waits for an in-flight pre-compilation of it, which leaves
+    // the blob for the owner to load, and keeps the device from being pre-compiled afterwards.
+    void claim_device(const std::string& device_name);
     // Skips the remaining devices and waits for the in-flight compilation; idempotent.
     void stop();
     // Compiles the queued devices one by one; called by the CacheManager worker thread only.
@@ -83,6 +87,8 @@ private:
     std::filesystem::path m_model_path;
     std::string m_log_tag;
     std::vector<DeviceInformation> m_devices;
+    std::string m_compiling_device;
+    std::set<std::string> m_claimed_devices;
     DeviceLoadedCheck m_is_device_loaded;
     std::mutex m_mutex;
     std::condition_variable m_cv;
@@ -129,6 +135,9 @@ public:
     // Makes the device skip the cache: Core rejects a config that holds both ov::cache_dir and ov::cache_path.
     // Returns false if the device would not use a cache anyway.
     static bool disable_caching(const ov::ICore& core, const std::string& device_name, ov::AnyMap& config);
+    // Whether a model compiled for the device can be reloaded from its cache: a cache location is set, the device
+    // supports caching and the location is a directory.
+    static bool is_reloadable(const ov::ICore& core, const std::string& device_name, const ov::AnyMap& config);
     // Whether Core writes a cache blob for the device; false if the query fails.
     static bool device_supports_caching(const ov::ICore& core, const std::string& device_name);
     // A user blob ID does not identify a device or a model, so it can not be probed or pre-compiled per device.

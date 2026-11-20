@@ -139,6 +139,14 @@ void CachePrecompiler::stop() {
     m_is_device_loaded = nullptr;
 }
 
+void CachePrecompiler::claim_device(const std::string& device_name) {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_claimed_devices.insert(device_name);
+    m_cv.wait(lock, [&] {
+        return m_compiling_device != device_name;
+    });
+}
+
 void CachePrecompiler::run() {
     std::shared_ptr<const ov::Model> model;
     std::vector<DeviceInformation> devices;
@@ -153,7 +161,13 @@ void CachePrecompiler::run() {
             if (m_state != State::Idle) {
                 return;
             }
+            if (m_claimed_devices.count(device.device_name) != 0) {
+                LOG_INFO_TAG("cache pre-compilation skipped for device: %s, the model compiles it itself",
+                             device.device_name.c_str());
+                continue;
+            }
             m_state = State::Compiling;
+            m_compiling_device = device.device_name;
         }
         const auto begin = std::chrono::steady_clock::now();
         try {
@@ -202,6 +216,7 @@ void CachePrecompiler::run() {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_state = m_state == State::Stopping ? State::Stopped : State::Idle;
+            m_compiling_device.clear();
         }
         m_cv.notify_all();
     }
@@ -326,6 +341,12 @@ bool CacheManager::disable_caching(const ov::ICore& core, const std::string& dev
     config.erase(ov::cache_path.name());
     config[ov::cache_dir.name()] = std::string{};
     return true;
+}
+
+bool CacheManager::is_reloadable(const ov::ICore& core, const std::string& device_name, const ov::AnyMap& config) {
+    const auto cache_location = get_cache_location(core, config, device_name);
+    return !cache_location.empty() && !is_single_file_cache(cache_location) &&
+           device_supports_caching(core, device_name);
 }
 
 bool CacheManager::device_supports_caching(const ov::ICore& core, const std::string& device_name) {

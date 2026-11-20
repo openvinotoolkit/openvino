@@ -7,6 +7,7 @@
 
 #include <condition_variable>
 #include <deque>
+#include <map>
 
 #include "schedule.hpp"
 #include "async_infer_request.hpp"
@@ -65,6 +66,8 @@ private:
      * released while the active one is loaded. A device that could not be released is tried again at the next dispatch.
      */
     void release_inactive_devices(const DeviceName& active_device);
+    // whether the device can be recompiled from its cache blob; only used on the dynamic dispatch thread
+    bool is_evictable(const DeviceName& device_name);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
@@ -77,6 +80,7 @@ private:
     bool                                                                 m_exitflag = {false};
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_dynamic_executor;
     std::shared_ptr<ov::Model>                                           m_dynamic_model;
+    std::map<DeviceName, bool>                                           m_evictable_devices;
     mutable std::mutex                                                   m_gate_mutex;
     bool                                                                 m_gate_busy = false;
     // guarded by m_gate_mutex; set once in ~AutoSchedule() so in-flight dynamic tasks stop touching

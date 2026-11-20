@@ -805,6 +805,10 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     // select_dynamic_device() reserved nothing for the requested device
     context.m_priority_released = true;
+    if (m_cache_precompiler) {
+        // avoids compiling the device twice at the same time; the blob it leaves is loaded below
+        m_cache_precompiler->claim_device(requested_device_name);
+    }
     auto compiled_model = try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
     const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;
     // try_to_compile_model() drops every device that failed to compile from its own candidate list
@@ -831,18 +835,21 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         // a failed CPU is never erased from the candidate list by try_to_compile_model(), so it is not found above
         add_failed_device(context.m_device_info.device_name);
     }
-    if (!failed_devices.empty()) {
-        // exclude them from the shared candidate list so future inferences stop retrying them
+    // exclude them from the shared candidate list so future inferences stop retrying them
+    const auto exclude_from_selection = [this](const std::vector<std::string>& names) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        for (const auto& failed_device : failed_devices) {
+        for (const auto& name : names) {
             const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
-                failed_device, m_context->m_device_priorities, true);
+                name, m_context->m_device_priorities, true);
             if (iter != m_context->m_device_priorities.end()) {
                 m_context->m_device_priorities.erase(iter);
                 LOG_WARNING_TAG("[dynamic] device:%s failed to compile, excluding it from future selection",
-                                failed_device.c_str());
+                                name.c_str());
             }
         }
+    };
+    if (!failed_devices.empty()) {
+        exclude_from_selection(failed_devices);
     }
     if (!context.m_is_load_success) {
         LOG_WARNING_TAG("[dynamic] compiling the model on device:%s failed, %s",
@@ -853,7 +860,33 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     device = context.m_device_info;
     if (!get_device_context(device.device_name).is_ready()) {
         context.m_worker_name = device.device_name;
-        register_compile_result(context, std::move(compiled_model));
+        try {
+            register_compile_result(context, std::move(compiled_model));
+        } catch (const std::exception& ex) {
+            // the compilation worked but the workers could not be created; without this the device is retried forever
+            mark_compile_failure(context, ex.what());
+            exclude_from_selection({device.device_name});
+            LOG_WARNING_TAG("[dynamic] creating the workers on device:%s failed, %s",
+                            device.device_name.c_str(),
+                            ex.what());
+            return false;
+        }
+        if (state == DeviceExecutionContext::State::Released) {
+            bool loaded_from_cache = false;
+            try {
+                loaded_from_cache = get_device_context(device.device_name)
+                                        .compiled_model()
+                                        ->get_property(ov::loaded_from_cache.name())
+                                        .as<bool>();
+            } catch (const ov::Exception&) {
+            }
+            if (!loaded_from_cache) {
+                // evicting it again would repeat a full compilation
+                LOG_INFO_TAG("[dynamic] device:%s was not reloaded from cache, keeping it resident",
+                             device.device_name.c_str());
+                get_device_context(device.device_name).keep_alive();
+            }
+        }
     } else {
         // the fallback landed on a device this schedule already compiled and has a worker for;
         // reuse it instead of generating a second (duplicate) worker for the same device
@@ -880,10 +913,36 @@ void AutoSchedule::release_inactive_devices(const DeviceName& active_device) {
         if (device.first == active_device || !context.is_ready()) {
             continue;
         }
+        if (!is_evictable(device.first)) {
+            // recompiling it from scratch on every switch would cost more than the memory it frees
+            context.keep_alive();
+            continue;
+        }
         if (context.try_release()) {
             LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device.first.c_str());
         }
     }
+}
+
+bool AutoSchedule::is_evictable(const DeviceName& device_name) {
+    const auto cached = m_evictable_devices.find(device_name);
+    if (cached != m_evictable_devices.end()) {
+        return cached->second;
+    }
+    bool evictable = false;
+    const auto& candidates = m_context->m_device_priorities_initial;
+    const auto device = std::find_if(candidates.begin(), candidates.end(), [&](const DeviceInformation& info) {
+        return info.device_name == device_name;
+    });
+    if (device != candidates.end()) {
+        evictable = CacheManager::is_reloadable(*m_context->m_ov_core, device_name, device->config);
+    }
+    if (!evictable) {
+        LOG_INFO_TAG("[dynamic] device:%s can not be reloaded from a cache, keeping its compiled model",
+                     device_name.c_str());
+    }
+    m_evictable_devices.emplace(device_name, evictable);
+    return evictable;
 }
 
 void AutoSchedule::release_execution_slot() {
