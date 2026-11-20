@@ -969,21 +969,51 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
                 return (ov::is_dequantization_node(node) || ov::is_type<ov::opset1::FakeQuantize>(node));
             });
 
-        // Only floating-point activations are scaled. Arithmetic on a tensor converted from an integer or boolean
-        // type also looks like a dequantization to LPT, e.g. the additive attention mask (1 - Convert(mask)) * lowest,
-        // which LPT turns into (Convert(mask) - 1) * 65504 in f16. Moving it through an Add would compute the other
-        // input x as (x - 65504) / 65504 in f16, which loses x (e.g. the T5 relative position bias).
-        pass_config->set_callback<AddTransformation>([&infer_precision](const std::shared_ptr<const ov::Node>& node) -> bool {
-            for (size_t i = 0; i < node->get_input_size(); ++i) {
-                const auto dequantization = NetworkHelper::getDequantization(node, {infer_precision}, i);
-                if (dequantization.empty())
-                    continue;
-                const auto convert =
-                    dequantization.convert ? dequantization.convert : ov::as_type_ptr<ov::op::v0::Convert>(dequantization.data.get_node_shared_ptr());
-                if (convert && !convert->get_input_element_type(0).is_real())
-                    return true;
+        // Activations scaling factors floating-point activations only, and only its own scale-up factors
+        // may be moved through an Add by AddTransformation.
+        // Two kinds of "dequantization" must never be moved:
+        //   (a) arithmetic on a tensor converted from an integer/boolean type, e.g. the T5 additive
+        //       attention mask (1 - Convert(mask)) * lowest, which run-2 LPT would normalize to
+        //       (Convert(mask) - 1) * 65504 and rewrite the Add's other input as (x - 65504) * (1/65504);
+        //   (b) any branch factored out of the Add with a scale large enough that f16 rounding at that
+        //       magnitude noticeably corrupts the other input. The added error scales with |S| (about
+        //       |S|/1000 in the worst case, first element over a 0.02 tolerance at |S| = 100), so the
+        //       bound is a heuristic: kMinCap keeps the error near the f16 noise floor, while 2*ASF
+        //       keeps the legitimate scale-up move alive for any configured activations_scale_factor.
+        // Only the branch whose scale AddTransformation factors below the Add is checked: checking all
+        // ports would also block the legitimate scale-up movement that is the activations-scaling protection.
+        pass_config->set_callback<AddTransformation>([&infer_precision, activations_scale_factor](const std::shared_ptr<const ov::Node>& node) -> bool {
+            const auto dq0 = NetworkHelper::getDequantization(node, {infer_precision}, 0);
+            const auto dq1 = NetworkHelper::getDequantization(node, {infer_precision}, 1);
+            if (dq0.empty() && dq1.empty()) {
+                return false;
             }
-            return false;
+
+            const bool in0_const = ov::is_type<ov::op::v0::Constant>(dq0.data.get_node());
+            const bool in1_const = ov::is_type<ov::op::v0::Constant>(dq1.data.get_node());
+            size_t moved_port = 0;
+            if (in0_const || in1_const) {
+                moved_port = in0_const ? 1 : 0;
+            } else if (!dq0.empty() && dq1.empty()) {
+                moved_port = 0;
+            } else {
+                moved_port = 1;
+            }
+            const auto& moved = (moved_port == 0) ? dq0 : dq1;
+
+            constexpr float kMinCap = 64.0F;
+            const float max_safe_factored_scale = std::max(kMinCap, 2.0F * activations_scale_factor);
+            if (moved.multiplyConstant != nullptr) {
+                const auto scales = moved.multiplyConstant->cast_vector<float>();
+                if (std::any_of(scales.begin(), scales.end(), [max_safe_factored_scale](float s) { return std::abs(s) > max_safe_factored_scale; })) {
+                    return true;
+                }
+            }
+
+            const auto convert =
+                moved.convert != nullptr ? moved.convert
+                                         : ov::as_type_ptr<ov::op::v0::Convert>(moved.data.get_node_shared_ptr());
+            return convert != nullptr && !convert->get_input_element_type(0).is_real();
         });
 
         manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
