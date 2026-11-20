@@ -230,11 +230,15 @@ OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_rand);
+OP_CONVERTER(translate_rand_fx);
 OP_CONVERTER(translate_randperm);
 OP_CONVERTER(translate_randn);
+OP_CONVERTER(translate_randn_fx);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
+OP_CONVERTER(translate_rand_like_fx);
 OP_CONVERTER(translate_randn_like);
+OP_CONVERTER(translate_randn_like_fx);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
@@ -276,6 +280,7 @@ OP_CONVERTER(translate_svd);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
+OP_CONVERTER(translate_sym_float);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
@@ -285,6 +290,7 @@ OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
 OP_CONVERTER(translate_trunc);
+OP_CONVERTER(translate_trunc_to_int);
 OP_CONVERTER(translate_type_as);
 OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_tuple_unpack);
@@ -873,9 +879,11 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function add>", op::translate_add},
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
+        {"<built-in function mod>", op::translate_remainder},
         {"<built-in function mul>", op::translate_mul},
         {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
+        {"<built-in function trunc>", op::translate_trunc_to_int},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
         {"aten._adaptive_avg_pool3d.default", op::translate_adaptive_avg_pool3d},
@@ -957,6 +965,14 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.ones_like.default", op::translate_ones_like_fx},
         {"aten.prod.default", op::translate_prod_fx},
         {"aten.prod.dim_int", op::translate_prod_fx},
+        {"aten.rand.default", op::translate_rand_fx},
+        {"aten.rand.out", op::translate_rand_fx},
+        {"aten.rand_like.default", op::translate_rand_like_fx},
+        {"aten.rand_like.out", op::translate_rand_like_fx},
+        {"aten.randn.default", op::translate_randn_fx},
+        {"aten.randn.out", op::translate_randn_fx},
+        {"aten.randn_like.default", op::translate_randn_like_fx},
+        {"aten.randn_like.out", op::translate_randn_like_fx},
         {"aten.repeat.default", op::translate_repeat_fx},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
@@ -969,6 +985,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.std.correction", op::translate_std_fx},
         {"aten.sum.default", op::translate_sum_fx},
         {"aten.sum.dim_IntList", op::translate_sum_fx},
+        {"aten.sym_float", op::translate_sym_float},
+        {"aten.sym_max", op::translate_maximum},
+        {"aten.sym_min", op::translate_minimum},
         {"aten.sym_size.int", op::translate_size},
         {"aten.tensor_split.indices", op::translate_list_view_fx},
         {"aten.tensor_split.sections", op::translate_list_view_fx},

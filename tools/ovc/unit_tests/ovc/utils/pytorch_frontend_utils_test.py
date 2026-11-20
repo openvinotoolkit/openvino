@@ -3,6 +3,7 @@
 
 from argparse import Namespace
 
+from openvino import PartialShape
 from openvino.tools.ovc.cli_parser import _InputCutInfo, input_to_input_cut_info
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import extract_input_info_from_example
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
@@ -32,7 +33,7 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         args = Namespace()
         args.input_model = FakeInputModel({
             "attention_mask": FakeTensor((1, 4)),
-            "input_ids": FakeTensor((1, 8)),
+            "input_ids": FakeTensor((1, 8, 3)),
         })
         args.example_input = None
         args.dynamo = True
@@ -41,23 +42,23 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         extract_input_info_from_example(args, args.input)
 
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
-        self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
-        self.assertEqual(list(shapes_by_name["attention_mask"]), [1, 4])
+        self.assertEqual(shapes_by_name["input_ids"], PartialShape([-1, -1, -1]))
+        self.assertEqual(shapes_by_name["attention_mask"], PartialShape([-1, -1]))
 
     def test_unnamed_example_input_still_matches_positionally(self):
         # No names anywhere, and the descriptors carry no shape either, so this
-        # actually exercises copying example_input's shape by position, not just
+        # actually exercises copying example_input's rank by position, not just
         # echoing a shape the descriptor already had.
         args = Namespace()
-        args.input_model = FakeInputModel((FakeTensor((1, 4)), FakeTensor((1, 8))))
+        args.input_model = FakeInputModel((FakeTensor((1, 4)), FakeTensor((1, 8, 3))))
         args.example_input = None
         args.dynamo = True
         args.input = [_InputCutInfo(None, None, None, None), _InputCutInfo(None, None, None, None)]
 
         extract_input_info_from_example(args, args.input)
 
-        self.assertEqual(list(args.input[0].shape), [1, 4])
-        self.assertEqual(list(args.input[1].shape), [1, 8])
+        self.assertEqual(args.input[0].shape, PartialShape([-1, -1]))
+        self.assertEqual(args.input[1].shape, PartialShape([-1, -1, -1]))
 
     def test_unmatched_name_leaves_shape_unset_instead_of_guessing_by_position(self):
         # Both sides are named, but the name sets don't line up (the user mistyped
@@ -66,7 +67,7 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         args = Namespace()
         args.input_model = FakeInputModel({
             "attention_mask": FakeTensor((1, 4)),
-            "input_ids": FakeTensor((1, 8)),
+            "input_ids": FakeTensor((1, 8, 3)),
         })
         args.example_input = None
         args.dynamo = True
@@ -75,7 +76,7 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         extract_input_info_from_example(args, args.input)
 
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
-        self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
+        self.assertEqual(shapes_by_name["input_ids"], PartialShape([-1, -1, -1]))
         self.assertIsNone(shapes_by_name["attn_mask"])
 
     def test_named_input_matched_by_name_even_off_its_own_position(self):
@@ -88,7 +89,7 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         args = Namespace()
         args.input_model = FakeInputModel({
             "past_key_values": (FakeTensor((1, 2)),),
-            "input_ids": FakeTensor((1, 8)),
+            "input_ids": FakeTensor((1, 8, 3)),
         })
         args.example_input = None
         args.dynamo = True
@@ -97,7 +98,7 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         extract_input_info_from_example(args, args.input)
 
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
-        self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
+        self.assertEqual(shapes_by_name["input_ids"], PartialShape([-1, -1, -1]))
 
     def test_extract_input_info_from_example_matches_named_inputs_by_name(self):
         args = Namespace()
@@ -112,5 +113,5 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         extract_input_info_from_example(args, args.input)
 
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
-        self.assertEqual(list(shapes_by_name["a"]), [1, 3, 224, 224])
-        self.assertEqual(list(shapes_by_name["b"]), [1])
+        self.assertEqual(shapes_by_name["a"], PartialShape([-1, -1, -1, -1]))
+        self.assertEqual(shapes_by_name["b"], PartialShape([-1]))

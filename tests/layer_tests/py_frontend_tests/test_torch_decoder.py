@@ -780,6 +780,8 @@ def test_pytorch_fx_decoder_extracts_signature():
     assert nc_decoder._input_signature == ["a", "b"]
 
 
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
 def test_pytorch_fx_decoder_names_flattened_list_inputs():
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
@@ -794,6 +796,8 @@ def test_pytorch_fx_decoder_names_flattened_list_inputs():
     assert decoder._input_signature == ["pair", "scale"]
 
 
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
 def test_pytorch_fx_decoder_names_mixed_and_empty_container_inputs():
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
@@ -809,6 +813,8 @@ def test_pytorch_fx_decoder_names_mixed_and_empty_container_inputs():
 
 
 @pytest.mark.precommit
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
+                    reason="torch.export conversion requires torch>=2.6.0")
 def test_pytorch_dynamo_convert_builtin_named_input_with_list_input():
     import numpy as np
     from openvino import Core, convert_model
@@ -829,6 +835,8 @@ def test_pytorch_dynamo_convert_builtin_named_input_with_list_input():
     np.testing.assert_allclose(result, expected)
 
 
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
 def test_pytorch_fx_decoder_flat_input_names_unchanged():
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
@@ -842,6 +850,8 @@ def test_pytorch_fx_decoder_flat_input_names_unchanged():
 
 
 @pytest.mark.precommit
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
+                    reason="torch.export conversion requires torch>=2.6.0")
 def test_pytorch_dynamo_convert_with_list_input_keeps_input_names():
     import numpy as np
     from openvino import Core, convert_model
@@ -887,26 +897,29 @@ def test_pytorch_fx_decoder_container_name_does_not_take_argument_name():
 
 
 @pytest.mark.precommit
-def test_pytorch_dynamo_convert_named_input_reaches_argument_not_container():
+@pytest.mark.parametrize("dynamic_name", [None, "pair_0", "pair_0_1"])
+def test_pytorch_dynamo_convert_named_input_reaches_argument_not_container(dynamic_name):
     import numpy as np
     from openvino import Core, PartialShape, convert_model
 
     class TestModel(torch.nn.Module):
         def forward(self, pair, pair_0):
-            return pair[0] * 2 + pair_0 * 3
+            return pair[0].sum(0) * 2 + pair_0 * 3
 
     pair = [torch.ones(2, 4) * 5]
     pair_0 = torch.ones(2, 4) * 7
     model = TestModel()
     expected = model(pair, pair_0).numpy()
 
-    ov_model = convert_model(
-        model, example_input=(pair, pair_0), dynamo=True, input={"pair_0": PartialShape([2, 4])}
-    )
+    shapes = {"pair_0": PartialShape([2, 4])}
+    if dynamic_name is not None:
+        shapes[dynamic_name] = PartialShape([-1, 4])
+    ov_model = convert_model(model, example_input=(pair, pair_0), dynamo=True, input=shapes)
 
-    assert [sorted(port.get_names()) for port in ov_model.inputs] == [["pair_0_1"], ["pair_0"]]
-    assert list(ov_model.input("pair_0").get_partial_shape()) == [2, 4]
-    assert ov_model.input("pair_0_1").get_partial_shape().is_dynamic
+    assert sorted(sorted(port.get_names()) for port in ov_model.inputs) == [["pair_0"], ["pair_0_1"]]
+    for name in ("pair_0", "pair_0_1"):
+        expected_shape = PartialShape([-1, 4]) if name == dynamic_name else PartialShape([2, 4])
+        assert ov_model.input(name).get_partial_shape() == expected_shape
     compiled = Core().compile_model(ov_model, "CPU")
     result = compiled({"pair_0_1": pair[0].numpy(), "pair_0": pair_0.numpy()})[0]
     np.testing.assert_allclose(result, expected)

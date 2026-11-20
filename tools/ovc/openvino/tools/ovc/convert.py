@@ -21,7 +21,7 @@ def convert_model(
         extension: [str, pathlib.Path, list, Any] = None,
         verbose: bool = False,
         share_weights: bool = True,
-        dynamo: bool = False,
+        dynamo: bool = True,
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -98,13 +98,17 @@ def convert_model(
             are reused for weights in the converted model.
         :param dynamo:
             Export a PyTorch torch.nn.Module using torch.export instead of
-            torch.jit.trace. Requires example_input and PyTorch >= 2.6.
-            Default is False.
-            The resulting model uses static shapes derived from example_input by default.
+            torch.jit.trace. Default is True. Export requires example_input and
+            PyTorch >= 2.6. Set to False to use TorchScript explicitly, including
+            for scripted modules and functions, which torch.export does not
+            support. Supplied TorchScript model files and decoders are used directly.
+            Non-PyTorch models are not exported with torch.export.
+            The exported model uses static shapes from example_input by default.
             To enable dynamic dimensions, combine with the input parameter:
-            dimensions set to -1 or Dimension(-1) become fully dynamic
-            (torch.export.Dim.AUTO), and bounded dimensions such as Dimension(1, 10)
-            are exported with explicit min/max constraints.
+            dynamic and bounded dimensions use torch.export.Dim.AUTO.
+            The input shape must be compatible with example_input; export can
+            reject dimensions that it cannot keep dynamic. Export failures are
+            not retried with TorchScript.
 
     Returns:
         openvino.Model

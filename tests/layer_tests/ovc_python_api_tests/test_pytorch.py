@@ -1389,8 +1389,8 @@ def pytorch_nn_module_with_disabled_compression(tmp_dir):
         def forward(self, x, z):
             return (x + self.y) * z
 
-    param_1 = ov.opset13.parameter([-1], dtype=np.float32)
-    param_2 = ov.opset13.parameter([-1], dtype=np.float32)
+    param_1 = ov.opset13.parameter([10], dtype=np.float32)
+    param_2 = ov.opset13.parameter([10], dtype=np.float32)
     const_1 = ov.opset13.constant(np.arange(10), dtype=np.float32)
     add_1 = ov.opset13.add(param_1, const_1)
     mul_1 = ov.opset13.multiply(add_1, param_2)
@@ -1399,6 +1399,21 @@ def pytorch_nn_module_with_disabled_compression(tmp_dir):
     fw_model = NeuralNetwork()
     return fw_model, ov_model_ref, {'example_input': (torch.zeros(10), torch.zeros(10)),
                                     'compress_to_fp16': 'False'}
+
+
+def export_with_dynamic_dims(model, example_input):
+    """Export with all tensor dimensions dynamic; size-1 dimensions would be specialized by torch.export."""
+    from torch.utils._pytree import tree_map
+
+    def widen(value):
+        return value.new_zeros([2 if size == 1 else size for size in value.shape]) \
+            if isinstance(value, torch.Tensor) else value
+
+    example_input = tree_map(widen, tuple(example_input))
+    dynamic_shapes = tree_map(
+        lambda value: {d: torch.export.Dim.AUTO for d in range(value.ndim)}
+        if isinstance(value, torch.Tensor) else None, example_input)
+    return torch.export.export(model, example_input, dynamic_shapes=dynamic_shapes)
 
 
 class TestConvertModelForPyTorchModelOnDisk(CommonMOConvertTest):
@@ -1428,7 +1443,7 @@ class TestConvertModelForPyTorchModelOnDisk(CommonMOConvertTest):
                     test_params.update(ovc_params)
             else:
                 example_input = ovc_params['example_input']
-                exported_program = torch.export.export(fw_model, example_input)
+                exported_program = export_with_dynamic_dims(fw_model, example_input)
                 torch.export.save(exported_program, tmpfile.name)
                 test_params = {'input_model': tmpfile.name}
                 if ovc_params is not None:
@@ -1504,7 +1519,7 @@ class TestOVCForExportedProgramOnDisk(CommonMOConvertTest):
 
         ep_file_name = None
         with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
-            exported_program = torch.export.export(fw_model, tuple(example_input))
+            exported_program = export_with_dynamic_dims(fw_model, example_input)
             torch.export.save(exported_program, tmpfile.name)
             ep_file_name = tmpfile.name
 
