@@ -2592,6 +2592,110 @@ static void test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_type
     }
 }
 
+// A convolution and a stride-1 deconvolution sharing weights need separate weights reorders: only the convolution
+// that replaces the deconvolution needs the weights rotated. The layers are chained in both orders, so that each of
+// them is the first one to get its weights reorder.
+static void test_deconvolution_stride1_weights_shared_with_conv(impl_types impl_type, bool constant_weights, bool deconv_first) {
+    auto& engine = get_test_engine();
+    if (impl_type == impl_types::onednn && !engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
+    // Both layers keep the shape, so the second one can read the output of the first one
+    const int64_t fm = 16, size = 5, k = 3, pad = 1;
+    layout in_layout{ov::PartialShape{1, fm, size, size}, data_types::f16, format::bfyx};
+    layout weights_layout{ov::PartialShape{fm, fm, k, k}, data_types::f16, format::bfyx};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
+    // Small weights keep the output of the second layer in a range where the f16 error stays below the tolerance
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25, 0.25, 32);
+    auto input = engine.allocate_memory(in_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    set_values(input, input_data);
+    set_values(weights, weights_data);
+
+    const primitive_id first = deconv_first ? "deconv" : "conv";
+    const primitive_id second = deconv_first ? "conv" : "deconv";
+    topology topology(input_layout("input", in_layout));
+    if (constant_weights) {
+        topology.add(data("weights", weights));
+    } else {
+        topology.add(input_layout("weights", weights_layout));
+    }
+    for (const auto& [id, in] : {std::make_pair(first, input_info("input")), std::make_pair(second, input_info(first))}) {
+        if (id == "deconv") {
+            topology.add(deconvolution(id, in, "weights", "", 1, {1, 1}, {pad, pad}, {1, 1}, tensor(1, fm, size, size), false));
+        } else {
+            topology.add(convolution(id, in, "weights", "", 1, {1, 1}, {1, 1}, {pad, pad}, {pad, pad}, false));
+        }
+        topology.add(reorder(id + "_out", input_info(id), format::bfyx, data_types::f32));
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc impl = {format::bfyx, "", impl_type};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", impl}, {"deconv", impl}}));
+
+    network network(engine, topology, config);
+    ASSERT_TRUE(network.get_primitive("deconv")->get_node().is_type<convolution>());
+    for (const auto& id : {first, second}) {
+        ASSERT_EQ(network.get_primitive(id)->get_impl()->is_onednn(), impl_type == impl_types::onednn) << id;
+    }
+
+    network.set_input_data("input", input);
+    if (!constant_weights) {
+        network.set_input_data("weights", weights);
+    }
+    auto outputs = network.execute();
+    auto read_output = [&](const primitive_id& id) {
+        auto output = outputs.at(id + "_out").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        return std::vector<float>(output_ptr.data(), output_ptr.data() + output->count());
+    };
+
+    // The convolution computes out[o][y][x] += in[i][y - pad + ky][x - pad + kx] * w[o][i][ky][kx], and the
+    // deconvolution out[o][y - pad + ky][x - pad + kx] += in[i][y][x] * w[o][i][ky][kx].
+    auto reference = [&](const std::vector<float>& in, bool deconv) {
+        std::vector<float> out(in.size(), 0.f);
+        for (int64_t o = 0; o < fm; o++) {
+            for (int64_t i = 0; i < fm; i++) {
+                for (int64_t y = 0; y < size; y++) {
+                    for (int64_t x = 0; x < size; x++) {
+                        for (int64_t ky = 0; ky < k; ky++) {
+                            for (int64_t kx = 0; kx < k; kx++) {
+                                const int64_t sy = y - pad + ky;
+                                const int64_t sx = x - pad + kx;
+                                if (sy < 0 || sy >= size || sx < 0 || sx >= size) {
+                                    continue;
+                                }
+                                const auto w_val = static_cast<float>(weights_data[((o * fm + i) * k + ky) * k + kx]);
+                                if (deconv) {
+                                    out[(o * size + sy) * size + sx] += in[(i * size + y) * size + x] * w_val;
+                                } else {
+                                    out[(o * size + y) * size + x] += in[(i * size + sy) * size + sx] * w_val;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return out;
+    };
+
+    // The second layer is checked against the output of the first one, so the f16 error of the first one doesn't add up
+    const std::vector<float> input_f32(input_data.begin(), input_data.end());
+    const auto first_output = read_output(first);
+    const auto second_output = read_output(second);
+    const auto first_expected = reference(input_f32, deconv_first);
+    const auto second_expected = reference(first_output, !deconv_first);
+    for (size_t i = 0; i < first_expected.size(); i++) {
+        ASSERT_NEAR(first_expected[i], first_output[i], 2e-2f) << first << ": i = " << i;
+        ASSERT_NEAR(second_expected[i], second_output[i], 2e-2f) << second << ": i = " << i;
+    }
+}
+
 TEST(deconvolution_f16_fw_gpu, stride1_runtime_weights_replace_to_conv) {
     test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::ocl, 1);
 }
@@ -2600,6 +2704,23 @@ TEST(deconvolution_f16_fw_gpu, stride1_runtime_grouped_weights_replace_to_conv) 
     test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::ocl, 2);
 }
 
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, false, false);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, false, true);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_const_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, true, false);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_const_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::ocl, true, true);
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(deconvolution_gpu_onednn, stride1_runtime_weights_replace_to_conv) {
     test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::onednn, 1);
 }
@@ -2607,6 +2728,23 @@ TEST(deconvolution_gpu_onednn, stride1_runtime_weights_replace_to_conv) {
 TEST(deconvolution_gpu_onednn, stride1_runtime_grouped_weights_replace_to_conv) {
     test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::onednn, 2);
 }
+
+TEST(deconvolution_gpu_onednn, stride1_runtime_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, false, false);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_runtime_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, false, true);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_const_weights_shared_conv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, true, false);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_const_weights_shared_deconv_first) {
+    test_deconvolution_stride1_weights_shared_with_conv(impl_types::onednn, true, true);
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 struct deconvolution_random_test_params {
     data_types input_type;
