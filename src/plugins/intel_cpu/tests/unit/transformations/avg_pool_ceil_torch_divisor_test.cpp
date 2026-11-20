@@ -141,6 +141,16 @@ const std::vector<UntouchedCase> untouched_cases = {
      false,
      RoundingType::CEIL_TORCH,
      ov::op::PadType::SAME_UPPER},
+    // padding >= kernel: an exclude_pad pool would be invalid, so the pool is kept
+    {"PadNotSmallerThanKernelDynamic",
+     {1, 3, -1, -1},
+     ov::element::f32,
+     {2, 2},
+     {2, 2},
+     {2, 2},
+     false,
+     RoundingType::CEIL_TORCH,
+     explicit_pad},
     // integer pools are not rewritten (the ratio would be truncated)
     {"Integer", {1, 3, 6, 6}, ov::element::i32, {3, 3}, {3, 3}, {1, 1}, false, RoundingType::CEIL_TORCH, explicit_pad},
     // unknown rank: spatial axes unknown
@@ -161,6 +171,25 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          [](const TestParamInfo<UntouchedCase>& info) {
                              return info.param.name;
                          });
+
+// Static pool whose last window overhangs, but pads_begin is not smaller than the kernel: the exclude_pad
+// rewrite would fail validation, so the pool is kept. 1x1x3 input, k2 s2, pads {2}/{0}: windows start at -2, 0, 2.
+TEST_F(TransformationTestsF, AvgPoolCeilTorchDivisor_StaticPadNotSmallerThanKernel) {
+    manager.register_pass<ov::intel_cpu::AvgPoolCeilTorchDivisor>();
+    const auto build = []() {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 3});
+        auto pool = std::make_shared<ov::op::v14::AvgPool>(data,
+                                                           ov::Strides{2},
+                                                           ov::Shape{2},
+                                                           ov::Shape{0},
+                                                           ov::Shape{2},
+                                                           false,
+                                                           RoundingType::CEIL_TORCH);
+        return std::make_shared<ov::Model>(ov::OutputVector{pool}, ov::ParameterVector{data});
+    };
+    model = build();
+    model_ref = build();
+}
 
 // Dynamic spatial dims: the pool is rewritten to exclude_pad * ratio computed in the graph, with the
 // original friendly name kept on the output.
