@@ -25,8 +25,10 @@ std::string collect(const hsm::ISectionEncoder& encoder) {
 
 class XmlSource final : public hsm::IModelStructSource {
 public:
+    explicit XmlSource(std::string xml = {}) : xml(std::move(xml)) {}
+
     void write_structure(const hsm::SectionSink& sink) override {
-        hsm::encode_model_struct(xml, sink);
+        sink({reinterpret_cast<const std::byte*>(xml.data()), xml.size()});
     }
 
     std::string xml;
@@ -36,10 +38,7 @@ public:
 
 TEST(HsmModelStructTest, round_trips_xml) {
     const std::string expected = "<?xml version=\"1.0\"?><net name=\"test\">\n<layers/>\n</net>";
-    std::string encoded;
-    hsm::encode_model_struct(expected, [&encoded](ov::util::MemoryView chunk) {
-        encoded.append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
-    });
+    const auto encoded = collect(hsm::ModelStructEncoder{std::make_shared<XmlSource>(expected)});
     EXPECT_EQ(encoded, expected);
 
     hsm::ManifestEntry entry{};
@@ -50,11 +49,7 @@ TEST(HsmModelStructTest, round_trips_xml) {
 }
 
 TEST(HsmModelStructTest, round_trips_empty_xml) {
-    std::string encoded;
-    hsm::encode_model_struct({}, [&encoded](ov::util::MemoryView chunk) {
-        encoded.append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
-    });
-    EXPECT_TRUE(encoded.empty());
+    EXPECT_TRUE(collect(hsm::ModelStructEncoder{std::make_shared<XmlSource>()}).empty());
 
     hsm::ManifestEntry entry{};
     entry.tag = hsm::model_tag;

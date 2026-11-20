@@ -103,7 +103,7 @@ public:
     // Runs its own pass when write_weights() was not called before.
     void write_structure(const runtime::hsm::SectionSink& sink) override {
         if (m_xml) {
-            runtime::hsm::encode_model_struct(*m_xml, sink);
+            sink({reinterpret_cast<const std::byte*>(m_xml->data()), m_xml->size()});
             m_xml.reset();
         } else {
             ForwardingStreamBuf xml_buf{sink}, discard_buf;

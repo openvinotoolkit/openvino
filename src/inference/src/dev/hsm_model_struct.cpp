@@ -6,10 +6,6 @@
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
-void encode_model_struct(std::string_view xml, const SectionSink& sink) {
-    sink({reinterpret_cast<const std::byte*>(xml.data()), xml.size()});
-}
-
 std::optional<std::string> decode_model_struct(ov::util::MemoryView payload) {
     if (payload.size() && payload.empty()) {
         return std::nullopt;

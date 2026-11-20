@@ -18,7 +18,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 
 #include "openvino/runtime/common.hpp"
@@ -27,9 +26,6 @@
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
-
-/** @brief Sends exactly @p xml to the destination sink without buffering or adding framing. */
-OPENVINO_RUNTIME_API void encode_model_struct(std::string_view xml, const SectionSink& sink);
 
 /** @brief Produces the same raw XML bytes on demand, possibly in multiple sink calls. */
 class IModelStructSource {
