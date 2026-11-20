@@ -578,6 +578,15 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         using LoopPolicy = typename Ctx::loop_policy;
         auto src = static_cast<const src_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
+
+        if (ctx.dstPrc == ov::element::boolean) {
+            LoopPolicy::run(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(static_cast<bool>(src[i]));
+            });
+            ctx.converted = true;
+            return;
+        }
+
         auto [lbound, ubound] = ctx.template range<src_t>();
 
         // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
@@ -585,7 +594,7 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         // (nan, inf, overflow) has already been assured by the conversion process.
         if (ov::intel_cpu::any_of_v<src_t, ov::float8_e4m3, ov::float8_e5m2> ||
             ov::intel_cpu::any_of_v<dst_t, ov::float8_e4m3, ov::float8_e5m2> ||
-            (std::is_integral_v<src_t> && std::is_integral_v<dst_t> && ctx.dstPrc != ov::element::boolean)) {
+            (std::is_integral_v<src_t> && std::is_integral_v<dst_t>)) {
             LoopPolicy::run(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(src[i]);
             });
@@ -726,6 +735,20 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         constexpr size_t batch = 64;
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
+
+        if (ctx.dstPrc == ov::element::boolean) {
+            LoopPolicy::run(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j) {    // fp32 -> dst_t (bool)
+                    dst[offset + j] = static_cast<dst_t>(static_cast<bool>(tmp[j]));
+                }
+            });
+            ctx.converted = true;
+            return;
+        }
 
         auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.template range<ov::float16>());
 
