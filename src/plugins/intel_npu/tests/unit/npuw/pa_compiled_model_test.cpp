@@ -16,6 +16,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "llm_test_helpers.hpp"
+#include "npuw_transformations/relayout_token_major.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -428,11 +429,17 @@ ov::TensorVector evaluate(const std::shared_ptr<ov::Model>& model) {
     return outputs;
 }
 
+void relayout_token_major(const std::shared_ptr<ov::Model>& model, std::size_t tokens) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::npuw::RelayoutTokenMajor>(tokens);
+    manager.run_passes(model);
+}
+
 TEST(PARelayoutTokenMajor, MovesTheTokenCountOutOfTheBatchPosition) {
     constexpr std::size_t tokens = 8;
     const auto reference = make_token_major_model(tokens);
     auto model = reference->clone();
-    ov::npuw::pa::relayout_token_major(model, tokens);
+    relayout_token_major(model, tokens);
 
     std::size_t matmuls = 0;
     for (const auto& node : model->get_ordered_ops()) {
@@ -472,7 +479,7 @@ TEST(PARelayoutTokenMajor, KeepsADimensionThatIsNotOneInTheOutput) {
     auto outer = std::make_shared<ov::op::v0::MatMul>(x, row);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{broadcast, outer}, ov::ParameterVector{x});
     const auto ops = model->get_ops().size();
-    ov::npuw::pa::relayout_token_major(model, tokens);
+    relayout_token_major(model, tokens);
     EXPECT_EQ(model->get_ops().size(), ops);
     EXPECT_EQ(broadcast->get_input_shape(0), (ov::Shape{tokens, 4, 1}));
     EXPECT_EQ(outer->get_input_shape(0), (ov::Shape{tokens, 4, 1}));
@@ -481,7 +488,7 @@ TEST(PARelayoutTokenMajor, KeepsADimensionThatIsNotOneInTheOutput) {
 TEST(PARelayoutTokenMajor, LeavesTheOneTokenVariantAlone) {
     auto model = make_token_major_model(1);
     const auto ops = model->get_ops().size();
-    ov::npuw::pa::relayout_token_major(model, 1);
+    relayout_token_major(model, 1);
     EXPECT_EQ(model->get_ops().size(), ops);
 }
 

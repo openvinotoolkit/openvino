@@ -21,16 +21,6 @@ namespace ov::npuw {
 
 namespace pa {
 
-// The PA model is token-major: the flat token count sits in dimension 0, where
-// the NPU compiler reads a batch and lowers the trunk into batched layers.
-// Every token-major tensor also carries a singleton dimension ([tokens, 1,
-// hidden] through the FFN, [tokens, heads, 1, head_size] around RoPE), so
-// consuming it and prepending a batch of 1 moves the token count out of the
-// batch position without moving data. This does that around the weight
-// MatMuls and the elementwise arithmetic of a variant with `tokens` > 1, so
-// the NPU gets batch-1 layers. The reshapes are metadata only.
-void relayout_token_major(const std::shared_ptr<ov::Model>& model, std::size_t tokens);
-
 // A model with tied embeddings decompresses one weight table for both the
 // embedding Gather and the LM head MatMul. Partitioned as is, the head
 // subgraph outputs the whole decompressed table every inference and the tail
