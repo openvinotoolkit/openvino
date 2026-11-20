@@ -116,6 +116,18 @@ void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
 }
 
 //------------------------------------------------------------------------------
+namespace {
+
+// The number of tiles of the device selects the schedule of a fat blob
+int32_t getDeviceTileCount(ze_device_handle_t device) {
+    ze_device_properties_t properties = {};
+    properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(device, &properties));
+    return static_cast<int32_t>(properties.numSlices);
+}
+
+}  // namespace
+
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
                                    const Config& config)
@@ -149,12 +161,18 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
         // Tensors for regular inputs will be allocated later, only for ports that were not set by the user.
         // Allocating only tensors for shapes and states.
-        if (!(inputDescriptor.isStateInput || inputDescriptor.isShapeTensor)) {
+        if (!(inputDescriptor.isStateInput || inputDescriptor.isShapeTensor || inputDescriptor.isFatBlobTiles)) {
             ++ioIndex;
             continue;
         }
 
         get_level_zero_input(ioIndex) = allocate_tensor(ioIndex, INPUT);
+
+        if (inputDescriptor.isFatBlobTiles) {
+            // Set once: the tile count of the device does not change for the lifetime of the request
+            static_cast<int32_t*>(get_level_zero_input(ioIndex)->data())[0] =
+                getDeviceTileCount(_initStructs->getDevice());
+        }
 
         if (inputDescriptor.isStateInput) {
             add_state(inputDescriptor, ioIndex);
@@ -825,7 +843,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     for (const auto& levelZeroTensor : _levelZeroInputTensors) {
         const auto& inputDescriptor = _metadata.inputs.at(ioIndex);
 
-        if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor ||
+        if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor || inputDescriptor.isFatBlobTiles ||
             levelZeroTensor.at(SINGLE_TENSOR) == nullptr) {
             ++ioIndex;
             continue;

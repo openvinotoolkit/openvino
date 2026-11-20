@@ -95,7 +95,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     for (size_t inputIndex = 0; inputIndex < inputDescriptors.size(); ++inputIndex) {
         const IODescriptor& inputDescriptor = inputDescriptors.at(inputIndex);
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
-            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
+            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights ||
+            inputDescriptor.isFatBlobTiles) {
             continue;
         }
 

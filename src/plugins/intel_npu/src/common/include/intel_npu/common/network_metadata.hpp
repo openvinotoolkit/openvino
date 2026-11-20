@@ -85,6 +85,13 @@ struct IODescriptor {
     bool isMainInputWeights = false;
 
     /**
+     * @brief If "true", the current object describes the tile count input of a fat blob.
+     * @details The plugin fills it with the number of tiles of the device, which selects the schedule to run.
+     * It is not exposed to the user.
+     */
+    bool isFatBlobTiles = false;
+
+    /**
      * @brief Points towards a related descriptor.
      * @details The related descriptors are defined by (state input, state output) or (dynamic tensor, shape tensor)
      * pairs.
