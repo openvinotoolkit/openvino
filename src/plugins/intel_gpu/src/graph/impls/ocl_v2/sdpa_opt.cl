@@ -2091,8 +2091,8 @@ KERNEL(sdpa_opt)(
                     // SoftMax depends on. Store each score relative to the maximum of this work item's key block instead:
                     // near the maximum, where the weights are not negligible, those differences are small and exact
                     // enough. SoftMax adds the block maximum from slm_qk_max_vals back in SOFTMAX_ACCUMULATOR_TYPE.
-                    // A masked score can lie up to twice the input range below the maximum, so clamp to OUTPUT_VAL_MIN
-                    // (its weight is 0 either way).
+                    // A masked score (QK_ACC_VAL_MIN) or any score more than the OUTPUT_COMPUTE_TYPE range below the
+                    // maximum is clamped to OUTPUT_VAL_MIN (its weight is 0 either way).
                     unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
                         const SOFTMAX_ACCUMULATOR_TYPE qk_rel = TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max;
                         slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] =

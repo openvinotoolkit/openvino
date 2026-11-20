@@ -4340,6 +4340,8 @@ INSTANTIATE_TEST_SUITE_P(
 // With elements around 33 the scores (~69700) leave the f16 range, so the kernel must not clamp them to it either:
 // they would all become 65504 and tie. Negative scores below -65504 would also tie with the keys past seq_kv, which
 // the kernel masks with the minimum, so an unaligned seq_kv would give weight to keys that do not exist.
+// The FlashAttention-2 path (LLMs) stores the scores in an f16 SLM buffer relative to the maximum of their key block,
+// so it has to keep them exact as well.
 struct sdpa_opt_large_scores_params {
     bool dynamic;
     float scale;                   // 0: default 1/sqrt(head_size)
@@ -4347,6 +4349,7 @@ struct sdpa_opt_large_scores_params {
     bool negative_scores = false;  // negate K
     size_t seq_kv = 64;
     bool scale_input = false;  // pass the scale as a runtime input (after a placeholder mask) instead of scale_val
+    bool flash_attn_v2 = false;
 };
 
 class sdpa_opt_large_scores_test : public ::testing::TestWithParam<sdpa_opt_large_scores_params> {
@@ -4361,6 +4364,8 @@ public:
             name += "_negative";
         if (p.seq_kv != 64)
             name += "_kv" + std::to_string(p.seq_kv);
+        if (p.flash_attn_v2)
+            name += "_flash_attn_v2";
         return name;
     }
 };
@@ -4418,9 +4423,8 @@ TEST_P(sdpa_opt_large_scores_test, matches_reference) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     // Keep systolic devices off sdpa_micro, so that every device runs the sdpa_opt multi-token kernel.
     config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
-    // Non-LLM models (such as wav2vec2) run without FlashAttention-2 online softmax by default, and only that path
-    // keeps the scores in f32 until SoftMax: the FlashAttention-2 path stores them in an f16 SLM buffer first.
-    config.set_property(ov::intel_gpu::could_use_flashattn_v2(false));
+    // Non-LLM models (such as wav2vec2) run without FlashAttention-2 online softmax by default, LLMs with it.
+    config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.flash_attn_v2));
     auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
     net->set_input_data("q", q_mem);
     net->set_input_data("k", k_mem);
@@ -4504,7 +4508,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_opt_large_scores,
                                            // ... below it, with 12 keys past seq_kv in the last key block
                                            sdpa_opt_large_scores_params{false, 1.0f, 33.0f, true, 20},
                                            sdpa_opt_large_scores_params{true, 1.0f, 33.0f, true, 20},
-                                           sdpa_opt_large_scores_params{true, 1.0f, 33.0f, true, 20, true}),
+                                           sdpa_opt_large_scores_params{true, 1.0f, 33.0f, true, 20, true},
+                                           // FlashAttention-2
+                                           sdpa_opt_large_scores_params{false, 1.0f, 16.0f, false, 64, false, true},
+                                           sdpa_opt_large_scores_params{true, 0.0f, 16.0f, false, 64, false, true},
+                                           sdpa_opt_large_scores_params{false, 1.0f, 33.0f, false, 64, false, true},
+                                           sdpa_opt_large_scores_params{true, 1.0f, 33.0f, false, 64, false, true},
+                                           sdpa_opt_large_scores_params{false, 1.0f, 33.0f, true, 20, false, true},
+                                           sdpa_opt_large_scores_params{true, 1.0f, 33.0f, true, 20, true, true}),
                          sdpa_opt_large_scores_test::PrintToStringParamName);
 
 // A runtime scale input of a bf16 SDPA holds raw bf16 bits (ushort), so the sdpa_opt kernels have to decode it:
