@@ -111,13 +111,22 @@ KERNEL(softmax_items_class_optimized)(
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
 #if LOG_SOFTMAX
+    // data[] keeps x for the output, only the denominator gets exp(x - max), with the same workaround as below
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
     {
+#if HAS_DRIVER_PROBLEMS
+        denominator += data[cls] == max_value ? ACCUMULATOR_VAL_ONE : native_exp(data[cls] - max_value);
+#else
         denominator += native_exp(data[cls] - max_value);
+#endif
     }
     if(simd_lane < LEFTOVERS)
     {
+#if HAS_DRIVER_PROBLEMS
+        denominator += data[DATA_PER_WORKITEM-1] == max_value ? ACCUMULATOR_VAL_ONE : native_exp(data[DATA_PER_WORKITEM-1] - max_value);
+#else
         denominator += native_exp(data[DATA_PER_WORKITEM-1] - max_value);
+#endif
     }
 #else
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
