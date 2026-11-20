@@ -87,6 +87,21 @@ This region trace runs after export for both models and supplied exported graphs
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
 
+### Operation names in exported models
+
+When converting with `openvino.convert_model(..., dynamo=True)` or converting a
+`torch.export.ExportedProgram`, operation friendly names include the original
+module path when it is available in the FX node's `nn_module_stack` metadata:
+`<module path>/<FX node name>/<PyTorch operation>/<OpenVINO operation>`.
+For example, `encoder.0.activation/relu/aten.relu.default/Relu` identifies a ReLU
+inside `encoder.0.activation`. Functional operations use their containing
+module's path, and the FX node name distinguishes repeated operations.
+
+Nodes without a non-empty module path retain names without that prefix.
+This does not change input/output tensor names or TorchScript conversion names.
+Subsequent graph optimizations may fuse or replace operations, so names do not
+guarantee a one-to-one mapping to the original graph.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:
