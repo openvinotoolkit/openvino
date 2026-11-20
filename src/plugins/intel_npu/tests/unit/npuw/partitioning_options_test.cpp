@@ -70,9 +70,10 @@ std::shared_ptr<ov::Model> build_unary_chain_model() {
 
 void set_output_bound(const std::shared_ptr<ov::Model>& model, const std::string& node_name) {
     const auto ops = model->get_ordered_ops();
-    const auto node_it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
-        return node->get_friendly_name() == node_name;
-    });
+    const auto node_it = std::find_if(ops.begin(), ops.end(),
+                                      [&](const std::shared_ptr<ov::Node>& node) {
+                                          return node->get_friendly_name() == node_name;
+                                      });
     OPENVINO_ASSERT(node_it != ops.end(), "Node not found: ", node_name);
 
     auto output = (*node_it)->output(0);

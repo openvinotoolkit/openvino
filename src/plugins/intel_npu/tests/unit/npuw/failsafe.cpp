@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "v1/elements/failsafe.hpp"
-
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -15,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "v1/elements/failsafe.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -159,8 +158,7 @@ private:
     std::shared_ptr<CandidateState> m_state;
 };
 
-TestInferRequest::TestInferRequest(std::shared_ptr<const TestCompiledModel> compiled_model,
-                                   std::shared_ptr<CandidateState> state)
+TestInferRequest::TestInferRequest(std::shared_ptr<const TestCompiledModel> compiled_model, std::shared_ptr<CandidateState> state)
     : ov::ISyncInferRequest(std::move(compiled_model)),
       m_state(std::move(state)) {
     const auto& inputs = get_compiled_model()->inputs();
@@ -170,9 +168,8 @@ TestInferRequest::TestInferRequest(std::shared_ptr<const TestCompiledModel> comp
     }
     const auto& outputs = get_compiled_model()->outputs();
     for (const auto& output : outputs) {
-        ov::ISyncInferRequest::set_tensor(
-            output,
-            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(output,
+                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -204,10 +201,11 @@ void TestInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
 
-ov::npuw::failsafe::CompiledModel::Factory make_factory(const std::shared_ptr<ov::Model>& model,
-                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                        std::map<std::string, std::shared_ptr<CandidateState>> states,
-                                                        std::set<std::string> compile_failures = {}) {
+ov::npuw::failsafe::CompiledModel::Factory make_factory(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    std::map<std::string, std::shared_ptr<CandidateState>> states,
+    std::set<std::string> compile_failures = {}) {
     return [model, plugin, states = std::move(states), compile_failures = std::move(compile_failures)](
                const std::string& device) -> ov::SoPtr<ov::ICompiledModel> {
         const auto it = states.find(device);
@@ -238,9 +236,7 @@ TEST(FailsafeCompiledModelTest, CompileFailureFallsBackToLaterCandidate) {
     auto second = std::make_shared<CandidateState>(CandidateState{"CPU", &events});
 
     auto so = ov::npuw::failsafe::CompiledModel::create(
-        model,
-        plugin,
-        {"NPU", "CPU"},
+        model, plugin, {"NPU", "CPU"},
         make_factory(model, plugin, {{"NPU", first}, {"CPU", second}}, {"NPU"}));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
 
@@ -257,10 +253,9 @@ TEST(FailsafeCompiledModelTest, CreateInferRequestFailureFallsBackToLaterCandida
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU", &events, 1});
     auto second = std::make_shared<CandidateState>(CandidateState{"CPU", &events});
 
-    auto so = ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"NPU", "CPU"},
-                                                        make_factory(model, plugin, {{"NPU", first}, {"CPU", second}}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU", "CPU"},
+        make_factory(model, plugin, {{"NPU", first}, {"CPU", second}}));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
 
     ASSERT_NE(compiled, nullptr);
@@ -279,10 +274,9 @@ TEST(FailsafeCompiledModelTest, InferenceFailureFallsBackAndRebindsTensors) {
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU", &events, 0, 1, 10.f});
     auto second = std::make_shared<CandidateState>(CandidateState{"CPU", &events, 0, 0, 20.f});
 
-    auto so = ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"NPU", "CPU"},
-                                                        make_factory(model, plugin, {{"NPU", first}, {"CPU", second}}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU", "CPU"},
+        make_factory(model, plugin, {{"NPU", first}, {"CPU", second}}));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
 
     ASSERT_NE(compiled, nullptr);
@@ -338,10 +332,9 @@ TEST(FailsafeCompiledModelTest, UserProvidedOutputBufferReceivesFailoverResult) 
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU", &events, 0, 1, 10.f});
     auto second = std::make_shared<CandidateState>(CandidateState{"CPU", &events, 0, 0, 20.f});
 
-    auto so = ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"NPU", "CPU"},
-                                                        make_factory(model, plugin, {{"NPU", first}, {"CPU", second}}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU", "CPU"},
+        make_factory(model, plugin, {{"NPU", first}, {"CPU", second}}));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
 
     ASSERT_NE(compiled, nullptr);
@@ -374,9 +367,7 @@ TEST(FailsafeCompiledModelTest, ChainedInferenceSurvivesUpstreamAndDownstreamFai
     auto first_npu = std::make_shared<CandidateState>(CandidateState{"NPU", &first_events, 0, 1, 10.f});
     auto first_cpu = std::make_shared<CandidateState>(CandidateState{"CPU", &first_events, 0, 0, 20.f});
     auto first_so = ov::npuw::failsafe::CompiledModel::create(
-        model,
-        plugin,
-        {"NPU", "CPU"},
+        model, plugin, {"NPU", "CPU"},
         make_factory(model, plugin, {{"NPU", first_npu}, {"CPU", first_cpu}}));
     auto first_compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(first_so._ptr);
 
@@ -384,9 +375,7 @@ TEST(FailsafeCompiledModelTest, ChainedInferenceSurvivesUpstreamAndDownstreamFai
     auto second_npu = std::make_shared<CandidateState>(CandidateState{"NPU", &second_events, 0, 1, 1.f});
     auto second_cpu = std::make_shared<CandidateState>(CandidateState{"CPU", &second_events, 0, 0, 2.f});
     auto second_so = ov::npuw::failsafe::CompiledModel::create(
-        model,
-        plugin,
-        {"NPU", "CPU"},
+        model, plugin, {"NPU", "CPU"},
         make_factory(model, plugin, {{"NPU", second_npu}, {"CPU", second_cpu}}));
     auto second_compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(second_so._ptr);
 
@@ -424,10 +413,11 @@ TEST(FailsafeCompiledModelTest, CompileFailureWithoutFallbackPropagatesError) {
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU"});
 
     try {
-        (void)ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"NPU"},
-                                                        make_factory(model, plugin, {{"NPU", first}}, {"NPU"}));
+        (void)ov::npuw::failsafe::CompiledModel::create(
+            model,
+            plugin,
+            {"NPU"},
+            make_factory(model, plugin, {{"NPU", first}}, {"NPU"}));
         FAIL() << "Expected compile failure";
     } catch (const ov::Exception& ex) {
         EXPECT_NE(error_message(ex).find("compile failed for NPU"), std::string::npos);
@@ -439,10 +429,9 @@ TEST(FailsafeCompiledModelTest, CreateInferRequestFailureWithoutFallbackPropagat
     auto plugin = std::make_shared<NullPlugin>();
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU", nullptr, 1});
 
-    auto so = ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"NPU"},
-                                                        make_factory(model, plugin, {{"NPU", first}}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU"},
+        make_factory(model, plugin, {{"NPU", first}}));
     auto compiled = so._ptr;
     ASSERT_NE(compiled, nullptr);
 
@@ -459,10 +448,9 @@ TEST(FailsafeCompiledModelTest, InferFailureWithoutFallbackPropagatesError) {
     auto plugin = std::make_shared<NullPlugin>();
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU", nullptr, 0, 1});
 
-    auto so = ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"NPU"},
-                                                        make_factory(model, plugin, {{"NPU", first}}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU"},
+        make_factory(model, plugin, {{"NPU", first}}));
     auto compiled = so._ptr;
     ASSERT_NE(compiled, nullptr);
     auto request = compiled->create_infer_request();
@@ -480,10 +468,9 @@ TEST(FailsafeCompiledModelTest, SingleDeviceReturnsRawCompiledModel) {
     auto plugin = std::make_shared<NullPlugin>();
     auto first = std::make_shared<CandidateState>(CandidateState{"CPU"});
 
-    auto so = ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"CPU"},
-                                                        make_factory(model, plugin, {{"CPU", first}}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"CPU"},
+        make_factory(model, plugin, {{"CPU", first}}));
 
     EXPECT_EQ(std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr), nullptr);
     ASSERT_NE(so._ptr, nullptr);
@@ -498,10 +485,9 @@ TEST(FailsafeCompiledModelTest, ExecutionDevicesReturnsActiveDevice) {
     auto npu = std::make_shared<CandidateState>(CandidateState{"NPU"});
     auto cpu = std::make_shared<CandidateState>(CandidateState{"CPU"});
 
-    auto so = ov::npuw::failsafe::CompiledModel::create(model,
-                                                        plugin,
-                                                        {"NPU", "CPU"},
-                                                        make_factory(model, plugin, {{"NPU", npu}, {"CPU", cpu}}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU", "CPU"},
+        make_factory(model, plugin, {{"NPU", npu}, {"CPU", cpu}}));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
 
     ASSERT_NE(compiled, nullptr);
@@ -517,11 +503,9 @@ TEST(FailsafeCompiledModelTest, ExecutionDevicesUpdatesAfterFailover) {
     auto cpu = std::make_shared<CandidateState>(CandidateState{"CPU"});
 
     // NPU compile fails → failsafe falls back to CPU at creation time.
-    auto so =
-        ov::npuw::failsafe::CompiledModel::create(model,
-                                                  plugin,
-                                                  {"NPU", "CPU"},
-                                                  make_factory(model, plugin, {{"NPU", npu}, {"CPU", cpu}}, {"NPU"}));
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"NPU", "CPU"},
+        make_factory(model, plugin, {{"NPU", npu}, {"CPU", cpu}}, {"NPU"}));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr);
 
     ASSERT_NE(compiled, nullptr);
