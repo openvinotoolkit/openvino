@@ -557,6 +557,27 @@ TEST_P(LongRopeCacheVariantTest, RopeCacheLeavesLongRopeNonDuplicatingConcatUnto
     EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
 }
 
+TEST_P(LongRopeCacheVariantTest, RopeCacheLeavesLongRopeTransposedAWithoutBroadcastUntouched) {
+    model = make_longrope_no_broadcast_model(GetParam());
+    auto concat = get_longrope_frequency_concat(model);
+    ASSERT_TRUE(concat);
+    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(concat->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(transpose);
+    auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(transpose->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(matmul);
+    auto pos_unsqueeze =
+        ov::as_type_ptr<ov::op::v0::Unsqueeze>(matmul->input_value(1).get_node()->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(pos_unsqueeze);
+    model->get_parameters()[0]->set_partial_shape(ov::Shape{1, 2});
+    pos_unsqueeze->input(1).replace_source_output(ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    matmul->set_transpose_a(true);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(matmul->get_input_shape(0), (ov::Shape{1, 2, 1}));
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{1, 1, 2}));
+    EXPECT_EQ(model->get_output_shape(1), (ov::Shape{1, 1, 2}));
+    EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
+}
+
 INSTANTIATE_TEST_SUITE_P(LongRope,
                          LongRopeCacheVariantTest,
                          testing::Bool(),
