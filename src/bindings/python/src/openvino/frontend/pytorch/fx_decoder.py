@@ -792,12 +792,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
-            if self.pt_module.target in (torch.sym_float, torch.sym_min, torch.sym_max):
-                return "aten." + self.pt_module.target.__name__
-            if type(self.pt_module.target).__name__ == "EdgeOpOverload":
-                name = self.pt_module.target.__name__
+            target = self.pt_module.target
+            if type(target).__name__ == "EdgeOpOverload":
+                name = target.__name__
+            elif inspect.isfunction(target):
+                name = f"{target.__module__}.{target.__qualname__}"
             else:
-                name = str(self._functional_out_target(self.pt_module.target))
+                name = str(self._functional_out_target(target))
             if self._module_extension_target_ops:
                 if name in self._module_extension_target_ops:
                     return self._module_extension_target_ops[name]

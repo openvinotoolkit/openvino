@@ -1084,3 +1084,58 @@ def test_pytorch_decoder_conversion_without_sequence_override(metadata, wrapped,
     assert len(actual) == len(expected)
     for result, expected in zip(actual, expected):
         np.testing.assert_array_equal(result, expected)
+
+
+@pytest.mark.precommit
+def test_pytorch_fx_decoder_python_function_names(monkeypatch):
+    import operator
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    def nested_function(x):
+        return x
+
+    graph = torch.fx.Graph()
+    value = graph.placeholder("value")
+    targets = [
+        (nested_function, f"{__name__}.{nested_function.__qualname__}"),
+        (operator.neg, str(operator.neg)),
+        (torch.ops.aten.relu.default, "aten.relu.default"),
+    ]
+    for name in ("sym_min", "sym_max", "sym_float"):
+        target = getattr(torch, name, None)
+        if target is not None:
+            targets.append((target, f"torch.{name}"))
+    nodes = [(graph.call_function(target, (value,)), expected) for target, expected in targets]
+    for node, expected in nodes:
+        assert TorchFXPythonDecoder(node, nodes=list(graph.nodes)).get_op_type() == expected
+    monkeypatch.delattr(torch, "sym_min", raising=False)
+    node = graph.call_function(torch.ops.aten.relu.default, (value,))
+    assert TorchFXPythonDecoder(node, nodes=list(graph.nodes)).get_op_type() == "aten.relu.default"
+
+
+@pytest.mark.precommit
+def test_pytorch_fx_python_function_conversion_extension():
+    import numpy as np
+    import openvino as ov
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+    import openvino.opset10 as ops
+
+    def custom_function(x):
+        return -x
+
+    graph = torch.fx.Graph()
+    value = graph.placeholder("value")
+    graph.output(graph.call_function(custom_function, (value,)))
+    graph_module = torch.fx.GraphModule(torch.nn.Module(), graph)
+    decoder = TorchFXPythonDecoder(graph_module)
+    frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+    frontend.add_extension(ov.frontend.ConversionExtension(
+        f"{__name__}.{custom_function.__qualname__}",
+        lambda context: ops.negative(context.get_input(0)).outputs()))
+    input_model = frontend.load(decoder)
+    input_model.set_element_type(input_model.get_inputs()[0], ov.Type.f32)
+    input_model.set_partial_shape(input_model.get_inputs()[0], ov.PartialShape([2]))
+    converted = frontend.convert(input_model)
+    compiled = ov.Core().compile_model(converted, "CPU")
+    data = np.array([1.0, -2.0], dtype=np.float32)
+    np.testing.assert_array_equal(compiled([data])[0], -data)
