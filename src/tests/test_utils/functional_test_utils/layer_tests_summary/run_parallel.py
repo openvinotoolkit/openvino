@@ -439,7 +439,9 @@ class TestParallelRunner:
                     test_suite = name[:-1] if name.endswith(".") else ""
                     continue
                 if test_suite:
-                    name = line.lstrip(" ").partition("  # GetParam() = ")[0]
+                    name = line.partition("  # GetParam() = ")[0].lstrip(" ")
+                    if not name:
+                        continue
                     real_test_name = f"{test_suite}.{name}"
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)

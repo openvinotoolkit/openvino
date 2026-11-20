@@ -74,6 +74,12 @@ class TestSuiteBatches(unittest.TestCase):
         discovered = runner._TestParallelRunner__get_test_list_by_runtime()
         self.assertEqual(list(discovered), ["Unique/Params.test/data_shape=(5); fmt=bfyx; "])
 
+    def test_discovery_ignores_standalone_parameter_annotations(self):
+        self.test_list = "Brgemm/Params.\n  simpleGemmTest/Prec=f32\n  # GetParam() = f32\n"
+        runner = self.make_runner("*")
+        discovered = runner._TestParallelRunner__get_test_list_by_runtime()
+        self.assertEqual(list(discovered), ["Brgemm/Params.simpleGemmTest/Prec=f32"])
+
 
 class TestWorkerLaunch(unittest.TestCase):
     def test_windows_replacement_worker_launches_without_shell(self):
