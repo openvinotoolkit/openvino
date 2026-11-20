@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-20-23-14-45-221-44829784701",
+  "timestamp": "2026-11-20T23:14:45Z",
+  "run_id": "44829784701",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44829784701",
+  "workflow_name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+  "pr_number": "40020",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40020",
+  "author": "kkoryun",
+  "category": "Flaky Test",
+  "title": "smoke_Snippets_Softmax tests fail on comparison",
+  "signature": "smoke_Snippets_Softmax accuracy mismatch: COMPARATION FAILED abs_threshold exceeded|Flaky Test",
+  "signature_hash": "2330f1abe60fbda7",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_Snippets_Softmax/Softmax.CompareWithRefImpl accuracy mismatch (expected 0.000255668, actual 2.63739e+23)"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the CPU functional tests job failed (exit 1 in 'Check status of all jobs')"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_Snippets_Softmax/Softmax.CompareWithRefImpl/IS[0]=[?.?]_(...)_Axis=-1_#N=1_#S=1_targetDevice=CPU",
+    "Tensor: [1,17] Mismatch: [17/17] Print: [0/17]",
+    "Coordinate with max diff: [0,13] Expected: 0.000255668 Actual: 2.63739e+23 Diff: 2.63739e+23 abs_threshold: 1.44776e-07",
+    "src/tests/functional/base_func_tests/src/base/ov_subgraph.cpp:97: Failure",
+    "[ COMPARATION ] COMPARATION FAILED! abs_threshold: 0.000000 rel_threshold: 0.000100 incorrect elem counter: 17 among 17 shapes."
+  ],
+  "root_cause": "A single smoke_Snippets_Softmax accuracy test (ARM64 cross-compiled CPU plugin functional tests) produced a wildly out-of-range actual value (2.6e+23 vs expected ~2.5e-4), i.e. uninitialized/garbage memory rather than a systematic numeric drift. This exact signature has recurred twice previously (PRs 38056, 37526) on unrelated changes, and the current PR #40020 only touches NPUW GQA compiled-model code (src/plugins/intel_npu), which has no code path overlap with the CPU plugin's Snippets Softmax emitter/kernel. This strongly indicates a pre-existing, intermittent flakiness in the Snippets Softmax reference-vs-actual comparison on the ARM64 CPU path, unrelated to the PR's changes.",
+  "reproduction_steps": "Build the CPU plugin for ARM64 cross-compilation and run: ov_cpu_func_tests --gtest_filter=*smoke_Snippets_Softmax*CompareWithRefImpl*IS[0]*Axis=-1*#N=1_#S=1*targetDevice=CPU. The failure may not reproduce on every run (observed as 1/72577 smoke tests failing); repeated runs or re-running under ASAN/valgrind may help surface an uninitialized-memory root cause.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job for PR #40020 merge-queue run; a rerun is expected to pass since the PR's NPUW changes are unrelated to this CPU Snippets Softmax test.",
+    "File/track a dedicated flaky-test ticket for smoke_Snippets_Softmax/Softmax.CompareWithRefImpl on ARM64 CPU, referencing prior occurrences in PR 38056 and 37526.",
+    "Investigate potential uninitialized buffer read in the Softmax Snippets emitter/kernel for small/odd input shapes (e.g., [1,17]) on ARM64, since the magnitude of the actual value (2.6e+23) is characteristic of reading garbage memory rather than a precision issue."
+  ],
+  "prevention_strategies": "Add memory sanitizer (ASan/MSan) coverage for the Snippets Softmax kernel in CI to catch uninitialized reads before they manifest as sporadic accuracy failures. Consider marking this specific parameterized case as retry-eligible via the workflow rerunner once the rerun_search_string is approved.",
+  "historical_context": "Identical failure signature (2330f1abe60fbda7) seen twice before: run 34454632400 (PR #38056, 2026-09-10) and run 33751824393 (PR #37526, 2026-09-03), both unrelated PRs, confirming this is a recurring flaky test rather than a regression caused by any single PR."
+}
