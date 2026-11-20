@@ -119,6 +119,10 @@ describe("ov basic tests.", () => {
     it("getVersions() throws with non string coercable arg.", () => {
       assert.throws(() => core.getVersions({ deviceName: "CPU" }));
     });
+
+    it("getVersions() throws for an invalid device list", () => {
+      assert.throws(() => core.getVersions("BATCH:CPU,GPU"), /BATCH accepts only one device/);
+    });
   });
 
   describe("ov.getOpenvinoVersion()", () => {
