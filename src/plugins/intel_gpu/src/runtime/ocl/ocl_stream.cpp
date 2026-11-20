@@ -353,6 +353,31 @@ void ocl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
     }
 }
 
+void ocl_stream::enqueue_external_barrier(const std::vector<event::ptr>& deps) {
+    if (deps.empty()) {
+        return;
+    }
+    std::vector<cl::Event> native_events;
+    native_events.reserve(deps.size());
+    try {
+        for (const auto& dependency : deps) {
+            auto* native = dynamic_cast<ocl_base_event*>(dependency.get());
+            OPENVINO_ASSERT(native && !dynamic_cast<ocl_events*>(dependency.get()),
+                            "LES external dependencies require individual native OpenCL events");
+            auto handle = native->get();
+            OPENVINO_ASSERT(handle.get() != nullptr, "LES external dependency has no native OpenCL event");
+            OPENVINO_ASSERT(handle.getInfo<CL_EVENT_CONTEXT>().get() == _engine.get_cl_context().get(),
+                            "LES external dependency belongs to a different OpenCL context");
+            OPENVINO_ASSERT(handle.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() >= CL_COMPLETE,
+                            "LES external dependency failed");
+            native_events.push_back(std::move(handle));
+        }
+        _command_queue.enqueueBarrierWithWaitList(&native_events, nullptr);
+    } catch (const cl::Error& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
+}
+
 event::ptr ocl_stream::enqueue_marker(const std::vector<event::ptr>& deps, bool is_output) {
     // Wait for all previously enqueued tasks if deps list is empty
     if (deps.empty()) {

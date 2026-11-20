@@ -225,6 +225,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_lru_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_primitive_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_property_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_les_context_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_weight_provider_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_router_fused_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_scatter_reduction_gpu_test.cpp

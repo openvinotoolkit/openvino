@@ -7,11 +7,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <future>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "expert_weight_provider.hpp"
+#include "intel_gpu/runtime/les_context.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "lru_cache.hpp"
 #include "moe_otd_runtime.hpp"
@@ -22,6 +24,7 @@ namespace ov::intel_gpu::ocl::moe {
 // for the network lifetime. This is the behaviour of the non-offloaded (ratio=0) path.
 class ResidentExpertWeightProvider : public IExpertWeightProvider {
 public:
+    std::shared_ptr<IExpertWeightProvider> clone() const override { return std::make_shared<ResidentExpertWeightProvider>(); }
     void release() override {}
     size_t resident_capacity() const override {
         return 0;
@@ -64,6 +67,7 @@ public:
                                 const cldnn::MOECompressed::Config& config,
                                 std::vector<size_t> weight_bin_offsets,
                                 std::filesystem::path weights_path);
+    ~OffloadExpertWeightProvider() override;
 
     size_t resident_capacity() const override {
         return _capacity;
@@ -72,7 +76,13 @@ public:
         return true;
     }
 
-    void release() override {}
+    void release() override;
+    std::shared_ptr<IExpertWeightProvider> clone() const override;
+    void set_les_context(cldnn::les_context* context, uint64_t epoch) override;
+    void set_consumer(cldnn::event::ptr consumer) override;
+    std::optional<ExpertDemand> begin_les_demand(const std::vector<uint32_t>& experts) override;
+    void finish_les_demand(cldnn::stream& stream) override;
+    void prefetch_les_demand(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     void bind(cldnn::moe_weights& resident) override;
     bool is_bound() const override {
         return _bound;
@@ -98,6 +108,24 @@ private:
     moe_otd::ParallelWeightReader _weight_reader;
     cldnn::moe_weights* _resident = nullptr;
     bool _bound = false;
+    cldnn::les_context* _les_context = nullptr;
+    uint64_t _les_epoch = 0;
+    std::unique_ptr<ExpertSlotReservations> _reservations;
+    std::optional<ExpertSlotReservations::Ticket> _reservation;
+    std::unique_ptr<ExpertSlotReservations> _demand_shadow;
+    std::optional<ExpertSlotReservations::Ticket> _shadow_reservation;
+    bool _speculative_reservation = false;
+    cldnn::event::ptr _consumer;
+    std::shared_future<void> _upload_completion;
+    std::shared_ptr<std::vector<cldnn::event::ptr>> _upload_events;
+    bool _demand_finished = false;
+    std::exception_ptr _prefetch_error;
+    std::optional<cldnn::les_context::ticket> _prefetch_task;
+    bool _prefetch_pending = false;
+    uint64_t _prefetch_uploaded_bytes = 0;
+    size_t _prefetch_expert_bytes = 0;
+    void resolve_prefetch(const std::vector<uint32_t>& experts, bool schedule = true);
+    std::optional<ExpertSlotLease> acquire_les(const std::vector<uint32_t>& experts, cldnn::stream& stream);
 };
 
 }  // namespace ov::intel_gpu::ocl::moe

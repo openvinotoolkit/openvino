@@ -417,6 +417,9 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     const __global int* expert_list,
+#    if LES_PAIR_MASK
+    const __global int* pair_mask,
+#    endif
     const __global MOE_WEI_DT* gate_weight_addr,
     const __global MOE_SCALE_DT* gate_scale_addr,
     const __global MOE_ZP_DT* gate_zp_addr,
@@ -439,6 +442,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     // Batched GEMV: each workgroup handles one (token, expert) pair.
     // For single token (token_num=1), flat_id == expert_slot and token_idx == 0.
     int flat_id = get_global_id(0);
+#    if LES_PAIR_MASK
+    if (!pair_mask[flat_id]) {
+        return;
+    }
+#    endif
     int token_idx = flat_id / EXPERTS_PER_TOKEN;
     int expert_slot = flat_id % EXPERTS_PER_TOKEN;
     y += flat_id * INTERMEDIATE_SIZE;
@@ -948,6 +956,9 @@ inline void down_gemv_n2x_f16(const __global half* weight, MOE_DTYPE routing_wei
 }
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const __global int* expert_list,
+#    if LES_PAIR_MASK
+                                                                           const __global int* pair_mask,
+#    endif
                                                                            const __global MOE_WEI_DT* down_weight_addr,
                                                                            const __global MOE_SCALE_DT* down_scale_addr,
                                                                            const __global MOE_ZP_DT* down_zp_addr,
@@ -964,6 +975,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
                                                                            __global MOE_DTYPE* y) {              // [token_num * EXPERTS_PER_TOKEN, HIDDEN_SIZE]
     // global: [token_num*EXPERTS_PER_TOKEN, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int flat_id = get_global_id(0);
+#    if LES_PAIR_MASK
+    if (!pair_mask[flat_id]) {
+        return;
+    }
+#    endif
     int token_idx = flat_id / EXPERTS_PER_TOKEN;
     int expert_slot = flat_id % EXPERTS_PER_TOKEN;
     x += flat_id * INTERMEDIATE_SIZE;

@@ -30,6 +30,7 @@ using offset_const_map_t = std::map<size_t, std::shared_ptr<ov::op::v0::Constant
 using shared_mapped_memory_ptr = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 using constant_memory_ptr = std::variant<shared_mapped_memory_ptr, std::shared_ptr<ov::op::v0::Constant>>;
 namespace {
+constexpr size_t partial_upload_cache_marker = size_t{1} << (sizeof(size_t) * CHAR_BIT - 1);
 
 bool is_alloc_host_accessible(const cldnn::allocation_type& alloc_type) {
     return alloc_type == cldnn::allocation_type::usm_host || alloc_type == cldnn::allocation_type::usm_shared;
@@ -348,8 +349,14 @@ struct data : public primitive_base<data> {
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    data(const primitive_id& id, memory::ptr mem, bool skip_device_transfer = false)
-        : primitive_base(id, {}), mem(std::move(mem)), _skip_device_transfer(skip_device_transfer) {
+        data(const primitive_id& id,
+                 memory::ptr mem,
+                 bool skip_device_transfer = false,
+                 size_t partial_upload_bytes = 0)
+                : primitive_base(id, {}),
+                    mem(std::move(mem)),
+                    _skip_device_transfer(skip_device_transfer),
+                    _partial_upload_bytes(partial_upload_bytes) {
         cache_info = std::make_shared<weightless_cache_manager>();
     }
 
@@ -371,6 +378,7 @@ struct data : public primitive_base<data> {
 
 private:
     bool _skip_device_transfer = false;
+    size_t _partial_upload_bytes = 0;
 
 public:
 
@@ -385,15 +393,23 @@ public:
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<data>::save(ob);
 
-        ob << mem->get_layout();
+        const auto& logical_layout = mem->get_layout();
+        ob << logical_layout;
 
         const auto _allocation_type = mem->get_allocation_type();
         ob << make_data(&_allocation_type, sizeof(_allocation_type));
 
-        size_t data_size = mem->size();
+        const bool partial_upload = _skip_device_transfer && _partial_upload_bytes > 0;
+        OPENVINO_ASSERT(!partial_upload || _partial_upload_bytes < partial_upload_cache_marker,
+                "OTD partial cache size exceeds serialization marker range");
+        size_t data_size = partial_upload ? partial_upload_cache_marker | _partial_upload_bytes : mem->size();
         ob << make_data(&data_size, sizeof(size_t));
 
         bool do_weightless_caching = cache_info->save(ob, data_size);
+        if (partial_upload) {
+            OPENVINO_ASSERT(!do_weightless_caching, "OTD partial cache payload cannot use weightless metadata");
+            return;
+        }
         const auto& engine = mem->get_engine();
         const auto& dev_info = engine->get_device_info();
         if (!do_weightless_caching) {
@@ -429,7 +445,15 @@ public:
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
 
-        OPENVINO_ASSERT(data_size == output_layout.bytes_count(),
+        const bool partial_upload = (data_size & partial_upload_cache_marker) != 0;
+        size_t partial_upload_bytes = 0;
+        if (partial_upload) {
+            partial_upload_bytes = data_size & ~partial_upload_cache_marker;
+            data_size = 0;
+            OPENVINO_ASSERT(partial_upload_bytes > 0 && output_layout.get_partial_shape().size() > 0,
+                            "[GPU] Corrupt cache blob: invalid OTD partial payload marker");
+        }
+        OPENVINO_ASSERT(partial_upload || data_size == output_layout.bytes_count(),
                "[GPU] Corrupt cache blob: data_size=", data_size,
                ", expected=", output_layout.bytes_count());
 
@@ -438,11 +462,32 @@ public:
         const auto& dev_info = ib.get_engine().get_device_info();
         const bool can_use_zero_copy_mode = ib.get_engine().can_use_host_usm_zero_copy() && ib.is_tensor_aligned(ov::util::min_page_alignment) &&
                                             host_buffer_base_ptr != nullptr && !weightless_caching;
-        if (!can_use_zero_copy_mode) {
+        if (partial_upload) {
+            auto physical_shape = output_layout.get_partial_shape();
+            const auto full_shape = output_layout.get_shape();
+            OPENVINO_ASSERT(full_shape[0] > 0 && output_layout.bytes_count() % full_shape[0] == 0,
+                            "[GPU] Invalid OTD partial layout in cache");
+            const auto bytes_per_expert = output_layout.bytes_count() / full_shape[0];
+            OPENVINO_ASSERT(bytes_per_expert > 0 && partial_upload_bytes % bytes_per_expert == 0,
+                            "[GPU] OTD partial byte count does not align to expert layout");
+            const auto resident_experts = partial_upload_bytes / bytes_per_expert;
+            OPENVINO_ASSERT(resident_experts <= full_shape[0], "[GPU] OTD partial cache allocation exceeds full layout");
+            physical_shape[0] = static_cast<int64_t>(resident_experts);
+            const layout physical_layout(physical_shape, output_layout.data_type, output_layout.format);
+            auto physical_memory = ib.get_engine().allocate_memory(physical_layout, _allocation_type, false);
+            mem = ib.get_engine().reinterpret_buffer(*physical_memory, output_layout);
+            _skip_device_transfer = true;
+            _partial_upload_bytes = partial_upload_bytes;
+        } else if (!can_use_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
 
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
+
+        if (partial_upload) {
+            OPENVINO_ASSERT(!is_weightless_caching, "OTD partial cache payload cannot use weightless metadata");
+            return;
+        }
 
         if (!is_weightless_caching) {
             if (ib.get_engine().can_use_host_usm_zero_copy() && !ib.is_encrypted()) {

@@ -10,6 +10,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "lru_cache.hpp"
 #include "expert_weight_providers.hpp"
+#include "intel_gpu/runtime/les_context.hpp"
 // clang-format on
 
 using ov::intel_gpu::ocl::moe::IExpertWeightProvider;
@@ -49,6 +50,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 #    include "moe_3gemm_gen_micro.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
+#    include "runtime/ocl/ocl_event.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -505,9 +507,10 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPGateUp(bool disable_shared_experts = false)
+    MoE3GemmSwigluMLPGateUp(bool disable_shared_experts = false, bool pair_mask = false)
         : KernelGenerator("moe_3gemm_swiglu_mlp", "gate_up"),
-          _disable_shared_experts(disable_shared_experts) {}
+          _disable_shared_experts(disable_shared_experts),
+          _pair_mask(pair_mask) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -516,6 +519,7 @@ protected:
         check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
+        jit.make("LES_PAIR_MASK", _pair_mask ? 1 : 0);
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
             jit.make("GATE_ACT_GELU_TANH", 1);
         } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
@@ -541,13 +545,15 @@ protected:
 
 private:
     bool _disable_shared_experts;
+    bool _pair_mask;
 };
 
 class MoE3GemmSwigluMLPDown : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPDown(bool disable_shared_experts = false)
+    MoE3GemmSwigluMLPDown(bool disable_shared_experts = false, bool pair_mask = false)
         : KernelGenerator("moe_3gemm_swiglu_mlp", "down"),
-          _disable_shared_experts(disable_shared_experts) {}
+          _disable_shared_experts(disable_shared_experts),
+          _pair_mask(pair_mask) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -556,6 +562,7 @@ protected:
         check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
+        jit.make("LES_PAIR_MASK", _pair_mask ? 1 : 0);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
@@ -576,6 +583,7 @@ protected:
 
 private:
     bool _disable_shared_experts;
+    bool _pair_mask;
 };
 
 class MoE3GemmSwigluMLPReduce : public KernelGenerator {
@@ -644,6 +652,24 @@ class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
 
+    void enqueue_les_prefetch(cldnn::primitive_inst& ins,
+                              const std::vector<uint32_t>& experts,
+                              cldnn::event::ptr) override {
+        auto& network = ins.get_network();
+        auto* context = network.get_les_context();
+        if (!context || !network.is_les_prediction_enabled() || !_weight_provider->is_offloaded()) {
+            return;
+        }
+        if (_les_owner != context) {
+            _weight_provider = _weight_provider->clone();
+            _les_owner = context;
+        }
+        _weight_provider->set_les_context(context, network.get_les_epoch());
+        auto& instance = reinterpret_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(ins);
+        bind_weights_on_first_exec(instance);
+        _weight_provider->prefetch_les_demand(experts, network.get_stream());
+    }
+
     // Routing/expert selection is read back to the host (topk_ids, expert masks)
     bool supports_replay() const override {
         return false;
@@ -653,6 +679,8 @@ public:
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
     Stage::Ptr mlp_down = make_stage<MoE3GemmSwigluMLPDown>();
+    Stage::Ptr mlp_gate_up_masked = make_stage<MoE3GemmSwigluMLPGateUp>(false, true);
+    Stage::Ptr mlp_down_masked = make_stage<MoE3GemmSwigluMLPDown>(false, true);
     Stage::Ptr mlp_reduce = make_stage<MoE3GemmSwigluMLPReduce>();
 
     Stage::Ptr prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>();
@@ -741,6 +769,9 @@ public:
     int _gate_up_group_size;
     int _down_group_size;
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
+    cldnn::les_context* _les_owner = nullptr;
+    memory::ptr _les_proxy_hidden;
+    std::vector<memory::ptr> _les_decode_metadata = std::vector<memory::ptr>(3);
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
@@ -768,17 +799,29 @@ public:
             return;
         }
         if (!_weight_provider->is_bound()) {
-            instance._weights.gate_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
-            instance._weights.gate_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
-            instance._weights.gate_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
-
-            instance._weights.up_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1));
-            instance._weights.up_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_1));
-            instance._weights.up_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_1));
-
-            instance._weights.down_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
-            instance._weights.down_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
-            instance._weights.down_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
+            auto bind = [&](MOE3GemmInputIndex index) {
+                auto input = instance.input_memory_ptr(static_cast<size_t>(index));
+                if (!_les_owner) {
+                    return input;
+                }
+                auto logical = input->get_layout();
+                auto physical = logical;
+                auto shape = physical.get_partial_shape();
+                shape[0] = static_cast<int64_t>(resident_slot_count());
+                physical.set_partial_shape(shape);
+                auto& engine = instance.get_network().get_engine();
+                auto allocation = engine.allocate_memory(physical, engine.get_preferred_memory_allocation_type(), false);
+                return engine.reinterpret_buffer(*allocation, logical);
+            };
+            instance._weights.gate_w = bind(MOE3GemmInputIndex::WEIGHT_0);
+            instance._weights.gate_z = bind(MOE3GemmInputIndex::ZP_0);
+            instance._weights.gate_s = bind(MOE3GemmInputIndex::SCALE_0);
+            instance._weights.up_w = bind(MOE3GemmInputIndex::WEIGHT_1);
+            instance._weights.up_z = bind(MOE3GemmInputIndex::ZP_1);
+            instance._weights.up_s = bind(MOE3GemmInputIndex::SCALE_1);
+            instance._weights.down_w = bind(MOE3GemmInputIndex::WEIGHT_2);
+            instance._weights.down_z = bind(MOE3GemmInputIndex::ZP_2);
+            instance._weights.down_s = bind(MOE3GemmInputIndex::SCALE_2);
             _weight_provider->bind(instance._weights);
         }
     }
@@ -1178,6 +1221,10 @@ public:
         }
         if (needs_grouped_gpu_mask_gen()) {
             add_stage(grouped_gemm_mask_gen, params);
+    }
+        if (params.prog->get_config().get_enable_les() && cur_moe->_otd.lru_expert_num > 0) {
+            add_stage(mlp_gate_up_masked, params);
+            add_stage(mlp_down_masked, params);
         }
     }
 
@@ -1453,6 +1500,9 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
+        cur_moe->_les_owner = nullptr;
+        cur_moe->_les_proxy_hidden.reset();
+        cur_moe->_les_decode_metadata.assign(3, nullptr);
         cur_moe->force_gpu_mask_gen_prefill = force_gpu_mask_gen_prefill;
         cur_moe->prefill_impl = prefill_impl;
         cur_moe->decode_impl = decode_impl;
@@ -1712,9 +1762,13 @@ public:
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
-        auto batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
-        if (!batch_mem_ptr) {
-            return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
+        const bool split_les = _les_owner && _weight_provider->is_offloaded();
+        auto batch_mem_ptr = scratch.topk_id;
+        if (!split_les) {
+            batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
+            if (!batch_mem_ptr) {
+                return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
+            }
         }
 
         // gate
@@ -1761,39 +1815,199 @@ public:
                                << std::endl;
 
         {
-            // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
-            std::vector<memory::ptr> args_gate_up =
-                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
-            if (_has_shared_expert) {
-                args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
-            }
-            args_gate_up.push_back(hidden_states_mem_ptr);
+            std::vector<std::pair<const char*, event::ptr>> trace_events;
+            bool pass_a = false;
+            auto enqueue_pairs = [&](const std::vector<event::ptr>& dependencies, const memory::ptr& indices,
+                                     const memory::ptr& mask) {
+                std::vector<memory::ptr> args_gate_up =
+                    {indices, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
+                if (mask) {
+                    args_gate_up.insert(args_gate_up.begin() + 1, mask);
+                }
+                if (_has_shared_expert) {
+                    args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
+                }
+                args_gate_up.push_back(hidden_states_mem_ptr);
 
-            auto ret_event = execute_stage(events,
-                                           instance,
-                                           *stage_gate_up,
-                                           args_gate_up,
-                                           {scratch.up},
-                                           {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                                           {1, subgroup_size, SUBGROUP_NUM});
+                auto ret_event = execute_stage(dependencies,
+                                               instance,
+                                               mask ? *mlp_gate_up_masked : *stage_gate_up,
+                                               args_gate_up,
+                                               {scratch.up},
+                                               {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                                               {1, subgroup_size, SUBGROUP_NUM}, split_les);
+                if (split_les && moe_otd::les_trace_enabled()) {
+                    trace_events.emplace_back(pass_a ? "pass_a_gate" : "pass_b_gate", ret_event);
+                }
 
-            // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
-            std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
-            if (_has_shared_expert) {
-                args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
+                std::vector<memory::ptr> args_down = {indices, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
+                if (mask) {
+                    args_down.insert(args_down.begin() + 1, mask);
+                }
+                if (_has_shared_expert) {
+                    args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
+                }
+                args_down.push_back(scratch.up);
+                args_down.push_back(routing_mem_ptr);
+                if (_has_shared_expert) {
+                    args_down.push_back(scratch.routing_weights);
+                }
+                ret_event = execute_stage({ret_event},
+                                          instance,
+                                          mask ? *mlp_down_masked : *stage_down,
+                                          args_down,
+                                          {scratch.y},
+                                          {token_num * compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                                          {1, subgroup_size, SUBGROUP_NUM},
+                                          split_les);
+                if (split_les && moe_otd::les_trace_enabled()) {
+                    trace_events.emplace_back(pass_a ? "pass_a_down" : "pass_b_down", ret_event);
+                }
+                return ret_event;
+            };
+
+            event::ptr ret_event;
+            if (!split_les) {
+                ret_event = enqueue_pairs(events, batch_mem_ptr, nullptr);
+            } else {
+                for (const auto& dependency : events) {
+                    if (dependency) {
+                        dependency->wait();
+                    }
+                }
+                const size_t pair_count = token_num * static_cast<size_t>(max_topk);
+                std::vector<uint32_t> experts(pair_count);
+                scratch.topk_id->copy_to(stream, experts.data(), 0, 0, pair_count * sizeof(uint32_t), true);
+                if (cur_net.is_les_prediction_enabled() && moe_otd::les_prediction_compare_enabled()) {
+                    auto prediction = cur_net.get_les_proxy_state(instance.id());
+                    if (prediction.predicted_indices && prediction.prediction_ready) {
+                        prediction.prediction_ready->wait();
+                        std::vector<uint32_t> predicted(pair_count);
+                        prediction.predicted_indices->copy_to(stream,
+                                                              predicted.data(),
+                                                              0,
+                                                              0,
+                                                              pair_count * sizeof(uint32_t),
+                                                              true);
+                        uint64_t matches = 0;
+                        for (size_t pair = 0; pair < pair_count; ++pair) {
+                            matches += predicted[pair] == experts[pair];
+                        }
+                        if (auto* perf = moe_otd::get_perf_counters()) {
+                            perf->les_prediction_matches.fetch_add(matches, std::memory_order_relaxed);
+                            perf->les_prediction_pairs.fetch_add(pair_count, std::memory_order_relaxed);
+                        }
+                        GPU_DEBUG_INFO << "[LES_PREDICT] target=" << instance.id() << " matches=" << matches << "/"
+                                       << pair_count << std::endl;
+                    }
+                }
+                std::vector<bool> done(pair_count, false);
+                size_t remaining = pair_count;
+                bool shared_pending = _has_shared_expert;
+                try {
+                    while (remaining > 0) {
+                        std::vector<uint32_t> selected;
+                        std::vector<uint32_t> wave_experts;
+                        std::vector<size_t> wave_pairs;
+                        for (size_t pair = 0; pair < pair_count; ++pair) {
+                            if (done[pair]) {
+                                continue;
+                            }
+                            if (std::find(selected.begin(), selected.end(), experts[pair]) == selected.end()) {
+                                if (selected.size() == _weight_provider->resident_capacity()) {
+                                    continue;
+                                }
+                                selected.push_back(experts[pair]);
+                            }
+                            wave_experts.push_back(experts[pair]);
+                            wave_pairs.push_back(pair);
+                        }
+                        auto demand = _weight_provider->begin_les_demand(wave_experts);
+                        OPENVINO_ASSERT(demand && !wave_pairs.empty(), "LES wave reservation cannot progress");
+                        if (auto* perf = moe_otd::get_perf_counters()) {
+                            perf->les_waves.fetch_add(1, std::memory_order_relaxed);
+                            perf->les_ready_pairs.fetch_add(demand->ready_pairs.size(), std::memory_order_relaxed);
+                            perf->les_missing_pairs.fetch_add(demand->missing_pairs.size(), std::memory_order_relaxed);
+                            perf->les_shared_pairs.fetch_add(shared_pending ? token_num : 0, std::memory_order_relaxed);
+                        }
+                        std::vector<int32_t> slots(pair_count, 0);
+                        std::vector<int32_t> ready_mask(token_num * compute_experts, 0);
+                        std::vector<int32_t> missing_mask(ready_mask.size(), 0);
+                        for (size_t index = 0; index < wave_pairs.size(); ++index) {
+                            slots[wave_pairs[index]] = static_cast<int32_t>(demand->slots[index]);
+                        }
+                        for (auto index : demand->ready_pairs) {
+                            auto pair = wave_pairs[index];
+                            ready_mask[pair / max_topk * compute_experts + pair % max_topk] = 1;
+                        }
+                        for (auto index : demand->missing_pairs) {
+                            auto pair = wave_pairs[index];
+                            missing_mask[pair / max_topk * compute_experts + pair % max_topk] = 1;
+                        }
+                        if (shared_pending) {
+                            for (size_t token = 0; token < token_num; ++token) {
+                                ready_mask[token * compute_experts + max_topk] = 1;
+                            }
+                        }
+                        auto upload = [&](const std::vector<int32_t>& values, size_t index) {
+                            auto& memory = _les_decode_metadata[index];
+                            if (!memory || memory->size() != values.size() * sizeof(int32_t)) {
+                                auto layout = cldnn::layout({1, 1, 1, static_cast<int64_t>(values.size())},
+                                                            ov::element::i32, cldnn::format::bfyx);
+                                memory = cur_net.get_engine().allocate_memory(layout, allocation_type::usm_host, false);
+                            }
+                            mem_lock<int32_t, mem_lock_type::write> metadata(memory, stream);
+                            std::copy(values.begin(), values.end(), metadata.data());
+                            return memory;
+                        };
+                        auto indices = upload(slots, 0);
+                        auto ready_memory = upload(ready_mask, 1);
+                        auto missing_memory = upload(missing_mask, 2);
+                        std::vector<event::ptr> dependencies = ret_event ? std::vector<event::ptr>{ret_event} : events;
+                        if (!demand->ready_pairs.empty() || shared_pending) {
+                            pass_a = true;
+                            ret_event = enqueue_pairs(dependencies, indices, ready_memory);
+                            dependencies = {ret_event};
+                            stream.flush();
+                        }
+                        _weight_provider->finish_les_demand(stream);
+                        if (!demand->missing_pairs.empty()) {
+                            pass_a = false;
+                            ret_event = enqueue_pairs(dependencies, indices, missing_memory);
+                        }
+                        OPENVINO_ASSERT(ret_event, "LES wave produced no consumer");
+                        stream.flush();
+                        _weight_provider->set_consumer(ret_event);
+                        if (moe_otd::les_trace_enabled() || wave_pairs.size() < remaining) {
+                            ret_event->wait();
+                        }
+                        for (const auto& entry : trace_events) {
+                            auto* native = dynamic_cast<cldnn::ocl::ocl_event*>(entry.second.get());
+                            OPENVINO_ASSERT(native, "LES trace requires native kernel events");
+                            moe_otd::les_trace_interval(entry.first,
+                                native->get().getProfilingInfo<CL_PROFILING_COMMAND_START>(),
+                                native->get().getProfilingInfo<CL_PROFILING_COMMAND_END>());
+                        }
+                        trace_events.clear();
+                        shared_pending = false;
+                        for (auto pair : wave_pairs) {
+                            done[pair] = true;
+                            --remaining;
+                        }
+                    }
+                } catch (...) {
+                    auto error = std::current_exception();
+                    try {
+                        stream.finish();
+                    } catch (...) {
+                    }
+                    try {
+                        _weight_provider->release();
+                    } catch (...) {
+                    }
+                    std::rethrow_exception(error);
+                }
             }
-            args_down.push_back(scratch.up);
-            args_down.push_back(routing_mem_ptr);  // compact topk_weights [token_num * MAX_TOPK]
-            if (_has_shared_expert) {
-                args_down.push_back(scratch.routing_weights);  // shared_gate_in [token_num]
-            }
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *stage_down,
-                                      args_down,
-                                      {scratch.y},
-                                      {token_num * compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                                      {1, subgroup_size, SUBGROUP_NUM});
 
             ret = exec_batched_gemv_reduce(ret_event, instance, scratch, token_num);
         }
@@ -2918,6 +3132,37 @@ public:
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
+        auto& network = ins.get_network();
+        auto* context = network.get_les_context();
+        if (!context || !_weight_provider->is_offloaded()) {
+            return execute_impl(events, ins);
+        }
+        auto& stream = network.get_stream();
+        if (_les_owner != context) {
+            stream.finish();
+            _weight_provider = _weight_provider->clone();
+            _les_owner = context;
+        }
+        _weight_provider->set_les_context(context, network.get_les_epoch());
+        try {
+            auto result = execute_impl(events, ins);
+            auto consumer = stream.enqueue_marker({});
+            stream.flush();
+            _weight_provider->set_consumer(std::move(consumer));
+            return result;
+        } catch (...) {
+            try {
+                stream.finish();
+            } catch (...) {
+                _weight_provider->release();
+                throw;
+            }
+            _weight_provider->release();
+            throw;
+        }
+    }
+
+    cldnn::event::ptr execute_impl(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(ins);
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -2926,6 +3171,33 @@ public:
         auto& stream = cur_net.get_stream();
 
         OPENVINO_ASSERT(_weight_provider, "expert weight provider not initialized");
+
+        if (cur_net.is_les_prediction_enabled()) {
+            for (const auto& link : cur_net.get_les_router_links()) {
+                if (moe_otd::LesSpeculationPolicy::lookahead_layers != 1 ||
+                    link.status != program::les_router_status::supported || link.chain.source_moe != instance.id()) {
+                    continue;
+                }
+                auto source_hidden = instance.input_memory_ptr(0);
+                const auto& hidden_layout = source_hidden->get_layout();
+                if (hidden_layout.data_type != data_types::f16 || hidden_layout.format != format::bfyx ||
+                    hidden_layout.count() != hidden_layout.get_shape().back() ||
+                    hidden_layout.get_linear_size() != hidden_layout.count()) {
+                    continue;
+                }
+                if (!_les_proxy_hidden || _les_proxy_hidden.use_count() > 1 ||
+                    _les_proxy_hidden->get_layout() != hidden_layout) {
+                    _les_proxy_hidden = cur_net.get_engine().allocate_memory(
+                        hidden_layout, cur_net.get_engine().get_preferred_memory_allocation_type(), false);
+                }
+                auto snapshot = _les_proxy_hidden;
+                stream.enqueue_barrier(events);
+                auto snapshot_ready = snapshot->copy_from(stream, *source_hidden, false);
+                cur_net.set_les_proxy_hidden(link.chain.target_moe, std::move(snapshot), std::move(snapshot_ready));
+                auto router = cur_net.get_primitive(link.router);
+                router->get_impl()->enqueue_les_prediction(*router);
+            }
+        }
 
         cldnn::event::ptr ret_env = nullptr;
         _has_shared_expert = (config.num_shared_expert > 0);

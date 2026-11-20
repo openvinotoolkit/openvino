@@ -133,6 +133,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe_gate_activation.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_gather_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_gemm.cl
+    ${CMAKE_CURRENT_LIST_DIR}/moe_les_proxy_fc.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_mask_gen.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_router_fused.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction_opt.cl
