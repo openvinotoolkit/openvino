@@ -2571,6 +2571,73 @@ class TestBuildDynamicShapes:
 class TestConvertModelDynamo:
     """Tests for convert_model with dynamo=True (torch.export path)."""
 
+    def test_numeric_input_alias_applies_dynamic_shape(self):
+        from openvino import compile_model, convert_model
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x * 2
+
+        example = torch.ones(3, 2)
+        converted = convert_model(Model(), example_input=example, input={"0": [-1, 2]}, dynamo=True)
+        assert converted.input(0).get_partial_shape() == PartialShape([-1, 2])
+        sample = torch.ones(5, 2)
+        result = compile_model(converted, "CPU", default_cfg)([sample.numpy()])[0]
+        np.testing.assert_array_equal(result, Model()(sample).numpy())
+
+    @pytest.mark.parametrize("as_file", [False, True])
+    def test_exported_program_partial_example_alias_is_validated_after_normalization(self, as_file, tmp_path):
+        from openvino import Dimension, convert_model, compile_model
+        from openvino.tools.ovc.error import Error
+        from torch.export import Dim
+
+        class DictModel(torch.nn.Module):
+            def forward(self, values):
+                return values["first"].reshape(values["first"].shape[0], 3, 1) + values["second"].sum()
+
+        model = DictModel()
+        first, second = torch.ones(3, 3), torch.ones(4, 3)
+        example = ({"first": first, "second": second},)
+        program = torch.export.export(
+            model, example,
+            dynamic_shapes=({"first": {0: Dim("first_batch", min=3, max=7)}, "second": None},))
+        if as_file:
+            path = tmp_path / "model.pt2"
+            torch.export.save(program, path)
+            program = path
+
+        requested_shape = PartialShape([Dimension(3, 7), 3])
+        converted = convert_model(program, example_input=example, input={"first": requested_shape})
+        assert converted.input("values_first").get_partial_shape() == requested_shape
+
+        new_first = torch.ones(5, 3)
+        result = compile_model(converted, "CPU", default_cfg)(
+            {"values_first": new_first.numpy(), "values_second": second.numpy()})[0]
+        np.testing.assert_allclose(result, model({"first": new_first, "second": second}).numpy())
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(program, example_input=example,
+                          input={"first": PartialShape([Dimension(2, 6), 3])})
+
+    def test_exported_program_cli_input_checks_bounds(self, tmp_path):
+        from argparse import Namespace
+        from openvino.tools.ovc.cli_parser import _InputCutInfo
+        from openvino.tools.ovc.error import Error
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder_for_model_on_disk
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x * 2 if x.shape[0] > 2 else x * 3
+
+        path = tmp_path / "model.pt2"
+        torch.export.save(torch.export.export(Model(), (torch.ones(3, 2),)), path)
+        argv = Namespace(input_model=str(path),
+                         input=[_InputCutInfo("x", PartialShape([-1, 2]), None, None)],
+                         framework=None,
+                         share_weights=True)
+
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            get_pytorch_decoder_for_model_on_disk(argv, {})
+
     @pytest.mark.parametrize("as_file", [False, True])
     def test_exported_program_preserves_specialized_input_shape(self, as_file, tmp_path):
         from openvino import convert_model, compile_model

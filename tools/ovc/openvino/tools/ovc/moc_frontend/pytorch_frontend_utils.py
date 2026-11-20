@@ -159,6 +159,18 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
             if len(matches) == 1:
                 assigned[i] = matches[0]
                 remaining.remove(matches[0])
+        tensor_leaf_indices = [i for i, leaf in enumerate(flat_leaves) if isinstance(leaf, torch.Tensor)]
+        for j in sorted(remaining):
+            spec = input_specs[j]
+            if spec is None or spec.name is None or not spec.name.isdecimal():
+                continue
+            input_idx = int(spec.name)
+            if input_idx >= len(tensor_leaf_indices):
+                continue
+            leaf_idx = tensor_leaf_indices[input_idx]
+            if assigned[leaf_idx] is None:
+                assigned[leaf_idx] = j
+                remaining.remove(j)
     for i, leaf in enumerate(flat_leaves):
         if assigned[i] is not None or not isinstance(leaf, torch.Tensor):
             continue
@@ -224,8 +236,8 @@ def get_pytorch_decoder(model, example_inputs, args):
     if not isinstance(model, decoder_types):
         if TorchFXPythonDecoder is not None and isinstance(model, torch.export.ExportedProgram):
             decoder = TorchFXPythonDecoder.from_exported_program(model, shared_memory=args.get("share_weights", True))
-            if args.get("input") is not None:
-                _validate_exported_input_shapes(decoder, input_to_input_cut_info(args["input"]))
+            if args.get("input") is not None and example_inputs is None:
+                _validate_exported_input_shapes(decoder, _input_specs_for_validation(args["input"]))
         elif use_dynamo:
             import inspect
             from torch.utils._pytree import tree_flatten
@@ -395,8 +407,12 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     if isinstance(exported_program, torch.export.ExportedProgram):
         argv.input_model = TorchFXPythonDecoder.from_exported_program(
             exported_program, shared_memory=args.get("share_weights", True))
-        if args.get("input") is not None:
-            _validate_exported_input_shapes(argv.input_model, input_to_input_cut_info(args["input"]))
+        if example_inputs is None:
+            input_specs = getattr(argv, "input", None)
+            if input_specs is None:
+                input_specs = args.get("input")
+            if input_specs is not None:
+                _validate_exported_input_shapes(argv.input_model, _input_specs_for_validation(input_specs))
         argv.framework = 'pytorch'
         return True
     return False
@@ -500,6 +516,14 @@ def _validate_exported_input_shapes(model, input_specs):
         if not desc.shape.refines(exported_shape):
             raise Error(f"Input shape {desc.shape} is not contained in the exported shape {exported_shape}. "
                         "Export the model with the requested dynamic dimensions instead.")
+
+
+def _input_specs_for_validation(input_specs):
+    if input_specs is None:
+        return []
+    if isinstance(input_specs, (list, tuple)) and all(isinstance(spec, _InputCutInfo) for spec in input_specs):
+        return list(input_specs)
+    return input_to_input_cut_info(input_specs)
 
 
 def extract_input_info_from_example(args, inputs):
