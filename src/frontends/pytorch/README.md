@@ -51,6 +51,8 @@ flowchart TD
 
 OpenVINO PyTorch Frontend supports extensions. To add an extension, use
 `ov::frontend::pytorch::Frontend::add_extension()` API.
+In FX graphs, `ConversionExtension` matches plain Python function targets by their
+defining `module.qualified_name`, which can differ from an import alias.
 The following extension types are supported:
 
 * `ov::frontend::tensorflow::ConversionExtension` or `ov::frontend::ConversionExtension` - add a new Loader into the conversion pipeline.
@@ -64,6 +66,21 @@ For TorchScript conversion, `ModuleExtension` replacement operations are assumed
 to return tensors that do not alias their inputs. Returning an input or a view
 of one is unsupported: aliasing is not preserved, and in-place mutations
 involving aliased outputs may silently produce incorrect results.
+
+### Exported-model inputs
+
+Conversion of a `torch.export.ExportedProgram` retains its static dimensions and
+per-dimension bounds. An explicitly requested input shape must not widen them;
+export again with the desired dynamic dimensions instead. OpenVINO does not
+enforce all export guards, including cross-input equality and divisibility
+constraints, so inference inputs must also satisfy the original program's guards.
+
+For `dynamo=True`, dynamic dimensions requested through `input` are exported
+with `Dim.AUTO`. If `torch.export` infers tighter bounds, for example a minimum
+spatial size, request a shape within them, such as `Dimension(16, -1)`. Pass a
+single list argument as `(list_of_tensors,)` and use distinct tensor objects for
+separate example inputs. Repeated tensor objects are rejected because
+`torch.export` can specialize their aliasing.
 
 ### Context-manager scopes in exported models
 
@@ -86,6 +103,15 @@ Operations inside the region, including `flat_apply` calls, are traced as well.
 This region trace runs after export for both models and supplied exported graphs.
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
+
+### Exported symbolic shape arithmetic
+
+Exported symbolic shape minima and maxima (`torch.sym_min` and `torch.sym_max`)
+are converted to runtime `Minimum` and `Maximum` operations. They can drive
+dynamic sizes such as TopK's K input without specializing to the example shape.
+`torch.sym_float` and `math.trunc` on symbolic sizes, as produced by
+`Upsample(recompute_scale_factor=True)`, are converted to `f32` and to `i64`
+truncation toward zero.
 
 ## How to Implement Support for a New PyTorch Operation
 

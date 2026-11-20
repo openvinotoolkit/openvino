@@ -34,7 +34,7 @@ from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     init_ovc_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, \
-    extract_input_info_from_example, get_pytorch_decoder_for_model_on_disk
+    extract_input_info_from_example, get_pytorch_decoder_for_model_on_disk, can_suggest_dynamo, add_dynamo_hint
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 
 try:
@@ -208,7 +208,7 @@ def check_model_object(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (
+        if isinstance(model, (torch.nn.Module, getattr(torch.jit, "ScriptFunction", torch.nn.Module))) or (
                 hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
             return "pytorch"
         try:
@@ -450,6 +450,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             args['input_model'] = ()
         if isinstance(args['input_model'], (tuple, list)) and len(args['input_model']) == 1:
             args['input_model'] = args['input_model'][0]
+    suggest_dynamo = False
     try:
         model_framework = None
         inp_model_is_object = input_model_is_object(args['input_model']) if python_api_used else False
@@ -473,6 +474,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                     raise AssertionError(
                         "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
+                suggest_dynamo = can_suggest_dynamo(args['input_model'], args)
                 get_pytorch_decoder(args['input_model'], example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
@@ -559,6 +561,8 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         return ov_model, argv
 
     except Exception as e:
+        if suggest_dynamo:
+            e = add_dynamo_hint(e)
         if is_verbose(argv) or not python_api_used:
             if isinstance(e, (FileNotFoundError, NotADirectoryError)):
                 log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
