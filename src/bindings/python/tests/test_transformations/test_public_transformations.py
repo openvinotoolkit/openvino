@@ -11,6 +11,7 @@ from openvino.passes import (
     Manager,
     ConstantFolding,
     MakeStateful,
+    MakeStateless,
     ConvertFP32ToFP16,
     LowLatency2,
     Serialize,
@@ -59,6 +60,32 @@ def test_make_stateful_with_dict():
     assert model is not None
     assert len(model.get_parameters()) == 0
     assert len(model.get_results()) == 0
+
+
+def test_make_stateless():
+    param = ops.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param.get_output_tensor(0).set_names({"parameter"})
+    relu = ops.relu(param)
+    res = ops.result(relu, name="result")
+    model = Model([res], [param], "test")
+
+    # make the model stateful and then restore it back to the stateless form
+    manager = Manager()
+    manager.register_pass(MakeStateful([(param, res)]))
+    manager.run_passes(model)
+    assert len(model.get_parameters()) == 0
+    assert len(model.get_variables()) == 1
+    assert len(model.get_sinks()) == 1
+
+    manager = Manager()
+    manager.register_pass(MakeStateless())
+    manager.run_passes(model)
+    assert model is not None
+    assert len(model.get_variables()) == 0
+    assert len(model.get_sinks()) == 0
+    assert len(model.get_parameters()) == 1
+    assert len(model.get_results()) == 1
+    assert model.get_parameters()[0].get_friendly_name() == "parameterresult"
 
 
 def test_constant_folding():
@@ -158,6 +185,7 @@ def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
 @pytest.mark.parametrize(("transformation", "arguments"),
                          [(ConstantFolding, []),
                           (MakeStateful, [{"parameter": "result"}]),
+                          (MakeStateless, []),
                           (ConvertFP32ToFP16, []),
                           (LowLatency2, [])])
 def test_run_on_model_transformations(transformation, arguments):

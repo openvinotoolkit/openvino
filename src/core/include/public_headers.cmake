@@ -366,6 +366,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/graph_rewrite.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/low_latency.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/make_stateful.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/make_stateless.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/manager.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/matcher_pass.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/node_registry.hpp
