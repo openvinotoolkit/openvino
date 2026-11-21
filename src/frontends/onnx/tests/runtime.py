@@ -63,8 +63,14 @@ def get_onnx_test_dtype(ov_type):
     is_ov_float8 = ov_type == Type.f8e4m3 or ov_type == Type.f8e5m2
     if is_ov_float8:
         return np.float32
-    else:
-        return get_dtype(ov_type)
+    if ov_type == Type.bf16:
+        try:
+            # onnx >= 1.20 represents bfloat16 reference tensors with ml_dtypes.bfloat16
+            import ml_dtypes
+            return ml_dtypes.bfloat16
+        except ImportError:
+            pass
+    return get_dtype(ov_type)
 
 class Runtime(object):
     """Represents a graph runtime environment."""
