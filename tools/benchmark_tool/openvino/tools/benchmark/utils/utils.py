@@ -770,12 +770,14 @@ def device_properties_to_string(config):
                 if isinstance(sv, bool):
                     sv = "YES" if sv else "NO"
                 sub_str += "{0}:{1},".format(sk, sv)
-            sub_str = sub_str[:-1]
+            if v:
+                sub_str = sub_str[:-1]
             sub_str += "}"
             ret += "{0}:{1},".format(k, sub_str)
         else:
             ret += "{0}:{1},".format(k, v)
-    ret = ret[:-1]
+    if config:
+        ret = ret[:-1]
     ret += "}"
     return ret
 
@@ -788,7 +790,7 @@ def string_to_device_properties(device_properties_str):
         raise Exception(
             "Failed to parse device properties. Value of device properties should be started with '{' and ended with '}'."
             "They are actually {} and {}".format(device_properties_str[0], device_properties_str[-1]))
-    pattern = r'(\w+):({.+?}|[^,}]+)'
+    pattern = r'(\w+):({.*?}|[^,}]+)'
     pairs = re.findall(pattern, device_properties_str)
     for key, value in pairs:
         if value.startswith("{") and value.endswith("}"):
