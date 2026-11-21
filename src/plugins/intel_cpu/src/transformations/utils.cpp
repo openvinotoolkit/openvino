@@ -4,13 +4,18 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/quantization_details.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "low_precision/resolve_precision_attribute.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/node.hpp"
@@ -21,11 +26,16 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -33,6 +43,10 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 
 using namespace ov::pass::pattern;
 
@@ -204,6 +218,142 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
     const auto oc = symbols.at("OC").i();
     const auto ic = symbols.at("IC").i();
     return (oc >= 0 && static_cast<size_t>(oc) < oc_ic_limit) || (ic >= 0 && static_cast<size_t>(ic) < oc_ic_limit);
+}
+
+bool is_unsafe_avx2_conv(const std::shared_ptr<const ov::Node>& node) {
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
+    // If the platform supports VNNI (AVX2-VNNI, AVX-512 VNNI, or AMX INT8),
+    // intermediate dot-products are accumulated in 32-bit registers without vpmaddubsw saturation.
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
+        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni)) {
+        return false;
+    }
+
+    if (!node || node->get_input_size() < 2) {
+        return false;
+    }
+
+    auto weights_input = node->input_value(1);
+    auto current = weights_input.get_node_shared_ptr();
+
+    while (current) {
+        if (auto reshape = ov::as_type_ptr<const ov::op::v1::Reshape>(current)) {
+            current = reshape->get_input_node_shared_ptr(0);
+        } else if (auto transpose = ov::as_type_ptr<const ov::op::v1::Transpose>(current)) {
+            current = transpose->get_input_node_shared_ptr(0);
+        } else if (auto multiply = ov::as_type_ptr<const ov::op::v1::Multiply>(current)) {
+            const auto dqConstBranch = ov::pass::low_precision::NetworkHelper::getDQConstBranchIndex(
+                std::static_pointer_cast<ov::Node>(std::const_pointer_cast<ov::op::v1::Multiply>(multiply)));
+            if (dqConstBranch.has_value()) {
+                current = multiply->get_input_node_shared_ptr(1 - dqConstBranch.value());
+            } else {
+                return true;
+            }
+        } else if (auto subtract = ov::as_type_ptr<const ov::op::v1::Subtract>(current)) {
+            const auto dqConstBranch = ov::pass::low_precision::NetworkHelper::getDQConstBranchIndex(
+                std::static_pointer_cast<ov::Node>(std::const_pointer_cast<ov::op::v1::Subtract>(subtract)));
+            if (dqConstBranch.has_value()) {
+                current = subtract->get_input_node_shared_ptr(1 - dqConstBranch.value());
+            } else {
+                return true;
+            }
+        } else if (auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(current)) {
+            current = convert->get_input_node_shared_ptr(0);
+        } else if (auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(current)) {
+            const auto& element_type = constant->get_element_type();
+            if (element_type == ov::element::i8) {
+                const auto* data = constant->get_data_ptr<int8_t>();
+                const size_t count = ov::shape_size(constant->get_shape());
+                for (size_t i = 0; i < count; ++i) {
+                    if (data[i] < -64 || data[i] > 63) {
+                        return true;
+                    }
+                }
+                return false;
+            } else if (element_type == ov::element::u8) {
+                const auto* data = constant->get_data_ptr<uint8_t>();
+                const size_t count = ov::shape_size(constant->get_shape());
+                for (size_t i = 0; i < count; ++i) {
+                    if (data[i] > 63) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return false;
+        } else if (auto fq = ov::as_type_ptr<const ov::op::v0::FakeQuantize>(current)) {
+            auto non_const_fq = std::const_pointer_cast<ov::op::v0::FakeQuantize>(fq);
+            const auto quantizationDetails = ov::pass::low_precision::QuantizationDetails::getDetails(non_const_fq);
+            if (quantizationDetails.empty()) {
+                return true;
+            }
+
+            const auto precisions = ov::pass::low_precision::getOutputPrecisionAttribute(non_const_fq->output(0)).value_or(
+                std::vector<ov::element::Type>{ov::element::i8});
+            const auto dataPrecision = ov::pass::low_precision::LayerTransformation::getDataPrecision(
+                non_const_fq,
+                quantizationDetails,
+                precisions);
+            if (dataPrecision.empty()) {
+                return true;
+            }
+
+            const auto& outputLow = fq->input_value(3);
+            const std::vector<float> minValues(quantizationDetails.outputLowValues.size(), dataPrecision.min);
+            const std::vector<float> maxValues(quantizationDetails.outputHighValues.size(), dataPrecision.max);
+
+            auto newMin = std::make_shared<ov::opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
+            auto newMax = std::make_shared<ov::opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
+
+            auto newFQ = ov::pass::low_precision::NetworkHelper::fold_fake_quantize(
+                std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
+                    fq->input_value(0),
+                    ov::pass::low_precision::NetworkHelper::getSingleConsumerConstant(fq->input_value(1)),
+                    ov::pass::low_precision::NetworkHelper::getSingleConsumerConstant(fq->input_value(2)),
+                    newMin->output(0),
+                    newMax->output(0),
+                    fq->get_levels(),
+                    fq->get_auto_broadcast()),
+                true);
+
+            auto foldedConst = ov::as_type_ptr<ov::op::v0::Constant>(newFQ);
+            if (!foldedConst || foldedConst->get_element_type() != dataPrecision.precision) {
+                foldedConst = ov::as_type_ptr<ov::op::v0::Constant>(
+                    ov::pass::low_precision::fold<ov::op::v0::Convert>(newFQ->output(0), dataPrecision.precision));
+            }
+
+            if (!foldedConst) {
+                return true;
+            }
+
+            if (foldedConst->get_element_type() == ov::element::i8) {
+                const auto* data = foldedConst->get_data_ptr<int8_t>();
+                const size_t count = ov::shape_size(foldedConst->get_shape());
+                for (size_t i = 0; i < count; ++i) {
+                    if (data[i] < -64 || data[i] > 63) {
+                        return true;
+                    }
+                }
+                return false;
+            } else if (foldedConst->get_element_type() == ov::element::u8) {
+                const auto* data = foldedConst->get_data_ptr<uint8_t>();
+                const size_t count = ov::shape_size(foldedConst->get_shape());
+                for (size_t i = 0; i < count; ++i) {
+                    if (data[i] > 63) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            return true;
+        } else {
+            return true;
+        }
+    }
+#endif
+    return false;
 }
 
 }  // namespace ov::intel_cpu
