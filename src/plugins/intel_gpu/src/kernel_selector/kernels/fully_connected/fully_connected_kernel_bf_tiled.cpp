@@ -153,8 +153,8 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
 bool should_dynamic_quantize(const fully_connected_params& params) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
-    if (params.inputs[0].GetFirstElementOffset() != 0) {
-        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: input has non-zero offset (padding)" << std::endl;
+    if (params.inputs[0].GetFirstElementOffset() != 0 || params.inputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].has_dynamic_pad()) {
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: input has non-zero offset or padding" << std::endl;
         return false;
     }
 
@@ -469,7 +469,8 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     }
 
     // Reject tile sizes that are guaranteed to spill out of registers.
-    unsigned acc_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(params.inputs[0].GetDType());
+    // Both FP (FC_ACC_TYPE = float) and quantized (INT32) paths use 4-byte accumulators.
+    unsigned acc_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(Datatype::F32);
     unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
     unsigned wei_register_bytes = tparams.tile_ofm * tparams.tile_k * simd * BytesPerElement(params.weights.GetDType());
 
