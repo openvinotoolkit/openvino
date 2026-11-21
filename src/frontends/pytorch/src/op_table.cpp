@@ -42,6 +42,7 @@ OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_append);
+OP_CONVERTER(translate_reverse);
 OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
@@ -437,6 +438,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::angle", common_translators::translate_angle},
         {"aten::any", op::translate_any},
         {"aten::append", op::translate_append},
+        {"aten::reverse", op::translate_reverse},
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
         {"aten::argmin", op::translate_argmin},

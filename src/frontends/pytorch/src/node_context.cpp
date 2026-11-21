@@ -4,6 +4,8 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 
+#include <algorithm>
+
 #include "helper_ops/internal_op.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -160,6 +162,8 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
             alias->second.output = ov_output;
             if (!alias->second.element_ids.empty() && normalize_op_type(get_op_type()) == "aten::append") {
                 alias->second.element_ids.push_back(m_decoder_inputs.at(1));
+            } else if (normalize_op_type(get_op_type()) == "aten::reverse") {
+                std::reverse(alias->second.element_ids.begin(), alias->second.element_ids.end());
             }
         }
         return;
