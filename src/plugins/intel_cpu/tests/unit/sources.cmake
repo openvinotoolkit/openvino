@@ -11,6 +11,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_zero_dims_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rt_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sigstack_manager_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/dummy_node.hpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/enforce_inference_precision_bf16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/inplace_resolve_io.cpp

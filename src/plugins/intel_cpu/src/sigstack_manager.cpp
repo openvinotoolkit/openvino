@@ -45,13 +45,13 @@ SigAltStackSetup::SigAltStackSetup() {
 SigAltStackSetup::~SigAltStackSetup() {
     stack_t current_stack;
     if (new_stack.ss_sp) {
-        // restore old stack if new_stack is still the current one
-        if (sigaltstack(nullptr, &current_stack) == 0) {
-            if (current_stack.ss_sp == new_stack.ss_sp) {
-                sigaltstack(&old_stack, nullptr);
-            }
+        // Restore old stack and release new_stack only if new_stack is still the current one.
+        // Otherwise another instance installed its stack later and keeps new_stack as its old stack,
+        // so new_stack must stay mapped because that instance restores it on destruction.
+        if (sigaltstack(nullptr, &current_stack) == 0 && current_stack.ss_sp == new_stack.ss_sp) {
+            sigaltstack(&old_stack, nullptr);
+            munmap(new_stack.ss_sp, new_stack.ss_size);
         }
-        munmap(new_stack.ss_sp, new_stack.ss_size);
         new_stack.ss_sp = nullptr;
         new_stack.ss_size = 0;
     }
