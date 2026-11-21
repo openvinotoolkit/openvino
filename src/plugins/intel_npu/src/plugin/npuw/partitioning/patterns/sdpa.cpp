@@ -840,6 +840,23 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
     model_changed |= rewr2.run_on_model(model);
 
+    model->validate_nodes_and_infer_types();
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto reduce = ov::as_type_ptr<ov::op::v1::ReduceSum>(node);
+        if (!reduce || !reduce->get_input_partial_shape(0).is_static() ||
+            !reduce->get_output_partial_shape(0).is_static() ||
+            ov::shape_size(reduce->get_input_shape(0)) != 0) {
+            continue;
+        }
+        auto zero = ov::op::v0::Constant::create(reduce->get_output_element_type(0),
+                                               reduce->get_output_shape(0),
+                                               {0});
+        zero->set_friendly_name(reduce->get_friendly_name());
+        ov::copy_runtime_info(reduce, zero);
+        ov::replace_node(reduce, zero);
+        model_changed = true;
+    }
+
     return model_changed;
 }
 
