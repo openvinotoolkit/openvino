@@ -20,6 +20,9 @@ namespace npuw {
 namespace patterns {
 namespace opt {
 
+// Embeddings narrower than this are not worth moving to the host gather
+constexpr std::size_t MIN_HOST_GATHER_HIDDEN_SIZE = 2048;
+
 struct Context {
     std::string pmm_dims;
     bool is_spatial = false;

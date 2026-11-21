@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
@@ -18,6 +19,7 @@
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
+#include "npuw_transformations/strip_noop_gather_ids_reshape.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -272,6 +274,10 @@ auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
 
 void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& props) {
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
+
+    if (cfg_get<::intel_npu::NPUW_HOST_GATHER>(props)) {
+        ov::npuw::StripNoopGatherIdsReshape().run_on_model(model);
+    }
 
     if (cfg_get<::intel_npu::NPUW_FOLD>(props) && cfg_get<::intel_npu::NPUW_FUNCALL_FOR_ALL>(props)) {
         // If there's folding enabled AND non-repeating graphs are forced to be
@@ -2030,6 +2036,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 }
 
 void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
+    std::unordered_set<const void*> ambiguous_ptrs;
     for (auto&& node_ptr : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node_ptr)) {
             const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
@@ -2039,13 +2046,20 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
                 continue;
             }
             std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            auto data_ptr = c->get_data_ptr();
-            auto inserted = m_const_to_offset.insert({data_ptr, offset});
-            if (!inserted.second) {
-                NPUW_ASSERT(inserted.first->second == offset &&
-                            "Model contains two constants with same pointer and different offset!");
+            const auto data_ptr = c->get_data_ptr();
+            const auto inserted = m_const_to_offset.try_emplace(data_ptr, offset);
+            if (!inserted.second && inserted.first->second != offset) {
+                ambiguous_ptrs.insert(data_ptr);
             }
         }
+    }
+    // A data pointer that maps to several offsets (e.g. per-node offsets assigned by a frontend) cannot be
+    // exported weightless; serialize_weightless writes such a tensor in full.
+    for (const auto* data_ptr : ambiguous_ptrs) {
+        m_const_to_offset.erase(data_ptr);
+    }
+    if (!ambiguous_ptrs.empty()) {
+        LOG_WARN(ambiguous_ptrs.size() << " constants have ambiguous weightless offsets and are exported in full.");
     }
 }
 
