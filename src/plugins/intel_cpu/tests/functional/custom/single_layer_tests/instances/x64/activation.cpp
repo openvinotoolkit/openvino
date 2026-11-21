@@ -3,9 +3,14 @@
 //
 
 #include "custom/single_layer_tests/classes/activation.hpp"
+
+#include <cmath>
+
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/test_enums.hpp"
+#include "openvino/op/erf.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
-#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -14,6 +19,22 @@ namespace ov {
 namespace test {
 namespace Activation {
 namespace {
+
+TEST(smoke_ErfCPU, SmallInputs) {
+    const std::vector<float> values{3e-12f, -3e-12f, 9e-20f, -9e-20f, 7e-8f, -7e-8f, 1e-4f, -1e-4f, 0.4f, -0.4f};
+    const ov::Shape shape{values.size()};
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    const auto erf = std::make_shared<ov::op::v0::Erf>(input);
+    const auto model = std::make_shared<ov::Model>(erf->outputs(), ov::ParameterVector{input});
+    auto request = PluginCache::get().core()->compile_model(model, DEVICE_CPU).create_infer_request();
+    request.set_input_tensor(create_tensor(ov::element::f32, shape, values));
+    request.infer();
+
+    const auto output = request.get_output_tensor();
+    for (size_t i = 0; i < values.size(); ++i) {
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], std::erf(values[i])) << "input: " << values[i];
+    }
+}
 
 const std::vector<ov::element::Type>& netPrc() {
     static const std::vector<ov::element::Type> netPrc {
