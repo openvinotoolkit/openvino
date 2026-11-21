@@ -19,6 +19,7 @@ struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
 struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
+struct LLMSpatialPrefillTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -103,6 +104,7 @@ protected:
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
     friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
+    friend struct ov::test::npuw::LLMSpatialPrefillTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
@@ -139,6 +141,7 @@ protected:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
+    bool m_prefill_spatial = false;
     bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;

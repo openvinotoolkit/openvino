@@ -22,6 +22,10 @@
 #include "spatial.hpp"
 #include "v1/subgraph_pipeline.hpp"
 
+namespace ov::test::npuw {
+struct LLMSpatialPrefillTestAccess;
+}
+
 namespace ov {
 namespace npuw {
 
@@ -78,6 +82,20 @@ private:
 class JustInferRequest final : public IBaseInferRequest, public ISubrequestAccessor {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    struct SpatialPrefillPlan {
+        using Inputs = std::map<ov::Output<const ov::Node>, TensorPtr>;
+        std::vector<Inputs> chunks;
+        std::size_t max_chunks = 0;
+        std::size_t chunk_size = 0;
+        std::function<void(std::size_t)> before_chunk;
+        std::function<void(std::size_t, std::size_t)> on_subgraph_chunk_done;
+    };
+    std::string spatial_prefill_fallback_reason() const;
+    void infer_spatial_prefill(const SpatialPrefillPlan& plan);
+    bool is_repeated_function_call(std::size_t idx) const;
+    std::size_t spatial_prefill_global_link_count() const;
+    TensorPtr allocate_spatial_prefill_input(const ov::Output<const ov::Node>& port);
 
     ////////////////////////////////////
     // Implement ISubrequestAccessor interface
@@ -147,6 +165,20 @@ protected:
 protected:
     void connect_subrequests();
     void initialize_subgraph_behaviors();
+    struct SpatialPrefillLink {
+        TensorPtr full;
+        ov::Shape chunk_shape;
+        std::size_t dim;
+        std::size_t extent;
+
+        TensorPtr view(std::size_t chunk) const;
+    };
+    void allocate_spatial_prefill_links(std::size_t max_chunks);
+    using SpatialPrefillBind = std::function<void(const RqPtr&, const ov::Output<const ov::Node>&, const TensorPtr&)>;
+    void bind_spatial_prefill_links(std::size_t idx, std::size_t chunk, const SpatialPrefillBind& bind_normal);
+    std::map<LinkFrom, SpatialPrefillLink> m_spatial_prefill_links;
+    std::optional<std::size_t> m_spatial_prefill_chunk;
+    friend struct ov::test::npuw::LLMSpatialPrefillTestAccess;
 
     // Helper function to initialize/reinitialize MoE executor
     void initialize_moe_executor();
