@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-21-19-35-32-000-44933685181",
+  "timestamp": "2026-11-21T19:35:32Z",
+  "run_id": "44933685181",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44933685181",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "40088",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40088",
+  "author": "AlexanderKalistratov",
+  "category": "Network",
+  "title": "NPU Models Tests fail downloading TF Hub Kaggle models due to DNS resolution failure",
+  "signature": "urlopen error errno 11001 getaddrinfo failed|Network",
+  "signature_hash": "688d70acdbdfc8ce",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 6010",
+      "conclusion": "failure",
+      "symptom": "TensorFlow Models Tests - NPU compile-only (convert_model) step failed: 2 of 2 kaggle.com-hosted TF Hub model downloads raised URLError getaddrinfo failed"
+    }
+  ],
+  "key_errors": [
+    "E           multiprocessing.context.ProcessError: \n imagenet/resnet_v2_50/feature_vector running failed: \n  File \"...\\tensorflow_hub\\resolver.py\", line 528, in _call_urlopen\n    return urllib.request.urlopen(request, context=self._context)\n  File \"...\\urllib\\request.py\", line 1351, in do_open\n    raise URLError(err)\nE           URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+    "FAILED install\\tests\\model_hub_tests\\tensorflow\\test_tf_convert_model.py::TestTFHubConvertModel::test_convert_model_precommit[NPU-imagenet\\resnet_v2_50\\feature_vector-https:\\www.kaggle.com\\models\\google\\resnet-v2\\...] - multiprocessing.context.ProcessError:",
+    "= 2 failed, 6 passed, 7 skipped, 937 deselected, 1 xfailed, 2 warnings in 188.77s (0:03:08) =",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'TensorFlow Models Tests - NPU compile-only (convert_model)' step tried to download two Kaggle-hosted TF Hub models (google/resnet-v2 and google/mobilenet-v2 feature-vector variants) via tensorflow_hub.load(). Both downloads failed with a Windows socket error 11001 (WSANO_DATA / getaddrinfo failed), indicating the Windows runner could not resolve the kaggle.com/www.kaggle.com hostname at that moment - a transient DNS/network outage on the self-hosted Windows runner, not caused by the PR under test (src/plugins/intel_npu NPUW LongRoPE pattern change, unrelated to TF Hub/Kaggle downloads). This exact failure signature has recurred twice before (2026-09-28, 2026-11-14) on different PRs with different kaggle/TF Hub models, confirming it is an environment-level network flake rather than a code regression.",
+  "reproduction_steps": "Not reliably reproducible locally; requires hitting the same Windows self-hosted runner during a DNS outage. To approximate: run `python -m pytest install/tests/model_hub_tests/tensorflow/test_tf_convert_model.py -k NPU` on a Windows runner while www.kaggle.com is unreachable, or simulate with a hosts-file block on kaggle.com.",
+  "recommended_actions": [
+    "Re-run the failed 'NPU Models Tests / 6010' job - this is a transient DNS/network issue unrelated to the PR changes.",
+    "If recurrence continues, consider adding retry-with-backoff around tensorflow_hub.load()/urllib calls in models_hub_common/multiprocessing_utils.py for TF Hub/Kaggle model downloads.",
+    "Monitor whether this correlates with a specific self-hosted Windows runner pool (aks-win-4-cores-8gb-test) having intermittent DNS resolver issues."
+  ],
+  "prevention_strategies": "Add bounded retries (e.g. 3 attempts with exponential backoff) around external model-hub downloads in model_hub_tests test infrastructure, and/or mark DNS/getaddrinfo failures from third-party model hosts as auto-retriable in CI so a single DNS blip does not block the merge queue.",
+  "historical_context": "Same signature (urlopen error errno 11001 getaddrinfo failed, Network category) previously seen on PR #38762 (2026-11-14, run 43558800317) and PR #38400 (2026-09-28, run 36375932375), and a closely related EasyOCR-detector-model variant on PR #38219 (2026-09-18). All resolved by re-running; none required a code fix. This makes the current occurrence the pattern's 3rd/4th hit (now count=3 in the persistent pattern record)."
+}

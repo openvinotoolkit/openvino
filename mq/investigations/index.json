@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 493,
+  "total": 494,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5360,6 +5360,17 @@
       "category": "Flaky Test",
       "signature_hash": "2330f1abe60fbda7",
       "pr_number": "40020"
+    },
+    {
+      "investigation_id": "2026-11-21-19-35-32-000-44933685181",
+      "run_id": "44933685181",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44933685181",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-21T19:35:32Z",
+      "title": "NPU Models Tests fail downloading TF Hub Kaggle models due to DNS resolution failure",
+      "category": "Network",
+      "signature_hash": "688d70acdbdfc8ce",
+      "pr_number": "40088"
     }
   ]
 }
