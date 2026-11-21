@@ -66,7 +66,8 @@ public:
 
 private:
     std::shared_ptr<ov::ICompiledModel> deserialize_model(ModelDeserializerBase& deserializer,
-                                                          const ov::AnyMap& config) const;
+                                                          const ov::AnyMap& config,
+                                                          std::string runtime_requirements) const;
 
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 
