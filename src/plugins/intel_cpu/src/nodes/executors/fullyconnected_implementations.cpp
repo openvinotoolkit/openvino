@@ -116,6 +116,7 @@ static const TypeMapping kleidiaiFCTypeMapping {
     // KleidiAI kernels (i8 / i4 / u4, incl. group asymmetric) receive the
     // original weight precision instead of an upconverted f32 tensor.
     {{_f32, _i8 | _i4 | _u4, _any, _any},          {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_f16, _u4, _any, _any},          {bypass(), bypass(), use<0>(), use<0>()}},
     // fallback
     {{_any, _any, _any, _any},                     {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
 };
@@ -398,9 +399,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(any_of(weiType(config), f32, i8, i4, u4), UNSUPPORTED_WEI_PRECISIONS);
-                VERIFY(implication(hasBias(config), biaType(config) == f32), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
