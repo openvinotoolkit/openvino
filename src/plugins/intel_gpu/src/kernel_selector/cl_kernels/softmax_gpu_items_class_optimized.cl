@@ -34,6 +34,14 @@
 
 #define SUB_GROUP_SIZE 16
 
+// LogSoftmax keeps x instead of exp(x - max) and writes (x - max) - log(sum(exp(x - max))).
+// log(softmax(x)) would give -inf as soon as softmax(x) underflows, e.g. for x - max < -17.3 in f16.
+#if LOG_SOFTMAX
+#define SOFTMAX_RESULT(val) ((val) - max_value - log_denominator)
+#else
+#define SOFTMAX_RESULT(val) ((val) / denominator)
+#endif
+
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(softmax_items_class_optimized)(
     __global INPUT0_TYPE* input,
@@ -102,6 +110,25 @@ KERNEL(softmax_items_class_optimized)(
     // PART 2. Calculate DENOMINATOR
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
+#if LOG_SOFTMAX
+    // data[] keeps x for the output, only the denominator gets exp(x - max), with the same workaround as below
+    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
+    {
+#if HAS_DRIVER_PROBLEMS
+        denominator += data[cls] == max_value ? ACCUMULATOR_VAL_ONE : native_exp(data[cls] - max_value);
+#else
+        denominator += native_exp(data[cls] - max_value);
+#endif
+    }
+    if(simd_lane < LEFTOVERS)
+    {
+#if HAS_DRIVER_PROBLEMS
+        denominator += data[DATA_PER_WORKITEM-1] == max_value ? ACCUMULATOR_VAL_ONE : native_exp(data[DATA_PER_WORKITEM-1] - max_value);
+#else
+        denominator += native_exp(data[DATA_PER_WORKITEM-1] - max_value);
+#endif
+    }
+#else
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
     {
 // This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
@@ -124,8 +151,12 @@ KERNEL(softmax_items_class_optimized)(
 #endif
         denominator += data[DATA_PER_WORKITEM-1];
     }
+#endif
 
     denominator = sub_group_reduce_add(denominator);
+#if LOG_SOFTMAX
+    const ACCUMULATOR_TYPE log_denominator = log(denominator);
+#endif
 
     // PART 3. Write out results
     uint output_idx = out_depth_offset;
@@ -137,7 +168,7 @@ KERNEL(softmax_items_class_optimized)(
 #if BLOCK_SIZE > 1
         for (int i = 0; i < BLOCK_SIZE; i++)
         {
-            const ACCUMULATOR_TYPE res = data[cls + i] / denominator;
+            const ACCUMULATOR_TYPE res = SOFTMAX_RESULT(data[cls + i]);
 #if HAS_FUSED_OPS
             FUSED_OPS;
             vec[i] = FUSED_OPS_RESULT;
@@ -146,7 +177,7 @@ KERNEL(softmax_items_class_optimized)(
 #endif
         }
 #else
-        const ACCUMULATOR_TYPE res = data[cls] / denominator;
+        const ACCUMULATOR_TYPE res = SOFTMAX_RESULT(data[cls]);
 #if HAS_FUSED_OPS
         FUSED_OPS;
         vec = FUSED_OPS_RESULT;
@@ -161,7 +192,7 @@ KERNEL(softmax_items_class_optimized)(
     output_idx += simd_lane * OUTPUT_CLASS_PITCH;
     for (; cls < FULL_ITERATIONS_NUM; cls++)
     {
-        const ACCUMULATOR_TYPE res = data[cls] / denominator;
+        const ACCUMULATOR_TYPE res = SOFTMAX_RESULT(data[cls]);
 #if HAS_FUSED_OPS
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
@@ -172,7 +203,7 @@ KERNEL(softmax_items_class_optimized)(
     }
     if(simd_lane < LEFTOVERS)
     {
-        const ACCUMULATOR_TYPE res = data[DATA_PER_WORKITEM-1] / denominator;
+        const ACCUMULATOR_TYPE res = SOFTMAX_RESULT(data[DATA_PER_WORKITEM-1]);
 #if HAS_FUSED_OPS
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
@@ -189,3 +220,4 @@ KERNEL(softmax_items_class_optimized)(
 #undef BLOCK_IN_TYPE
 #undef BLOCK_OUT_TYPE
 #undef SUB_GROUP_SIZE
+#undef SOFTMAX_RESULT
