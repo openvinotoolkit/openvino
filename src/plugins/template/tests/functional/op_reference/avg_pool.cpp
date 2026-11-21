@@ -556,6 +556,35 @@ std::vector<AvgPoolParams> generateParamsForAvgPoolV14() {
                       true,
                       op::RoundingType::CEIL_TORCH,
                       op::PadType::EXPLICIT),
+        // the last window reaches past pads_end; only explicit padding counts in the divisor (ONNX, PyTorch)
+        AvgPoolParams(ov::Shape{1, 1, 2, 4},
+                      ov::Shape{1, 1, 1, 3},
+                      IN_ET,
+                      IN_ET,
+                      std::vector<T>{1, 1, 1, 1, 1, 1, 1, 1},
+                      std::vector<T>{0.5f, 1.0f, 1.0f},
+                      Strides{2, 2},
+                      Shape{0, 1},
+                      Shape{0, 0},
+                      Shape{2, 2},
+                      false,
+                      op::RoundingType::CEIL_TORCH,
+                      op::PadType::EXPLICIT),
+        // windows start at -1, 2, 5; the last one covers 5, 6, 7 where only 5 (input) and 6 (pad) count
+        AvgPoolParams(
+            ov::Shape{1, 1, 6, 6},
+            ov::Shape{1, 1, 3, 3},
+            IN_ET,
+            IN_ET,
+            std::vector<T>(36, 1),
+            std::vector<T>{4.0f / 9, 6.0f / 9, 2.0f / 6, 6.0f / 9, 1.0f, 3.0f / 6, 2.0f / 6, 3.0f / 6, 1.0f / 4},
+            Strides{3, 3},
+            Shape{1, 1},
+            Shape{1, 1},
+            Shape{3, 3},
+            false,
+            op::RoundingType::CEIL_TORCH,
+            op::PadType::EXPLICIT),
     };
     return params;
 }

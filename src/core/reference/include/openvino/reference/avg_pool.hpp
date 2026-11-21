@@ -6,6 +6,7 @@
 
 #include <cfenv>
 #include <cmath>
+#include <cstdint>
 #include <numeric>
 #include <vector>
 
@@ -31,6 +32,21 @@ inline bool elem_in_padding_area(const Coordinate& kernel_position,
     return false;
 }
 
+// True for positions past the explicit end padding. Only ceil rounding makes a window reach them; with
+// CEIL_TORCH (ONNX / PyTorch semantics) they are not part of the padded input and do not count towards the divisor.
+inline bool elem_beyond_pads_end(const Coordinate& kernel_position,
+                                 const Coordinate& kernel_offset,
+                                 const Shape& data_shape,
+                                 const Shape& pads_end) {
+    for (size_t dim = 0; dim + 2 < data_shape.size(); ++dim) {
+        const auto position = static_cast<int64_t>(kernel_position[dim] + kernel_offset[dim]);
+        if (position >= static_cast<int64_t>(data_shape[dim + 2] + pads_end[dim])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 inline Coordinate calculate_kernel_position(const Coordinate& out_elem_coord,
                                             const Strides& kernel_strides,
                                             const Shape& pads_begin) {
@@ -53,7 +69,8 @@ void avg_pool_3d(const Values_t* data,
                  const Strides& kernel_dilations,
                  const Shape& pads_begin,
                  const Shape& pads_end,
-                 const bool pads_in_avg) {
+                 const bool pads_in_avg,
+                 const bool exclude_ceil_overhang) {
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
     constexpr size_t data_D = 2, data_H = 3, data_W = 4;
     constexpr size_t kernel_D = 0, kernel_H = 1, kernel_W = 2;
@@ -89,7 +106,11 @@ void avg_pool_3d(const Values_t* data,
 
                                 sum += data[data_elem_index];
                             }
-                            if (pads_in_avg || !in_padding) {
+                            const bool counts_as_padding =
+                                pads_in_avg &&
+                                !(exclude_ceil_overhang &&
+                                  elem_beyond_pads_end(kernel_position, kernel_offset, data_shape, pads_end));
+                            if (!in_padding || counts_as_padding) {
                                 ++count;
                             }
                         }
@@ -123,7 +144,8 @@ void avg_pool(const T* const arg,
               const Strides& dilations,
               const Shape& padding_below,
               const Shape& padding_above,
-              const bool include_padding_in_avg_computation) {
+              const bool include_padding_in_avg_computation,
+              const bool exclude_ceil_overhang = false) {
     if (window_shape.size() > 3)
         return;
     const RoundingGuard rounding_g{FE_TONEAREST};
@@ -173,7 +195,8 @@ void avg_pool(const T* const arg,
                                 kernel_dilations,
                                 padding_below_3D,
                                 padding_above_3D,
-                                pads_in_avg);
+                                pads_in_avg,
+                                exclude_ceil_overhang);
         }
     }
 }
