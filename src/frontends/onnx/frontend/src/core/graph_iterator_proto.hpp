@@ -12,6 +12,7 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "utils/tensor_external_data.hpp"
 
 using ::ONNX_NAMESPACE::AttributeProto_AttributeType;
 using ::ONNX_NAMESPACE::GraphProto;
@@ -27,7 +28,7 @@ using ::ONNX_NAMESPACE::Version;
 namespace ov::frontend::onnx {
 
 class DecoderProtoTensor;
-using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
+using MappedMemoryHandles = detail::MappedMemoryHandles;
 using LocalMemoryHandles = std::shared_ptr<std::vector<std::shared_ptr<uint8_t>>>;
 using LocalStreamHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>;
 
@@ -52,6 +53,8 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     GraphIteratorProtoMemoryManagementMode m_mode;
     // This is used for keeping MMAP cache handles
     MappedMemoryHandles m_mmap_cache;
+    // Only checked here: the data itself is loaded through the model's ExternalDataCache
+    ExternalDataReader m_external_data_reader;
     // This is used for keeping external data read without MMAP
     LocalStreamHandles m_stream_cache;
     LocalMemoryHandles m_data_holder;
@@ -122,6 +125,14 @@ public:
 
     GraphIteratorProtoMemoryManagementMode get_memory_management_mode() const {
         return m_mode;
+    }
+
+    /// rief Sets the reader that supplies external data files. Must be called before initialize().
+    void set_external_data_reader(ExternalDataReader reader) {
+        m_external_data_reader = std::move(reader);
+    }
+    bool has_external_data_reader() const {
+        return static_cast<bool>(m_external_data_reader);
     }
 
     MappedMemoryHandles get_mmap_cache() const {

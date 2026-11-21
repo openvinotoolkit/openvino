@@ -7,7 +7,9 @@
 #include <onnx/onnx_pb.h>
 
 #include <filesystem>
+#include <map>
 
+#include "openvino/frontend/onnx/external_data.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -16,7 +18,25 @@ namespace ov::frontend::onnx::detail {
 using ::ONNX_NAMESPACE::TensorProto;
 template <class T>
 using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
-using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
+
+/// \brief Per-model state for loading external data: the memory-mapped files, and the optional ExternalDataReader with
+/// the files it supplied. Shared by a model and its subgraphs.
+struct ExternalDataCache : std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>> {
+    /// \brief True if files that the reader doesn't supply are memory mapped, false if they are read.
+    bool enable_mmap = true;
+    /// \brief Optional reader that supplies external data files instead of the file system.
+    ExternalDataReader reader;
+    /// \brief Reader results by full path, including files it didn't supply (data == nullptr).
+    std::map<std::filesystem::path, ExternalDataBuffer> supplied;
+};
+using MappedMemoryHandles = std::shared_ptr<ExternalDataCache>;
+
+/// \brief Creates the cache for a model: one when mmap is enabled, otherwise none (nullptr).
+MappedMemoryHandles make_external_data_cache(bool enable_mmap);
+
+/// \brief Sets the reader of a model's cache, creating the cache (without mmap) if the model has none.
+void set_external_data_reader(MappedMemoryHandles& cache, ExternalDataReader reader);
+
 using LocalStreamHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>;
 /// \brief  Helper class used to load tensor data from external files
 class TensorExternalData {
@@ -42,6 +62,15 @@ public:
     /// \return     External binary data loaded into the SharedBuffer
     Buffer<ov::MappedMemory> load_external_mmap_data(const std::filesystem::path& model_dir,
                                                      MappedMemoryHandles cache) const;
+
+    /// \brief      Load external data from the file contents supplied by the cache's ExternalDataReader.
+    ///
+    /// \note       If the supplied contents are too small for the data, the invalid_external_data exception is
+    ///             thrown.
+    ///
+    /// \return     External binary data, or nullptr if the cache has no reader or the reader doesn't supply the file.
+    std::shared_ptr<ov::AlignedBuffer> load_supplied_data(const std::filesystem::path& model_dir,
+                                                          const MappedMemoryHandles& cache) const;
 
     /// \brief      Load external data from existing shared memory when m_data_location is ORT_MEM_ADDR
     ///

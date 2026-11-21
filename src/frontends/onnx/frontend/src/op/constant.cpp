@@ -12,12 +12,24 @@
 #include "core/tensor.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
+#include "utils/weightless_constants.hpp"
 
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov::frontend::onnx::ai_onnx {
 namespace {
+// The 'value' of a Constant op is an initializer of the source model, identified by the op's output name.
+std::shared_ptr<v0::Constant> make_value_constant(const ov::frontend::onnx::Node& node, const Tensor& tensor) {
+    auto constant = tensor.get_ov_constant();
+    weightless::mark_initializer(constant,
+                                 node.get_outputs_size() > 0 ? node.output(0) : std::string{},
+                                 SourceModelLocation::UNKNOWN,
+                                 std::nullopt,
+                                 tensor.has_in_memory_address_marker());
+    return constant;
+}
+
 template <typename T>
 std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<int64_t>& indices, const size_t size) {
     FRONT_END_GENERAL_CHECK(values.size() == indices.size(),
@@ -107,7 +119,7 @@ std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const ov
 namespace opset_1 {
 ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>("value");
-    return {tensor.get_ov_constant()};
+    return {make_value_constant(node, tensor)};
 }
 
 ONNX_OP("Constant", OPSET_RANGE(1, 12), ai_onnx::opset_1::constant);
@@ -180,7 +192,7 @@ ov::OutputVector constant_legacy(const ov::frontend::onnx::Node& node) {
         return {get_dense_tensor_as_constant(absolute_indices, values_tensor, shape)};
     }
     auto tensor = node.get_attribute_value<Tensor>(attributes_names[0]);
-    return {tensor.get_ov_constant()};
+    return {make_value_constant(node, tensor)};
 }
 
 ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
@@ -242,7 +254,7 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     }
     FRONT_END_GENERAL_CHECK(node.has_attribute("value"), "Constant doesn't have a required attribute \"value\"");
     auto tensor = node.get_attribute_value<Tensor>("value");
-    return {tensor.get_ov_constant()};
+    return {make_value_constant(node, tensor)};
 }
 }  // namespace opset_13::detail
 

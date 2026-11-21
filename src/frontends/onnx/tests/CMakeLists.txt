@@ -85,10 +85,13 @@ set(SRC
     lib_close.cpp
     model_support_tests.cpp
     onnx_ops_registration.cpp
+    onnx_external_data_reader.cpp
     onnx_reader_external_data.cpp
+    onnx_weightless_constants.cpp
     skip_tests_config.cpp
     ../frontend/src/core/graph_iterator_proto.cpp
     ../frontend/src/core/decoder_proto.cpp
+    ../frontend/src/utils/weightless_constants.cpp
 )
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)

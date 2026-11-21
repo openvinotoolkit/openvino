@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
+#include <optional>
+#include <string>
 
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
@@ -55,6 +58,41 @@ public:
 
     /// \brief Destructor
     virtual ~GraphIterator();
+};
+
+/// \brief Where the source model holds an initializer's data, independent of how the data is supplied now.
+enum class SourceModelLocation : uint8_t {
+    UNKNOWN = 0,   ///< The provider can't tell; the frontend applies its default rules
+    NONE = 1,      ///< Not in the source model (created, rewritten or replaced after loading it)
+    INTERNAL = 2,  ///< Stored inside the source model
+    EXTERNAL = 3,  ///< Stored in an external data file of the source model
+};
+
+/// \brief External data location of an initializer as declared by the source model's external_data entries.
+struct SourceModelExternalData {
+    std::string location;  ///< The 'location' entry, relative to the source model's directory
+    uint64_t offset = 0;   ///< The 'offset' entry, in bytes
+    uint64_t length = 0;   ///< The 'length' entry, in bytes
+};
+
+/// \brief Optional interface a GraphIterator may also implement to report the provenance of initializers.
+///
+/// The ONNX frontend discovers it with dynamic_cast on the GraphIterator (and on the GraphIterators of subgraphs).
+/// It uses the answers to decide which initializers get a WeightlessCacheAttribute: initializers that the source model
+/// doesn't provide must not be referenced by weightless compiled blobs. Without this interface every initializer's
+/// location is SourceModelLocation::UNKNOWN.
+class ONNX_FRONTEND_API TensorOriginProvider {
+public:
+    /// \brief Returns where the source model holds the data of the named initializer.
+    virtual SourceModelLocation get_source_model_location(const std::string& tensor_name) const = 0;
+
+    /// \brief Returns the external data location the source model declares for the named initializer, if it is
+    /// SourceModelLocation::EXTERNAL and declares a file. Returned even when the data is supplied in memory now.
+    virtual std::optional<SourceModelExternalData> get_source_model_external_data(
+        const std::string& tensor_name) const = 0;
+
+    /// \brief Destructor
+    virtual ~TensorOriginProvider();
 };
 
 }  // namespace ov::frontend::onnx
