@@ -53,10 +53,13 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     static const std::vector<element::Type> exec_precisions_priority =
         {element::u8, element::i8, element::u16, element::i16, element::bf16, element::i32, element::f32};
-    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
-                                                                  jep_.src_prc,
-                                                                  eltwise_data_,
-                                                                  exec_precisions_priority);
+    // Widen byte operands to use the Divide emitter's integer rounding before storing the quotient.
+    const auto exec_prc = isByteDivide(eltwise_data_.front().algo, jep_.src_prc[0])
+                              ? element::i32
+                              : eltwise_precision_helper::get_precision(jep_.inputs_number,
+                                                                        jep_.src_prc,
+                                                                        eltwise_data_,
+                                                                        exec_precisions_priority);
 
     eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
     for (size_t i = 1; i < eltwise_data_.size(); ++i) {
