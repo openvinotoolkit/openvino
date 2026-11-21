@@ -318,26 +318,34 @@ def get_value_from_list_or_dict(container, name, idx):
     return None
 
 
-def flatten_inputs(inputs, names=None):
+def flatten_inputs(inputs, names=None, nested=False, nested_dicts_by_position=False):
     flattened = []
+    if nested and nested_dicts_by_position and isinstance(inputs, dict):
+        # in an FX graph the leaves of a dict inside an argument are not named by key,
+        # so they stay unnamed like the leaves of a nested tuple
+        inputs = list(inputs.values())
+
+    def flatten_nested(data):
+        return flatten_inputs(data, nested=True, nested_dicts_by_position=nested_dicts_by_position)
+
     if isinstance(inputs, dict):
         # if names are provided we need to unpack in the same order
         if names:
             for name in names:
                 if isinstance(inputs[name], (list, tuple, dict)):
-                    flattened.extend(flatten_inputs(inputs[name]))
+                    flattened.extend(flatten_nested(inputs[name]))
                 else:
                     flattened.append((name, inputs[name]))
         else:
             for name, input_data in inputs.items():
                 if isinstance(input_data, (list, tuple, dict)):
-                    flattened.extend(flatten_inputs(input_data))
+                    flattened.extend(flatten_nested(input_data))
                 else:
                     flattened.append((name, input_data))
     else:
         for input_data in inputs:
             if isinstance(input_data, (list, tuple, dict)):
-                flattened.extend(flatten_inputs(input_data))
+                flattened.extend(flatten_nested(input_data))
             else:
                 flattened.append(input_data)
     return flattened
@@ -372,7 +380,10 @@ def extract_input_info_from_example(args, inputs):
                                                                    0] == "self" else args.input_model._input_signature
     if input_names and not is_dict_input:
         example_inputs = dict(zip(input_names, example_inputs))
-    example_inputs = flatten_inputs(example_inputs, input_names)
+    # TorchScript names the leaves of a nested dict by key, an FX graph doesn't
+    decoder_type_name = getattr(args.input_model, "decoder_type_name", None)
+    is_fx = callable(decoder_type_name) and decoder_type_name() == "fx"
+    example_inputs = flatten_inputs(example_inputs, input_names, nested_dicts_by_position=is_fx)
     input_arg = []
     for example in example_inputs:
         name = None
