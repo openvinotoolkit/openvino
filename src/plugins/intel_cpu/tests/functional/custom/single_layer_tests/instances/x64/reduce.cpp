@@ -3,11 +3,18 @@
 //
 
 #include "custom/single_layer_tests/classes/reduce.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "utils/fusing_test_utils.hpp"
-#include "utils/filter_cpu_info.hpp"
-#include "ov_lpt_models/common/builders.hpp"
+
+#include <limits>
+
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "common_test_utils/node_builders/reduce.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/core.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -15,6 +22,52 @@ namespace ov {
 namespace test {
 namespace Reduce {
 namespace {
+
+using ReduceNaNCase = std::tuple<ov::Shape, std::vector<int>, cpu_memory_format_t>;
+using ReduceNaNParams = std::tuple<ov::test::utils::ReductionType, ReduceNaNCase>;
+
+class ReduceNaNCPUTest : public testing::TestWithParam<ReduceNaNParams> {};
+
+TEST_P(ReduceNaNCPUTest, IgnoreNaN) {
+    const auto& [reductionType, testCase] = GetParam();
+    const auto& [shape, axes, format] = testCase;
+    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    const auto axesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+    const auto reduce = ov::test::utils::make_reduce(parameter, axesNode, true, reductionType);
+    reduce->get_rt_info() = CPUTestsBase::makeCPUInfo({format}, {format}, {});
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{parameter});
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       ov::test::utils::DEVICE_CPU,
+                                       {{ov::hint::inference_precision.name(), ov::element::f32}});
+    auto request = compiled.create_infer_request();
+    auto input = request.get_input_tensor();
+    const auto size = input.get_size();
+    auto* data = input.data<float>();
+    const float values[] = {2.0F, 8.0F, std::numeric_limits<float>::quiet_NaN(), 5.0F, 6.0F};
+    for (size_t i = 0; i < size; ++i) {
+        data[i] = values[i % 5];
+    }
+
+    ov::TensorVector expected{ov::Tensor(ov::element::f32, model->get_output_shape(0))};
+    ASSERT_TRUE(model->evaluate(expected, ov::TensorVector{input}));
+    request.infer();
+    const auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.get_size(), expected[0].get_size());
+    for (size_t i = 0; i < actual.get_size(); ++i) {
+        EXPECT_EQ(actual.data<const float>()[i], expected[0].data<const float>()[i]) << "Output index: " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ReduceNaN,
+    ReduceNaNCPUTest,
+    testing::Combine(
+        testing::Values(ov::test::utils::ReductionType::Min, ov::test::utils::ReductionType::Max),
+        testing::Values(ReduceNaNCase{{5}, {0}, x},
+                        ReduceNaNCase{{33}, {0}, x},
+                        ReduceNaNCase{{1, 3, 2, 3}, {3}, nchw},
+                        ReduceNaNCase{{1, 19, 2, 17}, {1, 2, 3}, ov::with_cpu_x86_avx512_core() ? nChw16c : nChw8c})));
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
