@@ -2,12 +2,73 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdlib>
+#include <functional>
+#include <string_view>
+
 #include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "mock_common.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/log.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+
+namespace {
+class ScopedLogLevel {
+public:
+    ScopedLogLevel() {
+        if (const auto* current_level = std::getenv("OPENVINO_LOG_LEVEL")) {
+            m_previous_level = current_level;
+            m_had_previous_level = true;
+        }
+        set_level("4");
+    }
+
+    ~ScopedLogLevel() {
+        if (m_had_previous_level) {
+            set_level(m_previous_level.c_str());
+        } else {
+#ifdef _WIN32
+            _putenv_s("OPENVINO_LOG_LEVEL", "");
+#else
+            unsetenv("OPENVINO_LOG_LEVEL");
+#endif
+        }
+    }
+
+private:
+    static void set_level(const char* level) {
+#ifdef _WIN32
+        _putenv_s("OPENVINO_LOG_LEVEL", level);
+#else
+        setenv("OPENVINO_LOG_LEVEL", level, 1);
+#endif
+    }
+
+    std::string m_previous_level;
+    bool m_had_previous_level = false;
+};
+
+class LogCapture {
+public:
+    LogCapture() : m_callback([this](std::string_view message) { m_messages.append(message); }) {
+        ov::util::set_log_callback(m_callback);
+    }
+
+    ~LogCapture() {
+        ov::util::reset_log_callback();
+    }
+
+    const std::string& messages() const {
+        return m_messages;
+    }
+
+private:
+    std::string m_messages;
+    std::function<void(std::string_view)> m_callback;
+};
+}  // namespace
 
 using plugin_compile_model_param = std::tuple<ov::AnyMap,  // Core Properties
                                               ov::AnyMap,  // Plugin Properties
@@ -101,6 +162,18 @@ public:
 TEST_P(PluginCompileModelTest, PluginCompileModelTestCase) {
     m_model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(m_plugin->compile_model(m_model, m_plugin_properities));
+}
+
+TEST_P(PluginCompileModelTest, PluginCompileModelLogsAtConfiguredLevel) {
+    m_model = ov::test::utils::make_multi_single_conv();
+    [[maybe_unused]] ScopedLogLevel scoped_log_level;
+    std::string messages;
+    {
+        LogCapture log_capture;
+        m_plugin->compile_model(m_model, m_plugin_properities);
+        messages = log_capture.messages();
+    }
+    EXPECT_NE(messages.find("[I][BATCH] Compiling model for device "), std::string::npos);
 }
 
 TEST_P(PluginCompileModelTest, PluginCompileModelWithRemoteContextTestCase) {
