@@ -9,12 +9,34 @@ import numpy as np
 from enum import Enum
 from datetime import timedelta
 from typing import Any
+from openvino import ProfilingInfo
 from .logging import logger
 
 ## statistics reports types
 noCntReport = 'no_counters'
 averageCntReport = 'average_counters'
 detailedCntReport = 'detailed_counters'
+
+
+def get_average_performance_counters(prof_info_list):
+    averages = {}
+    for prof_info in prof_info_list:
+        for pi in prof_info:
+            if pi.node_name not in averages:
+                item = ProfilingInfo()
+                item.node_name = pi.node_name
+                item.node_type = pi.node_type
+                item.exec_type = pi.exec_type
+                item.status = pi.status
+                item.real_time = timedelta()
+                item.cpu_time = timedelta()
+                averages[pi.node_name] = item
+            averages[pi.node_name].real_time += pi.real_time
+            averages[pi.node_name].cpu_time += pi.cpu_time
+    for item in averages.values():
+        item.real_time /= len(prof_info_list)
+        item.cpu_time /= len(prof_info_list)
+    return list(averages.values())
 
 ## Responsible for collecting of statistics and dumping to .csv file
 
@@ -113,22 +135,6 @@ class CsvStatisticsReport(StatisticsReport):
                 for prof_info in prof_info_list:
                     dump_performance_counters_request(f, prof_info)
             elif self.config.report_type == averageCntReport:
-                def get_average_performance_counters(prof_info_list):
-                    performance_counters_avg = []
-                    ## iterate over each processed infer request and handle its PM data
-                    for prof_info in prof_info_list:
-                        for pi in prof_info:
-                            item = next((x for x in performance_counters_avg if x.node_name == pi.node_name), None)
-                            if item:
-                                item.real_time += pi.real_time
-                                item.cpu_time += pi.cpu_time
-                            else:
-                                performance_counters_avg.append(pi)
-
-                    for pi in performance_counters_avg:
-                        pi.real_time /= len(prof_info_list)
-                        pi.cpu_time /= len(prof_info_list)
-                    return performance_counters_avg
                 dump_performance_counters_request(f, get_average_performance_counters(prof_info_list))
             else:
                 raise Exception('PM data can only be collected for average or detailed report types')
@@ -213,22 +219,6 @@ class JsonStatisticsReport(StatisticsReport):
 
             return profiling_info_json_list
 
-        def get_average_performance_counters(prof_info_list):
-            performance_counters_avg = []
-            for prof_info in prof_info_list:
-                for pi in prof_info:
-                    item = next((x for x in performance_counters_avg if x[0].node_name == pi.node_name), None)
-                    if item:
-                        item[0].real_time += pi.real_time
-                        item[0].cpu_time += pi.cpu_time
-                    else:
-                        performance_counters_avg.append([pi])
-            for pi in performance_counters_avg:
-                pi[0].real_time /= len(prof_info_list)
-                pi[0].cpu_time /= len(prof_info_list)
-
-            return performance_counters_avg
-
         if self.config.report_type == '' or self.config.report_type == noCntReport:
             logger.info("Statistics collecting for performance counters was not requested. No reports are dumped.")
             return
@@ -247,7 +237,7 @@ class JsonStatisticsReport(StatisticsReport):
                 }
             elif self.config.report_type == averageCntReport:
                 prof_info_list_avg = get_average_performance_counters(prof_info_list)
-                profiling_info_json = profiling_info_to_dict_list(prof_info_list_avg)
+                profiling_info_json = profiling_info_to_dict_list([prof_info_list_avg])
                 json_statistics = {
                     'report_type': 'average',
                     'avg_performance': profiling_info_json[0]
