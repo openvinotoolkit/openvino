@@ -79,7 +79,7 @@ def get_cmd_output_after_signal(*cmd, ready_message, output_path):
 
 @retry(max_retries=3, exceptions=(requests.RequestException,), delay=5, exponential_backoff=True)
 def _requests_get(url):
-    return requests.get(url)
+    return requests.get(url, timeout=(10, 30))
 
 
 def download(test_data_dir, file_path):
