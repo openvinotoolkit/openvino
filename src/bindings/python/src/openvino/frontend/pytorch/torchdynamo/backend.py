@@ -30,7 +30,6 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, 
 from openvino import Core, Type, PartialShape
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 """
     This is a preview feature in OpenVINO. This feature
@@ -64,6 +63,7 @@ if "openvino" not in torch.compiler.list_backends():
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        logger.debug("OpenVINO torch.compile backend received FX graph:\n%s", subgraph.graph)
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
@@ -81,6 +81,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
 
                 def _call(*args):
                     res = execute_cached(compiled_model, *args)
+                    logger.debug("Executed cached full graph with OpenVINO")
                     return res
 
                 return _call
@@ -130,7 +131,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             _call._boxed_call = True  # type: ignore[attr-defined]
         return _call
     except Exception as e:
-        logger.debug(f"Failed in OpenVINO execution: {e}")
+        logger.debug("OpenVINO backend compilation failed; falling back to PyTorch Inductor: %s", e, exc_info=True)
         return compile_fx(subgraph, example_inputs)
 
 
