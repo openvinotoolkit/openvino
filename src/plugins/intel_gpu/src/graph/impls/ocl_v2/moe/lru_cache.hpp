@@ -94,7 +94,10 @@ public:
     std::optional<Partition> partition_3way(const std::vector<uint32_t>& topk_ids,
                                           const EventFactory& make_event,
                                           bool allow_pending_reuse = false);
-    std::optional<Load> reserve_speculative(uint32_t expert_id, size_t top_k, const EventFactory& make_event);
+    std::optional<Load> reserve_speculative(uint32_t expert_id,
+                                          size_t top_k,
+                                          const EventFactory& make_event,
+                                          const std::vector<uint32_t>& predicted_experts = {});
     bool complete_load(const Load& load);
     bool cancel_load(const Load& load);
     std::optional<Load> get_pending_load(uint32_t expert_id) const;

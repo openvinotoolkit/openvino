@@ -266,7 +266,8 @@ std::optional<LRUCache::Partition> LRUCache::partition_3way(const std::vector<ui
 
 std::optional<LRUCache::Load> LRUCache::reserve_speculative(uint32_t expert_id,
                                                          size_t top_k,
-                                                         const EventFactory& make_event) {
+                                                         const EventFactory& make_event,
+                                                         const std::vector<uint32_t>& predicted_experts) {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (top_k >= m_max_total_experts || m_map.count(Key{expert_id})) {
         return std::nullopt;
@@ -287,8 +288,9 @@ std::optional<LRUCache::Load> LRUCache::reserve_speculative(uint32_t expert_id,
     auto victim = m_list.end();
     cldnn::event::ptr last_use;
     if (free_slot == occupied.end()) {
-        victim = std::find_if(m_list.begin(), m_list.end(), [](const Node& node) {
-            return node.state.status == SlotStatus::READY && !node.state.loading;
+        victim = std::find_if(m_list.begin(), m_list.end(), [&](const Node& node) {
+            return node.state.status == SlotStatus::READY && !node.state.loading &&
+                   std::find(predicted_experts.begin(), predicted_experts.end(), node.expert) == predicted_experts.end();
         });
         if (victim == m_list.end()) {
             return std::nullopt;

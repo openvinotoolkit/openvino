@@ -105,6 +105,54 @@ TEST(moe_lookahead_lru, speculative_quota_reserves_demand_headroom) {
     EXPECT_EQ(demand->missing.size(), 7U);
 }
 
+TEST(moe_lookahead_lru, speculative_replacement_preserves_all_predicted_hits) {
+    for (const auto& predicted : std::vector<std::vector<uint32_t>>{{0, 8, 1, 9}, {8, 0, 9, 1}}) {
+        LRUCache cache(8);
+        for (uint32_t expert = 0; expert < 8; ++expert) {
+            cache.set_filled(cache.get_lru_item(expert).first);
+        }
+        std::vector<LRUCache::Load> loads;
+        for (auto expert : predicted) {
+            auto load = cache.reserve_speculative(expert, predicted.size(), make_lookahead_test_event, predicted);
+            if (load) {
+                loads.push_back(*load);
+            }
+        }
+        ASSERT_EQ(loads.size(), 2U);
+        EXPECT_EQ(loads[0].expert_id, 8U);
+        EXPECT_EQ(loads[0].slot, 2U);
+        EXPECT_EQ(loads[1].expert_id, 9U);
+        EXPECT_EQ(loads[1].slot, 3U);
+        auto demand = cache.partition_3way({0, 1, 8, 9}, make_lookahead_test_event);
+        ASSERT_TRUE(demand);
+        EXPECT_EQ(demand->ready_pairs, (std::vector<size_t>{0, 1}));
+        EXPECT_EQ(demand->inflight_pairs, (std::vector<size_t>{2, 3}));
+        EXPECT_TRUE(demand->missing.empty());
+        EXPECT_TRUE(demand->missing_pairs.empty());
+        for (const auto& load : loads) {
+            EXPECT_FALSE(cache.cancel_load(load));
+            EXPECT_TRUE(cache.complete_load(load));
+        }
+    }
+}
+
+TEST(moe_lookahead_lru, prediction_protection_does_not_pin_hits_or_change_demand_eviction) {
+    LRUCache cache(8);
+    for (uint32_t expert = 0; expert < 8; ++expert) {
+        cache.set_filled(cache.get_lru_item(expert).first);
+    }
+    const std::vector<uint32_t> predicted{0, 8};
+    auto load = cache.reserve_speculative(8, predicted.size(), make_lookahead_test_event, predicted);
+    ASSERT_TRUE(load);
+    EXPECT_EQ(load->slot, 1U);
+    EXPECT_TRUE(cache.cancel_load(*load));
+    auto demand = cache.partition_3way({9, 10}, make_lookahead_test_event);
+    ASSERT_TRUE(demand);
+    ASSERT_EQ(demand->missing.size(), 2U);
+    EXPECT_EQ(demand->missing[0].slot, 1U);
+    EXPECT_EQ(demand->missing[1].slot, 0U);
+}
+
 TEST(moe_lookahead_lru, cancelled_replacement_retains_physical_slot_war) {
     LRUCache cache(4);
     auto initial = cache.partition_3way({1, 2, 3, 4}, make_lookahead_test_event);
