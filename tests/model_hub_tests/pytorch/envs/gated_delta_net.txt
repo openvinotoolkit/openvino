@@ -3,5 +3,9 @@
 optimum-intel==2.2.0
 transformers==4.57.6
 huggingface-hub>=0.30.0,<1.0
-# PyArrow 26 requires NumPy 2, while the Python <3.12 test environment pins NumPy 1.26.
-pyarrow<26; python_version < "3.12"
+# pyarrow 26.0.0 release breaks PyTorch Models Tests due to NumPy incompatibility.
+# Pin to the same exact version as envs/hf_transformers.txt and envs/llm.txt so this
+# step (installed in a separate pip invocation later in the same job) cannot loosen
+# the resolved pyarrow version and reintroduce the NumPy 1.26/pyarrow>=2.0 ABI mismatch.
+pyarrow==20.0.0; python_version < "3.12"
+pyarrow==25.0.1; python_version >= "3.12"
