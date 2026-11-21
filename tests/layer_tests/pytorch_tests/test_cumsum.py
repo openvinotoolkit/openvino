@@ -3,7 +3,9 @@
 
 import platform
 
+import numpy as np
 import pytest
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -78,3 +80,32 @@ class TestCumSum(PytorchLayerTest):
         if out and PytorchLayerTest.use_torch_export():
             pytest.skip(reason="export fails for out")
         self._test(*self.create_model(axis, dtype, out, dtype_from_input), ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "out_dtype": dtype})
+
+
+class aten_cumsum_default_dtype(torch.nn.Module):
+    def __init__(self, axis, input_dtype):
+        super().__init__()
+        self.axis = axis
+        self.input_dtype = input_dtype
+
+    def forward(self, x):
+        return torch.cumsum(x.to(self.input_dtype), self.axis)
+
+
+class TestCumSumIntegerPromotion(PytorchLayerTest):
+    def _prepare_input(self, input_dtype):
+        info = np.iinfo(input_dtype)
+        low = max(info.min, -1000)
+        high = min(info.max, 1000)
+        return (self.random.randint(low, high, size=(3, 8, 5)).astype(np.float32),)
+
+    @pytest.mark.parametrize("axis", [0, 1, -1])
+    @pytest.mark.parametrize("input_dtype", ["int8", "uint8", "int16", "int32", "int64"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_cumsum_integer_promotion(self, axis, input_dtype, ie_device, precision, ir_version):
+        self._test(aten_cumsum_default_dtype(axis, getattr(torch, input_dtype)), "aten::cumsum", ie_device,
+                   precision, ir_version,
+                   kwargs_to_prepare_input={"input_dtype": input_dtype})
