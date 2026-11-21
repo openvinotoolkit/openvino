@@ -245,8 +245,8 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
     // Normalization: a fused RMS op, or the decomposed form (Power -> ReduceMean -> Add(eps) -> Sqrt -> Divide ->
     // Multiply). The fused RMS must normalize the last axis D (an RMS with another axis is not this normalization), and
     // its gain is static: the callback reads its size.
-    auto norm_fused = wrap_type<ov::op::internal::RMS>({residual_3d, any_input(has_static_shape())},
-                                                       {{"axis", int64_t{-1}}});
+    auto norm_fused =
+        wrap_type<ov::op::internal::RMS>({residual_3d, any_input(has_static_shape())}, {{"axis", int64_t{-1}}});
     auto rbar_fused = wrap_type<ov::op::v1::Reshape>({norm_fused, any_input()});
 
     auto sq = wrap_type<ov::op::v1::Power>({residual_3d, two});
@@ -389,8 +389,8 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
                 new_ops.push_back(gain_flat.get_node_shared_ptr());
             }
         }
-        if (gain_flat.get_element_type() != data_type ||
-            w_down.get_element_type() != data_type || w_up_out.get_element_type() != data_type) {
+        if (gain_flat.get_element_type() != data_type || w_down.get_element_type() != data_type ||
+            w_up_out.get_element_type() != data_type) {
             return false;
         }
 
