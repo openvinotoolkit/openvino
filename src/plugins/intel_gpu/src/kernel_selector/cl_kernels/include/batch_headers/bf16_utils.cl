@@ -3,7 +3,7 @@
 //
 #include "common.cl"
 
-#ifdef cl_intel_bfloat16_conversions
+#if defined(cl_intel_bfloat16_conversions) && !defined(OPENVINO_TEST_FORCE_BF16_SOFTWARE_CONVERSION)
 
 // ===================== Hardware built-in bfloat16 conversions =====================
 
@@ -26,6 +26,10 @@
 #define _convert_as_bfloat1616_float16(val) intel_convert_as_bfloat1616_float16(val)
 
 #else
+
+#ifdef OPENVINO_TEST_FORCE_BF16_SOFTWARE_CONVERSION
+#define OPENVINO_TEST_BF16_SOFTWARE_FALLBACK_SELECTED 1
+#endif
 
 // ===================== Software fallback bfloat16 conversions =====================
 
@@ -55,7 +59,7 @@ inline ushort _convert_bfloat16_as_ushort(float source) {
     if ((u & 0x7FFFFFFFu) > 0x7F800000u) {
         return (ushort)((u >> 16) | 0x0040u);
     }
-    return (ushort)((u + ((u & 0x00010000u) >> 1)) >> 16);
+    return (ushort)((u + 0x7fffu + ((u >> 16) & 1u)) >> 16);
 }
 
 // --- bfloat16_as_ushort (float -> ushort) vectorized ---

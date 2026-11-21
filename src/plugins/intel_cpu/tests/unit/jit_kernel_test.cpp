@@ -3,8 +3,15 @@
 //
 
 #include <gtest/gtest.h>
+
+#include <array>
+#include <cstdint>
+#include <cstring>
 #include <kernels/x64/jit_kernel.hpp>
 #include <random>
+
+#include "utils/bfloat16.hpp"
+#include "utils/cpp/bit_cast.hpp"
 
 using namespace ov::intel_cpu;
 using namespace dnnl::impl;
@@ -15,14 +22,13 @@ namespace {
 
 #define TEST_JIT_SCALAR_EXPRESSION (c << 5) * b | ((a & b) - c) | (b - a) >> 2
 
-template<typename Params>
+template <typename Params>
 struct jit_test_kernel : public jit_kernel {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_test_kernel)
 
-    jit_test_kernel()
-    : jit_kernel(jit_name()) {}
+    jit_test_kernel() : jit_kernel(jit_name()) {}
 
-    typedef void (*function_t)(const Params *);
+    typedef void (*function_t)(const Params*);
 
     void init() {
         if (create_kernel() != status::success)
@@ -30,7 +36,7 @@ struct jit_test_kernel : public jit_kernel {
         _fn = (function_t)jit_ker();
     }
 
-    void operator()(const Params & args) const {
+    void operator()(const Params& args) const {
         _fn(&args);
     }
 
@@ -38,16 +44,16 @@ private:
     function_t _fn;
 };
 
-template<typename T>
+template <typename T>
 struct jit_scalar_variable_test_kernel {
     struct Params {
         T a;
         T b;
         T c;
-        T *result;
+        T* result;
     };
 
-    void operator()(const Params & args) const {
+    void operator()(const Params& args) const {
         _kernel(args);
     }
 
@@ -74,47 +80,39 @@ private:
     kernel_impl _kernel;
 };
 
-template<typename T>
+template <typename T>
 T scalar_variable_jit_expression(T a, T b, T c) {
     T result = 0;
     jit_scalar_variable_test_kernel<T> kernel;
-    typename jit_scalar_variable_test_kernel<T>::Params args = { a, b, c, &result };
+    typename jit_scalar_variable_test_kernel<T>::Params args = {a, b, c, &result};
     kernel(args);
     return result;
 }
 
-template<typename T>
+template <typename T>
 T scalar_variable_ref_expression(T a, T b, T c) {
     return TEST_JIT_SCALAR_EXPRESSION;
 }
 
 TEST(JitKernel, scalar_variable) {
-    ASSERT_EQ(scalar_variable_jit_expression<uint64_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint64_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int64_t>(1, 2, 3),
-              scalar_variable_ref_expression<int64_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<uint32_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint32_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int32_t>(1, 2, 3),
-              scalar_variable_ref_expression<int32_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<uint16_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint16_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int16_t>(1, 2, 3),
-              scalar_variable_ref_expression<int16_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<uint8_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint8_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int8_t>(1, 2, 3),
-              scalar_variable_ref_expression<int8_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint64_t>(1, 2, 3), scalar_variable_ref_expression<uint64_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int64_t>(1, 2, 3), scalar_variable_ref_expression<int64_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint32_t>(1, 2, 3), scalar_variable_ref_expression<uint32_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int32_t>(1, 2, 3), scalar_variable_ref_expression<int32_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint16_t>(1, 2, 3), scalar_variable_ref_expression<uint16_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int16_t>(1, 2, 3), scalar_variable_ref_expression<int16_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint8_t>(1, 2, 3), scalar_variable_ref_expression<uint8_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int8_t>(1, 2, 3), scalar_variable_ref_expression<int8_t>(1, 2, 3));
 }
 
 struct jit_variable_test_kernel {
     struct Params {
-        const float *a;
-        const float *b;
-        float *result;
+        const float* a;
+        const float* b;
+        float* result;
     };
 
-    template<size_t N>
+    template <size_t N>
     void test() {
         kernel_impl<N> kernel;
         kernel.init();
@@ -122,7 +120,7 @@ struct jit_variable_test_kernel {
         std::array<float, N> a;
         std::array<float, N> b;
         std::array<float, N> result = {};
-        Params args = { a.data(), b.data(), result.data() };
+        Params args = {a.data(), b.data(), result.data()};
 
         for (size_t i = 0; i < N; ++i) {
             a[i] = static_cast<float>(i);
@@ -145,7 +143,7 @@ struct jit_variable_test_kernel {
     }
 
 private:
-    template<size_t N>
+    template <size_t N>
     class kernel_impl : public jit_test_kernel<Params> {
     public:
         uint8_t order[N];
@@ -202,10 +200,10 @@ struct jit_loop_and_condition_test_kernel {
     struct Params {
         size_t n;
         size_t a;
-        size_t *result;
+        size_t* result;
     };
 
-    void operator()(const Params & args) const {
+    void operator()(const Params& args) const {
         _kernel(args);
     }
 
@@ -224,15 +222,16 @@ private:
 
             auto s = var<size_t>(0);
 
-            foreach(0, n, [&](const variable<size_t> & idx) {
+            foreach (0, n, [&](const variable<size_t>& idx) {
                 _if((idx & 3) != a)
-                ._then([&] {
-                    s += idx + size_t(3);
-                })
-                ._else([&] {
-                    s -= idx - 2;
-                });
-            });
+                    ._then([&] {
+                        s += idx + size_t(3);
+                    })
+                    ._else([&] {
+                        s -= idx - 2;
+                    });
+            })
+                ;
 
             *result = s;
 
@@ -249,7 +248,7 @@ TEST(JitKernel, loop_and_condition) {
     size_t n = 100;
     size_t a = 2;
     size_t result = 0;
-    jit_loop_and_condition_test_kernel::Params args = { n, a, &result };
+    jit_loop_and_condition_test_kernel::Params args = {n, a, &result};
 
     kernel(args);
 
@@ -264,23 +263,23 @@ TEST(JitKernel, loop_and_condition) {
     ASSERT_EQ(result, s);
 }
 
-template<typename SrcT, typename DstT>
+template <typename SrcT, typename DstT>
 struct jit_variable_load_store_test_kernel {
     struct Params {
-        const SrcT *src;
-        DstT *dst;
+        const SrcT* src;
+        DstT* dst;
     };
 
-    template<size_t N, size_t M, bool is_src>
+    template <size_t N, size_t M, bool is_src>
     void test() {
         kernel_impl<N, M, is_src> kernel;
         kernel.init();
         ASSERT_GE(N, M);
 
-        std::array<SrcT, N> src {};
-        std::array<DstT, N> result {};
+        std::array<SrcT, N> src{};
+        std::array<DstT, N> result{};
 
-        Params args = { src.data(), result.data()};
+        Params args = {src.data(), result.data()};
 
         src.fill(static_cast<SrcT>(42));
         for (size_t i = 0; i < M; ++i) {
@@ -289,7 +288,7 @@ struct jit_variable_load_store_test_kernel {
 
         kernel(args);
 
-        std::array<DstT, N> expected_result {};
+        std::array<DstT, N> expected_result{};
 
         for (size_t i = 0; i < M; ++i) {
             expected_result[i] = static_cast<DstT>(i);
@@ -299,7 +298,7 @@ struct jit_variable_load_store_test_kernel {
     }
 
 private:
-    template<size_t N, size_t M, bool is_src>
+    template <size_t N, size_t M, bool is_src>
     class kernel_impl : public jit_test_kernel<Params> {
     public:
         void generate() override {
@@ -356,7 +355,7 @@ TEST(JitKernel, variable_load_and_store) {
     }
 
     {
-        jit_variable_load_store_test_kernel<float, bfloat16_t> kernel;
+        jit_variable_load_store_test_kernel<float, dnnl::impl::bfloat16_t> kernel;
         if (mayiuse(cpu_isa_t::avx512_core)) {
             kernel.test<16, 4, true>();
             kernel.test<16, 11, true>();
@@ -393,7 +392,7 @@ TEST(JitKernel, variable_load_and_store) {
     }
 
     {
-        jit_variable_load_store_test_kernel<int32_t, bfloat16_t> kernel;
+        jit_variable_load_store_test_kernel<int32_t, dnnl::impl::bfloat16_t> kernel;
         if (mayiuse(cpu_isa_t::avx512_core)) {
             kernel.test<16, 11, true>();
         }
@@ -406,4 +405,83 @@ TEST(JitKernel, variable_load_and_store) {
     }
 }
 
-}   // namespace
+struct jit_bf16_conversion_test_kernel {
+    static constexpr size_t vector_size = 8;
+
+    struct Params {
+        const float* src;
+        dnnl::impl::bfloat16_t* dst;
+    };
+
+    jit_bf16_conversion_test_kernel() {
+        _kernel.init();
+    }
+
+    void operator()(const Params& args) const {
+        _kernel(args);
+    }
+
+private:
+    class kernel_impl : public jit_test_kernel<Params> {
+        void generate() override {
+            preamble();
+
+            auto src_ptr = arg(&Params::src);
+            auto dst_ptr = arg(&Params::dst);
+            auto values = var<float[vector_size]>();
+
+            load(values, src_ptr, vector_size);
+            store(dst_ptr, values, vector_size);
+
+            postamble();
+        }
+    };
+
+    kernel_impl _kernel;
+};
+
+TEST(JitKernel, f32_to_bf16_generic_avx2_rounding_nan_and_overflow) {
+    // jit_kernel's load/store emitters use this selected ISA, while the BF16
+    // emitter uses native conversion only when AVX-512 BF16 or AVX2 VNNI-2 is
+    // available. Cap oneDNN with ONEDNN_MAX_CPU_ISA=AVX2 to reach its generic
+    // SIMD conversion branch on newer machines.
+    const bool selected_isa_is_avx2 = internal::get_current_isa() == cpu_isa_t::avx2;
+    const bool has_avx512_bf16 = mayiuse(cpu_isa_t::avx512_core_bf16);
+    const bool has_avx2_vnni_2 = mayiuse(cpu_isa_t::avx2_vnni_2);
+    if (!selected_isa_is_avx2 || has_avx512_bf16 || has_avx2_vnni_2) {
+        GTEST_SKIP() << "Generic BF16 AVX2 fallback unavailable: selected ISA is "
+                     << (selected_isa_is_avx2 ? "AVX2" : "not AVX2") << "; AVX-512 BF16 available=" << has_avx512_bf16
+                     << "; AVX2 VNNI-2 available=" << has_avx2_vnni_2
+                     << ". Set ONEDNN_MAX_CPU_ISA=AVX2 before starting the test process on an AVX2-capable x86 CPU.";
+    }
+
+    constexpr size_t vector_size = jit_bf16_conversion_test_kernel::vector_size;
+    const std::array<std::array<uint32_t, vector_size>, 4> input_bits = {{
+        {{0x3f807fffU, 0x3f808000U, 0x3f808001U, 0x3f818000U, 0xbf807fffU, 0xbf808000U, 0xbf808001U, 0xbf818000U}},
+        {{0x7f800000U, 0xff800000U, 0x00000000U, 0x80000000U, 0x7f800001U, 0xff800001U, 0x7fc12345U, 0xffc12345U}},
+        {{0x7f7f7fffU, 0x7f7f8000U, 0xff7f7fffU, 0xff7f8000U, 0x7fff8000U, 0xffff8000U, 0x00000000U, 0x00000000U}},
+        {{0x00007fffU, 0x00008000U, 0x00008001U, 0x80007fffU, 0x80008000U, 0x80008001U, 0x00010000U, 0x80010000U}},
+    }};
+    const std::array<std::array<uint16_t, vector_size>, 4> expected_bits = {{
+        {{0x3f80, 0x3f80, 0x3f81, 0x3f82, 0xbf80, 0xbf80, 0xbf81, 0xbf82}},
+        {{0x7f80, 0xff80, 0x0000, 0x8000, 0x7fc0, 0xffc0, 0x7fc1, 0xffc1}},
+        {{0x7f7f, 0x7f80, 0xff7f, 0xff80, 0x7fff, 0xffff, 0x0000, 0x0000}},
+        {{0x0000, 0x0000, 0x0001, 0x8000, 0x8000, 0x8001, 0x0001, 0x8001}},
+    }};
+    jit_bf16_conversion_test_kernel kernel;
+    for (size_t batch = 0; batch < input_bits.size(); ++batch) {
+        std::array<float, vector_size> input{};
+        std::array<dnnl::impl::bfloat16_t, vector_size> output{};
+        for (size_t lane = 0; lane < vector_size; ++lane) {
+            input[lane] = ov::intel_cpu::bit_cast<float>(input_bits[batch][lane]);
+        }
+        kernel({input.data(), output.data()});
+        for (size_t lane = 0; lane < output.size(); ++lane) {
+            uint16_t actual_bits = 0;
+            std::memcpy(&actual_bits, &output[lane], sizeof(actual_bits));
+            EXPECT_EQ(actual_bits, expected_bits[batch][lane]) << "batch " << batch << ", lane " << lane;
+        }
+    }
+}
+
+}  // namespace
