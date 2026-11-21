@@ -65,7 +65,7 @@ static void rope_ref(const memory::ptr input, const memory::ptr cos, const memor
     auto out_off = [&](size_t b, size_t h, size_t p, size_t x) {
         return b * head_cnt * seq * head_size + h * seq * head_size + p * head_size + x;
     };
-    auto cos_off = [&](size_t p, size_t x) { return p * head_size + x; };
+    auto cos_off = [&](size_t p, size_t x) { return p * rotary_ndims + x; };
 
     for (size_t b = 0; b < batch; ++b) {
         for (size_t h = 0; h < head_cnt; ++h) {
@@ -87,6 +87,9 @@ static void rope_ref(const memory::ptr input, const memory::ptr cos, const memor
                     float s2 = read_sin(cos_off(p, half + i));
                     write_dst(base_out + i, c1 * in1 - s1 * in2);
                     write_dst(base_out + half + i, c2 * in2 + s2 * in1);
+                }
+                for (size_t i = rotary_ndims; i < head_size; ++i) {
+                    write_dst(base_out + i, read_src(base_in + i));
                 }
             }
         }
@@ -378,7 +381,8 @@ static void run_rope(data_types dt,
                      rope_variant variant = rope_variant::rotate_half,
                      bool use_rope_cache = false,
                      bool is_caching_test = false,
-                     bool unaligned_input = false) {
+                     bool unaligned_input = false,
+                     size_t partial_rotary_ndims = 0) {
     auto& engine = get_test_engine();
     size_t batch = in_shape[0].get_length();
     size_t seq;
@@ -391,7 +395,8 @@ static void run_rope(data_types dt,
     } else {
         seq = in_shape[2].get_length();
     }
-    const size_t rotary_ndims = head_size;  // All tests cover full head_size
+    // Only rotate_half supports a partial rotation; the remaining channels pass through.
+    const size_t rotary_ndims = partial_rotary_ndims ? partial_rotary_ndims : head_size;
 
     // Variant-specific cos/sin table and output shapes (bfyx)
     ov::PartialShape cos_shape;
@@ -416,7 +421,7 @@ static void run_rope(data_types dt,
         cos_shape = ov::PartialShape{1, static_cast<int64_t>(seq), 1, static_cast<int64_t>(head_size)};
         out_shape = in_shape;
     } else {
-        cos_shape = ov::PartialShape{1, 1, static_cast<int64_t>(seq), static_cast<int64_t>(head_size)};
+        cos_shape = ov::PartialShape{1, 1, static_cast<int64_t>(seq), static_cast<int64_t>(rotary_ndims)};
         // output is [batch, head, seq, head_size] (transpose swaps input dims 1&2)
         out_shape = input_trans0213
             ? ov::PartialShape{static_cast<int64_t>(batch), static_cast<int64_t>(head_cnt),
@@ -565,6 +570,24 @@ TEST_P(rope_gpu_test, rope_large) {
 // RoPE dynamic shape (seq is dynamic)
 TEST_P(rope_gpu_test, rope_dynamic) {
     run_rope(GetParam(), ov::PartialShape{1, 2, 4, 8}, 2, 8, false, true);
+}
+
+// Partial RotateHalf (as produced by RoPEFusionIOSlicing): only the first rotary_ndims channels
+// rotate and the tail must be copied through.
+TEST_P(rope_gpu_test, rope_partial_rotary) {
+    run_rope(GetParam(), ov::PartialShape{2, 2, 4, 16}, 2, 16, false, false, rope_variant::rotate_half, false, false, false, 8);
+}
+
+TEST_P(rope_gpu_test, rope_partial_rotary_transpose_input) {
+    run_rope(GetParam(), ov::PartialShape{1, 7, 4, 128}, 4, 128, true, false, rope_variant::rotate_half, false, false, false, 64);
+}
+
+TEST_P(rope_gpu_test, rope_partial_rotary_large) {
+    run_rope(GetParam(), ov::PartialShape{1, 8, 16, 128}, 8, 128, false, false, rope_variant::rotate_half, false, false, false, 64);
+}
+
+TEST_P(rope_gpu_test, rope_partial_rotary_dynamic) {
+    run_rope(GetParam(), ov::PartialShape{1, 4, 5, 128}, 4, 128, false, true, rope_variant::rotate_half, false, false, false, 32);
 }
 
 // RoPE interleaved variant (per-element cos/sin tables), small head - VEC_SIZE=1 path

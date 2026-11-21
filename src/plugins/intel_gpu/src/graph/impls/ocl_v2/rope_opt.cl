@@ -588,6 +588,14 @@ uint cos_sin_p = p;
     #endif
 #endif
 
+    // Partial rotation: channels [ROTARY_NDIMS, OUTPUT_SIZE_X) pass through unchanged.
+    for (uint i = ROTARY_NDIMS + r; i < OUTPUT_SIZE_X; i += HALF_ROTARY_NDIMS) {
+        unroll_for (uint j = 0; j < VEC_SIZE; ++j) {
+            if (i + j < OUTPUT_SIZE_X) {
+                output[output_idx + i + j] = input[input_idx + i + j];
+            }
+        }
+    }
 }
 #endif
 
