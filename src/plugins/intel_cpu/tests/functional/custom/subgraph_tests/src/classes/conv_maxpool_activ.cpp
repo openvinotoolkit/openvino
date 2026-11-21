@@ -71,7 +71,7 @@ void ConvPoolActivTest::SetUp() {
     function = create_ov_model(element::f32, inputParams, pooling, "ConvPoolActiv");
 }
 
-bool ConvPoolActivTest::primTypeCheck(std::string primType) const {
+bool ConvPoolActivTest::primTypeCheck(const std::string& primType) const {
 #if defined(OPENVINO_ARCH_ARM)
     return primType == makeSelectedTypeStr(std::string("ref_any"), element::f32);
 #elif defined(OPENVINO_ARCH_ARM64)
