@@ -6,37 +6,24 @@
 #include "evaluate_node.hpp"
 #include "openvino/reference/cum_sum.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/cum_sum.hpp"
 // clang-format on
-
-namespace cum_sum_v0 {
-template <ov::element::Type_t t1, ov::element::Type_t t2>
-inline void evaluate(const std::shared_ptr<ov::op::v0::CumSum>& op,
-                     ov::TensorVector& outputs,
-                     const ov::TensorVector& inputs) {
-    using T1 = typename ov::element_type_traits<t1>::value_type;
-    using T2 = typename ov::element_type_traits<t2>::value_type;
-    ov::reference::cumsum<T1, T2>(inputs[0].data<T1>(),
-                                  *inputs[1].data<T2>(),
-                                  outputs[0].data<T1>(),
-                                  inputs[0].get_shape(),
-                                  op->is_exclusive(),
-                                  op->is_reverse());
-}
-}  // namespace cum_sum_v0
 
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v0::CumSum>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    switch (inputs[1].get_element_type()) {
-    case ov::element::i64:
-        cum_sum_v0::evaluate<ET, ov::element::i64>(op, outputs, inputs);
-        break;
-    default:
-        cum_sum_v0::evaluate<ET, ov::element::i32>(op, outputs, inputs);
-        break;
-    }
+    using T = typename ov::element_type_traits<ET>::value_type;
+    const auto& data_shape = inputs[0].get_shape();
+    const auto axes = ov::util::try_get_normalized_axis_vector(inputs[1], ov::Rank(data_shape.size()), *op);
+    OPENVINO_ASSERT(!axes.empty(), "CumSum axis input must not be empty");
+    ov::reference::cumsum(inputs[0].data<T>(),
+                          static_cast<int64_t>(axes.front()),
+                          outputs[0].data<T>(),
+                          data_shape,
+                          op->is_exclusive(),
+                          op->is_reverse());
     return true;
 }
 
