@@ -195,6 +195,38 @@ def test_convertimagedtype():
                     ],
                 ),
         ),
+        # a transform after Pad relies on the padded image size being tracked correctly
+        (
+                np.random.randint(255, size=(218, 220, 3), dtype=np.uint8),
+                transforms.Compose(
+                    [
+                        transforms.Pad((2, 3)),
+                        transforms.CenterCrop((200, 210)),
+                        transforms.ToTensor(),
+                    ],
+                ),
+        ),
+        (
+                np.random.randint(255, size=(218, 220, 3), dtype=np.uint8),
+                transforms.Compose(
+                    [
+                        transforms.Pad((6, 1)),
+                        transforms.CenterCrop((200, 210)),
+                        transforms.ToTensor(),
+                    ],
+                ),
+        ),
+        # a one-element padding list is treated like an int
+        (
+                np.random.randint(255, size=(218, 220, 3), dtype=np.uint8),
+                transforms.Compose(
+                    [
+                        transforms.Pad([4]),
+                        transforms.CenterCrop((200, 210)),
+                        transforms.ToTensor(),
+                    ],
+                ),
+        ),
     ],
 )
 def test_pad(test_input, preprocess_pipeline):
