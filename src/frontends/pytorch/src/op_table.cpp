@@ -264,6 +264,7 @@ OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
+OP_CONVERTER(translate_softplus);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_split_with_sizes);
 OP_CONVERTER(translate_square);
@@ -757,7 +758,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::size", op::translate_size},
         {"aten::slice", op::quantizable_op<op::translate_slice>},
         {"aten::softmax", op::translate_softmax},
-        {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
+        {"aten::softplus", op::translate_softplus},
         {"aten::sort", op::translate_sort},
         {"aten::special_expit",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
