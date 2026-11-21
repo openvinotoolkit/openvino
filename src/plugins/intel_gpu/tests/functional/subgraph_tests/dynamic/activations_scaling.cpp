@@ -521,10 +521,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
 // The product of two scaled MatMul outputs carries the scale-up ASF^2 after the activations scaling LPT run
 // (MultiplyPartialTransformation). It has to move through the residual Add down to the RMS, which absorbs it: the
 // product exceeds the f16 range at full magnitude. With ASF 16 the composed scale-up is 256, so a bound on the scale of
-// the branches moved through an Add would apply it in front of the Add. The test parameter adds a bias of 128 to the
-// product, which LPT turns into the zero point of that scale-up, (product / 256 + 0.5) * 256. AddTransformation folds
-// it into the residual in the residual's own scale ASF, as 128 / 16 = 8, so a bound on the zero point scaled to the
-// output (128) would also apply the scale-up in front of the Add.
+// the branches moved through an Add would apply it in front of the Add. The test parameter adds a bias to the product,
+// which LPT turns into the zero point of that scale-up, (product / 256 + bias / 256) * 256. AddTransformation folds it
+// into the residual in the residual's own scale ASF, as bias / 16: 8 for a bias of 128, which a bound on the zero point
+// scaled to the output (128) would block, and 128 for a bias of 2048, which the bound on the folded zero point of other
+// scales (64) would block.
 //
 //               input
 //          /      |      \_
@@ -532,15 +533,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
 //         |       \      /
 //         |       Multiply
 //         |          |
-//         |    [Add(128)]
+//         |    [Add(bias)]
 //          \        /
 //             Add
 //              |
 //             RMS
-class ActivationsScalingComposedScaleUp : public testing::WithParamInterface<bool>, virtual public ov::test::SubgraphBaseTest {
+class ActivationsScalingComposedScaleUp : public testing::WithParamInterface<float>, virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
-        return obj.param ? "biased_product" : "product";
+    static std::string getTestCaseName(const testing::TestParamInfo<float>& obj) {
+        return obj.param == 0.f ? "product" : "product_bias_" + std::to_string(static_cast<int>(obj.param));
     }
 
 protected:
@@ -563,8 +564,8 @@ protected:
         };
         const auto residual = linear(input);
         std::shared_ptr<ov::Node> product = std::make_shared<ov::op::v1::Multiply>(linear(input), linear(input));
-        if (GetParam()) {
-            product = std::make_shared<ov::op::v1::Add>(product, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {128.f}));
+        if (GetParam() != 0.f) {
+            product = std::make_shared<ov::op::v1::Add>(product, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {GetParam()}));
         }
         const auto sum = std::make_shared<ov::op::v1::Add>(residual, product);
 
@@ -594,6 +595,6 @@ TEST_P(ActivationsScalingComposedScaleUp, Inference) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingComposedScaleUp,
                          ActivationsScalingComposedScaleUp,
-                         ::testing::Bool(),
+                         ::testing::Values(0.f, 128.f, 2048.f),
                          ActivationsScalingComposedScaleUp::getTestCaseName);
 } // namespace

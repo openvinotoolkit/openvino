@@ -45,6 +45,7 @@
 #include "low_precision/variadic_split.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
@@ -977,14 +978,32 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
         //   (a) arithmetic on a tensor converted from an integer/boolean type, e.g. the T5 additive attention
         //       mask (1 - Convert(mask)) * lowest: LPT normalizes it to (Convert(mask) - 1) * 65504, and moving it
         //       would turn the other input x into (x - 65504) * (1/65504), which loses x in f16;
-        //   (b) a branch S * (y - SH) with a large zero point: AddTransformation rewrites the other input
-        //       S_x * (x - SH_x) (S_x = 1 without a dequantization) as S_x / S * (x - SH_x - Z), Z = S * SH / S_x,
-        //       adding an f16 rounding error of up to about |Z| / 1000 to x. The bound max|Z| <= 64 is a heuristic:
-        //       for an unscaled x, the error first exceeds the 0.02 test tolerance at |Z| = 100.
-        // A branch without a zero point only rescales x and is not bounded, so scale-ups move whatever their
-        // factor, e.g. the ASF^2 one of a product of two scaled branches. Only the branch that AddTransformation
-        // moves is checked, so a scale-up still moves through an Add whose other input is such a mask.
-        pass_config->set_callback<AddTransformation>([&infer_precision](const std::shared_ptr<const ov::Node>& node) -> bool {
+        //   (b) other arithmetic S * (y - SH) with a large zero point, e.g. the same mask as a float input:
+        //       AddTransformation rewrites the other input S_x * (x - SH_x) (S_x = 1 without a dequantization) as
+        //       S_x / S * (x - SH_x - Z), Z = S * SH / S_x, adding an f16 rounding error of up to about |Z| / 1000
+        //       to x. The bound max|Z| <= 64 is a heuristic: for an unscaled x, the error first exceeds the 0.02 test
+        //       tolerance at |Z| = 100.
+        // A scale-up, S = ASF^k (k >= 1, composed for a product of k scaled branches), moves whatever its zero point:
+        // that is the bias of an activation, which f16 rounds as coarsely in the original graph. A branch without a
+        // zero point only rescales x and moves whatever its scale. Only the branch that AddTransformation moves is
+        // checked, so a scale-up still moves through an Add whose other input is such a mask.
+        const auto is_scale_up = [activations_scale_factor](const std::shared_ptr<ov::op::v0::Constant>& scale) {
+            // Below 2 the powers of ASF lie too close together to tell a scale-up from another scale.
+            float value = 0.0F;
+            if (activations_scale_factor < 2.0F || scale == nullptr || !ov::op::util::get_single_value(scale, value)) {
+                return false;
+            }
+            // Relative f16 rounding of a composed scale; ASF^k above the f16 maximum is inf, not a scale-up.
+            constexpr float kTolerance = 1e-3F;
+            const auto f16_max = static_cast<float>(std::numeric_limits<ov::float16>::max());
+            for (float power = activations_scale_factor; power <= f16_max; power *= activations_scale_factor) {
+                if (std::abs(std::abs(value) - power) <= kTolerance * power) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        pass_config->set_callback<AddTransformation>([&infer_precision, is_scale_up](const std::shared_ptr<const ov::Node>& node) -> bool {
             const auto dq0 = NetworkHelper::getDequantization(node, {infer_precision}, 0);
             const auto dq1 = NetworkHelper::getDequantization(node, {infer_precision}, 1);
             if (dq0.empty() && dq1.empty()) {
@@ -1010,7 +1029,7 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
             if (convert != nullptr && !convert->get_input_element_type(0).is_real()) {
                 return true;
             }
-            if (moved.subtract == nullptr) {
+            if (moved.subtract == nullptr || is_scale_up(moved.multiplyConstant)) {
                 return false;
             }
 
