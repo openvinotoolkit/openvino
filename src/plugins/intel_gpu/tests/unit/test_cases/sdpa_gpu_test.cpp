@@ -2043,6 +2043,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
 
         auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
@@ -2993,7 +2995,6 @@ TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
     }
 }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
 struct sdpa_sliding_window_test_params {
     int head_size;
     int num_heads;
@@ -3011,11 +3012,8 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
         rg.set_seed(GET_SUITE_NAME);
     }
 
-    void execute(const sdpa_sliding_window_test_params& p) {
+    void execute(const sdpa_sliding_window_test_params& p, const std::string& impl) {
         auto& engine = get_test_engine();
-        if (!engine.get_device_info().supports_immad) {
-            GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
-        }
 
         const auto head_size = p.head_size;
         const auto num_heads = p.num_heads;
@@ -3029,11 +3027,28 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
         auto k_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
         auto v_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
         auto mask_layout = cldnn::layout({batch, num_heads, seq_q, seq_kv}, data_types::f16, format::bfyx);
+        // A dynamic V head size makes sdpa_ref the only candidate
+        auto v_ref_layout = cldnn::layout(ov::PartialShape{batch, seq_kv, num_heads, -1}, data_types::f16, format::bfyx);
+
+        auto assert_impl = [](const cldnn::network::ptr& net, const std::string& impl_name) {
+            std::string sdpa_id;
+            for (const auto& info : net->get_primitives_info()) {
+                if (info.type_id == "scaled_dot_product_attention")
+                    sdpa_id = info.original_id;
+            }
+            ASSERT_FALSE(sdpa_id.empty());
+            const auto inst = net->get_primitive(sdpa_id);
+            const auto entries = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+            ASSERT_EQ(entries.find(impl_name), 0u) << impl_name << " was not selected, kernels: " << entries;
+        };
 
         auto q_mem = engine.allocate_memory(q_layout);
         auto k_mem = engine.allocate_memory(k_layout);
         auto v_mem = engine.allocate_memory(v_layout);
         auto mask_mem = engine.allocate_memory(mask_layout);
+        auto scalar_mask_layout = cldnn::layout({1, 1, 1, 1}, data_types::f16, format::bfyx);
+        auto scalar_mask_mem = engine.allocate_memory(scalar_mask_layout);
+        set_values(scalar_mask_mem, std::vector<ov::float16>{ov::float16(0.0f)});
 
         auto q_data = rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f);
         auto k_data = rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f);
@@ -3074,7 +3089,7 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             topology topo;
             topo.add(input_layout("q", q_layout));
             topo.add(input_layout("k", k_layout));
-            topo.add(input_layout("v", v_layout));
+            topo.add(input_layout("v", v_ref_layout));
             topo.add(input_layout("mask", mask_layout));
 
             auto prim = scaled_dot_product_attention("sdpa",
@@ -3092,18 +3107,26 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             net->set_input_data("k", k_mem);
             net->set_input_data("v", v_mem);
             net->set_input_data("mask", mask_mem);
-            return net->execute().at("result").get_memory();
+            auto result = net->execute().at("result").get_memory();
+            assert_impl(net, "sdpa_ref");
+            return result;
         };
 
-        // Optimized: causal + sliding_window attribute, sdpa_micro
-        auto run_opt = [&]() {
+        auto run_target = [&]() {
             topology topo;
             topo.add(input_layout("q", q_layout));
             topo.add(input_layout("k", k_layout));
-            topo.add(input_layout("v", v_layout));
+            topo.add(input_layout("v", impl == "sdpa_ref" ? v_ref_layout : v_layout));
+            std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
+            // A non-const scalar mask keeps sdpa_micro out of sdpa_opt, so only its own stages run.
+            const bool pin_opt_stages = impl == "sdpa_opt";
+            if (pin_opt_stages) {
+                topo.add(input_layout("scalar_mask", scalar_mask_layout));
+                inputs.push_back(input_info("scalar_mask"));
+            }
 
             auto prim = scaled_dot_product_attention("sdpa",
-                {input_info("q"), input_info("k"), input_info("v")},
+                inputs,
                 true, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3},
                 {}, false, /*causal_lower_right=*/p.causal_lower_right);
             prim.sliding_window = window;
@@ -3112,42 +3135,63 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
 
             ExecutionConfig cfg = config_common;
             cfg.set_property(ov::intel_gpu::force_implementations(
-                ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+                ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, impl}}}));
 
             auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
             net->set_input_data("q", q_mem);
             net->set_input_data("k", k_mem);
             net->set_input_data("v", v_mem);
-            return net->execute().at("result").get_memory();
+            if (pin_opt_stages) {
+                net->set_input_data("scalar_mask", scalar_mask_mem);
+            }
+
+            auto result = net->execute().at("result").get_memory();
+            assert_impl(net, impl);
+            return result;
         };
 
         auto ref_mem = run_ref();
-        auto opt_mem = run_opt();
+        auto test_mem = run_target();
 
         cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(opt_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> test_data(test_mem, get_test_stream());
 
         ASSERT_GT(ref_data.size(), 0u);
 
         // Verify outputs contain actual non-zero values
-        bool has_nonzero_ref = false, has_nonzero_opt = false;
+        bool has_nonzero_ref = false, has_nonzero_test = false;
         for (size_t idx = 0; idx < ref_data.size(); idx++) {
-            ASSERT_FALSE(std::isnan(opt_data[idx]) || std::isnan(ref_data[idx])) << "NaN at index " << idx;
+            ASSERT_FALSE(std::isnan(test_data[idx]) || std::isnan(ref_data[idx])) << "NaN at index " << idx;
             if (static_cast<float>(ref_data[idx]) != 0.0f) has_nonzero_ref = true;
-            if (static_cast<float>(opt_data[idx]) != 0.0f) has_nonzero_opt = true;
+            if (static_cast<float>(test_data[idx]) != 0.0f) has_nonzero_test = true;
         }
         ASSERT_TRUE(has_nonzero_ref) << "Reference output is all zeros";
-        ASSERT_TRUE(has_nonzero_opt) << "Optimized output is all zeros";
+        ASSERT_TRUE(has_nonzero_test) << impl << " output is all zeros";
 
-        auto similarity = cosineSimilarity(ref_data, opt_data);
+        auto similarity = cosineSimilarity(ref_data, test_data);
         ASSERT_GE(similarity, 0.95f) << "Cosine similarity too low: " << similarity;
     }
 };
 
-TEST_P(sdpa_sliding_window_test, basic) {
-    auto p = GetParam();
-    execute(p);
+TEST_P(sdpa_sliding_window_test, ref) {
+    execute(GetParam(), "sdpa_ref");
 }
+
+TEST_P(sdpa_sliding_window_test, opt) {
+    execute(GetParam(), "sdpa_opt");
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST_P(sdpa_sliding_window_test, micro) {
+    const auto p = GetParam();
+    const auto& device_info = get_test_engine().get_device_info();
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
+        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
+    execute(p, "sdpa_micro");
+}
+#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
     ::testing::Values(
@@ -3178,6 +3222,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
              + (info.param.causal_lower_right ? "_lr" : "_ul");
     });
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 // is_causal=true together with an explicit attention_mask input, for a SWA-style (causal +
 // window) mask: verifies sdpa_micro's WITH_ATTN_MASK path still produces the same result as the
 // is_causal=false + explicit-mask reference (see the #elif chain in sdpa_micro.cl, which doesn't
@@ -3283,132 +3328,6 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
     ASSERT_GE(similarity, 0.95f) << "Cosine similarity too low: " << similarity;
 }
 #endif
-
-// Reproducer: the sliding-window suite above only exercises sdpa_micro (it skips devices without
-// immad), but the non-micro stage kernels of SDPAOpt (sdpa_opt.cl) never apply the window:
-// SLIDING_WINDOW_SIZE is only emitted under IS_PAGED_ATTENTION there. Whenever the GQA
-// decomposition elides the explicit mask and relies on the kernel-side window (causal +
-// sliding_window_cache), a model running on the opt stage kernels silently attends over the whole
-// causal range instead of the window.
-//
-// The scalar (count == 1) attention-mask input pins this test to the opt stage kernels on every
-// device: SDPAOpt::supports_micro_sdpa() rejects SDPA whose mask input is a non-const scalar
-// tensor, so the micro stage is never added even on micro-capable devices. The mask value itself
-// is irrelevant - sdpa_opt.cl ignores the mask input whenever IS_CAUSAL is set.
-TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    auto& engine = get_test_engine();
-
-    // Decode-style shape (seq_q == 1) mirroring the GQA decomposition output, with a window
-    // strictly smaller than the KV length so the two behaviours are clearly distinguishable.
-    const int head_size = 64, num_heads = 8, seq_q = 1, seq_kv = 512, batch = 1, window = 128;
-
-    auto q_layout = cldnn::layout({batch, seq_q, num_heads, head_size}, data_types::f16, format::bfyx);
-    auto k_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
-    auto v_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
-    auto scalar_mask_layout = cldnn::layout({1, 1, 1, 1}, data_types::f16, format::bfyx);
-    auto mask_layout = cldnn::layout({batch, num_heads, seq_q, seq_kv}, data_types::f16, format::bfyx);
-
-    auto q_mem = engine.allocate_memory(q_layout);
-    auto k_mem = engine.allocate_memory(k_layout);
-    auto v_mem = engine.allocate_memory(v_layout);
-    auto scalar_mask_mem = engine.allocate_memory(scalar_mask_layout);
-    auto mask_mem = engine.allocate_memory(mask_layout);
-
-    set_values(q_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f));
-    set_values(k_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f));
-    set_values(v_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(v_layout.get_shape()), -1.0f, 1.0f));
-    set_values(scalar_mask_mem, std::vector<ov::float16>{ov::float16(0.0f)});
-
-    // Ground truth: explicit causal+window mask, is_causal=false (same construction as the
-    // parameterized suite above; LOWER_RIGHT maps query q to absolute key position q + seq_kv - seq_q).
-    {
-        std::vector<ov::float16> mask(batch * num_heads * seq_q * seq_kv);
-        const ov::float16 neg_big = ov::float16(std::numeric_limits<ov::float16>::lowest());
-        const int causal_offset = seq_kv - seq_q;
-        for (int h = 0; h < num_heads; h++) {
-            for (int q = 0; q < seq_q; q++) {
-                const int abs_q = q + causal_offset;
-                for (int k = 0; k < seq_kv; k++) {
-                    size_t idx = (h * seq_q + q) * seq_kv + k;
-                    bool future = k > abs_q;
-                    bool too_old = (abs_q - k) >= window;
-                    mask[idx] = (future || too_old) ? neg_big : ov::float16(0.0f);
-                }
-            }
-        }
-        set_values(mask_mem, mask);
-    }
-
-    ExecutionConfig config_common = get_test_default_config(engine);
-    config_common.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-
-    auto run_mask_reference = [&]() {
-        topology topo;
-        topo.add(input_layout("q", q_layout));
-        topo.add(input_layout("k", k_layout));
-        topo.add(input_layout("v", v_layout));
-        topo.add(input_layout("mask", mask_layout));
-        auto prim = scaled_dot_product_attention("sdpa",
-            {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
-            false, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3});
-        topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-        auto net = get_network(engine, topo, config_common, get_test_stream_ptr(), false);
-        net->set_input_data("q", q_mem);
-        net->set_input_data("k", k_mem);
-        net->set_input_data("v", v_mem);
-        net->set_input_data("mask", mask_mem);
-        return net->execute().at("result").get_memory();
-    };
-
-    auto run_window_attribute = [&]() {
-        topology topo;
-        topo.add(input_layout("q", q_layout));
-        topo.add(input_layout("k", k_layout));
-        topo.add(input_layout("v", v_layout));
-        topo.add(input_layout("scalar_mask", scalar_mask_layout));
-        auto prim = scaled_dot_product_attention("sdpa",
-            {input_info("q"), input_info("k"), input_info("v"), input_info("scalar_mask")},
-            true, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3},
-            {}, false, /*causal_lower_right=*/true);
-        prim.sliding_window = window;
-        topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-        auto net = get_network(engine, topo, config_common, get_test_stream_ptr(), false);
-        net->set_input_data("q", q_mem);
-        net->set_input_data("k", k_mem);
-        net->set_input_data("v", v_mem);
-        net->set_input_data("scalar_mask", scalar_mask_mem);
-
-        // The node description carries the selected OpenCL entry point; make sure the opt stage
-        // kernel (not sdpa_micro) is what actually ran, otherwise this test proves nothing.
-        bool saw_opt = false;
-        for (const auto& info : net->get_primitives_info()) {
-            if (info.type_id == "scaled_dot_product_attention") {
-                const auto sdpa_info = net->get_primitive_info(info.original_id);
-                EXPECT_EQ(sdpa_info.find("sdpa_micro"), std::string::npos)
-                    << "sdpa_micro was selected; the opt stage kernels were not exercised:\n" << sdpa_info;
-                saw_opt = sdpa_info.find("sdpa_opt") != std::string::npos;
-            }
-        }
-        EXPECT_TRUE(saw_opt) << "sdpa_opt stage kernel was not selected";
-
-        return net->execute().at("result").get_memory();
-    };
-
-    auto ref_mem = run_mask_reference();
-    auto window_mem = run_window_attribute();
-
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> window_data(window_mem, get_test_stream());
-
-    auto similarity = cosineSimilarity(ref_data, window_data);
-    EXPECT_GE(similarity, 0.95f)
-        << "is_causal + sliding_window on the opt stage kernels does not match the explicit-mask "
-           "reference: the window is ignored (cosine " << similarity << ")";
-}
 
 struct sdpa_ref_scratch_test : public ::testing::TestWithParam<std::tuple<data_types, int, bool>> {};
 
