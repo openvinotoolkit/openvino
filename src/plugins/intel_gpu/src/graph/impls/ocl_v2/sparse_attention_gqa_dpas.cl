@@ -7,8 +7,8 @@
 // are partitioned over QSA_SPLIT_PARTITIONS work-groups that emit partial (max, sum, acc) state for
 // sparse_attention_split_reduce.cl.
 //
-// One work-group = 4 subgroups = ONE token x ONE KV head. A KV step is 16 rows (16 / r selected blocks); each subgroup
-// owns a Dh / 4 slice of the QK reduction and a Dv / 4 slice of the output.
+// One work-group = QSA_GQA_WORKERS subgroups = ONE token x ONE KV head. A KV step is 16 rows (16 / r selected blocks); each subgroup
+// owns a Dh / QSA_GQA_WORKERS slice of the QK reduction and a Dv / QSA_GQA_WORKERS slice of the output.
 //   QK: A = K rows of the step (2D block reads), B = Q with lane = query head of the KV group (the remaining lanes
 //       carry zero Q); the score tile has lane = head, so the softmax is in-lane. Worker partials meet in SLM.
 //   PV: A = P with lane = KV row (transposed through a per-worker SLM tile), B = V in VNNI form, so the accumulator
@@ -24,12 +24,12 @@
 // dequantized to half in registers, so the dpas operands are identical to the f16 ones; the 2D block path is f16 only.
 //
 // JIT: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE, QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE,
-//      QSA_IS_CAUSAL, QSA_ADDRESS_MODE, SUBGROUP_SIZE, (split) QSA_GQA_SPLIT, QSA_SPLIT_PARTITIONS, (paged) QSA_PAGE_SIZE,
+//      QSA_IS_CAUSAL, QSA_GQA_WORKERS, QSA_ADDRESS_MODE, SUBGROUP_SIZE, (split) QSA_GQA_SPLIT, QSA_SPLIT_PARTITIONS, (paged) QSA_PAGE_SIZE,
 //      QSA_{K,V}_{MODE,BITS,SYM,GROUP,ROW_BYTES,PAGE_BYTES,PARAM_OFFSET}, (dense) QSA_DENSE_QUANT,
 //      QSA_{K,V}_{SIGNED,ZP_F16}
-// Dispatch: gws = [tokens * 4 * SG, QSA_KV_HEADS, P (split) | 1], lws = [4 * SG, 1, 1]
+// Dispatch: gws = [tokens * QSA_GQA_WORKERS * SG, QSA_KV_HEADS, P (split) | 1], lws = [QSA_GQA_WORKERS * SG, 1, 1]
 
-#define QSA_XMX_WORKERS 4
+#define QSA_XMX_WORKERS QSA_GQA_WORKERS
 #define QSA_ATTENTION_HELPERS
 #include "qsa_common.cl"
 
@@ -333,12 +333,7 @@ inline void FUNC(gqa_step)(QSA_QP_DECL const __global QSA_KC_T* key_cache,
     sub_group_barrier(CLK_LOCAL_MEM_FENCE);
     unroll_for (uint hh = 0; hh < GQA_HH; hh++) {
         const __local ushort* pt = (const __local ushort*)slm_p + hh * 128;
-#ifdef cl_intel_subgroup_local_block_io
-        const short8 pa = as_short8(intel_sub_group_block_read_us8(pt));
-#else
-        const short8 pa = (short8)((short)pt[lane], (short)pt[16 + lane], (short)pt[32 + lane], (short)pt[48 + lane],
-                                   (short)pt[64 + lane], (short)pt[80 + lane], (short)pt[96 + lane], (short)pt[112 + lane]);
-#endif
+        const short8 pa = BLOCK_READN_SLM(short, 8, pt, 0);
         unroll_for (uint t = 0; t < GQA_VT; t++) {
             ro[hh][t] = intel_sub_group_f16_f16_matrix_mad_k16(pa, vb[t], ro[hh][t]);
         }
@@ -545,7 +540,7 @@ KERNEL(sparse_attention_gqa_dpas)(QSA_ATT_INPUT_ARGS,
     unroll_for (uint h = 0; h < GQA_HEADS; h++) {
         __global uint* dst = (__global uint*)(partial_acc + (GQA_OUT_ROW(h) * P + part) * DV + worker * QSA_XDV);
         unroll_for (uint t = 0; t < GQA_VT; t++) {
-            intel_sub_group_block_write(dst + t * 16, as_uint(ro[h / 8][t][h % 8]));
+            BLOCK_WRITEN(float, 1, dst, t * 16, ro[h / 8][t][h % 8]);
         }
     }
 #else
@@ -554,7 +549,7 @@ KERNEL(sparse_attention_gqa_dpas)(QSA_ATT_INPUT_ARGS,
         const float ih = sub_group_broadcast(inv, h);
         __global ushort* dst = (__global ushort*)(output + GQA_OUT_ROW(h) * DV + worker * QSA_XDV);
         unroll_for (uint t = 0; t < GQA_VT; t++) {
-            intel_sub_group_block_write_us(dst + t * 16, as_ushort(convert_half_rte(ro[h / 8][t][h % 8] * ih)));
+            BLOCK_WRITEN(half, 1, dst, t * 16, convert_half_rte(ro[h / 8][t][h % 8] * ih));
         }
     }
 #endif

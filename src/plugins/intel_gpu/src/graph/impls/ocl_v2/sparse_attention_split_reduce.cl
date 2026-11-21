@@ -72,14 +72,14 @@ KERNEL(sparse_attention_split_reduce)(const __global float* partial_acc,  // [ro
     // Every producer writes all P rows (zeros when empty), so unconditional loads are safe.
     unroll_for (uint p = 0; p < P; p++) {
         const float wp = sub_group_broadcast(w[p / QSA_SG], p % QSA_SG);
-        const __global uint* src = (const __global uint*)(partial_acc + (row0 + p) * DV + col0);
+        const __global float* src = partial_acc + (row0 + p) * DV + col0;
 #if QSA_REDUCE_COLS == 2 * SUBGROUP_SIZE
-        const float2 a = as_float2(intel_sub_group_block_read2(src));
+        const float2 a = BLOCK_READN(float, 2, src, 0);
         acc[0] += a.s0 * wp;
         acc[1] += a.s1 * wp;
 #else
         unroll_for (uint j = 0; j < COLS / QSA_SG; j++) {
-            acc[j] += as_float(intel_sub_group_block_read(src + j * QSA_SG)) * wp;
+            acc[j] += BLOCK_READN(float, 1, src, j * QSA_SG) * wp;
         }
 #endif
     }
