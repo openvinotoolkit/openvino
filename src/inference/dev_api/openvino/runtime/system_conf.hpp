@@ -336,6 +336,15 @@ OPENVINO_RUNTIME_API int get_org_socket_id(int socket_id);
 OPENVINO_RUNTIME_API int get_org_numa_id(int numa_node_id);
 
 /**
+ * @brief      Get the number of distinct maximum CPU frequencies for each processor type
+ * @ingroup    ov_dev_api_system_conf
+ * @return     Counts indexed by ColumnOfProcessorTypeTable, from ALL_PROC through HYPER_THREADING_PROC.
+ *             ALL_PROC counts distinct frequencies across all types. Returns an empty vector when frequency
+ *             information is unavailable; a type without frequency information has a count of zero.
+ */
+OPENVINO_RUNTIME_API std::vector<int> get_core_type_count();
+
+/**
  * @enum       ColumnOfCPUMappingTable
  * @brief      This enum contains definition of each columns in CPU mapping table which use processor id as index.
  *
