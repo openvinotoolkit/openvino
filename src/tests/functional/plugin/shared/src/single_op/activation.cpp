@@ -140,6 +140,37 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
         inject(2,  2.0f);
         inject(3, -1.5f);
     }
+    // Inject signed minimum and mid-range boundary values for Abs and Negative to verify
+    // two's-complement wrapping in both vector and scalar store paths.
+    if ((activationDecl.first == ActivationTypes::Abs || activationDecl.first == ActivationTypes::Negative) &&
+        funcInput->get_element_type().is_integral_number() && funcInput->get_element_type().is_signed()) {
+        const auto sz = data_tensor.get_size();
+        if (sz > 0) {
+            switch (funcInput->get_element_type()) {
+            case ov::element::i8: {
+                auto* ptr = static_cast<int8_t*>(data_tensor.data());
+                ptr[0] = std::numeric_limits<int8_t>::min();        // -128: exercises vector path
+                if (sz > 1) ptr[1] = static_cast<int8_t>(-100);    // bit7-set truncation check
+                if (sz > 2) ptr[sz - 1] = std::numeric_limits<int8_t>::min();  // exercises scalar tail path
+                break;
+            }
+            case ov::element::i16: {
+                auto* ptr = static_cast<int16_t*>(data_tensor.data());
+                ptr[0] = std::numeric_limits<int16_t>::min();
+                if (sz > 1) ptr[sz - 1] = std::numeric_limits<int16_t>::min();
+                break;
+            }
+            case ov::element::i32: {
+                auto* ptr = static_cast<int32_t*>(data_tensor.data());
+                ptr[0] = std::numeric_limits<int32_t>::min();
+                if (sz > 1) ptr[sz - 1] = std::numeric_limits<int32_t>::min();
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
 

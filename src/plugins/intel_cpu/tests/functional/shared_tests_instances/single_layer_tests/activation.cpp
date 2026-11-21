@@ -172,8 +172,22 @@ const auto basic_integer_operations_params = ::testing::Combine(
             ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
+// Abs and Negative support i8 execution precision directly
+const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTypesI8 = {
+        {ActivationTypes::Abs,                   {}},
+        {ActivationTypes::Negative,              {}},
+};
+
+const auto basic_integer_i8_operations_params = ::testing::Combine(
+            ::testing::ValuesIn(ov::test::utils::combineParams(intActivationTypesI8)),
+            ::testing::Values(ov::element::i8),
+            ::testing::ValuesIn(static_shapes_param_transform(ov::test::utils::combineParams(basic_input_shapes_static))),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)
+);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basic_case_params, ActivationLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_Integer_Activation_Basic, ActivationLayerTest, basic_integer_operations_params, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Integer_Activation_Basic_I8, ActivationLayerTest, basic_integer_i8_operations_params, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu_Const, ActivationLayerTest, basic_prelu_cases_params, ActivationLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu_Param, ActivationParamLayerTest, basic_prelu_cases_params, ActivationLayerTest::getTestCaseName);
