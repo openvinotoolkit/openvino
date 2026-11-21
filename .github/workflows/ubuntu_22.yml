@@ -24,6 +24,7 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+      - edited
   merge_group:
   push:
     branches:
