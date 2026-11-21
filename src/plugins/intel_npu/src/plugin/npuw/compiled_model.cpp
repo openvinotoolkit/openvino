@@ -987,6 +987,12 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     if (!explicit_hg_value) {
         // Default value is used, can force the best option
         if (can_enable_hgq) {
+            // Restore canonical U8 DQ only for the selected quantized tail; legacy modes keep Sub128.
+            ov::pass::GraphRewrite restore;
+            restore.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx),
+                                                                                       std::ref(to_keep),
+                                                                                       true);
+            restore.run_on_model(model);
             LOG_INFO("Forcing quantized tail vocabulary for better performance.");
             return true;
         }

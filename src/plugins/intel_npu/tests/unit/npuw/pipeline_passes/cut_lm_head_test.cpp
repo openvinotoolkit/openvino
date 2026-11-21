@@ -6,11 +6,15 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "llm_compiled_model.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -19,6 +23,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
+#include "partitioning/patterns/opt.hpp"
 
 namespace {
 
@@ -67,6 +72,56 @@ std::shared_ptr<ov::Model> build_attached_result_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{hidden_result, logits_result},
                                        ov::ParameterVector{hidden},
                                        "attached_result_lm_head");
+}
+
+// Tied u8 vocabulary: Gather and the LM-head MatMul share one dequantization chain.
+std::shared_ptr<ov::Model> build_shared_u8_vocabulary_model(const ov::element::Type& precision) {
+    auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, kSeq, kHidden});
+    auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, kSeq});
+
+    const std::vector<uint8_t> weight_values{0, 127, 128, 255, 1, 42, 253, 254};
+    const std::vector<uint8_t> zero_point_values{128, 127, 0, 255};
+    std::vector<uint8_t> weight_data(kVocab * kHidden);
+    std::vector<uint8_t> zero_point_data(kVocab);
+    for (size_t i = 0; i < weight_data.size(); ++i) {
+        weight_data[i] = weight_values[i % weight_values.size()];
+    }
+    for (size_t i = 0; i < zero_point_data.size(); ++i) {
+        zero_point_data[i] = zero_point_values[i % zero_point_values.size()];
+    }
+    auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{kVocab, kHidden}, weight_data);
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, precision);
+    auto zero_points = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{kVocab, 1}, zero_point_data);
+    auto zero_points_convert = std::make_shared<ov::op::v0::Convert>(zero_points, precision);
+    auto dequantized = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_points_convert);
+    auto scales = ov::op::v0::Constant::create(precision, ov::Shape{kVocab, 1}, {0.5f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(dequantized, scales);
+    auto converted = std::make_shared<ov::op::v0::Convert>(scaled, ov::element::f32);
+
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(converted, ids, axis);
+    auto embeddings = std::make_shared<ov::op::v0::Result>(gather);
+    embeddings->output(0).set_names({"embeddings"});
+
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(hidden, converted, false, true);
+    auto logits = std::make_shared<ov::op::v0::Result>(matmul);
+    logits->output(0).set_names({LLMCompiledModel::layer_names::logits});
+
+    return std::make_shared<ov::Model>(ov::ResultVector{embeddings, logits}, ov::ParameterVector{hidden, ids});
+}
+
+std::size_t count_marked_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return std::count_if(ops.begin(), ops.end(), [](const auto& node) {
+        return node->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
+    });
+}
+
+void expect_equal_f32_tensors(const ov::Tensor& expected, const ov::Tensor& actual) {
+    ASSERT_EQ(actual.get_shape(), expected.get_shape());
+    for (size_t i = 0; i < expected.get_size(); ++i) {
+        EXPECT_EQ(actual.data<float>()[i], expected.data<float>()[i]);
+    }
 }
 
 std::shared_ptr<ov::op::v0::Result> find_result_by_name(const std::shared_ptr<ov::Model>& model,
@@ -172,6 +227,108 @@ TEST(CutLMHeadTest, NoLogitsIsUntouched) {
     ASSERT_EQ(model->get_results().size(), 1u);
     EXPECT_EQ(find_result_by_name(model, "not_logits"), result);
 }
+
+class CutLMHeadSharedVocabTest : public testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(CutLMHeadSharedVocabTest, PreservesQuantizedVocabularyAndOutputs) {
+    using namespace ov::npuw::patterns::opt;
+    auto model = build_shared_u8_vocabulary_model(GetParam());
+    const auto preserve = [](const std::shared_ptr<ov::Model>& graph, bool restore_sub128 = false) {
+        Context ctx(graph, graph->get_parameters().size());
+        std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;
+        ov::pass::GraphRewrite rewrite;
+        rewrite.add_matcher<PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(constants), restore_sub128);
+        rewrite.run_on_model(graph);
+        return constants;
+    };
+    const auto original_constants = preserve(model);
+    ASSERT_EQ(original_constants.size(), 3u);
+
+    ov::Tensor hidden(ov::element::f32, ov::Shape{1, kSeq, kHidden});
+    for (size_t i = 0; i < hidden.get_size(); ++i) {
+        hidden.data<float>()[i] = (static_cast<int>(i % 7) - 3) * 0.25f;
+    }
+    ov::Tensor ids(ov::element::i64, ov::Shape{1, kSeq});
+    for (size_t i = 0; i < ids.get_size(); ++i) {
+        ids.data<int64_t>()[i] = i;
+    }
+    ov::TensorVector expected{ov::Tensor(ov::element::f32, ov::Shape{1, kSeq, kHidden}),
+                              ov::Tensor(ov::element::f32, ov::Shape{1, kSeq, kVocab})};
+    ASSERT_TRUE(model->evaluate(expected, {hidden, ids}));
+    ASSERT_TRUE(
+        std::any_of(expected[1].data<float>(), expected[1].data<float>() + expected[1].get_size(), [](float value) {
+            return value != 0.0f;
+        }));
+
+    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
+    // Normalization must also isolate the MatMul branch when Gather still shares the DQ nodes.
+    auto shared_model = model->clone();
+    ASSERT_EQ(preserve(shared_model, true).size(), 3u);
+    EXPECT_EQ(count_marked_sub128_shifts(shared_model), 2u);
+    ov::TensorVector shared_outputs{ov::Tensor(ov::element::f32, ov::Shape{1, kSeq, kHidden}),
+                                    ov::Tensor(ov::element::f32, ov::Shape{1, kSeq, kVocab})};
+    ASSERT_TRUE(shared_model->evaluate(shared_outputs, {hidden, ids}));
+    expect_equal_f32_tensors(expected[0], shared_outputs[0]);
+    expect_equal_f32_tensors(expected[1], shared_outputs[1]);
+
+    std::shared_ptr<ov::Model> lm_head_model;
+    ASSERT_TRUE(ov::npuw::CutLMHead(lm_head_model).run_on_model(model));
+    ASSERT_NE(lm_head_model, nullptr);
+    EXPECT_EQ(count_marked_sub128_shifts(model), 2u);
+    EXPECT_EQ(count_marked_sub128_shifts(lm_head_model), 2u);
+
+    auto legacy_head = lm_head_model->clone();
+    // Detection retains shifts; only the selected modern quantized-tail path restores canonical U8 DQ.
+    ASSERT_EQ(preserve(lm_head_model).size(), 3u);
+    EXPECT_EQ(count_marked_sub128_shifts(lm_head_model), 2u);
+    const auto head_ops = lm_head_model->get_ordered_ops();
+    const auto head_constants = preserve(lm_head_model, true);
+    ASSERT_EQ(head_constants.size(), original_constants.size());
+    EXPECT_NE(lm_head_model->get_ordered_ops(), head_ops);
+    EXPECT_EQ(count_marked_sub128_shifts(lm_head_model), 0u);
+    EXPECT_EQ(count_marked_sub128_shifts(model), 2u);
+    for (size_t i = 0; i < head_constants.size(); ++i) {
+        EXPECT_NE(head_constants[i], original_constants[i]);
+        EXPECT_EQ(head_constants[i]->get_element_type(), original_constants[i]->get_element_type());
+        EXPECT_EQ(head_constants[i]->get_shape(), original_constants[i]->get_shape());
+        EXPECT_EQ(head_constants[i]->get_data_ptr(), original_constants[i]->get_data_ptr());
+    }
+
+    ov::TensorVector actual{ov::Tensor(ov::element::f32, ov::Shape{1, kSeq, kHidden}),
+                            ov::Tensor(ov::element::f32, ov::Shape{1, kSeq, kHidden})};
+    ASSERT_TRUE(model->evaluate(actual, {hidden, ids}));
+    ov::TensorVector logits{ov::Tensor(ov::element::f32, ov::Shape{1, kSeq, kVocab})};
+    ASSERT_TRUE(lm_head_model->evaluate(logits, {actual[1]}));
+    expect_equal_f32_tensors(expected[0], actual[0]);
+    expect_equal_f32_tensors(expected[1], logits[0]);
+
+    // In legacy mode the constants are lifted; keep its derived i8 route without an FP16 table unpack.
+    for (const auto& constant : preserve(legacy_head)) {
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->get_shape());
+        ov::replace_node(constant, parameter);
+        legacy_head->add_parameters({parameter});
+    }
+    Context legacy_ctx(legacy_head, 1);
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ConvertDQVocab>(std::ref(legacy_ctx));
+    rewrite.add_matcher<DQUnpackDictMatMulCWu>(std::ref(legacy_ctx));
+    rewrite.run_on_model(legacy_head);
+    ASSERT_EQ(legacy_ctx.closures_to_subtract_128.size(), 2u);
+    EXPECT_TRUE(legacy_ctx.params_to_unpack.empty());
+    for (const auto& [shifted, source] : legacy_ctx.closures_to_subtract_128) {
+        EXPECT_EQ(shifted->get_element_type(), ov::element::i8);
+        legacy_head->add_parameters({shifted});
+        legacy_head->remove_parameter(source);
+    }
+    EXPECT_NO_THROW(legacy_head->validate_nodes_and_infer_types());
+}
+
+INSTANTIATE_TEST_SUITE_P(Precisions,
+                         CutLMHeadSharedVocabTest,
+                         testing::Values(ov::element::f16, ov::element::f32),
+                         [](const testing::TestParamInfo<ov::element::Type>& info) {
+                             return info.param.to_string();
+                         });
 
 class CutLMHeadTiedWeightsTest : public testing::TestWithParam<bool> {};
 
