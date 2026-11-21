@@ -38,6 +38,7 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -79,7 +80,10 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
         } else if (out_type.is_integral() && !out_type.is_signed()) {
             return make_shared<v1::Divide>(x, y);
         } else {
-            return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
+            auto div = make_shared<v1::Divide>(x, y);
+            // Multiplying by the reciprocal can land just below a whole quotient, which Floor then rounds down.
+            disable_divide_conversion(div);
+            return make_shared<v0::Floor>(div);
         }
     };
     return translate_binary_op(node, floordiv_fn);
