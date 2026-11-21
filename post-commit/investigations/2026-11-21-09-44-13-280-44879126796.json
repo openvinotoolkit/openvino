@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-21-09-44-13-280-44879126796",
+  "timestamp": "2026-11-21T09:44:13Z",
+  "run_id": "44879126796",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44879126796",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "97f11ab802f5cf32f0edf7e5f7f2561e9dc5d88b",
+  "pr_number": "40094",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40094",
+  "author": "Kotomi-Du",
+  "category": "Flaky Test",
+  "title": "CachingTest.LoadMultiWithConfig_race fails with mock import_model call count mismatch on Windows",
+  "signature": "caching_test.cpp mock import_model call count mismatch EXPECT_CALL unsatisfied LoadMultiWithConfig_race|Flaky Test",
+  "signature_hash": "9f9ea52f699d8da3",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "ieFuncTests OpenVINO Inference Functional Tests failed: CachingTest.LoadMultiWithConfig_race/ByModelName_testCache mock expectation unmet (process exit code 1)"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the C++ unit tests job failed"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(2673): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 8 times\n           Actual: called 7 times - unsatisfied and active",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(318): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get())\n  Actual: false\nExpected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2041 ms)\n[  FAILED  ] 1 test, listed below:\n[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache ...\n 1 FAILED TEST\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "CachingTest.LoadMultiWithConfig_race (caching_test.cpp, TEST_P around line 2644-2685) is a wall-clock-bounded stress/race test that repeatedly loads a MULTI-device model through ov::Core for ~2000ms, asserting mockPlugin->import_model(istream&, ...) is called a fixed number of times per iteration. Because the loop's stopping condition is time-based rather than iteration-count-based, and each iteration spins up concurrent import threads per device, a slow/loaded Windows CI runner can leave the final iteration's import_model call still in flight (one call 'unsatisfied and active') when TearDown() invokes Mock::VerifyAndClearExpectations immediately after the time budget expires. This is a known, previously-documented timing-sensitive test design (the file itself notes 'In case of sporadic failures - increase TEST_DURATION_MS 100x times for better reproducibility'), not a regression introduced by this commit. The triggering commit (#40094, GPU plugin sub-byte stride fix for RemoteTensorImpl) only touches src/plugins/intel_gpu/src/plugin/remote_tensor.cpp and its GPU functional test file; it does not touch caching_test.cpp, MULTI device logic, or any CPU inference-caching code, so it is unrelated to this failure.",
+  "reproduction_steps": "Build ieFuncTests on Windows (Release) and run repeatedly under load: `ieFuncTests.exe --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race*`. Reproduction is intermittent and more likely on loaded/slower runners; running several times or under CPU contention increases odds of hitting the race window.",
+  "recommended_actions": [
+    "Change the loop's stopping condition in LoadMulti_race/LoadMultiWithConfig_race (src/inference/tests/functional/caching_test.cpp, ~lines 2600-2685) to only check the time budget between fully-completed iterations, or add a short join/grace wait before the loop exits so in-flight async import_model calls finish before Mock verification runs in TearDown().",
+    "Mark this test as flaky-tolerant in CI (e.g., gtest retry/rerun-on-failure) given its documented non-determinism, rather than failing the whole post-commit pipeline on a sporadic miscount.",
+    "No action needed on the triggering PR #40094 (GPU sub-byte stride fix) - it does not touch caching_test.cpp or MULTI/inference caching code."
+  ],
+  "prevention_strategies": "Avoid designing unit tests around hard wall-clock loop deadlines combined with asynchronous mock expectations; prefer deterministic iteration counts or explicit synchronization (e.g., wait for all pending import_model futures before the loop's time check) so TearDown() never races with in-flight async calls.",
+  "historical_context": "This exact signature (pattern 9f9ea52f699d8da3) has now recurred four times: 2026-11-09, 2026-11-10, 2026-11-20, and this run (2026-11-21), always on Windows C++ unit tests jobs with the same import_model call-count mismatch in CachingTest.LoadMultiWithConfig_race/LoadMulti_race. The test's own source comment acknowledges sporadic failures are expected and suggests increasing TEST_DURATION_MS as a workaround, but no fix has been applied across any of the four occurrences."
+}
