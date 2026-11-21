@@ -28,7 +28,28 @@ GraphConverter::GraphConverter(mlir::MLIRContext* context, mlir::OpBuilder* bloc
           },
           [this](const Dimension& dim) {
               return get_dimension_value(dim);
+          },
+          [this](const ov::Input<ov::Node>& input, DimOrder order) {
+              request_input_order(input, std::move(order));
           }) {}
+
+void GraphConverter::request_input_order(const ov::Input<ov::Node>& input, DimOrder order) {
+    const auto source = input.get_source_output();
+    if (conflicting_orders.count(source) != 0U) {
+        return;
+    }
+    auto [it, inserted] = requested_orders.emplace(source, order);
+    if (!inserted && it->second != order) {
+        OPENVINO_MLIR_DEBUG_PRINT("Conflicting physical orders requested for " << source << ", keeping the default one");
+        requested_orders.erase(it);
+        conflicting_orders.insert(source);
+    }
+}
+
+ArrayRef<int64_t> GraphConverter::get_requested_order(const ov::Output<ov::Node>& source) const {
+    const auto it = requested_orders.find(source);
+    return it == requested_orders.end() ? ArrayRef<int64_t>{} : ArrayRef<int64_t>(it->second);
+}
 
 SmallVector<mlir::Value> GraphConverter::getInputs(const NodePtr& node) {
     SmallVector<mlir::Value> out;
