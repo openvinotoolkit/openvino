@@ -44,7 +44,7 @@ public:
     };
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const depth_to_space_params& params) const;
     virtual CommonDispatchData SetDefault(const depth_to_space_params& params) const = 0;
     KernelsData GetCommonKernelsData(const Params& params) const;

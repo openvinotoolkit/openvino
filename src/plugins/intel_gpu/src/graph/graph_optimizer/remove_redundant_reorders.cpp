@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <list>
 #include <utility>
 #include <vector>
@@ -34,13 +35,10 @@ using namespace cldnn;
 namespace {
 
 bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
-    for (const auto& user : node.get_users()) {
-        if (user->get_preferred_impl_type() == impl) {
-            return true;
-        }
-    }
-
-    return false;
+    const auto& users = node.get_users();
+    return std::any_of(users.begin(), users.end(), [impl](const auto& user) {
+        return user->get_preferred_impl_type() == impl;
+    });
 }
 
 }  // namespace
@@ -150,6 +148,21 @@ void remove_redundant_reorders::run(program& p) {
 
             node.can_be_optimized(true);
             LOG_NODE_REMOVAL(node.id());
+
+            // A reorder user with format::any follows its input format, so pin the output format this
+            // reorder produced before removal. Skip users connected through other inputs.
+            if (input.get_output_layout().format != output_layout.format) {
+                for (auto* usr : node.get_users()) {
+                    if (!usr->is_type<reorder>() || &usr->get_dependency(0) != &node) {
+                        continue;
+                    }
+                    auto usr_prim = std::const_pointer_cast<reorder>(usr->as<reorder>().get_primitive());
+                    if (usr_prim->output_format == format::any) {
+                        usr_prim->output_format = output_layout.format;
+                    }
+                }
+            }
+
             p.extract_and_remove(node);
 
             for (auto* rl : recalc_list) {
@@ -437,9 +450,9 @@ void remove_redundant_reorders::run(program& p) {
             }
 
             LOG_NODE_REMOVAL(remove_reorder_node->id());
-            p.replace_all_usages(*remove_reorder_node, *node);
+            program::replace_all_usages(*remove_reorder_node, *node);
             p.add_optimized_primitive_info(remove_reorder_node->id());
-            p.remove_all_connections(*remove_reorder_node);
+            program::remove_all_connections(*remove_reorder_node);
             p.remove_if_dangling(*remove_reorder_node);
         }
     }
@@ -548,9 +561,9 @@ void remove_redundant_reorders::run(program& p) {
         dep.merge_output_padding(node.get_output_layout().data_padding);
 
         LOG_NODE_REMOVAL(node.id());
-        p.replace_all_usages(node, dep);
+        program::replace_all_usages(node, dep);
         p.add_optimized_primitive_info(node.id());
-        p.remove_all_connections(node);
+        program::remove_all_connections(node);
         p.remove_if_dangling(node);
     }
 
@@ -608,10 +621,10 @@ void remove_redundant_reorders::run(program& p) {
 
         dep.merge_output_padding(node->get_output_layout().data_padding);
         LOG_NODE_REMOVAL(node->id());
-        p.replace_all_usages(*node, dep);
+        program::replace_all_usages(*node, dep);
         p.get_processing_order().erase(node);
         p.add_optimized_primitive_info(node->id());
-        p.remove_all_connections(*node);
+        program::remove_all_connections(*node);
         p.remove_if_dangling(*node);
         return true;
     };
@@ -777,9 +790,9 @@ void remove_redundant_reorders::run(program& p) {
         auto& dep = node->get_dependency(0);
 
         LOG_NODE_REMOVAL(node->id());
-        p.replace_all_usages(*node, dep);
+        program::replace_all_usages(*node, dep);
         p.add_optimized_primitive_info(node->id());
-        p.remove_all_connections(*node);
+        program::remove_all_connections(*node);
         p.remove_if_dangling(*node);
     }
 

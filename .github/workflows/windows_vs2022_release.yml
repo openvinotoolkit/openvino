@@ -712,7 +712,7 @@ jobs:
   GPU_Unit_Tests:
     name: GPU unit tests
     needs: [ Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: ${{ github.event_name != 'merge_group' && fromJSON(needs.smart_ci.outputs.affected_components).GPU }}
     timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
     defaults:
       run:
@@ -753,7 +753,7 @@ jobs:
           path: 'gtest-parallel'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
