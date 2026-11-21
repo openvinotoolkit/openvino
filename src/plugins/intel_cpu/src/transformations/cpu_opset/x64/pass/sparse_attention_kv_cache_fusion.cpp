@@ -7,13 +7,10 @@
 #include <algorithm>
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -28,12 +25,14 @@
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 
 namespace ov::intel_cpu {
@@ -151,27 +150,14 @@ void reroute_shape_of_consumers(const std::shared_ptr<ov::Node>& concat, const o
 
 }  // namespace
 
-bool SparseAttentionKVCacheFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_MODEL_SCOPE(SparseAttentionKVCacheFusion);
+SparseAttentionKVCacheFusion::SparseAttentionKVCacheFusion() {
+    MATCHER_SCOPE(SparseAttentionKVCacheFusion);
 
     const auto p = make_pattern();
-    // Variables whose SparseAttention has already been fused; later matches on the same Variable are reader-only
-    // consumers and must be skipped.
-    std::unordered_set<std::string> processed_k_variable_ids;
-    std::unordered_set<std::string> processed_v_variable_ids;
-    bool rewritten = false;
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
 
-    for (const auto& op : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v17::SparseAttention>(op)) {
-            continue;
-        }
-        pattern::Matcher matcher(p.sparse, "SparseAttentionKVCacheFusion");
-        if (!matcher.match(op->output(0))) {
-            continue;
-        }
-        const auto& pattern_map = matcher.get_pattern_value_map();
-
-        const auto sparse_node = ov::as_type_ptr<ov::op::v17::SparseAttention>(op);
+        const auto sparse_node = ov::as_type_ptr<ov::op::v17::SparseAttention>(m.get_match_root());
         const auto concat_k_node =
             ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(p.concat_k).get_node_shared_ptr());
         const auto concat_v_node =
@@ -184,20 +170,21 @@ bool SparseAttentionKVCacheFusion::run_on_model(const std::shared_ptr<ov::Model>
             ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(p.past_k).get_node_shared_ptr());
         const auto past_v_node =
             ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(p.past_v).get_node_shared_ptr());
-        OPENVINO_ASSERT(sparse_node && concat_k_node && concat_v_node && gather_k_node && gather_v_node &&
-                            past_k_node && past_v_node,
-                        "SparseAttentionKVCacheFusion: the pattern matched nodes of unexpected types");
+        if (!sparse_node || !concat_k_node || !concat_v_node || !gather_k_node || !gather_v_node || !past_k_node ||
+            !past_v_node) {
+            return false;
+        }
 
-        if (processed_k_variable_ids.count(past_k_node->get_variable_id()) != 0 ||
-            processed_v_variable_ids.count(past_v_node->get_variable_id()) != 0) {
-            continue;
+        if (m_processed_k_variable_ids.count(past_k_node->get_variable_id()) != 0 ||
+            m_processed_v_variable_ids.count(past_v_node->get_variable_id()) != 0) {
+            return false;
         }
 
         const auto assign_k = find_assign(concat_k_node);
         const auto assign_v = find_assign(concat_v_node);
         if (assign_k.assign == nullptr || past_k_node->get_variable_id() != assign_k.assign->get_variable_id() ||
             assign_v.assign == nullptr || past_v_node->get_variable_id() != assign_v.assign->get_variable_id()) {
-            continue;
+            return false;
         }
 
         OutputVector args = {pattern_map.at(p.cur_q),
@@ -241,11 +228,13 @@ bool SparseAttentionKVCacheFusion::run_on_model(const std::shared_ptr<ov::Model>
         past_k_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
         past_v_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
 
-        processed_k_variable_ids.insert(past_k_node->get_variable_id());
-        processed_v_variable_ids.insert(past_v_node->get_variable_id());
-        rewritten = true;
-    }
-    return rewritten;
+        m_processed_k_variable_ids.insert(past_k_node->get_variable_id());
+        m_processed_v_variable_ids.insert(past_v_node->get_variable_id());
+
+        return true;
+    };
+
+    register_matcher(std::make_shared<pattern::Matcher>(p.sparse, matcher_name), callback);
 }
 
 }  // namespace ov::intel_cpu

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <memory>
+#include <string>
+#include <unordered_set>
 
-#include "openvino/core/model.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::intel_cpu {
 
@@ -19,14 +19,16 @@ namespace ov::intel_cpu {
 /// This is the sparse counterpart of StatefulSDPAFusion. The fused op keeps the cache in the plugin's KV cache
 /// states (see MatchSparseSdpaKvCache), so the history is not copied by the Concat on every step. Only the
 /// canonical layout is handled: key/value are [N, Hkv, S, E] and are concatenated along axis 2.
-///
-/// It is a ModelPass because the fusion rewires nodes outside of the matched pattern: the Assign sinks of the
-/// states and the ShapeOf consumers of the Concats.
-class SparseAttentionKVCacheFusion : public ov::pass::ModelPass {
+class SparseAttentionKVCacheFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("SparseAttentionKVCacheFusion");
-    SparseAttentionKVCacheFusion() = default;
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("SparseAttentionKVCacheFusion");
+    SparseAttentionKVCacheFusion();
+
+private:
+    // Variable ids of past_k / past_v whose SparseAttention has already been fused; later matches on the same Variable
+    // are reader-only consumers and must be skipped.
+    std::unordered_set<std::string> m_processed_k_variable_ids;
+    std::unordered_set<std::string> m_processed_v_variable_ids;
 };
 
 }  // namespace ov::intel_cpu
