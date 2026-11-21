@@ -17,9 +17,10 @@
 #include <tuple>
 #include <vector>
 
-#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "espcn_x2_model.hpp"
+#include "host_compile_profile.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -216,23 +217,31 @@ public:
     }
 
     static void inferAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
-        reqDynamic.infer();
-        reqReference.infer();
+        host_compile_profile::infer(reqDynamic, "NPU infer");
+        host_compile_profile::infer(reqReference, "TEMPLATE infer");
 
         const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
         const auto referenceOutputTensor = reqReference.get_output_tensor(0);
         // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32.
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type(), 0.02, 0.02);
+        host_compile_profile::compare(referenceOutputTensor,
+                                      npuOutputTensor,
+                                      npuOutputTensor.get_element_type(),
+                                      0.02,
+                                      0.02);
     }
 
     static void waitAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
-        reqDynamic.wait();
-        reqReference.infer();
+        host_compile_profile::wait(reqDynamic);
+        host_compile_profile::infer(reqReference, "TEMPLATE infer");
 
         const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
         const auto referenceOutputTensor = reqReference.get_output_tensor(0);
         // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32.
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type(), 0.02, 0.02);
+        host_compile_profile::compare(referenceOutputTensor,
+                                      npuOutputTensor,
+                                      npuOutputTensor.get_element_type(),
+                                      0.02,
+                                      0.02);
     }
 
     static void setInputInferAndCompare(ov::InferRequest& reqDynamic,
@@ -281,7 +290,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
@@ -295,16 +304,17 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
             kThreadCount,
             [this, &cfg, &shape, &referenceCompiledModel, &requests, &referenceRequests, &inputs](size_t threadIdx) {
                 auto model = createModelByName(selectedModelName);
-                auto compiledModel = core.compile_model(model, target_device, cfg);
-                requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
-                referenceRequests[threadIdx] =
-                    std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                auto compiledModel = host_compile_profile::compile(core, model, target_device, cfg);
+                requests[threadIdx] = std::make_shared<ov::InferRequest>(
+                    host_compile_profile::createRequest(compiledModel, "NPU create request"));
+                referenceRequests[threadIdx] = std::make_shared<ov::InferRequest>(
+                    host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request"));
                 inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(1 + threadIdx));
                 requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
             },
             [&requests](size_t threadIdx) {
-                requests[threadIdx]->start_async();
+                host_compile_profile::startAsync(*requests[threadIdx]);
             },
             [&requests, &referenceRequests](size_t threadIdx) {
                 waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
@@ -325,7 +335,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
     const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();
     }
@@ -333,11 +343,11 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
     const auto cfg = makeConfig(/*sharedQueue=*/true);
     auto model = createModelByName(selectedModelName);
     ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, cfg));
+    OV_ASSERT_NO_THROW(compiledModel = host_compile_profile::compile(core, model, target_device, cfg));
 
-    auto npuRequestA = compiledModel.create_infer_request();
-    auto referenceRequestA = referenceCompiledModel.create_infer_request();
-    auto referenceRequestB = referenceCompiledModel.create_infer_request();
+    auto npuRequestA = host_compile_profile::createRequest(compiledModel, "NPU create request");
+    auto referenceRequestA = host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request");
+    auto referenceRequestB = host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request");
 
     // Adjacent seed pairs from the low and high end of the seeds used by the concurrent tests, at both shapes.
     const ov::Shape shapeLarge = makeInputShape(referenceModel, 1, true);
@@ -353,9 +363,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
         referenceRequestA.set_input_tensor(0, inputA);
         referenceRequestB.set_input_tensor(0, inputB);
 
-        OV_ASSERT_NO_THROW(npuRequestA.infer());
-        OV_ASSERT_NO_THROW(referenceRequestA.infer());
-        OV_ASSERT_NO_THROW(referenceRequestB.infer());
+        OV_ASSERT_NO_THROW(host_compile_profile::infer(npuRequestA, "NPU infer"));
+        OV_ASSERT_NO_THROW(host_compile_profile::infer(referenceRequestA, "TEMPLATE infer"));
+        OV_ASSERT_NO_THROW(host_compile_profile::infer(referenceRequestB, "TEMPLATE infer"));
 
         const auto npuOutputA = npuRequestA.get_output_tensor(0);
         const auto referenceOutputA = referenceRequestA.get_output_tensor(0);
@@ -363,10 +373,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
         const auto outputType = npuOutputA.get_element_type();
 
         // Matching request pair stays within the NPU-calibrated tolerance.
-        OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputA, npuOutputA, outputType, 0.02, 0.02));
+        OV_ASSERT_NO_THROW(host_compile_profile::compare(referenceOutputA, npuOutputA, outputType, 0.02, 0.02));
 
         // The other request's reference must be rejected, proving swapped outputs are detectable.
-        ASSERT_THROW(ov::test::utils::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02),
+        ASSERT_THROW(host_compile_profile::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02),
                      std::runtime_error);
     }
 }
@@ -382,7 +392,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
     const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
@@ -391,7 +401,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
         const auto cfg = makeConfig(sharedQueue);
         auto model = createModelByName(selectedModelName);
         ov::CompiledModel compiledModel;
-        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, cfg));
+        OV_ASSERT_NO_THROW(compiledModel = host_compile_profile::compile(core, model, target_device, cfg));
 
         std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
         std::vector<std::shared_ptr<ov::InferRequest>> referenceRequests(kThreadCount);
@@ -400,15 +410,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
             kThreadCount,
             [model, &compiledModel, &referenceCompiledModel, &shape, &requests, &referenceRequests, &inputs](
                 size_t threadIdx) {
-                requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
-                referenceRequests[threadIdx] =
-                    std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                requests[threadIdx] = std::make_shared<ov::InferRequest>(
+                    host_compile_profile::createRequest(compiledModel, "NPU create request"));
+                referenceRequests[threadIdx] = std::make_shared<ov::InferRequest>(
+                    host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request"));
                 inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(1 + threadIdx));
                 requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
             },
             [&requests](size_t threadIdx) {
-                requests[threadIdx]->start_async();
+                host_compile_profile::startAsync(*requests[threadIdx]);
             },
             [&requests, &referenceRequests](size_t threadIdx) {
                 waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
@@ -427,7 +438,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
     const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
@@ -439,7 +450,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         auto model = createModelByName(selectedModelName);
         ov::CompiledModel compiledModel;
         try {
-            compiledModel = core.compile_model(model, target_device, cfg);
+            compiledModel = host_compile_profile::compile(core, model, target_device, cfg);
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "model priority is not supported: " << e.what();
         }
@@ -449,8 +460,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         requests.reserve(kThreadCount);
         referenceRequests.reserve(kThreadCount);
         for (size_t i = 0; i < kThreadCount; ++i) {
-            requests.emplace_back(compiledModel.create_infer_request());
-            referenceRequests.emplace_back(referenceCompiledModel.create_infer_request());
+            requests.emplace_back(host_compile_profile::createRequest(compiledModel, "NPU create request"));
+            referenceRequests.emplace_back(
+                host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request"));
         }
 
         // Each phase uses fresh seeds so a request's data changes after every priority switch.
@@ -464,7 +476,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         runConcurrentlyAsync(
             kThreadCount,
             [&requests](size_t threadIdx) {
-                requests[threadIdx].start_async();
+                host_compile_profile::startAsync(requests[threadIdx]);
             },
             [&requests, &referenceRequests](size_t threadIdx) {
                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
@@ -482,7 +494,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         runConcurrentlyAsync(
             kThreadCount,
             [&requests](size_t threadIdx) {
-                requests[threadIdx].start_async();
+                host_compile_profile::startAsync(requests[threadIdx]);
             },
             [&requests, &referenceRequests](size_t threadIdx) {
                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
@@ -500,7 +512,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
         runConcurrentlyAsync(
             kThreadCount,
             [&requests](size_t threadIdx) {
-                requests[threadIdx].start_async();
+                host_compile_profile::startAsync(requests[threadIdx]);
             },
             [&requests, &referenceRequests](size_t threadIdx) {
                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
@@ -523,7 +535,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
     const ov::Shape shapeSmall = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
@@ -538,7 +550,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
         size_t modelCount = kModelCount;
         auto producer = std::async(std::launch::async, [this, &compiledModels, &model, &cfg, modelCount]() {
             for (size_t i = 0; i < modelCount; ++i) {
-                compiledModels.emplace_back(core.compile_model(model, target_device, cfg));
+                compiledModels.emplace_back(host_compile_profile::compile(core, model, target_device, cfg));
             }
         });
         producer.get();
@@ -574,9 +586,12 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                     for (size_t modelIdx = 0; modelIdx < compiledModels.size(); ++modelIdx) {
                         for (size_t reqIdx = 0; reqIdx < requestsPerModel; ++reqIdx) {
                             if (inferIdx == 0) {
-                                requests[threadIdx].emplace_back(compiledModels[modelIdx].create_infer_request());
+                                requests[threadIdx].emplace_back(
+                                    host_compile_profile::createRequest(compiledModels[modelIdx],
+                                                                        "NPU create request"));
                                 referenceRequests[threadIdx].emplace_back(
-                                    referenceCompiledModel.create_infer_request());
+                                    host_compile_profile::createRequest(referenceCompiledModel,
+                                                                        "TEMPLATE create request"));
                             }
                             const int requestSeedIndex = static_cast<int>(
                                 threadIdx * (compiledModels.size() * requestsPerModel) +
@@ -591,7 +606,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                 },
                 [&requests](size_t threadIdx) {
                     for (auto& request : requests[threadIdx]) {
-                        request.start_async();
+                        host_compile_profile::startAsync(request);
                     }
                 },
                 [&requests, &referenceRequests, &successInferCount](size_t threadIdx) {
@@ -621,7 +636,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
     const ov::Shape shapeSmall = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
@@ -630,7 +645,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
         const auto cfg = makeConfig(sharedQueue);
         auto model = createModelByName(selectedModelName);
         ov::CompiledModel compiledModel;
-        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, cfg));
+        OV_ASSERT_NO_THROW(compiledModel = host_compile_profile::compile(core, model, target_device, cfg));
 
         std::atomic<size_t> successInferCount{0};
         std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
@@ -653,9 +668,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
                  &shape,
                  inferIdx](size_t threadIdx) {
                     if (!requests[threadIdx]) {
-                        requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
-                        referenceRequests[threadIdx] =
-                            std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                        requests[threadIdx] = std::make_shared<ov::InferRequest>(
+                            host_compile_profile::createRequest(compiledModel, "NPU create request"));
+                        referenceRequests[threadIdx] = std::make_shared<ov::InferRequest>(
+                            host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request"));
                     }
                     auto zeroContext = core.get_default_context(target_device);
                     const int seed = static_cast<int>(100 + threadIdx * 11 + inferIdx);
@@ -667,7 +683,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
                     referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 },
                 [&requests](size_t threadIdx) {
-                    requests[threadIdx]->start_async();
+                    host_compile_profile::startAsync(*requests[threadIdx]);
                 },
                 [&requests, &referenceRequests, &successInferCount](size_t threadIdx) {
                     waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
@@ -693,7 +709,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
     const ov::Shape shapeSmall = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
@@ -726,11 +742,11 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
                     if (!models[threadIdx]) {
                         models[threadIdx] = createModelByName(selectedModelName);
                         compiledModels[threadIdx] = std::make_shared<ov::CompiledModel>(
-                            core.compile_model(models[threadIdx], target_device, cfg));
-                        requests[threadIdx] =
-                            std::make_shared<ov::InferRequest>(compiledModels[threadIdx]->create_infer_request());
-                        referenceRequests[threadIdx] =
-                            std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                            host_compile_profile::compile(core, models[threadIdx], target_device, cfg));
+                        requests[threadIdx] = std::make_shared<ov::InferRequest>(
+                            host_compile_profile::createRequest(*compiledModels[threadIdx], "NPU create request"));
+                        referenceRequests[threadIdx] = std::make_shared<ov::InferRequest>(
+                            host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request"));
                     }
                     auto zeroContext = core.get_default_context(target_device);
                     const int seed = static_cast<int>(100 + threadIdx * 11 + inferIdx);
@@ -742,7 +758,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
                     referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
                 },
                 [&requests](size_t threadIdx) {
-                    requests[threadIdx]->start_async();
+                    host_compile_profile::startAsync(*requests[threadIdx]);
                 },
                 [&requests, &referenceRequests, &successInferCount](size_t threadIdx) {
                     waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
@@ -767,7 +783,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
     const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
-        referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+        referenceCompiledModel = host_compile_profile::compile(core, referenceModel, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
@@ -817,12 +833,13 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
                         compiledModel = compiledModels[idx];
                     }
 
-                    auto reqDynamic = compiledModel.create_infer_request();
-                    auto reqReference = referenceCompiledModel.create_infer_request();
+                    auto reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+                    auto reqReference =
+                        host_compile_profile::createRequest(referenceCompiledModel, "TEMPLATE create request");
                     auto input = makeInputTensor(model, shape, static_cast<int>(1 + threadIdx));
                     reqDynamic.set_input_tensor(0, input);
                     reqReference.set_input_tensor(0, input);
-                    reqDynamic.start_async();
+                    host_compile_profile::startAsync(reqDynamic);
                     waitAndCompare(reqDynamic, reqReference);
                     successInferCount.fetch_add(1, std::memory_order_relaxed);
                 }
@@ -851,7 +868,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
                                           start.wait();
                                           try {
                                               for (size_t i = 0; i < modelCount; ++i) {
-                                                  auto compiledModel = core.compile_model(model, target_device, cfg);
+                                                  auto compiledModel =
+                                                      host_compile_profile::compile(core, model, target_device, cfg);
                                                   {
                                                       std::lock_guard<std::mutex> lock(mutex);
                                                       compiledModels.push_back(compiledModel);

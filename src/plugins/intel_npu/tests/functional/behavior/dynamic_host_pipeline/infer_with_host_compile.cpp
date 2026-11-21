@@ -18,6 +18,7 @@
 #include "common/utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "espcn_x2_model.hpp"
+#include "host_compile_profile.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/op/constant.hpp"
@@ -182,19 +183,19 @@ void InferWithHostCompileTests::compareInferenceResult(const std::shared_ptr<ov:
     // tighter than any stale/garbage or cross-request difference.
     constexpr double absThreshold = 0.02;
     constexpr double relThreshold = 0.02;
-    ov::test::utils::compare(referenceOutputTensor,
-                             npuOutputTensor,
-                             npuOutputTensor.get_element_type(),
-                             absThreshold,
-                             relThreshold);
+    host_compile_profile::compare(referenceOutputTensor,
+                                  npuOutputTensor,
+                                  npuOutputTensor.get_element_type(),
+                                  absThreshold,
+                                  relThreshold);
 }
 
 void InferWithHostCompileTests::inferAndCompare(const std::shared_ptr<ov::Model>& model,
                                                 ov::InferRequest& reqDynamic,
                                                 ov::InferRequest& reqReference,
                                                 const std::string& stage) {
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    OV_ASSERT_NO_THROW(reqReference.infer());
+    OV_ASSERT_NO_THROW(host_compile_profile::infer(reqDynamic, "NPU infer"));
+    OV_ASSERT_NO_THROW(host_compile_profile::infer(reqReference, "TEMPLATE infer"));
     try {
         compareInferenceResult(model, reqDynamic, reqReference);
     } catch (const ov::Exception& e) {
@@ -222,7 +223,7 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     result.context.model = model;
 
     try {
-        result.context.compiledModel = core.compile_model(model, target_device, configuration);
+        result.context.compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::fail;
         result.message = std::string("Failed to compile model for target device: ") + e.what();
@@ -230,7 +231,8 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     }
 
     try {
-        result.context.referenceCompiledModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        result.context.referenceCompiledModel =
+            host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::skip;
         result.message = std::string("TEMPLATE plugin is not available for reference comparison: ") + e.what();
@@ -238,7 +240,8 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     }
 
     try {
-        result.context.reqDynamic = result.context.compiledModel.create_infer_request();
+        result.context.reqDynamic =
+            host_compile_profile::createRequest(result.context.compiledModel, "NPU create request");
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::fail;
         result.message = std::string("Failed to create dynamic infer request: ") + e.what();
@@ -246,7 +249,8 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     }
 
     try {
-        result.context.reqReference = result.context.referenceCompiledModel.create_infer_request();
+        result.context.reqReference =
+            host_compile_profile::createRequest(result.context.referenceCompiledModel, "TEMPLATE create request");
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::fail;
         result.message = std::string("Failed to create reference infer request: ") + e.what();
@@ -265,7 +269,7 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
 
     ov::CompiledModel compiledModel;
 
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = host_compile_profile::compile(core, model, target_device, configuration));
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
@@ -273,8 +277,8 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     ov::InferRequest reqDynamic;
     ov::CompiledModel importedModel;
     OV_ASSERT_NO_THROW(importedModel = core.import_model(modelStream, target_device));
-    OV_ASSERT_NO_THROW(reqDynamic = importedModel.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    OV_ASSERT_NO_THROW(reqDynamic = host_compile_profile::createRequest(importedModel, "NPU create request"));
+    OV_ASSERT_NO_THROW(host_compile_profile::infer(reqDynamic, "NPU infer"));
 }
 
 // Compile, infer with a large shape, then shrink the input shape and verify the dynamic v2 execution path still
@@ -417,8 +421,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
                             "CompileAndInferWithZeroTensor_first");
 
     logCapture.clear();
-    ov::InferRequest reqDynamic1 = testContext.compiledModel.create_infer_request();
-    ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
+    ov::InferRequest reqDynamic1 = host_compile_profile::createRequest(testContext.compiledModel, "NPU create request");
+    ov::InferRequest reqReference1 =
+        host_compile_profile::createRequest(testContext.referenceCompiledModel, "TEMPLATE create request");
     setInputInferAndCompare(model, reqDynamic1, reqReference1, inTensor, "CompileAndInferWithZeroTensor_second");
 
     logCapture.clear();
@@ -512,8 +517,9 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     }
     auto& testContext = setupResult.context;
 
-    ov::InferRequest reqDynamic1 = testContext.compiledModel.create_infer_request();
-    ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
+    ov::InferRequest reqDynamic1 = host_compile_profile::createRequest(testContext.compiledModel, "NPU create request");
+    ov::InferRequest reqReference1 =
+        host_compile_profile::createRequest(testContext.referenceCompiledModel, "TEMPLATE create request");
 
     // A single N=2 tensor must execute as one dynamic VM inference.
     const ov::Shape batchShape = makeInputShape(model, 2, false);
@@ -550,8 +556,8 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 100));
     OV_ASSERT_NO_THROW(reqDynamic1.set_tensors(testContext.compiledModel.input(), tensorBatch));
     OV_ASSERT_NO_THROW(reqReference1.set_tensors(testContext.referenceCompiledModel.input(), tensorBatch));
-    OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    OV_ASSERT_NO_THROW(reqReference1.infer());
+    OV_ASSERT_NO_THROW(host_compile_profile::infer(reqDynamic1, "NPU infer"));
+    OV_ASSERT_NO_THROW(host_compile_profile::infer(reqReference1, "TEMPLATE infer"));
     ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), makeOutputShape(selectedModelName, batchShape));
     compareInferenceResult(model, reqDynamic1, reqReference1);
 
@@ -725,20 +731,20 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_WorkloadType) {
             try {
                 auto savedCfg = configuration;
                 configuration = cfg;
-                compiledModel = core.compile_model(model, target_device, configuration);
+                compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
                 configuration = savedCfg;
             } catch (const ov::Exception& e) {
                 GTEST_SKIP() << "workload_type compile-time config not supported: " << e.what();
             }
             ov::CompiledModel refModel;
             try {
-                refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+                refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
             } catch (const ov::Exception&) {
                 GTEST_SKIP() << "TEMPLATE plugin unavailable";
             }
 
-            auto reqDynamic = compiledModel.create_infer_request();
-            auto reqRef = refModel.create_infer_request();
+            auto reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+            auto reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
             const ov::Shape shape = makeInputShape(model, 1, true);
             ov::Tensor inTensor =
                 ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -764,28 +770,28 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo) {
             try {
                 auto savedCfg = configuration;
                 configuration = cfg;
-                compiledModel = core.compile_model(model, target_device, configuration);
+                compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
                 configuration = savedCfg;
             } catch (const ov::Exception& e) {
                 GTEST_SKIP() << "turbo compile-time config not supported: " << e.what();
             }
             ov::CompiledModel refModel;
             try {
-                refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+                refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
             } catch (const ov::Exception&) {
                 GTEST_SKIP() << "TEMPLATE plugin unavailable";
             }
 
-            auto reqDynamic = compiledModel.create_infer_request();
-            auto reqRef = refModel.create_infer_request();
+            auto reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+            auto reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
             const ov::Shape shape = makeInputShape(model, 1, true);
             ov::Tensor inTensor =
                 ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
             OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
             OV_ASSERT_NO_THROW(reqRef.set_input_tensor(0, inTensor));
             try {
-                reqDynamic.infer();
-                OV_ASSERT_NO_THROW(reqRef.infer());
+                host_compile_profile::infer(reqDynamic, "NPU infer");
+                OV_ASSERT_NO_THROW(host_compile_profile::infer(reqRef, "TEMPLATE infer"));
                 OV_ASSERT_NO_THROW(compareInferenceResult(model, reqDynamic, reqRef));
             } catch (const ov::Exception& e) {
                 if (!turbo) {
@@ -818,14 +824,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
         try {
             auto savedCfg = configuration;
             configuration = cfg;
-            compiledModel = core.compile_model(model, target_device, configuration);
+            compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
             configuration = savedCfg;
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "compile_model failed: " << e.what();
         }
         ov::CompiledModel refModel;
         try {
-            refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+            refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
         } catch (const ov::Exception&) {
             GTEST_SKIP() << "TEMPLATE plugin unavailable";
         }
@@ -837,8 +843,8 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
             GTEST_SKIP() << "workload_type not supported: " << e.what();
         }
 
-        auto reqDynamic = compiledModel.create_infer_request();
-        auto reqRef = refModel.create_infer_request();
+        auto reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+        auto reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
         const ov::Shape shape = makeInputShape(model, 1, true);
         ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
         OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef, inTensor, "CombinedConfig_baseline"));
@@ -869,7 +875,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
 //   compiledModel.set_property({model_priority, HIGH})
 //   → DynamicGraph::set_model_priority(HIGH)
 //     → _commandQueueDesc.set_priority(HIGH) → new key
-//   reqDynamic.infer() → DynamicPipeline::push()
+//   host_compile_profile::infer(reqDynamic, "NPU infer") → DynamicPipeline::push()
 //     → command_queue_desc.key() != _command_queue->desc().key()   (changed)
 //     → [shared=YES] _command_queue = ZeroCmdQueuePool::getCommandQueue(new_desc)
 //     → update_runtime_config(prev_desc, curr_desc) → QUEUE_PRIORITY diff → pConfig
@@ -927,8 +933,9 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel)
     OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference, "Priority_MEDIUM_to_LOW"));
 
     // New InferRequest after set_property: must use the updated CommandQueueDesc.
-    ov::InferRequest reqNew = ctx.compiledModel.create_infer_request();
-    ov::InferRequest reqRefNew = ctx.referenceCompiledModel.create_infer_request();
+    ov::InferRequest reqNew = host_compile_profile::createRequest(ctx.compiledModel, "NPU create request");
+    ov::InferRequest reqRefNew =
+        host_compile_profile::createRequest(ctx.referenceCompiledModel, "TEMPLATE create request");
     OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqNew, reqRefNew, inTensor, "Priority_new_request_after_set"));
 }
 
@@ -984,7 +991,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_RetryAfterUndersizedOutpu
                                                 0);
     OV_ASSERT_NO_THROW(ctx.reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(ctx.reqDynamic.set_tensor(model->output(), undersizedOutput));
-    ASSERT_ANY_THROW(ctx.reqDynamic.infer());
+    ASSERT_ANY_THROW(host_compile_profile::infer(ctx.reqDynamic, "NPU infer"));
 
     // Second switch HIGH->MEDIUM, then retry with a correctly sized output tensor. The retry's Execute2
     // migrates the fence off the original queue, which must still be alive after both switches.
@@ -1022,14 +1029,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) 
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core.compile_model(model, target_device, configuration);
+        compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1042,8 +1049,8 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) 
         GTEST_SKIP() << "workload_type not supported: " << e.what();
     }
 
-    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
-    ov::InferRequest reqRef = refModel.create_infer_request();
+    ov::InferRequest reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+    ov::InferRequest reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
 
     const ov::Shape shape = makeInputShape(model, 1, true);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -1070,7 +1077,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_SharedCommonQueue) {
     auto model = createModelByName(selectedModelName);
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1084,13 +1091,13 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_SharedCommonQueue) {
 
         ov::CompiledModel compiledModel;
         try {
-            compiledModel = core.compile_model(model, target_device, cfg);
+            compiledModel = host_compile_profile::compile(core, model, target_device, cfg);
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "turbo compile-time config not supported: " << e.what();
         }
 
-        auto reqDynamic = compiledModel.create_infer_request();
-        auto reqRef = refModel.create_infer_request();
+        auto reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+        auto reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
         OV_ASSERT_NO_THROW(setInputInferAndCompare(model,
                                                    reqDynamic,
                                                    reqRef,
@@ -1106,14 +1113,14 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_SharedCommonQueue) {
 // command_queue_version_changed=true and independently replaces its _command_queue.
 //
 // Sequence:
-//   reqA.infer() at LOW  → establishes LOW queue in reqA's DynamicPipeline
-//   reqB.infer() at LOW  → establishes LOW queue in reqB's DynamicPipeline
+//   host_compile_profile::infer(reqA, "NPU infer") at LOW  → establishes LOW queue in reqA's DynamicPipeline
+//   host_compile_profile::infer(reqB, "NPU infer") at LOW  → establishes LOW queue in reqB's DynamicPipeline
 //   set_property(HIGH)   → _commandQueueDesc.key() changes for both pipelines
-//   reqA.infer() at HIGH → push() detects change; QUEUE_PRIORITY diff in pConfig
-//   reqB.infer() at HIGH → same
+//   host_compile_profile::infer(reqA, "NPU infer") at HIGH → push() detects change; QUEUE_PRIORITY diff in pConfig
+//   host_compile_profile::infer(reqB, "NPU infer") at HIGH → same
 //   set_property(LOW)    → back to LOW
-//   reqA.infer() at LOW  → second transition
-//   reqB.infer() at LOW  → second transition
+//   host_compile_profile::infer(reqA, "NPU infer") at LOW  → second transition
+//   host_compile_profile::infer(reqB, "NPU infer") at LOW  → second transition
 TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -1129,21 +1136,21 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests) {
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core.compile_model(model, target_device, configuration);
+        compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
 
-    ov::InferRequest reqA = compiledModel.create_infer_request();
-    ov::InferRequest reqB = compiledModel.create_infer_request();
-    ov::InferRequest reqRef = refModel.create_infer_request();
+    ov::InferRequest reqA = host_compile_profile::createRequest(compiledModel, "NPU create request");
+    ov::InferRequest reqB = host_compile_profile::createRequest(compiledModel, "NPU create request");
+    ov::InferRequest reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
 
     const ov::Shape shape = makeInputShape(model, 1, true);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -1206,8 +1213,9 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel_
     OV_ASSERT_NO_THROW(ctx.compiledModel.set_property({{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
     OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference, "Priority_nonshared_MEDIUM_to_LOW"));
 
-    ov::InferRequest reqNew = ctx.compiledModel.create_infer_request();
-    ov::InferRequest reqRefNew = ctx.referenceCompiledModel.create_infer_request();
+    ov::InferRequest reqNew = host_compile_profile::createRequest(ctx.compiledModel, "NPU create request");
+    ov::InferRequest reqRefNew =
+        host_compile_profile::createRequest(ctx.referenceCompiledModel, "TEMPLATE create request");
     OV_ASSERT_NO_THROW(
         setInputInferAndCompare(model, reqNew, reqRefNew, inTensor, "Priority_nonshared_new_request_after_set"));
 }
@@ -1226,14 +1234,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_N
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core.compile_model(model, target_device, configuration);
+        compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1245,8 +1253,8 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_N
         GTEST_SKIP() << "workload_type not supported in nonshared queue mode: " << e.what();
     }
 
-    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
-    ov::InferRequest reqRef = refModel.create_infer_request();
+    ov::InferRequest reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+    ov::InferRequest reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
 
     const ov::Shape shape = makeInputShape(model, 1, true);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -1272,7 +1280,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_NonSharedCommonQueue) 
     auto model = createModelByName(selectedModelName);
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1286,13 +1294,13 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_NonSharedCommonQueue) 
 
         ov::CompiledModel compiledModel;
         try {
-            compiledModel = core.compile_model(model, target_device, cfg);
+            compiledModel = host_compile_profile::compile(core, model, target_device, cfg);
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "turbo compile-time config not supported in nonshared queue mode: " << e.what();
         }
 
-        auto reqDynamic = compiledModel.create_infer_request();
-        auto reqRef = refModel.create_infer_request();
+        auto reqDynamic = host_compile_profile::createRequest(compiledModel, "NPU create request");
+        auto reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
         OV_ASSERT_NO_THROW(
             setInputInferAndCompare(model,
                                     reqDynamic,
@@ -1317,21 +1325,21 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSha
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core.compile_model(model, target_device, configuration);
+        compiledModel = host_compile_profile::compile(core, model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = host_compile_profile::compile(core, model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
 
-    ov::InferRequest reqA = compiledModel.create_infer_request();
-    ov::InferRequest reqB = compiledModel.create_infer_request();
-    ov::InferRequest reqRef = refModel.create_infer_request();
+    ov::InferRequest reqA = host_compile_profile::createRequest(compiledModel, "NPU create request");
+    ov::InferRequest reqB = host_compile_profile::createRequest(compiledModel, "NPU create request");
+    ov::InferRequest reqRef = host_compile_profile::createRequest(refModel, "TEMPLATE create request");
 
     const ov::Shape shape = makeInputShape(model, 1, true);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -1489,7 +1497,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 
     ov::CompiledModel compiledModel;
     // Compilation shall pass since load of openvino_intel_npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = host_compile_profile::compile(core, model, target_device, configuration));
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
@@ -1507,7 +1515,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     ov::InferRequest reqDynamic;
     try {
         ov::CompiledModel importedModel = core.import_model(modelStream, target_device);
-        reqDynamic = importedModel.create_infer_request();
+        reqDynamic = host_compile_profile::createRequest(importedModel, "NPU create request");
     } catch (const ov::Exception& e) {
         if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
             FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
@@ -1516,7 +1524,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
         }
     }
 
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    OV_ASSERT_NO_THROW(host_compile_profile::infer(reqDynamic, "NPU infer"));
 }
 
 }  // namespace behavior
