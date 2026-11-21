@@ -283,4 +283,106 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_3d_AutoPadding_output_paddi
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
+/* ============= Single group (G = 1) ============= */
+// GroupConvolutionBackpropData with groups == 1 and more than one channel used to fail to compile
+// ("could not create a primitive descriptor"), because the group dimension of the weights was ignored.
+const std::vector<size_t> num_groups_single = {1};
+
+const auto groupConvBackpropData_1dParams_SingleGroup = ::testing::Combine(
+        ::testing::ValuesIn(kernels_1d),
+        ::testing::Values(std::vector<size_t>({1}), std::vector<size_t>({2})),
+        ::testing::ValuesIn(pad_begins_1d),
+        ::testing::ValuesIn(pad_ends_1d),
+        ::testing::ValuesIn(dilations_1d),
+        ::testing::ValuesIn(num_out_channels),
+        ::testing::ValuesIn(num_groups_single),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(empty_output_padding)
+);
+
+const auto groupConvBackpropData_2dParams_SingleGroup = ::testing::Combine(
+        ::testing::ValuesIn(kernels_2d),
+        ::testing::ValuesIn(strides_2d),
+        ::testing::ValuesIn(pad_begins_2d),
+        ::testing::ValuesIn(pad_ends_2d),
+        ::testing::ValuesIn(dilations_2d),
+        ::testing::ValuesIn(num_out_channels),
+        ::testing::ValuesIn(num_groups_single),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(empty_output_padding)
+);
+
+const auto groupConvBackpropData_3dParams_SingleGroup = ::testing::Combine(
+        ::testing::ValuesIn(kernels_3d),
+        ::testing::ValuesIn(strides_3d),
+        ::testing::ValuesIn(pad_begins_3d),
+        ::testing::ValuesIn(pad_ends_3d),
+        ::testing::ValuesIn(dilations_3d),
+        ::testing::ValuesIn(num_out_channels),
+        ::testing::ValuesIn(num_groups_single),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(empty_output_padding)
+);
+
+const auto groupConvBackpropData_2dParams_SingleGroup_OutputShape = ::testing::Combine(
+        ::testing::Values(std::vector<size_t>{1, 1}),
+        ::testing::Values(std::vector<size_t>{1, 1}),
+        ::testing::ValuesIn(pad_begins_2d),
+        ::testing::ValuesIn(pad_ends_2d),
+        ::testing::ValuesIn(dilations_2d),
+        ::testing::Values(16),
+        ::testing::ValuesIn(num_groups_single),
+        ::testing::Values(ov::op::PadType::VALID),
+        ::testing::ValuesIn(empty_output_padding)
+);
+
+const std::vector<std::vector<ov::test::InputShape>> dynamic_input_shapes_2d = {
+    {{{ -1, 16, -1, -1 }, { {1, 16, 10, 10}, {2, 16, 8, 8} }}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_1d_SingleGroup, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData_1dParams_SingleGroup,
+                                ::testing::ValuesIn(model_types),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_1d)),
+                                ::testing::ValuesIn(empty_output_shape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_2d_SingleGroup, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData_2dParams_SingleGroup,
+                                ::testing::ValuesIn(model_types),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_2d)),
+                                ::testing::ValuesIn(empty_output_shape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_3d_SingleGroup, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData_3dParams_SingleGroup,
+                                ::testing::ValuesIn(model_types),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_3d)),
+                                ::testing::ValuesIn(empty_output_shape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_2d_SingleGroup_OutputShapeDefined, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData_2dParams_SingleGroup_OutputShape,
+                                ::testing::Values(ov::element::f32),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(input_shape_2d)),
+                                ::testing::ValuesIn(output_shapes_2d),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_2d_SingleGroup_DynamicShape, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData_2dParams_SingleGroup_OutputShape,
+                                ::testing::Values(ov::element::f32),
+                                ::testing::ValuesIn(dynamic_input_shapes_2d),
+                                ::testing::ValuesIn(empty_output_shape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
 }  // namespace
