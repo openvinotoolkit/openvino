@@ -17,6 +17,7 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/plugin/hsm_writer_handler.hpp"
 
 #include <sstream>
 #include <sys/types.h>
@@ -206,6 +207,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
     const auto group_size = graph_base->get_config().get_dynamic_quantization_group_size();
     m_config.set_user_property({ov::hint::dynamic_quantization_group_size(group_size)}, OptionVisibility::RELEASE);
+    m_config.set_user_property({ov::intel_gpu::export_hsm_format(graph_base->get_config().get_export_hsm_format())});
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -236,6 +238,17 @@ void CompiledModel::export_model(std::ostream& model) const {
     const ov::EncryptionCallbacks encryption_callbacks = m_config.get_cache_encryption_callbacks();
 
     const ov::CacheMode cache_mode = m_config.get_cache_mode();
+    if (m_config.get_export_hsm_format()) {
+        hsm::write_model(
+            model,
+            cache_mode,
+            m_runtime_requirements,
+            [&](cldnn::BinaryOutputBuffer& output) {
+                export_payload(output);
+            },
+            encryption_callbacks.encrypt);
+        return;
+    }
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
         encryption_callbacks.encrypt
             ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
@@ -251,6 +264,11 @@ void CompiledModel::export_model(std::ostream& model) const {
     ob << requirements_version;
     ob << m_runtime_requirements;
 
+    export_payload(ob);
+    ob.flush();
+}
+
+void CompiledModel::export_payload(cldnn::BinaryOutputBuffer& ob) const {
     // Inputs
     {
         const auto& params = inputs();
@@ -299,7 +317,6 @@ void CompiledModel::export_model(std::ostream& model) const {
             ob << cldnn::make_data(zeros.data(), zeros.size());
         }
     }
-    ob.flush();
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
