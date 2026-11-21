@@ -62,8 +62,12 @@ GPU:
     - PROXY
 
 NPU:
-  revalidate: []
-  build: []
+  revalidate:
+    - NPUW
+
+NPUW:
+  revalidate:
+    - NPU
 
 HETERO:
   revalidate:
