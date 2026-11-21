@@ -8,6 +8,7 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 
 #include "../logging.hpp"
 #include "../util.hpp"
@@ -269,6 +270,32 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
                             size_t embed_dim,
                             size_t input_token_count,
                             const std::vector<size_t>& expert_slots_for_tokens) {
+    OPENVINO_ASSERT(expert_output && global_output_buffer, "MoE: Missing scatter tensor");
+    const auto elem_type = global_output_buffer->get_element_type();
+    OPENVINO_ASSERT((elem_type == ov::element::f32 || elem_type == ov::element::f16) &&
+                        expert_output->get_element_type() == elem_type,
+                    "MoE: Scatter tensor element types must match and be f32 or f16");
+    OPENVINO_ASSERT(expert_output->is_continuous() && global_output_buffer->is_continuous(),
+                    "MoE: Scatter tensors must be contiguous");
+    OPENVINO_ASSERT(
+        embed_dim > 0 && input_token_count > 0 && embed_dim <= std::numeric_limits<size_t>::max() / elem_type.size(),
+        "MoE: Invalid scatter dimensions");
+    OPENVINO_ASSERT(chunk_start <= token_ids.size() && chunk_size <= token_ids.size() - chunk_start &&
+                        chunk_start <= expert_slots_for_tokens.size() &&
+                        chunk_size <= expert_slots_for_tokens.size() - chunk_start,
+                    "MoE: Scatter indices do not cover the chunk");
+    const size_t row_bytes = embed_dim * elem_type.size();
+    OPENVINO_ASSERT(chunk_size <= expert_output->get_byte_size() / row_bytes,
+                    "MoE: Expert output is too small for scatter");
+    const size_t accumulator_rows = global_output_buffer->get_byte_size() / row_bytes;
+    const size_t accumulator_slots = accumulator_rows / input_token_count;
+    for (size_t i = 0; i < chunk_size; ++i) {
+        OPENVINO_ASSERT(token_ids[chunk_start + i] < input_token_count &&
+                            expert_slots_for_tokens[chunk_start + i] < accumulator_slots,
+                        "MoE: Scatter index exceeds accumulator capacity");
+    }
+    OPENVINO_ASSERT(input_token_count <= std::numeric_limits<size_t>::max() / embed_dim,
+                    "MoE: Scatter stride overflows");
     // Hoist type dispatch and pointer acquisition outside the loop.
     // slot_stride = number of elements between consecutive expert slots in the output buffer.
     const size_t slot_stride = input_token_count * embed_dim;
@@ -282,7 +309,6 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
         }
     };
 
-    const auto elem_type = global_output_buffer->get_element_type();
     if (elem_type == ov::element::f32) {
         scatter(expert_output->data<float>(), global_output_buffer->data<float>());
     } else if (elem_type == ov::element::f16) {
@@ -297,6 +323,19 @@ void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_outpu
                                       size_t num_active_experts,
                                       size_t embed_dim,
                                       size_t input_token_count) {
+    OPENVINO_ASSERT(global_output_buffer && global_output_buffer->is_continuous(),
+                    "MoE: Invalid accumulator for clearing");
+    const auto elem_type = global_output_buffer->get_element_type();
+    OPENVINO_ASSERT(elem_type == ov::element::f32 || elem_type == ov::element::f16,
+                    "MoE: Unsupported accumulator element type");
+    OPENVINO_ASSERT(embed_dim > 0 && input_token_count > 0 &&
+                        embed_dim <= std::numeric_limits<size_t>::max() / elem_type.size() &&
+                        input_token_count <= std::numeric_limits<size_t>::max() / embed_dim,
+                    "MoE: Invalid accumulator dimensions");
+    const size_t row_bytes = embed_dim * elem_type.size();
+    OPENVINO_ASSERT(num_active_experts <= global_output_buffer->get_byte_size() / row_bytes / input_token_count &&
+                        token_slot_count.size() <= input_token_count,
+                    "MoE: Accumulator is too small for clearing");
     const size_t slot_stride = input_token_count * embed_dim;
 
     auto clear = [&](auto* base) {
@@ -308,7 +347,6 @@ void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_outpu
         }
     };
 
-    const auto elem_type = global_output_buffer->get_element_type();
     if (elem_type == ov::element::f32) {
         clear(global_output_buffer->data<float>());
     } else if (elem_type == ov::element::f16) {

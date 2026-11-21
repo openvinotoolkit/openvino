@@ -143,6 +143,72 @@ private:
     std::shared_ptr<ExecutionLog> m_log;
 };
 
+TEST(MoEResourcesTest, ValidatesIterativeOutputLayoutBeforeAllocation) {
+    for (const auto& shape :
+         {ov::Shape{3, 4}, ov::Shape{1, 3, 4}, ov::Shape{1, 1, 3, 4}, ov::Shape{1, 3, 1, 4}, ov::Shape{1, 2, 3, 4}}) {
+        SCOPED_TRACE(shape);
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{parameter}, ov::ParameterVector{parameter});
+        ov::npuw::moe::MoEConfig config;
+        config.num_experts = 1;
+        config.num_active_experts = 1;
+        config.input_token_count = 2;
+        config.expert_hidden_dim = 4;
+        config.compiled_models[3] = {std::make_shared<EvaluatedModel>(model, std::make_shared<ExecutionLog>()), {}};
+        ov::npuw::moe::MoEResources resources;
+        bool allocated = false;
+        auto allocator = [&](const ov::element::Type& type, const ov::Shape& output_shape, const std::string&) {
+            allocated = true;
+            return ov::get_tensor_impl(ov::Tensor(type, output_shape));
+        };
+        if (shape.size() == 2 || shape[1] == 2) {
+            EXPECT_THROW(resources.initialize_expert_iterative_mode(config, allocator, "CPU"), ov::Exception);
+            EXPECT_FALSE(allocated);
+        } else {
+            EXPECT_NO_THROW(resources.initialize_expert_iterative_mode(config, allocator, "CPU"));
+            ASSERT_TRUE(allocated);
+            auto expected = shape;
+            *std::find(expected.begin() + 1, expected.end() - 1, 3) = 2;
+            EXPECT_EQ(resources.expert_output_accumulator->get_shape(), expected);
+        }
+    }
+}
+
+TEST(MoEResourcesTest, RejectsAmbiguousUnitChunkLayout) {
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1, 4});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{parameter}, ov::ParameterVector{parameter});
+    ov::npuw::moe::MoEConfig config;
+    config.num_experts = 1;
+    config.num_active_experts = 1;
+    config.input_token_count = 2;
+    config.expert_hidden_dim = 4;
+    config.compiled_models[1] = {std::make_shared<EvaluatedModel>(model, std::make_shared<ExecutionLog>()), {}};
+    ov::npuw::moe::MoEResources resources;
+    auto allocator = [](const ov::element::Type& type, const ov::Shape& output_shape, const std::string&) {
+        return ov::get_tensor_impl(ov::Tensor(type, output_shape));
+    };
+    EXPECT_THROW(resources.initialize_expert_iterative_mode(config, allocator, "CPU"), ov::Exception);
+}
+
+TEST(MoEResourcesTest, RejectsAccumulatorSizeOverflowBeforeAllocation) {
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 4});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{parameter}, ov::ParameterVector{parameter});
+    ov::npuw::moe::MoEConfig config;
+    config.num_experts = std::numeric_limits<size_t>::max();
+    config.num_active_experts = config.num_experts;
+    config.input_token_count = 2;
+    config.expert_hidden_dim = 4;
+    config.compiled_models[3] = {std::make_shared<EvaluatedModel>(model, std::make_shared<ExecutionLog>()), {}};
+    ov::npuw::moe::MoEResources resources;
+    bool allocated = false;
+    auto allocator = [&](const ov::element::Type& type, const ov::Shape& output_shape, const std::string&) {
+        allocated = true;
+        return ov::get_tensor_impl(ov::Tensor(type, output_shape));
+    };
+    EXPECT_THROW(resources.initialize_expert_iterative_mode(config, allocator, "CPU"), ov::Exception);
+    EXPECT_FALSE(allocated);
+}
+
 class ExecutorHarness final : public ov::npuw::ISubrequestAccessor {
 public:
     static constexpr size_t experts = 4, selected = 2, hidden = 4, chunk = 3;
