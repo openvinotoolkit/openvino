@@ -232,11 +232,24 @@ TEST(CompiledModelOrcImportValidationTest, RejectsReplacedByOutOfRange) {
     expect_validation_throw_contains(compiled, "m_compiled_submodels[0].replaced_by index 1");
 }
 
+TEST(CompiledModelOrcImportValidationTest, RejectsReplacedByTargetWithoutCompiledModel) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    compiled->m_compiled_submodels.emplace_back();
+    compiled->m_compiled_submodels.emplace_back();
+    compiled->m_compiled_submodels[1].replaced_by = 0u;
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[1].replaced_by target 0 has no compiled model");
+}
+
 TEST(CompiledModelOrcImportValidationTest, RejectsInputsTableSizeMismatch) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     compiled->m_inputs_to_submodels_inputs.clear();
 
     expect_validation_throw_contains(compiled, "Invalid m_inputs_to_submodels_inputs size 0");
+
+    compiled->m_inputs_to_submodels_inputs = {ov::npuw::CompiledModel::NO_LINK,
+                                              ov::npuw::CompiledModel::NO_LINK};
+    expect_validation_throw_contains(compiled, "Invalid m_inputs_to_submodels_inputs size 2");
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsOutputsTableSizeMismatch) {
@@ -244,6 +257,10 @@ TEST(CompiledModelOrcImportValidationTest, RejectsOutputsTableSizeMismatch) {
     compiled->m_outputs_to_submodels_outputs.clear();
 
     expect_validation_throw_contains(compiled, "Invalid m_outputs_to_submodels_outputs size 0");
+
+    compiled->m_outputs_to_submodels_outputs = {ov::npuw::CompiledModel::NO_LINK,
+                                                ov::npuw::CompiledModel::NO_LINK};
+    expect_validation_throw_contains(compiled, "Invalid m_outputs_to_submodels_outputs size 2");
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscribersKeyOutOfRange) {
@@ -268,6 +285,25 @@ TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscribersPortOutOfRange
     compiled->m_param_subscribers = {{0u, {{0u, 1u}}}};
 
     expect_validation_throw_contains(compiled, "m_param_subscribers[0] input port index 1");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscriberSubmodelOutOfRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_param_subscribers = {{0u, {{7u, 0u}}}};
+
+    expect_validation_throw_contains(compiled, "m_param_subscribers[0] input submodel index 7");
+}
+
+TEST(CompiledModelOrcImportValidationTest, ChecksFuncallPortsAgainstReplacedSubmodel) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    ov::npuw::CompiledModel::CompiledModelDesc funcall_desc;
+    funcall_desc.replaced_by = 0u;
+    compiled->m_compiled_submodels.push_back(std::move(funcall_desc));
+    compiled->m_submodels_input_to_prev_output = {{{1u, 1u}, {0u, 0u}}};
+
+    expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] input port index 1");
 }
 
 TEST(CompiledModelOrcImportValidationTest, AcceptsValidPrevOutputRouting) {
