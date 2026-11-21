@@ -22,7 +22,7 @@
 namespace ov::intel_gpu::mlir {
 
 struct ConvertSDPA {
-    static SmallVector<AffineMap> getStandardAttentionIndexingMaps(MLIRContext* ctx, bool hasMask, int rank) {
+    static SmallVector<AffineMap> getStandardAttentionIndexingMaps(MLIRContext* ctx, bool hasMask, int64_t rank) {
         if (rank == 3) {
             // 3D: (batch, seq, hidden)
             AffineExpr batch, m, k1, k2, n;
