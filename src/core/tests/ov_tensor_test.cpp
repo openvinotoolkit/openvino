@@ -1037,6 +1037,13 @@ TEST_F(OVTensorTest, roiLpDirectStridedViewWrongPlaceholderStride3DThrows) {
     OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {2, 4, 8}, buffer.data(), bad_strides)), ov::Exception, _);
 }
 
+TEST_F(OVTensorTest, roiLpDirectStridedViewSubByteScalarThrows) {
+    uint8_t data = 0;
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor(ov::element::i4, ov::Shape{}, &data, ov::Strides{1})),
+                                  ov::Exception,
+                                  "Could not create strided access tensor");
+}
+
 TEST_F(OVTensorTest, stridedViewSetShapeRejectsUnalignedSubByteShape) {
     constexpr size_t row_bytes = 8 * 4 / 8;
     std::vector<uint8_t> buffer(2 * row_bytes);
