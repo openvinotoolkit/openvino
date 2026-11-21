@@ -21,7 +21,7 @@ import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
 from openvino import opset8 as opset
-from openvino.tools.benchmark.utils.utils import parse_devices
+from openvino.tools.benchmark.utils.utils import parse_devices, parse_input_output_precision
 import openvino as ov
 
 def get_executable(sample_language):
@@ -121,6 +121,16 @@ def test_parse_devices_with_empty_entries():
     assert parse_devices('MULTI:CPU,,GPU') == ['MULTI', 'CPU', 'GPU']
     assert parse_devices('MULTI:CPU, ,GPU') == ['MULTI', 'CPU', 'GPU']
     assert parse_devices('HETERO:CPU,') == ['HETERO', 'CPU']
+
+
+@pytest.mark.parametrize(('arg_map', 'expected'), [
+    ('input:f16', {'input': 'f16'}),
+    ('input:0:f16', {'input:0': 'f16'}),
+    ('encoder:input:0:f16', {'encoder:input:0': 'f16'}),
+    ('input:f16,encoder:input:0:f32', {'input': 'f16', 'encoder:input:0': 'f32'}),
+])
+def test_parse_input_output_precision(arg_map, expected):
+    assert parse_input_output_precision(arg_map) == expected
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
@@ -260,6 +270,41 @@ def test_input_output_tensor_name_collision(sample_language, device, in_node_nam
             ).uniform(0, 256, data_shape).astype(np.int32)
         )
     verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
+
+def test_benchmark_app_input_output_precision_with_colons(tmp_path):
+    input_name = 'encoder:input:0'
+    output_name = 'decoder:output:0'
+    parameter = opset.parameter([1, 3, 4, 4], ov.Type.f32, name='input')
+    parameter.output(0).set_names({input_name})
+    result = opset.result(opset.relu(parameter), name='output')
+    result.output(0).set_names({output_name})
+    model = ov.Model([result], [parameter], 'model_with_colon_tensor_names')
+    model_path = tmp_path / 'model_with_colon_tensor_names.xml'
+    ov.save_model(model, model_path)
+
+    precision_arguments = [
+        ((), 'f32', 'f32'),
+        (('-ip', 'f16'), 'f16', 'f32'),
+        (('-iop', f'{input_name}:f16'), 'f16', 'f32'),
+        (('-iop', f'{output_name}:f16'), 'f32', 'f16'),
+        (('-iop', f'{input_name}:f16,{output_name}:f16'), 'f16', 'f16'),
+    ]
+    for arguments, input_precision, output_precision in precision_arguments:
+        output = get_cmd_output(
+            get_executable('Python'),
+            '-m', model_path,
+            '-d', 'CPU',
+            '-niter', '1',
+            *arguments,
+        )
+        assert 'FPS' in output
+        configured_io = output.rsplit('Model inputs:', 1)[-1]
+        assert any(input_name in line and f': {input_precision} /' in line
+                   for line in configured_io.splitlines())
+        assert any(output_name in line and f': {output_precision} /' in line
+                   for line in configured_io.splitlines())
+
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
