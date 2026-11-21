@@ -39,9 +39,14 @@ constexpr T floor_mod(const T x, const T y) {
 
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T floor_mod(const T x, const T y) {
-    // Cast to double avoids precision loss for reduced-precision floating-point types.
-    const double divisor = static_cast<double>(y);
-    return static_cast<T>(x - y * std::floor(x / divisor));
+    // From the exact std::fmod: x - y * floor(x / y) gave 0 when x / y was beyond double precision, for example
+    // 2^80 and 3. The result has the sign of y, zero included.
+    const auto r = std::fmod(x, y);  // float for f16 and bf16
+    const auto d = static_cast<decltype(r)>(y);
+    if (r == 0) {
+        return static_cast<T>(std::copysign(decltype(r){0}, d));
+    }
+    return static_cast<T>(((r < 0) != (d < 0)) ? r + d : r);
 }
 }  // namespace func
 
