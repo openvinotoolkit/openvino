@@ -4,6 +4,17 @@
 
 find_package(Wget QUIET)
 
+# CI_DEPS_DOWNLOAD_REFERER, when set, is sent as the HTTP Referer header
+# by every dependency downloader (wget/aria2c: --header=Referer:<value>,
+# file(DOWNLOAD): HTTPHEADER).
+function (GetDepsDownloadRefererHeader header_var)
+  if(DEFINED ENV{CI_DEPS_DOWNLOAD_REFERER} AND NOT "$ENV{CI_DEPS_DOWNLOAD_REFERER}" STREQUAL "")
+    set(${header_var} "Referer: $ENV{CI_DEPS_DOWNLOAD_REFERER}" PARENT_SCOPE)
+  else()
+    set(${header_var} "" PARENT_SCOPE)
+  endif()
+endfunction(GetDepsDownloadRefererHeader)
+
 function (DownloadAndCheck from to fatal result sha256)
   set(status_res "ON")
   set(output 1)
@@ -22,11 +33,15 @@ function (DownloadAndCheck from to fatal result sha256)
           Download(${from} ${to} ${fatal} ${result} output ${sha256})
           list(GET output 0 status_code)
         else()
+          set(wget_args "--no-cache" "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5")
+          GetDepsDownloadRefererHeader(referer_header)
+          if(referer_header)
+            list(APPEND wget_args "--header=${referer_header}")
+          endif()
+          string(JOIN " " wget_args_display ${wget_args})
           foreach(index RANGE 5)
-            message(STATUS "${WGET_EXECUTABLE} --no-cache
-              --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
-            execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache"
-              "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5"
+            message(STATUS "${WGET_EXECUTABLE} ${wget_args_display} ${from}")
+            execute_process(COMMAND ${WGET_EXECUTABLE} ${wget_args}
               "${from}" "-O" "${to}"
               TIMEOUT 2000
               RESULT_VARIABLE status_code)
@@ -42,8 +57,14 @@ function (DownloadAndCheck from to fatal result sha256)
           endif()
         endif()
       else()
-        message(STATUS "${aria2c} ,*.*.*.* -d ${download_dir} ${from}")
-        execute_process(COMMAND "${aria2c}" "-s10" "-x10" "--dir=${download_dir}" "${from}"
+        set(aria2_args "-s10" "-x10" "--dir=${download_dir}")
+        GetDepsDownloadRefererHeader(referer_header)
+        if(referer_header)
+          list(APPEND aria2_args "--header=${referer_header}")
+        endif()
+        string(JOIN " " aria2_args_display ${aria2_args})
+        message(STATUS "${aria2c} ${aria2_args_display} ${from}")
+        execute_process(COMMAND "${aria2c}" ${aria2_args} "${from}"
             TIMEOUT 2000
             RESULT_VARIABLE status_code)
       endif()
