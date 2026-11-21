@@ -24,6 +24,17 @@ class FakeInputModel:
         self._input_signature = None
 
 
+class FakeDecoder(FakeInputModel):
+    # A decoder reports whether it wraps an FX graph or a TorchScript one.
+    def __init__(self, example_input, decoder_type, input_signature=None):
+        super().__init__(example_input)
+        self._input_signature = input_signature
+        self._decoder_type = decoder_type
+
+    def decoder_type_name(self):
+        return self._decoder_type
+
+
 class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
     def test_dict_example_input_matched_by_name_not_position(self):
         # example_input's dict order ("attention_mask" first) does not match the
@@ -114,3 +125,38 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
         self.assertEqual(list(shapes_by_name["a"]), [1, 3, 224, 224])
         self.assertEqual(list(shapes_by_name["b"]), [1])
+
+    def test_fx_nested_dict_example_input_leaves_are_not_named_by_key(self):
+        # An FX graph doesn't name the leaves of a dict inside an argument by key, so
+        # they must stay unnamed like the leaves of a nested tuple. Naming them by key
+        # made the frontend look up a model input called "a" that doesn't exist.
+        cases = {
+            "dict in dict": ({"d": {"a": FakeTensor((1, 2))}, "x": FakeTensor((1, 3))}, None),
+            "dict in tuple": (({"a": FakeTensor((1, 2))}, FakeTensor((1, 3))), ["d", "x"]),
+        }
+        for case, (example_input, input_signature) in cases.items():
+            with self.subTest(case):
+                args = Namespace()
+                args.input_model = FakeDecoder(example_input, "fx", input_signature)
+                args.example_input = None
+                args.dynamo = True
+                args.input = None
+
+                extract_input_info_from_example(args, args.input)
+
+                self.assertEqual([inp.name for inp in args.input], [None, "x"])
+                self.assertEqual([list(inp.shape) for inp in args.input], [[1, 2], [1, 3]])
+
+    def test_torchscript_nested_dict_example_input_keeps_key_names(self):
+        # TorchScript names the leaves of a dict input by key, so the names must stay.
+        args = Namespace()
+        args.input_model = FakeDecoder(({"a": FakeTensor((1, 2))}, FakeTensor((1, 3))), "ts", ["d", "x"])
+        args.example_input = None
+        args.dynamo = False
+        args.input = None
+
+        extract_input_info_from_example(args, args.input)
+
+        self.assertEqual([inp.name for inp in args.input], ["a", "x"])
+        # without dynamo, example inputs give dynamic dims of the example's rank
+        self.assertEqual([str(inp.shape) for inp in args.input], ["[?,?]", "[?,?]"])
