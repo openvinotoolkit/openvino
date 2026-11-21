@@ -40,7 +40,11 @@ std::string attention(GraphEmitter& e,
                       const DecoderConfig& cfg,
                       const KvCachePlan& kv,
                       int il,
-                      const std::string& attn_norm) {
+                      const std::string& attn_norm,
+                      const std::string& positions,
+                      const std::string& mask,
+                      const std::string& swa_mask,
+                      bool use_input_mask) {
     const std::string p = "blk." + std::to_string(il) + ".";
 
     // Per-layer hyperparameters (SWA vs global head size / rope / scale; per-layer KV heads).
@@ -139,7 +143,7 @@ std::string attention(GraphEmitter& e,
     if (use_rope) {
         const bool use_rope_freqs = cfg.has_rope_freqs && !is_swa_layer;
         const auto rope = [&](const std::string& x, const std::string& name) {
-            std::vector<std::string> inputs{x, "inp_pos"};
+            std::vector<std::string> inputs{x, positions};
             if (use_rope_freqs)
                 inputs.emplace_back("rope_freqs.weight");
             return e.add_op("GGML_OP_ROPE", name, inputs, cfg.rope_op_case, {{"rope_config", rope_config_l}});
@@ -153,7 +157,7 @@ std::string attention(GraphEmitter& e,
         qk_norm();
 
     if (cfg.attention_temperature_scale != 0.0f) {
-        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, 0, {{"dst_type", f32}});
+        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {positions}, 0, {{"dst_type", f32}});
         temp = scale(e, temp, 1.0f / cfg.rope_config.n_ctx_orig, p + "temp_window");
         // Positions are nonnegative: integer conversion implements floor(position / context).
         temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, 0, {{"dst_type", ov::element::i32}});
@@ -224,12 +228,14 @@ std::string attention(GraphEmitter& e,
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     std::vector<std::string> attn_in = {q, k, v};
     if (!cfg.embedding_model || cfg.causal_attention)
-        attn_in.emplace_back(is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask");
+        attn_in.emplace_back(is_swa_layer ? swa_mask : mask);
     if (cfg.has_sinks) {
         e.add_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
+    if (use_input_mask)
+        attn_attrs["use_input_mask"] = true;
     if (cfg.embedding_model)
         attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f)

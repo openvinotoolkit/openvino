@@ -31,6 +31,9 @@ struct GGUF_FRONTEND_API BuildContext {
     // Opaque weight tables accessed through GgufTensors.
     detail::WeightStore* weights = nullptr;
     const ProjectorRegistry* projectors = nullptr;
+
+    // True when the frontend will run AdaptToGenAI after conversion.
+    bool genai_adaptation = false;
 };
 
 // Whole-model builder for any family, registered through ArchitectureDefinition.

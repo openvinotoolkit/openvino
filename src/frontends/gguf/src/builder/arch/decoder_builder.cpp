@@ -16,6 +16,7 @@
 #include "builder/arch/decoder_builder.hpp"
 
 #include <cmath>
+#include <map>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/blocks/common.hpp"
@@ -43,7 +44,8 @@ constexpr int64_t D = -1;
 DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
     : m_cfg(parameters, context.weights->weights),
       m_emit(context.weights->weights, context.arch, context.weights->translators),
-      m_kv(blocks::KvCachePlan::build(m_cfg)) {
+      m_kv(blocks::KvCachePlan::build(m_cfg)),
+      m_genai_adaptation(context.genai_adaptation) {
     m_cfg.configure_graph(m_emit, context.metadata);
 }
 
@@ -170,7 +172,10 @@ void DecoderBuilder::build_per_layer_embeddings(const std::string& embd) {
     m_emit.add_op("GGML_OP_SCALE", "per_layer_embd", {pe_sum}, 0, {{"scale", inv_sqrt2}, {"bias", 0.0f}});
 }
 
-std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string& cur, const std::string& inpSA) {
+std::string DecoderBuilder::inject_per_layer_embedding(int il,
+                                                       const std::string& cur,
+                                                       const std::string& inpSA,
+                                                       const std::string& full_token_ref) {
     // Gemma4: each layer takes a slice of the pre-projected per-layer embedding (shape
     // [1,1,T,n_embd_per_layer]), gates it through inp_gate.weight (GELU), multiplies by the
     // per-layer slice, projects back to n_embd, post-norms, then adds residual.
@@ -182,12 +187,10 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     // does not necessarily sit where the layer activation keeps its own, and the ops below combine
     // the two elementwise. See the op_case 104 note in op/view.cpp.
     //
-    // It has to be a tensor that still carries every token. At the last layer `cur` has already
-    // been filtered down to the output rows by the GET_ROWS in the attention tail, while
-    // per_layer_embd always holds all T of them, so using `cur` there would ask op_case 104 to
-    // reinterpret T*D values into 1*D. Use the layer's unfiltered input instead and let the
-    // GET_ROWS below do the filtering.
-    const std::string& pl_shape_ref = (il == m_cfg.n_layer - 1) ? inpSA : cur;
+    // per_layer_embd keeps all tokens after the hidden state is pruned at the first shared-KV
+    // layer. Keep VIEW's shape reference full-length, then select the matching embedding rows.
+    const bool rows_pruned = prunes_shared_kv_rows() && il >= first_shared_kv_layer();
+    const std::string& pl_shape_ref = rows_pruned ? full_token_ref : (il == m_cfg.n_layer - 1 ? inpSA : cur);
     const std::string pl_slice = p + "per_layer_slice";
     m_emit.add_op("GGML_OP_VIEW",
                   pl_slice,
@@ -199,9 +202,16 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     // gemma4.cpp:347-349: also filter pl_slice so the MUL doesn't broadcast it back to the full
     // sequence length.
     std::string pl_slice_used = pl_slice;
-    if (selects_output_rows(il)) {
+    if (selects_per_layer_embedding_rows(il)) {
         pl_slice_used = p + "per_layer_slice_sel";
-        m_emit.add_op("GGML_OP_GET_ROWS", pl_slice_used, {pl_slice, "inp_out_ids"});
+        m_emit.add_op("GGML_OP_GET_ROWS", pl_slice_used, {pl_slice, "inp_out_ids"}, 0);
+        if (prunes_shared_kv_rows() && il >= first_shared_kv_layer()) {
+            pl_slice_used = m_emit.add_op("GGML_OP_TRANSPOSE",
+                                          p + "per_layer_slice_batch_major",
+                                          {pl_slice_used},
+                                          0,
+                                          {{"perm", std::vector<int64_t>{1, 0, 2, 3}}});
+        }
     }
 
     // gate: cur -> inp_gate.weight -> GELU -> [1,1,T,pe]
@@ -221,7 +231,10 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     return m_emit.add_op("GGML_OP_ADD", p + "pe_out", {cur, pe_proj});
 }
 
-std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
+std::string DecoderBuilder::build_layer(int il,
+                                        const std::string& layer_in,
+                                        const std::string& full_token_ref,
+                                        const AttentionInputs& attention_inputs) {
     const std::string p = "blk." + std::to_string(il) + ".";
     const std::string& inpSA = layer_in;
     std::string cur = layer_in;
@@ -264,7 +277,15 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r});
     }
 
-    std::string attn_out = blocks::attention(m_emit, m_cfg, m_kv, il, attn_norm);
+    std::string attn_out = blocks::attention(m_emit,
+                                             m_cfg,
+                                             m_kv,
+                                             il,
+                                             attn_norm,
+                                             attention_inputs.positions,
+                                             attention_inputs.mask,
+                                             attention_inputs.swa_mask,
+                                             attention_inputs.use_input_mask);
 
     // MiniCPM scales the attention sublayer output before the residual add.
     if (m_cfg.residual_scale != 1.0f) {
@@ -307,7 +328,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     cur = m_emit.add_op("GGML_OP_ADD", p + "l_out", {down, ffn_inp});
 
     if (m_cfg.n_embd_per_layer > 0) {
-        cur = inject_per_layer_embedding(il, cur, inpSA);
+        cur = inject_per_layer_embedding(il, cur, inpSA, full_token_ref);
     }
 
     // Gemma4: per-layer output scale (layer_output_scale.weight is a scalar [1]).
@@ -379,8 +400,42 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         build_per_layer_embeddings(cur);
     }
 
+    AttentionInputs attention_inputs;
+    std::string full_token_ref = cur;
+    const bool prune_shared_kv_rows = prunes_shared_kv_rows();
     for (int il = 0; il < m_cfg.n_layer; ++il) {
-        cur = build_layer(il, cur);
+        if (prune_shared_kv_rows && il == first_shared_kv_layer()) {
+            full_token_ref = cur;
+            cur = m_emit.add_op("GGML_OP_GET_ROWS", "shared_kv_inp", {cur, "inp_out_ids"}, 0);
+            cur = m_emit.add_op("GGML_OP_TRANSPOSE",
+                                "shared_kv_inp_batch_major",
+                                {cur},
+                                0,
+                                {{"perm", std::vector<int64_t>{1, 0, 2, 3}}});
+
+            // Positions are stored as a vector on the last axis; reshape it to rows for GET_ROWS.
+            auto positions_as_rows =
+                m_emit.add_op("GGML_OP_RESHAPE",
+                              "inp_pos_as_rows",
+                              {"inp_pos"},
+                              6,
+                              {{"reshape_target", std::vector<int64_t>{0, 0, -1, 1}}, {"special_zero", true}});
+            positions_as_rows =
+                m_emit.add_op("GGML_OP_GET_ROWS", "inp_pos_shared_rows", {positions_as_rows, "inp_out_ids"}, 0);
+            attention_inputs.positions = m_emit.add_op("GGML_OP_RESHAPE",
+                                                       "inp_pos_shared",
+                                                       {positions_as_rows},
+                                                       6,
+                                                       {{"reshape_target", std::vector<int64_t>{-1, 1, 1, 1}}});
+
+            attention_inputs.mask = m_emit.add_op("GGML_OP_GET_ROWS", "self_kq_mask_shared", {"self_kq_mask"}, 11);
+            attention_inputs.use_input_mask = true;
+            if (m_cfg.has_swa) {
+                attention_inputs.swa_mask =
+                    m_emit.add_op("GGML_OP_GET_ROWS", "self_kq_mask_swa_shared", {"self_kq_mask_swa"}, 11);
+            }
+        }
+        cur = build_layer(il, cur, full_token_ref, attention_inputs);
     }
 
     const std::string logits = build_head(cur);

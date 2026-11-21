@@ -17,7 +17,8 @@ namespace ov::frontend::gguf {
 struct GgufGraph;  // defined in gguf_graph.hpp; only used here as a shared_ptr return type
 class ArchRegistry;
 
-using GraphBuilder = std::function<std::shared_ptr<GgufGraph>(const std::unordered_map<std::string, CreatorFunction>&)>;
+using GraphBuilder =
+    std::function<std::shared_ptr<GgufGraph>(const std::unordered_map<std::string, CreatorFunction>&, bool)>;
 // Parse the file and select a definition; invoke the builder with the converters active at conversion.
 GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry);
 GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files, const ArchRegistry& registry);

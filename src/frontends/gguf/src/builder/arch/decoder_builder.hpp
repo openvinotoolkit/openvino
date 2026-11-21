@@ -26,6 +26,13 @@ public:
     std::shared_ptr<GgufGraph> build() override;
 
 private:
+    struct AttentionInputs {
+        std::string positions = "inp_pos";
+        std::string mask = "self_kq_mask";
+        std::string swa_mask = "self_kq_mask_swa";
+        bool use_input_mask = false;
+    };
+
     // Model inputs shared by every layer (tokens, positions, masks, KV update index).
     void build_inputs();
 
@@ -36,20 +43,36 @@ private:
     void build_per_layer_embeddings(const std::string& embd);
 
     // One decoder layer; `cur` is the layer input, returns the layer output.
-    std::string build_layer(int il, const std::string& cur);
+    std::string build_layer(int il,
+                            const std::string& cur,
+                            const std::string& full_token_ref,
+                            const AttentionInputs& attention_inputs);
 
     // gemma4: per-layer embedding injection appended after the FFN residual.
-    std::string inject_per_layer_embedding(int il, const std::string& cur, const std::string& inpSA);
+    std::string inject_per_layer_embedding(int il,
+                                           const std::string& cur,
+                                           const std::string& inpSA,
+                                           const std::string& full_token_ref);
 
     // Final norm, lm_head, and the optional logit scale / soft-cap.
     std::string build_head(const std::string& cur);
+    bool prunes_shared_kv_rows() const {
+        return m_genai_adaptation && m_cfg.shared_kv_layers > 0 && !m_cfg.embedding_model;
+    }
+    int first_shared_kv_layer() const {
+        return m_cfg.n_layer - m_cfg.shared_kv_layers;
+    }
     bool selects_output_rows(int il) const {
-        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model;
+        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model && !prunes_shared_kv_rows();
+    }
+    bool selects_per_layer_embedding_rows(int il) const {
+        return selects_output_rows(il) || (prunes_shared_kv_rows() && il >= first_shared_kv_layer());
     }
 
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
     blocks::KvCachePlan m_kv;
+    bool m_genai_adaptation = false;
 };
 
 }  // namespace ov::frontend::gguf
