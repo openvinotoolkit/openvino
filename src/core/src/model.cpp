@@ -21,6 +21,7 @@
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/stack_util.hpp"
 #include "shared_node_info.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
@@ -29,6 +30,12 @@ using namespace std;
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
 namespace {
+
+// Subgraph ops (If, Loop, TensorIterator, ...) validate their bodies recursively through
+// Model::validate_nodes_and_infer_types(), so deeply nested models can overflow the stack. Each
+// call therefore checks the stack actually left instead of capping the depth; this is the space
+// that must remain free.
+constexpr size_t STACK_HEADROOM_REQUIRED = 128 * 1024;
 
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                     const ov::op::util::VariableVector& variables) {
@@ -237,6 +244,11 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
 
 void ov::Model::validate_nodes_and_infer_types() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::validate_nodes_and_infer_types");
+
+    OPENVINO_ASSERT(ov::util::stack_bytes_available() > STACK_HEADROOM_REQUIRED,
+                    "Model validation stopped: the model nests subgraph bodies (If, Loop, "
+                    "TensorIterator, ...) deeper than the stack of the current thread can validate "
+                    "safely.");
 
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
