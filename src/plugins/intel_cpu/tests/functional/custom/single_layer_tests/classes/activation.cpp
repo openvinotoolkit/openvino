@@ -133,6 +133,33 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
                 inject(1, -1.0f);
                 inject(2,  2.0f);
                 inject(3, -1.5f);
+            } else if (activationType == utils::ActivationTypes::Log &&
+                       funcInput.get_element_type() == ov::element::f32) {
+                // IEEE special cases, placed both in full SIMD lanes (front) and in the scalar tail (back)
+                auto* data = static_cast<float*>(tensor.data());
+                const auto size = tensor.get_size();
+                auto inject = [&](size_t idx, float val) {
+                    if (idx < size) {
+                        data[idx] = val;
+                    }
+                };
+                const float special_values[] = {-1.0f,
+                                                0.0f,
+                                                std::numeric_limits<float>::denorm_min(),
+                                                std::numeric_limits<float>::infinity(),
+                                                -0.0f,
+                                                -std::numeric_limits<float>::infinity(),
+                                                std::numeric_limits<float>::quiet_NaN(),
+                                                1e-40f};
+                for (size_t idx = 0; idx < std::size(special_values); ++idx) {
+                    inject(idx, special_values[idx]);
+                }
+                // longer tensors also get special values at the back, where the scalar tail is
+                if (size >= std::size(special_values) + 3) {
+                    inject(size - 3, std::numeric_limits<float>::infinity());
+                    inject(size - 2, 0.0f);
+                    inject(size - 1, -1.0f);
+                }
             } else if ((activationType == utils::ActivationTypes::IsFinite ||
                         activationType == utils::ActivationTypes::IsInf ||
                         activationType == utils::ActivationTypes::IsNaN) &&
@@ -148,6 +175,30 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         }
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
+}
+
+void ActivationLayerCPUTest::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
+    // The common comparison accepts any actual value when the expected one is infinite,
+    // so NaN and signed infinity results of Log are checked here explicitly
+    if (activationType == utils::ActivationTypes::Log && netPrecision == ov::element::f32) {
+        ASSERT_EQ(expected.size(), actual.size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_EQ(expected[i].get_element_type(), ov::element::f32);
+            ASSERT_EQ(actual[i].get_element_type(), ov::element::f32);
+            ASSERT_EQ(expected[i].get_shape(), actual[i].get_shape());
+            const auto* expected_data = expected[i].data<const float>();
+            const auto* actual_data = actual[i].data<const float>();
+            for (size_t j = 0; j < expected[i].get_size(); ++j) {
+                if (std::isnan(expected_data[j])) {
+                    ASSERT_TRUE(std::isnan(actual_data[j]))
+                        << "Log output " << j << ": expected NaN, got " << actual_data[j];
+                } else if (std::isinf(expected_data[j])) {
+                    ASSERT_EQ(expected_data[j], actual_data[j]) << "Log output " << j;
+                }
+            }
+        }
+    }
+    SubgraphBaseTest::compare(expected, actual);
 }
 
 void ActivationLayerCPUTest::SetUp() {
@@ -254,6 +305,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
        (activation_type == utils::ActivationTypes::IsNaN) ||
        (activation_type == utils::ActivationTypes::IsInf) ||
        (activation_type == utils::ActivationTypes::IsFinite) ||
+       (activation_type == utils::ActivationTypes::Log) ||
        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
        (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
         return "ref";
