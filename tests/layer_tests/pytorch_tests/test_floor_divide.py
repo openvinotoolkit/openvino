@@ -124,3 +124,32 @@ class TestFloorDivide(PytorchLayerTest):
         else:
             self.other_tensor = other_tensor
         self._test(*self.create_model_int(), ie_device, precision, ir_version)
+
+
+class TestFloorDivideExactMultiples(PytorchLayerTest):
+    # Multiples of the divisor must give whole quotients. Computed as a multiplication by the
+    # reciprocal, 41 // 41 gives 0 in float32, and 3 // 3 gives 0 in float16.
+
+    def _prepare_input(self):
+        return (self.input_tensor,)
+
+    def create_model(self, divisor):
+        import torch
+
+        class aten_floor_divide(torch.nn.Module):
+            def __init__(self, divisor):
+                super().__init__()
+                self.divisor = divisor
+
+            def forward(self, input_tensor):
+                return input_tensor // self.divisor
+
+        return aten_floor_divide(divisor), "aten::floor_divide"
+
+    @pytest.mark.parametrize("dtype,divisor", [(np.float32, 41), (np.float32, 61), (np.float16, 3), (np.float16, 47)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_floor_divide_exact_multiples(self, dtype, divisor, ie_device, precision, ir_version):
+        self.input_tensor = (np.arange(-20, 21) * divisor).astype(dtype)
+        self._test(*self.create_model(divisor), ie_device, precision, ir_version, trace_model=True)
