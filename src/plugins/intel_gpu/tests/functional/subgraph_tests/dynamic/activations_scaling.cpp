@@ -16,6 +16,7 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -23,7 +24,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 
 namespace {
@@ -383,4 +386,215 @@ TEST_F(ActivationsScalingFakeQuantizeSDPA, smoke_Inference) {
     core->set_property(targetDevice, ov::hint::activations_scale_factor(8.f));
     run();
 }
+
+// T5 adds an integer attention mask, turned into (1 - Convert(mask)) * lowest, to the relative position bias and feeds
+// the sum to SDPA as the attention mask. The activations scaling LPT run sees the mask arithmetic as a dequantization
+// with a zero point. If it moves that dequantization through the Add, the position bias is computed as
+// (bias - 65504) / 65504 in f16 and is lost, so every attention layer runs without it. The test parameter selects a
+// floating-point attention mask input instead (no Convert), whose arithmetic LPT takes for the same dequantization.
+//
+//          input                       bucket        attention_mask
+//            |                           |                 |
+//     +------+------+          Gather(bias table)      Convert
+//     |      |      |                    |                 |
+//  MatMul  MatMul  MatMul            Transpose       Subtract(1, x)
+//     |      |      |                    |                 |
+//  Reshape Reshape Reshape           Unsqueeze      Multiply(lowest)
+//     |      |      |                    |                 |
+// Transpose Transpose Transpose          +------ Add ------+
+//     | Q    | K    | V                           |
+//     +------+------+------------- SDPA ----------+
+//                                   |
+//                               Transpose
+//                                   |
+//                                Reshape
+//                                   |
+//                                MatMul
+class ActivationsScalingSDPAMaskWithPositionBias : public testing::WithParamInterface<bool>,
+                                                   virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        return obj.param ? "float_mask" : "integer_mask";
+    }
+
+protected:
+    static constexpr int64_t num_heads = 2;
+    static constexpr int64_t head_size = 64;
+    static constexpr int64_t hidden_size = num_heads * head_size;
+    static constexpr int64_t num_buckets = 32;
+    static constexpr size_t seq_len = 16;
+    static constexpr size_t valid_len = 5;
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        init_input_shapes({{{-1, -1, hidden_size}, {{1, seq_len, hidden_size}}}, {{-1, -1}, {{seq_len, seq_len}}}, {{-1, -1}, {{1, seq_len}}}});
+        outType = ov::element::f32;
+        abs_threshold = 0.02f;
+        // Activations scaling applies to f16 inference only, while core_configuration() selects f32 for f32 parameters.
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        const auto bucket = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
+        const bool float_mask = GetParam();
+        const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(float_mask ? ov::element::f32 : ov::element::i64, inputDynamicShapes[2]);
+
+        int seed = 1;
+        auto linear = [&](const ov::Output<ov::Node>& data) {
+            const auto weights =
+                ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, ov::Shape{hidden_size, hidden_size}, -0.1f, 0.1f, seed++);
+            return std::make_shared<ov::op::v0::MatMul>(data, std::make_shared<ov::op::v0::Constant>(weights), false, true);
+        };
+        const auto order = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
+        auto split_heads = [&](const ov::Output<ov::Node>& data) {
+            const auto shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, num_heads, head_size});
+            return std::make_shared<ov::op::v1::Transpose>(std::make_shared<ov::op::v1::Reshape>(data, shape, true), order);
+        };
+
+        // Relative position bias [1, num_heads, seq_len, seq_len]
+        const auto bias_table =
+            ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, ov::Shape{num_buckets, num_heads}, -4.f, 4.f, seed++);
+        const auto bias = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v0::Constant>(bias_table),
+                                                               bucket,
+                                                               ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+        const auto bias_heads = std::make_shared<ov::op::v1::Transpose>(bias, ov::op::v0::Constant::create(ov::element::i64, {3}, {2, 0, 1}));
+        const auto position_bias = std::make_shared<ov::op::v0::Unsqueeze>(bias_heads, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
+
+        // Extended attention mask [batch, 1, 1, seq_len]: 0 for tokens to attend to, lowest for padding
+        const auto unsqueezed_mask = std::make_shared<ov::op::v0::Unsqueeze>(attention_mask, ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 2}));
+        const std::shared_ptr<ov::Node> mask =
+            float_mask ? unsqueezed_mask : std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(unsqueezed_mask, ov::element::f32));
+        const auto inverted = std::make_shared<ov::op::v1::Subtract>(ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}), mask);
+        const auto extended_mask =
+            std::make_shared<ov::op::v1::Multiply>(inverted, ov::op::v0::Constant::create(ov::element::f32, {}, {std::numeric_limits<float>::lowest()}));
+        const auto attn_mask = std::make_shared<ov::op::v1::Add>(position_bias, extended_mask);
+
+        const auto q = split_heads(linear(input));
+        const auto k = split_heads(linear(input));
+        const auto v = split_heads(linear(input));
+        const auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {1.f});
+        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attn_mask, scale, false);
+
+        const auto merged = std::make_shared<ov::op::v1::Reshape>(std::make_shared<ov::op::v1::Transpose>(sdpa, order),
+                                                                  ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 0, hidden_size}),
+                                                                  true);
+        function = std::make_shared<ov::Model>(ov::OutputVector{linear(merged)},
+                                               ov::ParameterVector{input, bucket, attention_mask},
+                                               "ActivationsScalingSDPAMaskWithPositionBias");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& model_inputs = function->inputs();
+        inputs.insert({model_inputs[0].get_node_shared_ptr(),
+                       ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, target_input_static_shapes[0], -1.f, 1.f, 1)});
+
+        ov::Tensor bucket(ov::element::i64, target_input_static_shapes[1]);
+        auto* bucket_data = bucket.data<int64_t>();
+        for (size_t i = 0; i < bucket.get_size(); ++i) {
+            bucket_data[i] = static_cast<int64_t>((i * 7 + i / seq_len * 3) % num_buckets);
+        }
+        inputs.insert({model_inputs[1].get_node_shared_ptr(), bucket});
+
+        ov::Tensor attention_mask(model_inputs[2].get_element_type(), target_input_static_shapes[2]);
+        for (size_t i = 0; i < attention_mask.get_size(); ++i) {
+            const bool attend = (i % seq_len) < valid_len;
+            if (attention_mask.get_element_type() == ov::element::f32) {
+                attention_mask.data<float>()[i] = attend ? 1.f : 0.f;
+            } else {
+                attention_mask.data<int64_t>()[i] = attend ? 1 : 0;
+            }
+        }
+        inputs.insert({model_inputs[2].get_node_shared_ptr(), attention_mask});
+    }
+};
+
+TEST_P(ActivationsScalingSDPAMaskWithPositionBias, Inference) {
+    core->set_property(targetDevice, ov::hint::activations_scale_factor(8.f));
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
+                         ActivationsScalingSDPAMaskWithPositionBias,
+                         ::testing::Bool(),
+                         ActivationsScalingSDPAMaskWithPositionBias::getTestCaseName);
+
+// The product of two scaled MatMul outputs carries the scale-up ASF^2 after the activations scaling LPT run
+// (MultiplyPartialTransformation). It has to move through the residual Add down to the RMS, which absorbs it: the
+// product exceeds the f16 range at full magnitude. With ASF 16 the composed scale-up is 256, so a bound on the scale of
+// the branches moved through an Add would apply it in front of the Add. The test parameter adds a bias to the product,
+// which LPT turns into the zero point of that scale-up, (product / 256 + bias / 256) * 256. AddTransformation folds it
+// into the residual in the residual's own scale ASF, as bias / 16: 8 for a bias of 128, which a bound on the zero point
+// scaled to the output (128) would block, and 128 for a bias of 2048, which the bound on the folded zero point of other
+// scales (64) would block.
+//
+//               input
+//          /      |      \_
+//      MatMul  MatMul  MatMul
+//         |       \      /
+//         |       Multiply
+//         |          |
+//         |    [Add(bias)]
+//          \        /
+//             Add
+//              |
+//             RMS
+class ActivationsScalingComposedScaleUp : public testing::WithParamInterface<float>, virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<float>& obj) {
+        return obj.param == 0.f ? "product" : "product_bias_" + std::to_string(static_cast<int>(obj.param));
+    }
+
+protected:
+    static constexpr int64_t hidden_size = 64;
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        init_input_shapes({{{-1, -1, hidden_size}, {{1, 8, hidden_size}}}});
+        inType = outType = ov::element::f32;
+        abs_threshold = 0.02f;
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+        configuration.insert(ov::hint::activations_scale_factor(16.f));
+
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        int seed = 1;
+        auto linear = [&](const ov::Output<ov::Node>& data) {
+            const auto weights =
+                ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, ov::Shape{hidden_size, hidden_size}, -100.f, 100.f, seed++);
+            return std::make_shared<ov::op::v0::MatMul>(data, std::make_shared<ov::op::v0::Constant>(weights), false, true);
+        };
+        const auto residual = linear(input);
+        std::shared_ptr<ov::Node> product = std::make_shared<ov::op::v1::Multiply>(linear(input), linear(input));
+        if (GetParam() != 0.f) {
+            product = std::make_shared<ov::op::v1::Add>(product, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {GetParam()}));
+        }
+        const auto sum = std::make_shared<ov::op::v1::Add>(residual, product);
+
+        const auto power = std::make_shared<ov::op::v1::Power>(sum, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f}));
+        const auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), true);
+        const auto eps = std::make_shared<ov::op::v1::Add>(mean, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f}));
+        const auto reciprocal =
+            std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f}), std::make_shared<ov::op::v0::Sqrt>(eps));
+        const auto gamma = ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, ov::Shape{hidden_size}, 0.5f, 1.5f, seed++);
+        const auto rms =
+            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Constant>(gamma), std::make_shared<ov::op::v1::Multiply>(sum, reciprocal));
+
+        function = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input}, "ActivationsScalingComposedScaleUp");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& model_inputs = function->inputs();
+        inputs.insert({model_inputs[0].get_node_shared_ptr(),
+                       ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, target_input_static_shapes[0], -1.f, 1.f, 1)});
+    }
+};
+
+TEST_P(ActivationsScalingComposedScaleUp, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingComposedScaleUp,
+                         ActivationsScalingComposedScaleUp,
+                         ::testing::Values(0.f, 128.f, 2048.f),
+                         ActivationsScalingComposedScaleUp::getTestCaseName);
 } // namespace
