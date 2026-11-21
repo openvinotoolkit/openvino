@@ -21,14 +21,19 @@
 #define TO_NORMALIZED_TYPE(x) TO_OUTPUT_TYPE(x)
 #endif
 
+// gamma may have a different data type than the input
 #if SUBGROUP_BLOCK_SIZE == 1
 #define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
+#define GAMMA_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+#define TO_GAMMA_ACC(x) TO_GAMMA_ACC_TYPE(x)
 #define BLOCK_WRITE(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
 #define ACC_TYPE ACCUMULATOR_TYPE
 #define TO_ACC_TYPE(x) TO_ACCUMULATOR_TYPE(x)
 #define NORMALIZED_VEC_TYPE NORMALIZED_TYPE
 #else
 #define BLOCK_READ(ptr, offset) CAT(DT_INPUT_BLOCK_READ, SUBGROUP_BLOCK_SIZE)(ptr, offset)
+#define GAMMA_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, SUBGROUP_BLOCK_SIZE, ptr, offset)
+#define TO_GAMMA_ACC(x) TO_GAMMA_ACC_VECTOR_TYPE(x, SUBGROUP_BLOCK_SIZE)
 #define BLOCK_WRITE(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, SUBGROUP_BLOCK_SIZE)(ptr, offset, val)
 #define ACC_TYPE MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, SUBGROUP_BLOCK_SIZE)
 #define TO_ACC_TYPE(x) TO_ACCUMULATOR_VECTOR_TYPE(x, SUBGROUP_BLOCK_SIZE)
@@ -170,7 +175,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     rms = slm_buf[0];
 
 #if ELEMENTWISE_AFFINE && RMS_GAMMA_IS_SCALAR
-    const ACCUMULATOR_TYPE gamma_scalar = TO_ACCUMULATOR_TYPE(gamma[0]);
+    const ACCUMULATOR_TYPE gamma_scalar = TO_GAMMA_ACC_TYPE(gamma[0]);
 #endif
 
     #if HAS_FUSED_OPS && !RMS_FEATURE_AXIS
@@ -201,7 +206,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         {
 #if ELEMENTWISE_AFFINE
 #if !RMS_GAMMA_IS_SCALAR
-            ACC_TYPE vec_gamma = TO_ACC_TYPE(BLOCK_READ(gamma, subgroup_offset + i * get_sub_group_size()));
+            ACC_TYPE vec_gamma = TO_GAMMA_ACC(GAMMA_BLOCK_READ(gamma, subgroup_offset + i * get_sub_group_size()));
 #endif
 #endif
             NORMALIZED_VEC_TYPE vec_tmp;
@@ -298,9 +303,9 @@ KERNEL(rms_gpu_bfyx_opt)(
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * gamma_scalar);
     #else
 #if RMS_FEATURE_AXIS
-        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f_idx]);
+        ACCUMULATOR_TYPE temp = TO_GAMMA_ACC_TYPE(gamma[INPUT1_OFFSET + f_idx]);
 #else
-        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
+        ACCUMULATOR_TYPE temp = TO_GAMMA_ACC_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
 #endif
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * temp);
     #endif
@@ -363,9 +368,9 @@ KERNEL(rms_gpu_bfyx_opt)(
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num] * gamma_scalar);
     #else
 #if RMS_FEATURE_AXIS
-        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f_idx]);
+        ACCUMULATOR_TYPE temp = TO_GAMMA_ACC_TYPE(gamma[INPUT1_OFFSET + f_idx]);
 #else
-        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + in_data_idx]);
+        ACCUMULATOR_TYPE temp = TO_GAMMA_ACC_TYPE(gamma[workers_per_data * items_num + in_data_idx]);
 #endif
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num] * temp);
     #endif
@@ -390,6 +395,8 @@ KERNEL(rms_gpu_bfyx_opt)(
 }
 #undef USE_BLOCK_WRITE
 #undef BLOCK_READ
+#undef GAMMA_BLOCK_READ
+#undef TO_GAMMA_ACC
 #undef BLOCK_WRITE
 #undef ACC_TYPE
 #undef TO_ACC_TYPE
