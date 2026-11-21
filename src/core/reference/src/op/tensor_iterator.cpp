@@ -20,9 +20,7 @@ void tensor_iterator(uint64_t num_iterations,
                      ov::TensorVector& out,
                      const ov::TensorVector& args,
                      const custom_evaluate_function& evaluate) {
-    ov::TensorVector inputs_to_body;
-    for (size_t i = 0; i < input_descs.size(); ++i)
-        inputs_to_body.push_back(ov::Tensor());
+    ov::TensorVector inputs_to_body(func->get_parameters().size());
 
     // Port map processing: inputs and back edges
     struct BackEdge {
@@ -31,6 +29,9 @@ void tensor_iterator(uint64_t num_iterations,
     };
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
+        OPENVINO_ASSERT(inputs_to_body.size() > desc->m_body_parameter_index,
+                        "Incorrect associating! TensorIterator/Loop body has not parameter with id ",
+                        desc->m_body_parameter_index);
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
         if (const auto& merged_desc = ov::as_type_ptr<ov::op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
@@ -47,30 +48,35 @@ void tensor_iterator(uint64_t num_iterations,
     // Slicing
     std::vector<std::shared_ptr<op::v0::TensorIterator::SliceInputDescription>> slice_inputs;
     std::vector<ov::TensorVector> sliced_values;
-    int slice_in_idx = 0;
-    for (const auto& desc : input_descs) {
-        if (const auto& slice_desc = ov::as_type_ptr<op::v0::TensorIterator::SliceInputDescription>(desc)) {
-            const auto el_size = args[slice_desc->m_input_index].get_element_type().size();
-            slice_inputs.push_back(slice_desc);
-            auto shape = args[slice_desc->m_input_index].get_shape();
-            shape.at(slice_desc->m_axis) = 1;
-            sliced_values.emplace_back(ov::TensorVector());
-            for (uint64_t i = 0; i < num_iterations; ++i) {
-                sliced_values.back().emplace_back(
-                    ov::Tensor(args[slice_desc->m_input_index].get_element_type(), shape));
+    // With num_iterations == 0 there is nothing to slice, and reference::split would
+    // divide by a zero split count; the body-output check below already rejects this
+    // case cleanly.
+    if (num_iterations > 0) {
+        int slice_in_idx = 0;
+        for (const auto& desc : input_descs) {
+            if (const auto& slice_desc = ov::as_type_ptr<op::v0::TensorIterator::SliceInputDescription>(desc)) {
+                const auto el_size = args[slice_desc->m_input_index].get_element_type().size();
+                slice_inputs.push_back(slice_desc);
+                auto shape = args[slice_desc->m_input_index].get_shape();
+                shape.at(slice_desc->m_axis) = 1;
+                sliced_values.emplace_back(ov::TensorVector());
+                for (uint64_t i = 0; i < num_iterations; ++i) {
+                    sliced_values.back().emplace_back(
+                        ov::Tensor(args[slice_desc->m_input_index].get_element_type(), shape));
+                }
+                std::vector<char*> pointers_to_data(num_iterations);
+                for (size_t j = 0; j < pointers_to_data.size(); ++j) {
+                    pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
+                        static_cast<char*>(sliced_values[slice_in_idx][j].data());
+                }
+                reference::split(static_cast<const char*>(args[slice_desc->m_input_index].data()),
+                                 args[slice_desc->m_input_index].get_shape(),
+                                 el_size,
+                                 slice_desc->m_axis,
+                                 num_iterations,
+                                 pointers_to_data.data());
+                slice_in_idx++;
             }
-            std::vector<char*> pointers_to_data(num_iterations);
-            for (size_t j = 0; j < pointers_to_data.size(); ++j) {
-                pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
-                    static_cast<char*>(sliced_values[slice_in_idx][j].data());
-            }
-            reference::split(static_cast<const char*>(args[slice_desc->m_input_index].data()),
-                             args[slice_desc->m_input_index].get_shape(),
-                             el_size,
-                             slice_desc->m_axis,
-                             num_iterations,
-                             pointers_to_data.data());
-            slice_in_idx++;
         }
     }
 
@@ -106,6 +112,9 @@ void tensor_iterator(uint64_t num_iterations,
 
     for (const auto& desc : out_descs) {
         if (const auto& body_desc = ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(desc)) {
+            OPENVINO_ASSERT(body_desc->m_body_value_index < body_outputs.size(),
+                            "Incorrect associating! TensorIterator/Loop body produced no output for value id ",
+                            body_desc->m_body_value_index);
             // Copy output values from the last iteration
             const auto& res = body_outputs[body_desc->m_body_value_index];
             res.copy_to(out[body_desc->m_output_index]);
