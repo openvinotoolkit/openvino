@@ -118,13 +118,13 @@ void shape_validation(const ov::op::util::FFTBase* op,
 
     NODE_SHAPE_INFER_CHECK(op, input_shapes, axes_shape.rank().compatible(1), "Axes input must be 1D tensor.");
 
+    if (require_non_empty_axes && axes_shape.rank().is_static()) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               axes_shape[0].is_dynamic() || axes_shape[0].get_length() > 0,
+                               "Axes input must not be empty.");
+    }
     if (require_non_empty_axes) {
-        if (axes_shape.rank().is_static()) {
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   axes_shape[0].is_dynamic() || axes_shape[0].get_length() > 0,
-                                   "Axes input must not be empty.");
-        }
         NODE_SHAPE_INFER_CHECK(op, input_shapes, !axes || !axes->empty(), "Axes input must not be empty.");
     }
 
