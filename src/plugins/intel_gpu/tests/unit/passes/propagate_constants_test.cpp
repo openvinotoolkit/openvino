@@ -5,6 +5,13 @@
 #include "test_utils.h"
 #include "program_wrapper.h"
 #include "pass_manager.h"
+#include <intel_gpu/primitives/convolution.hpp>
+#include "openvino/reference/convolution.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <random>
+#include <vector>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -191,6 +198,105 @@ TEST(propagate_constants, no_reselection_when_constants_are_static) {
     ASSERT_NE(impl_after, nullptr);
     ASSERT_FALSE(impl_after->is_dynamic());
     ASSERT_EQ(impl_before, impl_after);
+}
+
+TEST(propagate_constants, constant_padded_conv_chain_matches_fp64_with_runtime_onednn_conv) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN convolution path requires IMMAD support";
+
+    const ov::Shape input_shape{1, 8, 16, 16};
+    const ov::Shape first_weights_shape{16, 8, 3, 3};
+    const ov::Shape second_weights_shape{16, 16, 3, 3};
+    const ov::Shape output_shape{1, 16, 16, 16};
+    const layout input_tensor_layout{input_shape, data_types::f32, format::bfyx};
+    const layout first_weights_layout{first_weights_shape, data_types::f32, format::bfyx};
+    const layout second_weights_layout{second_weights_shape, data_types::f32, format::bfyx};
+
+    auto make_weights = [](size_t count, unsigned int seed) {
+        std::mt19937 generator(seed);
+        std::normal_distribution<float> distribution(0.0f, 0.1f);
+        std::vector<float> values(count);
+        for (auto& value : values)
+            value = distribution(generator);
+        return values;
+    };
+    auto to_fp64 = [](const std::vector<float>& values) {
+        return std::vector<double>(values.begin(), values.end());
+    };
+
+    const auto first_weights_values = make_weights(first_weights_layout.count(), 1);
+    const auto second_weights_values = make_weights(second_weights_layout.count(), 2);
+    const auto runtime_weights_values = make_weights(first_weights_layout.count(), 99);
+
+    auto constant_input = engine.allocate_memory(input_tensor_layout);
+    auto runtime_input = engine.allocate_memory(input_tensor_layout);
+    auto first_weights = engine.allocate_memory(first_weights_layout);
+    auto second_weights = engine.allocate_memory(second_weights_layout);
+    auto runtime_weights = engine.allocate_memory(first_weights_layout);
+    set_values(constant_input, std::vector<float>(input_tensor_layout.count(), 0.25f));
+    set_values(runtime_input, std::vector<float>(input_tensor_layout.count(), 0.25f));
+    set_values(first_weights, first_weights_values);
+    set_values(second_weights, second_weights_values);
+    set_values(runtime_weights, runtime_weights_values);
+
+    // runtime_conv is intentionally on its own branch (fed by the non-constant "runtime_input"), not downstream of
+    // constant_conv_2: it must stay outside propagate_constants' internal program so this test also covers that the
+    // internal-program's cloned force_implementations map is filtered to the internal graph's own node ids.
+    topology topology(
+        input_layout("runtime_input", input_tensor_layout),
+        data("runtime_weights", runtime_weights),
+        convolution("runtime_conv", input_info("runtime_input"), "runtime_weights", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        data("constant_input", constant_input),
+        data("first_weights", first_weights),
+        data("second_weights", second_weights),
+        convolution("constant_conv_1", input_info("constant_input"), "first_weights", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        convolution("constant_conv_2", input_info("constant_conv_1"), "second_weights", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    const ov::intel_gpu::ImplementationDesc runtime_conv_impl{format::any, "", impl_types::onednn};
+    // constant_conv_1 also carries a forcing entry whose impl_type is left at its default `any` (as a kernel- or
+    // format-only forcing entry would be), covering the case where propagate_constants must keep its own backend
+    // pin instead of letting graph_initializations reset it back to `any`.
+    const ov::intel_gpu::ImplementationDesc constant_conv_format_only{};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"runtime_conv", runtime_conv_impl}, {"constant_conv_1", constant_conv_format_only}}));
+
+    network network(engine, topology, config);
+    // Guard against a false-positive pass if implementation forcing were ignored/fell back for this configuration.
+    auto runtime_conv_impl_inst = network.get_primitive("runtime_conv")->get_impl();
+    ASSERT_NE(runtime_conv_impl_inst, nullptr);
+    ASSERT_TRUE(runtime_conv_impl_inst->is_onednn()) << "runtime_conv was expected to run with oneDNN due to implementation forcing";
+
+    network.set_input_data("runtime_input", runtime_input);
+    auto outputs = network.execute();
+    ASSERT_NE(outputs.find("runtime_conv"), outputs.end());
+    ASSERT_NE(outputs.find("constant_conv_2"), outputs.end());
+
+    const auto first_weights_fp64 = to_fp64(first_weights_values);
+    const auto second_weights_fp64 = to_fp64(second_weights_values);
+    const std::vector<double> input_values_fp64(input_tensor_layout.count(), 0.25);
+    std::vector<double> first_output_fp64(ov::shape_size(output_shape));
+    std::vector<double> expected_output_fp64(ov::shape_size(output_shape));
+    ov::reference::convolution(input_values_fp64.data(), first_weights_fp64.data(), first_output_fp64.data(),
+                               input_shape, first_weights_shape, output_shape,
+                               {1, 1}, {1, 1}, {1, 1}, {1, 1});
+    ov::reference::convolution(first_output_fp64.data(), second_weights_fp64.data(), expected_output_fp64.data(),
+                               output_shape, second_weights_shape, output_shape,
+                               {1, 1}, {1, 1}, {1, 1}, {1, 1});
+
+    auto output_memory = outputs.at("constant_conv_2").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_values(output_memory, get_test_stream());
+    ASSERT_EQ(output_values.size(), expected_output_fp64.size());
+    double max_abs_error = 0.0;
+    for (size_t i = 0; i < expected_output_fp64.size(); ++i)
+        max_abs_error = std::max(max_abs_error, std::abs(static_cast<double>(output_values[i]) - expected_output_fp64[i]));
+
+    EXPECT_LE(max_abs_error, 1e-4) << "constant padded convolution chain max abs error: " << max_abs_error;
 }
 
 // Verifies that propagate_constants consistently reselects implementations

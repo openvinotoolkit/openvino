@@ -7,6 +7,7 @@
 #include "data_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -244,7 +245,35 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
         return {};
     }
 
+    // Weights were already reordered for the impl the main program selected; keep the internal program on the same impl type.
+    // A non-empty force_implementations map would silently re-enable optimize_data, so pin it on the nodes instead.
+    // primitive_impl only exposes is_onednn()/is_cpu() (no general impl_types getter), and convolution currently only
+    // ever selects ocl or onednn, so is_onednn() fully determines the impl type here; revisit if a non-oneDNN,
+    // non-OCL convolution impl (e.g. cm/sycl) is ever registered.
+    for (const auto& node : nodes) {
+        if (node->is_type<convolution>() && node->get_selected_impl() != nullptr) {
+            node->set_forced_impl_type(node->get_selected_impl()->is_onednn() ? impl_types::onednn : impl_types::ocl);
+        }
+    }
+
     ExecutionConfig cf_config = config.clone();
+    // finalize() re-enables optimize_data whenever force_implementations is non-empty, so drop entries of nodes outside this program.
+    ov::intel_gpu::ImplForcingMap cf_forcing_map;
+    const auto& forcing_map = config.get_force_implementations();
+    for (const auto& node : nodes) {
+        // Convolutions pinned above already carry forced_impl_type through node copying (program.cpp); including
+        // them here too would let graph_initializations::run() re-apply this entry's original impl_type and undo
+        // the pin whenever that entry's impl_type defaults to `any` (e.g. a format/kernel-only forcing).
+        if (node->is_type<convolution>() && node->get_selected_impl() != nullptr) {
+            continue;
+        }
+        const auto forced = forcing_map.find(node->id());
+        if (forced != forcing_map.end()) {
+            cf_forcing_map.insert(*forced);
+        }
+    }
+    cf_config.set_property(ov::intel_gpu::force_implementations(cf_forcing_map));
+    // Only takes effect when cf_forcing_map ends up empty above; otherwise finalize() below forces optimize_data back to true.
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     cf_config.finalize(engine);
