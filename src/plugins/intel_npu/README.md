@@ -314,6 +314,11 @@ Supported values:
     map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
     compile_model(model, config);
 ```
+
+#### Unsupported parameters
+Entries that the compiler does not accept are ignored. The compiler reports each ignored entry as a warning, for example ``Compilation option 'vertical-fusion=true' is not valid and will be ignored``. The warning is shown only when ``ov::log::level`` is ``WARNING`` or more verbose; release builds default to ``ERR``.
+
+Reading ``ov::intel_npu::compilation_mode_params`` from a compiled model returns the string passed at compilation, including any ignored entries. It does not show which entries took effect.
 <br>
 
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
