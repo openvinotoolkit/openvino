@@ -693,6 +693,52 @@ TEST_F(TransformationTestsF, RMSNormFusionTest20_PowerNegHalf_NoGamma) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+namespace {
+class RMSNormFusionLastAxisGammaTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<RMSFusion>(false, true, true, /*restrict_last_axis_gamma=*/true);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+    static std::shared_ptr<ov::op::v0::Parameter> make_input() {
+        return std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 2, 2});
+    }
+
+    static std::shared_ptr<ov::Model> getModel(const std::shared_ptr<ov::op::v0::Constant>& gamma) {
+        auto input = make_input();
+        auto square = std::make_shared<ov::op::v1::Multiply>(input, input);
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(square, axis, true);
+        auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f});
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, eps));
+        auto normalized = std::make_shared<ov::op::v1::Divide>(input, sqrt);
+        auto output = std::make_shared<ov::op::v1::Multiply>(normalized, gamma);
+        return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    }
+};
+}  // namespace
+
+TEST_F(RMSNormFusionLastAxisGammaTest, GroupedGammaStaysOutsideRMS) {
+    auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 2, 2}, {2.f, 3.f, 4.f, 5.f});
+    model = getModel(gamma);
+    auto input = make_input();
+    auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-6f, ov::element::f32);
+    auto output = std::make_shared<ov::op::v1::Multiply>(rms, gamma->clone_with_new_inputs({}));
+    model_ref = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+}
+
+TEST_F(RMSNormFusionLastAxisGammaTest, SharedGammaStillFuses) {
+    auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 2}, {2.f, 3.f});
+    model = getModel(gamma);
+    auto input = make_input();
+    auto rms =
+        std::make_shared<ov::op::internal::RMS>(input, gamma->clone_with_new_inputs({}), 1e-6f, ov::element::f32);
+    model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+}
+
 TEST_F(TransformationTestsF, RMSNormFusionFeatureAxisWithoutGamma) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 256, 4, 4});
