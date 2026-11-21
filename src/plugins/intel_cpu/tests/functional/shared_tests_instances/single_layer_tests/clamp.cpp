@@ -123,4 +123,27 @@ TEST(smoke_Clamp, Int8NegativeFractionalBoundsAreRounded) {
     const auto output = inferRequest.get_output_tensor();
     ASSERT_EQ(std::vector<int8_t>(output.data<const int8_t>(), output.data<const int8_t>() + values.size()), expected);
 }
+
+TEST(smoke_Clamp, FloatNaNIsPreserved) {
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+    const auto clamp = std::make_shared<ov::op::v0::Clamp>(input, 0.0, 1.0);
+    const auto model = std::make_shared<ov::Model>(clamp, ov::ParameterVector{input});
+
+    ov::Core core;
+    auto compiledModel = core.compile_model(model, ov::test::utils::DEVICE_CPU);
+    auto inferRequest = compiledModel.create_infer_request();
+    ov::Tensor inputTensor(ov::element::f32, ov::Shape{4});
+    inputTensor.data<float>()[0] = std::numeric_limits<float>::quiet_NaN();
+    inputTensor.data<float>()[1] = -1.0f;
+    inputTensor.data<float>()[2] = 0.5f;
+    inputTensor.data<float>()[3] = 2.0f;
+    inferRequest.set_input_tensor(inputTensor);
+    inferRequest.infer();
+
+    const auto output = inferRequest.get_output_tensor();
+    EXPECT_TRUE(std::isnan(output.data<const float>()[0]));
+    EXPECT_FLOAT_EQ(output.data<const float>()[1], 0.0f);
+    EXPECT_FLOAT_EQ(output.data<const float>()[2], 0.5f);
+    EXPECT_FLOAT_EQ(output.data<const float>()[3], 1.0f);
+}
 } // namespace

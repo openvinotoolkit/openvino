@@ -619,14 +619,31 @@ size_t jit_mod_emitter::aux_vecs_count() const {
 jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
 jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_maximum_emitter::get_inputs_num() const {
     return 2;
+}
+
+size_t jit_maximum_emitter::aux_vecs_count() const {
+    if (exec_prc_ != ov::element::f32) {
+        return 0;
+    }
+    return host_isa_ == x64::avx512_core ? 0 : 1;
+}
+
+void jit_maximum_emitter::register_table_entries() {
+    if (exec_prc_ == ov::element::f32 && host_isa_ == x64::avx512_core) {
+        push_arg_entry_of("qnan", 0x7fc00000, true);
+    }
 }
 
 void jit_maximum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -650,11 +667,29 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
+    if (exec_prc_ == ov::element::f32) {
+        if (isa == x64::avx512_core) {
+            h->vcmpps(k_mask, vmm_src0, vmm_src0, _cmp_unord_q);
+            h->uni_vmaxps(vmm_dst, vmm_src0, vmm_src1);
+            h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("qnan"));
+        } else {
+            auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+            h->uni_vcmpps(vmm_aux0, vmm_src0, vmm_src0, _cmp_unord_q);
+            if (isa == x64::sse41) {
+                if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
+                    h->uni_vmovups(vmm_dst, vmm_src0);
+                }
+                h->uni_vmaxps(vmm_dst, vmm_dst, vmm_src1);
+            } else {
+                h->uni_vmaxps(vmm_dst, vmm_src0, vmm_src1);
+            }
+            h->uni_vorps(vmm_dst, vmm_dst, vmm_aux0);
+        }
+        return;
+    }
+
     auto uni_vmax = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
-        case ov::element::f32:
-            h->uni_vmaxps(vmm_dst, vmm_src0, vmm_src1);
-            break;
         case ov::element::i32:
             h->uni_vpmaxsd(vmm_dst, vmm_src0, vmm_src1);
             break;
@@ -682,14 +717,31 @@ std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisio
 jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
 jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_minimum_emitter::get_inputs_num() const {
     return 2;
+}
+
+size_t jit_minimum_emitter::aux_vecs_count() const {
+    if (exec_prc_ != ov::element::f32) {
+        return 0;
+    }
+    return host_isa_ == x64::avx512_core ? 0 : 1;
+}
+
+void jit_minimum_emitter::register_table_entries() {
+    if (exec_prc_ == ov::element::f32 && host_isa_ == x64::avx512_core) {
+        push_arg_entry_of("qnan", 0x7fc00000, true);
+    }
 }
 
 void jit_minimum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -713,11 +765,29 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
+    if (exec_prc_ == ov::element::f32) {
+        if (isa == x64::avx512_core) {
+            h->vcmpps(k_mask, vmm_src0, vmm_src0, _cmp_unord_q);
+            h->uni_vminps(vmm_dst, vmm_src0, vmm_src1);
+            h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("qnan"));
+        } else {
+            auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+            h->uni_vcmpps(vmm_aux0, vmm_src0, vmm_src0, _cmp_unord_q);
+            if (isa == x64::sse41) {
+                if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
+                    h->uni_vmovups(vmm_dst, vmm_src0);
+                }
+                h->uni_vminps(vmm_dst, vmm_dst, vmm_src1);
+            } else {
+                h->uni_vminps(vmm_dst, vmm_src0, vmm_src1);
+            }
+            h->uni_vorps(vmm_dst, vmm_dst, vmm_aux0);
+        }
+        return;
+    }
+
     auto uni_vmin = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
-        case ov::element::f32:
-            h->uni_vminps(vmm_dst, vmm_src0, vmm_src1);
-            break;
         case ov::element::i32:
             h->uni_vpminsd(vmm_dst, vmm_src0, vmm_src1);
             break;
@@ -3322,6 +3392,10 @@ size_t jit_clamp_emitter::get_inputs_num() const {
     return 1;
 }
 
+size_t jit_clamp_emitter::aux_vecs_count() const {
+    return exec_prc_ == ov::element::f32 ? 1 : 0;
+}
+
 void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                   const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == x64::sse41) {
@@ -3342,12 +3416,20 @@ void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_src0 = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
+    if (exec_prc_ == ov::element::f32) {
+        auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+        // To preserve NaN in vmm_src0 (IEEE-754 semantics), finite bounds must be in SRC1
+        // and data in SRC2 because x86 VMAXPS/VMINPS return SRC2 when either operand is NaN:
+        // DEST = (SRC1 > SRC2) ? SRC1 : SRC2
+        h->uni_vmovups(vmm_aux0, table_val("min"));
+        h->uni_vmaxps(vmm_aux0, vmm_aux0, vmm_src0);
+        h->uni_vmovups(vmm_dst, table_val("max"));
+        h->uni_vminps(vmm_dst, vmm_dst, vmm_aux0);
+        return;
+    }
+
     auto uni_vclamp = [this](Vmm vmm_dst, Vmm vmm_src0) {
         switch (exec_prc_) {
-        case ov::element::f32:
-            h->uni_vmaxps(vmm_dst, vmm_src0, table_val("min"));
-            h->uni_vminps(vmm_dst, vmm_dst, table_val("max"));
-            break;
         case ov::element::i32:
             h->uni_vpmaxsd(vmm_dst, vmm_src0, table_val("min"));
             h->uni_vpminsd(vmm_dst, vmm_dst, table_val("max"));
