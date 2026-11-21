@@ -16,6 +16,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "model_serializer.hpp"
+#include "openvino/core/model.hpp"
 
 namespace intel_npu {
 
@@ -46,6 +47,17 @@ public:
     GraphDescriptor getGraphDescriptor(const void* data, size_t size) const;
 
     NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor) const;
+
+    /**
+     * @brief Same as "getNetworkMeta", but falls back on the I/O of the given model when the driver can't describe
+     * them.
+     * @details The graph extension describes each argument using at most "ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE"
+     * dimensions, so the argument query fails for models having inputs/outputs of a greater rank, even if the graph
+     * itself was created. In that case only, the descriptors are built from the model. Any other failure is rethrown.
+     *
+     * @param model The model which was compiled for obtaining the graph.
+     */
+    NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor, const std::shared_ptr<const ov::Model>& model) const;
 
     void destroyGraph(GraphDescriptor& graphDescriptor);
 
