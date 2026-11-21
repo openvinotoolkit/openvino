@@ -16,6 +16,32 @@
 #    include "tbb/concurrent_unordered_map.h"
 #endif
 
+void ov::npuw::util::XARCH::fill_f16(ov::float16* data, size_t count, ov::float16 value) {
+    size_t index = 0;
+#if defined(HAVE_AVX2)
+    const auto vector_value = _mm256_set1_epi16(static_cast<int16_t>(value.to_bits()));
+    for (; count - index >= 16; index += 16) {
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(data + index), vector_value);
+    }
+#endif
+    for (; index < count; ++index) {
+        data[index] = value;
+    }
+}
+
+void ov::npuw::util::XARCH::fill_f32(float* data, size_t count, float value) {
+    size_t index = 0;
+#if defined(HAVE_AVX2)
+    const auto vector_value = _mm256_set1_ps(value);
+    for (; count - index >= 8; index += 8) {
+        _mm256_storeu_ps(data + index, vector_value);
+    }
+#endif
+    for (; index < count; ++index) {
+        data[index] = value;
+    }
+}
+
 namespace {
 #if defined(HAVE_AVX2)
 inline int8_t hi4(int8_t x) {
