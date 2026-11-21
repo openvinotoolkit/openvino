@@ -33,9 +33,11 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
+#include "openvino/util/log.hpp"
 #include "sub_memory_manager.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -177,6 +179,30 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
         }
     }
+
+    // Caller-thread-sync requires a real CPUStreamsExecutor and no sub-compiled-models orchestration;
+    // m_has_sub_compiled_models is only known for certain here, after the sub-stream block above.
+    if (m_cfg.multiAppThreadSyncExecution) {
+        auto streams_executor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_task_executor);
+        m_run_sync_in_caller_thread = streams_executor && !m_has_sub_compiled_models && !m_cfg.exclusiveAsyncRequests;
+        // Reject outright: running on the caller thread while CPU pinning is active would silently
+        // change that thread's own CPU affinity.
+        OPENVINO_ASSERT(!m_run_sync_in_caller_thread || !executor_config.get_cpu_pinning(),
+                        "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with CPU "
+                        "pinning (ov::hint::enable_cpu_pinning resolved to true). Running inference on the "
+                        "calling application thread while CPU pinning is enabled silently changes that thread's "
+                        "CPU affinity. Set ov::hint::enable_cpu_pinning(false) explicitly when using "
+                        "ov::intel_cpu::multi_app_thread_sync_execution(true).");
+        if (!m_run_sync_in_caller_thread) {
+            // OPENVINO_WARN (not DEBUG_LOG) so this config downgrade is visible in standard builds too.
+            OPENVINO_WARN("[CPU] ov::intel_cpu::multi_app_thread_sync_execution(true) was requested but is not "
+                          "supported for this compiled model configuration (exclusiveAsyncRequests=",
+                          m_cfg.exclusiveAsyncRequests,
+                          ", has_sub_compiled_models=",
+                          m_has_sub_compiled_models,
+                          "); falling back to the regular async pipeline.");
+        }
+    }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
@@ -190,6 +216,8 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
             streamId = streamsExecutor->get_stream_id();
             socketId = std::max(0, streamsExecutor->get_socket_id());
         }
+        // Known limitation: more concurrent app threads than m_graphs.size() can collide on the same
+        // graph_idx and serialize; results stay correct, only parallelism degrades.
         graph_idx = streamId % m_graphs.size();
     }
 
@@ -244,7 +272,9 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
                                             get_callback_executor(),
-                                            m_optimized_single_stream);
+                                            m_optimized_single_stream,
+                                            m_run_sync_in_caller_thread,
+                                            m_cfg.denormalsOptMode);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());
@@ -306,6 +336,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::multi_app_thread_sync_execution.name()),
             RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RO_property(ov::intel_cpu::tbb_partitioner.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
@@ -386,6 +417,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::multi_app_thread_sync_execution) {
+        return static_cast<decltype(ov::intel_cpu::multi_app_thread_sync_execution)::value_type>(
+            m_run_sync_in_caller_thread);
     }
     if (name == ov::intel_cpu::enable_tensor_parallel) {
         const auto& enable_tensor_parallel = config.enableTensorParallel;
