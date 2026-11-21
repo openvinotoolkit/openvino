@@ -43,9 +43,30 @@ using ov::test::utils::make_tensor_with_precision_convert;
 class TestableLLMCompiledModel final : public ov::npuw::LLMCompiledModel {
 public:
     using ov::npuw::LLMCompiledModel::LLMCompiledModel;
+    using ov::npuw::LLMCompiledModel::validate_imported_sequence_extents;
 
     bool attention_mask_is_4d_float() const {
         return m_attention_mask_is_4d_float;
+    }
+
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> replace_mask_model(const ov::PartialShape& shape, bool prefill) {
+        auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        mask->output(0).set_names({"attention_mask"});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{mask}, ov::ParameterVector{mask});
+        std::shared_ptr<ov::npuw::ICompiledModel_v0> replacement =
+            std::make_shared<ov::test::npuw::MockSubCompiledModel>(model, get_plugin(), ov::AnyMap{});
+        auto& target = prefill ? m_prefill_compiled : m_generate_compiled_variants.at(0);
+        std::swap(target, replacement);
+        return replacement;
+    }
+
+    void restore_mask_model(std::shared_ptr<ov::npuw::ICompiledModel_v0> model, bool prefill) {
+        (prefill ? m_prefill_compiled : m_generate_compiled_variants.at(0)) = std::move(model);
+    }
+
+    ov::PartialShape mask_shape(bool prefill) const {
+        const auto& model = prefill ? m_prefill_compiled : m_generate_compiled_variants.at(0);
+        return find_port_by_name(model->inputs(), "attention_mask")->get_partial_shape();
     }
 };
 
@@ -91,6 +112,30 @@ TEST_F(LLM4DFloatAttentionMaskTest, Binary2DMaskIsNotDetected) {
     std::unique_ptr<TestableLLMCompiledModel> compiled;
     ASSERT_NO_THROW(compiled = compile(build_llm_test_model(), make_props()));
     EXPECT_FALSE(compiled->attention_mask_is_4d_float());
+}
+
+TEST_F(LLM4DFloatAttentionMaskTest, ImportedSequenceValidationAcceptsCompiled4DMask) {
+    for (const auto& type : {ov::element::f32, ov::element::f16}) {
+        SCOPED_TRACE(type.to_string());
+        auto compiled = compile(build_llm_test_model(make_4d_float_mask_config(type)), make_props());
+        EXPECT_NO_THROW(compiled->validate_imported_sequence_extents());
+    }
+}
+
+TEST_F(LLM4DFloatAttentionMaskTest, ImportedSequenceValidationRejectsInvalid4DMaskDimensions) {
+    auto compiled = compile(build_llm_test_model(make_4d_float_mask_config(ov::element::f32)),
+                            make_props({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "4"}}));
+    ASSERT_NO_THROW(compiled->validate_imported_sequence_extents());
+    for (bool prefill : {true, false}) {
+        for (size_t axis : {size_t{2}, size_t{3}}) {
+            SCOPED_TRACE(::testing::Message() << "prefill=" << prefill << ", axis=" << axis);
+            auto shape = compiled->mask_shape(prefill);
+            shape[axis] = shape[axis].get_length() - 1;
+            auto original = compiled->replace_mask_model(shape, prefill);
+            EXPECT_THROW(compiled->validate_imported_sequence_extents(), ov::Exception);
+            compiled->restore_mask_model(std::move(original), prefill);
+        }
+    }
 }
 
 TEST_F(LLM4DFloatAttentionMaskTest, Rank2MaskIsNotDetectedWhateverItsElementType) {

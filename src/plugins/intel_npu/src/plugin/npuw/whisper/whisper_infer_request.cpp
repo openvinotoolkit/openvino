@@ -31,6 +31,19 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
     LOG_DEBUG("Calling inference for Whisper prefill model...");
     LOG_BLOCK();
 
+    // Unlike the generic LLM infer_prefill(), nothing downstream re-checks this: the staging
+    // copy below is a raw copy_n of the caller's own token count, and the "KV-cache full"
+    // guard in infer_generate() only compares num_stored_tokens for EQUALITY against total_size
+    // - a prompt longer than max_prompt_size would push num_stored_tokens straight past
+    // total_size without ever tripping that guard.
+    const auto prompt_length = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    OPENVINO_ASSERT(prompt_length <= m_npuw_llm_compiled_model->m_kvcache_desc.max_prompt_size,
+                    "Input prompt (",
+                    prompt_length,
+                    " tokens) is longer than the configured Whisper max prompt size (",
+                    m_npuw_llm_compiled_model->m_kvcache_desc.max_prompt_size,
+                    ").");
+
     prepare_for_new_conversation();
 
     // NB: input_ids for whisper: [token, token, pad, pad]
