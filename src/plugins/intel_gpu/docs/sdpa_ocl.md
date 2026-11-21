@@ -3602,6 +3602,60 @@ against `sdpa_micro`'s 211 / 2604 / 665 (prefill 1024 / 4096, chunk of 512 on 40
 - The tiny prefill (8 / 2 heads, 17 queries, head 128) is 10 us on the bare table and on this tile, 6 on the table with
   the loop changes (`sdpa_micro` 5): one compiled stage cannot take both. Head 64 / 256 and other heads keep the bare
   table (not measured).
+- Xe3 (2026-11-21): the tiling applies there too (`arch == xe3`; xe3p not measured). PTL-H Arc B390 (gfx 30.0.4,
+  Windows, kit `test/xe2fix/x1b/xe3kit`, 2 rounds, device inputs, log `test/xe3_test/ptlh_full`; the arm that gave Xe3
+  every `xe2_tuned()` tiling by a temporary switch runs exactly this tiling on this stage), SDPA us, this tiling / the
+  table tile / `sdpa_micro`: plain prefill 1023 / 1024 / 4096 357 / 357 / 4485 against 546 / 547 / 6982 and 341.5 /
+  343 / 3864.5, chunk of 512 on 4000 1349 / 2006 / 986.5; transposed V 413 / 354.5 / 4488 against 610.5 / 541.5 / 6869
+  and 1282 / 619 / 7105, chunk 1309 / 1867 / 1812. Still slower than `sdpa_micro` there: plain prefill 1.04-1.16x,
+  chunk 1.37x (open).
+
+### Plain-SDPA tilings on Xe3 (2026-11-21)
+
+Xe3 took none of the `xe2_tuned()` tilings, so plain SDPA there ran the table tile (128 keys x 32 queries, 16 x 2
+subgroups, 128 GRF; f16 PREFILL with the loop changes). On PTL-H (Arc B390, gfx 30.0.4, iGPU) that was
+slower than `sdpa_micro` for plain V too: SDPA decode f16 1.40-1.74x, i8 2.0-2.7x; prefill 4096 f16 1.06x, i8 1.6-1.8x
+(kit `test/xe2fix/x1b/xe3kit`, 2 rounds, log `test/xe3_test/ptlh_full`). The Xe2 decode tiling (16 subgroups) did not
+fit: better at aligned 4K / 16K f16, worse at 1025 keys and on transposed V.
+
+- `solve_plain_xe3_tiling()` (`arch == xe3`, `d_max` 128, no query or key count read), picked by a one-round sweep of 13
+  decode and 11 PREFILL tiles (`sweep_xe3.py`, temporary `SCRATCH_X1B_DEC` / `_PRE` switches; log
+  `test/xe3_test/x1b_xe3_r2`):
+  - decode, one row of 8 subgroups, 16-query subgroup tiles, 256 GRF, the PREFILL loop changes, V prefetch and wide K reads
+    (the jit drops both on the i8 cache and on transposed V): 16-key tiles for f16, 32-key tiles for the per-channel i8
+    cache (the best of the sweep for f16 plain V and for i8). f16 transposed V takes the plain layout's tile, so its output
+    keeps the plain layout's bits (`sdpa_gpu_transposed_v` checks that; a first version gave it 32-key tiles, the sweep's
+    best for it alone, and failed 3 static decode cases on PTL-H); its 16-key numbers are in the table;
+  - f16 PREFILL (the static mirror tile keeps its static shapes): 16-key x 32-query subgroup tiles, 4 x 2 subgroups, 256
+    GRF, the loop changes; the per-channel i8 PREFILL keeps its own tiling (above).
+- Sweep, SDPA us of the chosen tile / the table tile / `sdpa_micro` (H 32, KV heads 8, head 128; T = keys):
+
+  | case | f16 plain V | f16 transposed V | i8 plain V | i8 transposed V |
+  |---|---|---|---|---|
+  | decode T 1024 | 27.5 / 36 / 26 | 28 / 33 / 32 | 27 / 46 / 22 | 28 / 44 / 33 |
+  | decode T 4096 | 130 / 249 / 147.5 | 166.5 / 171 / 169 | 102.5 / 178 / 67 | 92 / 149 / 104 |
+  | decode T 16384 | 655 / 1163.5 / 782 | 809.5 / 844 / 902.5 | 613.5 / 917 / 371 | 451 / 677 / 492.5 |
+  | prefill 4096 | 3363 / 4494 / 4197 | 3592.5 / 4676 / 5855 | (own tiling) 4474.5 / - / 3866.5 | 4496 / - / 7087.5 |
+
+  The default's kernel sources equal the swept tiles' (dumped with `OV_GPU_ARCH_OVERRIDE=xe3` on the B70: identical; a
+  different tile as the control: different), and every tile passed the B70 accuracy run of the sweep (cos 1.000000).
+- Confirmation of the defaults on PTL-H (full kit set, 2 rounds, `sdpa_micro` build against this one; log
+  `test/xe3_test/x1b_xe3_r3`): unit 128 + func 44 PASS, cos >= 0.99999 and finite on every row. SDPA at or under
+  `sdpa_micro` on all 20 large transposed-V rows (H 32, KV heads 8, head 128: f16 0.17-0.91x, i8 0.15-0.94x) and on 8 of
+  the 10 large f16 plain-V rows (0.75-0.93x); above it: f16 plain decode at 1024 / 1025 keys and all 10 i8 plain-V rows
+  (next bullet). Every large row is faster than with the table tile (round 1 of the kit; the `sdpa_micro` arm repeated
+  within 7%); the small rows (head 128, at most 40 queries) moved by 1-3 us either way.
+- Still slower than `sdpa_micro` on PTL-H after this (confirmation numbers): f16 plain decode at 1024 / 1025 keys (27.2 /
+  30.8 against 26.8 / 28 us; the sweep had +1.5 / +3.5 us), the i8 plain decode (1.23-1.82x) and the i8 plain PREFILL
+  (1.04-1.37x, chunk included). At 1024 / 1025 keys no variant of the f16 decode tile (without V prefetch, wide reads or
+  the loop changes, 4 subgroups, 128 GRF; 2 rounds) beat the default by more than two identical arms differ (up to 9% at
+  4096 keys). Switching off the i8 plain K or V 2D block read is no way out: the fallback reads are 3.6-17x slower
+  (temporary `SCRATCH_X1B_I8_2D`). With the same tile the i8 plain decode is slower than the i8 transposed-V one (102.5
+  against 92 us at 4096 keys, 613.5 against 451 at 16384), whose V read differs (not the 2D block read), but that one is
+  still 1.2-1.65x `sdpa_micro`'s plain i8; `sdpa_micro`'s i8 decode is about twice as fast as its f16 one, this kernel's
+  1.0-1.3x. Open.
+- Not measured on Xe3: other heads (they keep the table tile), static shapes below the mirror's threshold, an attention
+  mask, sliding window, sink; xe3p (not included).
 
 ## Known issues
 
