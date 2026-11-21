@@ -32,4 +32,13 @@ event::ptr stream::aggregate_events(const std::vector<event::ptr>& events, bool 
     return enqueue_marker(events, is_output);
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+event::ptr stream::enqueue_onednn(const dnnl::primitive&,
+                                  const std::unordered_map<int, dnnl::memory>&,
+                                  const std::vector<event::ptr>&,
+                                  bool) {
+    throw std::runtime_error("[GPU] oneDNN execution on an out-of-order queue is not supported by this stream");
+}
+#endif
+
 }  // namespace cldnn
