@@ -1,0 +1,3 @@
+# Extra dependencies for nightly timm ONNX export tests
+onnx==1.22.0
+onnxscript==0.7.2
