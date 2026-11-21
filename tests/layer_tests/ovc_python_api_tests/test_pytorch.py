@@ -1255,7 +1255,7 @@ class ConvertRaises(unittest.TestCase):
             convert_model(pytorch_model, input=[
                           'input1[1, 10]', 'input2[2, 100]'])
 
-    def test_failed_extension(self):
+    def test_failed_conversion_extension(self):
         from openvino.tools.ovc import convert_model
         from openvino.frontend.pytorch import ConversionExtension
 
@@ -1267,7 +1267,7 @@ class ConvertRaises(unittest.TestCase):
 
         # Check that OVC raises error message of wrong argument.
         with self.assertRaisesRegex(Exception, ".*Conversion is failed for: aten::relu.*"):
-            convert_model(pt_model, input=(inp_shapes, np.float32), extensions=[
+            convert_model(pt_model, input=(inp_shapes, np.float32), extension=[
                 ConversionExtension("aten::relu", relu_bad)])
 
     def test_failed_extension(self):
