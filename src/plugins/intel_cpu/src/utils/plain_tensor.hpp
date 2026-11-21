@@ -355,7 +355,8 @@ struct PlainTensor {
                 size_t element_size,
                 ov::element::Type_t dt,
                 void* data = nullptr,
-                const size_t* strides = nullptr) {
+                const size_t* strides = nullptr,
+                const MemoryPtr& owner = {}) {
         m_element_size = element_size;
         m_dt = dt;
         m_sub_byte_multiplier = sub_byte_data_type_multiplier();
@@ -369,7 +370,12 @@ struct PlainTensor {
             stride *= new_dims[i];
         }
 
-        if (!data) {
+        if (owner) {
+            m_ptr = std::shared_ptr<uint8_t>(owner, static_cast<uint8_t*>(data));
+            m_mem.reset();
+            m_capacity = 0;
+            m_offset = 0;
+        } else if (!data) {
             auto capacity_new = m_strides[0] * m_dims[0] * m_element_size;
             if (capacity_new > m_capacity) {
                 void* ptr = nullptr;
@@ -399,6 +405,17 @@ struct PlainTensor {
     template <typename DT>
     void resize(const VectorDims& new_dims, DT* data = nullptr, const size_t* strides = nullptr) {
         resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
+    }
+
+    // The caller supplies an aligned range within memory. The view shares ownership of memory, not of its data pointer.
+    template <typename DT>
+    void resize_view(const VectorDims& new_dims, const MemoryPtr& memory, size_t byte_offset = 0) {
+        resize(new_dims,
+               sizeof(DT),
+               precision_of<DT>::value,
+               memory->getDataAs<uint8_t>() + byte_offset,
+               nullptr,
+               memory);
     }
 
     [[nodiscard]] size_t sub_byte_data_type_multiplier() const {

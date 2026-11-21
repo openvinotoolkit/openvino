@@ -14,6 +14,7 @@
 
 #include "cpu_memory.h"
 #include "cpu_shape.h"
+#include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -136,7 +137,7 @@ size_t SparsePA::writeKVScratchBytes(size_t tokens, size_t block_size) const {
     return bytes;
 }
 
-void SparsePA::writeKV(uint8_t* scratch) {
+void SparsePA::writeKV(const MemoryPtr& scratch) {
     PlainTensor key(getSrcMemoryAtPort(InputIdx::KEY));
     PlainTensor value(getSrcMemoryAtPort(InputIdx::VALUE));
     PlainTensor key_cache(getSrcMemoryAtPort(InputIdx::KEY_CACHE));
@@ -151,7 +152,7 @@ void SparsePA::writeKV(uint8_t* scratch) {
     // Physical slot (block * block_size + offset) of every new token, as PagedAttention builds it.
     const size_t tokens = key.size(0);
     PlainTensor slot_mapping;
-    slot_mapping.resize<int32_t>({tokens}, reinterpret_cast<int32_t*>(scratch));
+    slot_mapping.resize_view<int32_t>({tokens}, scratch);
     size_t idx = 0;
     for (size_t seq = 0; seq < past_lens.size(0); seq++) {
         const int32_t q_len = subsequence_begins.ptr<int32_t>()[seq + 1] - subsequence_begins.ptr<int32_t>()[seq];
@@ -182,11 +183,11 @@ void SparsePA::writeKV(uint8_t* scratch) {
                                                    m_quant.value_group_size};
     PlainTensor temp_buffer;
     if (m_quant.key_bychannel) {
-        temp_buffer.resize<float>({static_cast<size_t>(parallel_get_max_threads()),
-                                   block_size,
-                                   c.num_heads,
-                                   std::max(c.k_head_size, c.v_head_size)},
-                                  reinterpret_cast<float*>(scratch + writeKVSlotMappingBytes(tokens)));
+        const VectorDims dims{static_cast<size_t>(parallel_get_max_threads()),
+                              block_size,
+                              c.num_heads,
+                              std::max(c.k_head_size, c.v_head_size)};
+        temp_buffer.resize_view<float>(dims, scratch, writeKVSlotMappingBytes(tokens));
     }
     ov::Extensions::Cpu::XARCH::paged_attn_quantkv(key_4d,
                                                    value_4d,
@@ -375,7 +376,7 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     // Phase 1: write the current K/V into the caches (parallel over token x kv head); it completes before phase 2,
     // the sparse attention, reads them.
-    writeKV(scratch->getDataAs<uint8_t>());
+    writeKV(scratch);
     // Phase 2: sparse attention, parallel over (query token, query head pack), with per-thread scratch that the kernel
     // carves with the same layout.
     ov::Extensions::Cpu::XARCH::sparse_pa_compute(

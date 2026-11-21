@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -324,6 +325,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
         const auto gather_v_node =
             ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
+        OPENVINO_ASSERT(gather_k_node && gather_v_node, "StatefulSDPAFusion: expected v8::Gather nodes for K and V");
         if (gather_k_node->input_value(1) != gather_v_node->input_value(1) ||
             gather_k_node->get_output_target_inputs(0).size() != 1 ||
             gather_v_node->get_output_target_inputs(0).size() != 1) {
