@@ -93,16 +93,25 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         isAxesSpecified = true;
     }
 
+    hasConstAttrInputs = true;
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i] && any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
-            !attrs.isSliceScatterOp) {
-            shapeHasDataDependency = true;
+        if (!isConstantInput[i]) {
+            if (any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID)) {
+                shapeHasDataDependency = true;
+                hasConstAttrInputs = false;
+            } else if (isAxesSpecified && i == attrs.AXES_ID) {
+                shapeHasDataDependency = true;
+                hasConstAttrInputs = false;
+            }
         }
     }
-    hasConstAttrInputs = !shapeHasDataDependency;
-    if (isAxesSpecified) {
-        hasConstAttrInputs &= isConstantInput[attrs.AXES_ID];
+
+    if (shapeHasDataDependency) {
+        isDynamic = true;
+        if (!shapeInference) {
+            shapeInference = StridedSliceShapeInferFactory(op).makeShapeInfer();
+        }
     }
 
     const size_t inputRank = getInputShapeAtPort(attrs.DATA_ID).getRank();
@@ -356,6 +365,16 @@ bool StridedSlice::isExecutable() const {
 }
 
 void StridedSlice::createPrimitive() {
+    if (srcMemory.empty()) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+            srcMemory.push_back(getSrcMemoryAtPort(i));
+        }
+    }
+    if (dstMemory.empty()) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+            dstMemory.push_back(getDstMemoryAtPort(i));
+        }
+    }
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         if (needPrepareParams()) {
             prepareParams();
@@ -365,7 +384,7 @@ void StridedSlice::createPrimitive() {
 }
 
 bool StridedSlice::needPrepareParams() const {
-    return true;
+    return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
 void StridedSlice::prepareParams() {
