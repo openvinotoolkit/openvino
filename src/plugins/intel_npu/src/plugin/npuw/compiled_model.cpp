@@ -30,6 +30,7 @@
 #include "pa_compiled_model.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
+#include "pipelines/vision_merger/vision_merger_compiled_model.hpp"
 #include "plugin.hpp"
 #include "serialization.hpp"
 #include "unfold_sync_infer_request.hpp"
@@ -318,6 +319,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     auto use_pa_key = ov::intel_npu::npuw::pa::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
+    auto use_vision_merger_key = ov::intel_npu::npuw::vision_merger::enabled.name();
 
     // Drop CACHE_DIR from the config
     // If it's present we will be utilizing .*CompiledModel's import
@@ -329,6 +331,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const bool llm_requested = properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true;
     const bool pa_requested = properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true;
     const bool kokoro_requested = properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true;
+    const bool vision_merger_requested =
+        properties.count(use_vision_merger_key) && properties.at(use_vision_merger_key).as<bool>() == true;
 
     const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
     const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
@@ -340,6 +344,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     if (flux2_requested) {
         LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
+    } else if (vision_merger_requested) {
+        LOG_INFO("ov::npuw::VisionMergerCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::VisionMergerCompiledModel>(model, plugin, config);
     } else if (gqa_requested || gqa_detected) {
         LOG_INFO("ov::npuw::GQACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
