@@ -1,0 +1,48 @@
+ir_version: 8
+graph {
+  node {
+    input: "data"
+    input: ""
+    input: "axis"
+    output: "out"
+    op_type: "DFT"
+  }
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  input {
+    name: "axis"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {}
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+}
+opset_import { version: 20 }
