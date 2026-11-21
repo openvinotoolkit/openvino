@@ -263,3 +263,20 @@ static auto AsyncExecutors = ::testing::Values(
     });
 
 INSTANTIATE_TEST_SUITE_P(ASyncTaskExecutorTests, ASyncTaskExecutorTests, AsyncExecutors);
+
+// Not guaranteed to repro — only catch it if timing lines up and ASan/TSan is enabled.
+TEST(CPUStreamsExecutorTests, destroyingExecutorDoesNotRaceTransientThreadTeardown) {
+    for (int i = 0; i < 200; i++) {
+        auto executor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"StreamsExecutorUAFTest", 2});
+        std::atomic<bool> executed{false};
+        std::thread t([&] {
+            executor->execute([] {});
+            executed.store(true, std::memory_order_release);
+        });
+        while (!executed.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        executor.reset();
+        t.join();
+    }
+}
