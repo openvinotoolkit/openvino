@@ -8,8 +8,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -26,6 +29,7 @@
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -67,6 +71,19 @@ enum class QueryFusion {
     Full,  // the query RoPE and RMSNorm: the raw query
 };
 
+// How a partial rotary embedding (rotary_dim below the head size) splits off the rotary channels.
+enum class RotarySplit {
+    VariadicSplit,  // VariadicSplit(-1, {rotary_dim, rest}), as torch split_with_sizes exports it
+    Slices,         // x[..., :rotary_dim] and x[..., rotary_dim:]
+};
+
+// The pass part of a partial rotary embedding that is not the remainder of the rotary split (negative cases).
+enum class PassPart {
+    Remainder,
+    WrongChannels,  // the first D - rotary_dim channels instead of the last ones
+    BeforeRoPE,     // concatenated in front of the rotated part
+};
+
 struct GraphOptions {
     std::string name;
     QueryFusion query_fusion = QueryFusion::Full;
@@ -85,6 +102,18 @@ struct GraphOptions {
     // Plugin compilation canonicalizes the decomposed query RMSNorm and RoPE before query absorption.
     // Only for QueryLayout::BLHDTransposed.
     bool decomposed_query = false;
+    // A partial rotary embedding (rotary_dim below the head size) splits the transposed query into the rotary part and
+    // the pass part. RoPEFusion folds the split into the RoPE with RoPEFusionIOSlicing, which the GPU plugin disables.
+    bool rope_io_slicing = true;
+    RotarySplit rotary_split = RotarySplit::VariadicSplit;
+    PassPart pass_part = PassPart::Remainder;
+    // Instead of the decomposed query, the RoPE RoPEFusion leaves without RoPEFusionIOSlicing: over the rotary part,
+    // concatenated with the pass part.
+    bool canonical_partial_rope = false;
+    // The head axis of the canonical RoPE cos / sin is the Reshape [2, 1, -1, rotary_dim] (the batch is 2) that
+    // NopElimination makes of the Unsqueeze when only the sequence is dynamic.
+    bool head_axis_reshape = false;
+    bool dynamic_sequence = false;
     // Negative cases.
     bool query_rope = true;
     bool distinct_query_rope = false;
@@ -147,10 +176,43 @@ Output<Node> decomposed_rms(const Output<Node>& x, int64_t axis, float eps) {
     return std::make_shared<v1::Multiply>(x, inv);
 }
 
+Output<Node> last_axis_slice(const Output<Node>& data, int64_t start, int64_t stop) {
+    const auto i64 = [](int64_t value) {
+        return v0::Constant::create(element::i64, Shape{1}, {value});
+    };
+    return std::make_shared<v8::Slice>(data, i64(start), i64(stop), i64(1), i64(3));
+}
+
+// The rotary part and the pass part of the head-first query `x` for a partial rotary embedding.
+std::pair<Output<Node>, Output<Node>> split_rotary(const Output<Node>& x, int64_t rotary, const GraphOptions& o) {
+    Output<Node> rotary_part, pass_part;
+    if (o.rotary_split == RotarySplit::VariadicSplit) {
+        const auto split = std::make_shared<v1::VariadicSplit>(
+            x,
+            v0::Constant::create(element::i64, Shape{}, {3}),
+            v0::Constant::create(element::i64, Shape{2}, {rotary, head_size - rotary}));
+        rotary_part = split->output(0);
+        pass_part = split->output(1);
+    } else {
+        rotary_part = last_axis_slice(x, 0, rotary);
+        pass_part = last_axis_slice(x, rotary, std::numeric_limits<int64_t>::max());
+    }
+    if (o.pass_part == PassPart::WrongChannels) {
+        pass_part = last_axis_slice(x, 0, head_size - rotary);
+    }
+    return {rotary_part, pass_part};
+}
+
+Output<Node> concat_partial(const Output<Node>& rotated, const Output<Node>& pass_part, const GraphOptions& o) {
+    return o.pass_part == PassPart::BeforeRoPE ? std::make_shared<v0::Concat>(OutputVector{pass_part, rotated}, -1)
+                                               : std::make_shared<v0::Concat>(OutputVector{rotated, pass_part}, -1);
+}
+
 SharedGraph make_shared_graph(const GraphOptions& o) {
     const auto batch = o.dynamic_shapes ? Dimension::dynamic() : Dimension(2);
-    const auto sequence = o.dynamic_shapes ? Dimension::dynamic() : Dimension(o.keys_sequence);
-    const auto query_sequence = o.dynamic_shapes ? Dimension::dynamic() : Dimension(o.query_sequence);
+    const bool dynamic_sequence = o.dynamic_shapes || o.dynamic_sequence;
+    const auto sequence = dynamic_sequence ? Dimension::dynamic() : Dimension(o.keys_sequence);
+    const auto query_sequence = dynamic_sequence ? Dimension::dynamic() : Dimension(o.query_sequence);
     const auto depth = o.dynamic_head_size ? Dimension::dynamic() : Dimension(head_size);
     const auto heads = o.dynamic_query_heads ? Dimension::dynamic() : Dimension(query_heads);
     const bool blhd = o.query_layout != QueryLayout::BHLD;
@@ -203,9 +265,15 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
 
     g.rope_input = rms;
     if (o.decomposed_query) {
-        // The rotate-half RoPE of the transposed query, as exported: x * cos + concat(-x2, x1) * sin.
+        // The rotate-half RoPE of the transposed query, as exported: x * cos + concat(-x2, x1) * sin. A partial
+        // rotary embedding rotates the first rotary_dim channels and concatenates the others back.
         constexpr int64_t last_axis = 3;
-        const auto x = head_transpose(rms);
+        const auto transposed = head_transpose(rms);
+        const bool partial = rotary < head_size;
+        Output<Node> x = transposed, pass_part;
+        if (partial) {
+            std::tie(x, pass_part) = split_rotary(transposed, rotary, o);
+        }
         const auto half = rotary / 2;
         const auto halves =
             std::make_shared<v1::VariadicSplit>(x,
@@ -221,6 +289,25 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
             rotated,
             std::make_shared<v0::Unsqueeze>(sin, v0::Constant::create(element::i64, Shape{1}, {1})));
         g.query = std::make_shared<v1::Add>(mul_cos, mul_sin);
+        if (partial) {
+            g.query = concat_partial(g.query, pass_part, o);
+        }
+    } else if (o.canonical_partial_rope) {
+        const auto [rotary_part, pass_part] = split_rotary(head_transpose(rms), rotary, o);
+        op_internal::RoPE::Config rope_config;
+        rope_config.rotary_ndims = static_cast<size_t>(rotary);
+        const auto with_heads = [&](const Output<Node>& rows) -> Output<Node> {
+            if (o.head_axis_reshape) {
+                const auto target =
+                    v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{2, 1, -1, rotary});
+                return std::make_shared<v1::Reshape>(rows, target, false);
+            }
+            return std::make_shared<v0::Unsqueeze>(rows, v0::Constant::create(element::i64, Shape{1}, {1}));
+        };
+        const auto rope =
+            std::make_shared<op_internal::RoPE>(OutputVector{rotary_part, with_heads(cos), with_heads(sin)},
+                                                rope_config);
+        g.query = concat_partial(rope, pass_part, o);
     } else if (o.query_rope) {
         const auto query_cos = o.distinct_query_rope ? parameter(o.precision, rope_shape) : cos;
         const auto query_sin = o.distinct_query_sin ? parameter(o.precision, rope_shape) : sin;
@@ -431,6 +518,9 @@ protected:
         manager.register_pass<pass::RMSFusion>(false, true);
         manager.register_pass<pass::FuseQSAIndexer>(GetParam().padding);
         manager.register_pass<pass::FuseQSAIndexerQuery>();
+        if (!GetParam().rope_io_slicing) {
+            manager.get_pass_config()->disable<pass::RoPEFusionIOSlicing>();
+        }
     }
 };
 
@@ -478,6 +568,59 @@ const std::vector<GraphOptions> fused_cases{
     with("decomposed_query_norm_and_rope",
          [](GraphOptions& o) {
              o.decomposed_query = true;
+         }),
+    with("decomposed_query_norm_and_rope_without_io_slicing",
+         [](GraphOptions& o) {
+             o.decomposed_query = true;
+             o.rope_io_slicing = false;
+         }),
+    // A partial rotary embedding, as exported for Qwen: RoPEFusionIOSlicing folds the split into the RoPE, or, when
+    // a pipeline disables it (as the GPU plugin does), FuseQSAIndexerQueryRoPE matches the split chain itself.
+    with("decomposed_query_norm_and_partial_rope",
+         [](GraphOptions& o) {
+             o.decomposed_query = true;
+             o.rotary_dim = head_size / 2;
+         }),
+    with("decomposed_query_norm_and_partial_rope_without_io_slicing",
+         [](GraphOptions& o) {
+             o.decomposed_query = true;
+             o.rotary_dim = head_size / 2;
+             o.rope_io_slicing = false;
+         }),
+    with("decomposed_query_norm_and_partial_rope_slices",
+         [](GraphOptions& o) {
+             o.decomposed_query = true;
+             o.rotary_dim = head_size / 2;
+             o.rotary_split = RotarySplit::Slices;
+         }),
+    with("decomposed_query_norm_and_partial_rope_slices_without_io_slicing",
+         [](GraphOptions& o) {
+             o.decomposed_query = true;
+             o.rotary_dim = head_size / 2;
+             o.rotary_split = RotarySplit::Slices;
+             o.rope_io_slicing = false;
+         }),
+    with("decomposed_query_norm_and_partial_rope_dynamic_without_io_slicing",
+         [](GraphOptions& o) {
+             o.decomposed_query = true;
+             o.rotary_dim = head_size / 2;
+             o.rope_io_slicing = false;
+             o.dynamic_shapes = true;
+         }),
+    with("canonical_partial_rope_head_axis_reshape_dynamic_sequence_without_io_slicing",
+         [](GraphOptions& o) {
+             o.canonical_partial_rope = true;
+             o.rotary_dim = head_size / 2;
+             o.rope_io_slicing = false;
+             o.head_axis_reshape = true;
+             o.dynamic_sequence = true;
+         }),
+    with("canonical_partial_rope_extra_query_consumer_without_io_slicing",
+         [](GraphOptions& o) {
+             o.canonical_partial_rope = true;
+             o.rotary_dim = head_size / 2;
+             o.rope_io_slicing = false;
+             o.extra_query_consumer = true;
          }),
     with("affine_query_norm_and_rope",
          [](GraphOptions& o) {
@@ -567,6 +710,40 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryLeavesDecomposedQueryUnchanged) 
     model = getModelRef(o);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
+
+// A partial rotary chain that is not "rotate the first rotary_dim channels, keep the rest" stays outside QSAIndexer.
+class FuseQSAIndexerQueryPartialRoPENotFusedTest : public TransformationTestsF,
+                                                   public testing::WithParamInterface<GraphOptions> {};
+
+TEST_P(FuseQSAIndexerQueryPartialRoPENotFusedTest, KeepsQuery) {
+    auto o = GetParam();
+    o.canonical_partial_rope = true;
+    o.rotary_dim = head_size / 2;
+    o.query_fusion = QueryFusion::None;
+    model = getModelRef(o);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+const std::vector<GraphOptions> partial_rope_not_fused_cases{
+    with("pass_part_wrong_channels",
+         [](GraphOptions& o) {
+             o.pass_part = PassPart::WrongChannels;
+         }),
+    with("pass_part_before_rope",
+         [](GraphOptions& o) {
+             o.pass_part = PassPart::BeforeRoPE;
+         }),
+    with("pass_part_wrong_channels_slices",
+         [](GraphOptions& o) {
+             o.rotary_split = RotarySplit::Slices;
+             o.pass_part = PassPart::WrongChannels;
+         }),
+};
+
+INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerQuery,
+                         FuseQSAIndexerQueryPartialRoPENotFusedTest,
+                         testing::ValuesIn(partial_rope_not_fused_cases),
+                         FuseQSAIndexerTest::getTestCaseName);
 
 // QSAIndexer keeps the query steps that do not match the kernel ones in the graph.
 const std::vector<GraphOptions> partially_fused_cases{

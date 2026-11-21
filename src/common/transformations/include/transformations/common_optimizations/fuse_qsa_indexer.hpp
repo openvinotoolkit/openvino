@@ -75,7 +75,19 @@ public:
  *
  * The RoPE is the plain rotate-half RoPE of the QSAIndexer rotary dimension, with Unsqueeze(axis=1) of the
  * QSAIndexer cos / sin (before their batch Broadcast). A Reshape with a constant target from [B, L, D] to
- * [B, 1, L, D] is also supported when L and D are static and positive. It is fused while query_rope is disabled.
+ * [B, 1, L, D] is also supported when D is static and positive and L is dynamic or positive. It is fused while
+ * query_rope is disabled.
+ *
+ * A partial rotary embedding (rotary dimension below the head size) is also matched in the form RoPEFusion leaves when
+ * RoPEFusionIOSlicing is disabled, as in the GPU plugin:
+ *
+ *   x ─► [Transpose(0, 2, 1, 3)] ─► VariadicSplit(-1, {rotary_dim, rest}) ─► Concat(RoPE(rotary part), rest, -1)
+ *     ─► Transpose(0, 2, 1, 3) ─► QSAIndexer   ──►   x ─► QSAIndexer(query_rope)
+ *
+ * Two last-axis Slices [0, rotary_dim) and [rotary_dim, D) may replace the VariadicSplit. The RoPE rotates the whole
+ * rotary part and is the plain rotate-half RoPE of the QSAIndexer cos / sin, as above. When the split input is not a
+ * Transpose(0, 2, 1, 3) of the [B, L, H, D] query, a new Transpose provides it. The matched nodes are not modified.
+ *
  * QSAIndexer normalizes before it rotates, so it must run before FuseQSAIndexerQueryNorm, as FuseQSAIndexerQuery
  * does; the query_norm of the matched indexer is not checked.
  * The PagedQSAIndexer specialization requires the layout adapters produced by PagedQSAIndexerFusion:

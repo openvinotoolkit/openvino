@@ -321,7 +321,9 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_convolution_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_fc_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_to_fc_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_paged_sparse_attention_to_sparse_pa_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_pooling_to_reduce_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_sparse_attention_to_sparse_sdpa_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_stridedslices_to_variadicsplit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_one_hot_non_const_values_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_reduce_for_false_keepdims_test.cpp
@@ -392,10 +394,14 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_fc_to_compressed.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_matmul_to_fc.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_matmul_to_fc.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_paged_sparse_attention_to_sparse_pa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_paged_sparse_attention_to_sparse_pa.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_pooling_to_reduce.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_shapeof.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_shapeof.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_sparse_attention_to_sparse_sdpa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_sparse_attention_to_sparse_sdpa.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_stridedslices_to_variadicsplit.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_stridedslices_to_variadicsplit.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/decompose_one_hot_non_const_values.cpp
