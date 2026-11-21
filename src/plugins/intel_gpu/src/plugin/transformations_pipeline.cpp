@@ -972,27 +972,18 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
                 return (ov::is_dequantization_node(node) || ov::is_type<ov::opset1::FakeQuantize>(node));
             });
 
-        // Activations scaling factors floating-point activations only, and only its own scale-up factors
-        // may be moved through an Add by AddTransformation.
-        // Two kinds of "dequantization" must never be moved:
-        //   (a) arithmetic on a tensor converted from an integer/boolean type, e.g. the T5 additive
-        //       attention mask (1 - Convert(mask)) * lowest, which run-2 LPT would normalize to
-        //       (Convert(mask) - 1) * 65504 and rewrite the Add's other input as (x - 65504) * (1/65504);
-        //   (b) any branch factored out of the Add with a zero point large enough that f16 rounding at that
-        //       magnitude noticeably corrupts the other input. For the moved branch S * (y - SH) and the other
-        //       input S_x * (x - SH_x) (S_x = 1 and SH_x = 0 without a dequantization), AddTransformation
-        //       computes S * (S_x / S * (x - SH_x - Z) + y) with Z = S * SH / S_x: the zero point is folded into
-        //       the data x of the other input. The error added to x scales with |Z| (about |Z|/1000 in the worst
-        //       case, first element over a 0.02 tolerance at |Z| = 100 for an unscaled x), so the bound is a
-        //       heuristic that keeps the error near the f16 noise floor of x. Z is bounded in the scale of x, not
-        //       of the output: f16 stores the scaled x, so a bias c of a scaled branch (e.g. of a product of two
-        //       scaled branches), which LPT turns into the zero point of its scale-up, is folded into a scaled x
-        //       as c / S_x, which f16 rounds like an Add of c to the other input at full magnitude.
-        //       A branch without a zero point only rescales the other input and is not bounded: that keeps
-        //       the scale-up moves of activations scaling alive, including the ASF^2 scale that
-        //       MultiplyPartialTransformation composes for a product of two scaled branches.
-        // Only the branch whose scale AddTransformation factors below the Add is checked: checking all
-        // ports would also block the legitimate scale-up movement that is the activations-scaling protection.
+        // Activations scaling scales floating-point activations only, and only its own scale-up factors may be
+        // moved through an Add. AddTransformation must not move two kinds of "dequantization":
+        //   (a) arithmetic on a tensor converted from an integer/boolean type, e.g. the T5 additive attention
+        //       mask (1 - Convert(mask)) * lowest: LPT normalizes it to (Convert(mask) - 1) * 65504, and moving it
+        //       would turn the other input x into (x - 65504) * (1/65504), which loses x in f16;
+        //   (b) a branch S * (y - SH) with a large zero point: AddTransformation rewrites the other input
+        //       S_x * (x - SH_x) (S_x = 1 without a dequantization) as S_x / S * (x - SH_x - Z), Z = S * SH / S_x,
+        //       adding an f16 rounding error of up to about |Z| / 1000 to x. The bound max|Z| <= 64 is a heuristic:
+        //       for an unscaled x, the error first exceeds the 0.02 test tolerance at |Z| = 100.
+        // A branch without a zero point only rescales x and is not bounded, so scale-ups move whatever their
+        // factor, e.g. the ASF^2 one of a product of two scaled branches. Only the branch that AddTransformation
+        // moves is checked, so a scale-up still moves through an Add whose other input is such a mask.
         pass_config->set_callback<AddTransformation>([&infer_precision](const std::shared_ptr<const ov::Node>& node) -> bool {
             const auto dq0 = NetworkHelper::getDequantization(node, {infer_precision}, 0);
             const auto dq1 = NetworkHelper::getDequantization(node, {infer_precision}, 1);
