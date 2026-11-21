@@ -31,9 +31,12 @@ if(OV_CPU_WITH_ACL)
 endif()
 if(OV_CPU_WITH_DNNL)
     list(APPEND CPU_UTILS_LINK_LIBRARIES dnnl)
+    # cpuUtils includes private oneDNN headers, so it must use the matching
+    # Xbyak headers that oneDNN was built with instead of an ambient version.
     list(APPEND CPU_UTILS_INCLUDE_PATHS
         $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
-        $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/third_party)
+        $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/third_party
+        $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/third_party/xbyak)
 endif()
 if(RISCV64)
     list(APPEND CPU_UTILS_LINK_LIBRARIES xbyak_riscv)
