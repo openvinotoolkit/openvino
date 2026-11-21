@@ -9,12 +9,16 @@
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
@@ -197,6 +201,26 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
     std::shared_ptr<ov::Node> output_low;
     std::shared_ptr<ov::Node> output_high;
     std::tie(output_low, output_high) = detail::get_output_bands(destination_type, data_type);
+
+    bool has_even_zero_points = false;
+    if (const auto zero_point = ov::util::get_constant_from_source(y_zero_point)) {
+        const auto values = zero_point->cast_vector<int64_t>();
+        has_even_zero_points = std::all_of(values.begin(), values.end(), [](int64_t value) {
+            return value % 2 == 0;
+        });
+    }
+
+    // FakeQuantize shifts the quotient by the zero point before rounding.
+    // This preserves ties-to-even only for even zero points.
+    if (!has_even_zero_points) {
+        const auto scaled = std::make_shared<v1::Divide>(data, y_scale);
+        const auto rounded = std::make_shared<v5::Round>(scaled, v5::Round::RoundMode::HALF_TO_EVEN);
+        const auto zero_point = std::make_shared<v0::Convert>(y_zero_point, data_type);
+        const auto shifted = std::make_shared<v1::Add>(rounded, zero_point);
+        const auto clamped =
+            std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(shifted, output_low), output_high);
+        return std::make_shared<v0::Convert>(clamped, destination_type);
+    }
 
     std::shared_ptr<ov::Node> input_low;
     std::shared_ptr<ov::Node> input_high;
