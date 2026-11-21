@@ -4,9 +4,21 @@
 
 #include "intel_npu/common/igraph.hpp"
 
+#include "intel_npu/config/options.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
+
+CommandQueueParams CommandQueueParams::from_config(const Config& config) {
+    CommandQueueParams params;
+    params.modelPriority = config.get<MODEL_PRIORITY>();
+    params.workloadType = config.has<WORKLOAD_TYPE>() ? std::optional(config.get<WORKLOAD_TYPE>()) : std::nullopt;
+    params.qos = config.has<QOS>() ? std::optional(config.get<QOS>()) : std::nullopt;
+    params.turbo = config.get<TURBO>();
+    params.runInferencesSequentially = config.get<RUN_INFERENCES_SEQUENTIALLY>();
+    params.sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
+    return params;
+}
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IGraph::export_blob(std::ostream&) const {
     OPENVINO_THROW("export_blob not implemented");
@@ -72,6 +84,14 @@ CommandQueueDesc IGraph::get_command_queue_desc() const {
 
 void IGraph::set_workload_type(const ov::WorkloadType) {
     OPENVINO_THROW("set_workload_type not implemented");
+}
+
+void IGraph::set_qos(const ov::QoS) {
+    OPENVINO_THROW("set_qos not implemented");
+}
+
+ov::QoSInfo IGraph::get_qos_info(const CommandQueueParams&) const {
+    OPENVINO_THROW("get_qos_info not implemented");
 }
 
 void IGraph::set_model_priority(const ov::hint::Priority) {

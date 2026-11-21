@@ -29,6 +29,7 @@ public:
     bool isCommandQueueExtSupported() const override;
     bool isLUIDExtSupported() const override;
     bool isContextExtSupported() const override;
+    bool isCommandQueueQosExtSupported() const override;
 
     void* getContext() const override;
 

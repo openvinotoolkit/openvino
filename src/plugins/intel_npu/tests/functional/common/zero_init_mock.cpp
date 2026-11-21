@@ -389,6 +389,17 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
                            device_luid_ext_version,
                            intel_npu::test_constants::TARGET_ZE_DEVICE_LUID_EXT_VERSION);
 
+    uint32_t command_queue_qos_ext_version = 0;
+    std::tie(command_queue_qos_ext_version, std::ignore) =
+        queryDriverExtensionVersion(ZE_COMMAND_QUEUE_QOS_EXT_NAME,
+                                    intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_QOS_EXT_VERSION,
+                                    extProps,
+                                    count);
+    saveSupportedExtension(_supported_extensions,
+                           ZE_COMMAND_QUEUE_QOS_EXT_NAME,
+                           command_queue_qos_ext_version,
+                           intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_QOS_EXT_VERSION);
+
     _command_queue_group_ordinal =
         zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 }

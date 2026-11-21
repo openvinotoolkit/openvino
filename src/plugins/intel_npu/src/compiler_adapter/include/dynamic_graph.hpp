@@ -58,6 +58,8 @@ public:
 
 private:
     void initialize_impl(const Config& runtimeConfig) override;
+
+    CommandQueueDesc create_command_queue_desc(const CommandQueueParams& commandQueueParams) const;
     bool release_blob();
     void initialize_engine(const Config& config);
     void create_execution_engine(const Config& config);

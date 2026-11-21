@@ -31,6 +31,9 @@ public:
     bool isContextExtSupported() const override {
         return false;
     }
+    bool isCommandQueueQosExtSupported() const override {
+        return false;
+    }
     void updateInfo(const ov::AnyMap&) override {}
 };
 
