@@ -23,7 +23,8 @@ from mmproj_fixtures import TensorWriter, finish, merge_window_order, muse_glimm
 SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro", "mlp", "mlp_norm", "mlp_feature",
                "qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma", "qwen2vl_merger",
                "qwen2.5vl_merger", "qwen3vl_merger", "internvl", "internvl_qknorm", "qwen2.5vl_merger_window_video",
-               "voxtral_odd", "resampler", "resampler_v2", "resampler_v4")
+               "voxtral_odd", "resampler", "resampler_v2", "resampler_v4", "resampler_legacy",
+               "meralion_frame_norm")
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
 TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
@@ -39,6 +40,9 @@ def write_single_grid_model(path, projector, projection_width=6):
     if projector.startswith("resampler"):
         projector, _, variant = projector.partition("_")
         projection_width = 128  # one 128-wide cross-attention head
+    # Publisher MERaLiON exports keep a per-frame pre-norm that llama.cpp broadcasts over stacked frames.
+    if projector == "meralion_frame_norm":
+        projector, variant = "meralion", "frame_norm"
     audio = projector in {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
     clip = projector in {"mlp", "mlp_norm"}
     qwen = projector in {"qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger"}
@@ -51,7 +55,7 @@ def write_single_grid_model(path, projector, projection_width=6):
     if projector == "resampler":
         if variant == "v4":
             w.add_int32("clip.minicpmv_version", 4)
-        elif not variant:
+        elif variant in ("", "legacy"):
             w.add_int32("clip.minicpmv_version", 3)
             w.add_uint32("clip.minicpmv_query_num", 3)
     for name, value in {"embedding_length": 8, "feed_forward_length": 12, "block_count": 2,
@@ -181,8 +185,9 @@ def write_single_grid_model(path, projector, projection_width=6):
             tensor("mm.a.fc.weight", (6, 8))
             tensor("mm.a.fc.bias", (6,))
         elif projector == "meralion":
-            tensor("mm.a.norm_pre.weight", (16,), True)
-            tensor("mm.a.norm_pre.bias", (16,))
+            norm_width = 8 if variant == "frame_norm" else 16
+            tensor("mm.a.norm_pre.weight", (norm_width,), True)
+            tensor("mm.a.norm_pre.bias", (norm_width,))
             for i, shape in enumerate(((12, 16), (12, 12), (12, 12), (6, 12))):
                 tensor(f"mm.a.mlp.{i}.weight", shape)
                 tensor(f"mm.a.mlp.{i}.bias", (shape[0],))
@@ -209,7 +214,7 @@ def write_single_grid_model(path, projector, projection_width=6):
 
 def single_grid_inputs(projector, width, height):
     """Raw oracle input, optional second video frame, encoder inputs and their family extras."""
-    audio = projector.removesuffix("_odd") in {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
+    audio = projector.removesuffix("_odd").removesuffix("_frame_norm") in {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
     window_video = projector.endswith("_window_video")
     qwen = "vl_merger" in projector
     shape = (height, width) if audio else (height, width, 3)

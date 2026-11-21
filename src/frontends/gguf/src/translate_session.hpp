@@ -7,6 +7,7 @@
 #include "input_model.hpp"
 #include "node_context.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/gguf/extension/weight_normalization.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -20,7 +21,8 @@ class TranslateSession {
 public:
     TranslateSession(const frontend::InputModel::Ptr& input_model,
                      const std::unordered_map<std::string, CreatorFunction>& translator_map,
-                     const std::vector<DecoderTransformationExtension::Ptr>& transformation_extensions = {});
+                     const std::vector<DecoderTransformationExtension::Ptr>& transformation_extensions = {},
+                     std::shared_ptr<WeightNormalizationExtension> weight_normalization = {});
 
     std::shared_ptr<Model> get_converted_model();
     std::shared_ptr<Model> translate_graph(const frontend::InputModel::Ptr& input_model);
@@ -31,6 +33,7 @@ private:
     const std::unordered_map<std::string, CreatorFunction>& m_translator_map;
     std::shared_ptr<Model> m_ov_model;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
+    std::shared_ptr<WeightNormalizationExtension> m_weight_normalization;
 };
 
 }  // namespace ov::frontend::gguf

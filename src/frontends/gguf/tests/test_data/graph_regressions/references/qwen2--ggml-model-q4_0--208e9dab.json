@@ -1,0 +1,130 @@
+{
+  "models": {
+    "embeds/language": {
+      "graph_sha256": "bb6a60790caf4243efad5ecb9cf9fe1c5deaa8f9ae849d2b3fbcb59ae4324f77",
+      "ops": [
+        ["Add","opset1",310],
+        ["Assign","opset6",56],
+        ["Broadcast","opset3",112],
+        ["Concat","opset1",201],
+        ["Constant","opset1",1330],
+        ["Convert","opset1",119],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["GGUFPlannedWeight","gguf",338],
+        ["Gather","opset8",92],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",197],
+        ["Multiply","opset1",427],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",114],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",56],
+        ["ReduceMean","opset1",57],
+        ["Reshape","opset1",403],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",28],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",31],
+        ["Sin","opset1",1],
+        ["Sqrt","opset1",57],
+        ["Squeeze","opset1",56],
+        ["Subtract","opset1",2],
+        ["Swish","opset4",28],
+        ["Transpose","opset1",337],
+        ["Unsqueeze","opset1",116],
+        ["VariadicSplit","opset1",56]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","3","f32","ggml:2/group:32/weight:i4",56],
+        ["MatMul","4","f32","ggml:2/group:32/weight:i4",140]
+      ],
+      "totals": {
+        "edges": 5615,
+        "inputs": 4,
+        "nodes": 4536,
+        "outputs": 1,
+        "states": 56,
+        "top_level_nodes": 4536
+      }
+    },
+    "embeds/text_embeddings": {
+      "graph_sha256": "98f7d3063545f031dc5d85f21ce771c23a04f097569d9e6d488b28f04c001ca8",
+      "ops": [
+        ["Constant","opset1",5],
+        ["Convert","opset1",1],
+        ["GGUFPlannedWeight","gguf",1],
+        ["Gather","opset8",1],
+        ["Parameter","opset1",1],
+        ["Result","opset1",1],
+        ["Squeeze","opset1",2],
+        ["Unsqueeze","opset1",2]
+      ],
+      "projections": [],
+      "totals": {
+        "edges": 13,
+        "inputs": 1,
+        "nodes": 14,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 14
+      }
+    },
+    "ids/language": {
+      "graph_sha256": "56543777782bf186bb7edc01700f03f322f11230a6be6d5a97efb7f2edb4817b",
+      "ops": [
+        ["Add","opset1",310],
+        ["Assign","opset6",56],
+        ["Broadcast","opset3",112],
+        ["Concat","opset1",202],
+        ["Constant","opset1",1330],
+        ["Convert","opset1",120],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["GGUFPlannedWeight","gguf",339],
+        ["Gather","opset8",92],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",197],
+        ["Multiply","opset1",427],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",114],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",56],
+        ["ReduceMean","opset1",57],
+        ["Reshape","opset1",404],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",28],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",31],
+        ["Sin","opset1",1],
+        ["Sqrt","opset1",57],
+        ["Squeeze","opset1",57],
+        ["Subtract","opset1",2],
+        ["Swish","opset4",28],
+        ["Transpose","opset1",337],
+        ["Unsqueeze","opset1",116],
+        ["VariadicSplit","opset1",56]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","3","f32","ggml:2/group:32/weight:i4",56],
+        ["MatMul","4","f32","ggml:2/group:32/weight:i4",140]
+      ],
+      "totals": {
+        "edges": 5622,
+        "inputs": 4,
+        "nodes": 4541,
+        "outputs": 1,
+        "states": 56,
+        "top_level_nodes": 4541
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}

@@ -1,0 +1,65 @@
+{
+  "models": {
+    "ids/language": {
+      "graph_sha256": "e5a58851dacfdbcbcfce1dd87f873e55ff25e397bb5491d1a28d624eacd5ba7e",
+      "ops": [
+        ["Add","opset1",482],
+        ["Assign","opset6",96],
+        ["Broadcast","opset3",192],
+        ["Clamp","opset1",48],
+        ["Concat","opset1",486],
+        ["Constant","opset1",4263],
+        ["Convert","opset1",200],
+        ["Cos","opset1",1],
+        ["CumSum","opset3",1],
+        ["Divide","opset1",48],
+        ["GGUFPlannedWeight","gguf",579],
+        ["Gather","opset8",343],
+        ["GatherElements","opset6",48],
+        ["GatherMatmul","extension",144],
+        ["LessEqual","opset1",1],
+        ["LogicalAnd","opset1",1],
+        ["MatMul","opset1",241],
+        ["Multiply","opset1",1015],
+        ["NotEqual","opset1",1],
+        ["Parameter","opset1",4],
+        ["Power","opset1",386],
+        ["Range","opset4",1],
+        ["ReadValue","opset6",96],
+        ["ReduceMean","opset1",193],
+        ["ReduceSum","opset1",96],
+        ["Reshape","opset1",1212],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",48],
+        ["Select","opset1",1],
+        ["ShapeOf","opset3",195],
+        ["Sin","opset1",1],
+        ["Softmax","opset8",48],
+        ["Sqrt","opset1",193],
+        ["Squeeze","opset1",50],
+        ["Subtract","opset1",2],
+        ["Swish","opset4",48],
+        ["Tile","opset1",48],
+        ["TopK","opset11",48],
+        ["Transpose","opset1",865],
+        ["Unsqueeze","opset1",244],
+        ["VariadicSplit","opset1",96]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:14/group:16/weight:i8",1],
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",48],
+        ["MatMul","4","f32","ggml:2/group:32/weight:i4",192]
+      ],
+      "totals": {
+        "edges": 14389,
+        "inputs": 4,
+        "nodes": 12066,
+        "outputs": 1,
+        "states": 96,
+        "top_level_nodes": 12066
+      }
+    }
+  },
+  "projectors": [],
+  "version": 3
+}
