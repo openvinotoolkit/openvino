@@ -856,7 +856,7 @@ KERNEL(pa_sdpa_opt)(
                 OUTPUT_TYPE qk_val = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + block_num * PAGED_ATTENTION_BLOCK_SIZE + sglid];
 
                 unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
-                    GET_VECTOR_ELEMENT(acc, q_idx) = mad(sub_group_broadcast(qk_val, i), value_vals[i], GET_VECTOR_ELEMENT(acc, q_idx));
+                    GET_VECTOR_ELEMENT(acc, q_idx) = mad(sub_group_broadcast(qk_val, i), TO_OUTPUT_TYPE(value_vals[i]), GET_VECTOR_ELEMENT(acc, q_idx));
                 }
             }
 #endif
