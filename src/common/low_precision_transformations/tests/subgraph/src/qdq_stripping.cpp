@@ -8,8 +8,6 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "ov_lpt_models/qdq_stripping.hpp"
-#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 using namespace testing;
 using namespace ov::builder::subgraph;
@@ -32,10 +30,9 @@ public:
         using namespace ov::element;
         TransformationTestsF::SetUp();
         const auto& [need_weights_adjustment, quantization_precision] = GetParam();
-        manager.register_pass<ov::pass::SharedOpOptimization>();
-        manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16});
-        manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536},
-                                                                                  need_weights_adjustment);
+        manager.register_pass<ov::pass::low_precision::QDQStripping>(TypeVector{i16, u16},
+                                                                     std::set<size_t>{65536},
+                                                                     need_weights_adjustment);
     }
 };
 
@@ -92,6 +89,16 @@ TEST_P(QDQStrippingTest, FQOnModelOutputIsReplacedWithIdentity) {
     comparator.enable(FunctionsComparator::CmpValues::CONSUMERS_COUNT);
 }
 
+// Identical QDQs must be fused before SharedOpOptimization merges them up to the DQ Multiply
+TEST_P(QDQStrippingTest, IdenticalSiblingQDQsOnModelOutputs) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 3, 8, 8};
+    model = QDQStrippingFunction::build_identical_sibling_qdqs_on_model_outputs_pattern(input_shape,
+                                                                                        quantization_precision);
+    model_ref = QDQStrippingFunction::build_identical_sibling_qdqs_on_model_outputs_pattern_ref(input_shape);
+    comparator.enable(FunctionsComparator::CmpValues::CONSUMERS_COUNT);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          QDQStrippingTest,
                          Combine(Bool(), Values(ov::element::u16, ov::element::i16)),
@@ -113,10 +120,9 @@ public:
         using namespace ov::element;
         TransformationTestsF::SetUp();
         const auto& [need_weights_adjustment, quantization_precision] = GetParam();
-        manager.register_pass<ov::pass::SharedOpOptimization>();
-        manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i8, u8});
-        manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{256},
-                                                                                  need_weights_adjustment);
+        manager.register_pass<ov::pass::low_precision::QDQStripping>(TypeVector{i8, u8},
+                                                                     std::set<size_t>{256},
+                                                                     need_weights_adjustment);
     }
 };
 

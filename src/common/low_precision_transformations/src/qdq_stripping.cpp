@@ -40,10 +40,13 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -294,6 +297,22 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     return model_changed;
 }
 
+QDQStripping::QDQStripping(const ov::element::TypeVector& quantization_precisions,
+                           const std::set<size_t>& levels_to_strip,
+                           bool need_weights_adjustment)
+    : quantization_precisions(quantization_precisions),
+      levels_to_strip(levels_to_strip),
+      need_weights_adjustment(need_weights_adjustment) {}
+
+bool QDQStripping::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_FUNCTION_SCOPE(QDQStripping);
+    ov::pass::Manager manager(get_pass_config(), "LPT:QDQStripping");
+    manager.register_pass<ov::pass::ConvertQuantizeDequantize>(quantization_precisions);
+    manager.register_pass<ov::pass::SharedOpOptimization>();
+    manager.register_pass<ov::pass::ConvertQuantizeDequantize>(quantization_precisions);
+    manager.register_pass<FQStrippingTransformation>(levels_to_strip, need_weights_adjustment);
+    return manager.run_passes(f);
+}
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ov
