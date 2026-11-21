@@ -157,6 +157,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp    
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/relayout_token_major.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/relayout_token_major.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.cpp
@@ -181,6 +183,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untie_lm_head_weights.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untie_lm_head_weights.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc/schema_npuw.hpp

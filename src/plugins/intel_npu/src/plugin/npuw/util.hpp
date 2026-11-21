@@ -5,6 +5,7 @@
 #pragma once
 
 #include <future>
+#include <map>
 #include <optional>
 #include <ostream>
 #include <random>
@@ -29,6 +30,10 @@ bool is_set(const std::size_t sub_idx,
             const std::string& opt,
             const std::size_t real_idx = SIZE_MAX,
             const std::size_t end_idx = SIZE_MAX);
+
+// The NPUW_SUBMODEL_DEVICE map of a model with `num_subgraphs` subgraphs, where
+// "last" names the tail subgraph.
+std::map<std::size_t, std::string> parse_submodel_devices(const std::string& opt, const std::size_t num_subgraphs);
 
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
@@ -288,8 +293,20 @@ bool is_swa_kv_cache_name(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
+// The GPU sizes the internal buffers of a PagedAttention op from its max_context_len value.
+// With a static token count the PA output is static, so the GPU allocates it and those
+// buffers while it builds the network, before any input values exist, and fails. Returns a
+// copy of the model with a dynamic token count on the queries, keys and values of its PA ops
+// (through the F16IC converts) and the results reshaped back, so the ports keep their static
+// shapes, or the model itself when it has no PA op.
+std::shared_ptr<ov::Model> with_dynamic_pa_tokens(const std::shared_ptr<ov::Model>& model);
+
+// A device tensor (GPU memory, for one) has no host pointer: data() throws.
+bool is_remote(const ov::SoPtr<ov::ITensor>& tensor);
+
 // One-line tensor digest for log traces: LOG_VERB("x: " << TensorBrief{t}).
-// Tensors past kMaxStats elements, such as KV cache pools, print their shape only.
+// Tensors past kMaxStats elements, such as KV cache pools, print their shape only,
+// device tensors their shape and "(device)".
 struct TensorBrief {
     static constexpr std::size_t kMaxInline = 16u;
     static constexpr std::size_t kMaxStats = 1u << 20;

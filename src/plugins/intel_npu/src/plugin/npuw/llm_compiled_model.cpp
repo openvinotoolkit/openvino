@@ -151,17 +151,10 @@ bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
     return model->get_rt_info<std::string>(rt_info_path).find("int8") != std::string::npos;
 }
 
-struct NPUDesc {
-    std::string arch;
-    int64_t max_tiles = 0;
-    bool compiler_dq = false;
-    bool compiler_matmul_gate = false;
-    int64_t compiler_ver = 0;
-    bool support_flash_attention_tile = false;
-};
+}  // namespace
 
-std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
-                                              const ov::AnyMap& config) {
+std::optional<ov::npuw::NPUDesc> ov::npuw::extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& config) {
     if (!plugin->get_core()) {
         return std::nullopt;
     }
@@ -226,6 +219,10 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     return std::make_optional(std::move(desc));
 }
 
+namespace {
+
+using ov::npuw::NPUDesc;
+
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
     if (auto it = config.find(option_name); it != config.end()) {
         std::optional<ov::Any> found = std::make_optional(it->second);
@@ -275,7 +272,9 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     return config;
 }
 
-ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
+}  // namespace
+
+ov::AnyMap ov::npuw::get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     // FIXME: add `if_model_contain_slice()` condition for `SLICE_OUT` option.
     auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
@@ -329,6 +328,10 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     set_max_tiles_based_on_arch();
     return config;
 }
+
+namespace {
+
+using ov::npuw::get_default_common_config;
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
