@@ -28,23 +28,41 @@ namespace test {
  *              \       /
  *               \     /
  *               MatMul
+ *
+ * With a per-row weights scale and non-constant indices, LPT can't move the dequantization through Gather,
+ * so GatherCompressed must be kept for i8/u8 weights as well. A per-column scale is still handled by LPT.
  */
-using DisableGatherCompressedForQuantizedModelParams = std::tuple<element::Type, InputShape, InputShape>;
+enum class GatherScaleShape { SCALAR, PER_ROW, PER_COLUMN };
+
+static std::ostream& operator<<(std::ostream& os, GatherScaleShape scale_shape) {
+    switch (scale_shape) {
+    case GatherScaleShape::SCALAR:
+        return os << "scalar";
+    case GatherScaleShape::PER_ROW:
+        return os << "per_row";
+    case GatherScaleShape::PER_COLUMN:
+        return os << "per_column";
+    }
+    return os;
+}
+
+using DisableGatherCompressedForQuantizedModelParams =
+    std::tuple<element::Type, InputShape, InputShape, GatherScaleShape>;
 class DisableGatherCompressedForQuantizedModel : public testing::WithParamInterface<DisableGatherCompressedForQuantizedModelParams>,
                                                  virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DisableGatherCompressedForQuantizedModelParams>& obj) {
-        const auto& [weight_prec, inputShape1, inputShape2] = obj.param;
+        const auto& [weight_prec, inputShape1, inputShape2, scale_shape] = obj.param;
         std::ostringstream result;
         result << "weight_prec=" << weight_prec << "_" << "inputShape1=" << inputShape1 << "_"
-               << "inputShape2=" << inputShape2;
+               << "inputShape2=" << inputShape2 << "_" << "scale=" << scale_shape;
         return result.str();
     }
 
 protected:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-        const auto& [weight_prec, inputShape1, inputShape2] = GetParam();
+        const auto& [weight_prec, inputShape1, inputShape2, scale_shape] = GetParam();
         init_input_shapes({inputShape1, inputShape2});
 
         targetDevice = utils::DEVICE_CPU;
@@ -63,7 +81,13 @@ protected:
         auto weights_shape = Shape{64, 64};
         auto weights = utils::make_constant(weight_prec, weights_shape, utils::InputGenerateData(-1, 2, 32768));
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(type, {1, 1}, {0.625}));
+        const auto scale_const_shape = scale_shape == GatherScaleShape::PER_ROW      ? Shape{weights_shape[0], 1}
+                                       : scale_shape == GatherScaleShape::PER_COLUMN ? Shape{1, weights_shape[1]}
+                                                                                     : Shape{1, 1};
+        auto scale = scale_shape == GatherScaleShape::SCALAR
+                         ? op::v0::Constant::create(type, scale_const_shape, {0.625})
+                         : utils::make_constant(type, scale_const_shape, utils::InputGenerateData(1, 1, 1000));
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
         // Indics
         auto softmax = std::make_shared<op::v1::Softmax>(input2, 0);
         auto multiply2 = std::make_shared<op::v1::Multiply>(softmax, op::v0::Constant::create(type, {1}, {64}));
@@ -80,6 +104,7 @@ protected:
     void check_results() {
         const auto& test_param = GetParam();
         const auto compressed_weights_precision = std::get<0>(test_param);
+        const auto scale_shape = std::get<3>(test_param);
 
         const auto runtime_model = compiledModel.get_runtime_model();
         const auto matmul = runtime_model->get_result()->get_input_node_shared_ptr(0);
@@ -96,6 +121,17 @@ protected:
                     have_gather = true;
                 }
             }
+        }
+
+        if (scale_shape == GatherScaleShape::PER_ROW) {
+            EXPECT_TRUE(have_gather_compressed);
+            EXPECT_FALSE(have_gather);
+            return;
+        }
+        if (scale_shape == GatherScaleShape::PER_COLUMN) {
+            EXPECT_TRUE(have_gather);
+            EXPECT_FALSE(have_gather_compressed);
+            return;
         }
 
         switch (compressed_weights_precision) {
@@ -137,7 +173,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_DisableGatherCompressedForQuantizedModel_basic,
                          DisableGatherCompressedForQuantizedModel,
                          ::testing::Combine(::testing::ValuesIn(weightsPrecisions),
                                             ::testing::ValuesIn(inputShapes1),
-                                            ::testing::ValuesIn(inputShapes2)),
+                                            ::testing::ValuesIn(inputShapes2),
+                                            ::testing::Values(GatherScaleShape::SCALAR)),
+                         DisableGatherCompressedForQuantizedModel::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DisableGatherCompressedForQuantizedModel_non_scalar_scale,
+                         DisableGatherCompressedForQuantizedModel,
+                         ::testing::Combine(::testing::Values(element::i8, element::u8),
+                                            ::testing::ValuesIn(inputShapes1),
+                                            ::testing::ValuesIn(inputShapes2),
+                                            ::testing::Values(GatherScaleShape::PER_ROW, GatherScaleShape::PER_COLUMN)),
                          DisableGatherCompressedForQuantizedModel::getTestCaseName);
 
 }  // namespace

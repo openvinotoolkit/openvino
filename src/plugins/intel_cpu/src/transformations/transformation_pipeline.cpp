@@ -17,6 +17,7 @@
 #include "itt.h"
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "low_precision/gather.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/qdq_stripping.hpp"
 #include "low_precision/quantization_details.hpp"
@@ -44,6 +45,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -293,6 +295,38 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+// Checks that every GatherCompressed scale / zero point has the shape of the leading weights dimensions followed by
+// ones (e.g. [V, 1] or [V, D] for [V, D] weights), so each value covers a contiguous block of the flattened weights.
+static bool has_blocked_decompression_params(const_node_ptr& gather_compressed) {
+    const auto& weights_shape = gather_compressed->get_input_partial_shape(0);
+    if (weights_shape.is_dynamic()) {
+        return false;
+    }
+    const auto rank = weights_shape.size();
+    for (size_t i = 3; i < gather_compressed->get_input_size(); ++i) {
+        const auto& param_shape = gather_compressed->get_input_partial_shape(i);
+        if (param_shape.is_dynamic() || param_shape.size() > rank) {
+            return false;
+        }
+        if (ov::shape_size(param_shape.to_shape()) == 1) {
+            continue;
+        }
+        auto shape = param_shape.to_shape();
+        shape.insert(shape.begin(), rank - shape.size(), 1);
+        size_t blocked_dims = 0;
+        while (blocked_dims < rank &&
+               shape[blocked_dims] == static_cast<size_t>(weights_shape[blocked_dims].get_length())) {
+            ++blocked_dims;
+        }
+        if (std::any_of(shape.begin() + blocked_dims, shape.end(), [](size_t dim) {
+                return dim != 1;
+            })) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
         const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
@@ -500,16 +534,36 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(
         decompression_handling_manager,
         [&](const_node_ptr& node) -> bool {
+            if (ov::is_type<ov::op::v8::Gather>(node)) {
+                // Prioritize LPT pipeline to handle dequantization part for quantized models as it more optimal in
+                // general case, but only if LPT is able to move the dequantization through the Gather. Otherwise
+                // the dequantization would be constant folded and the compressed weights would be decompressed.
+                if (!useLpt) {
+                    return false;
+                }
+                const auto dequantization =
+                    ov::pass::low_precision::NetworkHelper::getDequantization(node, defaultPrecisions);
+                if (dequantization.convert == nullptr ||
+                    !ov::intel_cpu::any_of(dequantization.data.get_element_type(), ov::element::u8, ov::element::i8)) {
+                    return false;
+                }
+                const ov::pass::low_precision::GatherTransformation lpt_gather(
+                    ov::pass::low_precision::LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+                if (!lpt_gather.canBeTransformed(std::const_pointer_cast<ov::Node>(node))) {
+                    return false;
+                }
+                // It is necessary to avoid precision conversion for constant node(compressed weights)
+                ov::enable_keep_const_precision(dequantization.data.get_node_shared_ptr());
+                return true;
+            }
             if (ov::is_type<ov::op::internal::GatherCompressed>(node)) {
                 // It is necessary to avoid precision conversion for constant node(compressed weights)
                 ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
 
-                // Prioritize LPT pipeline to handle dequantization part for quantized models as it more optimal in
-                // general case
-                if (ov::intel_cpu::any_of(node->get_input_node_shared_ptr(0)->get_element_type(),
-                                          ov::element::u8,
-                                          ov::element::i8) &&
-                    useLpt) {
+                // GatherCompressed expects each scale / zero point value to cover a contiguous block of weights
+                if (useLpt &&
+                    ov::intel_cpu::any_of(node->get_input_element_type(0), ov::element::u8, ov::element::i8) &&
+                    !has_blocked_decompression_params(node)) {
                     return true;
                 }
             }
