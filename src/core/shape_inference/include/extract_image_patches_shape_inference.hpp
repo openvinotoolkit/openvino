@@ -33,6 +33,9 @@ std::vector<TRShape> shape_infer(const ExtractImagePatches* op, const std::vecto
     NODE_VALIDATION_CHECK(op,
                           sizes.size() == num_spatial_dim,
                           "Attribute sizes should be in [size_rows, size_cols] format.");
+    NODE_VALIDATION_CHECK(op,
+                          std::none_of(sizes.begin(), sizes.end(), is_zero),
+                          "Attribute sizes should be strictly greater than zeros in values.");
 
     const auto& strides = op->get_strides();
     NODE_VALIDATION_CHECK(op,

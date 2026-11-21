@@ -275,6 +275,20 @@ TEST(type_prop, extractimagepatches_sizes_has_no_two_elements) {
                     HasSubstr("Attribute sizes should be in [size_rows, size_cols] format"));
 }
 
+TEST(type_prop, extractimagepatches_sizes_has_zero_value) {
+    // A zero size underflowed (size - 1) in the VALID padding formula, so a static input got an
+    // interval output dimension instead of a validation error.
+    auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+    auto sizes = Shape{0, 2};
+    auto strides = Strides{1, 1};
+    auto rates = Shape{1, 1};
+    auto padtype_padding = op::PadType::VALID;
+
+    OV_EXPECT_THROW(ignore = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding),
+                    NodeValidationFailure,
+                    HasSubstr("Attribute sizes should be strictly greater than zeros in values"));
+}
+
 TEST(type_prop, extractimagepatches_strides_has_no_two_elements) {
     auto data = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     auto sizes = Shape{3, 3};
