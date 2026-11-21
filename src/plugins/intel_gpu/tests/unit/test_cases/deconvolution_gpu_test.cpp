@@ -2607,9 +2607,11 @@ static void test_deconvolution_stride1_weights_shared_with_conv(impl_types impl_
     layout weights_layout{ov::PartialShape{fm, fm, k, k}, data_types::f16, format::bfyx};
 
     tests::random_generator rg(GET_SUITE_NAME);
-    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
-    // Small weights keep the output of the second layer in a range where the f16 error stays below the tolerance
-    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25, 0.25, 32);
+    // Inputs from {-1, 0, 1} and weights from {-0.25, 0, 0.25} keep every partial sum of both layers a multiple of 1/16
+    // well below 128, which f16 represents exactly. The OCL kernels accumulate in f16, so with finer values the result
+    // of the second layer would depend on the kernel the device selects and on its accumulation order.
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25, 0.25, 4);
     auto input = engine.allocate_memory(in_layout);
     auto weights = engine.allocate_memory(weights_layout);
     set_values(input, input_data);
