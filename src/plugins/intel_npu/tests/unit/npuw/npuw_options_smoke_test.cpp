@@ -117,6 +117,8 @@ std::vector<Case> make_cases() {
         bool_case<::intel_npu::NPUW_SPATIAL_DYN>("NPUW_SPATIAL_DYN", "NO", false),
         numeric_case<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>("NPUW_MOE_TOKEN_CHUNK_SIZE", "32", uint64_t{32}),
         numeric_case<::intel_npu::NPUW_MOE_POOL_SIZE>("NPUW_MOE_POOL_SIZE", "4", std::size_t{4}),
+        bool_case<::intel_npu::NPUW_MOE_SCALE_GM>("NPUW_MOE_SCALE_GM", "YES", true),
+        bool_case<::intel_npu::NPUW_MOE_SCALE_GM_F32>("NPUW_MOE_SCALE_GM_F32", "YES", true),
         string_case<::intel_npu::NPUW_ATTN>("NPUW_ATTN", "HFA", "HFA"),
         bool_case<::intel_npu::NPUW_ATTN_DYN>("NPUW_ATTN_DYN", "NO", false),
         bool_case<::intel_npu::NPUW_ATTN_NO_COPY>("NPUW_ATTN_NO_COPY", "YES", true),

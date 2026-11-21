@@ -27,6 +27,8 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, ov::intel_npu::np
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_SPATIAL_DYN, bool, true, ov::intel_npu::npuw::partitioning, spatial_dyn, "NPUW_SPATIAL_DYN", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_MOE_TOKEN_CHUNK_SIZE, uint64_t, 0, ov::intel_npu::npuw::partitioning, moe_token_chunk_size, "NPUW_MOE_TOKEN_CHUNK_SIZE", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_MOE_POOL_SIZE, std::size_t, 8, ov::intel_npu::npuw::partitioning, moe_pool_size, "NPUW_MOE_POOL_SIZE", ROOT, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_MOE_SCALE_GM, bool, false, ov::intel_npu::npuw::partitioning, moe_scale_group_major, "NPUW_MOE_SCALE_GM", ROOT, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_MOE_SCALE_GM_F32, bool, false, ov::intel_npu::npuw::partitioning, moe_scale_group_major_f32, "NPUW_MOE_SCALE_GM_F32", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN, std::string, "STATIC", ov::intel_npu::npuw::partitioning, attn, "NPUW_ATTN", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN_DYN, bool, true, ov::intel_npu::npuw::partitioning, attn_dyn, "NPUW_ATTN_DYN", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ATTN_NO_COPY, bool, false, ov::intel_npu::npuw::partitioning, attn_no_copy, "NPUW_ATTN_NO_COPY", ROOT, HIDDEN, UNCACHED, ALL)

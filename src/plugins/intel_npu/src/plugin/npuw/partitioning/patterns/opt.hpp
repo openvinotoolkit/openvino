@@ -44,6 +44,9 @@ struct Context {
     std::set<PPtr> closures_to_f16;
     void to_f16(const PPtr& orig_param);
 
+    std::set<PPtr> closures_to_f32;
+    void to_f32(const PPtr& orig_param);
+
     std::map<PPtr, PPtr> closures_to_subtract_128;
     PPtr subtract_128(const PPtr& orig_param);
 
@@ -289,6 +292,14 @@ class ConvToMatmul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvToMatmul");
     ConvToMatmul(Context::Ref ctx);
+};
+
+// MOECompressed: relayout closure scales from [E, N, G] to [E, G, N] on host
+class MoECompressedScaleGroupMajor : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::MoECompressedScaleGroupMajor");
+    // to_f32: also convert f16 scales to f32 on host
+    explicit MoECompressedScaleGroupMajor(Context::Ref ctx, bool to_f32 = false);
 };
 
 // UntangleConst
