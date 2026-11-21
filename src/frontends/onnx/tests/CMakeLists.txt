@@ -147,13 +147,29 @@ if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
+# An iterator library compiled against a frozen copy of the earlier GraphIterator header. It stands for a prebuilt
+# third-party library and is linked into the tests to exercise the current frontend with a binary that does not know
+# GraphIteratorV2 and whose class has the original layout and vtable only.
+add_library(ov_onnx_legacy_graph_iterator SHARED legacy_graph_iterator/legacy_graph_iterator.cpp)
+target_include_directories(ov_onnx_legacy_graph_iterator PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/legacy_graph_iterator")
+target_link_libraries(ov_onnx_legacy_graph_iterator PRIVATE openvino::frontend::onnx)
+
 target_link_libraries(ov_onnx_frontend_tests PRIVATE
     gtest_main_manifest
     frontend_shared_test_classes
     openvino::frontend::onnx
     openvino_onnx_common
     func_test_utils
+    ov_onnx_legacy_graph_iterator
 )
+
+if(RISCV64)
+    # Some static libraries pulled in through onnx_proto (abseil log) need libatomic for 1-byte atomics on riscv64.
+    # libatomic.so reaches the link line before those archives, and --as-needed then drops it, which ends with
+    # "DSO missing from command line". Keep it regardless of the order.
+    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,--no-as-needed)
+    target_link_libraries(ov_onnx_frontend_tests PRIVATE atomic)
+endif()
 
 if(OV_COMPILER_IS_CLANG)
     target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
@@ -165,6 +181,14 @@ ov_build_target_faster(ov_onnx_frontend_tests PCH)
 
 install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+
+# The tests link the helper library, so the installed test executable cannot start without it. CI runs the installed
+# executable on a separate runner after sourcing setupvars, which puts OV_CPACK_RUNTIMEDIR on PATH (Windows) or on
+# LD_LIBRARY_PATH / DYLD_LIBRARY_PATH (Linux, macOS). The archive packaging does not set an install RPATH, so a
+# directory next to the executable would not be searched on Linux and macOS.
+install(TARGETS ov_onnx_legacy_graph_iterator
+        RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT tests EXCLUDE_FROM_ALL)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DESTINATION tests/onnx
