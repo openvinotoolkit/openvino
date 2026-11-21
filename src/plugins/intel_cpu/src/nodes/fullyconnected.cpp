@@ -5,6 +5,7 @@
 #include "fullyconnected.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -39,6 +40,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
@@ -72,7 +74,11 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
 
     if (useMatmulPrim) {
+#if defined(OPENVINO_ARCH_X86_64)
+        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+#else
         return {Type_t::u8, Type_t::i8};
+#endif
     }
 #if defined(OPENVINO_ARCH_X86_64)
     return {Type_t::u8,
@@ -104,7 +110,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    // f16 is accepted only for fp8 weights, see isSupportedCompressedOperation()
+    // Integer and fp8 FP16 decompression are gated in isSupportedCompressedOperation().
     return {Type_t::f32, Type_t::bf16, Type_t::f16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
@@ -196,12 +202,94 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return IC >= 4 && OC != 1;
         }
 
-        bool useMatmulPrim = false;
-        CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-        // At the moment there is no implementation supporting integer weights decompression with f16 input
-        // (subject to change once we completely switch to dnnl::matmul).
+        const bool fp16Activations =
+            op->get_input_element_type(DATA) == ov::element::f16 ||
+            (op->get_input_element_type(DATA) == ov::element::f32 && config.inferencePrecision == ov::element::f16 &&
+             !ov::is_conversion_disabled(op, ov::element::f16) &&
+             !ov::is_conversion_disabled(op, ov::element::f32, ov::element::f16));
+        bool useMatmulPrim =
+            hasFp16WeightsDecompressionSupport() && fp16Activations &&
+            any_of(weightsPrecision, ov::element::i4, ov::element::u4, ov::element::i8, ov::element::u8);
+        CPU_DEBUG_CAP_ENABLE(useMatmulPrim = useMatmulPrim || getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
         if (!useMatmulPrim && op->get_input_element_type(DATA) == ov::element::f16) {
             return false;
+        }
+
+        if (useMatmulPrim && fp16Activations) {
+            if (!any_of(op->get_input_element_type(WEIGHT_SCALES), ov::element::f16, ov::element::f32)) {
+                return false;
+            }
+            // The oneDNN compressed FP16 route needs even INT4 rows and aligned K groups.
+            // Its primitive attributes require integer zero points in the quantized type's range.
+            const auto& weights_shape = op->get_input_shape(WEIGHTS);
+            if (weights_shape.size() != 2 || weights_shape[0] != OC || weights_shape[1] != IC || G == 0 ||
+                IC % G != 0 || (G > 1 && (IC / G) % 32 != 0) ||
+                (any_of(weightsPrecision, ov::element::i4, ov::element::u4) && IC % 2 != 0)) {
+                return false;
+            }
+            auto parameterGroups = [&](size_t port) -> size_t {
+                const auto& shape = op->get_input_shape(port);
+                if (shape.size() == 1 && shape[0] == 1) {
+                    return 1;
+                }
+                if (shape.size() != 2 && !(shape.size() == 3 && shape[0] == 1)) {
+                    return 0;
+                }
+                const auto channels = shape[shape.size() - 2];
+                const auto groups = shape.back();
+                if ((channels != 1 && channels != OC) || groups == 0 || IC % groups != 0 ||
+                    (groups > 1 && (IC / groups) % 32 != 0)) {
+                    return 0;
+                }
+                return groups;
+            };
+            const auto scaleGroups = parameterGroups(WEIGHT_SCALES);
+            if (scaleGroups == 0 || scaleGroups != G) {
+                return false;
+            }
+            const auto scales = ov::util::get_constant_from_source(op->input_value(WEIGHT_SCALES));
+            if (!scales) {
+                return false;
+            }
+            for (const auto scale : scales->cast_vector<float>()) {
+                if (!std::isfinite(scale)) {
+                    return false;
+                }
+            }
+            if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
+                if (!any_of(op->get_input_element_type(WEIGHT_ZERO_POINTS),
+                            ov::element::f16,
+                            ov::element::f32,
+                            ov::element::i32,
+                            ov::element::i8,
+                            ov::element::u8,
+                            ov::element::i4,
+                            ov::element::u4)) {
+                    return false;
+                }
+                const auto zeroPointGroups = parameterGroups(WEIGHT_ZERO_POINTS);
+                if (zeroPointGroups == 0 ||
+                    (scaleGroups > 1 && zeroPointGroups > 1 && scaleGroups != zeroPointGroups)) {
+                    return false;
+                }
+                const auto zero_points = ov::util::get_constant_from_source(op->input_value(WEIGHT_ZERO_POINTS));
+                if (!zero_points) {
+                    return false;
+                }
+                const float minimum = weightsPrecision == ov::element::i4   ? -8.F
+                                      : weightsPrecision == ov::element::i8 ? -128.F
+                                                                            : 0.F;
+                const float maximum = weightsPrecision == ov::element::i4   ? 7.F
+                                      : weightsPrecision == ov::element::u4 ? 15.F
+                                      : weightsPrecision == ov::element::i8 ? 127.F
+                                                                            : 255.F;
+                for (const float value : zero_points->cast_vector<float>()) {
+                    if (!std::isfinite(value) || value != std::trunc(value) || value < minimum || value > maximum) {
+                        return false;
+                    }
+                }
+            }
         }
 
         if (ov::with_cpu_x86_avx512_core_amx() && config.inferencePrecision == ov::element::bf16) {

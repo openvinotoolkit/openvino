@@ -9,11 +9,13 @@
 
 #include <algorithm>
 #include <common/c_types_map.hpp>
+#include <common/dnnl_thread.hpp>
 #include <common/memory_desc.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_uni_reorder.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
@@ -25,7 +27,6 @@
 
 #include "dnnl_extension_utils.h"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::x64;
@@ -36,6 +37,53 @@ using namespace dnnl::impl::cpu::x64::matmul;
 
 namespace ov::intel_cpu {
 
+class PlainBReorder final : public jit_brgemm_matmul_copy_b_t {
+public:
+    PlainBReorder(size_t n, size_t k, size_t src_ld, size_t dst_ld, bool transpose, ov::element::Type dtype)
+        : jit_brgemm_matmul_copy_b_t(nullptr),
+          n(n),
+          k(k),
+          dst_ld(dst_ld),
+          element_size(dtype.size()) {
+        const dims_t dimensions{static_cast<dnnl_dim_t>(k), static_cast<dnnl_dim_t>(n)};
+        const dims_t src_strides{transpose ? 1 : static_cast<dnnl_dim_t>(src_ld),
+                                 transpose ? static_cast<dnnl_dim_t>(src_ld) : 1};
+        const dims_t dst_strides{static_cast<dnnl_dim_t>(dst_ld), 1};
+        const auto dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(dtype));
+        memory_desc_t src, dst;
+        OPENVINO_ASSERT(memory_desc_init_by_strides(src, 2, dimensions, dt, src_strides) == status::success);
+        OPENVINO_ASSERT(memory_desc_init_by_strides(dst, 2, dimensions, dt, dst_strides) == status::success);
+        primitive_attr_t attributes;
+        tr::prb_t problem{};
+        OPENVINO_ASSERT(tr::prb_init(problem, src, dst, &attributes) == status::success);
+        OPENVINO_ASSERT(!problem.is_tail_present && problem.ioff == 0 && problem.ooff == 0);
+        tr::kernel_t::desc_t descriptor{};
+        OPENVINO_ASSERT(tr::kernel_t::desc_init(descriptor, problem, problem.ndims) == status::success);
+        OPENVINO_ASSERT(descriptor.prb.ndims == problem.ndims);
+        kernel.reset(tr::kernel_t::create(descriptor));
+        OPENVINO_ASSERT(kernel && kernel->create_kernel() == status::success);
+    }
+
+    status_t create_kernel() override {
+        return status::success;
+    }
+
+    void operator()(ctx_t* ctx) override {
+        OPENVINO_ASSERT(ctx->current_K_iters == static_cast<dnnl_dim_t>(k) &&
+                        ctx->current_N_blk == static_cast<dnnl_dim_t>(n));
+        auto* destination = const_cast<void*>(ctx->tr_src);
+        std::memset(destination, 0, k * dst_ld * element_size);
+        tr::call_param_t parameters{};
+        parameters.in = ctx->src;
+        parameters.out = destination;
+        (*kernel)(&parameters);
+    }
+
+private:
+    size_t n, k, dst_ld, element_size;
+    std::unique_ptr<tr::kernel_t> kernel;
+};
+
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
                            size_t K,
@@ -45,7 +93,10 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            bool b_transposed,
                            ov::element::Type inType,
                            bool b_accumulate,
-                           bool fuse_relu)
+                           bool fuse_relu,
+                           ov::element::Type b_in_type,
+                           ov::element::Type a_in_type,
+                           bool pack_b_to_f32)
     : BrgemmKernel(M,
                    N,
                    K,
@@ -58,7 +109,10 @@ BrgemmKernel::BrgemmKernel(size_t M,
                    ov::element::dynamic,
                    BrgemmKernel::ScaleType::NONE,
                    b_accumulate,
-                   fuse_relu) {}
+                   fuse_relu,
+                   b_in_type,
+                   a_in_type,
+                   pack_b_to_f32) {}
 
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
@@ -72,7 +126,10 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type DType,
                            BrgemmKernel::ScaleType bScaleType,
                            bool b_accumulate,
-                           bool fuse_relu)
+                           bool fuse_relu,
+                           ov::element::Type b_in_type,
+                           ov::element::Type a_in_type,
+                           bool pack_b_to_f32)
     : M(M),
       M_blk(matmulOptimalM),
       M_tail(M % M_blk),
@@ -84,6 +141,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
       ldd(ldd),
       b_transposed(b_transposed),
       inType(inType),
+      b_in_type(b_in_type == ov::element::dynamic ? inType : b_in_type),
+      a_in_type(a_in_type == ov::element::dynamic ? inType : a_in_type),
       DType(DType),
       bScaleType(bScaleType),
       b_accumulate(b_accumulate),
@@ -110,12 +169,6 @@ BrgemmKernel::BrgemmKernel(size_t M,
     }
 
     srcType = weiType = inType;
-    // If isa is avx512_core_fp16, f16 is supported by upconverted to f32
-    is_avx_f16_only = inType == ov::element::f16 && mayiuse(avx512_core_fp16) && !mayiuse(avx512_core_amx_fp16);
-    if (is_avx_f16_only) {
-        srcType = ov::element::f32;
-        weiType = ov::element::f32;
-    }
     brgVnniFactor = 4 / weiType.size();
 
     /*
@@ -127,7 +180,20 @@ BrgemmKernel::BrgemmKernel(size_t M,
     */
     bool isAMXSupported = (is_bf16 && mayiuse(avx512_core_amx)) || (is_f16 && mayiuse(avx512_core_amx_fp16)) ||
                           (is_int8 && mayiuse(avx512_core_amx));
-    bool isBrgWithAMX = isAMXSupported && !is_avx_f16_only;
+    bool isBrgWithAMX = isAMXSupported;
+    // Match oneDNN matmul on SPR: its copy kernels convert FP16 operands
+    // before the FP32 BRGEMM, so a packed B block can be reused.
+    f16_copy = is_f16 && !isBrgWithAMX;
+    OPENVINO_ASSERT(this->b_in_type == inType || (f16_copy && this->b_in_type == ov::element::f32),
+                    "Mixed B precision requires non-AMX FP16 with FP32 B.");
+    OPENVINO_ASSERT(this->a_in_type == inType || (f16_copy && this->a_in_type == ov::element::f32),
+                    "Mixed A precision requires non-AMX FP16 with FP32 A.");
+    if (f16_copy) {
+        srcType = ov::element::f32;
+        weiType = pack_b_to_f32 ? ov::element::f32 : this->b_in_type;
+        is_f32 = true;
+        brgVnniFactor = 1;
+    }
 
     size_t vlen = 0;
     if (mayiuse(avx512_core)) {
@@ -136,7 +202,13 @@ BrgemmKernel::BrgemmKernel(size_t M,
         vlen = cpu_isa_traits_t<cpu_isa_t::avx2>::vlen;
     }
     // blocking N
-    N_blk = !is_f32 ? 32 : std::max(N, vlen / inType.size());
+    if (f16_copy) {
+        N_blk = rnd_up(N, 16);
+    } else if (!is_f32) {
+        N_blk = 32;
+    } else {
+        N_blk = std::max(N, vlen / inType.size());
+    }
     N_tail = N % N_blk;
 
     // blocking K
@@ -170,10 +242,10 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 if (k) {
                     brgemmCtx.LDA = K_blk;
                 } else {
-                    brgemmCtx.LDA = is_avx_f16_only ? K : this->lda;  // f16 use f32 internally
+                    brgemmCtx.LDA = f16_copy && this->a_in_type == ov::element::f16 ? K : this->lda;
                 }
 
-                if (!is_f32 || b_transposed) {
+                if (!is_f32 || b_transposed || f16_copy) {
                     brgemmCtx.LDB = rnd_up(N, N_blk);  // bf16/fp16/b_transposed needs copy
                 } else {
                     brgemmCtx.LDB = ldb;
@@ -196,21 +268,17 @@ BrgemmKernel::BrgemmKernel(size_t M,
 
     auto& brgemmCtx0 = brgCtxs[brg0BaseIdx];
 
-    if ((brgemmCtx0.is_with_amx && K_tail) || is_avx_f16_only) {
-        init_brgemm_copy_a(brgCopyAKernel,
-                           K,
-                           K_blk,
-                           K_tail,
-                           is_avx_f16_only ? K : K_blk,
-                           brgemmCtx0.dt_in0,
-                           false,
-                           lda * inType.size());
+    if (f16_copy && this->a_in_type == ov::element::f16) {
+        init_brgemm_copy_a(brgCopyAKernel, K, K, 0, K, brgemmCtx0.dt_in0, false, lda * inType.size());
+        packedASize = M_blk * K * srcType.size();
+    } else if (brgemmCtx0.is_with_amx && K_tail) {
+        init_brgemm_copy_a(brgCopyAKernel, K, K_blk, K_tail, K_blk, brgemmCtx0.dt_in0, false, lda * inType.size());
         packedASize = M_blk * rnd_up(K, brgemmCtx0.LDA) * srcType.size();
     }
 
-    if (brgemmCtx0.is_with_amx || !is_f32 || b_transposed) {
+    if (f16_copy || brgemmCtx0.is_with_amx || !is_f32 || b_transposed) {
         size_t b_stride = 0;
-        b_stride = ldb * inType.size();
+        b_stride = ldb * this->b_in_type.size();
         // K should use the original K
         init_brgemm_copy_b(brgCopyBKernel,
                            N,
@@ -300,19 +368,25 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
         THROW_ERROR("cannot be executed due to invalid brgemm params");
     }
 
-    if (use_amx && b_accumulate) {
+    if ((use_amx && b_accumulate) || ctx.dt_in0 == dnnl_data_type_t::dnnl_f16) {
         brgemm_attr_t brgattr;
-        brgattr.max_bs = 1;
-        brgattr.wary_A_k_tail_read = false;
-        brgattr.hint_innermost_loop = brgemm_innermost_undef;
-        // if b_accumulate is true, it means we want c+=a*b. jit_brgemm_amx_uker_base_t::load_accumulators can support
-        // this using tileload(c) without postops
-        brgattr.use_uker = true;
-        brgattr.use_interleave_stores = true;
-        brgattr.hint_prefetching = brgemm_kernel_prefetching_t::brgemm_prf1;
+        brgattr.b_is_vnni = ctx.dt_in0 == dnnl_data_type_t::dnnl_f16;
+        if (use_amx && b_accumulate) {
+            brgattr.max_bs = 1;
+            brgattr.wary_A_k_tail_read = false;
+            brgattr.hint_innermost_loop = brgemm_innermost_undef;
+            // Accumulate through tileload(c) without postops.
+            brgattr.use_uker = true;
+            brgattr.use_interleave_stores = true;
+            brgattr.hint_prefetching = brgemm_kernel_prefetching_t::brgemm_prf1;
+        }
         if (brgemm_desc_set_attr(&brgDesc, brgattr) != dnnl_success) {
             THROW_ERROR("cannot be executed due to brgemm_desc_set_attr failed");
         }
+    }
+
+    if (brgemm_desc_finalize(&brgDesc) != dnnl_success) {
+        THROW_ERROR("cannot be executed due to brgemm_desc_finalize failed");
     }
 
     ctx.is_with_amx = use_amx;
@@ -337,7 +411,8 @@ void BrgemmKernel::init_brgemm_copy_a(
     dnnl_data_type_t dt_in0,
     bool transpose,
     size_t copy_A_src_stride) {
-    brgemm_matmul_conf_t brgCopyKernelConf{};
+    copyAConf = brgemm_matmul_conf_t{};
+    auto& brgCopyKernelConf = copyAConf;
     brgCopyKernelConf.src_tag = dnnl_abcd;
     brgCopyKernelConf.K = K;
     brgCopyKernelConf.K_tail = K_tail;
@@ -349,23 +424,24 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.s8s8_compensation_required = false;
     brgCopyKernelConf.wei_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
-    brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
+    brgCopyKernelConf.src_dt = dt_in0;
     brgCopyKernelConf.orig_src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
     brgCopyKernelConf.copy_A_src_stride = copy_A_src_stride;
-    // copy_a_kernel assumes that in/out tensor has same data type except f16
-    // copy_a_kernel has special path for f16: assuming input(f16) -> output(f32)
-    brgCopyKernelConf.a_dt_sz = is_avx_f16_only
-                                    ? sizeof(ov::float16)
-                                    : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
-    // copied A has the same precision of original
-    brgCopyKernelConf.tr_a_dt_sz =
-        is_avx_f16_only ? sizeof(float)
-                        : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+    brgCopyKernelConf.a_dt_sz = inType.size();
+    brgCopyKernelConf.tr_a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
-    brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
+    if (f16_copy) {
+        brgCopyKernelConf.isa = avx512_core_fp16;
+    } else if (dt_in0 == dnnl_data_type_t::dnnl_f16) {
+        brgCopyKernelConf.isa = avx512_core_amx_fp16;
+    } else {
+        brgCopyKernelConf.isa = avx512_core_amx;
+    }
     brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
 
-    create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
+    if (create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf) != dnnl::impl::status::success) {
+        THROW_ERROR("cannot create_brgemm_matmul_copy_a kernel");
+    }
 }
 
 void BrgemmKernel::init_brgemm_copy_b(
@@ -380,10 +456,36 @@ void BrgemmKernel::init_brgemm_copy_b(
     dnnl_data_type_t dt_in1,
     bool transpose,
     size_t copy_B_wei_stride) {
-    brgemm_matmul_conf_t brgCopyKernelConf{};
-    brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
-    brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
-    brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
+    copyBConf = brgemm_matmul_conf_t{};
+    auto& brgCopyKernelConf = copyBConf;
+    if (f16_copy) {
+        if (weiType == ov::element::f16) {
+            brgCopyKernel = std::make_unique<PlainBReorder>(N, K, ldb, LDB, transpose, b_in_type);
+            return;
+        }
+        auto ret = dnnl::impl::cpu::x64::matmul::init_conf(
+            brgCopyKernelConf,
+            1,
+            0,
+            K,
+            N,
+            copy_B_wei_stride / b_in_type.size(),
+            N_blk,
+            static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(b_in_type)),
+            dnnl::impl::data_type::f32,
+            transpose ? dnnl::impl::format_tag::ba : dnnl::impl::format_tag::ab);
+        if (ret != dnnl::impl::status::success) {
+            THROW_ERROR("cannot initialize FP16 copy_b configuration");
+        }
+        brgCopyKernelConf.isa = avx512_core_fp16;
+        if (create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf) != dnnl::impl::status::success) {
+            THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel");
+        }
+        return;
+    }
+    brgCopyKernelConf.src_dt = dt_in0;
+    brgCopyKernelConf.wei_dt = dt_in1;
+    brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(b_in_type));
     brgCopyKernelConf.wei_n_blk = N_blk;
     brgCopyKernelConf.wei_tag = transpose ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
@@ -398,15 +500,9 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.K_blk = K;
     brgCopyKernelConf.K_tail = 0;
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
-    // f16 is computed by upconverting. in(f16) -> out(f32)
-    brgCopyKernelConf.b_dt_sz =
-        is_avx_f16_only
-            ? sizeof(ov::float16)
-            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.b_dt_sz = b_in_type.size();
     brgCopyKernelConf.tr_b_dt_sz =
-        is_avx_f16_only
-            ? sizeof(float)
-            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+        DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.wei_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
     if (is_with_amx) {
@@ -442,7 +538,7 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
     if (brgCopyBKernel) {
         for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
             auto N_stride = b_transposed ? ldb : 1;
-            auto* pCopyKernel0In = ptr_b + nb * N_blk * inType.size() * N_stride;
+            auto* pCopyKernel0In = ptr_b + nb * N_blk * b_in_type.size() * N_stride;
             auto* pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brgVnniFactor * weiType.size();
 
             auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
@@ -457,6 +553,14 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
             ctx.current_K_start = 0;
             ctx.current_K_iters = K;
             (*brgCopyBKernel)(&ctx);
+        }
+        if (f16_copy && b_transposed && weiType == ov::element::f32 && N_tail != 0) {
+            // The oneDNN transpose helper can leave nonzero values in padded columns.
+            const size_t packed_ld = rnd_up(N, N_blk);
+            auto* packed = static_cast<float*>(scratch_b);
+            for (size_t k = 0; k < K; ++k) {
+                std::fill(packed + k * packed_ld + N, packed + (k + 1) * packed_ld, 0.F);
+            }
         }
     }
 }
@@ -484,17 +588,9 @@ void BrgemmKernel::executeGemm(bool is_M_tail,
     execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a, &tiles);
 }
 
-void BrgemmKernel::execute_without_scale(bool is_M_tail,
-                                         void* a,
-                                         void* b,
-                                         void* c,
-                                         void* wsp,
-                                         void* scratch_a,
-                                         AmxTileState* tiles) {
+void BrgemmKernel::copy_buffer_a(bool is_M_tail, void* a, void* scratch_a) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
     auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
-    auto* ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
 
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
@@ -502,7 +598,7 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail,
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
         size_t K_offset = 0;
-        if (!is_avx_f16_only && K >= K_blk) {
+        if (!f16_copy && K >= K_blk) {
             K_offset = K0_step0 * srcType.size();
         }
         auto* pCopyKernelIn = ptr_A + K_offset;
@@ -518,9 +614,31 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail,
         ctx.src = pCopyKernelIn;
         ctx.tr_src = pCopyKernelOut;
         ctx.current_K_start = 0;
-        ctx.current_K_blk = K % K_blk;
+        ctx.current_K_blk = f16_copy ? K : K % K_blk;
 
         (*brgCopyAKernel)(&ctx);
+    }
+}
+
+void BrgemmKernel::execute_with_packed_a(bool is_M_tail, void* a, void* b, void* c, void* wsp) {
+    OPENVINO_ASSERT(f16_copy, "Packed A execution requires non-AMX FP16.");
+    execute_without_scale(is_M_tail, a, b, c, wsp, nullptr, nullptr, true);
+}
+
+void BrgemmKernel::execute_without_scale(bool is_M_tail,
+                                         void* a,
+                                         void* b,
+                                         void* c,
+                                         void* wsp,
+                                         void* scratch_a,
+                                         AmxTileState* tiles,
+                                         bool a_is_packed) {
+    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
+    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
+    auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
+    auto* ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
+    if (!a_is_packed) {
+        copy_buffer_a(is_M_tail, a, scratch_a);
     }
     size_t count_N = 0;
     for (size_t n = 0; n < 2; n++) {
@@ -530,7 +648,7 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail,
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (none_of(0U, brgemmCtx.K, brgemmCtx.N, brgemmCtx.M)) {
                 void* local_a_ptr = [&]() {
-                    if (is_avx_f16_only || k > 0) {
+                    if (!a_is_packed && ((f16_copy && a_in_type == ov::element::f16) || k > 0)) {
                         return ptr_scartch_a;
                     }
                     return ptr_A;
@@ -657,7 +775,7 @@ void BrgemmKernelQuantized::execute_scaled(bool is_M_tail,
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
         size_t K_offset = 0;
-        if (!is_avx_f16_only && K >= K_blk) {
+        if (K >= K_blk) {
             K_offset = K0_step0 * srcType.size();
         }
         auto* pCopyKernelIn = ptr_A + K_offset;
@@ -685,7 +803,7 @@ void BrgemmKernelQuantized::execute_scaled(bool is_M_tail,
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
                 void* local_a_ptr = [&]() {
-                    if (is_avx_f16_only || k > 0) {
+                    if (k > 0) {
                         return ptr_scartch_a;
                     }
                     return ptr_A;

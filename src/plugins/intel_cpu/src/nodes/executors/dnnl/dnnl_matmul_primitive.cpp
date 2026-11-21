@@ -287,7 +287,15 @@ static dnnl::matmul::primitive_desc createDescriptorInternalAsFc(const dnnl::mem
         wdt = memory::data_type::s8;
     }
 
-    const dnnl::memory::desc weightsDesc = dnnl::memory::desc(weiDims, wdt, memory::format_tag::any);
+    auto weightsDesc = dnnl::memory::desc(weiDims, wdt, memory::format_tag::any);
+    if (useWeightsDecompression && inputDesc.get_data_type() == memory::data_type::f16 &&
+        any_of(wdt, memory::data_type::s4, memory::data_type::u4)) {
+        auto dimensions = weightDesc.get_dims();
+        auto strides = weightDesc.get_strides();
+        std::swap(dimensions[dimensions.size() - 1], dimensions[dimensions.size() - 2]);
+        std::swap(strides[strides.size() - 1], strides[strides.size() - 2]);
+        weightsDesc = dnnl::memory::desc(dimensions, wdt, strides).reshape(weiDims);
+    }
 
     return {engine, inputsDesc, weightsDesc, newBiasDesc, outputsDesc, attr};
 }

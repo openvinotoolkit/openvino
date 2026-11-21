@@ -10,6 +10,7 @@
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
 #    include <oneapi/dnnl/dnnl_threadpool.hpp>
 
+#    include "common/stream.hpp"
 #    include "cpu_parallel.hpp"
 #    include "openvino/core/parallel.hpp"
 #    include "openvino/runtime/intel_cpu/properties.hpp"
@@ -23,6 +24,8 @@ dnnl::stream make_stream(const dnnl::engine& engine, const std::shared_ptr<Threa
     auto stream = dnnl::threadpool_interop::make_stream(
         engine,
         thread_pool ? thread_pool.get() : g_cpu_parallel->get_thread_pool().get());
+    // The bundled oneDNN threadpool constructor leaves profiler state uninitialized.
+    stream.get()->impl()->init_verbose_profiler(dnnl::impl::engine_kind::cpu);
 #else
     auto stream = dnnl::stream(engine);
 #endif

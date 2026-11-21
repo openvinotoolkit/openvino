@@ -45,6 +45,7 @@ public:
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
     // b_transpose indicates wheter B matrix is transposed.
+    // Non-AMX FP16 accepts FP32 A/B to retain softmax/dequantized values.
     // fuse_relu applies ReLU to the result as a brgemm post-op: C = max(0, A * B). BrgemmKernelQuantized has no such
     // option: its post-op slot is taken by the scales.
     BrgemmKernel(size_t M,
@@ -56,7 +57,10 @@ public:
                  bool b_transposed = false,
                  ov::element::Type inType = ov::element::bf16,
                  bool b_accumulate = false,
-                 bool fuse_relu = false);
+                 bool fuse_relu = false,
+                 ov::element::Type b_in_type = ov::element::dynamic,
+                 ov::element::Type a_in_type = ov::element::dynamic,
+                 bool pack_b_to_f32 = true);
 
     virtual ~BrgemmKernel() = default;
 
@@ -83,6 +87,9 @@ public:
                              AmxTileState& tiles);
 
     void copy_buffer_b(void* b, void* scratch_b);
+    void copy_buffer_a(bool is_M_tail, void* a, void* scratch_a);
+    // A copied by oneDNN can be reused across B blocks on the non-AMX FP16 path.
+    void execute_with_packed_a(bool is_M_tail, void* a, void* b, void* c, void* wsp);
     // bytes needed to place scratch buffer a
     [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
@@ -119,7 +126,10 @@ protected:
                  ov::element::Type DType,
                  ScaleType bScaleType,
                  bool b_accumulate,
-                 bool fuse_relu = false);
+                 bool fuse_relu = false,
+                 ov::element::Type b_in_type = ov::element::dynamic,
+                 ov::element::Type a_in_type = ov::element::dynamic,
+                 bool pack_b_to_f32 = true);
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0, ldd = 0;
@@ -128,12 +138,14 @@ protected:
     size_t packedBSize = 0;
     size_t packedASize = 0;
     ov::element::Type inType;
+    ov::element::Type b_in_type;
+    ov::element::Type a_in_type;
     ov::element::Type DType;
     ov::element::Type weiType;
     ov::element::Type srcType;
     ScaleType bScaleType = ScaleType::NONE;
-    bool is_avx_f16_only = false;
     bool b_accumulate = false;
+    bool f16_copy = false;
     bool post_relu = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
@@ -151,6 +163,8 @@ protected:
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgCopyAKernel;
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel;
+    dnnl::impl::cpu::x64::matmul::brgemm_matmul_conf_t copyAConf{};
+    dnnl::impl::cpu::x64::matmul::brgemm_matmul_conf_t copyBConf{};
     static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
@@ -160,7 +174,8 @@ protected:
                                void* c,
                                void* wsp,
                                void* scratch_a,
-                               AmxTileState* tiles = nullptr);
+                               AmxTileState* tiles = nullptr,
+                               bool a_is_packed = false);
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
     // LDA, LDB is used for stride of target memory
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
