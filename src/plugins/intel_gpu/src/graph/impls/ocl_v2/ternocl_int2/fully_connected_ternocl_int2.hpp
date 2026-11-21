@@ -109,9 +109,12 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         if (!node.get_program().get_config().get_enable_ternocl_int2()) {
             return false;
         }
-        // The kernels use SIMD16 DPAS and 2D block loads.
-        const auto& device_info = node.get_program().get_engine().get_device_info();
-        if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad) {
+        // The kernels need Xe2+ DPAS (immad) with SIMD16 sub-groups and 2D block loads. The impl was
+        // validated only on the OpenCL and Level Zero runtimes, so other runtimes (SYCL) keep the stock FC.
+        const auto& engine = node.get_program().get_engine();
+        const auto& device_info = engine.get_device_info();
+        const auto runtime = engine.runtime_type();
+        if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad || (runtime != runtime_types::ocl && runtime != runtime_types::ze)) {
             return false;
         }
 #define TERNOCL_REJECT(reason)                                                                               \
