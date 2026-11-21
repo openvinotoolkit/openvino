@@ -26,7 +26,10 @@
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP    (1 << 9)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP (1 << 10)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP2_I8MM   (1 << 13)
-#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE     (1 << 22)
+#    ifndef HWCAP2_SME2
+#        define HWCAP2_SME2 (1 << 9)
+#    endif
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE (1 << 22)
 #elif defined(__APPLE__) && defined(__aarch64__)
 #    include <sys/sysctl.h>
 #    include <sys/types.h>
@@ -238,6 +241,10 @@ bool with_cpu_arm_i8mm() {
     return false;
 }
 
+bool with_cpu_arm_sme2() {
+    return false;
+}
+
 #else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
@@ -346,6 +353,25 @@ bool with_cpu_arm_i8mm() {
     int64_t result(0);
     size_t size = sizeof(result);
     const std::string& cap = "hw.optional.arm.FEAT_I8MM";
+    sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
+    return result > 0;
+#    else
+    return false;
+#    endif
+}
+
+bool with_cpu_arm_sme2() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps2 = getauxval(AT_HWCAP2);
+    return hwcaps2 & HWCAP2_SME2;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    int64_t result(0);
+    size_t size = sizeof(result);
+    const std::string& cap = "hw.optional.arm.FEAT_SME2";
     sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
     return result > 0;
 #    else
