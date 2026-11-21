@@ -410,6 +410,17 @@ TEST_F(test_layout_to_memory_desc, blocked_format) {
     EXPECT_GT(desc.get_inner_nblks(), 0);  // Should have blocking
 }
 
+TEST_F(test_layout_to_memory_desc, 3d_shape_blocked_format) {
+    // A rank-3 layout in a blocked format keeps its 4D blocked dims, as with keep_rank()
+    layout l = layout{ov::PartialShape{1, 32, 128}, data_types::f16, format::b_fs_yx_fsv16};
+
+    dnnl::memory::desc desc;
+    ASSERT_NO_THROW(desc = layout_to_memory_desc(l, dnnl::memory::format_tag::undef));
+    EXPECT_EQ(desc, layout_to_memory_desc_blocked(l, dnnl::memory::format_tag::undef));
+    EXPECT_EQ(desc.get_ndims(), 4);
+    EXPECT_GT(desc.get_inner_nblks(), 0);
+}
+
 TEST_F(test_layout_to_memory_desc, strides_with_padding) {
     layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f16, format::bfyx};
     l.data_padding = padding{{0, 0, 2, 2}, {0, 0, 2, 2}};
