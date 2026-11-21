@@ -15,7 +15,6 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/zero_init_mock.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -203,33 +202,33 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
 TEST_P(ZeroMemPoolTests, GetPoolReturnsSamePoolForSameInitStruct) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    auto local_init_struct_0 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
-    auto local_init_struct_1 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    auto zero_init = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto local_init_struct_0 = zero_init;
+    auto local_init_struct_1 = zero_init;
 
     auto mem0 = ::intel_npu::zero_mem::allocate_memory(local_init_struct_0, 4096, 4096);
     auto mem1 = ::intel_npu::zero_mem::allocate_memory(local_init_struct_1, 4096, 4096);
-    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 2u);
+    ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 2u);
 
     mem0 = {};
     mem1 = {};
-    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 0u);
 }
 
 TEST_P(ZeroMemPoolTests, CheckDifferentZeroStructsHolderPools) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto zero_init_mock_0 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    auto zero_init_mock_1 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    auto zero_init_mock_2 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
+    auto zero_init_0 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
-    auto local_init_struct_0 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_0);
-    auto local_init_struct_1 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_1);
-    auto local_init_struct_2 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_2);
+    auto local_init_struct_0 = zero_init_0;
+    auto local_init_struct_1 = zero_init_1;
+    auto local_init_struct_2 = zero_init_2;
 
-    auto& pool_init_0 = zero_init_mock_0->getZeroMemPool().mem_pool;
-    auto& pool_init_1 = zero_init_mock_1->getZeroMemPool().mem_pool;
-    auto& pool_init_2 = zero_init_mock_2->getZeroMemPool().mem_pool;
+    auto& pool_init_0 = zero_init_0->getZeroMemPool().mem_pool;
+    auto& pool_init_1 = zero_init_1->getZeroMemPool().mem_pool;
+    auto& pool_init_2 = zero_init_2->getZeroMemPool().mem_pool;
 
     auto mem0_struct_global = ::intel_npu::zero_mem::allocate_memory(local_init_struct_0, 4096, 4096);
     auto mem0_struct_1 = ::intel_npu::zero_mem::allocate_memory(local_init_struct_1, 4096, 4096);
@@ -250,7 +249,7 @@ TEST_P(ZeroMemPoolTests, CheckDifferentZeroStructsHolderPools) {
     mem0_struct_2 = {};
     ASSERT_EQ(pool_init_2.size(), 1u);
     local_init_struct_2 = {};
-    zero_init_mock_2 = {};
+    zero_init_2 = {};
     ASSERT_EQ(pool_init_2.size(), 1u);
 }
 
@@ -260,13 +259,13 @@ TEST_P(ZeroMemPoolTests, MultiThreadingDifferentZeroInitStructsHaveIsolatedPools
     constexpr size_t threads_per_pool = 32;
     constexpr size_t total_threads = threads_per_pool * 3;
 
-    auto zero_init_mock_0 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    auto zero_init_mock_1 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    auto zero_init_mock_2 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
+    auto zero_init_0 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
-    auto local_init_struct_0 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_0);
-    auto local_init_struct_1 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_1);
-    auto local_init_struct_2 = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_2);
+    auto local_init_struct_0 = zero_init_0;
+    auto local_init_struct_1 = zero_init_1;
+    auto local_init_struct_2 = zero_init_2;
 
     std::array<std::thread, total_threads> threads;
     std::array<std::shared_ptr<::intel_npu::ZeroMem>, threads_per_pool> mem_pool_0;
@@ -289,9 +288,9 @@ TEST_P(ZeroMemPoolTests, MultiThreadingDifferentZeroInitStructsHaveIsolatedPools
         t.join();
     }
 
-    ASSERT_EQ(zero_init_mock_0->getZeroMemPool().mem_pool.size(), threads_per_pool);
-    ASSERT_EQ(zero_init_mock_1->getZeroMemPool().mem_pool.size(), threads_per_pool);
-    ASSERT_EQ(zero_init_mock_2->getZeroMemPool().mem_pool.size(), threads_per_pool);
+    ASSERT_EQ(zero_init_0->getZeroMemPool().mem_pool.size(), threads_per_pool);
+    ASSERT_EQ(zero_init_1->getZeroMemPool().mem_pool.size(), threads_per_pool);
+    ASSERT_EQ(zero_init_2->getZeroMemPool().mem_pool.size(), threads_per_pool);
 
     for (size_t i = 0; i < threads_per_pool; ++i) {
         mem_pool_0[i] = {};
@@ -299,9 +298,9 @@ TEST_P(ZeroMemPoolTests, MultiThreadingDifferentZeroInitStructsHaveIsolatedPools
         mem_pool_2[i] = {};
     }
 
-    ASSERT_EQ(zero_init_mock_0->getZeroMemPool().mem_pool.size(), 0u);
-    ASSERT_EQ(zero_init_mock_1->getZeroMemPool().mem_pool.size(), 0u);
-    ASSERT_EQ(zero_init_mock_2->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init_0->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init_1->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init_2->getZeroMemPool().mem_pool.size(), 0u);
 }
 
 TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultipleInitStructs) {
@@ -316,14 +315,14 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultiple
     constexpr size_t threads_per_pool = 32;
     constexpr size_t no_of_buffers = 5;
 
-    auto zero_init_mock_0 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    auto zero_init_mock_1 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    auto zero_init_mock_2 = std::make_shared<::intel_npu::ZeroInitStructsMock>();
+    auto zero_init_0 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto zero_init_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
     std::array<std::shared_ptr<::intel_npu::ZeroInitStructsHolder>, init_structs_no> init_structs = {
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_0),
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_1),
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock_2)};
+        zero_init_0,
+        zero_init_1,
+        zero_init_2};
 
     std::array<std::array<void*, no_of_buffers>, init_structs_no> data = {};
     for (size_t s = 0; s < init_structs_no; ++s) {
@@ -356,9 +355,9 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultiple
         t.join();
     }
 
-    ASSERT_EQ(zero_init_mock_0->getZeroMemPool().mem_pool.size(), 0u);
-    ASSERT_EQ(zero_init_mock_1->getZeroMemPool().mem_pool.size(), 0u);
-    ASSERT_EQ(zero_init_mock_2->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init_0->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init_1->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init_2->getZeroMemPool().mem_pool.size(), 0u);
 
     for (size_t s = 0; s < init_structs_no; ++s) {
         for (size_t i = 0; i < no_of_buffers; ++i) {
@@ -412,17 +411,16 @@ TEST_P(ZeroMemPoolTests, DontDestroyZeroMemoryWhenZeroContextIsDestroyed) {
         logs.push_back('\n');
     };
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
+    auto zero_init = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct = zero_init;
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::WARNING);
 
         auto zero_memory = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
-        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init);
 
         try {
             zero_memory = {};
@@ -437,24 +435,23 @@ TEST_P(ZeroMemPoolTests, DontDestroyZeroMemoryWhenZeroContextIsDestroyed) {
 TEST_P(ZeroMemPoolTests, PoolIsEmptiedAfterContextIsDestroyed) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    auto zero_init = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct = zero_init;
 
     // Keep the ZeroMem objects alive on purpose: the pool must be cleared regardless of whether the
     // tracked instances are still referenced elsewhere.
     auto mem0 = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
     auto mem1 = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
-    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 2u);
+    ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 2u);
 
-    ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+    ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init);
 
-    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 0u);
-    ASSERT_EQ(zero_init_mock->getZeroMemPool().notify_mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init->getZeroMemPool().notify_mem_pool.size(), 0u);
 
     // Destroying an already-destroyed context must be a no-op and must not crash.
-    OV_ASSERT_NO_THROW(::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock));
-    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 0u);
+    OV_ASSERT_NO_THROW(::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init));
+    ASSERT_EQ(zero_init->getZeroMemPool().mem_pool.size(), 0u);
 
     mem0 = {};
     mem1 = {};
