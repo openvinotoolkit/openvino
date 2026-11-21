@@ -4,10 +4,12 @@
 
 #include "l2_norm_to_rms.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -15,18 +17,66 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 
-L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
+namespace {
+// An Add of two non-constant inputs: a residual connection rather than a bias.
+bool is_residual_add(const ov::Output<ov::Node>& output) {
+    const auto node = output.get_node_shared_ptr();
+    if (!ov::is_type<ov::op::v1::Add>(node) || !output.get_element_type().is_real()) {
+        return false;
+    }
+    const auto inputs = node->input_values();
+    return std::all_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& input) {
+        return !ov::util::get_constant_from_source(input);
+    });
+}
+
+// Whether x comes from a residual Add, directly or through ops that the FP32 mark of MarkDivWithEps propagates up
+// through (propagate_through_ops in mark_subgraphs_to_keep_in_mixed_precision.cpp): Reshape, Squeeze, Unsqueeze,
+// and elementwise arithmetic with one constant operand (a bias or a scale).
+bool is_fed_by_residual_add(ov::Output<ov::Node> output) {
+    while (!is_residual_add(output)) {
+        const auto node = output.get_node_shared_ptr();
+        if (ov::is_type_any_of<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>(node)) {
+            output = node->input_value(0);
+            continue;
+        }
+        if (!ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node)) {
+            return false;
+        }
+        const bool lhs_constant = ov::util::get_constant_from_source(node->input_value(0)) != nullptr;
+        const bool rhs_constant = ov::util::get_constant_from_source(node->input_value(1)) != nullptr;
+        if (lhs_constant == rhs_constant) {
+            return false;
+        }
+        output = node->input_value(lhs_constant ? 1 : 0);
+    }
+    return true;
+}
+}  // namespace
+
+L2NormToRMS::L2NormToRMS(size_t max_work_group_size, bool skip_residual_input) {
     using namespace ov::pass::pattern;
 
+    // A residual-fed norm is left decomposed when skip_residual_input is set, see the header.
     auto x = any_input();
+    if (skip_residual_input) {
+        x = any_input([](const ov::Output<ov::Node>& output) {
+            return !is_fed_by_residual_add(output);
+        });
+    }
     auto x_convert = optional<ov::op::v0::Convert>({x});
     auto power = wrap_type<ov::op::v1::Power>({x_convert, wrap_type<ov::op::v0::Constant>(value_matches("2"))});
     auto axes = wrap_type<ov::op::v0::Constant>();
@@ -104,6 +154,9 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
         rms->set_friendly_name(root->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), {scaled_gamma, rms});
         ov::replace_node(root, rms);
+
+        // The gamma may be dequantized from u16 values above the f16 range (e.g. 65535): keep it in FP32.
+        ov::disable_conversion(scaled_gamma, ov::element::f16);
         return true;
     };
 
