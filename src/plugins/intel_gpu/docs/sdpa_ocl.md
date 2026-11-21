@@ -291,13 +291,16 @@ tile. A u4 MIXED of 256-token chunks in 4K-token prompts took 0.68-0.73x the dev
 ("Compressed MIXED in 32-query subgroup tiles on xe_hpg" and "Compressed MIXED at head 64 in 32-query subgroup tiles on
 xe_hpg" in the Change history; `SDPA_OCL_HPG_PA_COMP_Q32=0` keeps the 32 x 16 tiles).
 
-The kernel also serves plain SDPA (its PREFILL stage) without causality, a runtime scalar mask, a runtime scale, a sink
-or a compressed KV cache, at the same heads (`hpg_plain_prefill_ok()`; a constant scale input is a literal; a
-finite static scalar mask adds the same value to every score of a row, which the softmax ignores, so the kernel leaves it
-out: CLIP's vision encoder has 0, in phi-3.5-vision, which took the generic kernel at 7.2x `sdpa_micro` before and takes
-400 us against 372 now): the loop without the causal bound, so every workgroup
-visits all k keys and only the keys past k are masked, rows from the 4D layout (`QRY_OFF` ..., batch =
-`get_group_id(2)`, a workgroup per 32 queries), q and k from the arguments. Its Q, K, V and output must be rank-4 with the
+The kernel also serves plain SDPA (its PREFILL stage) without a runtime scalar mask, a runtime scale, a sink, a sliding
+window or a compressed KV cache, and causal only without a mask, at the same heads (`hpg_plain_prefill_ok()`; a constant
+scale input is a literal; a finite static scalar mask adds the same value to every score of a row, which the softmax
+ignores, so the kernel leaves it out: CLIP's vision encoder has 0, in phi-3.5-vision, which took the generic kernel at
+7.2x `sdpa_micro` before and takes 400 us against 372 now). Without causality the loop has no causal bound, so every
+workgroup visits all k keys and only the keys past k are masked; causal (GQA's SDPA, since 2026-11-21: "Causal plain
+SDPA PREFILL on xe_hpg" in the Change history) it takes the PA PREFILL bound and mask, query j at key position
+j + max(0, k - q) when lower-right aligned (`wg_p0`; `causal_offset` in the generic kernel). Rows from the 4D layout
+(`QRY_OFF` ..., batch = `get_group_id(2)`, a workgroup per 32 queries), q and k from the arguments. Its Q, K, V and
+output must be rank-4 with the
 head dimension innermost and unpadded, so every row starts at a multiple of the head size whatever the other axes'
 padding (a crop view of a fused QKV tensor pads another axis); a padded head dimension takes the generic kernel.
 `smoke_sdpa_hpg_rows` checks its rows with sharp data: GQA / MQA, batches, q != kv, `[b, s, h, d]` inputs and output,
@@ -2286,7 +2289,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`; plain `d_max` 64: `1`, `0` with a sliding window): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
 | `SDPA_OCL_HPG_PA_PREFILL` | `0`: xe_hpg PA PREFILL at heads 64 / 96 / 128 / 256 / 512 takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
 | `SDPA_OCL_HPG_PA_MIXED` | `0`: xe_hpg PA MIXED (f16, i8 or u4 cache) at those heads takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
-| `SDPA_OCL_HPG_PLAIN_PREFILL` | `0`: xe_hpg plain SDPA (no causality) at the heads of `hpg_plain_head_ok()` (32-256 in steps of 8, 512) takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
+| `SDPA_OCL_HPG_PLAIN_PREFILL` | `0`: xe_hpg plain SDPA (causal only without a mask) at the heads of `hpg_plain_head_ok()` (32-256 in steps of 8, 512) takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
 | `SDPA_OCL_HPG_PA_V_LEAD` | key blocks of V the xe_hpg PA PREFILL kernel loads ahead (1..key blocks of the tile, default 6; 3 at head 128 is miscompiled with a dynamic K / V padding, see "xe_hpg follow-ups") |
 | `SDPA_OCL_HPG_PA_TILE_KEYS` / `_TILE_QUERIES` / `_PER_WG_KEYS` / `_PER_WG_QUERIES` | xe_hpg PA PREFILL kernel tiling (16 / 32 keys and 16 / 32 queries per subgroup tile, subgroups along keys / queries); a tiling the kernel is not written for throws |
 | `SDPA_OCL_HPG_PA_COMP_Q32` | `0`: the xe_hpg PA PREFILL kernel's compressed MIXED at heads 64 / 96 / 128 / 256 keeps the 32 x 16 subgroup tiles of two query subgroups (default 1: 16 x 32 tiles, one query subgroup) |
@@ -3656,6 +3659,47 @@ fit: better at aligned 4K / 16K f16, worse at 1025 keys and on transposed V.
   1.0-1.3x. Open.
 - Not measured on Xe3: other heads (they keep the table tile), static shapes below the mirror's threshold, an attention
   mask, sliding window, sink; xe3p (not included).
+
+### Causal plain SDPA PREFILL on xe_hpg (2026-11-21)
+
+GQA's SDPA (`GroupQueryAttentionDecomposition`: `is_causal`, lower-right aligned, no mask) was refused by
+`hpg_plain_prefill_ok()`, so on xe_hpg its PREFILL stage ran the generic SG8 kernel: a GQA layer (H 32, KV heads 8,
+head 128) took 3.4-9.2x master's (`sdpa_micro`) for prefill and chunks, plain and transposed V, f16 and i8 (A770).
+
+- Change: the plain branch of `sdpa_ocl_hpg_pa_prefill.cl` puts query j at key position j + max(0, k - q) when
+  `CAUSAL_MASK_LOWER_RIGHT` (`wg_p0`; the generic kernel's `causal_offset`), and the PA PREFILL causal bound, tile skip
+  and mask work on that position as on MIXED's past keys. `hpg_plain_prefill_ok()` takes `is_causal` without a mask (a
+  mask row is the key position, which the shift moves); a sliding window, a sink, a runtime scale or scalar mask stay
+  refused, and the kernel's `#error` keeps plain causal with a mask or a window out. `SDPA_OCL_NEG_SG8=39` drops the
+  shift.
+- Tests: `smoke_sdpa_hpg_ext` +9 causal f16 cases without a mask (heads 72 / 96 / 128 / 256 / 512, kv > q over several
+  query workgroups, q > kv, dynamic, an odd K pitch); `smoke_sdpa_hpg_rows` gets a `causal` field and 8 GQA causal cases
+  (q == kv over 1024 keys, [b, s, h, d] dynamic, padded K / V, heads 72 / 96 / 256 / 512). `=39` fails exactly the 11
+  lower-right cases with kv > q (so the kernel served them, the dynamic ones included); `SDPA_OCL_HPG_PLAIN_PREFILL=0`
+  (generic kernel) passes the same cases. A source-dump census of the GQA layer: every prefill and chunk row now takes
+  this kernel (before: the generic one). The A770 gtest kit's full set (38 groups, unit and func, `ScaledAttn` included)
+  gives the statuses of before, but for the new cases.
+- Invariance: L1 over a corpus of 8 unit groups (PA PREFILL / MIXED / compressed MIXED / features / padded rows, plain;
+  1017 configurations, MSVC `cl /EP /Zc:preprocessor` as the preprocessor on that PC): all 540 PA and 455 plain
+  configurations give the same tokens; the other 22 are the new plain causal ones (the old kernel's `#error`). Off
+  xe_hpg `hpg_plain_prefill_ok()` returns false first, and the kernel file is included only with `HPG_PA_PREFILL`.
+- Cost of the GQA layer (cliloader kernel timeline, sum of the layer's kernels per inference, median of 30 after 5
+  warm-up, 2 rounds, a process per round, row and arm; A/A 0.96-1.02 on these rows), branch / master (before in
+  brackets):
+
+  | case (H 32, KV heads 8, head 128) | f16 plain V | f16 transposed V | i8 plain V | i8 transposed V |
+  |---|---|---|---|---|
+  | prefill 1023 | 0.76 (7.07) | 0.58 (3.67) | 0.87 (4.84) | 0.65 (3.39) |
+  | prefill 1024 | 0.75 (7.05) | 0.79 (5.32) | 0.87 (4.76) | 0.78 (4.05) |
+  | prefill 4096 | 0.80 (7.47) | 0.79 (7.09) | 0.86 (7.66) | 0.60 (5.21) |
+  | chunk of 512 on 4000 | 0.71 (7.51) | 0.73 (6.86) | 1.03 (9.23) | 0.74 (6.51) |
+
+  SDPA alone (f16): 603 / 4982 / 1594 us against `sdpa_micro`'s 870 / 6361 / 2344 (1024, 4096, chunk). The tiny shapes
+  (8 / 2 or 4 / 4 heads, head 64 / 128, 17-96 queries; A/A 0.94-1.06): f16 plain 0.91-1.05, f16 transposed V 0.99-1.11,
+  i8 1.12-1.35 (before 1.29-2.84). Decode is unchanged (the opt stages).
+- Not changed: the explicit Transpose of a transposed V cache (56-236 us in front of the prefill rows above, 99-909 us
+  per decode step), and the dequantization of a compressed cache in front of the kernel (i8 chunk: SDPA 0.90x master,
+  the dequantization 260 against 27 us; i8 tiny prefill: SDPA equal, 30-34 against 12 us).
 
 ## Known issues
 

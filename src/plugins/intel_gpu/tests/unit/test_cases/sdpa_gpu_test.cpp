@@ -4147,6 +4147,13 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_hpg_ext_params{64, 100, 100, false, 0, 1, false, false, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 0, 2, false, false, 0},
         sdpa_hpg_ext_params{64, 16, 64, false, 0, 2, false, false, 0}, sdpa_hpg_ext_params{64, 16, 64, false, 0, 1, false, false, 0},
         sdpa_hpg_ext_params{128, 256, 256, false, 0, 1, false, false, 0}, sdpa_hpg_ext_params{64, 100, 100, true, 0, 1, false, false, 0},
+        // causal f16 without a mask on xe_hpg's PREFILL kernel: a depth tail, kv > q over several query workgroups (the
+        // lower-right shift; SDPA_OCL_NEG_SG8=39 drops it and must fail these), heads 96 / 256 / 512, q > kv, dynamic, odd K pitch
+        sdpa_hpg_ext_params{72, 100, 100, false, 0, 2, false, false, 0}, sdpa_hpg_ext_params{128, 100, 300, false, 0, 2, false, false, 0},
+        sdpa_hpg_ext_params{96, 77, 77, false, 0, 1, false, false, 0}, sdpa_hpg_ext_params{256, 64, 200, false, 0, 2, false, false, 0},
+        sdpa_hpg_ext_params{512, 50, 150, false, 0, 2, false, false, 0}, sdpa_hpg_ext_params{64, 33, 500, false, 0, 2, false, false, 0},
+        sdpa_hpg_ext_params{64, 64, 40, false, 0, 2, false, false, 0}, sdpa_hpg_ext_params{64, 100, 300, false, 0, 2, false, true, 0},
+        sdpa_hpg_ext_params{64, 100, 100, false, 0, 2, false, false, 2},
         // sink (needs the mask to decide)
         sdpa_hpg_ext_params{64, 100, 100, false, 2, 0, true, false, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 1, 0, true, false, 0},
         sdpa_hpg_ext_params{128, 256, 256, false, 2, 0, true, false, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 2, 1, true, false, 0},
@@ -4173,13 +4180,13 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // How plain SDPA rows reach the kernel: GQA / MQA, batches, q != kv, [b, s, h, d] inputs and output (transpose order {0, 2, 1, 3}),
-// K / V padded on axes other than the head dim, dynamic shapes, f16 masks of each shape, at heads 64 / 128 / 256 (f16, no causality /
-// scale input: on xe_hpg the PA PREFILL kernel, sdpa_ocl_hpg_pa_prefill.cl). Sharp data as in sdpa_hpg_sharp_test, with a winner per
+// K / V padded on axes other than the head dim, dynamic shapes, f16 masks of each shape, causality without a mask, at heads 64 / 128 /
+// 256 (f16, no scale input: on xe_hpg the PA PREFILL kernel, sdpa_ocl_hpg_pa_prefill.cl). Sharp data as in sdpa_hpg_sharp_test, with a winner per
 // (batch, head, query) among the keys of its own KV head, so a row of the wrong batch, KV head or query moves the output by ~the value
 // spread. The mask blocks about one key in four, by every index it has, so it hides the winner of some rows and not of others.
 // SDPA_OCL_NEG_SG8=10 reads K / V of batch 0, KV head 0 and must fail every case with two batches or KV heads; 11 (mask row of query 0)
 // every case with a full mask, 12 (mask of batch 0, head 0) every case whose mask has two batches or heads, 13 (8-key halves of each
-// 16-key block swapped) every mask case.
+// 16-key block swapped) every mask case, 39 (no lower-right shift) every causal case with kv > q.
 struct sdpa_hpg_rows_params {
     int head_size;
     int q_len;
@@ -4193,6 +4200,7 @@ struct sdpa_hpg_rows_params {
     bool pad_kv;    // K / V padded on the two middle axes (static only)
     int mask = 0;   // 0 none, 1 per key [b, 1, 1, kv], 2 full [b, 1, q, kv], 3 full per head [b, h, q, kv], 4 full [1, 1, q, kv]
     int scalar_mask = 0;  // a static scalar mask (attn_mask_val): 0 none, 1 = 0.0, 2 = -3.0
+    int causal = 0;       // 0 off, 1 top-left aligned, 2 lower-right aligned (GQA's); without a mask
 };
 
 struct sdpa_hpg_rows_test : public ::testing::TestWithParam<sdpa_hpg_rows_params> {
@@ -4201,7 +4209,8 @@ struct sdpa_hpg_rows_test : public ::testing::TestWithParam<sdpa_hpg_rows_params
         return "head" + std::to_string(p.head_size) + "_q" + std::to_string(p.q_len) + "_kv" + std::to_string(p.kv_len) + "_h" +
                std::to_string(p.heads) + "_" + std::to_string(p.kv_heads) + "_b" + std::to_string(p.batch) + (p.bshd ? "_bshd" : "_bhsd") +
                (p.out_bshd ? "_obshd" : "_obhsd") + (p.dynamic ? "_dyn" : "_static") + (p.pad_kv ? "_padkv" : "") +
-               (p.mask ? "_mask" + std::to_string(p.mask) : "") + (p.scalar_mask ? "_smask" + std::to_string(p.scalar_mask) : "");
+               (p.mask ? "_mask" + std::to_string(p.mask) : "") +
+               (p.scalar_mask ? "_smask" + std::to_string(p.scalar_mask) : "") + (p.causal ? (p.causal == 2 ? "_causalLR" : "_causalTL") : "");
     }
 };
 
@@ -4215,6 +4224,7 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
     ASSERT_EQ(p.heads % p.kv_heads, 0);
     ASSERT_TRUE(p.mask >= 0 && p.mask <= 4);
     ASSERT_TRUE(p.scalar_mask >= 0 && p.scalar_mask <= 2 && !(p.mask && p.scalar_mask));
+    ASSERT_TRUE(p.causal >= 0 && p.causal <= 2 && !(p.causal && (p.mask || p.scalar_mask))) << "the causal cases have no mask";
     const double scalar_mask = p.scalar_mask == 2 ? -3.0 : 0.0;
 
     const int B = p.batch, H = p.heads, KH = p.kv_heads, G = H / KH, d = p.head_size, nq = p.q_len, nk = p.kv_len;
@@ -4323,7 +4333,7 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
         topo.add(input_layout("mask", p.dynamic ? mask_dynamic : mask_static));
         inputs.push_back(input_info("mask"));
     }
-    auto sdpa_prim = scaled_dot_product_attention("sdpa", inputs, false, -1, in_order, in_order, in_order, out_order, {}, false);
+    auto sdpa_prim = scaled_dot_product_attention("sdpa", inputs, p.causal != 0, -1, in_order, in_order, in_order, out_order, {}, false, p.causal == 2);
     if (p.scalar_mask)
         sdpa_prim.attn_mask_val = static_cast<float>(scalar_mask);
     topo.add(sdpa_prim);
@@ -4345,18 +4355,21 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
     const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
     ASSERT_NE(entries.find(p.dynamic ? "sdpa_ocl" : "sdpa_ocl_prefill"), std::string::npos) << "dispatched: " << entries;
 
-    // CPU reference in double, default scale 1 / sqrt(head); the output is read at its physical place.
+    // CPU reference in double, default scale 1 / sqrt(head); the output is read at its physical place. Causal: query i sees
+    // keys [0, i], shifted by max(0, kv - q) when lower-right aligned.
     cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(output, get_test_stream());
     ASSERT_EQ(out_ptr.size(), static_cast<size_t>(B) * H * nq * d);
     const double scale = 1.0 / std::sqrt(static_cast<double>(d));
+    const int lr_shift = p.causal == 2 ? std::max(0, nk - nq) : 0;
     double max_abs_err = 0.0;
     std::vector<double> logit(nk), acc(d);
     for (int b = 0; b < B; ++b) {
         for (int h = 0; h < H; ++h) {
             const int hk = h / G;
             for (int i = 0; i < nq; ++i) {
+                const int n_visible = p.causal ? std::min(nk, i + lr_shift + 1) : nk;
                 double max_logit = -INFINITY;
-                for (int j = 0; j < nk; ++j) {
+                for (int j = 0; j < n_visible; ++j) {
                     double dot = 0.0;
                     for (int c = 0; c < d; ++c)
                         dot += static_cast<double>(q[at(H, nq, b, h, i, c)]) * static_cast<double>(k[at(KH, nk, b, hk, j, c)]);
@@ -4365,7 +4378,7 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
                 }
                 double sum = 0.0;
                 std::fill(acc.begin(), acc.end(), 0.0);
-                for (int j = 0; j < nk; ++j) {
+                for (int j = 0; j < n_visible; ++j) {
                     const double w = std::exp(logit[j] - max_logit);
                     sum += w;
                     for (int c = 0; c < d; ++c)
@@ -4385,7 +4398,7 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
                                  << " max_abs_err " << max_abs_err;
 }
 
-// {head, q, kv, heads, kv_heads, batch, bshd, out_bshd, dynamic, pad_kv, mask}; 100 / 300 / 77 / 33 / 129 are not multiples of a tile
+// {head, q, kv, heads, kv_heads, batch, bshd, out_bshd, dynamic, pad_kv, mask, scalar_mask, causal}; 100 / 300 / 77 / 33 / 129 are not multiples of a tile
 // (an odd kv also makes the mask rows take two-byte loads).
 namespace {
 std::vector<sdpa_hpg_rows_params> hpg_rows_cases() {
@@ -4460,7 +4473,18 @@ std::vector<sdpa_hpg_rows_params> hpg_rows_cases() {
         sdpa_hpg_rows_params{512, 100, 200, 4, 4, 1, true, true, false, false}, sdpa_hpg_rows_params{512, 77, 77, 4, 1, 2, false, true, true, false},
         sdpa_hpg_rows_params{512, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{512, 100, 100, 8, 2, 2, false, false, false, false, 1},
         sdpa_hpg_rows_params{512, 77, 600, 4, 2, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{512, 128, 128, 4, 2, 2, false, false, true, false, 3},
-        sdpa_hpg_rows_params{512, 64, 64, 2, 1, 2, false, false, false, false, 0, 1}, sdpa_hpg_rows_params{512, 1100, 1100, 1, 1, 1, false, false, false, false}
+        sdpa_hpg_rows_params{512, 64, 64, 2, 1, 2, false, false, false, false, 0, 1},
+        sdpa_hpg_rows_params{512, 1100, 1100, 1, 1, 1, false, false, false, false},
+        // causal without a mask (GQA's SDPA): lower-right with kv > q over several query workgroups, q == kv over many key tiles,
+        // q > kv, top-left, [b, s, h, d] dynamic, padded K / V, heads 72 / 96 / 256 / 512
+        sdpa_hpg_rows_params{128, 100, 300, 8, 2, 1, false, false, false, false, 0, 0, 2},
+        sdpa_hpg_rows_params{128, 1024, 1024, 4, 1, 1, false, false, false, false, 0, 0, 2},
+        sdpa_hpg_rows_params{128, 300, 77, 4, 2, 1, false, false, false, false, 0, 0, 2},
+        sdpa_hpg_rows_params{96, 100, 100, 8, 2, 1, false, false, false, false, 0, 0, 1},
+        sdpa_hpg_rows_params{64, 100, 300, 4, 2, 2, true, true, true, false, 0, 0, 2},
+        sdpa_hpg_rows_params{256, 77, 200, 4, 2, 2, false, false, false, true, 0, 0, 2},
+        sdpa_hpg_rows_params{72, 33, 193, 2, 2, 2, false, false, false, false, 0, 0, 2},
+        sdpa_hpg_rows_params{512, 64, 200, 2, 1, 1, false, false, false, false, 0, 0, 2}
     };
     // The other heads up to 256 in steps of 8 (hpg_pa_prefill_tiling()'s rule: 32-key subgroup tiles in 2 to 8 x 2 subgroups
     // up to head 128, 16-key ones in 9 to 16 x 2 above; every second head ends in a depth tile of 8): head 72's set. In a loop,

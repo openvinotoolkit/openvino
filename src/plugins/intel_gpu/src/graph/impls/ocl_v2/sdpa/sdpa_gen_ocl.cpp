@@ -1049,13 +1049,14 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t
 
 const layout* runtime_scale_layout(const kernel_impl_params& params);  // with the scale jit below
 
-// The same kernel serves plain SDPA PREFILL (q > 1) at the hpg_plain_head_ok() heads without causality, a runtime scalar
-// mask, a runtime scale, a sink or a compressed KV cache, when Q, K, V and the output are rank-4 f16 tensors whose head
-// dimension is innermost and unpadded (every row starts at a multiple of the head size). A tensor mask must be f16, bfyx
-// and unpadded (8 keys of a row per load, no padding offset). A finite static scalar mask is left out: it adds the same
-// value to every score of a row, which the softmax cancels. An indirect op is admitted: SDPAOptImpl::execute() dispatches
-// the sdpa_ocl PREFILL only when no beam reorder is needed (need_indirect_load()), so no sdpa_ocl kernel reads the beam
-// table. SDPA_OCL_HPG_PLAIN_PREFILL=0 turns it off.
+// The same kernel serves plain SDPA PREFILL (q > 1) at the hpg_plain_head_ok() heads, causal (either alignment) only
+// without a mask, and without a runtime scalar mask, a runtime scale, a sink, a sliding window or a compressed KV
+// cache, when Q, K, V and the output are rank-4 f16 tensors whose head dimension is innermost and unpadded (every row
+// starts at a multiple of the head size). A tensor mask must be f16, bfyx and unpadded (8 keys of a row per load, no
+// padding offset). A finite static scalar mask is left out: it adds the same value to every score of a row, which the
+// softmax cancels. An indirect op is admitted: SDPAOptImpl::execute() dispatches the sdpa_ocl PREFILL only when no beam
+// reorder is needed (need_indirect_load()), so no sdpa_ocl kernel reads the beam table. SDPA_OCL_HPG_PLAIN_PREFILL=0
+// turns it off.
 bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
     const bool head_ok = k_head_size == v_head_size && hpg_plain_head_ok(k_head_size);
     if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<scaled_dot_product_attention>() || !head_ok) {
@@ -1065,9 +1066,10 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
         return false;
     }
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
-    // A sliding window too: the kernel's window code is the PA one, which assumes causality (plain SDPA applies the window
-    // with IS_CAUSAL only, and with a mask the mask holds it).
-    if (desc->is_causal || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) || has_scalar_runtime_attn_mask_input(params) ||
+    // Causal with a mask is not taken: the kernel's mask row is the query's key position, which the lower-right
+    // alignment shifts. Nor a sliding window: the plain window with that shift is not covered by the xe_hpg tests.
+    const bool causal_with_mask = desc->is_causal && (desc->attn_mask_val.has_value() || sdpa_has_runtime_attn_mask_input(params));
+    if (causal_with_mask || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) || has_scalar_runtime_attn_mask_input(params) ||
         runtime_scale_layout(params) != nullptr || desc->has_sink_input || desc->is_kv_compressed || desc->sliding_window != 0) {
         return false;
     }

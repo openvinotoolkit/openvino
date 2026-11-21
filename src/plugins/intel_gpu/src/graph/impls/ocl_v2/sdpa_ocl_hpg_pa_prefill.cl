@@ -3,11 +3,12 @@
 //
 
 // xe_hpg (SG8) PA PREFILL kernel, f16 head 64 / 96 / 128 / 256 / 512 (k == v), with or without a sliding window, a sink
-// and token_type_ids, which also serves PA MIXED on an f16 cache (without token_type_ids) and plain SDPA without
-// causality (heads 32-256 in steps of 8 and 512), with or without an attention mask (HPG_PA_PREFILL, set by the host:
-// SDPAOclGenerator's hpg_pa_prefill_ok() / hpg_plain_prefill_ok()). Included by sdpa_ocl.cl in place of its own kernel,
-// after the config and loader headers. The loop is sdpa_ocl.cl's (online softmax over workgroup key tiles, causal and
-// window bounds, S_max_slm / S_sum_slm exchange); what differs is built around the SG8 operand forms:
+// and token_type_ids, which also serves PA MIXED on an f16 cache (without token_type_ids) and plain SDPA (heads 32-256
+// in steps of 8 and 512) without causality, with or without an attention mask, or causal without a mask
+// (HPG_PA_PREFILL, set by the host: SDPAOclGenerator's hpg_pa_prefill_ok() / hpg_plain_prefill_ok()). Included by
+// sdpa_ocl.cl in place of its own kernel, after the config and loader headers. The loop is sdpa_ocl.cl's (online
+// softmax over workgroup key tiles, causal and window bounds, S_max_slm / S_sum_slm exchange); what differs is built
+// around the SG8 operand forms:
 //  - KQ is DPAS(Q, K): A = Q from Q_slm (staged so one ulong4 SLM block read is the operand), B = K straight from the
 //    input (lane = key, 16 depth halves per lane: one 32 B read per key row). The scores come out lane = key; a
 //    per-subgroup 8 x 8 SLM transpose turns them to lane = query for the mask and softmax.
@@ -19,8 +20,9 @@
 //    of its last query, all keys < k) skips the mask.
 // The sink and the image groups of token_type_ids follow sdpa_ocl.cl: the sink seeds the online-softmax state (max = the
 // sink logit, sum = 1 in one subgroup), and an image group is bidirectional.
-// Plain SDPA takes its rows from the 4D layout (batch = get_group_id(2), a workgroup per 32 queries) and has no causal
-// bound: only the keys past k are masked. A mask is added in the raw score domain, as in sdpa_ocl.cl (no tile skips it).
+// Plain SDPA takes its rows from the 4D layout (batch = get_group_id(2), a workgroup per 32 queries). Without causality
+// only the keys past k are masked; causal, query j sits at key position j + max(0, k - q) when lower-right aligned
+// (wg_p0), as in sdpa_ocl.cl. A mask is added in the raw score domain, as in sdpa_ocl.cl (no tile skips it).
 // Out-of-range rows are clamped to the last valid key or query, so no read leaves the subsequence, and their scores are
 // masked to -INFINITY (P = 0 times a finite V).
 // PA MIXED (IS_PA_MIXED) reads every key from the token-major f16 pages (an f16 page holds the new tokens bit for bit),
@@ -46,10 +48,11 @@
 #  error "sdpa_ocl_hpg_pa_prefill.cl: the host gate (hpg_pa_prefill_ok()) and this kernel disagree on the shape or the tiling"
 #endif
 // A static scalar mask (plain SDPA only, finite: hpg_plain_prefill_ok()) adds the same value to every score of a row, which
-// the softmax ignores, so the kernel leaves it out.
+// the softmax ignores, so the kernel leaves it out. Plain causal SDPA comes without a mask (its row would be the shifted
+// query) and without a window.
 #if defined(HAS_SCALAR_ATTN_MASK) || (defined(STATIC_SCALAR_ATTN_MASK_VALUE) && IS_PAGED_ATTENTION) || WITH_SCALE || \
     defined(KV_COMPRESSED) || MICRO_MATH || INPUT0_IS_BF16 || (IS_PAGED_ATTENTION && !IS_CAUSAL) || \
-    (!IS_PAGED_ATTENTION && (IS_CAUSAL || defined(HAS_SINK_INPUT)))
+    (!IS_PAGED_ATTENTION && (defined(HAS_SINK_INPUT) || (IS_CAUSAL && (WITH_ATTN_MASK || SLIDING_WINDOW_SIZE))))
 #  error "sdpa_ocl_hpg_pa_prefill.cl: an op the host gate (hpg_pa_prefill()) should have sent to the generic kernel"
 #endif
 #if HPG_TAIL && IS_PAGED_ATTENTION
@@ -639,11 +642,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #else
     const int wg_j0 = get_group_id(0) * kq_wg_tile_queries;
+    #if IS_CAUSAL && CAUSAL_MASK_LOWER_RIGHT && !(defined(NEG_SG8) && NEG_SG8 == 39)
+    // NEG_SG8=39 drops the shift: a negative control (the causal cases with kv > q must fail).
+    const int wg_p0 = wg_j0 + max(0, k - q);
+    #else
     const int wg_p0 = wg_j0;
+    #endif
     const uint b1 = get_group_id(2);  // batch
 #endif
     // wg_j0 is the workgroup's first query in the subsequence (Q and output rows), wg_p0 its key position (the causal and
-    // window bounds and masks): they differ by MIXED's past keys.
+    // window bounds and masks): they differ by MIXED's past keys, or by plain SDPA's lower-right shift.
 
     const uint lane = get_sub_group_local_id();
     const uint sg_ij = get_local_id(1);
@@ -1052,7 +1060,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
                         s += mask8[mm];
 #endif
-#if IS_CAUSAL  // plain SDPA masks only the keys past k (k_mask)
+#if IS_CAUSAL  // without it only the keys past k are masked (k_mask)
     #if BIDIR_MASK
                         if (!causal_block_clear && (uint)(key_base + key_rel - keep_begin[qb]) >= keep_len[qb])
     #elif SLIDING_WINDOW_SIZE
