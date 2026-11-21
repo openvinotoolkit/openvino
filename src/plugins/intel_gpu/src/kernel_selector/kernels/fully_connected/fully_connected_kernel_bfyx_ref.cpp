@@ -97,6 +97,16 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
         jit.Merge(make_sub_byte_packed_type_jit_constant("UINT2_PACKED_TYPE", wt, 4));
     }
 
+    if (params.compressed && params.has_decompression_zp && !params.scalar_zp) {
+        const auto zp_type = params.decompression_zero_point.GetDType();
+        const bool packed_int4 = zp_type == Datatype::INT4 || zp_type == Datatype::UINT4;
+        jit.AddConstant(MakeJitConstant("DECOMPRESSION_ZP_PACKED_INT4", packed_int4));
+        if (packed_int4) {
+            const auto packed_type = zp_type == Datatype::INT4 ? WeightsType::INT4 : WeightsType::UINT4;
+            jit.Merge(make_sub_byte_packed_type_jit_constant("DECOMPRESSION_ZP_PACKED_TYPE", packed_type, 2));
+        }
+    }
+
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = { "b", "ofm", "0", "0" };
         if (is_3d_output_layout(params.outputs[0].GetLayout())) {

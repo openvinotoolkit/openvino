@@ -32,6 +32,8 @@ INSTANTIATE_TEST_SUITE_P(
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
 const InputShape reshape_in_1x1{{-1, 128}, {{1, 128}, {3, 128}}};
+// Preserving the batch before MatMul retains both the input and output reshapes.
+const Conv1x1ExpectedOpCounts op_counts_reshape_1x1{{"Convolution", 0}, {"FullyConnected", 1}, {"Transpose", 0}, {"Reshape", 2}};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Conv1x1WeightCompressedToMatmul_ReshapeInput,
@@ -41,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values("Reshape"),
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(weights_precisions),
-                       ::testing::Values(op_counts_1x1),
+                       ::testing::Values(op_counts_reshape_1x1),
                        ::testing::Values(config),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
