@@ -154,6 +154,21 @@ DEFINE_string(dataset, "NONE",
         "The dataset used to train the model. Useful for instances such as semantic segmentation to visualize "
         "the accuracy per-class");
 
+// PixelLink post-processing in 'map' mode.
+DEFINE_string(pixellink_text_threshold,
+              std::to_string(metric_defaults::pixellink_text_threshold),
+              "Global text-pixel score cutoff in [0,1] for PixelLink decoding in 'map' mode.");
+DEFINE_string(pixellink_link_threshold,
+              std::to_string(metric_defaults::pixellink_link_threshold),
+              "Global link-score cutoff in [0,1] for PixelLink decoding in 'map' mode.");
+DEFINE_string(pixellink_nms_iou,
+              std::to_string(metric_defaults::pixellink_nms_iou),
+              "Global cross-scale polygon NMS IoU threshold in [0,1] for PixelLink decoding in 'map' mode.");
+DEFINE_string(pixellink_image_size, "768,1152",
+        "Image size 'H,W' the 'pixellink' decoder maps the FPN grid strides back to (default 768,1152).");
+DEFINE_bool(pixellink_morph_close, false,
+        "Apply 3x3 morphological closing before PixelLink components in 'map' mode. May merge adjacent text.");
+
 
 void utils::parseCommandLine(int argc, char* argv[]) {
     std::ostringstream usage;

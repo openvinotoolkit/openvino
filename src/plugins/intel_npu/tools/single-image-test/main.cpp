@@ -5,6 +5,7 @@
 #include "image_quality_helper.hpp"
 #include "map_metric_helpers.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "pixellink_helpers.hpp"
 #include "semantic_segmentation_helpers.hpp"
 #include "tensor_utils.hpp"
 #include "yolo_helpers.hpp"
@@ -1657,6 +1658,43 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference, double 
 //
 // Full implementation based on Python reference from accuracy_checker/metrics/detection.py
 //
+// PixelLink scene-text heads are handled transparently: when the outputs are
+// per-scale score/delta/link tensors they are decoded into boxes inside
+// parseDetectionsFromOutputs, configured by the --pixellink_* flags below.
+//   e.g. '--mode map --pixellink_text_threshold 0.55 --pixellink_link_threshold 0.60 --map_threshold 0.5'
+//
+
+// Build PixelLink decoder parameters from the --pixellink_* flags. These are only
+// consumed by the mAP path when the outputs are PixelLink scene-text heads.
+static pixellink::DecodeParams buildPixelLinkDecodeParams() {
+    auto threshold = [](const std::string& text, const char* flag) {
+        std::istringstream input(text);
+        float value = 0.0f;
+        OPENVINO_ASSERT(
+            (input >> value) && (input >> std::ws).eof() && std::isfinite(value) && value >= 0.0f && value <= 1.0f,
+            flag,
+            " must be a single finite number in [0,1], got '",
+            text,
+            "'");
+        return value;
+    };
+
+    pixellink::DecodeParams params;
+    params.textThresh = threshold(FLAGS_pixellink_text_threshold, "--pixellink_text_threshold");
+    params.linkThresh = threshold(FLAGS_pixellink_link_threshold, "--pixellink_link_threshold");
+    params.nmsIoU = threshold(FLAGS_pixellink_nms_iou, "--pixellink_nms_iou");
+    params.morphClose = FLAGS_pixellink_morph_close;
+
+    // Parse "--pixellink_image_size H,W" (defaults to 768,1152).
+    std::istringstream size(FLAGS_pixellink_image_size);
+    char comma = 0;
+    OPENVINO_ASSERT((size >> params.origH >> comma >> params.origW) && comma == ',' && (size >> std::ws).eof() &&
+                        params.origH > 0 && params.origW > 0,
+                    "--pixellink_image_size must be positive integers H,W, got '",
+                    FLAGS_pixellink_image_size,
+                    "'");
+    return params;
+}
 
 bool computeMAP(const std::map<std::string, ov::Tensor>& outputs, const std::map<std::string, ov::Tensor>& references) {
     auto confMap = utils::parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
@@ -1665,8 +1703,13 @@ bool computeMAP(const std::map<std::string, ov::Tensor>& outputs, const std::map
     double confThresh = utils::getValueForLayer(confMap, "*");
     double overlapThresh = utils::getValueForLayer(overlapMap, "*");
 
-    std::vector<utils::Detection> predictions  = utils::parseDetectionsFromOutputs(outputs, static_cast<float>(confThresh));
-    std::vector<utils::Detection> ground_truth = utils::parseDetectionsFromOutputs(references, static_cast<float>(confThresh));
+    const pixellink::DecodeParams pixellinkParams =
+        pixellink::isPixelLinkOutputs(outputs) || pixellink::isPixelLinkOutputs(references)
+            ? buildPixelLinkDecodeParams()
+            : pixellink::DecodeParams{};
+
+    std::vector<utils::Detection> predictions  = utils::parseDetectionsFromOutputs(outputs, static_cast<float>(confThresh), pixellinkParams);
+    std::vector<utils::Detection> ground_truth = utils::parseDetectionsFromOutputs(references, static_cast<float>(confThresh), pixellinkParams);
 
     if (predictions.empty()) {
         std::cout << "No predictions found in output tensors" << std::endl;
@@ -1779,7 +1822,8 @@ bool testMAP(const TensorMap& outputs, const TensorMap& references, const Layout
     }
 
     // Compute mAP from detection model outputs.
-    // Supports: DETR-style (pred_boxes + logits), YOLOv10-style (single [N,6] tensor)
+    // Supports: DETR-style (pred_boxes + logits), YOLOv10-style (single [N,6] tensor),
+    // and PixelLink scene-text heads (per-scale score/delta/link tensors).
     std::cout << "Computing mAP for detection model" << std::endl;
     std::cout << "Output layers:" << std::endl;
     for (const auto& [tensorName, tensor] : outputs) {
