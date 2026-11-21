@@ -63,6 +63,11 @@ openvino_to_numpy_types_str_map = [
 ]
 
 
+def _is_string_dtype(data_type: NumericType) -> bool:
+    """Check for a numpy string dtype with a length, such as <U5 or |S5, which does not compare equal to str."""
+    return isinstance(data_type, np.dtype) and data_type.kind in ("U", "S")
+
+
 def get_element_type(data_type: NumericType) -> Type:
     """Return an ngraph element type for a Python type or numpy.dtype."""
     if data_type is int:
@@ -72,6 +77,9 @@ def get_element_type(data_type: NumericType) -> Type:
     if data_type is float:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return Type.f32
+
+    if _is_string_dtype(data_type):
+        return Type.string
 
     ov_type = next(
         (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type),
@@ -92,6 +100,9 @@ def get_element_type_str(data_type: NumericType) -> str:
     if data_type is float:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return "f32"
+
+    if _is_string_dtype(data_type):
+        return "string"
 
     ov_type = next(
         (ov_type for (ov_type, np_type) in openvino_to_numpy_types_str_map if np_type == data_type),
@@ -155,7 +166,11 @@ def make_constant_node(
     else:
         element_type = get_element_type(ndarray.dtype)
 
-    const = Constant(element_type, Shape(ndarray.shape), ndarray.flatten().tolist())
+    if element_type == Type.string:
+        # Constant(type, shape, list) does not take strings, so create the constant from the array itself
+        const = Constant(ndarray if _is_string_dtype(ndarray.dtype) else ndarray.astype(np.str_))
+    else:
+        const = Constant(element_type, Shape(ndarray.shape), ndarray.flatten().tolist())
 
     if name:
         const.friendly_name = name + "/" + const.friendly_name

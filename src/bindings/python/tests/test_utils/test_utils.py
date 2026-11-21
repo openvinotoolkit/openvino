@@ -9,7 +9,7 @@ import openvino as ov
 from pathlib import Path
 from openvino.utils import deprecated, get_cmake_path, make_postponed_constant
 from openvino.exceptions import OVTypeError
-from openvino.utils.types import get_element_type, get_element_type_str, get_dtype, get_numpy_ctype
+from openvino.utils.types import get_element_type, get_element_type_str, get_dtype, get_numpy_ctype, make_constant_node
 from tests.utils.helpers import compare_models, get_relu_model, create_filenames_for_ir
 
 
@@ -196,6 +196,34 @@ def test_infer_postponned_constant():
 
     expected_output = np.array([4, 5, 6, 7], dtype=np.float32).reshape(1, 2, 1, 2)
     assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
+
+
+@pytest.mark.parametrize(("func", "expected"), [
+    (get_element_type, ov.Type.string),
+    (get_element_type_str, "string"),
+])
+@pytest.mark.parametrize("data_type", [
+    np.array(["openvino"]).dtype,
+    np.array([b"openvino"]).dtype,
+    np.dtype(str),
+    np.dtype(bytes),
+])
+def test_string_dtype(func, expected, data_type):
+    assert func(data_type) == expected
+
+
+@pytest.mark.parametrize(("value", "expected"), [
+    (np.array([["ab", "c"], ["d", "efg"]], dtype=str), ["ab", "c", "d", "efg"]),
+    (np.array([b"bytes", b"b"], dtype=np.bytes_), ["bytes", "b"]),
+    (["openvino", "string"], ["openvino", "string"]),
+    ("scalar", ["scalar"]),
+])
+def test_make_constant_node_from_strings(value, expected):
+    const = make_constant_node(value)
+
+    assert const.get_element_type() == ov.Type.string
+    assert list(const.shape) == list(np.array(value).shape)
+    assert const.get_value_strings() == expected
 
 
 @pytest.mark.parametrize(("func", "data_type"), [
