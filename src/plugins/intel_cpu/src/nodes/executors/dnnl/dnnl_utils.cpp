@@ -106,9 +106,8 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
 
     MemoryPtr ptr;
     if (globalWeightCache && dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        ptr = MemoryPtr(
-            *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
-                                             create));
+        const auto key = DnnlExtensionUtils::computeWeightsStringHash(weightsMem, srcWeightDesc, dstWeightDesc);
+        ptr = MemoryPtr(*globalWeightCache->findOrCreate(key, create));
     } else {
         ptr = create();
     }
