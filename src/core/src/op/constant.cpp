@@ -198,17 +198,7 @@ std::conditional_t<ET == element::nf4 && !std::is_integral_v<U>, float, fundamen
 }
 
 Strides calc_byte_strides(const Shape& shape, const element::Type& et) {
-    Strides strides;
-    if (!shape.empty() && et.bitwidth() >= 8) {
-        strides.resize(shape.size());
-        strides.back() = et.size();
-        std::transform(shape.crbegin(),
-                       shape.crend() - 1,
-                       strides.rbegin(),
-                       strides.rbegin() + 1,
-                       std::multiplies<size_t>());
-    }
-    return strides;
+    return ov::util::can_compute_byte_strides(et, shape) ? ov::util::get_dense_byte_strides(et, shape) : Strides{};
 }
 }  // namespace
 
@@ -217,7 +207,7 @@ namespace v0 {
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
       m_shape{tensor.get_shape()},
-      m_byte_strides{m_element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{}},
+      m_byte_strides{ov::util::can_compute_byte_strides(m_element_type, m_shape) ? tensor.get_strides() : Strides{}},
       // cast is for internal use only to store tensor data in shared buffer (not for modification)
       m_data{std::make_shared<SharedBuffer<Tensor>>(const_cast<char*>(static_cast<const char*>(tensor.data())),
                                                     tensor.get_byte_size(),
@@ -654,9 +644,11 @@ const Tensor Constant::get_tensor_view() const {
 }
 
 const Strides& Constant::get_strides() const {
-    OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
-                    "Could not get strides for types with bit widths less then 8 bit. Type: ",
-                    m_element_type);
+    OPENVINO_ASSERT(ov::util::can_compute_byte_strides(m_element_type, m_shape),
+                    "Could not get strides for tensor type: ",
+                    m_element_type,
+                    ", shape: ",
+                    m_shape);
     return m_byte_strides;
 }
 
