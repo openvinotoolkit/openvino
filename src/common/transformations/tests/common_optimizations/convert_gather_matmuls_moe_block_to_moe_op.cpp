@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/op/add.hpp>
@@ -46,6 +47,8 @@
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 
 using GatherMatmul = ov::op::internal::GatherMatmul;
+using GatherMatmulCompressed = ov::op::internal::GatherMatmulCompressed;
+using MOECompressed = ov::op::internal::MOECompressed;
 
 // ============================================================================
 // IR model builders (original MOE pattern before any transformation)
@@ -892,6 +895,352 @@ TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_restores_output
     model = build_2gemm_bgm_model(true, true);
     manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_2gemm_bgm_to_moe_reference_model(true, true);
+}
+
+// Compressed (GatherMatmulCompressed) variants: the builders above produce plain GatherMatmul only, which never
+// reaches the compressed branch of the callback.
+
+namespace {
+
+// gate/up carry 4 scale groups over K=16 and down 2 over K=8, so both must unify to group_size 4.
+constexpr size_t kE = 2;
+constexpr size_t kHidden = 16;
+constexpr size_t kInter = 8;
+constexpr size_t kTopk = 2;
+constexpr size_t kGroupSize = 4;
+
+// An absent optional input. Constant::create cannot produce a dynamic element type, hence the 2-argument ctor.
+std::shared_ptr<ov::Node> absent_input() {
+    return std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
+}
+
+// Distinct per-channel values so a wrong expansion is visible, clamped to the range of the type (u2 holds 0..3).
+// Each source value is repeated `repeat` times, which is what expanding a per-channel constant produces.
+std::shared_ptr<ov::Node> int_const(ov::element::Type dt, const ov::Shape& shape, int32_t base, size_t repeat = 1) {
+    const int32_t hi =
+        dt.bitwidth() < 8 ? static_cast<int32_t>((1u << (dt.bitwidth() - (dt.is_signed() ? 1 : 0))) - 1) : 127;
+    const size_t n = ov::shape_size(shape);
+    std::vector<int32_t> v(n);
+    for (size_t i = 0; i < n; ++i) {
+        v[i] = std::min(base + static_cast<int32_t>((i / repeat) % 4), hi);
+    }
+    return ov::op::v0::Constant::create(dt, shape, v);
+}
+
+std::shared_ptr<ov::Node> scale_const(const ov::Shape& shape, size_t repeat = 1) {
+    const size_t n = ov::shape_size(shape);
+    std::vector<float> v(n);
+    for (size_t i = 0; i < n; ++i) {
+        v[i] = 0.5f + 0.25f * static_cast<float>(i / repeat);
+    }
+    return ov::op::v0::Constant::create(ov::element::f16, shape, v);
+}
+
+struct CompressedMoeSpec {
+    ov::element::Type gate_dt = ov::element::u4;
+    ov::element::Type up_dt = ov::element::u4;
+    ov::element::Type down_dt = ov::element::u4;
+    // Scale (and zp) group counts. G == 1 means per-channel, which is what arms the
+    // broadcast_per_channel_scale path; G > 1 is group-wise and sets group_size.
+    size_t gate_G = kHidden / kGroupSize;
+    size_t up_G = kHidden / kGroupSize;
+    size_t down_G = kInter / kGroupSize;
+    // element::dynamic == no zp at all (symmetric). Anything else builds real zps whose shape
+    // mirrors the corresponding scale.
+    ov::element::Type zp_dt = ov::element::dynamic;
+    // Set: every zp is this rank-0 value instead.
+    std::optional<int32_t> scalar_zp;
+};
+
+struct GemmInputs {
+    std::shared_ptr<ov::Node> weights;
+    std::shared_ptr<ov::Node> scale;
+    std::shared_ptr<ov::Node> zp;
+};
+
+// gemm: 0 gate, 1 up, 2 down. fused == true gives what MOECompressed is expected to receive: per-channel scales/zps
+// expanded to the common group count and a non-zero sub-byte scalar zp widened to u8.
+GemmInputs make_gemm_inputs(const CompressedMoeSpec& spec, size_t gemm, bool fused) {
+    using namespace ov;
+    const element::Type dts[] = {spec.gate_dt, spec.up_dt, spec.down_dt};
+    const size_t Gs[] = {spec.gate_G, spec.up_G, spec.down_G};
+    const size_t rows = gemm == 2 ? kHidden : kInter;
+    const size_t K = gemm == 2 ? kInter : kHidden;
+    const size_t G = Gs[gemm];
+    const size_t out_G = fused && G == 1 ? K / kGroupSize : G;
+    const size_t repeat = out_G / G;
+
+    GemmInputs in;
+    in.weights = int_const(dts[gemm], Shape{kE, rows, K}, static_cast<int32_t>(gemm));
+    in.scale = scale_const(Shape{kE, rows, out_G}, repeat);
+    if (spec.zp_dt == element::dynamic) {
+        in.zp = absent_input();
+    } else if (spec.scalar_zp) {
+        if (fused && *spec.scalar_zp == 0) {
+            in.zp = absent_input();
+        } else {
+            in.zp = op::v0::Constant::create(fused ? element::u8 : spec.zp_dt, Shape{}, {*spec.scalar_zp});
+        }
+    } else {
+        // Non-zero zps: a zp of 0 is indistinguishable from the symmetric case.
+        in.zp = int_const(spec.zp_dt, Shape{kE, rows, out_G}, 10 + static_cast<int32_t>(gemm), repeat);
+    }
+    return in;
+}
+
+// The router subgraph stays in the graph around the fused op.
+struct Router {
+    std::shared_ptr<ov::op::v0::Parameter> input;
+    std::shared_ptr<ov::op::v1::Reshape> experts_reshape;
+    std::shared_ptr<ov::op::v11::TopK> topk;
+};
+
+Router build_router() {
+    using namespace ov;
+    Router r;
+    // The Parameter stays f32: the router MatMul multiplies it by an f32 Constant and v0::MatMul needs matching
+    // element types.
+    r.input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), kHidden});
+    r.experts_reshape = std::make_shared<op::v1::Reshape>(
+        r.input,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, static_cast<int64_t>(kHidden)}),
+        false);
+    auto router_matmul =
+        std::make_shared<op::v0::MatMul>(r.experts_reshape,
+                                         op::v0::Constant::create(element::f32, Shape{kE, kHidden}, {1.0f}),
+                                         false,
+                                         true);
+    r.topk = std::make_shared<op::v11::TopK>(router_matmul,
+                                             op::v0::Constant::create(element::i64, Shape{}, {kTopk}),
+                                             -1,
+                                             op::v11::TopK::Mode::MAX,
+                                             op::v11::TopK::SortType::SORT_VALUES,
+                                             element::i64);
+    return r;
+}
+
+// Same topology as build_3gemm_bgm_model with GatherMatmulCompressed.
+std::shared_ptr<ov::Model> build_3gemm_bgm_compressed_model(const CompressedMoeSpec& spec) {
+    using namespace ov;
+
+    const auto r = build_router();
+    auto unsqueeze =
+        std::make_shared<op::v0::Unsqueeze>(r.experts_reshape, op::v0::Constant::create(element::i32, Shape{}, {0}));
+    auto topk_indices = r.topk->output(1);
+    auto chosen_experts = r.topk->output(0);
+
+    const auto gate = make_gemm_inputs(spec, 0, false);
+    const auto up = make_gemm_inputs(spec, 1, false);
+    const auto down = make_gemm_inputs(spec, 2, false);
+
+    auto bgm_gate = std::make_shared<GatherMatmulCompressed>(unsqueeze,
+                                                             gate.weights,
+                                                             topk_indices,
+                                                             absent_input(),
+                                                             gate.scale,
+                                                             gate.zp);
+    auto gate_act = std::make_shared<op::v4::Swish>(bgm_gate);
+    auto bgm_up =
+        std::make_shared<GatherMatmulCompressed>(unsqueeze, up.weights, topk_indices, absent_input(), up.scale, up.zp);
+    auto swiglu = std::make_shared<op::v1::Multiply>(gate_act, bgm_up);
+    auto bgm_down = std::make_shared<GatherMatmulCompressed>(swiglu,
+                                                             down.weights,
+                                                             topk_indices,
+                                                             absent_input(),
+                                                             down.scale,
+                                                             down.zp);
+
+    auto router_transpose = std::make_shared<op::v1::Transpose>(
+        chosen_experts,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
+    auto router_unsqueeze =
+        std::make_shared<op::v0::Unsqueeze>(router_transpose, op::v0::Constant::create(element::i32, Shape{}, {-1}));
+
+    auto final_mul = std::make_shared<op::v1::Multiply>(bgm_down, router_unsqueeze);
+    auto reduce_sum =
+        std::make_shared<op::v1::ReduceSum>(final_mul,
+                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}),
+                                            false);
+    auto end_reshape = std::make_shared<op::v1::Reshape>(
+        reduce_sum,
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{2, -1, static_cast<int64_t>(kHidden)}),
+        true);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{r.input});
+}
+
+// The graph the 3-GEMM pass is expected to produce from build_3gemm_bgm_compressed_model(spec).
+std::shared_ptr<ov::Model> build_3gemm_moe_compressed_reference(const CompressedMoeSpec& spec) {
+    using namespace ov;
+
+    const auto r = build_router();
+    const auto gate = make_gemm_inputs(spec, 0, true);
+    const auto up = make_gemm_inputs(spec, 1, true);
+    const auto down = make_gemm_inputs(spec, 2, true);
+
+    const OutputVector moe_inputs = {r.input,
+                                     r.topk->output(0),
+                                     r.topk->output(1),
+                                     gate.weights,
+                                     gate.scale,
+                                     gate.zp,
+                                     up.weights,
+                                     up.scale,
+                                     up.zp,
+                                     down.weights,
+                                     down.scale,
+                                     down.zp};
+    MOECompressed::Config config{
+        {op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, 1.0f, 0, op::internal::MOE::Activation_type::SWIGLU},
+        kHidden,
+        kInter,
+        kE,
+        0,  // num_shared_expert
+        kTopk,
+        kGroupSize,
+        true,                                                  // has_batch_dim
+        moe_inputs[5].get_element_type() != element::dynamic,  // has_zp
+        element::f16,
+    };
+    auto moe = std::make_shared<MOECompressed>(moe_inputs, config);
+    auto out = std::make_shared<op::v0::Convert>(moe, element::f32);
+    return std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{r.input});
+}
+
+}  // namespace
+
+// Uniform i8 must still fuse: the accepted uniform set is every dtype the producing pass can emit.
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOpCompressed_uniform_i8_fuses) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::i8;
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_moe_compressed_reference(spec);
+}
+
+// Admission table: uniform for every dtype the producer can emit; mixed only within {u2, u8}, which
+// moe_3gemm decodes per GEMM.
+struct DtypeGateParams {
+    ov::element::Type gate_dt;
+    ov::element::Type up_dt;
+    ov::element::Type down_dt;
+    bool should_fuse;
+};
+
+class MoeOpFusionDtypeGate : public TransformationTestsF, public ::testing::WithParamInterface<DtypeGateParams> {};
+
+TEST_P(MoeOpFusionDtypeGate, admits_uniform_and_u2_u8_mixes_only) {
+    const auto& p = GetParam();
+    CompressedMoeSpec spec;
+    spec.gate_dt = p.gate_dt;
+    spec.up_dt = p.up_dt;
+    spec.down_dt = p.down_dt;
+
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    // Declining must leave the graph untouched, which is what an unset model_ref is compared against. Values are not
+    // compared on fused rows: absent zps are dynamic-typed constants the comparator cannot read.
+    if (p.should_fuse) {
+        model_ref = build_3gemm_moe_compressed_reference(spec);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         MoeOpFusionDtypeGate,
+                         ::testing::Values(
+                             // Uniform: every dtype the producing pass can emit.
+                             DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::u2, true},
+                             DtypeGateParams{ov::element::u3, ov::element::u3, ov::element::u3, true},
+                             DtypeGateParams{ov::element::u4, ov::element::u4, ov::element::u4, true},
+                             DtypeGateParams{ov::element::i4, ov::element::i4, ov::element::i4, true},
+                             DtypeGateParams{ov::element::u8, ov::element::u8, ov::element::u8, true},
+                             DtypeGateParams{ov::element::i8, ov::element::i8, ov::element::i8, true},
+                             // Mixed within {u2, u8}: decoded per GEMM.
+                             DtypeGateParams{ov::element::u2, ov::element::u8, ov::element::u2, true},
+                             DtypeGateParams{ov::element::u8, ov::element::u2, ov::element::u8, true},
+                             DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::u8, true},
+                             // Mixed involving anything else: no per-GEMM decode exists, so it must stay unfused.
+                             DtypeGateParams{ov::element::u4, ov::element::u8, ov::element::u8, false},
+                             DtypeGateParams{ov::element::i8, ov::element::u8, ov::element::i8, false},
+                             DtypeGateParams{ov::element::u2, ov::element::u4, ov::element::u2, false},
+                             DtypeGateParams{ov::element::u4, ov::element::i4, ov::element::u4, false},
+                             DtypeGateParams{ov::element::u3, ov::element::u8, ov::element::u3, false},
+                             // Not producible by the pipeline today; documents that the gate is a whitelist.
+                             DtypeGateParams{ov::element::f16, ov::element::f16, ov::element::f16, false}));
+
+// A per-channel sub-byte zp next to a group-wise GEMM must not be expanded: Type::size() rounds sub-byte types
+// up to a byte, so the copy would interleave channels and still pass validation. The pass must decline.
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOpCompressed_subbyte_per_channel_zp_declines) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u4;
+    spec.zp_dt = ov::element::u4;
+    // gate/up per-channel (G == 1) against a group-wise down: gate/up would need expanding from 1 group to 4.
+    spec.gate_G = 1;
+    spec.up_G = 1;
+
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+}
+
+// Control: the same shape with byte-wide zps is expandable; the reference holds the repeated per-channel values.
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOpCompressed_u8_per_channel_zp_expands) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u8;
+    spec.zp_dt = ov::element::u8;
+    spec.gate_G = 1;
+    spec.up_G = 1;
+
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_moe_compressed_reference(spec);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+// Expansion creates constants that have no .bin offset, so a pass that may not expand must leave the mix unfused.
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOpCompressed_per_channel_mix_declines_without_expansion) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u8;
+    spec.zp_dt = ov::element::u8;
+    spec.gate_G = 1;
+    spec.up_G = 1;
+
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(false);
+}
+
+// A packed scalar zp is read through cast_vector like a byte-wide one: an all-zero one is symmetric.
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOpCompressed_u4_scalar_zero_zp_fuses_symmetric) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u4;
+    spec.zp_dt = ov::element::u4;
+    spec.scalar_zp = 0;
+
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_moe_compressed_reference(spec);
+}
+
+// Only the u2 kernels broadcast a non-zero scalar zp; the backend gets it byte-wide.
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOpCompressed_u2_scalar_zp_widened_to_u8) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u2;
+    spec.zp_dt = ov::element::u2;
+    spec.scalar_zp = 2;
+
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_moe_compressed_reference(spec);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOpCompressed_u4_scalar_nonzero_zp_declines) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u4;
+    spec.zp_dt = ov::element::u4;
+    spec.scalar_zp = 3;
+
+    model = build_3gemm_bgm_compressed_model(spec);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
 }
 
 // Per-group u3 zp is converted to u8
