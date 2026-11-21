@@ -3,54 +3,34 @@
 //
 #pragma once
 
-// The AMX prefill computation shared by the sparse attention kernels: the query heads that share the K/V head and the
-// selected blocks (a pack) are the M of oneDNN brgemm products, over the item's selected key rows in tiles of at most
-// SparseBrgemm::tile_rows rows (a gather tile, see the vocabulary in sparse_brgemm.hpp):
+// AMX tile attention engine (AVX-512 builds only: the engine is enabled only on CPUs with AMX, which have AVX-512): the
+// query heads that share the K/V rows (a pack) are the M of oneDNN brgemm products, over key rows gathered into tiles
+// of at most TileBrgemm::tile_rows rows (see attn_brgemm_common.hpp):
 //   1. QK:      scores[pack, rows] = query[pack, k_head_size] x keys[rows, k_head_size]^T
 //   2. softmax: online over the tiles (running max / sum per head), weights = exp(scale * scores - max)
 //   3. P.V:     acc[pack, v_head_size] += weights[pack, rows] x values[rows, v_head_size]
-// The kernels only differ in how the rows of a tile are gathered (paged or dense, plain or dequantized).
+// Callers differ in how the rows of a tile are chosen and gathered (paged or dense, plain or dequantized, selected
+// blocks or all rows): they provide a row source, see gather_run().
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 
+#include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
+#include "nodes/kernels/scaled_attn/attn_pack_kernels.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
-#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "utils/general_utils.h"
 
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
+
 #    include "nodes/kernels/scaled_attn/transpose_kernel.hpp"
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
-#endif
 
 namespace ov::Extensions::Cpu::XARCH {
-
-/// @brief scores[r] *= scale for r < kv_len; returns the maximum of the scaled scores.
-inline float scale_and_max(float* scores, size_t kv_len, float scale) {
-    size_t r = 0;
-    float max_value = -std::numeric_limits<float>::infinity();
-#if defined(HAVE_AVX512F)
-    const auto v_scale = _mm512_set1_ps(scale);
-    auto v_max = _mm512_set1_ps(max_value);
-    for (; r + 16 <= kv_len; r += 16) {
-        const auto v = _mm512_mul_ps(_mm512_loadu_ps(scores + r), v_scale);
-        _mm512_storeu_ps(scores + r, v);
-        v_max = _mm512_max_ps(v_max, v);
-    }
-    max_value = _mm512_reduce_max_ps(v_max);
-#endif
-    for (; r < kv_len; r++) {
-        scores[r] *= scale;
-        max_value = std::max(max_value, scores[r]);
-    }
-    return max_value;
-}
-
-#ifdef OPENVINO_ARCH_X86_64
 
 /// @brief The query heads of a pack and their running softmax state, for the tile functions below.
 struct BrgemmPack {
@@ -83,7 +63,7 @@ struct WeightLayout {
     }
 };
 
-/// @brief The buffers of one gather tile, carved from the thread's scratch (see SparseBrgemmLayout).
+/// @brief The buffers of one gather tile, carved from the thread's scratch (see TileBrgemmLayout).
 template <typename T>
 struct BrgemmBuffers {
     ov::intel_cpu::BrgemmKernel* qk;
@@ -102,105 +82,6 @@ struct BrgemmBuffers {
         return weights.tile_rows;
     }
 };
-
-// B operand packing straight from the cache rows: each row is read through its own pointer (copy_buffer_b needs one
-// contiguous matrix) and written in the layout of copy_buffer_b and of PagedAttention's pack_32NxK / transpose_16NxK:
-// 16-bit row-major VNNI B[k / 2][ldb][2], ldb = N rounded up to 32.
-
-/// @brief Whether the packing below can be used: AVX512, 16-bit rows of a multiple of 32 elements (the widths of the
-/// vector loads). Other head sizes gather the rows and use copy_buffer_b.
-[[nodiscard]] inline bool fused_pack_supported([[maybe_unused]] size_t k_head_size,
-                                               [[maybe_unused]] size_t v_head_size) {
-#    if defined(HAVE_AVX512F)
-    return k_head_size % 32 == 0 && v_head_size % 32 == 0;
-#    else
-    return false;
-#    endif
-}
-
-#    if defined(HAVE_AVX512F)
-/// @brief B operand of the QK product (keys, b_transposed, N = 32): dst[d][n] = the 32-bit pair d of the key row n, so
-/// a 32 x (k_head_size / 2) transpose of 32-bit values, 16 x 16 at a time.
-template <typename T>
-void pack_k_block(const T* const* kv_ptrs, size_t k_head_size, T* dst) {
-    static_assert(sizeof(T) == 2, "the rows are packed as 16-bit data (bf16 / f16)");
-    auto* out = reinterpret_cast<uint32_t*>(dst);
-    const size_t pairs = k_head_size / 2;
-    for (size_t half = 0; half < 2; half++) {
-        const auto* const* r = reinterpret_cast<const uint32_t* const*>(kv_ptrs + half * 16);
-        for (size_t d = 0; d < pairs; d += 16) {
-            __m512i r0 = _mm512_loadu_si512(r[0] + d);
-            __m512i r1 = _mm512_loadu_si512(r[1] + d);
-            __m512i r2 = _mm512_loadu_si512(r[2] + d);
-            __m512i r3 = _mm512_loadu_si512(r[3] + d);
-            __m512i r4 = _mm512_loadu_si512(r[4] + d);
-            __m512i r5 = _mm512_loadu_si512(r[5] + d);
-            __m512i r6 = _mm512_loadu_si512(r[6] + d);
-            __m512i r7 = _mm512_loadu_si512(r[7] + d);
-            __m512i r8 = _mm512_loadu_si512(r[8] + d);
-            __m512i r9 = _mm512_loadu_si512(r[9] + d);
-            __m512i ra = _mm512_loadu_si512(r[10] + d);
-            __m512i rb = _mm512_loadu_si512(r[11] + d);
-            __m512i rc = _mm512_loadu_si512(r[12] + d);
-            __m512i rd = _mm512_loadu_si512(r[13] + d);
-            __m512i re = _mm512_loadu_si512(r[14] + d);
-            __m512i rf = _mm512_loadu_si512(r[15] + d);
-            transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
-            uint32_t* o = out + d * 32 + half * 16;
-            _mm512_storeu_si512(o, r0);
-            _mm512_storeu_si512(o + 32, r1);
-            _mm512_storeu_si512(o + 2 * 32, r2);
-            _mm512_storeu_si512(o + 3 * 32, r3);
-            _mm512_storeu_si512(o + 4 * 32, r4);
-            _mm512_storeu_si512(o + 5 * 32, r5);
-            _mm512_storeu_si512(o + 6 * 32, r6);
-            _mm512_storeu_si512(o + 7 * 32, r7);
-            _mm512_storeu_si512(o + 8 * 32, r8);
-            _mm512_storeu_si512(o + 9 * 32, r9);
-            _mm512_storeu_si512(o + 10 * 32, ra);
-            _mm512_storeu_si512(o + 11 * 32, rb);
-            _mm512_storeu_si512(o + 12 * 32, rc);
-            _mm512_storeu_si512(o + 13 * 32, rd);
-            _mm512_storeu_si512(o + 14 * 32, re);
-            _mm512_storeu_si512(o + 15 * 32, rf);
-        }
-    }
-}
-
-/// @brief B operand of the P.V product (values, K = 32 rows): the row pair (2i, 2i + 1) interleaved element by element
-/// into the row i of dst, whose stride is 2 * v_head_size elements.
-template <typename T>
-void pack_v_block(const T* const* kv_ptrs, size_t v_head_size, T* dst) {
-    static_assert(sizeof(T) == 2, "the rows are packed as 16-bit data (bf16 / f16)");
-    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    const auto midx = _mm512_loadu_si512(idx);
-    auto* out_row = reinterpret_cast<uint16_t*>(dst);
-    for (size_t i = 0; i < 16; i++) {
-        const auto* row_a = reinterpret_cast<const uint16_t*>(kv_ptrs[2 * i]);
-        const auto* row_b = reinterpret_cast<const uint16_t*>(kv_ptrs[2 * i + 1]);
-        for (size_t k = 0; k < v_head_size; k += 32) {
-            const auto a = _mm512_permutexvar_epi64(midx, _mm512_loadu_si512(row_a + k));
-            const auto b = _mm512_permutexvar_epi64(midx, _mm512_loadu_si512(row_b + k));
-            _mm512_storeu_si512(out_row + 2 * k, _mm512_unpacklo_epi16(a, b));
-            _mm512_storeu_si512(out_row + 2 * k + 32, _mm512_unpackhi_epi16(a, b));
-        }
-        out_row += 2 * v_head_size;
-    }
-}
-#    else
-template <typename T>
-void pack_k_block([[maybe_unused]] const T* const* kv_ptrs,
-                  [[maybe_unused]] size_t k_head_size,
-                  [[maybe_unused]] T* dst) {
-    OPENVINO_THROW("[CPU] sparse attention: the fused key packing needs AVX512");
-}
-template <typename T>
-void pack_v_block([[maybe_unused]] const T* const* kv_ptrs,
-                  [[maybe_unused]] size_t v_head_size,
-                  [[maybe_unused]] T* dst) {
-    OPENVINO_THROW("[CPU] sparse attention: the fused value packing needs AVX512");
-}
-#    endif
 
 /// Phase 1: scores[head, kv] = query[head] . keys[kv] for the pack's heads and every row block of the tile. The keys
 /// of a row block are packed into the AMX layout once for all the heads of the pack.
@@ -237,7 +118,19 @@ void softmax_brgemm(const BrgemmPack& p,
                     bool first_tile) {
     for (size_t head = 0; head < p.pack_size; head++) {
         float* scores = b.weights.scores(head);
-        const float new_max = std::max(p.running_max[head], scale_and_max(scores, tile_kv_len, p.scale));
+        float scaled_max = std::numeric_limits<float>::lowest();
+        scale_add2_reduce_max<false, false, false, false, float>(scores,
+                                                                 p.scale,
+                                                                 nullptr,
+                                                                 nullptr,
+                                                                 nullptr,
+                                                                 false,
+                                                                 tile_kv_len,
+                                                                 0.0F,
+                                                                 scaled_max,
+                                                                 nullptr,
+                                                                 0);
+        const float new_max = std::max(p.running_max[head], scaled_max);
         if (!first_tile) {
             const float corr = std::exp(p.running_max[head] - new_max);
             p.running_sum[head] *= corr;
@@ -374,35 +267,6 @@ void gather_run(const RowSource& src,
     }
 }
 
-/// @brief The selection of an item: the selected blocks (ids of blocks of key_block_size rows, in any order) and the
-/// causal tail (the incomplete last block of the query, `tail_rows` rows from `tail_start`).
-struct BrgemmSelection {
-    const int32_t* block_ids;
-    size_t nblocks;
-    int64_t first_pos;  ///< position of block 0
-    int64_t key_block_size;
-    int64_t tail_start;
-    int64_t tail_rows;
-};
-
-/// @brief Attention of the pack's heads over the item's whole selection with AMX matrix products: the rows are gathered
-/// into tiles (the layout specific part is the row source) and every full tile, then the last partial one, goes through
-/// attention_over_tile(), whose online softmax carries the state across the tiles. It leaves the unnormalized attention
-/// in pack.acc and the softmax denominators in pack.running_sum (all 0 when nothing is visible); the caller normalizes
-/// and stores the output.
-template <typename T, typename RowSource>
-void attention_over_selection_tiles(const RowSource& src,
-                                    const BrgemmPack& pack,
-                                    const BrgemmBuffers<T>& b,
-                                    const BrgemmSelection& sel) {
-    TileState tile;
-    for (size_t i = 0; i < sel.nblocks; i++) {
-        gather_run<T>(src, pack, b, tile, sel.first_pos + sel.block_ids[i] * sel.key_block_size, sel.key_block_size);
-    }
-    gather_run<T>(src, pack, b, tile, sel.tail_start, sel.tail_rows);
-    flush_tile<T>(pack, b, tile);
-}
-
-#endif  // OPENVINO_ARCH_X86_64
-
 }  // namespace ov::Extensions::Cpu::XARCH
+
+#endif  // OPENVINO_ARCH_X86_64 && HAVE_AVX512F

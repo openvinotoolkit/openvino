@@ -19,7 +19,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_DensePrefill_Hsel1,
                                           testing::Values(static_cast<size_t>(1)),
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(QSAIndexerScenario::kDensePrefill),
-                                          testing::Values(false)),
+                                          all_query_fusion_types),
                          QSAIndexerLayerCPUTest::getTestCaseName);
 
 // Dense (no padding) single-call prefill: H_iq = 2 * H_ik, h_sel == H_ik.
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_DensePrefill_HselEqualsHik,
                                           testing::Values(static_cast<size_t>(2)),
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(QSAIndexerScenario::kDensePrefill),
-                                          testing::Values(false)),
+                                          all_query_fusion_types),
                          QSAIndexerLayerCPUTest::getTestCaseName);
 
 // new_spec/qsa-prepare-17.rst's worked example verbatim: left-padded prefill followed by a decode
@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_WorkedExample,
                                           testing::Values(static_cast<size_t>(1)),
                                           testing::Values(static_cast<size_t>(2)),
                                           testing::Values(QSAIndexerScenario::kWorkedExample),
-                                          testing::Values(false)),
+                                          all_query_fusion_types),
                          QSAIndexerLayerCPUTest::getTestCaseName);
 
 // A row without any real token (key_length == 0) next to a regular one, then that row starting from scratch.
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_FullyPaddedRow,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(static_cast<size_t>(2)),
                                           testing::Values(QSAIndexerScenario::kFullyPaddedRow),
-                                          testing::Values(false)),
+                                          all_query_fusion_types),
                          QSAIndexerLayerCPUTest::getTestCaseName);
 
 // Several calls with L > 1 and different past lengths per row (non-empty incomplete-block tails, blocks completed
@@ -75,13 +75,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_RaggedCalls,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(static_cast<size_t>(2)),
                                           testing::Values(QSAIndexerScenario::kRaggedCalls),
-                                          testing::Values(false)),
+                                          all_query_fusion_types),
                          QSAIndexerLayerCPUTest::getTestCaseName);
 
-// The chosen blocks of a row by descending score (equal scores: ascending block id), the order of
-// SparseAttentionIndexer-17, instead of ascending block ids: dense prefill with one and with several selection heads,
-// the worked example and calls with ragged lengths (which also cover the tokens that take all their blocks).
-INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_OrderByScore,
+// Degenerate scores: NaN in the keys, scores overflowing to +-Inf / NaN, and scores that differ by less than
+// 256 / FLT_MAX. The gains of the last two are out of the f16 range. Only the selection invariants are checked.
+INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_DegenerateScores_NaN,
                          QSAIndexerLayerCPUTest,
                          testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
                                           testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
@@ -89,10 +88,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_OrderByScore,
                                           testing::Values(static_cast<size_t>(2)),
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(QSAIndexerScenario::kDensePrefill,
-                                                          QSAIndexerScenario::kWorkedExample,
-                                                          QSAIndexerScenario::kRaggedCalls),
-                                          testing::Values(true)),
+                                          testing::Values(QSAIndexerScenario::kNaNScores),
+                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope)),
+                         QSAIndexerLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_DegenerateScores_OverflowAndTiny,
+                         QSAIndexerLayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::f32, ov::element::bf16),
+                                          testing::Values(static_cast<size_t>(2), static_cast<size_t>(4)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(QSAIndexerScenario::kOverflowScores,
+                                                          QSAIndexerScenario::kTinyScores),
+                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope)),
                          QSAIndexerLayerCPUTest::getTestCaseName);
 
 }  // namespace test

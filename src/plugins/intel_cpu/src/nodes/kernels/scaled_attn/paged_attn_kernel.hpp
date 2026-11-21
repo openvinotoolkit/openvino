@@ -1,10 +1,10 @@
-
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include "nodes/kernels/scaled_attn/common.hpp"
+#include "nodes/kernels/simd/simd.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
@@ -1911,6 +1911,173 @@ void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
             src += temp_stride;
         }
         dst[i] = sum;
+    }
+}
+
+// ---- Multi-head variants of the block kernels above: the query heads of one GQA group share the key / value rows, so
+// each row is converted once for all of them. One body for every ISA (the simd layer): a tile of heads x rows (or
+// column vectors) of independent accumulators hides the FMA latency; the heads and rows left over use dot_product_block
+// / attn_acc_value_block, and so does every head without SIMD.
+
+// Heads of one tile: 4 x 4 accumulators fill the 32 AVX-512 registers, 2 x 4 the 16 AVX2 ones.
+inline constexpr size_t multi_head_tile = simd::f32::width >= 16 ? 4 : 2;
+inline constexpr size_t multi_head_unroll = 4;
+
+// scores[head * score_stride + r] = q[head, :] . keys[r, :] for head < num_q_heads, r < rows.
+// q: f32 [num_q_heads, head_size]; keys: [rows, head_size] contiguous. The block kernels above take non-const pointers
+// but only read them, hence the const_casts below.
+template <typename T>
+inline void dot_product_block_multi_head(const float* q,
+                                         size_t num_q_heads,
+                                         size_t head_size,
+                                         const T* keys,
+                                         size_t rows,
+                                         float* scores,
+                                         size_t score_stride) {
+    constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
+    size_t h = 0;
+    if constexpr (simd::active_isa != simd::isa::scalar) {
+        constexpr size_t W = simd::f32::width;
+        constexpr size_t H = multi_head_tile;
+        constexpr size_t R = multi_head_unroll;
+        for (; h + H <= num_q_heads; h += H) {
+            const float* q0 = q + h * head_size;
+            float* s0 = scores + h * score_stride;
+            size_t r = 0;
+            for (; r + R <= rows; r += R) {
+                simd::f32 acc[H][R];
+                size_t d = 0;
+                for (; d + W <= head_size; d += W) {
+                    simd::f32 key[R];
+                    simd::f32 query[H];
+                    for (size_t j = 0; j < R; j++) {
+                        key[j] = simd::load<simd::f32>(keys + (r + j) * head_size + d);
+                    }
+                    for (size_t i = 0; i < H; i++) {
+                        query[i] = simd::load<simd::f32>(q0 + i * head_size + d);
+                    }
+                    for (size_t i = 0; i < H; i++) {
+                        for (size_t j = 0; j < R; j++) {
+                            acc[i][j] = fmadd(key[j], query[i], acc[i][j]);
+                        }
+                    }
+                }
+                for (size_t i = 0; i < H; i++) {
+                    const float* qi = q0 + i * head_size;
+                    for (size_t j = 0; j < R; j++) {
+                        const T* kj = keys + (r + j) * head_size;
+                        float sum = reduce(acc[i][j]);
+                        for (size_t t = d; t < head_size; t++) {
+                            sum += qi[t] * static_cast<float>(kj[t]);
+                        }
+                        s0[i * score_stride + r + j] = sum;
+                    }
+                }
+            }
+            // the rows left over
+            for (size_t i = 0; r < rows && i < H; i++) {
+                dot_product_block<float, prec>(const_cast<float*>(q0) + i * head_size,
+                                               const_cast<T*>(keys) + r * head_size,
+                                               s0 + i * score_stride + r,
+                                               head_size,
+                                               rows - r,
+                                               0);
+            }
+        }
+    }
+    // the heads left over, and every head without SIMD (the scalar block kernel)
+    for (; h < num_q_heads; h++) {
+        dot_product_block<float, prec>(const_cast<float*>(q) + h * head_size,
+                                       const_cast<T*>(keys),
+                                       scores + h * score_stride,
+                                       head_size,
+                                       rows,
+                                       0);
+    }
+}
+
+// acc[head, :] += sum_r weights[head * weight_stride + r] * values[r, :] for head < num_q_heads, r < rows.
+// acc: f32 [num_q_heads, value_size]; values: [rows, value_size] contiguous.
+template <typename T>
+inline void attn_acc_value_block_multi_head(float* acc,
+                                            size_t num_q_heads,
+                                            size_t value_size,
+                                            const float* weights,
+                                            size_t weight_stride,
+                                            const T* values,
+                                            size_t rows) {
+    constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
+    size_t h = 0;
+    if constexpr (simd::active_isa != simd::isa::scalar) {
+        constexpr size_t W = simd::f32::width;
+        constexpr size_t H = multi_head_tile;
+        constexpr size_t C = multi_head_unroll;
+        for (; h + H <= num_q_heads; h += H) {
+            float* a0 = acc + h * value_size;
+            const float* w0 = weights + h * weight_stride;
+            size_t d = 0;
+            // C column vectors at a time: a value vector is loaded and converted once for the H heads and a weight is
+            // broadcast once for the C column vectors
+            for (; d + C * W <= value_size; d += C * W) {
+                simd::f32 a[H][C];
+                for (size_t i = 0; i < H; i++) {
+                    for (size_t j = 0; j < C; j++) {
+                        a[i][j] = simd::load<simd::f32>(a0 + i * value_size + d + j * W);
+                    }
+                }
+                for (size_t r = 0; r < rows; r++) {
+                    const T* v = values + r * value_size + d;
+                    simd::f32 value[C];
+                    for (size_t j = 0; j < C; j++) {
+                        value[j] = simd::load<simd::f32>(v + j * W);
+                    }
+                    for (size_t i = 0; i < H; i++) {
+                        const simd::f32 w(w0[i * weight_stride + r]);
+                        for (size_t j = 0; j < C; j++) {
+                            a[i][j] = fmadd(w, value[j], a[i][j]);
+                        }
+                    }
+                }
+                for (size_t i = 0; i < H; i++) {
+                    for (size_t j = 0; j < C; j++) {
+                        store(a[i][j], a0 + i * value_size + d + j * W);
+                    }
+                }
+            }
+            // the columns left over: one vector at a time for the H heads, then the last few as scalars
+            for (; d + W <= value_size; d += W) {
+                simd::f32 a[H];
+                for (size_t i = 0; i < H; i++) {
+                    a[i] = simd::load<simd::f32>(a0 + i * value_size + d);
+                }
+                for (size_t r = 0; r < rows; r++) {
+                    const auto value = simd::load<simd::f32>(values + r * value_size + d);
+                    for (size_t i = 0; i < H; i++) {
+                        a[i] = fmadd(simd::f32(w0[i * weight_stride + r]), value, a[i]);
+                    }
+                }
+                for (size_t i = 0; i < H; i++) {
+                    store(a[i], a0 + i * value_size + d);
+                }
+            }
+            for (; d < value_size; d++) {
+                for (size_t i = 0; i < H; i++) {
+                    for (size_t r = 0; r < rows; r++) {
+                        a0[i * value_size + d] +=
+                            w0[i * weight_stride + r] * static_cast<float>(values[r * value_size + d]);
+                    }
+                }
+            }
+        }
+    }
+    // the heads left over, and every head without SIMD (the scalar block kernel)
+    for (; h < num_q_heads; h++) {
+        attn_acc_value_block<T, prec>(acc + h * value_size,
+                                      weights + h * weight_stride,
+                                      const_cast<T*>(values),
+                                      value_size,
+                                      rows,
+                                      0);
     }
 }
 

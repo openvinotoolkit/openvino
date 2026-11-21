@@ -3,22 +3,24 @@
 //
 #pragma once
 
-// Shared by the nodes and the sparse attention kernels (SparsePA, SparseSDPA): the head pack, the brgemm kernels and
-// their scratch layout. The tile computation is in sparse_brgemm_kernel.hpp.
+// ISA-neutral part of the AMX tile attention engine (attn_brgemm_tiles.hpp): the head pack, the brgemm kernels and the
+// layout of their per-thread scratch. The engine computes, for a pack of query heads (the M of oneDNN brgemm products),
+// attention over key / value rows gathered into tiles; how the rows are chosen is up to the caller.
 
-// Vocabulary: head pack = query heads sharing a K/V head and a selection head (the M of the products); selected run =
-// consecutive selected blocks, gathered by one copy; gather tile = up to kGatherTileRows key rows; brgemm row block =
-// kBrgemmRowBlock rows per brgemm call.
+// Vocabulary: head pack = query heads sharing a K/V head (for sparse attention also a selection head); gather tile = up
+// to kGatherTileRows key rows; brgemm row block = kBrgemmRowBlock rows per brgemm call.
 
 #include <algorithm>
 #include <cstddef>
 #include <memory>
-#include <numeric>
 
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 #ifdef OPENVINO_ARCH_X86_64
+#    include <common/utils.hpp>
+
+#    include "cache/multi_cache.h"
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #endif
 
@@ -32,29 +34,16 @@ constexpr size_t kBrgemmRowBlock = 32;
 /// kBrgemmRowBlock). Bounds the scratch of an item (and keeps it in cache) whatever the width of the selection.
 constexpr size_t kGatherTileRows = 128;
 
-/// @brief A decode uses the brgemm path of the head pack, not per-head SIMD items, when its selection holds at least
-/// this many K + V bytes (rows x (k + v head size) x element size): brgemm wins from about 2 MB, SIMD below 1 MB.
-constexpr size_t kBrgemmDecodeMinBytes = 3 * 512 * 1024;
-
 /// @brief Row stride of the attention weights in elements of the 16-bit data type. The weights overwrite the f32 scores
 /// in place (a row of `tile_rows` floats becomes `tile_rows` 16-bit values at the start of the same row), so the P.V
-/// kernels read rows that are `2 * tile_rows` 16-bit elements apart. See WeightLayout in sparse_brgemm_kernel.hpp.
+/// kernels read rows that are `2 * tile_rows` 16-bit elements apart. See WeightLayout in attn_brgemm_tiles.hpp.
 inline size_t weights_row_stride(size_t tile_rows) {
     return 2 * tile_rows;
 }
 
-/// @brief Query heads that share both K/V rows and the selected blocks, so a work item can process them together:
-/// q_head_pack_size = gcd(q_heads_per_k_head, q_heads_per_sel_head) with q_heads_per_k_head = q_head_num / k_head_num
-/// and q_heads_per_sel_head = q_head_num / sel_head_num (query head h reads K head h / q_heads_per_k_head and uses
-/// selection head h / q_heads_per_sel_head). sel_head_num of 1 or k_head_num gives the whole K-head group, q_head_num
-/// gives 1.
-inline size_t max_q_head_pack_size(size_t q_head_num, size_t k_head_num, size_t sel_head_num) {
-    return std::gcd(q_head_num / k_head_num, q_head_num / sel_head_num);
-}
-
 /// @brief The brgemm kernels of the prefill path (BrgemmKernel instances owned by the node) whose M is the query-head
 /// pack. Null when the node did not build them (no AMX, data type other than bf16/f16, pack of one head).
-struct SparseBrgemm {
+struct TileBrgemm {
     void* qk = nullptr;  ///< scores[pack, row block] = query[pack, k_head_size] x keys[row block, k_head_size]^T
     void* pv_overwrite =
         nullptr;  ///< acc[pack, v_head_size] = weights[pack, row block] x values[row block, v_head_size]
@@ -66,8 +55,8 @@ struct SparseBrgemm {
     }
 };
 
-/// @brief Scratch sizes of the brgemm kernels (bytes), used by SparseBrgemmLayout.
-struct SparseBrgemmSizes {
+/// @brief Scratch sizes of the brgemm kernels (bytes), used by TileBrgemmLayout.
+struct TileBrgemmSizes {
     size_t tile_rows = 0;  ///< 0 when the brgemm path is not used
     size_t scratch_a = 0;
     size_t scratch_b = 0;
@@ -75,7 +64,7 @@ struct SparseBrgemmSizes {
 };
 
 /// @brief Scratch the brgemm kernels of `brgemm` need per thread (zeros when the path is not used).
-inline SparseBrgemmSizes sparse_brgemm_sizes([[maybe_unused]] const SparseBrgemm& brgemm) {
+inline TileBrgemmSizes tile_brgemm_sizes([[maybe_unused]] const TileBrgemm& brgemm) {
 #ifdef OPENVINO_ARCH_X86_64
     if (brgemm.enabled()) {
         const auto* qk = static_cast<const ov::intel_cpu::BrgemmKernel*>(brgemm.qk);
@@ -123,7 +112,7 @@ struct PackStateLayout {
 /// @brief Byte layout of the buffers of the brgemm path in the per-thread scratch (the gather tile, the scores /
 /// weights and the brgemm scratch); every part is 64-byte aligned. `offset` is where it starts inside the thread's
 /// scratch, `total` the end of it.
-struct SparseBrgemmLayout {
+struct TileBrgemmLayout {
     size_t k_rows = 0;   ///< data-type[tile_rows, k_head_size] gathered key rows of the tile
     size_t v_rows = 0;   ///< data-type[tile_rows, v_head_size] gathered value rows of the tile
     size_t k_ptrs = 0;   ///< const void*[tile_rows] where the key row of each tile row is (the cache, or k_rows)
@@ -134,13 +123,13 @@ struct SparseBrgemmLayout {
     size_t brg_wsp = 0;  ///< workspace
     size_t total = 0;
 
-    SparseBrgemmLayout() = default;
-    SparseBrgemmLayout(size_t offset,
-                       size_t k_head_size,
-                       size_t v_head_size,
-                       size_t max_pack_size,
-                       size_t data_size,
-                       const SparseBrgemmSizes& sizes)
+    TileBrgemmLayout() = default;
+    TileBrgemmLayout(size_t offset,
+                     size_t k_head_size,
+                     size_t v_head_size,
+                     size_t max_pack_size,
+                     size_t data_size,
+                     const TileBrgemmSizes& sizes)
         : k_rows(offset),
           v_rows(k_rows + aligned(sizes.tile_rows * k_head_size * data_size)),
           k_ptrs(v_rows + aligned(sizes.tile_rows * v_head_size * data_size)),
@@ -153,48 +142,96 @@ struct SparseBrgemmLayout {
 };
 
 #ifdef OPENVINO_ARCH_X86_64
-/// @brief The brgemm kernels of one node: built once, shared read-only by the worker threads.
-struct SparseBrgemmKernels {
-    std::shared_ptr<ov::intel_cpu::BrgemmKernel> qk;
-    std::shared_ptr<ov::intel_cpu::BrgemmKernel> pv_overwrite;
-    std::shared_ptr<ov::intel_cpu::BrgemmKernel> pv_accumulate;
-    SparseBrgemm handle;
-
+/// @brief The brgemm kernels of one node, built once per set of parameters and shared (read-only by the worker threads)
+/// through the graph context's params cache. The only way to get one is get().
+class TileBrgemmKernels {
+public:
     /// A pack of several query heads is the M of the products; the kernels run it as an M tail, so fewer than the 32
     /// rows of an M block.
     static bool supports_pack(size_t pack) {
         return pack > 1 && pack < ov::intel_cpu::BrgemmKernel::get_mblk_size();
     }
 
-    SparseBrgemmKernels() = default;
-    SparseBrgemmKernels(size_t pack, size_t k_head_size, size_t v_head_size, size_t tile_rows, ov::element::Type prec) {
-        qk = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
-                                                           kBrgemmRowBlock,
-                                                           k_head_size,
-                                                           k_head_size,
-                                                           k_head_size,
-                                                           tile_rows,
-                                                           /*b_transposed=*/true,
-                                                           prec);
-        pv_overwrite = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
-                                                                     v_head_size,
-                                                                     kBrgemmRowBlock,
-                                                                     weights_row_stride(tile_rows),
-                                                                     v_head_size,
-                                                                     v_head_size,
-                                                                     /*b_transposed=*/false,
-                                                                     prec);
-        pv_accumulate = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
-                                                                      v_head_size,
-                                                                      kBrgemmRowBlock,
-                                                                      weights_row_stride(tile_rows),
-                                                                      v_head_size,
-                                                                      v_head_size,
-                                                                      /*b_transposed=*/false,
-                                                                      prec,
-                                                                      /*b_accumulate=*/true);
-        handle = {qk.get(), pv_overwrite.get(), pv_accumulate.get(), tile_rows, prec};
+    /// @brief The kernels for the parameters, from the cache or created. The result shares the cached kernels.
+    static TileBrgemmKernels get(const ov::intel_cpu::MultiCachePtr& cache,
+                                 size_t pack,
+                                 size_t k_head_size,
+                                 size_t v_head_size,
+                                 size_t tile_rows,
+                                 ov::element::Type prec) {
+        const Key key{pack, k_head_size, v_head_size, tile_rows, prec};
+        auto result = cache->getOrCreate(key, [](const Key& k) {
+            return std::make_shared<TileBrgemmKernels>(
+                TileBrgemmKernels(k.pack, k.k_head_size, k.v_head_size, k.tile_rows, k.prec));
+        });
+        OPENVINO_ASSERT(result.first, "Attention brgemm kernels creation fails");
+        return *result.first;
     }
+
+    TileBrgemmKernels() = default;
+
+    /// The handle the kernels use; valid as long as this object (or a copy) lives.
+    [[nodiscard]] const TileBrgemm& handle() const {
+        return m_handle;
+    }
+
+private:
+    struct Key {
+        size_t pack = 0;
+        size_t k_head_size = 0;
+        size_t v_head_size = 0;
+        size_t tile_rows = 0;
+        ov::element::Type prec;
+
+        [[nodiscard]] size_t hash() const {
+            using namespace dnnl::impl;
+            size_t seed = 0;
+            seed = hash_combine(seed, pack);
+            seed = hash_combine(seed, k_head_size);
+            seed = hash_combine(seed, v_head_size);
+            seed = hash_combine(seed, tile_rows);
+            seed = hash_combine(seed, prec.hash());
+            return seed;
+        }
+        bool operator==(const Key& rhs) const {
+            return pack == rhs.pack && k_head_size == rhs.k_head_size && v_head_size == rhs.v_head_size &&
+                   tile_rows == rhs.tile_rows && prec == rhs.prec;
+        }
+    };
+
+    TileBrgemmKernels(size_t pack, size_t k_head_size, size_t v_head_size, size_t tile_rows, ov::element::Type prec) {
+        m_qk = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
+                                                             kBrgemmRowBlock,
+                                                             k_head_size,
+                                                             k_head_size,
+                                                             k_head_size,
+                                                             tile_rows,
+                                                             /*b_transposed=*/true,
+                                                             prec);
+        m_pv_overwrite = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
+                                                                       v_head_size,
+                                                                       kBrgemmRowBlock,
+                                                                       weights_row_stride(tile_rows),
+                                                                       v_head_size,
+                                                                       v_head_size,
+                                                                       /*b_transposed=*/false,
+                                                                       prec);
+        m_pv_accumulate = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
+                                                                        v_head_size,
+                                                                        kBrgemmRowBlock,
+                                                                        weights_row_stride(tile_rows),
+                                                                        v_head_size,
+                                                                        v_head_size,
+                                                                        /*b_transposed=*/false,
+                                                                        prec,
+                                                                        /*b_accumulate=*/true);
+        m_handle = {m_qk.get(), m_pv_overwrite.get(), m_pv_accumulate.get(), tile_rows, prec};
+    }
+
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_qk;
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_pv_overwrite;
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_pv_accumulate;
+    TileBrgemm m_handle;
 };
 #endif
 

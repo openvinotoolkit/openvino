@@ -23,6 +23,7 @@
 #endif
 
 #include "attn_memcpy.hpp"
+#include "attn_pack_kernels.hpp"
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
 #include "cache_rotation.hpp"
@@ -137,110 +138,6 @@ void dequant(TDST* dst,
 }
 
 #    if defined(HAVE_AVX512F)
-template <
-    typename T,
-    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
-static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
-    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    auto midx = _mm512_loadu_si512(idx);
-    for (size_t i = 0; i < 16; i++) {
-        auto a = _mm512_loadu_si512(src);  // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
-        auto b = _mm512_loadu_si512(src + src_stride);  // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
-        a = _mm512_permutexvar_epi64(midx, a);          // [a1 a5 | a2 a6 | a3 a7 | a4 a8]
-        b = _mm512_permutexvar_epi64(midx, b);          // [b1 b5 | b2 b6 | b3 b7 | b4 b8]
-        auto B0 = _mm512_unpacklo_epi16(
-            a,
-            b);  // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
-        auto B1 = _mm512_unpackhi_epi16(
-            a,
-            b);  // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
-        _mm512_storeu_si512(dst, B0);
-        _mm512_storeu_si512(dst + 32, B1);
-        src += 2 * src_stride;
-        dst += 2 * dst_stride;
-    }
-}
-
-template <
-    typename T,
-    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
-static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
-    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    auto midx = _mm512_loadu_si512(idx);
-    for (size_t i = 0; i < 16; i++) {
-        auto x =
-            _mm256_loadu_si256(reinterpret_cast<__m256i*>(src));  // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
-        auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + src_stride));  // [b1  b2  b3 b4]   total 256-bits
-        auto a = _mm512_castsi256_si512(x);
-        auto b = _mm512_castsi256_si512(y);
-        a = _mm512_permutexvar_epi64(midx, a);  // [a1 x | a2 x | a3 x | a4 x]
-        b = _mm512_permutexvar_epi64(midx, b);  // [b1 x | b2 x | b3 x | b4 x]
-        auto B0 = _mm512_unpacklo_epi16(a, b);
-        _mm512_storeu_si512(dst, B0);
-        src += 2 * src_stride;
-        dst += 2 * dst_stride;
-    }
-}
-
-template <
-    typename T,
-    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
-static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
-    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    auto midx = _mm512_loadu_si512(idx);
-    __mmask16 mask = (1 << K) - 1;
-    for (size_t i = 0; i < 16; i++) {
-        auto x = _mm256_maskz_loadu_epi16(mask, src);               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
-        auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);  // [b1  b2  b3 b4]   total 256-bits
-        auto a = _mm512_castsi256_si512(x);
-        auto b = _mm512_castsi256_si512(y);
-        a = _mm512_permutexvar_epi64(midx, a);  // [a1 x | a2 x | a3 x | a4 x]
-        b = _mm512_permutexvar_epi64(midx, b);  // [b1 x | b2 x | b3 x | b4 x]
-        auto B0 = _mm512_unpacklo_epi16(a, b);
-        _mm512_mask_storeu_epi32(dst, mask, B0);
-        src += 2 * src_stride;
-        dst += 2 * dst_stride;
-    }
-}
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if_t<precision_of<TDST>::value != ov::element::f32 &&
-                                        any_of(SRC_PREC, ov::element::bf16, ov::element::f16),
-                                    bool> = true>
-static void pack_32NxK(TDST* dst,
-                       void* src,
-                       TDST* tmp,
-                       const size_t N,
-                       const size_t K,
-                       const size_t block_size,
-                       const size_t dst_stride,
-                       const size_t src_stride,
-                       const size_t group_size,
-                       const bool quant_bychannel) {
-    auto src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
-    // zero padding unsued blocks before packing
-    for (size_t n = N; n < block_size; n++) {
-        memset(src_ptr + n * src_stride, 0, sizeof(TDST) * (K));
-    }
-    for (size_t n = 0; n < N; n += 32) {
-        size_t k = 0;
-        for (; k + 32 <= K; k += 32) {
-            pack_32x32_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride);
-        }
-        if (k + 16 <= K) {
-            pack_32x16_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride);
-            k += 16;
-        }
-        if (k < K) {
-            pack_32xK_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride, K - k);
-        }
-
-        dst += 32 * dst_stride;
-        src_ptr += 32 * src_stride;
-    }
-}
-
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&

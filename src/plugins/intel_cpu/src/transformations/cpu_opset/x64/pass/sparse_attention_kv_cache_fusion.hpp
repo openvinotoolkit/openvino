@@ -25,8 +25,8 @@ public:
     SparseAttentionKVCacheFusion();
 
 private:
-    // Variable ids whose SparseAttention has already been fused; later matches on the same Variable are
-    // reader-only consumers and must be skipped.
+    // Variable ids of past_k / past_v whose SparseAttention has already been fused; later matches on the same Variable
+    // are reader-only consumers and must be skipped.
     std::unordered_set<std::string> m_processed_k_variable_ids;
     std::unordered_set<std::string> m_processed_v_variable_ids;
 };
