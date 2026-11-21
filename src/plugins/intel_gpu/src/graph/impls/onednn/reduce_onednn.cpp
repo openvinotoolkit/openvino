@@ -86,7 +86,13 @@ protected:
                 p = 2.0F;
                 break;
             case reduce_mode::l1:
+#ifdef OV_GPU_VENDOR_NVIDIA
+                // cuDNN: reduction_norm_lp_sum requires p==2; use
+                // reduction_norm_lp_power_p_sum with p==1 instead (mathematically equivalent for L1).
+                alg = dnnl::algorithm::reduction_norm_lp_power_p_sum;
+#else
                 alg = dnnl::algorithm::reduction_norm_lp_sum;
+#endif
                 p = 1.0F;
                 break;
             case reduce_mode::l2:
@@ -119,7 +125,17 @@ public:
         ob << typed_pd->get_p();
         ob << typed_pd->get_epsilon();
 
-        ob << get_cache_blob();
+        std::vector<uint8_t> prim_cache;
+        try {
+            prim_cache = _prim.get_cache_blob();
+        } catch (const dnnl::error& e) {
+            // Cache blob export is not supported on some backends (e.g., NVIDIA SYCL).
+            // Only suppress "unimplemented" status; rethrow unexpected errors.
+            if (e.status != dnnl_unimplemented) {
+                throw;
+            }
+        }
+        ob << prim_cache;
 #endif
     }
 
@@ -132,8 +148,15 @@ public:
         dnnl::algorithm alg;
         ib >> make_data(&alg, sizeof(dnnl::algorithm));
 
-        auto input_md = onednn::layout_to_memory_desc_blocked(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
-        auto output_md = onednn::layout_to_memory_desc_blocked(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+        auto input_layout = impl_params->get_input_layout(0);
+        auto output_layout = impl_params->get_output_layout();
+        auto prim = impl_params->typed_desc<reduce>();
+        // Adjust output layout for keep_dims=false: oneDNN requires src/dst to have
+        // the same ndims, matching the adjustment in get_reduction_primitive_descriptor().
+        reorder_unreduced_axis_no_fusion(*impl_params, input_layout, output_layout, prim->axes);
+
+        auto input_md = onednn::layout_to_memory_desc_blocked(input_layout, dnnl::memory::format_tag::undef);
+        auto output_md = onednn::layout_to_memory_desc_blocked(output_layout, dnnl::memory::format_tag::undef);
 
         float p, eps;
         ib >> p >> eps;
@@ -146,7 +169,11 @@ public:
 
         _scratchpad_md = _pd.scratchpad_desc();
 
-        _prim = make_primitive_from_blob(prim_cache);
+        if (prim_cache.empty()) {
+            _prim = dnnl::primitive(_pd);
+        } else {
+            _prim = dnnl::primitive(_pd, prim_cache);
+        }
 #endif
     }
 
