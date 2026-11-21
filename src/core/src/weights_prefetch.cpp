@@ -26,9 +26,10 @@ SequentialPrefetchScheduler::SequentialPrefetchScheduler(const ov::Tensor& tenso
       m_prefetched(0),
       m_evicted(0),
       m_evict(true) {
-    // Chunks are cut with a byte ROI, which needs a 1D u8 tensor.
-    const bool is_1d_byte_tensor = m_tensor.get_element_type() == ov::element::u8 && m_tensor.get_shape().size() == 1;
-    OPENVINO_ASSERT(is_1d_byte_tensor, "Prefetch tensor must be 1D u8");
+    // Chunks are cut with a byte ROI, which needs a 1D tensor of 8-bit elements; skip hints for others.
+    if (m_tensor.get_shape().size() != 1 || m_tensor.get_element_type().bitwidth() != 8) {
+        m_size = 0;
+    }
     advance(0, 0);
 }
 

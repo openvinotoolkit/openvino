@@ -241,7 +241,7 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
     OPENVINO_ASSERT(element_type != ov::element::string);
     if (mmap) {
         const auto size = get_size_for_mapping(element_type, partial_shape);
-        return read_tensor_data_mmap_impl(load_mmap_object(file_name, offset_in_bytes, size, /*no_placeholder=*/true),
+        return read_tensor_data_mmap_impl(load_mmap_object(file_name, offset_in_bytes, size),
                                           element_type,
                                           partial_shape);
     } else {

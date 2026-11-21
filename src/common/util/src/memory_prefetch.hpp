@@ -16,17 +16,24 @@
 
 namespace ov::util {
 
-// Touches one byte per page over [m_begin, m_end) to force the pages resident. The volatile
+/** @brief Asks the OS to read @p view in large I/Os before its pages are touched; no-op where unsupported. */
+#ifdef _WIN32
+void populate_hint(MemoryView view) noexcept;
+#else
+inline void populate_hint(MemoryView) noexcept {}
+#endif
+
+// Touches one byte per page of m_view to force the pages resident. The volatile
 // accumulator keeps the compiler from eliminating the read loop.
 struct PageToucher {
-    const uint8_t* m_begin;
-    const uint8_t* m_end;
+    const MemoryView m_view;
     const size_t m_page_size;
 
     void operator()() const noexcept {
+        populate_hint(m_view);
         volatile uint8_t local = 0;
-        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
-            local = static_cast<uint8_t>(local + *begin);
+        for (auto it = m_view.begin(); it < m_view.end(); it += m_page_size) {
+            local = static_cast<uint8_t>(local + static_cast<uint8_t>(*it));
         }
     }
 };

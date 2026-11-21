@@ -59,6 +59,13 @@ void vm_release(void* ptr, size_t) noexcept {
     std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
+void populate_hint(MemoryView view) noexcept {
+    if (!view.empty()) {
+        WIN32_MEMORY_RANGE_ENTRY entry{const_cast<std::byte*>(view.data()), view.size()};
+        ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
+    }
+}
+
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {

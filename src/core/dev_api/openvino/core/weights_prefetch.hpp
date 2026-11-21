@@ -98,7 +98,7 @@ private:
 class OPENVINO_API SequentialPrefetchScheduler {
 public:
     /**
-     * @param tensor 1D u8 tensor being read.
+     * @param tensor Tensor being read; hints are skipped unless it is 1D with 8-bit elements.
      * @param window Number of bytes kept prefetched ahead of the read position.
      * @param step Granularity of the hints; small hints are ignored by the file mappings.
      *
