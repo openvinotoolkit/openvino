@@ -208,7 +208,9 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         std::fill_n(std::begin(info.luid.luid), ov::device::LUID::MAX_LUID_SIZE, 0);
     // }
 
-    info.has_separate_cache = false;
+    info.has_separate_cache = info.dev_type == device_type::discrete_gpu;
+    info.arch = gpu_arch::unknown;
+
     if (info.vendor_id == INTEL_VENDOR_ID) {
         info.ip_version = 0; // no corresponding info in SYCL
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
@@ -232,7 +234,25 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         auto matrix_combinations = device.get_info<::sycl::ext::oneapi::experimental::info::device::matrix_combinations>();
         info.supports_immad = matrix_combinations.size() > 0;
 #endif // SYCL_EXT_ONEAPI_MATRIX
-        info.has_separate_cache = false; // no corresponding info in SYCL
+
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
+        using namespace dnnl::impl::gpu::intel::jit;
+        ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
+        info.arch = convert_ngen_arch(ngen::getCore(product.family));
+        // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
+        // This is required to guarantee some level of forward compatibility for the new HW generations
+        // as OneDNN code generators are not generic and typically requires some updates for the new architectures
+        // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
+        // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
+        if (product.family == ngen::ProductFamily::Unknown) {
+            info.supports_immad = false;
+        }
+#endif
+
+        // SYCL has no gfx_ver, so arch approximates the OCL runtime check (gfx_ver >= 12.70):
+        // xe_hp/xe_hpc are discrete-only, so for iGPUs arch >= xe_hpg means MTL/ARL or newer
+        // (see ngen::npack::decodeHWIPVersion). iGPUs with unknown arch keep false.
+        info.has_separate_cache = info.has_separate_cache || info.arch >= gpu_arch::xe_hpg;
     } else if (info.vendor_id == NVIDIA_VENDOR_ID) {
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
     } else {
@@ -246,22 +266,6 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 
     info.num_ccs = 1;
 
-
-#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
-    using namespace dnnl::impl::gpu::intel::jit;
-    ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
-    info.arch = convert_ngen_arch(ngen::getCore(product.family));
-    // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
-    // This is required to guarantee some level of forward compatibility for the new HW generations
-    // as OneDNN code generators are not generic and typically requires some updates for the new architectures
-    // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
-    // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
-    if (product.family == ngen::ProductFamily::Unknown) {
-        info.supports_immad = false;
-    }
-#else  // ENABLE_ONEDNN_FOR_GPU
-    info.arch = gpu_arch::unknown;
-#endif  // ENABLE_ONEDNN_FOR_GPU
     info.supports_bf16 = info.supports_immad;
 
     return info;
