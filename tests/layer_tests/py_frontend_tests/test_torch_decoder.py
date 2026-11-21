@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 import torch
 import pytest
 from packaging import version
@@ -760,6 +762,49 @@ def test_pytorch_decoder_can_convert_scripted_function():
     scripted = torch.jit.script(f)
     model = convert_model(scripted, input=[Type.f32, Type.f32])
     assert model is not None
+
+
+@pytest.mark.precommit
+def test_graph_has_ops_finds_op_in_first_if_block():
+    from openvino.frontend.pytorch.utils import graph_has_ops
+
+    def add_mask(value, mask: Optional[torch.Tensor]):
+        if mask is not None:
+            value = value + mask
+        return value
+
+    graph = torch.jit.script(add_mask).graph
+    # prim::unchecked_cast is only in the first block of prim::If, the second block is empty
+    assert graph_has_ops(graph, ["prim::unchecked_cast"])
+    assert not graph_has_ops(graph, ["aten::mul"])
+
+
+@pytest.mark.precommit
+def test_pytorch_decoder_converts_optional_check_in_scripted_submodule():
+    import numpy as np
+    from openvino import convert_model, compile_model
+
+    class AddMask(torch.nn.Module):
+        def forward(self, value, mask: Optional[torch.Tensor]):
+            if mask is not None:
+                value = value + mask
+            return value
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.add_mask = torch.jit.script(AddMask())
+
+        def forward(self, value, mask):
+            return self.add_mask(value, mask) * 2
+
+    model = Model().eval()
+    value = torch.arange(6, dtype=torch.float32).reshape(2, 3)
+    mask = torch.ones(2, 3)
+    # prim::unchecked_cast from the scripted submodule makes the decoder freeze the traced model
+    ov_model = convert_model(model, example_input=(value, mask))
+    result = compile_model(ov_model, "CPU")((value.numpy(), mask.numpy()))[0]
+    np.testing.assert_allclose(result, model(value, mask).numpy())
 
 
 @pytest.mark.precommit
