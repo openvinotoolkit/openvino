@@ -185,6 +185,22 @@ const std::vector<GatherTransformationTestValues> testValues = {
       {{}, {}, {}},
       ov::element::u8,
       {{ov::element::f32}, {{64}, ov::element::f32, {}}, {{0.2f}, ov::element::f32, {}}}}},
+    // U8: rank-1 (model-declared, per-channel) dequantization constant, gather axis at the last
+    // dimension == channel. The constant reaches LPT unpadded, so the transform must left-pad it
+    // up to the data rank instead of indexing the dequantization shape out of bounds.
+    {{1},
+     {0},
+     {2},  // axis: last dimension
+     std::int64_t{0},
+     LayerTransformation::createParamsU8I8(),
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{128, 64, 32, 16}, ov::element::f32, ov::Shape{4}},
+       {{0.4f, 0.3f, 0.2f, 0.1f}, ov::element::f32, ov::Shape{4}}}},
+     {ov::element::u8,
+      {{}, {}, {}},
+      ov::element::u8,
+      {{ov::element::f32}, {{128}, ov::element::f32, {}}, {{0.4f}, ov::element::f32, {}}}}},
     // U8: per-channel quantization, gather axis and channel doesn't match
     {{1},
      {0},

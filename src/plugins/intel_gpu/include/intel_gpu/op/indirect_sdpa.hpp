@@ -19,24 +19,24 @@ public:
 
     IndirectSDPA(const OutputVector& data_inputs,
                  const ov::Output<Node>& beam_table,
-                 const bool is_causal,
-                 const int64_t indirect_axis,
+                 bool is_causal,
+                 int64_t indirect_axis,
                  const std::vector<int64_t>& order_q,
                  const std::vector<int64_t>& order_k,
                  const std::vector<int64_t>& order_v,
                  const std::vector<int64_t>& order_out,
-                 const ov::element::Type output_type = ov::element::dynamic);
+                 ov::element::Type output_type = ov::element::dynamic);
 
     IndirectSDPA(const OutputVector& data_inputs,
                  const ov::Output<Node>& beam_table,
-                 const bool is_causal,
-                 const int64_t indirect_axis,
+                 bool is_causal,
+                 int64_t indirect_axis,
                  const std::vector<int64_t>& order_q,
                  const std::vector<int64_t>& order_k,
                  const std::vector<int64_t>& order_v,
                  const std::vector<int64_t>& order_out,
                  const QuantizationAttribute& quantization_attribute,
-                 const ov::element::Type output_type = ov::element::dynamic);
+                 ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
     void validate_and_infer_types() override;

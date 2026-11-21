@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <optional>
 
 #include "attention.hpp"
@@ -155,6 +156,7 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
     friend class CompiledModelDescSerializationAccess;
+    friend class GQACompiledModel;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -245,6 +247,16 @@ private:
         m_submodels_input_to_prev_output;
 
     DeviceProperties m_meta_devices;
+
+    // set_property() updates m_meta_devices and m_non_npuw_props at runtime, while failsafe
+    // fallback compilation, infer request creation, get_property() and export may read them
+    // concurrently. m_props_mutex guards both maps and is held only for short map accesses, never
+    // while calling into the submodels: failsafe calls back into compile_submodel() under its own
+    // lock, so the lock order is m_set_property_mutex -> failsafe lock -> m_props_mutex.
+    mutable std::mutex m_props_mutex;
+    // Serializes set_property() calls so the submodels and the configs end up with the same values
+    std::mutex m_set_property_mutex;
+    ov::AnyMap non_npuw_props() const;
 
     DevList m_dev_list;
 
@@ -366,12 +378,16 @@ struct CompiledModelDescTestAccessor {
 // Throws ov::Exception when an index would cause an out-of-bounds vector access
 // in bind_global_params / unpack_closure at inference time.
 // has_compiled_model: true when a compiled_model was loaded (enables input-bounds checks).
+// skip_param_base_bound_check: true when a runtime behavior (e.g. HostFlashAttention) owns the
+// function prologue and substitutes its own, differently-shaped compiled model, making the
+// generic param_base/closure_size vs n_model_inputs invariant inapplicable.
 void validate_submodel_indices(const Subgraph::Gather& host_gather,
                                const Subgraph::QuantUnpackGather& quant_unpack_gather,
                                std::size_t param_base,
                                std::size_t closure_size,
                                bool has_compiled_model,
-                               std::size_t n_model_inputs);
+                               std::size_t n_model_inputs,
+                               bool skip_param_base_bound_check = false);
 
 }  // namespace npuw
 }  // namespace ov

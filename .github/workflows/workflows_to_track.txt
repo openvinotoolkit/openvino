@@ -45,12 +45,10 @@ name: "Pull Request Labeler"
 name: macOS ARM64 (Python 3.11)
 ==> ./dependency_review.yml <==
 name: 'Dependency Review'
-==> ./fedora_29.yml <==
-name: Fedora 29 (RHEL 8.4), Python 3.10
 ==> ./code_snippets.yml <==
 name: Code snippets
 ==> ./linux_riscv.yml <==
-name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+name: Linux RISC-V with Conan (Ubuntu 24.04, Python 3.12)
 ==> ./workflow_rerunner.yml <==
 name: Rerun Workflow with Known Errors
 ==> ./linux_sanitizers.yml <==

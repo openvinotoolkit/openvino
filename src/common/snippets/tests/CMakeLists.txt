@@ -4,9 +4,12 @@
 
 set(TARGET_NAME ov_snippets_func_tests)
 
+include(sources.cmake)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${SNIPPETS_TESTS_SRCS}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/include
             $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
@@ -16,6 +19,7 @@ ov_add_test_target(
             ov_snippets_models
         LABELS
             OV UNIT SNIPPETS
+        CHECK_SOURCES_LISTED
 )
 
 # LTO

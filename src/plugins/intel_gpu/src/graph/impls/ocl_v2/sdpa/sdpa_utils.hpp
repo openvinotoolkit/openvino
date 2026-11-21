@@ -42,11 +42,18 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
         return false;
     }
 
-    const auto& attn_mask_pshape =
-        params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
+    const auto& attn_mask_layout = params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK);
+    const auto& attn_mask_pshape = attn_mask_layout.get_partial_shape();
 
-    // Keep scalar and 1D placeholders out of the real attention-mask path.
-    return !attn_mask_pshape.rank().is_static() || attn_mask_pshape.rank().get_length() > 1;
+    if (!attn_mask_pshape.rank().is_static()) {
+        return true;
+    }
+
+    // Per SDPA specification, the attention mask is either empty (a placeholder, e.g. when only a scalar
+    // attn_mask_val is provided or no mask is used at all) or has rank 2 or more. Shape canonicalization
+    // (SDPABase::static_canonicalize_shapes) keeps such a placeholder's shape at rank 0 instead of padding
+    // it up to rank 4, so a plain rank check is sufficient here.
+    return attn_mask_pshape.rank().get_length() > 1;
 }
 
 inline size_t ensure_positive_dim(int64_t value,
@@ -122,6 +129,27 @@ inline int64_t get_batch_size(const cldnn::layout& qkv, const std::vector<int64_
     return dim.get_length();
 }
 
+// Output batch of Q/K/V (numpy broadcast). Static batches are always checked. Returns -1 if any batch is dynamic.
+inline int64_t get_broadcast_batch(int64_t q_batch, int64_t k_batch, int64_t v_batch) {
+    bool has_dynamic = false;
+    int64_t out_batch = 1;
+    for (const auto batch : {q_batch, k_batch, v_batch}) {
+        if (batch == -1) {
+            has_dynamic = true;
+            continue;
+        }
+        OPENVINO_ASSERT(batch == 1 || out_batch == 1 || batch == out_batch,
+                        "SDPA: Q/K/V batch sizes cannot be broadcast: ",
+                        q_batch,
+                        ", ",
+                        k_batch,
+                        ", ",
+                        v_batch);
+        out_batch = std::max(out_batch, batch);
+    }
+    return has_dynamic ? -1 : out_batch;
+}
+
 inline int64_t get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     // 4D - BHLS
     // 3D - BLS and H=1
@@ -177,10 +205,11 @@ inline ChannelName get_transposed_channel(ChannelName c, const std::vector<int64
     return ChannelName::UNKNOWN;
 }
 
-inline bool is_prefill_stage(const RuntimeParams& params) {
+// Number of query rows, -1 if dynamic
+inline int64_t get_target_seq_len(const RuntimeParams& params) {
     auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
     const auto target_seq_len = extract_dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
-    return target_seq_len.is_static() ? target_seq_len.get_length() > 1 : false;
+    return target_seq_len.is_static() ? target_seq_len.get_length() : -1;
 }
 
 inline bool unaligned_head_size(const RuntimeParams& params) {

@@ -39,7 +39,10 @@ namespace pass {
  * Pattern 3 (Sliceable): AnyInput[N,...] ───────────────────────┐ (auto-sliced)
  *                       scale + weights → multiply ─────────────┤ MatMul
  *
- * Number of experts is automatically detected from scale/weights parameter shapes.
+ * Weight inputs may be plain Parameters or closure expressions built from Convert,
+ * Add, Subtract, Multiply and constant-shape Reshape. Expert-major operands are
+ * sliced before dequantization; shared operands retain their broadcast layout.
+ * Number of experts is automatically detected from the weight expression shape.
  * Transforms to: N expert branches with individual parameters, concatenated output
  *
  * @param model Model to register new parameters with

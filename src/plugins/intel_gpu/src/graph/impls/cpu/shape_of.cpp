@@ -65,10 +65,10 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
             return stream.group_events(events);
         }
 
-        return make_output_event(stream, instance.is_output());
+        return make_output_event(stream, instance.needs_completion_event());
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
@@ -84,6 +84,7 @@ namespace detail {
 attach_shape_of_impl::attach_shape_of_impl() {
     auto formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,
@@ -98,6 +99,8 @@ attach_shape_of_impl::attach_shape_of_impl() {
         data_types::i8,
         data_types::i32,
         data_types::i64,
+        data_types::f8e4m3,
+        data_types::f8e5m2,
     };
 
     implementation_map<shape_of>::add(impl_types::cpu, shape_types::static_shape, shape_of_impl::create, types, formats);

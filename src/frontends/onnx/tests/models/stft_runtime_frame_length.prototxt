@@ -1,0 +1,78 @@
+ir_version: 8
+graph {
+  node {
+    input: "signal"
+    input: "frame_step"
+    input: ""
+    input: "frame_length"
+    output: "Y"
+    op_type: "STFT"
+    attribute {
+      name: "onesided"
+      i: 0
+      type: INT
+    }
+  }
+  name: "g"
+  input {
+    name: "signal"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch"
+          }
+          dim {
+            dim_param: "length"
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "frame_step"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "frame_length"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 17
+}

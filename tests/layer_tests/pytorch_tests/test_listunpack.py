@@ -191,9 +191,10 @@ class TestMeshgridListUnpack(PytorchLayerTest):
     @pytest.mark.parametrize("inp", [1, 2, 3, 4])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_meshgrid_listunpack(self, idx, inp, ie_device, precision, ir_version):
         func = getattr(self, f"create_model_meshgrid_listunpack_{inp}_in")
-        self._test(*func(idx), ie_device, precision, ir_version)
+        self._test(*func(idx), ie_device, precision, ir_version, fx_kind="aten.meshgrid")
 
 
 class TestMeshgridListUnpackStack(PytorchLayerTest):
@@ -215,8 +216,43 @@ class TestMeshgridListUnpackStack(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_meshgrid_subgraph(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   fx_kind=["aten.meshgrid", "aten.stack"],
+                   dynamic_shapes_for_export={"x": (torch.export.Dim.DYNAMIC, torch.export.Dim.DYNAMIC)})
+
+
+class TestMeshgridListConsumers(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(3), self.random.randn(5), self.random.randn(2))
+
+    def create_model(self, consumer, indexing):
+        class meshgrid_model(torch.nn.Module):
+            def __init__(self, consumer, indexing):
+                super().__init__()
+                self.consumer = consumer
+                self.indexing = indexing
+
+            def forward(self, x, y, z):
+                grids = torch.meshgrid([x, y, z], indexing=self.indexing)
+                if self.consumer == "stack":
+                    return torch.stack(grids, dim=-1)
+                if self.consumer == "cat":
+                    return torch.cat(grids, dim=0)
+                return grids[1] + 1
+
+        fx_kind = ["aten.meshgrid"] if consumer == "getitem" else ["aten.meshgrid", f"aten.{consumer}"]
+        return meshgrid_model(consumer, indexing), ["aten::meshgrid"], fx_kind
+
+    @pytest.mark.parametrize("consumer", ["stack", "cat", "getitem"])
+    @pytest.mark.parametrize("indexing", ["ij", "xy"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_meshgrid_list_consumers(self, consumer, indexing, ie_device, precision, ir_version):
+        model, kind, fx_kind = self.create_model(consumer, indexing)
+        self._test(model, kind, ie_device, precision, ir_version, fx_kind=fx_kind)
 
 
 class TestListUnpackParameterSingle(PytorchLayerTest):

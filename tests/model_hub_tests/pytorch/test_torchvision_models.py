@@ -9,7 +9,7 @@ import torch
 from torchvision.models import list_models, get_model
 from models_hub_common.utils import get_models_list, retry
 
-from torch_utils import TestTorchConvertModel, skip_npu_precommit
+from torch_utils import TestTorchConvertModel
 
 
 def get_all_models() -> list:
@@ -20,22 +20,17 @@ def get_all_models() -> list:
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
-# Precommit models out of the NPU scope, per platform ("*" = all platforms).
-NPU_PRECOMMIT_SKIP = {
-    "raft_small": "*",
-    "swin_v2_s": {"4000", "5010", "5020"},
-}
-
 
 class TestTorchHubConvertModel(TestTorchConvertModel):
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, model_link):
         m = get_model(model_name, weights='DEFAULT')
         m.eval()
-        if model_name == "s3d" or any(m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]):
-            self.example = (torch.randn([2, 3, 224, 224, 224]),)
-            self.inputs = (torch.randn([3, 3, 224, 224, 224]),)
-        elif "mvit" in model_name:
+        if any(m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]):
+            # Short low-resolution clips keep video tests affordable.
+            self.example = (torch.randn([2, 3, 8, 64, 64]),)
+            self.inputs = (torch.randn([3, 3, 8, 64, 64]),)
+        elif model_name == "s3d" or "mvit" in model_name:
             # 16 frames from video
             self.example = (torch.randn(2, 3, 16, 224, 224),)
             self.inputs = (torch.randn(3, 3, 16, 224, 224),)
@@ -99,6 +94,7 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             models.extend([
                 "raft_small",
                 "swin_v2_s",
+                "swin3d_t",
                 "quantized_mobilenet_v3_large",
             ])
         return models
@@ -106,7 +102,6 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("model_name", get_supported_precommit_models())
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
-        skip_npu_precommit(model_name, ie_device, NPU_PRECOMMIT_SKIP)
         self.mode = "trace"
         self.run(model_name, None, ie_device)
 

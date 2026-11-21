@@ -18,7 +18,7 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 private:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*p*/) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

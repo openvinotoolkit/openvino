@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -149,25 +150,19 @@ struct kernel_impl_params final {
         return !fused_desc.empty();
     }
 
-    ov::element::Type_t get_output_element_type() const {
+    ov::element::Type_t get_output_element_type(size_t idx = 0) const {
         if (fused_desc.empty()) {
-            return output_layouts[0].data_type;
+            return output_layouts[idx].data_type;
         }
-        return fused_desc.back().output_layout.data_type;
+        return fused_desc.back().output_layouts[idx].data_type;
     }
 
     bool is_dynamic() const {
-        for (const auto& i : input_layouts) {
-            if (i.is_dynamic()) {
-                return true;
-            }
-        }
-        for (const auto& i : output_layouts) {
-            if (i.is_dynamic()) {
-                return true;
-            }
-        }
-        return false;
+        const auto layout_is_dynamic = [](const auto& input_layout) {
+            return input_layout.is_dynamic();
+        };
+        return std::any_of(input_layouts.begin(), input_layouts.end(), layout_is_dynamic) ||
+               std::any_of(output_layouts.begin(), output_layouts.end(), layout_is_dynamic);
     }
 
     bool can_be_optimized() const {

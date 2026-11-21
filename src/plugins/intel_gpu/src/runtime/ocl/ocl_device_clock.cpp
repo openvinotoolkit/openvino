@@ -22,8 +22,9 @@ device_clock_sync::anchor device_clock_sync::sample(const cl::Device& device) {
 #if defined(CL_VERSION_2_1)
     constexpr int sample_attempts = 5;
 
-    if (device.get() == nullptr)
+    if (device.get() == nullptr) {
         return best;
+    }
 
     auto best_rtt = std::chrono::nanoseconds::max();
     for (int i = 0; i < sample_attempts; ++i) {
@@ -31,8 +32,9 @@ device_clock_sync::anchor device_clock_sync::sample(const cl::Device& device) {
         cl_ulong device_ts = 0;
         cl_ulong host_ts = 0;  // unused: clGetHostTimer domain, unrelated to steady_clock
         // Devices may lack the OpenCL 2.1 timer even when the headers have it.
-        if (clGetDeviceAndHostTimer(device.get(), &device_ts, &host_ts) != CL_SUCCESS)
+        if (clGetDeviceAndHostTimer(device.get(), &device_ts, &host_ts) != CL_SUCCESS) {
             break;
+        }
         const auto h1 = host_now();
 
         const auto rtt = h1 - h0;
@@ -57,11 +59,13 @@ bool device_clock_sync::is_valid() const {
 void device_clock_sync::refresh_if_stale(std::chrono::nanoseconds min_interval) {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (!m_base.valid)
+        if (!m_base.valid) {
             return;
+        }
         const auto now = host_now();
-        if (now - m_last_refresh < min_interval)
+        if (now - m_last_refresh < min_interval) {
             return;
+        }
         // Claim the refresh window before releasing the lock so concurrent callers
         // do not stack up driver calls. A failed or superseded sample still consumes
         // this window intentionally; retrying for every event would restore the
@@ -73,8 +77,9 @@ void device_clock_sync::refresh_if_stale(std::chrono::nanoseconds min_interval) 
 
     std::lock_guard<std::mutex> lock(m_mutex);
     // Concurrent samplers may finish out of order; never step back to an older anchor.
-    if (fresh.valid && fresh.host > m_base.host && fresh.host > m_latest.host)
+    if (fresh.valid && fresh.host > m_base.host && fresh.host > m_latest.host) {
         m_latest = fresh;
+    }
 }
 
 std::chrono::nanoseconds device_clock_sync::interpolate(const anchor& base,
@@ -106,8 +111,9 @@ std::chrono::nanoseconds device_clock_sync::interpolate(const anchor& base,
 
 std::optional<std::chrono::nanoseconds> device_clock_sync::to_device(std::chrono::nanoseconds host_ts) const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (!m_base.valid)
+    if (!m_base.valid) {
         return std::nullopt;
+    }
 
     return interpolate(m_base, m_latest, host_ts);
 }

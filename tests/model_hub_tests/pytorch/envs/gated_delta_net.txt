@@ -1,0 +1,7 @@
+# GatedDeltaNet -> PagedGatedDeltaNet fusion test environment overrides.
+# Qwen3-Next linear attention requires transformers>=4.57 and optimum-intel>=2.0.
+optimum-intel==2.2.0
+transformers==4.57.6
+huggingface-hub>=0.30.0,<1.0
+# PyArrow 26 requires NumPy 2, while the Python <3.12 test environment pins NumPy 1.26.
+pyarrow<26; python_version < "3.12"

@@ -2,14 +2,28 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Creates a single per-test target; remaining arguments are the target's sources.
+function(ov_cpu_add_per_test_target TEST_TARGET_NAME)
+  ov_add_test_target(
+    NAME ${TEST_TARGET_NAME}
+    SOURCES ${ARGN}
+    INCLUDES ${INCLUDES}
+    DEFINES ${DEFINES}
+    DEPENDENCIES ${DEPENDENCIES}
+    LINK_LIBRARIES ${LINK_LIBRARIES}
+    LABELS OV CPU
+  )
+
+  ov_set_threading_interface_for(${TEST_TARGET_NAME})
+  # avoid building binaries for every test in case target 'all' is used
+  set_target_properties(${TEST_TARGET_NAME} PROPERTIES
+    EXCLUDE_FROM_ALL ON)
+endfunction()
+
 #create targed with prefix TARGET_PREFIX for each test file in directory TEST_DIR
 function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
-#exclude every other test file inside directory
-  set(EXCLUDED_SOURCE_PATHS_FOR_TEST
-    ${TEST_DIR})
-
-#list of object files required for each test
-  set(REQUIRED_OBJECT_FILES
+#list of sources required for each test
+  set(COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
@@ -20,80 +34,46 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
   )
 
 if(X86_64)
-    list(APPEND REQUIRED_OBJECT_FILES
+    list(APPEND COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64/filter_cpu_info.cpp)
 elseif(ARM OR AARCH64)
-    list(APPEND REQUIRED_OBJECT_FILES
+    list(APPEND COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm/filter_cpu_info.cpp)
 elseif(RISCV64)
-    list(APPEND REQUIRED_OBJECT_FILES
+    list(APPEND COMMON_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64/filter_cpu_info.cpp)
 endif()
 
-  file(GLOB LIST_OF_TEST_FILES ${TEST_DIR}/*.cpp)
+  # test files enabled for the current configuration, see sources.cmake
+  set(ENABLED_TEST_SRCS ${CPU_FUNC_TESTS_SRCS} ${TMP_EXPLICITLY_ENABLED_TESTS})
+
+  set(LIST_OF_TEST_FILES ${ENABLED_TEST_SRCS})
+  list(FILTER LIST_OF_TEST_FILES INCLUDE REGEX "^${TEST_DIR}/[^/]+\\.cpp$")
   # create targed for each test file in directory
-  foreach(TEST_FILE ${LIST_OF_TEST_FILES})
+  foreach(TEST_FILE IN LISTS LIST_OF_TEST_FILES)
     # test file name without extension
     get_filename_component(TEST_FILE_WE ${TEST_FILE} NAME_WE)
-    set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_FILE_WE})
 
-    # create target
-    ov_add_test_target(
-      NAME ${TEST_TARGET_NAME}
-      ROOT ${TEST_DIR}
-      INCLUDES ${INCLUDES}
-      EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS_FOR_TEST}
-      OBJECT_FILES ${REQUIRED_OBJECT_FILES} ${TEST_FILE}
-      DEFINES ${DEFINES}
-      DEPENDENCIES ${DEPENDENCIES}
-      LINK_LIBRARIES ${LINK_LIBRARIES}
-      LABELS OV CPU
-    )
-
-    ov_set_threading_interface_for(${TEST_TARGET_NAME})
-    # avoid building binaries for every test in case target 'all' is used
-    set_target_properties(${TEST_TARGET_NAME} PROPERTIES
-      EXCLUDE_FROM_ALL ON)
+    ov_cpu_add_per_test_target(${TARGET_PREFIX}_${TEST_FILE_WE} ${COMMON_SOURCES} ${TEST_FILE})
   endforeach()
 
   # New way of collecting source files for a test target
   # caused by re-organization of test files
-  file(GLOB LIST_OF_TEST_CLASSES ${TEST_DIR} ${TEST_DIR}/classes/*.cpp)
-  foreach(TEST_CLASS_FILE ${LIST_OF_TEST_CLASSES})
+  set(LIST_OF_TEST_CLASSES ${ENABLED_TEST_SRCS})
+  list(FILTER LIST_OF_TEST_CLASSES INCLUDE REGEX "^${TEST_DIR}/classes/[^/]+\\.cpp$")
+  foreach(TEST_CLASS_FILE IN LISTS LIST_OF_TEST_CLASSES)
     get_filename_component(TEST_CLASS ${TEST_CLASS_FILE} NAME_WE)
     get_filename_component(TEST_CLASS_FILE_NAME ${TEST_CLASS_FILE} NAME)
+    string(REPLACE "." "\\." TEST_CLASS_FILE_NAME_REGEX ${TEST_CLASS_FILE_NAME})
 
-    # find all the source files with the name of a class file
-    if(X86_64)
-        file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/x64/${TEST_CLASS_FILE_NAME})
-    elseif(ARM OR AARCH64)
-        file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/arm/${TEST_CLASS_FILE_NAME})
-    elseif(RISCV64)
-        file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/riscv64/${TEST_CLASS_FILE_NAME})
-    endif()
-    file(GLOB_RECURSE LIST_OF_TEST_COMMON_INSTANCES ${TEST_DIR}/instances/common/${TEST_CLASS_FILE_NAME})
-    set(LIST_OF_TEST_INSTANCES ${LIST_OF_TEST_COMMON_INSTANCES} ${LIST_OF_TEST_ARCH_INSTANCES})
+    # find all the source files with the name of a class file;
+    # instances of the other architectures are already absent from ENABLED_TEST_SRCS
+    set(LIST_OF_TEST_INSTANCES ${ENABLED_TEST_SRCS})
+    list(FILTER LIST_OF_TEST_INSTANCES INCLUDE REGEX
+      "^${TEST_DIR}/instances/[^/]+/(.*/)?${TEST_CLASS_FILE_NAME_REGEX}$")
 
-    set(TEST_INSTANCES "${LIST_OF_TEST_INSTANCES}")
-    set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_CLASS})
-
-    # create target
-    ov_add_test_target(
-      NAME ${TEST_TARGET_NAME}
-      ROOT ${TEST_DIR}
-      INCLUDES ${INCLUDES}
-      EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS_FOR_TEST}
-      OBJECT_FILES ${REQUIRED_OBJECT_FILES} ${TEST_CLASS_FILE} ${TEST_INSTANCES}
-      DEFINES ${DEFINES}
-      DEPENDENCIES ${DEPENDENCIES}
-      LINK_LIBRARIES ${LINK_LIBRARIES}
-      LABELS OV CPU
-    )
-
-    ov_set_threading_interface_for(${TEST_TARGET_NAME})
-    # avoid building binaries for every test in case target 'all' is used
-    set_target_properties(${TEST_TARGET_NAME} PROPERTIES
-      EXCLUDE_FROM_ALL ON)
+    ov_cpu_add_per_test_target(${TARGET_PREFIX}_${TEST_CLASS}
+      ${COMMON_SOURCES} ${TEST_CLASS_FILE} ${LIST_OF_TEST_INSTANCES})
   endforeach()
 
 endfunction()

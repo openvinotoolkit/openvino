@@ -49,7 +49,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
       - name: Show affected components
         run: |
@@ -58,7 +58,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-lin-x64-docker-4c16gb
+    runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -69,7 +69,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_22_04_riscv_gnu\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -82,14 +82,14 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
-            ov_build/ubuntu_22_04_riscv
+            ov_build/ubuntu_24_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Docker_Arm:
     needs: Smart_CI
-    runs-on: aks-lin-arm64-docker-4c8gb
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -122,7 +122,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-lin-x64-build-16c32gb
+      runner: aks-linux-16-cores-32gb
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
@@ -136,7 +136,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-lin-arm64-build-16c32gb
+      runner: aks-linux-16-cores-32gb-arm
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       cmake-generator: 'Unix Makefiles'
@@ -152,9 +152,9 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-lin-x64-build-16c32gb
+      runner: aks-linux-16-cores-32gb
       cmake-build-parallel-level: '15'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_riscv }}
       cmake-generator: 'Unix Makefiles'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_riscv64
       build-target: openvino_intel_cpu_plugin
@@ -169,7 +169,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-lin-x64-build-16c32gb
+      runner: aks-linux-16-cores-32gb
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'

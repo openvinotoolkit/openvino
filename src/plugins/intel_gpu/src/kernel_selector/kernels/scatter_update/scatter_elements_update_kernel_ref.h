@@ -16,6 +16,7 @@ struct scatter_elements_update_params : public base_params {
     ScatterUpdateAxis axis{ScatterUpdateAxis::BATCH};
     ScatterUpdateReduction mode{ScatterUpdateReduction::NONE};
     bool use_init_val{true};
+    bool is_inplace{false};
 };
 
 class ScatterElementsUpdateKernelRef : public KernelBaseOpenCL {
@@ -34,7 +35,7 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    bool SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) const;
+    static bool SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

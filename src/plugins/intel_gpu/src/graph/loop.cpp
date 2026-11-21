@@ -618,7 +618,7 @@ std::shared_ptr<loop_inst::concatenated_memory_mapping> loop_inst::get_sliced_me
     return nullptr; // not found
 }
 
-void loop_inst::validate_backedges(loop_node const & node) const {
+void loop_inst::validate_backedges(const loop_node& node) {
     const auto& back_edges = node.get_back_edges();
     const auto& input_primitive_maps = node.get_input_primitive_maps();
 
@@ -949,7 +949,7 @@ void loop_inst::concatenated_memory_mapping::concat_mem(const int64_t curent_ite
     auto sliced_layout = sliced_data_prim->get_output_layout(io_prim_map.internal_id.idx);
     auto concat_mem_shape = concat_layout.get_shape();
     auto sliced_mem_shape = sliced_layout.get_shape();
-    auto elem_size = ov::element::Type(concat_layout.data_type).size();
+    auto elem_size = ov::element::Type(concat_layout.data_type).bitwidth();
     const auto stride = io_prim_map.stride;
     const auto axis = io_prim_map.axis;
     const auto step = std::abs(stride);

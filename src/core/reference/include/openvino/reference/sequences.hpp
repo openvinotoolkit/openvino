@@ -253,7 +253,7 @@ void cell_pass(CellType type,
     for (size_t i = 0; i < num_splits; ++i)
         to_concat_pointers[i] = h_list[i].data();
 
-    reference::concat(to_concat_pointers, outputs[0], in_shapes, out_shape, 1, sizeof(T));
+    reference::concat(to_concat_pointers, outputs[0], in_shapes, out_shape, 1, sizeof(T) * 8);
 
     if (is_reverse)  // enable_mask
     {
@@ -364,19 +364,20 @@ void lstm_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h_c{H_shape[0], 2, H_shape[2]};
 
-        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
+        constexpr auto bitwidth = sizeof(T) * 8;
+        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, bitwidth);
         reference::concat({forward_res[0].data(), reverse_res[0].data()},
                           Ho,
                           in_shapes_h_c,
                           output_shape_h_c,
                           1,
-                          sizeof(T));
+                          bitwidth);
         reference::concat({forward_res[1].data(), reverse_res[1].data()},
                           Co,
                           in_shapes_h_c,
                           output_shape_h_c,
                           1,
-                          sizeof(T));
+                          bitwidth);
     }
 }
 
@@ -480,8 +481,9 @@ void gru_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h{H_shape[0], 2, H_shape[2]};
 
-        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
-        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, sizeof(T));
+        constexpr auto bitwidth = sizeof(T) * 8;
+        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, bitwidth);
+        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, bitwidth);
     }
 }
 
@@ -568,8 +570,9 @@ void rnn_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h{H_shape[0], 2, H_shape[2]};
 
-        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
-        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, sizeof(T));
+        constexpr auto bitwidth = sizeof(T) * 8;
+        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, bitwidth);
+        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, bitwidth);
     }
 }
 }  // namespace reference

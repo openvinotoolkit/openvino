@@ -7,13 +7,14 @@
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace ov::intel_gpu {
 
 KeepGQAKVScalePrecision::KeepGQAKVScalePrecision() {
     auto gqa_m = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(m.get_match_root());
         if (!gqa) {
             return false;

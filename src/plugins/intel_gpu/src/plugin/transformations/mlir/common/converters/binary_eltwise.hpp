@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <openvino/op/relu.hpp>
-
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Value.h"
+#include "openvino/op/relu.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
@@ -19,7 +18,7 @@ using namespace ov;
 using namespace ov::intel_gpu::mlir;
 using ::mlir::ValueRange;
 
-template <typename MlirBinOpBuilder>
+template <linalg::ElementwiseKind Kind>
 struct ConvertBinaryEltwise {
     Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
@@ -48,7 +47,7 @@ struct ConvertBinaryEltwise {
         }
 
         auto empty = tensor::EmptyOp::create(builder, loc, outType, dynamic_dimensions);
-        auto op = MlirBinOpBuilder::create(builder, loc, ValueRange(broadcasted_inputs), ValueRange{empty});
+        auto op = linalg::ElementwiseOp::create(builder, loc, ValueRange(broadcasted_inputs), ValueRange{empty}, Kind);
         return op;
     }
 };

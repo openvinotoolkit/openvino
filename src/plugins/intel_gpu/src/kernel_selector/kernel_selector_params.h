@@ -247,6 +247,7 @@ public:
         union DataTypesKey {
             struct val_t {
                 uint32_t uint2 : 1;
+                uint32_t uint3 : 1;
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
                 uint32_t int8 : 1;
@@ -455,8 +456,8 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_activation_params {
     ActivationFunction function = ActivationFunction::NONE;
-    float m = 1.f;
-    float n = 0.f;
+    float m = 1.F;
+    float n = 0.F;
 
     base_activation_params() = default;
     base_activation_params(const float m, const float n) : m(m), n(n) {}
@@ -634,7 +635,7 @@ struct fused_operation_desc {
     int32_t dep_idx_start;
     size_t dep_size;
     MultiDataTensor tensors;
-    DataTensor output_tensor;
+    MultiDataTensor output_tensors;
     size_t op_id;
     std::vector<dep_info> dep_data;
 
@@ -649,7 +650,7 @@ struct fused_operation_desc {
 
         return p;
     }
-    bool has_outer_dep() {
+    bool has_outer_dep() const {
         return dep_idx_start != -1;
     }
 };

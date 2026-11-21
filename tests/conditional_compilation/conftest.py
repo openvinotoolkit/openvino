@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+#!/usr/bin/env python3
 # pylint: disable=line-too-long
 
 """Pytest configuration for compilation tests."""
@@ -81,6 +80,10 @@ def pytest_addoption(parser):
 
 def pytest_generate_tests(metafunc):
     """Generate tests depending on command line options."""
+    # Skip test modules (e.g. tools/test_infer_tool.py) that don't use CC test IDs.
+    if "test_id" not in metafunc.fixturenames:
+        return
+
     params = []
     ids = []
 

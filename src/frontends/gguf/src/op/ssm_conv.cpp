@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
 #include <vector>
 
 #include "node_context.hpp"
@@ -9,7 +10,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -50,6 +53,15 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     // [n_s, d_inner, n_t] -> [n_s, n_t, d_inner]
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 2, 1});
     auto transposed = std::make_shared<ov::op::v1::Transpose>(conv, perm);
+    if (context.get_attribute<bool>("fuse_silu", false))
+        transposed->set_argument(0, std::make_shared<ov::op::v4::Swish>(conv));
+
+    if (context.get_attribute<bool>("batch_major", false)) {
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v0::Unsqueeze>(transposed,
+                                                     ov::op::v0::Constant::create(ov::element::i64, {1}, {1}))},
+            context.get_name());
+    }
 
     // [1, n_s, n_t, d_inner] with the token axis n_t dynamic (-1).
     auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, n_s, -1, d_inner});

@@ -110,6 +110,12 @@ public:
             const auto& input_layout = impl_param.get_input_layout();
             const auto spatial_rank = input_layout.get_spatial_rank();
 
+            // Match the trailing singleton axis added when canonicalizing 1D convolution shapes.
+            stride.resize(spatial_rank, 1);
+            dilation.resize(spatial_rank, 1);
+            pads_begin.resize(spatial_rank, 0);
+            pads_end.resize(spatial_rank, 0);
+
             ov::PartialShape kernel;
             for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
                 kernel.emplace_back(weights_layout.spatial(i));
@@ -195,7 +201,8 @@ public:
                 };
 
                 for (auto& desc : cp.fused_ops) {
-                    if (!can_swap(desc.output_tensor)) {
+                    OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+                    if (!can_swap(desc.output_tensors[0])) {
                         return false;
                     }
                     for (size_t i = 0; i < desc.tensors.size(); i++) {
@@ -215,7 +222,7 @@ public:
             conv_params.outputs[0].SwapXY();
             conv_params.weights.SwapXY();
             for (auto& desc : conv_params.fused_ops) {
-                desc.output_tensor.SwapXY();
+                desc.output_tensors[0].SwapXY();
                 for (size_t i = 0; i < desc.tensors.size(); i++) {
                     desc.tensors[i].SwapXY();
                 }

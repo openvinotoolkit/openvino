@@ -4,6 +4,7 @@
 
 #include "scatter_update_kernel_ref.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -210,8 +211,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     }
 
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
-    jit.AddConstant(
-        MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, static_cast<size_t>(GetScatterUpdateChannelIndex(params)))));
+    jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
 
@@ -270,10 +270,10 @@ bool ScatterUpdateKernelRef::Validate(const Params& p) const {
 
     const scatter_update_params& params = static_cast<const scatter_update_params&>(p);
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -289,6 +289,10 @@ void ScatterUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
             kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+            if (i == 0 && !kd.kernels[i].skip_execution) {
+                GPU_DEBUG_TRACE_DETAIL << "[scatter_update_ref] check init stage with inplace[" << prim_params.is_inplace << "]" << std::endl;
+                kd.kernels[i].skip_execution = prim_params.is_inplace;
+            }
         }
     };
 }
@@ -306,7 +310,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params) const {
     if (!orgParams.has_dynamic_inputs()) {
         // if dim of output along axis is equal to logical size of indices, we miss copying kernel
         const size_t indices_size = input1.LogicalSize();
-        if (input0.Extract(input0.GetLayout(), Tensor::DataChannelName(orgParams.axis), input0.GetDims()).v == indices_size) {
+        if (DataTensor::Extract(input0.GetLayout(), Tensor::DataChannelName(orgParams.axis), input0.GetDims()).v == indices_size) {
             start_with_iteration = 1;
         }
     }

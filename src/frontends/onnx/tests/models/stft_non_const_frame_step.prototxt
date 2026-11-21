@@ -52,7 +52,7 @@ graph {
     name: "frame_step"
     type {
       tensor_type {
-        elem_type: 1
+        elem_type: 7
         shape {
           dim {
             dim_value: 1

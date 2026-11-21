@@ -122,6 +122,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, Convolut
                 ::testing::Values(false)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
+const std::vector<InputShape> dynInputShapes1DSamePad = {
+    {{1, 1, ov::Dimension::dynamic()},
+     // Alternate SAME padding sizes, revisit an odd length, and include inputs smaller than the kernel.
+     {{1, 1, 6}, {1, 1, 7}, {1, 1, 8}, {1, 1, 7}, {1, 1, 1}, {1, 1, 2}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_SamePad_dynamic1D,
+                         ConvolutionLayerGPUTestDynamic,
+                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t>{3}),
+                                                               ::testing::Values(std::vector<size_t>{2}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(1),
+                                                               ::testing::ValuesIn({ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER})),
+                                            ::testing::Values(ov::element::f32, ov::element::f16),
+                                            ::testing::ValuesIn(dynInputShapes1DSamePad),
+                                            ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(false)),
+                         ConvolutionLayerGPUTestDynamic::getTestCaseName);
+
 const std::vector<std::vector<size_t>> kernels1D = { {3}, {1} };
 const std::vector<std::vector<size_t>> strides1D = { {1} };
 const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0}, {1} };

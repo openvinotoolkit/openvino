@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -109,7 +114,7 @@ protected:
 
         if (pattern_type == MoePatternType::GEMM3) {
             function = ov::test::initMoE3GeMMSubgraph(shape_params,
-                                                      ov::element::f32,  // data_precision
+                                                      model_precision,   // data_precision
                                                       wp,                // weights_precision
                                                       uwd,               // use_weight_decompression
                                                       dp,                // decompression_precision
@@ -127,7 +132,7 @@ protected:
             ASSERT_TRUE(pes == false) << "2-GEMM pattern doesn't support per-expert scale";
             ASSERT_TRUE(lnm == false) << "2-GEMM pattern doesn't support layernorm multiply";
             function = ov::test::initMoE2GeMMSubgraph(shape_params,
-                                                      ov::element::f32,  // data_precision
+                                                      model_precision,   // data_precision
                                                       wp,                // weights_precision
                                                       uwd,               // use_weight_decompression
                                                       dp,                // decompression_precision
@@ -205,6 +210,9 @@ protected:
         }
     }
 
+    // Element type of the model activations, can be changed by derived fixtures before SetUp()
+    ov::element::Type model_precision = ov::element::f32;
+
 private:
     static void set_disable_moe_fusion() {
 #ifdef _WIN32
@@ -224,6 +232,216 @@ private:
 };
 
 TEST_P(MoECompressedFusionTest, Inference) {
+    run();
+}
+
+// offload ratio, weights precision, zero point type, model read with mmap
+using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType, bool>;
+
+// The experts are streamed from the weights file on demand, so the model has to be read from a file.
+class MoECompressedOffloadTest : public testing::WithParamInterface<MoECompressedOffloadParams>, virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MoECompressedOffloadParams>& info) {
+        const auto& [offload_ratio, wp, ds, mmap] = info.param;
+        std::ostringstream result;
+        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds << "_mmap=" << mmap;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [offload_ratio, wp, ds, mmap] = GetParam();
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const auto caps = core->get_property(targetDevice, ov::device::capabilities);
+        if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
+            GTEST_SKIP() << "MoE pipeline requires a systolic GPU (HW_MATMUL capability)";
+        }
+        inType = outType = inference_precision = ov::element::f16;
+        // Without a zero point the weights are not centered and the outputs are ~20x larger (up to 0.5), so is the f16 error
+        abs_threshold = ds == ov::test::utils::DecompressionType::empty ? 1e-2 : 1e-3;
+        rel_threshold = 0.025;
+        const ov::test::MoePatternParams moe_params{{-1, -1, 256}, 4, 8, 512};
+        // Prefill, then decode steps on the batched GEMV, which falls back to the per-expert loop when the LRU holds
+        // fewer experts than top_k
+        init_input_shapes({{moe_params.data_shape, {{1, 40, 256}, {1, 1, 256}, {1, 4, 256}}}});
+        function = ov::test::initMoE3GeMMSubgraph(moe_params,
+                                                  ov::element::f16,
+                                                  wp,
+                                                  true,
+                                                  ov::element::f16,
+                                                  ov::element::f16,
+                                                  ov::test::utils::DecompressionType::full,
+                                                  ds,
+                                                  false,  // Keep serialized scales/ZPs in their broadcast shapes.
+                                                  128);
+        functionRefs = function->clone();
+
+        const auto file_prefix = ov::test::utils::generateTestFilePrefix();
+        xml_path = file_prefix + ".xml";
+        bin_path = file_prefix + ".bin";
+        ov::pass::Serialize(xml_path, bin_path).run_on_model(function);
+        function = core->read_model(xml_path, bin_path, {ov::enable_mmap(mmap)});
+        configuration = {ov::hint::inference_precision(ov::element::f16),
+                         ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                         ov::hint::dynamic_quantization_group_size(0),
+                         ov::intel_gpu::offload_ratio(offload_ratio),
+                         ov::weights_path(bin_path)};
+    }
+
+    void compile_model() override {
+        // The experts that are offloaded must not be allocated: compare with the same model fully resident, after compilation and
+        // after the first inference (the slot buffers of a dynamic model are allocated then)
+        auto resident_configuration = configuration;
+        resident_configuration[ov::intel_gpu::offload_ratio.name()] = size_t{0};
+        const auto resident_usage = get_compile_and_inference_memory_usage(resident_configuration);
+        const auto offloaded_usage = get_compile_and_inference_memory_usage(configuration);
+        ASSERT_LT(offloaded_usage.first, resident_usage.first) << "The experts were not offloaded";
+        ASSERT_LT(offloaded_usage.second, resident_usage.second) << "The experts were not offloaded";
+
+        ov::test::SubgraphBaseTest::compile_model();
+        ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_3gemm_fused_compressed", 1);
+    }
+
+    std::pair<uint64_t, uint64_t> get_compile_and_inference_memory_usage(const ov::AnyMap& config) {
+        const auto before = get_memory_usage();
+        auto model = core->compile_model(function, targetDevice, config);
+        const auto compiled = get_memory_usage() - before;
+        auto request = model.create_infer_request();
+        request.set_input_tensor(
+            ov::test::utils::create_and_fill_tensor_normal_distribution(ov::element::f16, targetStaticShapes.front().front(), 0.0f, 0.05f, 1234));
+        request.infer();
+        return {compiled, get_memory_usage() - before};
+    }
+
+    uint64_t get_memory_usage() {
+        uint64_t total = 0;
+        for (const auto& [type, bytes] : core->get_property(targetDevice, ov::intel_gpu::memory_statistics)) {
+            total += bytes;
+        }
+        return total;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& parameter = function->get_parameters().at(0);
+        // Bound FP16 accumulation error so this test isolates offloaded constant loading.
+        inputs.insert(
+            {parameter, ov::test::utils::create_and_fill_tensor_normal_distribution(ov::element::f16, target_input_static_shapes.at(0), 0.0f, 0.05f, 1234)});
+    }
+
+    void TearDown() override {
+        ov::test::SubgraphBaseTest::TearDown();
+        // The model and the compiled model keep the weights file mapped/open, which blocks its removal on Windows
+        inferRequest = {};
+        compiledModel = {};
+        function.reset();
+        ov::test::utils::removeIRFiles(xml_path, bin_path);
+    }
+
+private:
+    std::string xml_path;
+    std::string bin_path;
+};
+
+TEST_P(MoECompressedOffloadTest, Inference) {
+    run();
+}
+
+// An offloaded layer supports a single stream: more streams are rejected at compilation, not at the first inference
+TEST_P(MoECompressedOffloadTest, SingleStream) {
+    auto explicit_streams = configuration;
+    explicit_streams[ov::num_streams.name()] = ov::streams::Num(2);
+    OV_EXPECT_THROW(core->compile_model(function, targetDevice, explicit_streams), ov::Exception, testing::HasSubstr("supports a single stream only"));
+
+    auto throughput = configuration;
+    throughput[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+    OV_EXPECT_THROW(core->compile_model(function, targetDevice, throughput), ov::Exception, testing::HasSubstr("supports a single stream only"));
+}
+
+// OFFLOAD_RATIO 50 keeps 4 of the 8 experts resident (= top_k), 75 keeps 2, so every step falls back.
+// A scalar zero point is supported for u3 weights only
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
+                         MoECompressedOffloadTest,
+                         ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
+                                            ::testing::Values(ov::element::u3),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar,
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(true)),
+                         MoECompressedOffloadTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
+                         MoECompressedOffloadTest,
+                         ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
+                                            ::testing::Values(ov::element::u8, ov::element::u4),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(true)),
+                         MoECompressedOffloadTest::getTestCaseName);
+
+// Without mmap every constant is read into its own buffer, with the file offset in its descriptor
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_no_mmap,
+                         MoECompressedOffloadTest,
+                         ::testing::Combine(::testing::Values(size_t{50}),
+                                            ::testing::Values(ov::element::u8, ov::element::u4, ov::element::u3),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false)),
+                         MoECompressedOffloadTest::getTestCaseName);
+
+// GatherMatmul and fused MoE kernels support only f16 activations, so the MoE pipeline must be applied
+// only if the activations are f16 after ConvertPrecision, regardless of OV_GPU_MOE_DISABLE_FUSION.
+// Note: with dynamic inference precision, the model precision is kept.
+class MoECompressedPrecisionTest : public MoECompressedFusionTest {
+protected:
+    MoECompressedPrecisionTest(ov::element::Type model_prc, ov::element::Type infer_prc) : infer_prc(infer_prc) {
+        model_precision = model_prc;
+    }
+
+    void SetUp() override {
+        MoECompressedFusionTest::SetUp();
+        inType = outType = model_precision;
+        configuration[ov::hint::inference_precision.name()] = infer_prc.get_type_name();
+    }
+
+    void validate() override {
+        const auto activations_prc = infer_prc == ov::element::dynamic ? model_precision : infer_prc;
+        if (activations_prc == ov::element::f16) {
+            MoECompressedFusionTest::validate();
+            return;
+        }
+        ov::test::SubgraphBaseTest::validate();
+        for (const auto& type : {"gather_matmul", "moe_3gemm_fused_compressed", "moe_gemm", "moe_router_fused"}) {
+            ov::test::CheckNumberOfNodesWithType(compiledModel, type, 0);
+        }
+    }
+
+private:
+    ov::element::Type infer_prc;
+};
+
+class MoECompressedF32Test : public MoECompressedPrecisionTest {
+public:
+    MoECompressedF32Test() : MoECompressedPrecisionTest(ov::element::f32, ov::element::f32) {}
+};
+
+class MoECompressedDynamicPrecisionF32ModelTest : public MoECompressedPrecisionTest {
+public:
+    MoECompressedDynamicPrecisionF32ModelTest() : MoECompressedPrecisionTest(ov::element::f32, ov::element::dynamic) {}
+};
+
+class MoECompressedDynamicPrecisionF16ModelTest : public MoECompressedPrecisionTest {
+public:
+    MoECompressedDynamicPrecisionF16ModelTest() : MoECompressedPrecisionTest(ov::element::f16, ov::element::dynamic) {}
+};
+
+TEST_P(MoECompressedF32Test, Inference) {
+    run();
+}
+
+TEST_P(MoECompressedDynamicPrecisionF32ModelTest, Inference) {
+    run();
+}
+
+TEST_P(MoECompressedDynamicPrecisionF16ModelTest, Inference) {
     run();
 }
 
@@ -294,6 +512,47 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
+// hidden_size 256 is too short for the u3 batched GEMV, so decode falls back to the grouped GEMM there;
+// hidden_size 2048 runs the batched GEMV for decode (up to GPU_MOE_BATCHED_GEMV_THRESHOLD tokens, by default 2 to 16
+// depending on the GPU).
+// Scalar zp is the NNCF int3 layout (symmetric u3 with zp = 4 for all experts).
+const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
+    {
+        {{-1, -1, 256}, {{1, 40, 256}, {1, 1, 256}, {1, 3, 256}, {1, 40, 256}}},  // prefill > gemv threshold + decode
+        4,                                                                        // topk
+        8,                                                                        // number_of_experts
+        512                                                                       // intermediate_size
+    },
+    {
+        {{-1, -1, 2048}, {{1, 40, 2048}, {1, 1, 2048}, {1, 4, 2048}}},  // prefill + decode
+        4,                                                              // topk
+        8,                                                              // number_of_experts
+        512                                                             // intermediate_size
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion_u3,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::ValuesIn(routing_types),
+                                            ::testing::Values(ov::element::u3),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar,
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),  // use_per_expert_scale
+                                            ::testing::Values(false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),  // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
 // GPT-OSS 2-GEMM pattern (combined gate/up MatMul + Slice/Clamp/Add/Swish).
 // gate_idx=0 matches real gpt-oss IR; gate_idx=1 covers the inverted layout.
 INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmCompressedFusion,
@@ -357,6 +616,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
+const auto moe_precision_test_params = ::testing::Combine(::testing::Values(moe_params_smoke[1]),
+                                                          ::testing::Values(MoePatternType::GEMM3, MoePatternType::GEMM2),
+                                                          ::testing::Values(MoERoutingType::SOFTMAX),
+                                                          ::testing::Values(ov::element::u4),   // weights_precision
+                                                          ::testing::Values(ov::element::f16),  // decompression_precision
+                                                          ::testing::Values(ov::element::f16),  // scale_precision
+                                                          ::testing::Values(ov::test::utils::DecompressionType::full),
+                                                          ::testing::Values(ov::test::utils::DecompressionType::full),
+                                                          ::testing::Values(true),  // reshape_on_decompression
+                                                          ::testing::Values(128),
+                                                          ::testing::Values(size_t{0}),   // gate_idx
+                                                          ::testing::Values(true, false),  // force_gather_matmul
+                                                          ::testing::Values(MoEActivationType::SWISH),
+                                                          ::testing::Values(false),   // use_per_expert_scale
+                                                          ::testing::Values(false),   // use_layernorm_multiply
+                                                          ::testing::Values(true));  // use_weight_decompression
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedF32,
+                         MoECompressedF32Test,
+                         moe_precision_test_params,
+                         MoECompressedF32Test::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedDynamicPrecisionF32Model,
+                         MoECompressedDynamicPrecisionF32ModelTest,
+                         moe_precision_test_params,
+                         MoECompressedDynamicPrecisionF32ModelTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedDynamicPrecisionF16Model,
+                         MoECompressedDynamicPrecisionF16ModelTest,
+                         moe_precision_test_params,
+                         MoECompressedDynamicPrecisionF16ModelTest::getTestCaseName);
+
 // Gemma-4 style: Gelu activation + SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                          MoECompressedFusionTest,
@@ -376,6 +667,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                                             ::testing::Values(true, false),  // use_per_expert_scale
                                             ::testing::Values(true, false),  // use_layernorm_multiply
                                             ::testing::Values(true)),        // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
+// Gelu gate on u3: applied by the batched GEMV (decode) and by OneDNN (prefill).
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed_u3,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u3),   // weights_precision
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::GELU, MoEActivationType::GELU_ERF),
+                                            ::testing::Values(false),  // use_per_expert_scale
+                                            ::testing::Values(false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),  // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
 // Uncompressed (FP16) experts: dense Tile/MatMul ops run natively

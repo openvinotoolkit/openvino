@@ -10,13 +10,22 @@
 #include <subgraph_common_parent.hpp>
 #include <subgraph_converts.hpp>
 #include <subgraph_fq.hpp>
+#include <subgraph_bitwise.hpp>
 #include <subgraph_simple.hpp>
 
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
+
+namespace {
+class BitwiseTokenizationTests : public CollapseSubgraphTests,
+                                 public testing::WithParamInterface<ov::element::Type_t> {};
+}  // namespace
 
 void CollapseSubgraphTests::run() {
     ASSERT_TRUE(model);
@@ -33,6 +42,15 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_Eltwise) {
     const auto& f = EltwiseFunction(std::vector<PartialShape> {{2, 3}, {1, 3}});
     execute_and_validate_function(*this, f);
 }
+
+TEST_P(BitwiseTokenizationTests, smokeSnippetsBitwise) {
+    const auto f = BitwiseFunction({{2, 16}, {2, 16}}, GetParam());
+    execute_and_validate_function(*this, f);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Bitwise,
+                         BitwiseTokenizationTests,
+                         ::testing::Values(ov::element::Type_t::i8, ov::element::Type_t::u8));
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_MatMulWithEltwise) {
     const auto& f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});

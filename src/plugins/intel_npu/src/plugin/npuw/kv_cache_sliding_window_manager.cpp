@@ -421,11 +421,13 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
                                                                          << " old token(s), capacity=" << capacity);
         auto whole_tmp =
             ov::npuw::util::allocMem(dst_tensor->get_element_type(), dst_tensor->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(whole_tmp._ptr && "CPU buffer allocation for KV shift failed — check memory availability");
         dst_tensor->copy_to(whole_tmp._ptr);  // single bulk contiguous transfer
 
         auto old_tail_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, old_valid - keep, old_valid);
         auto shift_tmp =
             ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail_cpu->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(shift_tmp._ptr && "CPU buffer allocation for KV shift failed — check memory availability");
         old_tail_cpu->copy_to(shift_tmp._ptr);  // isolate surviving tail before front overwrite
         auto dst_front_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, 0u, keep);
         ov::npuw::util::copy_tensor_by_dim(shift_tmp, dst_front_cpu, dst_kv_dim, dst_kv_dim);
@@ -439,6 +441,7 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
             ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back_cpu, src_kv_dim, dst_kv_dim);
         }
 
+        NPUW_ASSERT(dst_tensor._ptr && "destination KV tensor is null — caller must supply a valid tensor");
         whole_tmp->copy_to(dst_tensor._ptr);  // single bulk contiguous transfer back
         return;
     }
@@ -450,6 +453,7 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
                   << keep << " of " << old_valid << " old token(s), dim=" << dst_kv_dim << ", capacity=" << capacity);
         auto old_tail = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, old_valid - keep, old_valid);
         auto tmp = ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(tmp._ptr && "CPU buffer allocation for KV shift failed — check memory availability");
         old_tail->copy_to(tmp._ptr);
         auto dst_front = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, keep);
         ov::npuw::util::copy_tensor_by_dim(tmp, dst_front, dst_kv_dim, dst_kv_dim);

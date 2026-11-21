@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
@@ -19,9 +20,12 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -260,6 +264,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_bias_4d) {
+    // bias initializer is [1, 2, 1, 1] instead of [2]; ONNX Runtime uses its flattened values
+    const auto model = convert_model("conv_bias_4d.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 3, 3}, std::vector<float>(27, 1.f));
+    test_case.add_input<float>(Shape{2, 3, 2, 2}, std::vector<float>(24, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, {13.f, 13.f, 13.f, 13.f, 10.f, 10.f, 10.f, 10.f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
     auto model = convert_model("conv_transpose_w_groups.onnx");
 
@@ -276,6 +291,92 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d) {
+    auto model = convert_model("deform_conv_2d.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 1, 3, 3)
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // offset (1, 8, 2, 2): h-coord of kernel[0,0] at out[0,0] = 0.5, w-coord of kernel[1,0] at out[0,1] = -0.1
+    std::vector<float> offset(32, 0.f);
+    offset[0] = 0.5f;
+    offset[21] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {9.5f, 11.9f, 20.f, 24.f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_padding) {
+    auto model = convert_model("deform_conv_2d_with_padding.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 1, 3, 3)
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // offset (1, 8, 4, 4): h-coord of kernel[0,0] at out[0,0] = 0.5, w-coord of kernel[1,0] at out[1,2] = -0.1
+    std::vector<float> offset(128, 0.f);
+    offset[0] = 0.5f;
+    offset[86] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 4},
+        {0.f, 1.f, 3.f, 2.f, 3.f, 8.f, 11.9f, 7.f, 9.f, 20.f, 24.f, 13.f, 6.f, 13.f, 15.f, 8.f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_mask_bias) {
+    auto model = convert_model("deform_conv_2d_with_mask_bias.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 1, 3, 3)
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // offset (1, 8, 2, 2): same as the basic case
+    std::vector<float> offset(32, 0.f);
+    offset[0] = 0.5f;
+    offset[21] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {10.5f, 12.9f, 21.f, 19.4f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_offset_groups) {
+    auto model = convert_model("deform_conv_2d_with_offset_groups.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 2, 3, 3): channel 0 is arange(9), channel 1 is arange(8, -1, -1)
+    test_case.add_input<float>(
+        {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 8.f, 7.f, 6.f, 5.f, 4.f, 3.f, 2.f, 1.f, 0.f});
+
+    // offset (1, 16, 2, 2): h-coord of kernel[0,0] (group 0) at out[0,0] = 0.5,
+    // w-coord of kernel[1,0] (group 1) at out[0,1] = -0.1
+    std::vector<float> offset(64, 0.f);
+    offset[0] = 0.5f;
+    offset[53] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {33.5f, 32.1f, 32.f, 32.f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_invalid_offset_group_channels) {
+    try {
+        convert_model("deform_conv_2d_invalid_offset_group_channels.onnx");
+        FAIL() << "Expected DeformConv input channel validation to fail";
+    } catch (const ov::Exception& error) {
+        EXPECT_THAT(error.what(),
+                    testing::HasSubstr("DeformConv input channels (3) must be evenly divisible by offset_group (2)"));
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
@@ -1691,4 +1792,149 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_
          5.00000000f, 2.59999990f, 2.50000000f, 1.30000007f, 2.70000005f, 1.39999998f, 2.90000010f, 1.50000000f});
 
     test_case.run();
+}
+
+namespace {
+// ONNX spec example
+const Shape max_unpool_spec_in_shape{1, 1, 2, 2};
+const Shape max_unpool_spec_out_shape{1, 1, 4, 4};
+const std::vector<float> max_unpool_spec_x{5.0f, 6.0f, 7.0f, 8.0f};
+const std::vector<int64_t> max_unpool_spec_indices{5, 7, 13, 15};
+const std::vector<float>
+    max_unpool_spec_y{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f};
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset9) {
+    auto test_case = ov::test::TestCase(convert_model("max_unpool_2d_opset9.onnx"), s_device);
+    test_case.add_input<float>(max_unpool_spec_in_shape, max_unpool_spec_x);
+    test_case.add_input<int64_t>(max_unpool_spec_in_shape, max_unpool_spec_indices);
+    test_case.add_expected_output<float>(max_unpool_spec_out_shape, max_unpool_spec_y);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset22) {
+    // f32 and f16 nodes
+    auto test_case = ov::test::TestCase(convert_model("max_unpool_2d_opset22.onnx"), s_device);
+    test_case.add_input<float>(max_unpool_spec_in_shape, max_unpool_spec_x);
+    test_case.add_input<int64_t>(max_unpool_spec_in_shape, max_unpool_spec_indices);
+    test_case.add_input<ov::float16>(max_unpool_spec_in_shape,
+                                     std::vector<ov::float16>(max_unpool_spec_x.begin(), max_unpool_spec_x.end()));
+    test_case.add_input<int64_t>(max_unpool_spec_in_shape, max_unpool_spec_indices);
+    test_case.add_expected_output<float>(max_unpool_spec_out_shape, max_unpool_spec_y);
+    test_case.add_expected_output<ov::float16>(
+        max_unpool_spec_out_shape,
+        std::vector<ov::float16>(max_unpool_spec_y.begin(), max_unpool_spec_y.end()));
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool) {
+    // Independent MaxUnpool nodes, one per case
+    auto test_case = ov::test::TestCase(convert_model("max_unpool.onnx"), s_device);
+    // 1d
+    test_case.add_input<float>(Shape{1, 2, 4}, {1.5f, -0.5f, 3.0f, 3.5f, 0.0f, 2.5f, 2.0f, 0.5f});
+    test_case.add_input<int64_t>(Shape{1, 2, 4}, {1, 2, 4, 6, 9, 11, 12, 15});
+    // 3d
+    test_case.add_input<float>(Shape{1, 1, 2, 2, 2}, {15.5f, 8.5f, 15.0f, 14.5f, 10.5f, 13.0f, 14.0f, 9.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2, 2}, {1, 22, 8, 10, 48, 51, 61, 58});
+    // pads
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, {5.0f, 5.0f, 3.0f, 4.5f, 6.0f, 6.0f, 2.0f, 6.0f, 6.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 3, 3}, {1, 1, 3, 6, 18, 18, 20, 18, 18});
+    // default strides, duplicate indices
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, {16.0f, 16.0f, 8.0f, 16.0f, 16.0f, 12.0f, 14.0f, 15.0f, 15.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 3, 3}, {5, 5, 7, 5, 5, 11, 13, 14, 14});
+    // indices include batch and channel offsets
+    test_case.add_input<float>(Shape{2, 3, 2, 2},
+                               {12.0f, 19.5f, 21.0f, 23.5f, 17.5f, 15.0f, 22.5f, 20.5f, -6.0f, -5.0f, 23.0f, 19.0f,
+                                1.5f,  8.0f,  16.0f, 3.0f,  12.5f, 18.5f, 9.0f,  20.0f, 22.0f, 10.5f, 4.5f,  21.5f});
+    test_case.add_input<int64_t>(Shape{2, 3, 2, 2}, {1,  3,  8,  11, 16, 22, 28, 26, 32, 39, 40, 46,
+                                                     49, 51, 60, 62, 65, 66, 73, 78, 84, 86, 89, 94});
+    // constant output_shape, indices address flat(output_shape)
+    test_case.add_input<float>(Shape{1, 1, 2, 2}, {5.5f, 2.0f, 4.5f, 0.5f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2}, {6, 8, 11, 17});
+    // MaxPool -> MaxUnpool(output_shape = Shape(X))
+    test_case.add_input<float>(
+        Shape{1, 2, 5, 5},
+        {-3.0f, -9.0f, 11.0f, -11.0f, -8.5f, -12.5f, -2.5f,  10.5f, 12.0f, -10.0f, -2.0f, -0.5f,  -8.0f,
+         8.5f,  1.0f,  2.5f,  5.5f,   6.5f,  6.0f,   2.0f,   -9.5f, 10.0f, -5.5f,  8.0f,  -7.0f,  3.0f,
+         0.0f,  -6.0f, -3.5f, -1.0f,  -6.5f, 9.0f,   -12.0f, 1.5f,  3.5f,  5.0f,   -7.5f, -10.5f, 4.5f,
+         -1.5f, 4.0f,  7.0f,  -4.5f,  9.5f,  0.5f,   -11.5f, -5.0f, 11.5f, -4.0f,  7.5f});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 8},
+        {0.0f, 1.5f, -0.5f, 0.0f, 3.0f, 0.0f, 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 2.5f, 2.0f, 0.0f, 0.0f, 0.5f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 4, 4},
+        {0.0f,  15.5f, 0.0f, 0.0f,  0.0f, 0.0f, 0.0f, 0.0f, 15.0f, 0.0f, 14.5f, 0.0f, 0.0f, 0.0f,  0.0f, 0.0f,
+         0.0f,  0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 8.5f, 0.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,  0.0f, 0.0f,
+         0.0f,  0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,  0.0f, 0.0f,
+         10.5f, 0.0f,  0.0f, 13.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 9.0f,  0.0f, 0.0f, 14.0f, 0.0f, 0.0f});
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                                         {0.0f, 5.0f, 0.0f, 3.0f, 0.0f, 0.0f, 4.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                          0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 6.0f, 0.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 4},
+        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 12.0f, 0.0f, 14.0f, 15.0f, 0.0f});
+    test_case.add_expected_output<float>(
+        Shape{2, 3, 4, 4},
+        {0.0f,  12.0f, 0.0f,  19.5f, 0.0f,  0.0f, 0.0f,  0.0f,  21.0f, 0.0f, 0.0f,  23.5f, 0.0f,  0.0f, 0.0f,  0.0f,
+         17.5f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 15.0f, 0.0f,  0.0f,  0.0f, 20.5f, 0.0f,  22.5f, 0.0f, 0.0f,  0.0f,
+         -6.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 0.0f,  -5.0f, 23.0f, 0.0f, 0.0f,  0.0f,  0.0f,  0.0f, 19.0f, 0.0f,
+         0.0f,  1.5f,  0.0f,  8.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  0.0f, 0.0f,  0.0f,  16.0f, 0.0f, 3.0f,  0.0f,
+         0.0f,  12.5f, 18.5f, 0.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  9.0f, 0.0f,  0.0f,  0.0f,  0.0f, 20.0f, 0.0f,
+         0.0f,  0.0f,  0.0f,  0.0f,  22.0f, 0.0f, 10.5f, 0.0f,  0.0f,  4.5f, 0.0f,  0.0f,  0.0f,  0.0f, 21.5f, 0.0f});
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                                         {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.5f, 0.0f, 2.0f, 0.0f, 0.0f, 4.5f, 0.0f,
+                                          0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 5, 5},
+        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -2.5f, 0.0f, 12.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f, 0.0f, 0.0f, 5.5f,
+         0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.0f, 0.0f, 1.5f,
+         0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  7.0f, 0.0f,  9.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_decomposition) {
+    const auto model = convert_model("max_unpool_2d_opset9.onnx");
+    const auto ops = model->get_ordered_ops();
+    EXPECT_EQ(std::count_if(ops.begin(),
+                            ops.end(),
+                            [](const std::shared_ptr<ov::Node>& op) {
+                                return ov::is_type<op::v12::ScatterElementsUpdate>(op);
+                            }),
+              1);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_validation) {
+    // Each invalid node becomes a framework node with its own error
+    const auto model = convert_partially("max_unpool_validation.onnx");
+    std::map<std::string, std::string> errors;
+    for (const auto& op : model->get_ops()) {
+        if (const auto fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(op)) {
+            for (const auto& attr : fw_node->get_attrs()) {
+                errors[op->get_output_tensor(0).get_any_name()] += attr.second + "\n";
+            }
+        }
+    }
+    const std::map<std::string, std::string> expected{
+        {"Y_kernel_shape", "'kernel_shape'"},
+        {"Y_strides", "'strides'"},
+        {"Y_pads", "'pads'"},
+        {"Y_negative_pads", "'pads'"},
+        {"Y_huge_pads", "'pads'"},
+        {"Y_rank", "rank"},
+        {"Y_output_shape_rank", "'output_shape'"},
+        {"Y_output_shape_channels", "'output_shape'"},
+        {"Y_indices_shape", "'indices'"},
+        {"Y_size_overflow", "overflows int64"},
+        {"Y_output_shape_overflow", "overflows int64"},
+        {"Y_non_positive_dim", "inferred output dimension"},
+        {"Y_output_shape_small", "smaller than the inferred"},
+    };
+    // Y_large_dim: a valid int64 dimension above INT32_MAX is converted
+    EXPECT_EQ(errors.size(), expected.size());
+    for (const auto& [output, message] : expected) {
+        SCOPED_TRACE(output);
+        ASSERT_EQ(errors.count(output), 1);
+        EXPECT_THAT(errors.at(output), testing::HasSubstr(message));
+    }
 }

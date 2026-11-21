@@ -1,16 +1,19 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "resample_kernel_opt.h"
+
+#include <algorithm>
 #include <vector>
 #include <kernel_selector_utils.h>
+#include "resample/utils.hpp"
 
 namespace kernel_selector {
 
 static constexpr size_t sub_group_size = 16;
 
-size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) const {
+size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) {
     std::vector<size_t> block_width = { 16, 8, 4, 2, 1 };
     for (auto& w : block_width) {
         if (params.outputs[0].X().v % w == 0) {
@@ -157,6 +160,9 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     }
 
     const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    const auto has_padding = ResampleKernelBase::has_padding(params);
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
@@ -173,7 +179,6 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     // LINEAR_ONNX in resample_opt does not implement OOB-to-zero for padded
     // coordinates; let resample_onnx (which does) handle those cases.
     if (params.resampleType == ResampleType::LINEAR_ONNX) {
-        const auto& output = params.outputs[0];
         if (input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -185,11 +190,30 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
         }
     }
 
+    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
+        // The NEAREST kernel handles every CoordinateTransformationMode/NearestMode combination
+        // via get_original_coordinate()/get_nearest_val(); padding and batch/feature resize are not supported.
+        if (has_padding ||
+            input.Batch().v != output.Batch().v ||
+            input.Feature().v != output.Feature().v) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
+
+    if (params.resampleType == ResampleType::BILINEAR_INTERP) {
+        if (has_padding ||
+            params.coordTransMode != CoordinateTransformationMode::ASYMMETRIC ||
+            input.Batch().v != output.Batch().v ||
+            input.Feature().v != output.Feature().v) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
+
     return true;
 }
 
-JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) const {
-    auto jit = Parent::GetJitConstants(params);
+JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params, bool legacy_scale) const {
+    auto jit = Parent::GetJitConstants(params, true);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
     if (params.outputs[0].X().v > 32 && opt_x_block_size == 1) {
@@ -240,6 +264,16 @@ Datatype ResampleKernelOpt::GetUnitType(const base_params& params) const {
 }
 
 KernelsData ResampleKernelOpt::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    auto kernels_data = GetCommonKernelsData(params);
+    // ALIGN_CORNERS source coordinates come from an fp32 division. For the interpolating modes make it correctly
+    // rounded, so the coordinates match resample_ref (ref_divide(), used for planar layouts and thus dynamic shapes)
+    // and the reference: the default OpenCL division may be off by an ULP, which at coordinates in the hundreds shifts
+    // the interpolation weights by ~1e-5 (static vs dynamic shape mismatch).
+    const auto& resample_prim_params = static_cast<const resample_params&>(params);
+    if (!kernels_data.empty() && resample_prim_params.coordTransMode == CoordinateTransformationMode::ALIGN_CORNERS &&
+        resample_prim_params.resampleType != ResampleType::NEAREST_NEIGHBOR) {
+        kernels_data[0].kernels[0].code.kernelString->options += " -cl-fp32-correctly-rounded-divide-sqrt";
+    }
+    return kernels_data;
 }
 }  // namespace kernel_selector

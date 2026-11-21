@@ -28,8 +28,11 @@ xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
-xfail_issue_33488 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
-                                      "MaxUnpool")
+xfail_maxunpool_output_shape_onnx_ref = xfail_test(reason="MaxUnpool with output_shape: ONNX reference data places "
+                                                          "values in the inferred shape, onnxruntime and OV index "
+                                                          "flat(output_shape) (onnx/onnx#2398)")
+# GPU: wrong scatter result for a static rank-1 Constant data input
+skip_maxunpool_gpu = pytest.mark.skip_on_gpu
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: OV does not support different sequence operations: "
@@ -41,7 +44,7 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "TfIdfVectorizer")
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
                                       "DFT, LayerNormalization, "
-                                      "MelWeightMatrix, SequenceMap, STFT")
+                                      "MelWeightMatrix, SequenceMap")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
@@ -134,7 +137,6 @@ xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize
                                        "is not supported. Choose one of the following modes: "
                                        "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel, "
                                        "half_pixel")
-xfail_issue_119903 = xfail_test(reason="DeformConv operation is not supported")
 xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): y>': Unsupported padding mode: [wrap]")
 xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
 xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
@@ -186,8 +188,6 @@ xfail_issue_onnx122_bitcast = xfail_test(
     reason="OV ONNX FE does not support BitCast-26 (new in ONNX opset 26)")
 xfail_issue_onnx122_cumprod = xfail_test(
     reason="OV ONNX FE does not support CumProd-26 (new in ONNX opset 26)")
-xfail_issue_onnx122_tensorscatter = xfail_test(
-    reason="OV ONNX FE does not support TensorScatter-24 (new in ONNX opset 24)")
 xfail_issue_onnx122_attention = xfail_test(
     reason="OV ONNX FE does not fully support Attention-24 for these cases (ONNX opset 24)")
 xfail_issue_onnx122_newdtype = xfail_test(

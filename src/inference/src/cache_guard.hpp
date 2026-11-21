@@ -64,6 +64,8 @@ private:
     CacheGuard& m_cacheGuard;
     std::string m_hash;
     std::shared_ptr<std::mutex> m_mutex;
+    // `m_lock' must be declared after `m_mutex' - see member initializer list
+    std::unique_lock<std::mutex> m_lock;
     std::atomic_int& m_refCount;
 };
 

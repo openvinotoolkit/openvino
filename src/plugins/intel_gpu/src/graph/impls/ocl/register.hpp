@@ -31,10 +31,12 @@
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
+#include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
 #include "intel_gpu/primitives/permute.hpp"
@@ -57,13 +59,11 @@
 #include "intel_gpu/primitives/slice.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/sparse_fill_empty_rows.hpp"
+#include "intel_gpu/primitives/stateless_kv.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
-#include "intel_gpu/primitives/non_zero.hpp"
-#include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
-#include "intel_gpu/primitives/kv_cache.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -105,6 +105,7 @@ REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
 REGISTER_OCL(kv_cache);
+REGISTER_OCL(stateless_kv);
 REGISTER_OCL(lrn);
 REGISTER_OCL(multiclass_nms);
 REGISTER_OCL(multinomial);

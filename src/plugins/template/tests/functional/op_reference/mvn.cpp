@@ -309,3 +309,20 @@ INSTANTIATE_TEST_SUITE_P(
                                    0.38729835,  0.7745967, 1.161895,   1.5491934,   -1.5491934, -1.161895,   -0.7745967,
                                    -0.38729835, 0.,        0.38729835, 0.7745967,   1.161895,   1.5491934}})),
     ReferenceMVN6LayerTest::getTestCaseName);
+
+class ReferenceMVN6InvalidAxisTest : public testing::TestWithParam<int64_t>, public CommonReferenceTest {};
+
+TEST_P(ReferenceMVN6InvalidAxisTest, OutOfRangeAxis) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+    const auto mvn = std::make_shared<op::v6::MVN>(data, axes, false, 1e-6f, op::MVNEpsMode::INSIDE_SQRT);
+    function = std::make_shared<Model>(OutputVector{mvn}, ParameterVector{data, axes});
+    inputData = {reference_tests::CreateTensor(Shape{2, 2}, element::f32, std::vector<float>(4, 1.f)),
+                 reference_tests::CreateTensor(Shape{1}, element::i64, std::vector<int64_t>{GetParam()})};
+
+    LoadNetwork();
+    FillInputs();
+    EXPECT_THROW(Infer(), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_InvalidAxis, ReferenceMVN6InvalidAxisTest, ::testing::Values(1000, -1000));

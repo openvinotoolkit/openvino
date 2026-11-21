@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ ConvolutionKernel_b_fs_yx_fsv16::ConvolutionKernel_b_fs_yx_fsv16() : Convolution
     }
 }
 
-ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16::GetAutoTuneOptions(const Params& params, int /*autoTuneIndex*/) const {
+ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16::GetAutoTuneOptions(const Params& params, int /*autoTuneIndex*/) {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
     auto x = cp.outputs[0].X().v;
     auto f = cp.outputs[0].Feature().v;
@@ -57,7 +57,7 @@ ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16:
     return {8, EXE_MODE_AGE_BASED};
 }
 
-float ConvolutionKernel_b_fs_yx_fsv16::EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const {
+float ConvolutionKernel_b_fs_yx_fsv16::EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) {
     auto tuneOptions = GetAutoTuneOptions(params, 0);
     auto blockWidth = tuneOptions.blockWidth;
 
@@ -71,7 +71,7 @@ float ConvolutionKernel_b_fs_yx_fsv16::EstimateOccupancy(const convolution_param
     return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
-ConvolutionKernel_b_fs_yx_fsv16::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16::GetTuningParams(const convolution_params& params) const {
+ConvolutionKernel_b_fs_yx_fsv16::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16::GetTuningParams(const convolution_params& params) {
     ConvolutionTuningData tuning_data;
 
     const auto& input = params.inputs[0];
@@ -270,6 +270,12 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     if (multipleGroupsInputPreload) {
         jit.AddConstant(MakeJitConstant("MULTIPLE_GROUPS_INPUT_PRELOAD", 1));
     }
+
+    // out-of-bound access causes fails starting with Xe2 platforms
+    // additional guards prevent out-of-bound access but can significantly affect performance on older platforms
+    // to avoid performance regression enable only for affected platforms
+    const bool is_post_xe2 = params.engineInfo.arch >= gpu_arch::xe2;
+    jit.AddConstant(MakeJitConstant("ENABLE_OOB_GUARD", is_post_xe2));
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));

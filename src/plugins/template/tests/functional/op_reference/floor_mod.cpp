@@ -6,7 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <limits>
+
 #include "base_reference_test.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -71,6 +75,25 @@ private:
     }
 };
 
+template <typename T>
+void expectIntegerFloorModByZeroToThrow(const element::Type& type) {
+    const auto lhs = std::make_shared<op::v0::Parameter>(type, Shape{1});
+    const auto rhs = std::make_shared<op::v0::Parameter>(type, Shape{1});
+    const auto floor_mod = std::make_shared<op::v1::FloorMod>(lhs, rhs);
+
+    TensorVector inputs{ov::Tensor(type, Shape{1}), ov::Tensor(type, Shape{1})};
+    inputs[0].data<T>()[0] = T{7};
+    inputs[1].data<T>()[0] = T{0};
+    TensorVector outputs{ov::Tensor(type, Shape{1})};
+
+    EXPECT_THROW(floor_mod->evaluate(outputs, inputs), ov::AssertFailure);
+}
+
+TEST(ReferenceFloorModLayerTest, IntegerZeroDivisorThrows) {
+    expectIntegerFloorModByZeroToThrow<int64_t>(element::i64);
+    expectIntegerFloorModByZeroToThrow<uint64_t>(element::u64);
+}
+
 TEST_P(ReferenceFloorModLayerTest, DivideWithHardcodedRefs) {
     Exec();
 }
@@ -119,6 +142,25 @@ std::vector<FloorModParams> generateParamsForFloorModScalar() {
                        std::vector<T>{2}),
     };
     return params;
+}
+
+template <element::Type_t IN_ET>
+std::vector<FloorModParams> generateParamsForFloorModLargeInteger() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    // Large operands whose remainder is non-zero. Evaluating the floored modulo via double would
+    // lose precision here (e.g. INT64_MAX / 3 rounds up), so only exact integer arithmetic keeps
+    // the result accurate.
+    return {FloorModParams(ov::PartialShape{5},
+                           ov::PartialShape{5},
+                           ov::Shape{5},
+                           IN_ET,
+                           std::vector<T>{9223372036854775807LL,
+                                          -9223372036854775807LL,
+                                          9223372036854775806LL,
+                                          100,
+                                          std::numeric_limits<T>::min()},
+                           std::vector<T>{3, 3, 7, -7, -1},
+                           std::vector<T>{1, 2, 6, -5, 0})};
 }
 
 template <element::Type_t IN_ET>
@@ -188,6 +230,10 @@ std::vector<FloorModParams> generateCombinedParamsForFloorModNonIntegerDivisor()
     return generateParamsForFloorModNonIntegerDivisor<element::Type_t::f32>();
 }
 
+std::vector<FloorModParams> generateCombinedParamsForFloorModLargeInteger() {
+    return generateParamsForFloorModLargeInteger<element::Type_t::i64>();
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_With_Hardcoded_Refs,
                          ReferenceFloorModLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForFloorMod()),
@@ -206,6 +252,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_Scalar_With_Hardcoded_Refs,
 INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_NonInteger_Divisor,
                          ReferenceFloorModLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForFloorModNonIntegerDivisor()),
+                         ReferenceFloorModLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_Large_Integer,
+                         ReferenceFloorModLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForFloorModLargeInteger()),
                          ReferenceFloorModLayerTest::getTestCaseName);
 
 }  // namespace

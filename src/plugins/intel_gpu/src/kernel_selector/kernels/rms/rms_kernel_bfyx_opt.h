@@ -23,10 +23,11 @@ protected:
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
             FusedOpType::ELTWISE,
-            FusedOpType::REORDER
+            FusedOpType::REORDER,
+            FusedOpType::DYNAMIC_QUANTIZE
         };
     }
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*p*/) const override;
     DispatchData SetDefault(const rms_params& params) const override;
     JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;

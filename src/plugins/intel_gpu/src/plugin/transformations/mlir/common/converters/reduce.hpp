@@ -4,14 +4,6 @@
 
 #pragma once
 
-#include <openvino/op/constant.hpp>
-#include <openvino/op/reduce_max.hpp>
-#include <openvino/op/reduce_mean.hpp>
-#include <openvino/op/reduce_min.hpp>
-#include <openvino/op/reduce_prod.hpp>
-#include <openvino/op/reduce_sum.hpp>
-#include <openvino/op/util/arithmetic_reductions_keep_dims.hpp>
-
 #include "../convert_common.hpp"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
@@ -20,6 +12,13 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Value.h"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
@@ -89,7 +88,8 @@ struct ConvertReduce {
             }
             auto divisor = ::mlir::arith::ConstantOp::create(builder, loc, ::mlir::DenseElementsAttr::get(result_type, divisor_attr));
             auto empty = ::mlir::tensor::EmptyOp::create(builder, loc, result_type, ValueRange{});
-            result = ::mlir::linalg::DivOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{empty}).getResult(0);
+            result = ::mlir::linalg::ElementwiseOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{empty}, ::mlir::linalg::ElementwiseKind::div)
+                         .getResult(0);
         }
 
         // If keep_dims is true, broadcast along the reduced dimensions

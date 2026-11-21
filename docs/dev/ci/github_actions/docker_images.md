@@ -14,14 +14,16 @@ An example `Build` job from the [`ubuntu_22.yml`](./../../../../.github/workflow
 ```yaml
 Build:
   ...
-  container:
-    image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    volumes:
-      - /mount:/mount
+  needs: [Docker, Smart_CI]
+  uses: ./.github/workflows/job_build_linux.yml
+  with:
+    runner: aks-linux-16-cores-32gb
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
   ...
 ```
 
-The `openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04` Docker image is used for this job.
+The image reference is produced by the `Docker` job through the `handle_docker` action. The
+reusable build workflow applies that image to its `container` configuration and defines the mounts.
 
 Additionally, you can make the caches available in Docker containers using the `volumes` key.
 For more details, refer to the [caches](./caches.md) page.

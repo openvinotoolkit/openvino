@@ -114,7 +114,7 @@ jobs:
       - name: Install Python tests dependencies
         run: |
           # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil] pytest-forked
+          python3 -m pip install -c ${INSTALL_TEST_DIR}/bindings/python/constraints.txt pytest-xdist[psutil] pytest-forked
 
       - name: Find ONNX models
         run: |
