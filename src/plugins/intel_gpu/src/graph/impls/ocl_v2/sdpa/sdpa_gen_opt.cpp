@@ -36,7 +36,8 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
     auto [broadcast_axis, group_size] = get_gqa_params(params);
-    auto [k_head_size, v_head_size] = get_effective_head_sizes(params);
+    const auto k_head_size = SDPABase::get_effective_k_head_size(params);
+    const auto v_head_size = SDPABase::get_effective_v_head_size(params);
 
     if (is_paged_attention) {
         auto desc = params.typed_desc<paged_attention>();
@@ -59,30 +60,22 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
-        size_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
         const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (desc->attn_mask_val.has_value()) {
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", desc->attn_mask_val.value());
             jit.make("HAS_ATTN_MASK_INPUT", 0);
         } else {
             jit.make("HAS_ATTN_MASK_INPUT", has_attn_mask_input ? 1 : 0);
-            if (has_attn_mask_input) {
-                const auto& attn_mask_layout = params.get_input_layout(attn_mask_idx);
-                // Enable clamping only if attn_mask dtype differs from softmax_accumulator_type(f32)
-                if (attn_mask_layout.data_type != data_types::f32) {
-                    jit.make("CLAMP_ATTN_MASK_INPUT", 1);
-                }
-            }
         }
         size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if ((data_inputs_num > scale_idx) && (!desc->scale_val.has_value())) {
             jit.make("HAS_SCALE_INPUT", 1);
         } else if (desc->scale_val.has_value()) {
             jit.make("STATIC_SCALE_VALUE", desc->scale_val.value());
-            jit.make("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value());
+            jit.make("STATIC_SCALE_VALUE_INV", 1.0F / desc->scale_val.value());
         } else {
             jit.make("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(k_head_size)));
-            jit.make("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(k_head_size)));
+            jit.make("STATIC_SCALE_VALUE", 1.0F / std::sqrt(static_cast<float>(k_head_size)));
         }
         if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
             jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
@@ -134,8 +127,8 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
         jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
     }
-    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
-    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
+    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
+    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
 
     bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
     if (could_use_flashattn_v2) {
@@ -230,12 +223,10 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
                                                          "SDPA: invalid non-positive ",
                                                          " in static dispatch");
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
-            auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
+            const size_t head_size_u =
+                ensure_positive_dim(SDPABase::get_effective_v_head_size(params), "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
-
-            const size_t sg_num_scale =
-                get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN, static_cast<size_t>(k_head_size));
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN);
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";
             GPU_DEBUG_TRACE_DETAIL << "sg_num_scale = " << sg_num_scale << "\n";
@@ -278,12 +269,10 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
                                                          "SDPA: invalid non-positive ",
                                                          " in static dispatch");
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
-            auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
+            const size_t head_size_u =
+                ensure_positive_dim(SDPABase::get_effective_v_head_size(params), "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
-            const size_t k_head_size_u = ensure_positive_dim(k_head_size, "k_head_size", "SDPA: invalid non-positive ", " in static dispatch");
-
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS, k_head_size_u);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS);
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", sg_num_scale = " << sg_num_scale << "\n";
@@ -303,6 +292,7 @@ JitConstants SDPAOptGeneratorFinalization::get_jit_constants(const kernel_impl_p
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::FINALIZATION);
     jit.make("SDPA_STAGE_1", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", get_target_seq_len_block_size());
+    jit.make("MAX_PARTITIONS_NUM", get_max_partitions_num());
     return jit;
 }
 
@@ -330,10 +320,8 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
                                                          "SDPA: invalid non-positive ",
                                                          " in static dispatch");
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
-            auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
-            (void)k_head_size;
-
-            const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
+            const size_t head_size_u =
+                ensure_positive_dim(SDPABase::get_effective_v_head_size(params), "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";

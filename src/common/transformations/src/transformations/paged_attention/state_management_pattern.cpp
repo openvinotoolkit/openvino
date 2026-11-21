@@ -41,6 +41,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -58,10 +59,6 @@ namespace v6 = ov::op::v6;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
 namespace v15 = ov::op::v15;
-constexpr const char* NUM_K_HEADS = "num_k_heads";
-constexpr const char* K_HEAD_SIZE = "k_head_size";
-constexpr const char* NUM_V_HEADS = "num_v_heads";
-constexpr const char* V_HEAD_SIZE = "v_head_size";
 using namespace ov::pass;
 using ov::OutputVector;
 
@@ -501,7 +498,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
-    ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &results, &var_ids_to_remove](
+                                             Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q_inner);
 
@@ -881,10 +879,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
-        paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
-        paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
-        paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
-        paged_attention->get_rt_info()[V_HEAD_SIZE] = v_head_size;
+        paged_attention->get_rt_info()["num_k_heads"] = num_k_heads;
+        paged_attention->get_rt_info()["k_head_size"] = k_head_size;
+        paged_attention->get_rt_info()["num_v_heads"] = num_v_heads;
+        paged_attention->get_rt_info()["v_head_size"] = v_head_size;
 
         // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
         // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input

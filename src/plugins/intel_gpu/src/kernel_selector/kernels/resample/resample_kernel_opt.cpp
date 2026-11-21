@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace kernel_selector {
 
 static constexpr size_t sub_group_size = 16;
 
-size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) const {
+size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) {
     std::vector<size_t> block_width = { 16, 8, 4, 2, 1 };
     for (auto& w : block_width) {
         if (params.outputs[0].X().v % w == 0) {
@@ -98,55 +98,6 @@ static size_t get_vec_size(const resample_params &params) {
 
 static int get_feature_slice_size(const resample_params &params) {
     return static_cast<int>(16 * get_vec_size(params));
-}
-
-static bool is_asymmetric_simple_optimized_case(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-
-    if (params.coordTransMode != CoordinateTransformationMode::ASYMMETRIC || params.nearestMode != NearestMode::SIMPLE) {
-        return false;
-    }
-
-    if (!is_integral_upsampling_ratio(output.X().v, input.X().v) ||
-        !is_integral_upsampling_ratio(output.Y().v, input.Y().v)) {
-        return false;
-    }
-
-    return input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v);
-}
-
-static bool is_tf_half_pixel_for_nn_floor_optimized_case(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-
-    if (params.coordTransMode != CoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN ||
-        params.nearestMode != NearestMode::FLOOR) {
-        return false;
-    }
-
-    if (!is_integral_upsampling_ratio(output.X().v, input.X().v) ||
-        !is_integral_upsampling_ratio(output.Y().v, input.Y().v)) {
-        return false;
-    }
-
-    return input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v);
-}
-
-static bool is_half_pixel_round_prefer_floor_optimized_case(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-
-    if (params.coordTransMode != CoordinateTransformationMode::HALF_PIXEL ||
-        params.nearestMode != NearestMode::ROUND_PREFER_FLOOR) {
-        return false;
-    }
-
-    if (!is_integral_ratio(output.X().v, input.X().v) || !is_integral_ratio(output.Y().v, input.Y().v)) {
-        return false;
-    }
-
-    return input.Dimentions() != 5 || is_integral_ratio(output.Z().v, input.Z().v);
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
@@ -240,14 +191,9 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     }
 
     if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
-        const auto optimized_nearest_case =
-            (params.coordTransMode == CoordinateTransformationMode::ASYMMETRIC && params.nearestMode == NearestMode::FLOOR) ||
-            is_asymmetric_simple_optimized_case(params) ||
-            is_tf_half_pixel_for_nn_floor_optimized_case(params) ||
-            is_half_pixel_round_prefer_floor_optimized_case(params);
-
+        // The NEAREST kernel handles every CoordinateTransformationMode/NearestMode combination
+        // via get_original_coordinate()/get_nearest_val(); padding and batch/feature resize are not supported.
         if (has_padding ||
-            !optimized_nearest_case ||
             input.Batch().v != output.Batch().v ||
             input.Feature().v != output.Feature().v) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -318,6 +264,16 @@ Datatype ResampleKernelOpt::GetUnitType(const base_params& params) const {
 }
 
 KernelsData ResampleKernelOpt::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    auto kernels_data = GetCommonKernelsData(params);
+    // ALIGN_CORNERS source coordinates come from an fp32 division. For the interpolating modes make it correctly
+    // rounded, so the coordinates match resample_ref (ref_divide(), used for planar layouts and thus dynamic shapes)
+    // and the reference: the default OpenCL division may be off by an ULP, which at coordinates in the hundreds shifts
+    // the interpolation weights by ~1e-5 (static vs dynamic shape mismatch).
+    const auto& resample_prim_params = static_cast<const resample_params&>(params);
+    if (!kernels_data.empty() && resample_prim_params.coordTransMode == CoordinateTransformationMode::ALIGN_CORNERS &&
+        resample_prim_params.resampleType != ResampleType::NEAREST_NEIGHBOR) {
+        kernels_data[0].kernels[0].code.kernelString->options += " -cl-fp32-correctly-rounded-divide-sqrt";
+    }
+    return kernels_data;
 }
 }  // namespace kernel_selector

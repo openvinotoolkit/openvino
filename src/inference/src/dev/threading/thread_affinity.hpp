@@ -4,17 +4,13 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <tuple>
 #include <vector>
 
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
-#endif
-#if defined(_WIN32)
-#    include <windows.h>
-
-#    include <thread>
 #endif
 
 namespace ov {
@@ -23,7 +19,7 @@ namespace threading {
 #if (defined(__APPLE__) || defined(__EMSCRIPTEN__))
 using cpu_set_t = void;
 #elif defined(_WIN32)
-using cpu_set_t = DWORD_PTR;
+using cpu_set_t = uintptr_t;
 #endif
 
 /**
@@ -60,9 +56,31 @@ using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
 #endif
 
 /**
- * @brief Get the cores affinity mask for the current process
+ * @brief Query the cores affinity mask for the current process via system calls.
+ *        This is a stateless primitive that reads the process-level affinity mask directly.
+ *        On Linux it maps to sched_getaffinity(getpid(), ...); on Windows to
+ *        GetProcessAffinityMask(GetCurrentProcess(), ...).
  * @ingroup ov_dev_api_threading
- * @return A core affinity mask
+ * @return A core affinity mask and the number of CPUs
+ */
+std::tuple<CpuSet, int> query_process_mask();
+
+/**
+ * @brief Query the cores affinity mask of the calling thread via system calls.
+ *        This is a stateless primitive that reads the thread-level affinity mask directly.
+ *        On Linux it maps to sched_getaffinity(0, ...); on Windows to GetThreadGroupAffinity(...).
+ * @ingroup ov_dev_api_threading
+ * @return A core affinity mask and the number of CPUs
+ */
+std::tuple<CpuSet, int> query_thread_mask();
+
+/**
+ * @brief Get the cores affinity mask for the current process.
+ *        Returns a copy of the process baseline mask snapshotted once during CPU topology
+ *        initialization (before any thread is pinned), so it stays unpolluted by transient
+ *        thread affinity restrictions.
+ * @ingroup ov_dev_api_threading
+ * @return A core affinity mask and the number of CPUs
  */
 std::tuple<CpuSet, int> get_process_mask();
 
@@ -101,5 +119,37 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& processMask);
  * @return     `True` in case of success, `false` otherwise
  */
 bool pin_current_thread_to_socket(int socket);
+
+/**
+ * @brief An RAII guard that pins the calling thread to a set of cores and accurately
+ *        restores the calling thread's own affinity mask on destruction (including during
+ *        stack unwinding on exception).
+ * @ingroup ov_dev_api_threading
+ *
+ * The mask is snapshotted on construction via query_thread_mask() and restored in the
+ * destructor via pin_current_thread_by_mask() if a valid mask was captured.
+ */
+class ScopedThreadAffinity {
+public:
+    ScopedThreadAffinity() {
+        std::tie(_mask, _ncpus) = query_thread_mask();
+    }
+
+    ~ScopedThreadAffinity() {
+        if (_mask) {
+            pin_current_thread_by_mask(_ncpus, _mask);
+        }
+    }
+
+    ScopedThreadAffinity(const ScopedThreadAffinity&) = delete;
+    ScopedThreadAffinity& operator=(const ScopedThreadAffinity&) = delete;
+
+    ScopedThreadAffinity(ScopedThreadAffinity&&) = delete;
+    ScopedThreadAffinity& operator=(ScopedThreadAffinity&&) = delete;
+
+private:
+    CpuSet _mask;
+    int _ncpus = 0;
+};
 }  // namespace threading
 }  // namespace ov
