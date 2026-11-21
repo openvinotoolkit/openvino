@@ -700,10 +700,11 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                                         "The first dimension will be interpreted as batch size.")
                         batch_index = 0
                         info.layout = Layout("N...")
-                if batch_index != -1 and info.partial_shape[batch_index] != batch_size:
-                    info.partial_shape[batch_index] = batch_size
-                    reshape = True
+                if batch_index != -1:
                     batch_found = True
+                    if info.partial_shape[batch_index] != batch_size:
+                        info.partial_shape[batch_index] = batch_size
+                        reshape = True
                 elif batch_index == -1 and not batch_found and i == len(inputs) - 1:
                     raise RuntimeError("-b option is provided in command line, but there's no inputs with batch(B) " \
                             "dimension in input layout, so batch cannot be set. " \
