@@ -27,11 +27,16 @@ struct jit_rms_compile_params {
     size_t data_size = 0UL;
     float eps = 0.0F;
     size_t scale_size = 0UL;
+    // Element type of the scale (gain): loaded and converted to f32 in the kernel. jit_rms_call_args then holds a raw
+    // pointer to elements of this type (scale_size == 1 reads one element).
+    ov::element::Type scale_prc = ov::element::f32;
+    // Apply (scale + 1) instead of scale (gain = 1 + weight), so callers need not materialize a biased copy.
+    bool scale_plus_one = false;
 };
 
 struct jit_rms_call_args {
     const uint8_t* src;
-    const float* scale;
+    const uint8_t* scale;  // elements of jcp.scale_prc
     uint8_t* dst;
 };
 
@@ -93,6 +98,7 @@ private:
     const Vmm vmm_sum2 = Vmm(4);
     const Vmm vmm_sum3 = Vmm(5);
     const Vmm vmm_dst = Vmm(6);
+    const Vmm vmm_one = Vmm(1);
     const Xbyak::Reg64 reg_src = r8;
     const Xbyak::Reg64 reg_src_org = r13;
     const Xbyak::Reg64 reg_scale = r10;
