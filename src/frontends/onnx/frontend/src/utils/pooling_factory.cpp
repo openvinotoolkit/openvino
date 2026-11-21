@@ -137,13 +137,16 @@ ov::OutputVector PoolingFactory::make_max_pool() const {
 }
 
 ov::OutputVector PoolingFactory::make_max_pool_with_indices() const {
-    const auto max_pool = std::make_shared<v8::MaxPool>(m_inputs.at(0),
+    const auto rounding_type = m_rounding_type == ov::op::RoundingType::CEIL
+                                   ? ov::op::RoundingType::CEIL_TORCH
+                                   : m_rounding_type;
+    const auto max_pool = std::make_shared<v14::MaxPool>(m_inputs.at(0),
                                                         m_strides,
                                                         m_dilations,
                                                         m_padding_below,
                                                         m_padding_above,
                                                         m_kernel_shape,
-                                                        m_rounding_type,
+                                                        rounding_type,
                                                         m_auto_pad);
     if (m_storage_order == StorageOrder::COLUMN_MAJOR) {
         const auto transposition_axes = transposition_axis_order(m_inputs.at(0).get_partial_shape().rank());
