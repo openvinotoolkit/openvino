@@ -18,6 +18,12 @@ include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
 set(LIBRARY_SRC ${GPU_KERNEL_SELECTOR_SOURCES})
 set(KERNELS ${GPU_KERNEL_SELECTOR_CL_KERNELS})
+set(PRIM_DB_GEN_VENDOR_ARGS "")
+if(GPU_VENDOR STREQUAL "NVIDIA")
+    # The NVIDIA compatibility headers are used only by the NVIDIA SYCL backend; keep them out of other builds.
+    list(APPEND KERNELS ${GPU_KERNEL_SELECTOR_NVIDIA_CL_KERNELS})
+    set(PRIM_DB_GEN_VENDOR_ARGS -nvidia)
+endif()
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
@@ -44,6 +50,7 @@ add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${PRIM_DB}"
                                                       -out_file_name_prim_db "${PRIM_DB}"
                                                       -out_file_name_batch_headers "${PRIM_DB_BATCH_HEADERS}"
                                                       -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/"
+                                                      ${PRIM_DB_GEN_VENDOR_ARGS}
   DEPENDS ${KERNELS} "${CODEGEN_SCRIPT}"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${PRIM_DB} ..."
 )
@@ -61,14 +68,19 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${CODEGEN_CACHE_SOURCES})
 # incremental regeneration of the primitive DB.
 file(GLOB_RECURSE _ov_gpu_cl_kernels_on_disk CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/*.cl")
 
+# Check against both lists so a .cl file missing from sources.cmake is caught whatever GPU_VENDOR is;
+# KERNELS carries the NVIDIA headers only in NVIDIA builds.
+set(_ov_gpu_cl_kernels_listed ${GPU_KERNEL_SELECTOR_CL_KERNELS} ${GPU_KERNEL_SELECTOR_NVIDIA_CL_KERNELS})
+
 foreach(_ov_gpu_cl_kernel IN LISTS _ov_gpu_cl_kernels_on_disk)
-  if(NOT _ov_gpu_cl_kernel IN_LIST KERNELS)
+  if(NOT _ov_gpu_cl_kernel IN_LIST _ov_gpu_cl_kernels_listed)
     message(SEND_ERROR "[${TARGET_NAME}] '${_ov_gpu_cl_kernel}' is missing from GPU_KERNEL_SELECTOR_CL_KERNELS "
-      "(kernel_selector/sources.cmake).")
+      "or GPU_KERNEL_SELECTOR_NVIDIA_CL_KERNELS (kernel_selector/sources.cmake).")
   endif()
 endforeach()
 
 unset(_ov_gpu_cl_kernel)
+unset(_ov_gpu_cl_kernels_listed)
 unset(_ov_gpu_cl_kernels_on_disk)
 
 if(NOT BUILD_SHARED_LIBS)

@@ -26,7 +26,7 @@ class KernelLang(Enum):
         return (".cl", ".cpp")[self.value]
 class Kernels2CHeaders(object):
 
-    def __init__(self, kernels_folder, out_path, out_file_name_prim_db, out_file_name_batch_headers, kernel_lang):
+    def __init__(self, kernels_folder, out_path, out_file_name_prim_db, out_file_name_batch_headers, kernel_lang, include_nvidia_headers):
         self.kernels_folder = os.path.abspath(kernels_folder)
         self.out_path = os.path.abspath(out_path)
         self.out_file_name_prim_db = out_file_name_prim_db
@@ -34,6 +34,7 @@ class Kernels2CHeaders(object):
         self.include_files = {}
         self.batch_headers = []
         self.kernel_lang = kernel_lang
+        self.include_nvidia_headers = include_nvidia_headers
         self.find_and_set_batch_headers()
 
     # NOTE: batch_headers are headers with macros on which the runtime jitter might depend on.
@@ -41,11 +42,21 @@ class Kernels2CHeaders(object):
     # These headers contains generally used macros and located under cl_kernels/include/batch_headers to be handled
     # specially for improving the jit compilation performance, i.e.,
     # they are not to be included in each kernel, but to be included only once at the beginning of each batch.
+    #
+    # The headers under batch_headers/nvidia/ are needed only by the NVIDIA SYCL backend and are added only when
+    # include_nvidia_headers is set. Their keys keep the "nvidia/" prefix (e.g. "nvidia/compat_sg"), which the runtime
+    # uses to tell them apart from the common batch headers.
     def find_and_set_batch_headers(self):
-        batch_headers_list = [ntpath.basename(h) for h in glob.glob(os.path.join(self.kernels_folder, "include/batch_headers/*" + self.kernel_lang.header_extension()))]
+        batch_headers_dir = os.path.join(self.kernels_folder, "include/batch_headers")
+        ext = self.kernel_lang.header_extension()
+
+        batch_headers_list = [ntpath.basename(h) for h in glob.glob(os.path.join(batch_headers_dir, "*" + ext))]
+        if self.include_nvidia_headers:
+            batch_headers_list += ["nvidia/" + ntpath.basename(h)
+                                   for h in glob.glob(os.path.join(batch_headers_dir, "nvidia", "*" + ext))]
         deps = {}
         for h in batch_headers_list:
-            header_file = os.path.abspath(os.path.join(self.kernels_folder, "include/batch_headers", h))
+            header_file = os.path.join(batch_headers_dir, h)
             f = open(header_file)
             content = f.readlines()
             deps[h] = {h}
@@ -290,10 +301,13 @@ def main():
     ap.add_argument('-out_file_name_prim_db', required=True, metavar='PATH', help='dump file name')
     ap.add_argument('-out_file_name_batch_headers', required=True, metavar='PATH', help='dump file name')
     ap.add_argument('-cm', required=False, action='store_true', help='Process CM kernel sources instead of ocl c')
+    ap.add_argument('-nvidia', required=False, action='store_true', help='Also embed the NVIDIA compatibility batch headers (include/batch_headers/nvidia)')
     args = ap.parse_args()
+    if args.cm and args.nvidia:
+        ap.error('-cm and -nvidia are mutually exclusive: the NVIDIA compatibility headers are OpenCL C only')
 
     kernel_lang = KernelLang.CM if args.cm else KernelLang.OCLC
-    converter = Kernels2CHeaders(args.kernels, args.out_path, args.out_file_name_prim_db, args.out_file_name_batch_headers, kernel_lang)
+    converter = Kernels2CHeaders(args.kernels, args.out_path, args.out_file_name_prim_db, args.out_file_name_batch_headers, kernel_lang, args.nvidia)
     converter.convert()
 
 if __name__ == '__main__':

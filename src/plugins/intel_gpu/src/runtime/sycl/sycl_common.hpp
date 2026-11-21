@@ -10,6 +10,7 @@
 #include "sycl_device_detector.hpp"
 #include "openvino/core/except.hpp"
 
+#include <utility>
 #include <vector>
 
 namespace cldnn {
@@ -35,6 +36,16 @@ inline bool is_device_available(const device_info& info) {
     }
 
     return false;
+}
+
+// Drop-in for cgh.host_task(): enqueues the task as a native command when the extension is available.
+template <typename HandlerT, typename FnT>
+void host_task(HandlerT& cgh, FnT&& task) {
+#ifdef SYCL_EXT_ONEAPI_ENQUEUE_NATIVE_COMMAND
+    cgh.ext_codeplay_enqueue_native_command(std::forward<FnT>(task));
+#else
+    cgh.host_task(std::forward<FnT>(task));
+#endif
 }
 
 }  // namespace sycl
