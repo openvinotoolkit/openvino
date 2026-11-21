@@ -4,10 +4,14 @@
 
 #include "scatter_elements_update_kernel_selector.h"
 #include "scatter_elements_update_kernel_ref.h"
+#include "scatter_elements_update_kernel_opt_local_sum.h"
 
 namespace kernel_selector {
 
-scatter_elements_update_kernel_selector::scatter_elements_update_kernel_selector() { Attach<ScatterElementsUpdateKernelRef>(); }
+scatter_elements_update_kernel_selector::scatter_elements_update_kernel_selector() {
+    Attach<ScatterElementsUpdateKernelOptLocalSum>();
+    Attach<ScatterElementsUpdateKernelRef>();
+}
 
 KernelsData scatter_elements_update_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::SCATTER_ELEMENTS_UPDATE);
