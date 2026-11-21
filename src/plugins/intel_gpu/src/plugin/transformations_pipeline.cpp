@@ -133,6 +133,7 @@
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/move_fq_before_split.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/remove_fq_before_dw_conv.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
@@ -1835,6 +1836,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                        ov::is_type<ov::op::v1::Convolution>(first_dep) ||
                        ov::is_type<ov::op::v1::Convolution>(second_dep);
         });
+
+        if (enableInt8) {
+            manager.register_pass<ov::intel_gpu::MoveFakeQuantizeBeforeSplit>();
+        }
 
         if (enableInt8 && infer_precision == ov::element::f16) {
             manager.register_pass<RemoveFakeQuantizeBeforeDepthwiseConv>();
