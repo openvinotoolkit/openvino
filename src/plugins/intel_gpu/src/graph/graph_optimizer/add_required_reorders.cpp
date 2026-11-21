@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "assign_inst.h"
+#include "concatenation_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
@@ -17,6 +18,61 @@
 using namespace cldnn;
 
 namespace {
+// oneDNN reads a padded input as a dense memory descriptor plus a start offset (onednn::get_offset).
+// Returns true if that can't describe the input's feature padding. The oneDNN reader needs a dense copy.
+bool onednn_reader_needs_copy(const program_node& reader, const layout& l, const engine& eng) {
+    // OCL kernels read feature padding directly.
+    if (reader.get_preferred_impl_type() != impl_types::onednn)
+        return false;
+
+    // Dynamic shapes keep the padding.
+    if (l.is_dynamic() || l.data_padding.is_dynamic())
+        return false;
+
+    // Without USM, gpu_buffer::get_onednn_memory() ignores the offset.
+    // With batch > 1 the dense descriptor gives the wrong batch stride.
+    if (!eng.use_unified_shared_memory() || l.batch() > 1)
+        return true;
+
+    // The slice is contiguous only if feature is the outermost dim after batch.
+    const auto& dims_order = l.format.dims_order();
+    auto outer_dim = std::find_if(dims_order.begin(), dims_order.end(), [](size_t dim) {
+        return dim != 0;
+    });
+    if (outer_dim == dims_order.end() || *outer_dim != 1)
+        return true;
+
+    // A block on any dim but feature that interleaves batch items breaks the offset.
+    for (const auto& block : l.format.block_sizes()) {
+        if (block.first != 1)
+            return true;
+    }
+
+    // oneDNN needs a 64-byte aligned start.
+    int64_t offset = l.data_padding._lower_size[1];
+    for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
+        offset *= l.spatial(i);
+    }
+    const auto offset_bits = offset * static_cast<int64_t>(ov::element::Type(l.data_type).bitwidth());
+    return offset_bits % (64 * 8) != 0;
+}
+
+// An in-place concat writes this node's output into its buffer, which gives the output feature padding.
+bool writes_into_in_place_concat(const program_node& node) {
+    const auto& users = node.get_users();
+    return std::any_of(users.begin(), users.end(), [](const program_node* user) {
+        return user->is_type<concatenation>() && user->can_be_optimized();
+    });
+}
+
+// Users that are optimized out share this node's buffer and rely on its padding.
+bool has_in_place_user(const program_node& node) {
+    const auto& users = node.get_users();
+    return std::any_of(users.begin(), users.end(), [](const program_node* user) {
+        return user->can_be_optimized();
+    });
+}
+
 void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
     // Padded offsets aren't supported by onednn kernels
     bool has_paddings = false;
@@ -75,12 +131,17 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
                     batch_padding = false;
                 }
 
-                if (spatial_padding || batch_padding) {
+                const bool remove_feature_padding =
+                    feature_padding && writes_into_in_place_concat(input) && onednn_reader_needs_copy(node, in_layout, p.get_engine());
+
+                if (spatial_padding || batch_padding || remove_feature_padding) {
                     cldnn::layout layout_wo_padding = in_layout;
                     layout_wo_padding.data_padding = cldnn::padding{};
-                    layout_wo_padding.data_padding._lower_size[1] = in_layout.data_padding._lower_size[1];
-                    layout_wo_padding.data_padding._upper_size[1] = in_layout.data_padding._upper_size[1];
-                    if (input.is_type<reorder>()) {
+                    if (!remove_feature_padding) {
+                        layout_wo_padding.data_padding._lower_size[1] = in_layout.data_padding._lower_size[1];
+                        layout_wo_padding.data_padding._upper_size[1] = in_layout.data_padding._upper_size[1];
+                    }
+                    if (input.is_type<reorder>() && !has_in_place_user(input)) {
                         input.set_output_padding(padding());
                         input.set_output_layout(layout_wo_padding, false, port);
                     } else {
@@ -89,8 +150,6 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
                         p.add_intermediate(new_reorder_node, node, idx);
                         new_reorder_node.recalc_output_layouts(false);
                     }
-                } else {
-                    return;
                 }
             }
         }

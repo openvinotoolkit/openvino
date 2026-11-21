@@ -343,3 +343,101 @@ TEST_F(align_shape_for_numpy_broadcast_test, test_simple_format_dynamic) {
 TEST_F(align_shape_for_numpy_broadcast_test, test_imcompatible_blocked_format_dynamic) {
     this->test_eltwise_broadcast_dynamic(format::b_fs_yx_fsv16);
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+struct onednn_reader_of_concat_input_params {
+    int64_t batch;
+    bool reorder_producers;
+};
+
+// pred_b writes into an in-place concat buffer and is also read by a oneDNN convolution.
+// oneDNN applies only a base offset to a feature-padded input, so with batch > 1
+// the convolution must get an unpadded copy, while the concat stays in place.
+class onednn_reader_of_concat_input : public ::testing::TestWithParam<onednn_reader_of_concat_input_params> {};
+
+TEST_P(onednn_reader_of_concat_input, reads_unpadded_copy_when_offset_is_not_enough) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN convolution requires IMMAD support";
+
+    const auto& p = GetParam();
+    const int64_t feature = 16, y_size = 4, x_size = 4;
+    auto in_layout = layout{ov::PartialShape{p.batch, feature, y_size, x_size}, data_types::f16, format::bfyx};
+    const size_t count = in_layout.count();
+
+    // Each element gets a distinct integer, exact in f16 up to 2048 elements. input_b is negative, so a read
+    // from pred_a's slice instead of pred_b's shows. A 1x1 convolution with identity weights copies its input.
+    std::vector<ov::float16> input_a(count), input_b(count);
+    for (size_t i = 0; i < count; ++i) {
+        input_a[i] = ov::float16(static_cast<float>(i));
+        input_b[i] = ov::float16(-static_cast<float>(i) - 1.f);
+    }
+    std::vector<ov::float16> weights(static_cast<size_t>(feature * feature), ov::float16(0.f));
+    for (int64_t f = 0; f < feature; ++f) {
+        weights[static_cast<size_t>(f * feature + f)] = ov::float16(1.f);
+    }
+
+    auto input_a_mem = engine.allocate_memory(in_layout);
+    auto input_b_mem = engine.allocate_memory(in_layout);
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{feature, feature, 1, 1}, data_types::f16, format::bfyx});
+    set_values(input_a_mem, input_a);
+    set_values(input_b_mem, input_b);
+    set_values(weights_mem, weights);
+
+    topology topology;
+    topology.add(input_layout("input_a", in_layout));
+    topology.add(input_layout("input_b", in_layout));
+    if (p.reorder_producers) {
+        topology.add(reorder("pred_a", input_info("input_a"), format::b_fs_yx_fsv16, data_types::f16));
+        topology.add(reorder("pred_b", input_info("input_b"), format::b_fs_yx_fsv16, data_types::f16));
+    } else {
+        topology.add(pooling("pred_a", input_info("input_a"), pooling_mode::max, {1, 1}, {1, 1}));
+        topology.add(pooling("pred_b", input_info("input_b"), pooling_mode::max, {1, 1}, {1, 1}));
+    }
+    topology.add(concatenation("concat", {input_info("pred_a"), input_info("pred_b")}, 1));
+    topology.add(reorder("concat_out", input_info("concat"), format::bfyx, data_types::f32));
+    topology.add(data("weights", weights_mem));
+    topology.add(convolution("conv", input_info("pred_b"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(reorder("conv_out", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    // OCL producers: with a oneDNN producer, match() allows in-place concat only at batch 1.
+    ov::intel_gpu::ImplementationDesc ocl_fsv16 = {format::b_fs_yx_fsv16, "", impl_types::ocl};
+    ov::intel_gpu::ImplementationDesc onednn_fsv16 = {format::b_fs_yx_fsv16, "", impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"pred_a", ocl_fsv16}, {"pred_b", ocl_fsv16}, {"concat", ocl_fsv16}, {"conv", onednn_fsv16}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input_a", input_a_mem);
+    network.set_input_data("input_b", input_b_mem);
+    auto outputs = network.execute();
+
+    cldnn::mem_lock<float> concat_ptr(outputs.at("concat_out").get_memory(), get_test_stream());
+    cldnn::mem_lock<float> conv_ptr(outputs.at("conv_out").get_memory(), get_test_stream());
+    const size_t per_batch = static_cast<size_t>(feature * y_size * x_size);
+    for (size_t b = 0; b < static_cast<size_t>(p.batch); ++b) {
+        for (size_t i = 0; i < per_batch; ++i) {
+            const size_t in = b * per_batch + i;
+            ASSERT_EQ(concat_ptr[2 * b * per_batch + i], static_cast<float>(input_a[in])) << "b=" << b << " i=" << i;
+            ASSERT_EQ(concat_ptr[2 * b * per_batch + per_batch + i], static_cast<float>(input_b[in])) << "b=" << b << " i=" << i;
+            ASSERT_EQ(conv_ptr[in], static_cast<float>(input_b[in])) << "b=" << b << " i=" << i;
+        }
+    }
+
+    // The concat stays in place, and the convolution reads an unpadded copy only when the offset isn't enough.
+    ASSERT_TRUE(network.get_primitive("concat")->can_be_optimized());
+    const bool needs_copy = p.batch > 1 || !engine.use_unified_shared_memory();
+    const auto& conv_input_layout = network.get_program()->get_node("conv").get_input_layout(0);
+    ASSERT_EQ(static_cast<bool>(conv_input_layout.data_padding), !needs_copy);
+}
+
+INSTANTIATE_TEST_SUITE_P(add_required_reorders,
+                         onednn_reader_of_concat_input,
+                         ::testing::Values(onednn_reader_of_concat_input_params{1, false},
+                                           onednn_reader_of_concat_input_params{2, false},
+                                           onednn_reader_of_concat_input_params{2, true}),
+                         [](const ::testing::TestParamInfo<onednn_reader_of_concat_input_params>& info) {
+                             return "b" + std::to_string(info.param.batch) + (info.param.reorder_producers ? "_reorder" : "_pooling");
+                         });
+#endif  // ENABLE_ONEDNN_FOR_GPU
