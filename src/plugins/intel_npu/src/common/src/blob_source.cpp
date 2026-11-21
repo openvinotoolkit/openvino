@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "blob_source.hpp"
+#include "intel_npu/common/blob_source.hpp"
 
 #include "openvino/core/except.hpp"
 
@@ -180,6 +180,11 @@ size_t BlobSource::get_remaining_size() const {
 bool BlobSource::is_contiguous() const {
     // The buffer behind a "stream" object is not guaranteed to be contiguous
     return !std::get_if<std::reference_wrapper<std::istream>>(&m_source);
+}
+
+std::variant<std::reference_wrapper<std::istream>, std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>
+BlobSource::get_source() const {
+    return m_source;
 }
 
 }  // namespace intel_npu

@@ -18,6 +18,9 @@
 #include "openvino/core/partial_shape.hpp"
 
 namespace {
+
+constexpr size_t NULL_TERMINATOR_SIZE = 1;
+
 // Level Zero fixed-width name buffers are not guaranteed to be NUL-terminated by a malicious/compromised
 // driver or compiler; scanning them as C strings (e.g. via std::string's implicit constructor) can read
 // past the end of the buffer. Require an in-array terminator before building the string.
@@ -36,6 +39,7 @@ std::string safeStringFromFixedBuffer(const char* buffer,
     }
     return std::string(buffer);
 }
+
 }  // namespace
 
 namespace intel_npu {
@@ -708,18 +712,20 @@ std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_gra
         return std::nullopt;
     }
 
-    if (size > descriptor.size()) {
-        _logger.warning("zeDeviceGetRuntimeRequirements returned inconsistent size: %zu > %zu",
+    if (size != descriptor.size()) {
+        _logger.warning("zeDeviceGetRuntimeRequirements returned inconsistent size: %zu != %zu",
                         size,
                         descriptor.size());
         return std::nullopt;
     }
 
-    size_t outSize = size;
-    if (outSize > 0 && descriptor[outSize - 1] == '\0') {
-        --outSize;
+    if (descriptor.back() == '\0') {
+        if (size == NULL_TERMINATOR_SIZE) {
+            return std::nullopt;
+        }
+
+        descriptor.erase(descriptor.end() - 1);
     }
-    descriptor.resize(outSize);
 
     _logger.debug("Fetched runtime requirements from driver: %s", descriptor.c_str());
 

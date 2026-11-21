@@ -46,9 +46,11 @@ public:
                     const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     /**
-     * @brief The main schedule along with the weights initialization ones are exported.
+     * @brief The weights initialization schedules are exported into the given sink.
      */
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    std::vector<uint64_t> export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const;
+
+    size_t get_number_of_inits() const;
 
     GraphKind get_kind() const override {
         return GraphKind::Weightless;

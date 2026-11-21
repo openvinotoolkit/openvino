@@ -275,18 +275,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#191861 -->
-    <skip_config>
-        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010 and NPU6010</message>
-        <enable_rules>
-            <device>5010</device>
-            <device>6010</device>
-        </enable_rules>
-        <filters>
-            <filter>.*OVBlobCompatibilityNPU.*</filter>
-        </filters>
-    </skip_config>
-
     <skip_config>
         <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>

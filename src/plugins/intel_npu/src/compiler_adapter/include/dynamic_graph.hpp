@@ -23,7 +23,14 @@ public:
                  ov::Tensor blob,
                  BlobType blobType = BlobType::BYTECODE);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    /**
+     * @brief Writes the dynamic schedule to the provided sink, along with some padding for page alignment. The
+     * format is "raw": no additional metadata are written.
+     *
+     * @param sink Where the content is placed
+     * @return The total size written into the stream
+     */
+    uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const override;
 
     void* get_handle() const override;
 
