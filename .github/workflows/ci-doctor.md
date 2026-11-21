@@ -40,6 +40,10 @@ tools:
   repo-memory:
     branch-name: memory/ci-doctor-mq              # read-only access to the CI Doctor (Merge Queue) knowledge base
     allowed-extensions: [".md", ".json", ".jsonl"]
+    # The push job size-checks every file on the branch, not only changed ones, so this
+    # must match the writer's cap (ci-doctor-knowledge-base.md); the 100KB default rejects
+    # the MQ doctor's investigations index once it grows past it.
+    max-file-size: 1048576 # 1MB, same as CI Doctor (Merge Queue)
 
 timeout-minutes: 20
 ---
