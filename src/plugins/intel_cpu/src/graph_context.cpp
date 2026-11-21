@@ -52,7 +52,7 @@ GraphContext::GraphContext(Config config,
     // but scratch pad cannot be shared.
     int numaNum = std::max(m_numaNodeId + 1, m_numNumaNodes);
     for (int i = 0; i < numaNum; i++) {
-        m_rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
+        m_rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i, m_auxiliaryNetworkMemoryControl));
     }
 
     if (!m_cpuParallel) {

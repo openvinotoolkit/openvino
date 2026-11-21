@@ -112,6 +112,8 @@ public:
     [[nodiscard]] void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
+    void free();
+    [[nodiscard]] size_t size() const;
     [[nodiscard]] bool hasExtBuffer() const noexcept override;
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;

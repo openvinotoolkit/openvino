@@ -274,12 +274,22 @@ private:
 DynamicBuffer::DynamicBuffer(MemoryPtr from_,
                              std::vector<MemoryPtr> to_,
                              const PortMap& map_rule_,
-                             const std::shared_ptr<CpuParallel>& parallel)
+                             const std::shared_ptr<CpuParallel>& parallel,
+                             const std::shared_ptr<IAuxiliaryMemoryControl>& memory_control_)
     : from(std::move(from_)),
       to(std::move(to_)),
       map_rule(map_rule_),
       elem_size(DnnlExtensionUtils::sizeOfDataType(from->getDataType())),
-      cpu_parallel(parallel) {}
+      cpu_parallel(parallel),
+      memory_control(memory_control_) {
+    OPENVINO_ASSERT(memory_control, "TensorIterator requires an auxiliary memory control interface");
+}
+
+void DynamicBuffer::releaseMemory() {
+    mem_holder_buffer.reset();
+}
+
+void DynamicBuffer::allocateMemory() {}
 
 void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
     OPENVINO_ASSERT(from->getStaticDims()[map_rule.axis] == static_cast<size_t>(std::abs(map_rule.stride)),
@@ -357,8 +367,7 @@ MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     auto _descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
     auto new_buffer_desc = _descCreator->createSharedDesc(from->getDesc().getPrecision(), _shape);
 
-    auto _ptr = std::make_shared<Memory>(eng, new_buffer_desc);
-    return _ptr;
+    return memory_control->allocate(eng, new_buffer_desc);
 }
 
 void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
@@ -844,8 +853,24 @@ void TensorIterator::prepareDynamicBuffers() {
         if (map_rule.axis != -1) {
             auto to_mems = getToMemories(this, map_rule.from);
             auto& from_mem = output_mem[map_rule.to];
-            buffers.emplace_back(
-                std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule, context->getCpuParallel()));
+            auto buffer = std::make_shared<DynamicBuffer>(from_mem,
+                                                           to_mems,
+                                                           map_rule,
+                                                           context->getCpuParallel(),
+                                                           getAuxiliaryMemoryControl());
+            std::weak_ptr<DynamicBuffer> weakBuffer = buffer;
+            getAuxiliaryMemoryControl()->registerMemoryCallbacks(
+                [weakBuffer]() {
+                    if (const auto buffer = weakBuffer.lock()) {
+                        buffer->releaseMemory();
+                    }
+                },
+                [weakBuffer]() {
+                    if (const auto buffer = weakBuffer.lock()) {
+                        buffer->allocateMemory();
+                    }
+                });
+            buffers.emplace_back(std::move(buffer));
         }
     }
 }

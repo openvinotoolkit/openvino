@@ -28,6 +28,13 @@
 
 namespace ov::intel_cpu {
 
+struct NetworkMemoryControl::AuxiliaryMemory {
+    MemoryPtr memory;
+    MemoryBlockPtr block;
+    size_t size = 0;
+    bool restore = false;
+};
+
 namespace {
 
 class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
@@ -94,7 +101,7 @@ public:
         m_pBlock->unregisterMemory(memPtr);
     }
     void free() {
-        m_pInternalMem->free();
+        m_pBlock->free();
     }
 
     [[nodiscard]] size_t size() const {
@@ -102,7 +109,7 @@ public:
     }
 
 private:
-    MemoryBlockPtr m_pBlock;
+    std::shared_ptr<DnnlMemoryBlock> m_pBlock;
     MemoryBlockWithReuse* m_pInternalMem;
 };
 
@@ -602,15 +609,57 @@ MemoryControl::Ptr NetworkMemoryControl::createMemoryControlUnit(std::string id)
     return m_controlUnits.back();
 }
 
+MemoryPtr NetworkMemoryControl::allocate(const dnnl::engine& engine, const MemoryDescPtr& desc) {
+    auto blockImpl = std::make_unique<MemoryBlockWithReuse>();
+    auto blockObserver = std::make_shared<DnnlMemoryBlock>(std::move(blockImpl));
+    auto memory = std::make_shared<Memory>(engine, desc, blockObserver);
+    m_auxiliaryMemory.push_back(
+        std::make_shared<AuxiliaryMemory>(AuxiliaryMemory{memory, blockObserver, memory->getSize(), false}));
+    return memory;
+}
+
+void NetworkMemoryControl::registerMemoryBlock(MemoryBlockPtr block) {
+    OPENVINO_ASSERT(block);
+    m_auxiliaryMemory.push_back(std::make_shared<AuxiliaryMemory>(AuxiliaryMemory{nullptr, block, 0, true}));
+}
+
+void NetworkMemoryControl::registerMemoryCallbacks(std::function<void()> release, std::function<void()> allocate) {
+    OPENVINO_ASSERT(release && allocate);
+    m_auxiliaryCallbacks.emplace_back(std::move(release), std::move(allocate));
+}
+
 void NetworkMemoryControl::allocateMemory() {
     for (auto&& item : m_controlUnits) {
-        item->allocateMemory();
+        if (!item->allocated()) {
+            item->allocateMemory();
+        }
+    }
+    for (auto&& item : m_auxiliaryMemory) {
+        if (item->restore) {
+            item->block->resize(item->size);
+        }
+    }
+    for (auto&& callbacks : m_auxiliaryCallbacks) {
+        callbacks.second();
     }
 }
 
 void NetworkMemoryControl::releaseMemory() {
     for (auto&& item : m_controlUnits) {
         item->releaseMemory();
+    }
+    for (auto&& item : m_auxiliaryMemory) {
+        if (item->restore) {
+            auto block = std::dynamic_pointer_cast<DnnlMemoryBlock>(item->block);
+            OPENVINO_ASSERT(block, "Auxiliary memory must use a DnnlMemoryBlock");
+            item->size = block->size();
+        }
+        auto block = std::dynamic_pointer_cast<DnnlMemoryBlock>(item->block);
+        OPENVINO_ASSERT(block, "Auxiliary memory must use a DnnlMemoryBlock");
+        block->free();
+    }
+    for (auto&& callbacks : m_auxiliaryCallbacks) {
+        callbacks.first();
     }
 }
 
