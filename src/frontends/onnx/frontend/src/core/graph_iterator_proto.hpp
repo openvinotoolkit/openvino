@@ -41,6 +41,11 @@ enum GraphIteratorProtoMemoryManagementMode : int {
 
 bool is_valid_model(std::istream& model);
 
+/// \brief Throws if a model read from a file has a tensor with ORT_MEM_ADDR external data and a non-zero length.
+///        With ORT_MEM_ADDR the "offset" field is a raw memory address, which only an in-process caller
+///        (ONNX Runtime) can provide.
+void validate_no_ort_mem_addr(const ModelProto& model_proto);
+
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
     std::shared_ptr<ModelProto> m_model;

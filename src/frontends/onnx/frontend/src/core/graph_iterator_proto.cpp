@@ -322,6 +322,77 @@ void topological_sort_graph(GraphProto* graph) {
 namespace ov::frontend::onnx {
 
 namespace {
+void check_ort_mem_addr(const TensorProto& tensor) {
+    if (tensor.data_location() != TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
+        return;
+    }
+    std::string location{};
+    std::string length{};
+    for (const auto& entry : tensor.external_data()) {
+        if (entry.key() == "location") {
+            location = entry.value();
+        } else if (entry.key() == "length") {
+            length = entry.value();
+        }
+    }
+    if (location == detail::ORT_MEM_ADDR && !length.empty()) {
+        bool is_zero_length = false;
+        try {
+            size_t pos = 0;
+            is_zero_length =
+                length.find('-') == std::string::npos && std::stoull(length, &pos, 10) == 0 && pos == length.size();
+        } catch (const std::exception&) {
+            is_zero_length = false;
+        }
+        FRONT_END_GENERAL_CHECK(is_zero_length,
+                                "Tensor '",
+                                tensor.name(),
+                                "' has external data location ",
+                                detail::ORT_MEM_ADDR,
+                                " which is not allowed for a model read from a file");
+    }
+}
+
+void check_ort_mem_addr(const ::ONNX_NAMESPACE::SparseTensorProto& sparse_tensor) {
+    check_ort_mem_addr(sparse_tensor.values());
+    check_ort_mem_addr(sparse_tensor.indices());
+}
+
+void check_ort_mem_addr(const GraphProto& graph);
+
+void check_ort_mem_addr(const ::ONNX_NAMESPACE::AttributeProto& attribute) {
+    check_ort_mem_addr(attribute.t());
+    check_ort_mem_addr(attribute.sparse_tensor());
+    check_ort_mem_addr(attribute.g());
+    for (const auto& tensor : attribute.tensors()) {
+        check_ort_mem_addr(tensor);
+    }
+    for (const auto& sparse_tensor : attribute.sparse_tensors()) {
+        check_ort_mem_addr(sparse_tensor);
+    }
+    for (const auto& graph : attribute.graphs()) {
+        check_ort_mem_addr(graph);
+    }
+}
+
+void check_ort_mem_addr(const NodeProto& node) {
+    for (const auto& attribute : node.attribute()) {
+        check_ort_mem_addr(attribute);
+    }
+}
+
+void check_ort_mem_addr(const GraphProto& graph) {
+    for (const auto& tensor : graph.initializer()) {
+        check_ort_mem_addr(tensor);
+    }
+    for (const auto& sparse_tensor : graph.sparse_initializer()) {
+        check_ort_mem_addr(sparse_tensor);
+    }
+    for (const auto& node : graph.node()) {
+        check_ort_mem_addr(node);
+    }
+}
+
 bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_meta_info,
                                   const TensorProto* tensor_info,
                                   GraphIteratorProto* graph_iterator) {
@@ -528,6 +599,18 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     return tensor_meta_info;
 }
 
+void validate_no_ort_mem_addr(const ModelProto& model_proto) {
+    check_ort_mem_addr(model_proto.graph());
+    for (const auto& function : model_proto.functions()) {
+        for (const auto& attribute : function.attribute_proto()) {
+            check_ort_mem_addr(attribute);
+        }
+        for (const auto& node : function.node()) {
+            check_ort_mem_addr(node);
+        }
+    }
+}
+
 GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementMode mode)
     : m_graph(nullptr),
       m_parent(nullptr),
@@ -560,6 +643,8 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
+        // A model read from a file cannot point to ONNX Runtime in-process memory
+        validate_no_ort_mem_addr(*m_model);
         if (m_model->has_graph()) {
             fixup_legacy_nodes(*m_model);
             topological_sort_graph(m_model->mutable_graph());
