@@ -87,6 +87,35 @@ OptChoices PickStaticChoices(const broadcast_params& p) {
     return c;
 }
 
+// A last-axis expand such as rank-3 [M, N, 1] -> [M, N, K] maps to bfyx with X == 1 on both sides and a
+// Y-broadcast, which the ref kernel writes element by element. With no padding this is memory-equivalent
+// to the X-broadcast splat once Y and X are swapped, so it can take the vectorized splat path.
+// The splat path runs one work-group per row, while the ref kernel spreads the long Y axis over many
+// work-items, so the swap is only taken when there are enough rows to occupy every compute unit.
+bool IsSwappableYSplat(const broadcast_params& p) {
+    if (p.has_dynamic_tensors() || p.is_explicit_mode) {
+        return false;
+    }
+    const auto& input = p.inputs[0];
+    const auto& output = p.outputs[0];
+    const auto is_unpadded_bfyx = [](const DataTensor& t) {
+        return t.GetLayout() == DataLayout::bfyx && !t.PitchesDifferFromLogicalDims() && t.GetFirstElementOffset() == 0;
+    };
+    if (!is_unpadded_bfyx(input) || !is_unpadded_bfyx(output)) {
+        return false;
+    }
+    const size_t num_rows = output.Batch().v * output.Feature().v;
+    return input.X().v == 1 && output.X().v == 1 && input.Y().v == 1 && output.Y().v > 1 && num_rows >= p.engineInfo.computeUnitsCount;
+}
+
+// The swapped params have output Y == 1, so they never match IsSwappableYSplat again.
+broadcast_params SwapYXForSplat(const broadcast_params& p) {
+    broadcast_params swapped = p;
+    swapped.inputs[0].SwapXY();
+    swapped.outputs[0].SwapXY();
+    return swapped;
+}
+
 CommonDispatchData ComputeDispatch(const OptChoices& c) {
     CommonDispatchData dispatchData;
     if (c.x_broadcast_block_write) {
@@ -116,6 +145,9 @@ DeviceFeaturesKey BroadcastKernelOpt::get_required_device_features_key(const Par
 
 bool BroadcastKernelOpt::Validate(const Params& params) const {
     const auto& p = static_cast<const broadcast_params&>(params);
+    if (IsSwappableYSplat(p)) {
+        return Validate(SwapYXForSplat(p));
+    }
     const auto& input = p.inputs[0];
     const auto& output = p.outputs[0];
 
@@ -229,6 +261,10 @@ KernelsData BroadcastKernelOpt::GetKernelsData(const Params& params) const {
 
     if (!Validate(params)) {
         return {};
+    }
+
+    if (IsSwappableYSplat(prim_params)) {
+        return GetKernelsData(SwapYXForSplat(prim_params));
     }
 
     OptChoices choices;

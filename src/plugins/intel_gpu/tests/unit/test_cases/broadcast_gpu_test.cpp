@@ -2981,6 +2981,26 @@ TEST(broadcast_gpu_opt, bfyx_fp16_x_broadcast_x192_block_write_with_tail) {
     start_x_broadcast_test<ov::float16>(data_types::f16, {1,64,128,1}, {1,64,128,192}, "broadcast_gpu_opt");
 }
 
+// Rank-3 last-axis expand [M,N,1] -> [M,N,K] maps to bfyx as a Y-broadcast with X == 1 on both
+// sides. The opt kernel swaps Y/X and handles it as an X-broadcast (splat / block-write).
+TEST(broadcast_gpu_opt, bfyx_fp16_last_axis_y_broadcast_k64_splat) {
+    start_x_broadcast_test<ov::float16>(data_types::f16, {32, 64, 1}, {32, 64, 64}, "broadcast_gpu_opt");
+}
+
+TEST(broadcast_gpu_opt, bfyx_f32_last_axis_y_broadcast_k256_block_write) {
+    start_x_broadcast_test<float>(data_types::f32, {32, 64, 1}, {32, 64, 256}, "broadcast_gpu_opt");
+}
+
+// After the Y/X swap the output X is below the opt kernel's minimum, so ref must be kept.
+TEST(broadcast_gpu_opt, bfyx_fp16_last_axis_y_broadcast_k16_uses_ref) {
+    start_x_broadcast_test<ov::float16>(data_types::f16, {32, 64, 1}, {32, 64, 16}, "broadcast_gpu_ref");
+}
+
+// Too few rows to fill the device with one work-group per row, so ref must be kept.
+TEST(broadcast_gpu_opt, bfyx_fp16_last_axis_y_broadcast_few_rows_uses_ref) {
+    start_x_broadcast_test<ov::float16>(data_types::f16, {1, 2, 1}, {1, 2, 4096}, "broadcast_gpu_ref");
+}
+
 // Dynamic numpy-mode broadcast helper. The input partial shape is passed explicitly so a
 // test can mark only some axes dynamic (e.g. batch = -1, Y/X static) — matching how real
 // dynamic LLM broadcasts reach the plugin. Numpy mode = empty axes_mapping. The input
