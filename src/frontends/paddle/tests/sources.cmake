@@ -10,6 +10,7 @@ set(OV_PADDLE_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/load_from.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_fuzzy.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_leaky_relu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paddle_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/partial_shape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/places.cpp
