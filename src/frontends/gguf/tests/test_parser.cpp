@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <tuple>
@@ -197,6 +199,61 @@ TEST_F(GGUFParser, Q8_1RejectsInvalidDimensionsAndTruncatedPayload) {
             write_tensor("truncated.weight", GGUF_TYPE_Q8_1, 32, rows, std::vector<uint8_t>(rows * 36 - 1)));
         EXPECT_THROW(get_gguf_data(m_path), ov::Exception);
     }
+}
+
+TEST_F(GGUFParser, Q6_KEmbeddingAndOutputUseChannelwiseI8) {
+    const auto bytes = load_npy<uint8_t>("q6_k_qbytes");
+    const auto reference = load_npy<float>("q6_k_deq");
+    ASSERT_EQ(reference.size(), 4 * 256);
+    for (const std::string name : {"token_embd.weight", "output.weight", "blk.0.attn_q.weight"}) {
+        SCOPED_TRACE(name);
+        const bool channelwise = name != "blk.0.attn_q.weight";
+        ASSERT_NO_FATAL_FAILURE(write_tensor(name, GGUF_TYPE_Q6_K, 256, 4, bytes));
+        const auto loaded = get_gguf_data(m_path);
+        const auto& source = std::get<1>(loaded).at(name);
+        const auto unpacked = unpack_gguf_weight(source);
+        EXPECT_EQ(unpacked.weight.get_element_type(), ov::element::i8);
+        EXPECT_EQ(unpacked.weight.get_shape(), (ov::Shape{4, 256}));
+        EXPECT_EQ(unpacked.scales.get_shape(), (ov::Shape{4, channelwise ? 1u : 16u}));
+        EXPECT_EQ(gguf_weight_group_size(source), channelwise ? 256u : 16u);
+
+        const auto model =
+            std::make_shared<ov::Model>(ov::OutputVector{make_weight_node(source)}, ov::ParameterVector{});
+        const auto ops = model->get_ops();
+        const bool has_reshape = std::any_of(ops.begin(), ops.end(), [](const auto& op) {
+            return std::string(op->get_type_name()) == "Reshape";
+        });
+        EXPECT_EQ(has_reshape, !channelwise);
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        float max_diff = 0.f;
+        for (size_t i = 0; i < reference.size(); ++i)
+            max_diff = std::max(max_diff, std::fabs(output.data<const float>()[i] - reference[i]));
+        EXPECT_LE(max_diff, channelwise ? 1.5e-2f : 3e-3f);
+
+        if (channelwise) {
+            ov::Tensor raw(ov::element::u8, {bytes.size()});
+            std::memcpy(raw.data(), bytes.data(), bytes.size());
+            const auto raw_model =
+                std::make_shared<ov::Model>(ov::OutputVector{make_weight_node(raw, GGUF_TYPE_Q6_K, {4, 256}, name)},
+                                            ov::ParameterVector{});
+            const auto raw_output = run_on_cpu(raw_model, {});
+            ASSERT_EQ(raw_output.get_size(), output.get_size());
+            EXPECT_EQ(std::memcmp(raw_output.data(), output.data(), output.get_byte_size()), 0);
+        }
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("output.weight", GGUF_TYPE_Q6_K, 256, 2, bytes, {}, {2}));
+    const auto rank3 = make_weight_node(std::get<1>(get_gguf_data(m_path)).at("output.weight"));
+    const auto rank3_output =
+        run_on_cpu(std::make_shared<ov::Model>(ov::OutputVector{rank3}, ov::ParameterVector{}), {});
+    EXPECT_EQ(rank3_output.get_shape(), (ov::Shape{2, 2, 256}));
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_NEAR(rank3_output.data<const float>()[i], reference[i], 1.5e-2f);
+
+    ASSERT_NO_FATAL_FAILURE(write_tensor("output.weight", GGUF_TYPE_Q6_K, 0, 2));
+    const auto empty = unpack_gguf_weight(std::get<1>(get_gguf_data(m_path)).at("output.weight"));
+    EXPECT_EQ(empty.weight.get_shape(), (ov::Shape{2, 0}));
+    EXPECT_EQ(empty.scales.get_size(), 0);
 }
 
 TEST_F(GGUFParser, Q1_0PreservesBinaryStorageAndScaleValues) {
