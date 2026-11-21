@@ -28,6 +28,7 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -347,6 +348,12 @@ PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
+
+Output<Node> flatten_list_element_for_concat(const Output<Node>& elem) {
+    // Shape-list elements mix ranks 0 and 1; reshape to 1-D, since Unsqueeze would make Concat reject them.
+    const auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
+    return std::make_shared<v1::Reshape>(elem, minus_one, false);
+}
 
 Output<Node> concat_list_construct(const Output<Node>& input) {
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
@@ -770,7 +777,6 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat) {
     std::deque<Output<Node>> res;
     auto current_output = start;
-    const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
 
     FRONT_END_OP_CONVERSION_CHECK(
         !ov::as_type_ptr<v5::Loop>(current_output.get_node_shared_ptr()),
@@ -780,7 +786,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
         for (auto& elem : seq_mark->get_sequence()) {
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_back(elem);
         }
@@ -799,7 +805,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         if (op_type == "aten::append") {
             auto elem = fw_node->get_input_source_output(1);
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_front(elem);
         } else if (op_type == "aten::add") {
@@ -819,7 +825,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
             auto elem = it->get_source_output();
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_front(elem);
         }
@@ -1333,6 +1339,36 @@ OutputVector wrap_complex(const NodeContext& context,
         return wrapped;
     }
     return results;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> make_tagged_parameter(const NodeContext& context,
+                                                             const std::string& tag,
+                                                             const element::Type& et,
+                                                             const PartialShape& ps) {
+    auto param = std::make_shared<v0::Parameter>(et, ps);
+    param->set_friendly_name(tag);
+    param->output(0).set_names({tag});
+    // Register so the final Model::check_all_parameters_registered passes.
+    context.add_external_parameter(param);
+    return param;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
+                                                                   const std::string& tag,
+                                                                   const element::Type& et,
+                                                                   const PartialShape& ps) {
+    auto* session = context.get_session();
+    if (session) {
+        auto it = session->m_shared_pa_params.find(tag);
+        if (it != session->m_shared_pa_params.end()) {
+            return it->second;
+        }
+    }
+    auto param = make_tagged_parameter(context, tag, et, ps);
+    if (session) {
+        session->m_shared_pa_params[tag] = param;
+    }
+    return param;
 }
 
 }  // namespace ov::frontend::pytorch

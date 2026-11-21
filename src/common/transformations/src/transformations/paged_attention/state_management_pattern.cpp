@@ -42,6 +42,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
+#include "transformations/paged_attention/rt_info_keys.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -62,7 +63,11 @@ namespace v15 = ov::op::v15;
 using namespace ov::pass;
 using ov::OutputVector;
 
+using ov::pass::paged_attention::K_HEAD_SIZE;
+using ov::pass::paged_attention::NUM_K_HEADS;
+using ov::pass::paged_attention::NUM_V_HEADS;
 using ov::pass::paged_attention::PaParams;
+using ov::pass::paged_attention::V_HEAD_SIZE;
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
     // Optional pattern to capture alibi slopes (based on pattern from bloom)

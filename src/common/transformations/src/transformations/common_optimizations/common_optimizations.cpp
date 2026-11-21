@@ -43,6 +43,7 @@
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
+#include "transformations/common_optimizations/normalize_vllm_rope.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
@@ -50,6 +51,7 @@
 #include "transformations/common_optimizations/reduce_merge.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
@@ -265,6 +267,14 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // that didn't enabled BitwiseOps from opset13 and to allow for constant
     // folding for bool inputs
     REGISTER_PASS(manager, ConvertBitwiseToLogical)
+
+    // vLLM torch.compile canonicalization, gated on "vllm_model" rt_info so
+    // other CommonOptimizations callers are unaffected.
+    if (f->has_rt_info("vllm_model") && f->get_rt_info<bool>("vllm_model")) {
+        REGISTER_PASS(manager, NormalizeVLLMRoPE)
+        // Each rewritten RoPE gets its own full-width cos/sin Concat; merge them back to one per table.
+        REGISTER_PASS(manager, SharedOpOptimization)
+    }
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent

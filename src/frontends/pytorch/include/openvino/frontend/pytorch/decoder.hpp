@@ -151,6 +151,12 @@ public:
     virtual InputSequences get_input_sequences() const {
         return {};
     }
+
+    /// \brief Returns the model's float dtype, f32 unless given. Otherwise the frontend converts the model to f32
+    /// activations with the weights kept in that type, and records it in rt_info as "default_float_type".
+    virtual element::Type get_default_float_type() const {
+        return element::f32;
+    }
 };
 
 }  // namespace ov::frontend::pytorch
