@@ -77,6 +77,11 @@ struct SDPAOpt : public ImplementationManager {
         const bool combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         auto p = node.get_kernel_impl_params();
+        // The sdpa_opt stages block-read V along head_size, so they need it contiguous; only the micro kernel handles other V orders.
+        const auto& v_order = desc->input_v_transpose_order;
+        if (!v_order.empty() && v_order.back() != static_cast<int64_t>(v_order.size() - 1) && !supports_micro_sdpa(*p)) {
+            return false;
+        }
         if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p)) {
             return false;
         }
