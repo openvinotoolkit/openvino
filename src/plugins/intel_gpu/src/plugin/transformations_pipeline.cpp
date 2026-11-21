@@ -1190,6 +1190,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         type_to_fuse_map empty_fuse_map = {};
 
+        // Normalize Power(x, 0.5) to Sqrt(x) so MVNFusion and RMSFusion match decomposed norms exported with Power(0.5).
+        manager.register_pass<ov::intel_gpu::ConvertPowerHalfToSqrt>();
+
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
@@ -1219,6 +1222,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
 
         pass_config->set_callback<ov::pass::RMSFusionMatcher>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
+            // GPU RMS supports only up to 5D (bfyx / bfzyx) layouts; reject dynamic-rank or >5D output shapes.
+            const auto& out_shape = root->get_output_partial_shape(0);
+            if (out_shape.rank().is_dynamic() || out_shape.size() > 5) {
+                return true;
+            }
             if (!root->get_input_partial_shape(0).is_static()) {
                 return false;
             }
