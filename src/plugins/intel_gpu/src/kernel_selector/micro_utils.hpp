@@ -8,6 +8,7 @@
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 
 #ifdef UNUSED
 #   undef UNUSED
@@ -117,6 +118,18 @@ typedef uchar f4_e2m1;
 #endif
 )";
     return shim_types + gemmstone::microkernel::generateShim(package, language, options);
+}
+
+// Returns the GRF-mode build option required by a microkernel with the given grfMin.
+// Mirrors oneDNN's microkernel_shims_t::finalize(): Xe3p+ hardware supports 512 GRF per
+// thread, and a microkernel whose clobbers reach beyond r255 must not be forced into a
+// 256-GRF thread (it would write registers that do not exist in that mode).
+inline std::string get_grf_mode_build_option(int grf_min, cldnn::gpu_arch arch) {
+    if (arch >= cldnn::gpu_arch::xe3p && grf_min > 256)
+        return " -cl-intel-512-GRF-per-thread";
+    if (grf_min > 128)
+        return " -cl-intel-256-GRF-per-thread";
+    return "";
 }
 
 }  // namespace micro
