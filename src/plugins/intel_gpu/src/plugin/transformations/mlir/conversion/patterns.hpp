@@ -45,6 +45,12 @@ public:
     GroupedMatMulPattern();
 };
 
+class GroupedMatMulCompressedPattern : public MarkPattern {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GroupedMatMulCompressedPattern");
+    GroupedMatMulCompressedPattern();
+};
+
 class MatMulPattern : public MarkPattern {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MatMulPattern");

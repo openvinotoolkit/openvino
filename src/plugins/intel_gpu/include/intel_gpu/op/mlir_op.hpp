@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -26,10 +27,16 @@ using OVOutputTypes = std::vector<std::tuple<ov::element::Type, ov::PartialShape
 // infer shapes for the entire subgraph.
 using DimensionsMap = std::vector<std::vector<std::tuple<size_t, size_t>>>;
 
+// Physical dimension order the compiled program expects for some inputs (key == input_index).
+// Inputs without an entry are plain (row-major). E.g.:
+//   input_orders[1] = {0, 2, 1};  // input 1 is a logical [E, N, G] tensor stored in memory as [E, G, N]
+using InputOrders = std::map<size_t, std::vector<size_t>>;
+
 class MLIROp : public ov::op::Op {
     std::shared_ptr<mlir::MLIRGpuProgram> program;
     OVOutputTypes output_types;
     DimensionsMap dimensions_map;
+    InputOrders input_orders;
 
 public:
     OPENVINO_OP("MLIROp");
@@ -39,10 +46,15 @@ public:
     MLIROp(const ov::OutputVector& args,
            std::shared_ptr<mlir::MLIRGpuProgram> program,
            OVOutputTypes output_types,
-           DimensionsMap dimensions_map);
+           DimensionsMap dimensions_map,
+           InputOrders input_orders = {});
 
     const std::shared_ptr<mlir::MLIRGpuProgram>& get_program() const {
         return program;
+    }
+
+    const InputOrders& get_input_orders() const {
+        return input_orders;
     }
 
     void validate_and_infer_types() override;
