@@ -24,9 +24,7 @@ enum class SparsePASelection {
     kEmpty,   // none: only the causal tail is attended
 };
 
-// An invalid input the op must reject (the compilation and every earlier call are valid): the caches of such a case are
-// declared with dynamic page / head dims, like the ones of a real model, as the shape inference leaves the cache layout
-// to the backend.
+// An invalid input the op must reject; such caches are declared with dynamic page / head dims, as in a real model.
 enum class SparsePAInvalid {
     kNone,
     kValueCachePageSize,  // the value cache has fewer rows per page than the key cache
@@ -52,19 +50,18 @@ struct SparsePAConfig {
     SparsePASelection selection = SparsePASelection::kRecent;
     // the selected blocks of a row in random order instead of ascending: the order does not matter to SparseAttention
     bool shuffle_blocks = false;
-    // false: every sequence of a step has the step's L new tokens. true: a mixed batch of decode and (chunked) prefill
-    // sequences in one call -- sequence s gets L tokens if s % 3 == 0, a single decode token if s % 3 == 1 and
-    // (L + 1) / 2 tokens if s % 3 == 2, so the sequences also have different past lengths.
+    // false: every sequence has the step's L tokens. true: a mixed batch, sequence s gets L, 1 or (L + 1) / 2 tokens
+    // for s % 3 == 0, 1, 2.
     bool mixed_lengths = false;
     SparsePAInvalid invalid = SparsePAInvalid::kNone;  // plain caches only
 };
 
-// Data precision (query, key, value, scale, sinks, plain caches and the inference precision), the steps and the config.
-// The steps follow the PagedAttention tests: one InputShape whose target shapes are consecutive calls of the same
-// sequences, each [L, B, H, S] = L new tokens in each of B sequences, H query heads, S key head size. The caches
-// persist across the calls, so every call continues the history written by the previous ones: L > 1 is a (chunked)
-// prefill, L == 1 a decode step.
-using SparsePALayerTestParams = std::tuple<ov::element::Type, std::vector<InputShape>, SparsePAConfig>;
+// steps: one InputShape, targets [L, B, H, S] are consecutive calls on B sequences (L > 1 prefill, L == 1 decode).
+// inference_precision: dynamic = data precision; another one adds a Convert behind the output.
+using SparsePALayerTestParams = std::tuple<ov::element::Type,        // data_precision
+                                           std::vector<InputShape>,  // steps
+                                           SparsePAConfig,           // config
+                                           ov::element::Type>;       // inference_precision
 
 class SparsePALayerCPUTest : public testing::WithParamInterface<SparsePALayerTestParams>,
                              virtual public SubgraphBaseTest {
@@ -76,6 +73,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     std::vector<ov::Tensor> calculate_refs() override;
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
+    void check_runtime_precision() const;
 
 private:
     [[nodiscard]] bool quantized() const {
@@ -93,6 +91,7 @@ private:
     [[nodiscard]] ov::Shape cache_shape(bool is_key) const;
 
     ov::element::Type m_data_precision = ov::element::f32;
+    ov::element::Type m_inference_precision = ov::element::f32;  // the hint the model runs with
     SparsePAConfig m_cfg;
     // Step shapes [L, B, H, S]
     std::vector<ov::Shape> m_steps;

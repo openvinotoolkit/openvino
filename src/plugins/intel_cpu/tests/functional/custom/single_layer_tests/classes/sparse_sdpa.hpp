@@ -18,22 +18,23 @@
 namespace ov {
 namespace test {
 
-// Shape knobs that are not part of the op; the defaults are the small shape of the smoke tests (S == L,
-// so the query at index l attends positions up to l).
-struct SparseSDPAShape {
-    size_t seq_len = 40;     // L == S
-    size_t max_blocks = 10;  // K_max: the width of block_indices
-    size_t block_step = 1;   // distance between the selected blocks: 2 selects every second block (no adjacent runs)
-    bool shuffle =
-        false;  // the selected blocks of a row in random order instead of ascending (the order does not matter)
-};
-
-// target device, data precision (query/key/value), h_sel, causal, batch (B; plain batched dense
-// K/V history, see classes/sparse_sdpa.cpp), k_head_size, sel_block_size, per-batch key_length
-// (empty = no padding / 5-input op, matching today's behavior exactly; otherwise one entry per
-// batch item in [1, seq_len], builds the 6-input op with KEY_LENGTH), shape knobs
-using SparseSDPALayerTestParams = std::
-    tuple<std::string, ov::element::Type, size_t, bool, size_t, size_t, size_t, std::vector<size_t>, SparseSDPAShape>;
+// A prefill over dense K/V (S == L). block_step: distance between selected blocks; shuffle: random order. key_length:
+// empty for the 5-input op, else one entry per batch item in [1, seq_len].
+using SparseSDPALayerTestParams = std::tuple<size_t,               // batch
+                                             size_t,               // num_q_heads (Hq)
+                                             size_t,               // num_kv_heads (Hkv), divides Hq
+                                             size_t,               // k_head_size
+                                             size_t,               // v_head_size
+                                             size_t,               // seq_len (L == S)
+                                             size_t,               // num_selection_heads (h_sel)
+                                             size_t,               // sel_block_size
+                                             size_t,               // max_blocks (K_max, width of block_indices)
+                                             size_t,               // block_step
+                                             bool,                 // causal
+                                             bool,                 // shuffle
+                                             std::vector<size_t>,  // key_length
+                                             ov::element::Type,    // data_precision (query/key/value)
+                                             std::string>;         // device
 
 class SparseSDPALayerCPUTest : public testing::WithParamInterface<SparseSDPALayerTestParams>,
                                virtual public SubgraphBaseTest {
@@ -49,14 +50,20 @@ protected:
 private:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> host_inputs;
     ov::element::Type m_data_precision = ov::element::f32;
-    size_t m_h_sel = 1;
-    bool m_causal = true;
     size_t m_batch = 1;
+    size_t m_num_q_heads = 4;
+    size_t m_num_kv_heads = 2;
     size_t m_k_head_size = 16;
+    size_t m_v_head_size = 16;
+    size_t m_seq_len = 40;  // taken from the target shape of the query
+    size_t m_h_sel = 1;
     size_t m_sel_block_size = 2;
+    size_t m_max_blocks = 10;
+    size_t m_block_step = 1;
+    bool m_causal = true;
+    bool m_shuffle = false;
     float m_scale = 0.25F;
     std::vector<size_t> m_key_length;
-    SparseSDPAShape m_shape;
 };
 
 }  // namespace test

@@ -5,23 +5,23 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include "custom/single_layer_tests/classes/qsa_indexer.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/qsa_indexer_reference.hpp"
 
 namespace ov {
 namespace test {
 
-// What the inputs of a test are: random ones checked against the host oracle, or degenerate scores (as the dense
-// QSAIndexerScenario ones) that have no reference and check only the selection invariants (distinct, visible, ascending
-// block ids, the count of the visible blocks).
+// kReference compares with the host oracle; the others have degenerate scores, no reference, and check only the
+// selection invariants.
 enum class PagedQSAIndexerScenario {
     kReference,
     // a NaN in the keys of a few tokens
@@ -32,27 +32,24 @@ enum class PagedQSAIndexerScenario {
     kTinyScores
 };
 
-// target device, data precision (q_idx/k_idx/rotary/caches/norm weights),
-// H_iq (index-query head count), H_ik (index-key head count), h_sel (selection-head count),
-// num_sequences (each sequence gets its own past_len and its own run of physical cache blocks,
-// see classes/paged_qsa_indexer.cpp), new_tokens (an InputShape: the dynamic shape is {-1} and every target shape {n}
-// is one call that adds n tokens to every sequence. The first shape is the prefill, the following ones are decode steps
-// (n == 1) or chunks, and the calls continue the same sequences and caches, so the number of calls is the number of
-// target shapes),
-// page_size (tokens of a cache page: a multiple of the compress ratio; 32 blocks of the scoring can lie in one page or
-// run over several),
-// the steps of the query that the op applies (QSAIndexerQueryFusionType of the dense op),
-// the scenario of the inputs
-using PagedQSAIndexerLayerTestParams = std::tuple<std::string,
-                                                  ov::element::Type,
-                                                  size_t,
-                                                  size_t,
-                                                  size_t,
-                                                  size_t,
-                                                  InputShape,
-                                                  size_t,
+// new_tokens: one target shape {n} per call, n new tokens per sequence; the calls continue the same caches.
+// inference_precision: dynamic follows data_precision; another one adds a Convert behind the outputs (mid-graph node).
+using PagedQSAIndexerLayerTestParams = std::tuple<size_t,                // H_iq (index-query head count)
+                                                  size_t,                // H_ik (index-key head count)
+                                                  size_t,                // h_sel (selection-head count)
+                                                  size_t,                // indexer_head_dim
+                                                  size_t,                // rotary_dim
+                                                  size_t,                // key_block_size (compress ratio)
+                                                  size_t,                // block_topk
+                                                  size_t,                // page_size
+                                                  size_t,                // num_sequences
+                                                  std::vector<int32_t>,  // past_lens
+                                                  InputShape,            // new_tokens
                                                   QSAIndexerQueryFusionType,
-                                                  PagedQSAIndexerScenario>;
+                                                  PagedQSAIndexerScenario,
+                                                  ov::element::Type,  // data_precision
+                                                  ov::element::Type,  // inference_precision
+                                                  std::string>;       // device
 
 class PagedQSAIndexerLayerCPUTest : public testing::WithParamInterface<PagedQSAIndexerLayerTestParams>,
                                     virtual public SubgraphBaseTest {
@@ -74,21 +71,21 @@ private:
     // The selection of a call without a reference: the count of visible blocks, distinct ascending visible ids.
     void check_selection_invariants(const std::vector<ov::Tensor>& outs) const;
 
-    // The tokens of a sequence over the calls so far, which the oracle replays (the result of a call depends on the
-    // caches the previous calls filled).
-    struct SequenceHistory {
-        std::vector<float> q_idx, k_idx, rope_cos, rope_sin;
-    };
-
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> host_inputs;
     std::vector<ov::Tensor> m_caches;  // raw key, block rope and block summary caches, kept across the calls
     std::vector<size_t> m_calls;       // new tokens of every sequence in each call
     std::vector<size_t> m_past;        // past length of every sequence in the current call
-    std::vector<SequenceHistory> m_history;
     size_t m_next_call = 0;
     size_t m_call = 0;   // index of the current call
     size_t m_cur_l = 0;  // new tokens of every sequence in the current call
     ov::element::Type m_data_precision = ov::element::f32;
+    size_t m_indexer_head_dim = 16;
+    size_t m_rotary_dim = 8;
+    size_t m_key_block_size = 4;
+    size_t m_block_topk = 2;
+    std::vector<int32_t> m_past_lens;
+    ov::element::Type m_inference_precision = ov::element::dynamic;
+    bool m_convert_outputs = false;  // see inference_precision
     size_t m_h_iq = 2;
     size_t m_h_ik = 2;
     size_t m_h_sel = 1;
@@ -96,9 +93,8 @@ private:
     bool m_query_rope = true;
     PagedQSAIndexerScenario m_scenario = PagedQSAIndexerScenario::kReference;
     size_t m_num_sequences = 1;
-    // Share of the elements of an output that may differ: selections of (almost) tied blocks flip with the rounding of
-    // a 16-bit cache, which the f32 oracle does not do. 0 for f32; for the small tests of the 16-bit types the share
-    // of a few elements rounds down to none, so they stay exact.
+    // Share of output elements that may differ: near-tied selections flip with the rounding of a 16-bit cache, which
+    // the f32 oracle does not do.
     double m_mismatch_share = 0.0;
     size_t m_page_size = 32;
     size_t m_slots_per_page = 8;  // blocks of a page: page_size / compress_ratio

@@ -10,38 +10,35 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
+#include <random>
 #include <sstream>
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "custom/single_layer_tests/classes/qsa_indexer.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "utils/precision_support.h"
+#include "utils/qsa_indexer_reference.hpp"
 #include "utils/quantization_utils.hpp"
 
 namespace {
 
-uint32_t next_random(uint32_t& state) {
-    state = state * 1664525U + 1013904223U;
-    return state >> 8;
-}
-
-// Synthetic indexer output for one (token, selection head): `num_complete` = (position + 1) / key_block_size blocks
-// are complete at the token, so any of them may be selected -- including the one that ends exactly at the token, which
-// leaves the causal tail empty. Entries after the count are -1.
+// Synthetic indexer output for one (token, selection head): every complete block, including one ending exactly at the
+// token, may be selected; entries after the count are -1.
 void make_selection(ov::test::SparsePASelection mode,
                     bool shuffle,
                     size_t max_blocks,
                     size_t num_complete,
-                    uint32_t& rng,
+                    std::mt19937& rng,
                     int32_t* indices,
                     int32_t& count) {
     std::fill(indices, indices + max_blocks, -1);
@@ -49,6 +46,9 @@ void make_selection(ov::test::SparsePASelection mode,
     if (mode == ov::test::SparsePASelection::kEmpty || num_complete == 0) {
         return;
     }
+    const auto below = [&rng](size_t n) {
+        return std::uniform_int_distribution<size_t>(0, n - 1)(rng);
+    };
     const size_t limit = std::min(num_complete, max_blocks);
     size_t n = limit;
     if (mode == ov::test::SparsePASelection::kRecent) {
@@ -56,26 +56,25 @@ void make_selection(ov::test::SparsePASelection mode,
             indices[k] = static_cast<int32_t>(num_complete - n + k);
         }
     } else {
-        n = next_random(rng) % (limit + 1);
+        n = below(limit + 1);
         std::vector<int32_t> pool(num_complete);
         std::iota(pool.begin(), pool.end(), 0);
         for (size_t k = 0; k < n; k++) {
-            const size_t j = k + next_random(rng) % (num_complete - k);
+            const size_t j = k + below(num_complete - k);
             std::swap(pool[k], pool[j]);
         }
         std::sort(pool.begin(), pool.begin() + static_cast<ptrdiff_t>(n));
         std::copy_n(pool.begin(), n, indices);
     }
     // the order of the blocks of a row is up to the producer: ascending, like the CPU indexer returns them, or random
-    for (size_t k = shuffle ? n : 0; k > 1; k--) {
-        std::swap(indices[k - 1], indices[next_random(rng) % k]);
+    if (shuffle) {
+        std::shuffle(indices, indices + n, rng);
     }
     count = static_cast<int32_t>(n);
 }
 
-// Quantize + dequantize one by-token group with the plugin's formulas (attn_quant_kernel.hpp): min/max affine
-// quantization, evaluated like its vector code as fma(x, 1 / scale, zp) rounded to nearest even. Evaluating x / scale +
-// zp with std::round instead differs by one level on values within an ulp of a rounding tie.
+// Quantize + dequantize one by-token group like the plugin: fma(x, 1 / scale, zp) rounded to nearest even (x / scale +
+// zp with std::round differs near ties).
 void fake_quant_group(bool u4, const float* src, float* dst, size_t n) {
     float max_val = -std::numeric_limits<float>::max();
     float min_val = std::numeric_limits<float>::max();
@@ -103,9 +102,7 @@ void fake_quant_by_token(ov::element::Type prec, size_t group_size, const float*
     }
 }
 
-// One scale and zero point per channel over `rows` rows of a key page, evaluated like the plugin's
-// quantize_by_channel() (attn_quant_kernel.hpp): scale = (max - min) * (1 / levels), zp = -min / scale, x quantized as
-// fma(x, 1 / scale, zp) rounded to nearest even.
+// Per-channel scale and zero point over the rows of a key page, as the plugin's quantize_by_channel().
 void fake_quant_by_channel(ov::element::Type prec, const float* src, float* dst, size_t rows, size_t hidden) {
     const float levels = prec == ov::element::u4 ? 15.0F : 255.0F;
     for (size_t j = 0; j < hidden; j++) {
@@ -139,10 +136,6 @@ struct ReferenceDims {
     size_t max_selected_blocks;
 };
 
-// Independent (host-vector based) re-implementation of the PagedSparseAttention spec for one sequence, used purely as
-// a test oracle. `key`/`value` are the FULL logical history of the sequence, [kv, past_len + chunk_len, S], i.e. the
-// rows the caches hold once the new tokens are written; `query` covers only the chunk's rows. `sel_indices` /
-// `sel_count` are [chunk_len, num_selection_heads, max_selected_blocks] / [chunk_len, num_selection_heads].
 std::vector<float> run_sparse_pa_reference(const ReferenceDims& d,
                                            size_t chunk_len,
                                            float scale,
@@ -254,9 +247,9 @@ namespace ov {
 namespace test {
 
 std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<SparsePALayerTestParams>& obj) {
-    const auto& [data_precision, shapes, cfg] = obj.param;
+    const auto& [data_precision, shapes, cfg, inference_precision] = obj.param;
     std::ostringstream result;
-    result << "Prc=" << data_precision << "_Steps=";
+    result << "Prc=" << data_precision << "_Hint=" << inference_precision << "_Steps=";
     for (const auto& step : shapes.at(0).second) {
         result << step[0] << "_";
     }
@@ -310,10 +303,14 @@ ov::Shape SparsePALayerCPUTest::cache_shape(bool is_key) const {
 }
 
 void SparsePALayerCPUTest::SetUp() {
-    const auto& [data_precision, shapes, cfg] = GetParam();
+    const auto& [data_precision, shapes, cfg, inference_precision] = GetParam();
 
     if (!ov::intel_cpu::hasHardwareSupport(data_precision)) {
         GTEST_SKIP() << "CPU precision policy does not preserve " << data_precision << " data on this system.";
+    }
+    m_inference_precision = inference_precision == ov::element::dynamic ? data_precision : inference_precision;
+    if (!ov::intel_cpu::hasHardwareSupport(m_inference_precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << m_inference_precision << " on this system.";
     }
     targetDevice = ov::test::utils::DEVICE_CPU;
     m_data_precision = data_precision;
@@ -341,20 +338,15 @@ void SparsePALayerCPUTest::SetUp() {
 
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
-    // Every floating-point input follows the data precision, which is also the inference precision.
-    configuration.insert(ov::hint::inference_precision(data_precision));
-    // A prefill (several new tokens in a sequence) runs as AMX matrix products over the query heads of a K head
-    // whatever the thread count. A decode packs the query heads only with at least 2 work items per worker thread: one
-    // thread packs it (the SIMD pack paths), two threads give a decode of one sequence fewer items than that, so it
-    // runs one head per item next to the prefill items of a mixed call (the layout on many cores). Single-sequence
-    // cases take the first, mixed batches the second.
-    // An invalid case needs two threads: the single-thread infer path returns without the node's exception.
+    configuration.insert(ov::hint::inference_precision(m_inference_precision));
+    // A prefill runs as AMX products at any thread count; a decode packs heads only with enough work items (mixed: 2
+    // threads). An invalid case needs 2 threads: the single-thread path drops the exception.
     configuration[ov::inference_num_threads.name()] =
         (m_cfg.mixed_lengths || m_cfg.invalid != SparsePAInvalid::kNone) ? 2 : 1;
-    if (data_precision == ov::element::bf16) {
+    if (m_inference_precision == ov::element::bf16) {
         rel_threshold = 5e-2F;
         abs_threshold = 5e-2F;
-    } else if (data_precision == ov::element::f16) {
+    } else if (m_inference_precision == ov::element::f16) {
         rel_threshold = 5e-3F;
         abs_threshold = 5e-3F;
     }
@@ -480,8 +472,12 @@ void SparsePALayerCPUTest::SetUp() {
     sparse_pa->get_rt_info()["num_v_heads"] = Hkv;
     sparse_pa->get_rt_info()["v_head_size"] = Dv;
 
-    function =
-        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(sparse_pa)}, parameters);
+    // A Convert behind the output keeps the op out of the tail of the graph, see inference_precision.
+    const ov::Output<ov::Node> output =
+        m_inference_precision != data_precision
+            ? std::make_shared<ov::op::v0::Convert>(sparse_pa, m_inference_precision)->output(0)
+            : sparse_pa->output(0);
+    function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(output)}, parameters);
 }
 
 void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -544,7 +540,7 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
     // Synthetic selection of the complete blocks every token attends to, see make_selection().
     std::vector<int32_t> sel_indices_flat(tokens * Hs * K, -1);
     std::vector<int32_t> sel_count_flat(tokens * Hs, 0);
-    uint32_t rng = 12345U + static_cast<uint32_t>(step);
+    std::mt19937 rng(12345U + static_cast<uint32_t>(step));
     for (size_t s = 0; s < B; s++) {
         for (size_t l = 0; l < m_cur_len[s]; l++) {
             const size_t token = begins[s] + l;
@@ -670,9 +666,6 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
         m_eff_value.assign(B, std::vector<std::vector<float>>(Hkv));
     }
 
-    // Oracle for the caches. The effective rows are what the op reads back: plain caches hold the rows as given;
-    // quantized by-token rows are quantized once when written; a by-channel key page is requantized as a whole (its
-    // dequantized earlier rows plus the new ones) every time new rows land in it, so the rows chain across the steps.
     for (size_t s = 0; s < B; s++) {
         const size_t L = m_cur_len[s];
         const size_t past = m_cur_past[s];
@@ -757,6 +750,22 @@ void SparsePALayerCPUTest::compare(const std::vector<ov::Tensor>& expected, cons
     }
 }
 
+// The node runs in the inference precision whatever the data precision is.
+void SparsePALayerCPUTest::check_runtime_precision() const {
+    const auto runtime_model = compiledModel.get_runtime_model();
+    bool found = false;
+    for (const auto& op : runtime_model->get_ops()) {
+        const auto& info = op->get_rt_info();
+        const auto layer_type = info.find(ov::exec_model_info::LAYER_TYPE);
+        if (layer_type != info.end() && layer_type->second.as<std::string>() == "SparsePA") {
+            found = true;
+            EXPECT_EQ(info.at(ov::exec_model_info::RUNTIME_PRECISION).as<std::string>(),
+                      m_inference_precision.get_type_name());
+        }
+    }
+    EXPECT_TRUE(found) << "no SparsePA node in the runtime model";
+}
+
 TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto invalid = std::get<2>(GetParam()).invalid;
@@ -778,6 +787,7 @@ TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
         return;
     }
     run();
+    check_runtime_precision();
 }
 
 }  // namespace test
