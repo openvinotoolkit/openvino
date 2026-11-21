@@ -31,6 +31,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/paged_attention/rt_info_keys.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace pattern = ov::pass::pattern;
@@ -46,14 +47,13 @@ namespace v13 = ov::op::v13;
 namespace v15 = ov::op::v15;
 
 using ov::OutputVector;
+using ov::pass::paged_attention::K_HEAD_SIZE;
+using ov::pass::paged_attention::NUM_K_HEADS;
+using ov::pass::paged_attention::NUM_V_HEADS;
 using ov::pass::paged_attention::PaParams;
+using ov::pass::paged_attention::V_HEAD_SIZE;
 
 namespace {
-
-constexpr const char* NUM_K_HEADS = "num_k_heads";
-constexpr const char* K_HEAD_SIZE = "k_head_size";
-constexpr const char* NUM_V_HEADS = "num_v_heads";
-constexpr const char* V_HEAD_SIZE = "v_head_size";
 
 std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> sliding_window_pattern() {
     auto offset = wrap_type<v0::Constant>();
