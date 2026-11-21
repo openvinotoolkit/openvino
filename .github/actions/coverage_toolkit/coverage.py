@@ -26,7 +26,7 @@ if str(SCRIPT_DIR) not in sys.path:
 sys.modules.setdefault("coverage_workflow", sys.modules[__name__])
 
 
-SUPPORTED_PROFILES = {"cpu", "gpu"}
+SUPPORTED_PROFILES = {"cpu", "gpu", "npu"}
 
 
 def _build_logger() -> logging.Logger:
