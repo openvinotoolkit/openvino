@@ -153,6 +153,14 @@ ov::npuw::orc::Stream ov::npuw::orc::Stream::reader(std::istream& stream) {
     return s;
 }
 
+ov::npuw::orc::Stream ov::npuw::orc::Stream::bounded_reader(std::istream& stream, const std::size_t size) {
+    Stream s;
+    s.m_input = &stream;
+    s.m_input_remaining = size;
+    s.m_input_bounded = true;
+    return s;
+}
+
 void ov::npuw::orc::serialize(Stream& stream, Section& section) {
     if (stream.output()) {
         write_section(stream, section);
@@ -206,6 +214,9 @@ std::size_t ov::npuw::orc::Stream::remaining() const {
     if (memory()) {
         return m_memory_size - m_memory_offset;
     }
+    if (m_input_bounded) {
+        return m_input_remaining;
+    }
     if (m_input == nullptr) {
         OPENVINO_THROW("ORC remaining() is only available for input streams");
     }
@@ -241,9 +252,16 @@ void ov::npuw::orc::Stream::bytes(void* data, const std::size_t size) {
         return;
     }
 
+    if (m_input_bounded && size > m_input_remaining) {
+        OPENVINO_THROW("ORC read exceeds bounded input stream");
+    }
+
     m_input->read(reinterpret_cast<char*>(data), checked_stream_size(size));
     if (!m_input->good()) {
         OPENVINO_THROW("Unexpected end of ORC input stream");
+    }
+    if (m_input_bounded) {
+        m_input_remaining -= size;
     }
 }
 
