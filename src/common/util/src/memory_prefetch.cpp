@@ -25,9 +25,7 @@ namespace ov::util {
 namespace {
 
 // FIFO job queue feeding the shared page-toucher pool: a small pool of long-lived worker threads
-// is reused across calls instead of spawning/joining threads per prefetch request. Shared by both
-// the Linux and Windows vm_prefetch_async() implementations (see submit_page_toucher_tasks()
-// below).
+// is reused across calls instead of spawning/joining threads per prefetch request.
 class TaskQueue {
 public:
     void push(std::list<std::function<void()>>&& batch) noexcept {

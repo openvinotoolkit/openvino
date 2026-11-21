@@ -32,41 +32,16 @@ struct PageToucher {
 };
 
 /**
- * @brief Pre-fetches a page-aligned, committed VM range into physical memory, blocking until every
- * page is resident.
- *
- * @param ptr          Page-aligned base address of the range.
- * @param size         Multiple of the system page size.
- * @param num_threads  Number of population jobs to split the range into; @c 0 requests only a
- *                     lightweight advisory OS hint instead of touching pages.
- */
-void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept;
-
-/**
- * @brief Asynchronous variant of @ref vm_prefetch: submits page-population to the shared pool and
- * returns immediately with a handle reporting progress of the whole range.
- *
- * @param ptr          Page-aligned base address of the range.
- * @param size         Multiple of the system page size.
- * @param num_threads  Number of population jobs to split the range into; @c 0 requests only a
- *                     lightweight advisory OS hint instead of touching pages and returns an invalid
- *                     handle.
- *
- * The handle does not keep the populated memory alive: the caller must keep that memory valid until
- * the handle becomes ready. Returns an invalid handle if the work could not be scheduled.
- */
-PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
-
-/**
  * @brief Submits page-population jobs for [ptr, ptr + size) to the shared background thread pool,
  * splitting the range into up to @p num_threads chunks.
  *
  * @param ptr          Page-aligned base address of the range.
  * @param size         Multiple of the system page size.
- * @param num_threads  Number of population jobs to split the range into.
+ * @param num_threads  Number of population jobs to split the range into; must be non-zero.
  *
  * Returns a handle that becomes ready once every chunk has been touched, or an invalid handle if
- * the work could not be scheduled (e.g. an allocation failure).
+ * the work could not be scheduled (e.g. an allocation failure). The handle does not keep the
+ * populated memory alive: the caller must keep it valid until the handle becomes ready.
  */
 PrefetchToken submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
 

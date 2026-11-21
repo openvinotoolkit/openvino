@@ -11,20 +11,10 @@
 #include <cstdlib>
 #include <tuple>
 
-#include "memory_prefetch.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::util {
-
-namespace {
-
-void madvise_hint(void* ptr, size_t size) noexcept {
-    madvise(ptr, size, MADV_SEQUENTIAL);
-    madvise(ptr, size, MADV_WILLNEED);
-}
-
-}  // namespace
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
     // Some std::aligned_alloc implementations (for example on macOS) return nullptr for
@@ -75,24 +65,6 @@ void vm_decommit(void* ptr, size_t size) noexcept {
 void vm_release(void* ptr, size_t size) noexcept {
     assert(ptr != nullptr && size > 0);
     std::ignore = munmap(ptr, size);
-}
-
-void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
-    assert(ptr != nullptr && size > 0);
-    if (num_threads == 0) {
-        madvise_hint(ptr, size);
-    } else if (const auto done = submit_page_toucher_tasks(ptr, size, num_threads); done.valid()) {
-        done.wait();
-    }
-}
-
-PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
-    assert(ptr != nullptr && size > 0);
-    if (num_threads == 0) {
-        madvise_hint(ptr, size);
-        return {};
-    }
-    return submit_page_toucher_tasks(ptr, size, num_threads);
 }
 
 }  // namespace ov::util

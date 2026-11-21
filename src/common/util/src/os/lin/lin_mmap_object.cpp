@@ -226,22 +226,12 @@ public:
         }
     }
 
-    void hint_prefetch(size_t offset, size_t size) noexcept override {
-        constexpr size_t one_mb = 1024 * 1024;
-        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
-            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
-            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
-            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
-        }
-    }
-
     util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) noexcept override {
         if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
             region.m_length > util::default_parallel_io_threshold) {
-            auto future = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
-                                                  region.m_length,
-                                                  util::prefetch_thread_count(region.m_length));
+            auto future = util::submit_page_toucher_tasks(reinterpret_cast<void*>(region.m_address),
+                                                          region.m_length,
+                                                          util::prefetch_thread_count(region.m_length));
             adopt_pending_prefetch(future);
             return future;
         } else {
