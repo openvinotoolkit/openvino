@@ -378,4 +378,28 @@ TEST_F(TypePropSegmentMaxTest, no_num_segments_const_segment_ids) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, Dimension::dynamic(), 81}));
     EXPECT_EQ(op->get_fill_mode(), op::FillMode::ZERO);
 }
+
+TEST_F(TypePropSegmentMaxTest, empty_segment_ids_no_num_segments) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{0, 4});
+    const auto segment_ids = std::make_shared<Constant>(element::i64, Shape{0}, std::vector<int64_t>{});
+
+    const auto op = make_op(data, segment_ids, op::FillMode::ZERO);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{0, 4}));
+    EXPECT_EQ(op->get_fill_mode(), op::FillMode::ZERO);
+}
+
+TEST_F(TypePropSegmentMaxTest, empty_segment_ids_dynamic_dims_no_num_segments) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{0, Dimension::dynamic(), 81});
+    const auto segment_ids = std::make_shared<Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+
+    const auto op = make_op(data, segment_ids, op::FillMode::LOWEST);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{0, Dimension::dynamic(), 81}));
+    EXPECT_EQ(op->get_fill_mode(), op::FillMode::LOWEST);
+}
 }  // namespace ov::test
