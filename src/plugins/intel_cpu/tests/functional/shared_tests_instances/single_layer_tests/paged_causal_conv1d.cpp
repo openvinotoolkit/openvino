@@ -14,7 +14,7 @@ TEST_P(PagedCausalConv1DLayerTest, Inference) {
     // between the input Parameter and the PagedCausalConv1D node, converting conv_state_table
     // to f32. The kernel then writes updated state into this intermediate f32 buffer, but
     // the test reads back the original f16/bf16 Parameter tensor which remains stale.
-    if (p.element_type == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())
+    if (p.element_type == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16() && !ov::with_cpu_neon_fp16())
         GTEST_SKIP() << "Platform does not natively support f16.";
     if (p.element_type == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP() << "Platform does not natively support bf16.";
