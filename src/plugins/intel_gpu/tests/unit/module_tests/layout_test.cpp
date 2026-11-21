@@ -398,6 +398,18 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_convert_test,
         {format::g_is_os_zyx_isv16_osv16, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
     }));
 
+TEST(weights_tensor_transform_test, ungrouped_5d_to_4d_folds_z_into_ifm) {
+    auto src = convert_weights_tensor(layout(ov::PartialShape{32, 4, 3, 2, 2}, data_types::f16, format::oizyx), false);
+    auto dst = src.TransformIgnorePadding(kernel_selector::weights_layout::os_iyx_osv16, src.GetDType(), 1, false);
+
+    EXPECT_EQ(dst.GetLayout(), kernel_selector::weights_layout::os_iyx_osv16);
+    EXPECT_EQ(dst.OFM().v, 32u);
+    EXPECT_EQ(dst.IFM().v, 4u * 3u);
+    EXPECT_EQ(dst.Y().v, 2u);
+    EXPECT_EQ(dst.X().v, 2u);
+    EXPECT_EQ(dst.LogicalSize(), src.LogicalSize());
+}
+
 struct custom_layout_test_params {
     ov::PartialShape shape;
     cldnn::format_traits left;

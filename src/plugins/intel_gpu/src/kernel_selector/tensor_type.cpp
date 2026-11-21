@@ -937,6 +937,11 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
         vec[Channelndex(l, WeightsChannelName::Z)] = 1;
         vec[Channelndex(l, WeightsChannelName::IFM)] = IFM().v;
         vec[Channelndex(l, WeightsChannelName::OFM)] = OFM().v;
+    } else if (g == 1 && src_channels == 5 && dst_channels == 4) {
+        vec[Channelndex(l, WeightsChannelName::X)] = src_x;
+        vec[Channelndex(l, WeightsChannelName::Y)] = src_y;
+        vec[Channelndex(l, WeightsChannelName::IFM)] = IFM().v * src_z;
+        vec[Channelndex(l, WeightsChannelName::OFM)] = OFM().v;
     } else if (g > 1 && src_channels == 5 && dst_channels == 4) {
         vec[Channelndex(l, WeightsChannelName::X)] = X().v;
         vec[Channelndex(l, WeightsChannelName::Y)] = Y().v;
