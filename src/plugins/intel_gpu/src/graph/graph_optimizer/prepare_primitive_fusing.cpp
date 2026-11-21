@@ -1121,7 +1121,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
+            // oneDNN has no optimized static_sbzp kernel with an int8 output, so a flagged FC keeps its f16 output
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt() &&
+                           !input_data.as<fully_connected>().get_primitive()->decompression_zero_point_after_scale;
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
