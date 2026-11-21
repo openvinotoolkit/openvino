@@ -107,6 +107,8 @@ per-layer token embeddings, `text_embeddings_per_layer`.
   `ov::pass::SDPAToPagedAttention`.
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
   slice-before-matmul optimization projects only the sampled rows during prefill.
+  A scalar output scale is moved to the activation input when the head has no other consumers;
+  softcap output chains remain recognizable without expanding compressed weights.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
   Noncausal sliding-window attention is not supported by GenAI adaptation.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states

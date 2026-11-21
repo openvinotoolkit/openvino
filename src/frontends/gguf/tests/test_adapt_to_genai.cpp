@@ -1647,6 +1647,70 @@ TEST_P(GGUFAdaptToGenAILmHead, KeepsHeadFormThroughSDPAToPagedAttention) {
 
 INSTANTIATE_TEST_SUITE_P(Softcap, GGUFAdaptToGenAILmHead, ::testing::Bool());
 
+class GGUFAdaptToGenAIScaledLmHead : public ::testing::TestWithParam<float> {};
+
+TEST_P(GGUFAdaptToGenAIScaledLmHead, ExposesHeadForTokenSelectionAndPreservesLogits) {
+    const int64_t vocab = 6, hidden = 3;
+    auto m = build_minimal_gguf_model(vocab, hidden);
+    attach_lm_head(m.model, m.embd, vocab, hidden, false);
+    const auto head = m.model->get_results()[0]->input_value(0);
+    auto scaled =
+        std::make_shared<v1::Multiply>(head, v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {GetParam()}));
+    m.model->get_results()[0]->input(0).replace_source_output(scaled);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    ASSERT_NE(find_genai_lm_head(m.model, false), nullptr);
+    auto request = ov::Core{}
+                       .compile_model(m.model, "CPU", ov::hint::inference_precision(ov::element::f32))
+                       .create_infer_request();
+    const size_t length = 3;
+    for (const auto& [name, tensor] : make_genai_inputs(length)) {
+        request.set_tensor(name, tensor);
+    }
+    request.infer();
+    const auto logits = request.get_tensor("logits");
+    ASSERT_EQ(logits.get_shape(), (ov::Shape{1, length, (size_t)vocab}));
+    for (size_t token = 0; token < length; ++token) {
+        for (int64_t v = 0; v < vocab; ++v) {
+            float expected = 0.f;
+            for (int64_t h = 0; h < hidden; ++h) {
+                expected += lm_head_weight(v, h) * static_cast<float>(token * hidden + h);
+            }
+            EXPECT_NEAR(logits.data<float>()[token * vocab + v], expected * GetParam(), 1e-4f);
+        }
+    }
+}
+
+TEST_P(GGUFAdaptToGenAIScaledLmHead, KeepsHeadVisibleAfterPagedAttentionConversion) {
+    const int64_t vocab = 8, hidden = 4;
+    auto model = build_attention_gguf_model(vocab, hidden);
+    attach_lm_head(model, model->get_results()[0]->input_value(0), vocab, hidden, false);
+    const auto head = model->get_results()[0]->input_value(0);
+    auto scaled =
+        std::make_shared<v1::Multiply>(head, v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {GetParam()}));
+    model->get_results()[0]->input(0).replace_source_output(scaled);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    ASSERT_NE(find_genai_lm_head(model, false), nullptr);
+}
+
+INSTANTIATE_TEST_SUITE_P(OutputScale, GGUFAdaptToGenAIScaledLmHead, ::testing::Values(0.25f, 1.5f));
+
+TEST(GGUFAdaptToGenAI, SharedHeadRetainsSeparateOutputScale) {
+    auto m = build_minimal_gguf_model(6, 3);
+    attach_lm_head(m.model, m.embd, 6, 3, false);
+    const auto head = m.model->get_results()[0]->input_value(0);
+    ov::frontend::gguf::name_output(head.get_node_shared_ptr(), "unscaled_logits");
+    auto scaled = std::make_shared<v1::Multiply>(head, v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {0.25f}));
+    m.model->get_results()[0]->input(0).replace_source_output(scaled);
+    m.model->add_results({std::make_shared<v0::Result>(head)});
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    EXPECT_NE(ov::as_type_ptr<v1::Multiply>(m.model->get_results()[0]->get_input_node_shared_ptr(0)), nullptr);
+    EXPECT_FALSE(ov::is_type<v1::Multiply>(head.get_node_shared_ptr()->get_input_node_shared_ptr(0)));
+}
+
 // The per-layer token lookup becomes a per_layer_inputs input, so the language model takes
 // embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
 TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {

@@ -869,6 +869,15 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                         ov::replace_node(node, div);
                         continue;
                     }
+                    if (head_chain.size() == 1 && lm_head->output(0).get_target_inputs().size() == 1) {
+                        // Scale activations instead of weights to keep the compressed head visible to GenAI.
+                        auto scaled_hidden = make_shared<v1::Multiply>(hidden_3d, scalar);
+                        ov::copy_runtime_info(node, scaled_hidden);
+                        lm_head->input(0).replace_source_output(scaled_hidden);
+                        lm_head->revalidate_and_infer_types();
+                        ov::replace_output_update_name(node->output(0), lm_head->output(0));
+                        continue;
+                    }
                     node->input(1).replace_source_output(scalar);
                 }
             }
