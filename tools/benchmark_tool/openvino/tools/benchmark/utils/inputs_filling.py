@@ -336,11 +336,11 @@ def get_image_sizes(app_input_info):
 
 def get_image_info_tensors(image_sizes, layer):
     im_infos = []
-    for shape, image_size in zip(layer.shapes, image_sizes):
-        im_info = np.ndarray(shape, dtype=get_dtype(layer.element_type))
-        for b in range(shape[0]):
-            for i in range(shape[1]):
-                im_info[b][i] = image_size if i in [0, 1] else 1
+    if isinstance(image_sizes[0], (int, np.integer)):
+        image_sizes = [image_sizes]
+    for i, shape in enumerate(layer.shapes):
+        im_info = np.ones(shape, dtype=get_dtype(layer.element_type))
+        im_info[:, :2] = image_sizes[i % len(image_sizes)]
         im_infos.append(Tensor(im_info))
     return im_infos
 
