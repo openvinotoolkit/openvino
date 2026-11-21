@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
+
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -16,6 +18,8 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
@@ -2748,3 +2752,245 @@ TEST_F(TransformationTestsF, ConvertToROPE_SliceAssign_I32Indices) {
     manager.register_pass<ov::pass::RoPEFusion>();
     model_ref = make_fused_rope_ref();
 }
+
+namespace {
+
+constexpr size_t interleaved_heads = 2, interleaved_seq = 4, interleaved_head_size = 8;
+
+enum class InterleavedEvenHalf { SubtractX0First, SubtractX1First, AddNegatedProduct };
+
+std::ostream& operator<<(std::ostream& os, InterleavedEvenHalf form) {
+    switch (form) {
+    case InterleavedEvenHalf::SubtractX0First:
+        return os << "SubtractX0First";
+    case InterleavedEvenHalf::SubtractX1First:
+        return os << "SubtractX1First";
+    default:
+        return os << "AddNegatedProduct";
+    }
+}
+
+std::vector<float> make_interleaved_table(float start, float sign = 1.f, float scale = 1.f) {
+    std::vector<float> values(interleaved_seq * interleaved_head_size / 2);
+    for (size_t i = 0; i < values.size(); ++i)
+        values[i] = sign * (start + 0.01f * static_cast<float>(i)) * scale;
+    return values;
+}
+
+std::shared_ptr<v0::Constant> make_interleaved_table_const(const std::vector<float>& values, size_t last_dim) {
+    return v0::Constant::create(ov::element::f32, ov::Shape{1, 1, interleaved_seq, last_dim}, values);
+}
+
+// t0..t3 = make_interleaved_table(0.1 .. 0.4)
+ov::NodeVector make_gather_interleaved_rope_inputs() {
+    ov::NodeVector tables;
+    for (size_t i = 0; i < 4; ++i)
+        tables.push_back(make_interleaved_table_const(make_interleaved_table(0.1f * static_cast<float>(i + 1)),
+                                                      interleaved_head_size / 2));
+    return tables;
+}
+
+// Interleaved RoPE with pairs read by Gather:
+//   y0 = x0 * t0 - x1 * t1 (written as `form`),   y1 = x0 * t2 + x1 * t3
+// output_scale != 1 multiplies the interleaved pairs by a scalar before the final Reshape
+ov::Output<ov::Node> make_gather_interleaved_rope(const ov::Output<ov::Node>& x,
+                                                  InterleavedEvenHalf form,
+                                                  int64_t odd_x1_index = 1,
+                                                  const ov::NodeVector& tables = make_gather_interleaved_rope_inputs(),
+                                                  float output_scale = 1.f) {
+    constexpr size_t half = interleaved_head_size / 2;
+    auto table = [&](size_t i) {
+        return tables[i];
+    };
+    auto pairs = std::make_shared<v1::Reshape>(
+        x,
+        v0::Constant::create(ov::element::i64,
+                             ov::Shape{5},
+                             std::vector<int64_t>{0, interleaved_heads, interleaved_seq, half, 2}),
+        true);
+    auto element = [&](int64_t index) {
+        return std::make_shared<ov::op::v8::Gather>(pairs,
+                                                    v0::Constant::create(ov::element::i64, ov::Shape{}, {index}),
+                                                    v0::Constant::create(ov::element::i64, ov::Shape{}, {-1}));
+    };
+    auto x0_t0 = std::make_shared<v1::Multiply>(element(0), table(0));
+    auto x1_t1 = std::make_shared<v1::Multiply>(element(1), table(1));
+    std::shared_ptr<ov::Node> y0;
+    switch (form) {
+    case InterleavedEvenHalf::SubtractX0First:
+        y0 = std::make_shared<v1::Subtract>(x0_t0, x1_t1);
+        break;
+    case InterleavedEvenHalf::SubtractX1First:
+        // x1 * (-t1) - x0 * (-t0) == x0 * t0 - x1 * t1
+        y0 = std::make_shared<v1::Subtract>(
+            std::make_shared<v1::Multiply>(element(1),
+                                           make_interleaved_table_const(make_interleaved_table(0.2f, -1.f), half)),
+            std::make_shared<v1::Multiply>(element(0),
+                                           make_interleaved_table_const(make_interleaved_table(0.1f, -1.f), half)));
+        break;
+    default:
+        y0 = std::make_shared<v1::Add>(
+            x0_t0,
+            std::make_shared<v1::Multiply>(x1_t1, v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.f})));
+    }
+    auto y1 = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(element(0), table(2)),
+                                        std::make_shared<v1::Multiply>(element(odd_x1_index), table(3)));
+    auto unsqueeze_last = [](const ov::Output<ov::Node>& value) {
+        return std::make_shared<v0::Unsqueeze>(value, v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+    };
+    ov::Output<ov::Node> concat =
+        std::make_shared<v0::Concat>(ov::OutputVector{unsqueeze_last(y0), unsqueeze_last(y1)}, -1);
+    if (output_scale != 1.f) {
+        concat =
+            std::make_shared<v1::Multiply>(concat, v0::Constant::create(ov::element::f32, ov::Shape{}, {output_scale}));
+    }
+    return std::make_shared<v1::Reshape>(
+        concat,
+        v0::Constant::create(ov::element::i64,
+                             ov::Shape{4},
+                             std::vector<int64_t>{0, interleaved_heads, interleaved_seq, interleaved_head_size}),
+        true);
+}
+
+// cos = interleave(t0, t3) * scale, sin = interleave(t1, t2) * scale, shared by all RoPEs
+ov::OutputVector make_gather_interleaved_rope_tables(float scale = 1.f) {
+    auto interleave = [](const std::vector<float>& even, const std::vector<float>& odd) {
+        std::vector<float> out;
+        for (size_t i = 0; i < even.size(); ++i) {
+            out.push_back(even[i]);
+            out.push_back(odd[i]);
+        }
+        return make_interleaved_table_const(out, interleaved_head_size);
+    };
+    return {interleave(make_interleaved_table(0.1f, 1.f, scale), make_interleaved_table(0.4f, 1.f, scale)),
+            interleave(make_interleaved_table(0.2f, 1.f, scale), make_interleaved_table(0.3f, 1.f, scale))};
+}
+
+ov::Output<ov::Node> make_gather_interleaved_rope_ref(const ov::Output<ov::Node>& x, const ov::OutputVector& cos_sin) {
+    ov::op::internal::RoPE::Config config;
+    config.head_cnt = interleaved_heads;
+    config.head_size = interleaved_head_size;
+    config.rotary_ndims = interleaved_head_size;
+    config.cos_sin_ndims = interleaved_head_size;
+    config.is_interleaved = true;
+    return std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, cos_sin[0], cos_sin[1]}, config);
+}
+
+using RoPEFusionInterleavedGatherParams = std::tuple<InterleavedEvenHalf, ov::Dimension>;
+
+class RoPEFusionInterleavedGatherTest : public TransformationTestsF,
+                                        public WithParamInterface<RoPEFusionInterleavedGatherParams> {
+public:
+    RoPEFusionInterleavedGatherTest() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<RoPEFusionInterleavedGatherParams>& info) {
+        const auto& [form, batch] = info.param;
+        std::ostringstream name;
+        name << form << "_batch=" << (batch.is_static() ? std::to_string(batch.get_length()) : "dynamic");
+        return name.str();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::pass::RoPEFusion>();
+    }
+
+    static ov::PartialShape x_shape(const ov::Dimension& batch) {
+        return {batch, interleaved_heads, interleaved_seq, interleaved_head_size};
+    }
+};
+
+TEST_P(RoPEFusionInterleavedGatherTest, Fused) {
+    const auto& [form, batch] = GetParam();
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, x_shape(batch));
+        model = std::make_shared<ov::Model>(ov::OutputVector{make_gather_interleaved_rope(x, form)},
+                                            ov::ParameterVector{x});
+    }
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, x_shape(batch));
+        model_ref = std::make_shared<ov::Model>(
+            ov::OutputVector{make_gather_interleaved_rope_ref(x, make_gather_interleaved_rope_tables())},
+            ov::ParameterVector{x});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPEFusionInterleavedGather,
+                         RoPEFusionInterleavedGatherTest,
+                         Combine(Values(InterleavedEvenHalf::SubtractX0First,
+                                        InterleavedEvenHalf::SubtractX1First,
+                                        InterleavedEvenHalf::AddNegatedProduct),
+                                 Values(ov::Dimension(1), ov::Dimension::dynamic())),
+                         RoPEFusionInterleavedGatherTest::getTestCaseName);
+
+class RoPEFusionInterleavedGatherSingleTest : public TransformationTestsF {
+public:
+    RoPEFusionInterleavedGatherSingleTest() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::pass::RoPEFusion>();
+    }
+};
+
+// RoPEs that use the same tables (e.g. on query and key) share the new cos/sin tables as well
+TEST_F(RoPEFusionInterleavedGatherSingleTest, TablesSharedByRoPEs) {
+    const ov::PartialShape shape{1, interleaved_heads, interleaved_seq, interleaved_head_size};
+    {
+        auto q = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto k = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        const auto tables = make_gather_interleaved_rope_inputs();
+        auto rope_q = make_gather_interleaved_rope(q, InterleavedEvenHalf::SubtractX0First, 1, tables);
+        auto rope_k = make_gather_interleaved_rope(k, InterleavedEvenHalf::SubtractX0First, 1, tables);
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope_q, rope_k}, ov::ParameterVector{q, k});
+    }
+    {
+        auto q = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto k = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        const auto cos_sin = make_gather_interleaved_rope_tables();
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{make_gather_interleaved_rope_ref(q, cos_sin),
+                                                                 make_gather_interleaved_rope_ref(k, cos_sin)},
+                                                ov::ParameterVector{q, k});
+    }
+    comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
+}
+
+// RoPE is linear in cos/sin, so a scalar applied before the final Reshape is folded into the tables
+TEST_F(RoPEFusionInterleavedGatherSingleTest, ScaledOutput) {
+    const ov::PartialShape shape{1, interleaved_heads, interleaved_seq, interleaved_head_size};
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto rope = make_gather_interleaved_rope(x,
+                                                 InterleavedEvenHalf::SubtractX0First,
+                                                 1,
+                                                 make_gather_interleaved_rope_inputs(),
+                                                 0.5f);
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x});
+    }
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        model_ref = std::make_shared<ov::Model>(
+            ov::OutputVector{make_gather_interleaved_rope_ref(x, make_gather_interleaved_rope_tables(0.5f))},
+            ov::ParameterVector{x});
+    }
+}
+
+// Both products of the odd half read the same element of each pair: not a rotation
+TEST_F(RoPEFusionInterleavedGatherSingleTest, SamePairElementNotFused) {
+    auto x =
+        std::make_shared<v0::Parameter>(ov::element::f32,
+                                        ov::PartialShape{1, interleaved_heads, interleaved_seq, interleaved_head_size});
+    model = std::make_shared<ov::Model>(
+        ov::OutputVector{make_gather_interleaved_rope(x, InterleavedEvenHalf::SubtractX0First, 0)},
+        ov::ParameterVector{x});
+}
+
+}  // namespace
