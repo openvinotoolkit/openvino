@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/activation.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/node_builders/activation.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
@@ -210,7 +212,9 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     result << "constants_value=" << ov::test::utils::vec2str(activationDecl.second) << separator;
     result << "netPRC=" << model_type.get_type_name() << separator;
     result << "trgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ActivationLayerTest::SetUp() {

@@ -3,6 +3,8 @@
 //
 
 #include "low_precision_transformations/reduce_mean_transformation.hpp"
+
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -34,7 +36,9 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
         result << elem << "_";
     }
 
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ReduceMeanTransformation::SetUp() {

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -35,7 +37,9 @@ public:
         }
         results << "Prc=" << model_type << "_";
         results << "Axis=" << axis << "_" << (exclusive ? "exclusive" : "") << "_" << (reverse ? "reverse" : "");
-        return results.str();
+        auto test_case_name = results.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:

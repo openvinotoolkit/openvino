@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
 
+#include <algorithm>
+
 #include "ov_ops/gather_compressed.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
@@ -61,7 +63,9 @@ std::string GatherWeightsDecompression::get_test_case_name(
     result << "decompression_subtract=" << decompression_subtract_type << "_";
     result << "reshape_on_decompression=" << reshape_on_decompression;
 
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::Shape& data_shape,

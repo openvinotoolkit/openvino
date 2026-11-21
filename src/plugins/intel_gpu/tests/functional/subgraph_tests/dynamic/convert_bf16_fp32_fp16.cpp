@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -30,7 +32,9 @@ public:
         const auto& [given, expected] = obj.param;
         std::ostringstream result;
         result << "given=" << given << "expected=" << expected;
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 

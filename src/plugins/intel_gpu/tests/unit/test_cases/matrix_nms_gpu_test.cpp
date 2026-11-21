@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <intel_gpu/graph/network.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -184,7 +185,9 @@ public:
         if (!test_inputs.test_name.empty())
             result << "_TN=" << test_inputs.test_name;
 
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 };
 

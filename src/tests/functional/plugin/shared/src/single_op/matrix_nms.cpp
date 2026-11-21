@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_op/matrix_nms.hpp"
+
+#include <algorithm>
+
 #include "common_test_utils/test_enums.hpp"
 
 namespace ov {
@@ -42,7 +45,9 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     result << "backgroudClass=" << backgroudClass << "_decayFunction=" << decayFunction << "_";
     result << "score_threshold=" << score_threshold << "_gaussian_sigma=" << gaussian_sigma << "_";
     result << "post_threshold=" << post_threshold <<"_TargetDevice=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void MatrixNmsLayerTest::SetUp() {

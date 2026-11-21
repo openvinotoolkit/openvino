@@ -3,6 +3,9 @@
 //
 
 #include "low_precision_transformations/fake_quantize_precision_selection_transformation.hpp"
+
+#include <algorithm>
+
 #include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 
 #include <memory>
@@ -18,7 +21,9 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const 
     auto [netPrecision, inputShape, device, testValues] = obj.param;
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" << testValues;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {

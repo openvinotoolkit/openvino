@@ -5,6 +5,7 @@
 set(GPU_TESTS_COMMON_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/random_generator.hpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraphs_builders.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_name_test.cpp
 )
 
 set(TEST_COMMON_SOURCE_FILES "${GPU_TESTS_COMMON_SOURCES}" PARENT_SCOPE)

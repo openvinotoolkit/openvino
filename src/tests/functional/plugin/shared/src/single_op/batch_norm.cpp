@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/batch_norm.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/batch_norm.hpp"
 
@@ -26,7 +28,9 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
     result << "inT=" << model_type.get_type_name() << "_";
     result << "epsilon=" << epsilon << "_";
     result << "trgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void BatchNormLayerTest::SetUp() {

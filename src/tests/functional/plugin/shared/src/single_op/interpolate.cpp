@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/interpolate.hpp"
 
+#include <algorithm>
+
 #include "common_test_utils/test_enums.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
@@ -54,7 +56,9 @@ std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<I
     result << "Scales=" << ov::test::utils::vec2str(scales) << "_";
     result << "netType=" << model_type.get_type_name() << "_";
     result << "trgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void InterpolateLayerTest::SetUp() {

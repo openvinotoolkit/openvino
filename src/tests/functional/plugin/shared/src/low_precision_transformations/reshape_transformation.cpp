@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/reshape_transformation.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 
@@ -24,7 +25,9 @@ std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<
         }
     }
     result << " }";
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ReshapeTransformation::SetUp() {

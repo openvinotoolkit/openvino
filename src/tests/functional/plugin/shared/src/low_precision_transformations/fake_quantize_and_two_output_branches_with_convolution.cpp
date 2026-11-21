@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/fake_quantize_and_two_output_branches_with_convolution.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -21,7 +22,9 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
     result << netPrecision << "_" << inputShape << "_"
            << device << "_" << testValues.fqOnData << "_"
            << testValues.fqOnWeights1 << "_" << testValues.fqOnWeights2;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {

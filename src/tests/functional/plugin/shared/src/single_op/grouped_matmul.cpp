@@ -207,7 +207,9 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
         result << configEntry.first << "=" << configEntry.second.as<std::string>() << "_";
     }
     result << ")";
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void GroupedMatMulCompressedLayerTest::SetUp() {

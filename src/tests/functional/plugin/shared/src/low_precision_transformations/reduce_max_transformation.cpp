@@ -3,6 +3,8 @@
 //
 
 #include "low_precision_transformations/reduce_max_transformation.hpp"
+
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -22,7 +24,9 @@ std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInf
         result << elem << "_";
     }
 
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ReduceMaxTransformation::SetUp() {

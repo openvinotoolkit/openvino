@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 #include "common_test_utils/test_enums.hpp"
@@ -56,7 +58,9 @@ public:
         result << "keepDims=" << keepDims << "_";
         result << "trgDev=" << targetDevice;
 
-        return result.str();
+        auto test_case_name = result.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:

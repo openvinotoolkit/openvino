@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 
+#include <algorithm>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/random_uniform.hpp>
@@ -89,7 +90,9 @@ struct PrintToStringParamName {
             << "_max_value_" << param.param.max_val
             << "_global_seed_" << param.param.global_seed
             << "_op_seed_" << param.param.op_seed;
-        return buf.str();
+        auto test_case_name = buf.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 };
@@ -102,7 +105,9 @@ std::string PrintToStringParamName::operator()(const testing::TestParamInfo<Rand
         << "_max_value_" << static_cast<float>(param.param.max_val)
         << "_global_seed_" << param.param.global_seed
         << "_op_seed_" << param.param.op_seed;
-    return buf.str();
+    auto test_case_name = buf.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 template<>
@@ -113,7 +118,9 @@ std::string PrintToStringParamName::operator()(const testing::TestParamInfo<Rand
         << "_max_value_" << static_cast<float>(param.param.max_val)
         << "_global_seed_" << param.param.global_seed
         << "_op_seed_" << param.param.op_seed;
-    return buf.str();
+    auto test_case_name = buf.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 using random_uniform_gpu_test_i32 = random_uniform_gpu_test<int32_t>;

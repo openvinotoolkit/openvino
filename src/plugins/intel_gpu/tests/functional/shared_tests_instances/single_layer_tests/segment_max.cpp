@@ -102,7 +102,9 @@ static std::string perfTestCaseName(const testing::TestParamInfo<SegmentMaxLayer
     result << "numSeg=" << numSegments << "_";
     result << "fillMode=" << static_cast<int>(fillMode) << "_";
     result << "dev=" << targetDevice;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 const std::vector<SegmentMaxSpecificParams> segmentMaxPerfParams = {

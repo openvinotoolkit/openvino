@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/mvn.hpp"
 
+#include <algorithm>
+
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
@@ -35,7 +37,9 @@ std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Para
     result << "normalize_variance=" << (normalize_variance ? "TRUE" : "FALSE") << "_";
     result << "Epsilon=" << eps << "_";
     result << "TargetDevice=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void Mvn1LayerTest::SetUp() {
@@ -91,7 +95,9 @@ std::string Mvn6LayerTest::getTestCaseName(const testing::TestParamInfo<mvn6Para
     result << "Eps=" << eps << "_";
     result << "EM=" << eps_mode << "_";
     result << "TargetDevice=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void Mvn6LayerTest::SetUp() {

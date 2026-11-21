@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -44,7 +46,9 @@ public:
         results << "constantInput=" << inputLayerTypes[0] << "/" << inputLayerTypes[1] << "/" << inputLayerTypes[2] << "_";
         results << "PadMode=" << padMode;
 
-        return results.str();
+        auto test_case_name = results.str();
+        std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+        return test_case_name;
     }
 
 protected:

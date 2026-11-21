@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_op/random_uniform.hpp"
+
+#include <algorithm>
+
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -22,7 +25,9 @@ std::string RandomUniformLayerTest::getTestCaseName(const testing::TestParamInfo
     result << "modelType=" << random_uniform_params.model_type.to_string() << "_";
     result << "alignment=" << alignment << "_";
     result << "trgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void RandomUniformLayerTest::SetUp() {

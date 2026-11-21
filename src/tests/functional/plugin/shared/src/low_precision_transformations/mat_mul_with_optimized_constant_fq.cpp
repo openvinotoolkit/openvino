@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/mat_mul_with_optimized_constant_fq.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -25,7 +26,9 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
         device << "_"  <<
         param.fqOnData << "_" <<
         param.fqOnWeights;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void MatMulWithOptimizedConstantFq::SetUp() {

@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_op/scatter_elements_update.hpp"
+
+#include <algorithm>
+
 #include "openvino/op/scatter_elements_update.hpp"
 
 namespace ov {
@@ -25,7 +28,9 @@ std::string ScatterElementsUpdateLayerTest::getTestCaseName(const testing::TestP
     result << "modelType=" << model_type.to_string() << "_";
     result << "idxType=" << indices_type.to_string() << "_";
     result << "trgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ScatterElementsUpdateLayerTest::SetUp() {
@@ -78,7 +83,9 @@ std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::Tes
     result << "modelType=" << model_type.to_string() << "_";
     result << "idxType=" << indices_type.to_string() << "_";
     result << "trgDev=" << target_device;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void ScatterElementsUpdate12LayerTest::SetUp() {

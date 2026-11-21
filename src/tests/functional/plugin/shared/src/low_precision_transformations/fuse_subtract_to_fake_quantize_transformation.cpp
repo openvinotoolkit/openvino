@@ -4,6 +4,7 @@
 
 #include "low_precision_transformations/fuse_subtract_to_fake_quantize_transformation.hpp"
 
+#include <algorithm>
 #include <tuple>
 #include <sstream>
 #include <string>
@@ -21,7 +22,9 @@ std::string FuseSubtractToFakeQuantizeTransformation::getTestCaseName(const test
     result << targetDevice << "_" <<
         testValues.actual.dequantization << "_" <<
         testValues.actual.fakeQuantizeOnData;
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void FuseSubtractToFakeQuantizeTransformation::SetUp() {

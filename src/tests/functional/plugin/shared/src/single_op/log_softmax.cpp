@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "common_test_utils/ov_tensor_utils.hpp"
+
+#include <algorithm>
+
 #include "shared_test_classes/single_op/log_softmax.hpp"
 #include "openvino/op/log_softmax.hpp"
 
@@ -28,7 +31,9 @@ std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<lo
     result << "axis=" << axis << "_";
     result << "trgDev=" << target_device;
 
-    return result.str();
+    auto test_case_name = result.str();
+    std::replace(test_case_name.begin(), test_case_name.end(), '-', '_');
+    return test_case_name;
 }
 
 void LogSoftmaxLayerTest::generate_inputs(const std::vector<ov::Shape>& target_shapes) {
