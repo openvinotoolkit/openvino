@@ -4,6 +4,8 @@
 
 #include "jit_brgemm_emitter.hpp"
 
+#include <utility>
+
 #include "emitters/utils.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
@@ -28,7 +30,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc);
-    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    m_kernel_executor =
+        kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, std::move(kernel_config));
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(

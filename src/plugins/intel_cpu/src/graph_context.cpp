@@ -22,13 +22,13 @@
 
 namespace ov::intel_cpu {
 
-GraphContext::GraphContext(Config config,
+GraphContext::GraphContext(const Config& config,
                            WeightsSharing::Ptr w_cache,
                            bool isGraphQuantized,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
                            std::shared_ptr<CpuParallel> cpuParallel,
                            std::shared_ptr<SubMemoryManager> sub_memory_manager)
-    : m_config(std::move(config)),
+    : m_config(config),
       m_weightsCache(std::move(w_cache)),
       m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
       m_snippetsParamsCache(std::make_shared<MultiCache>(m_config.snippetsCacheCapacity)),

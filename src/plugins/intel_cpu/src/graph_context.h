@@ -32,7 +32,7 @@ public:
     using Ptr = std::shared_ptr<GraphContext>;
     using CPtr = std::shared_ptr<const GraphContext>;
 
-    GraphContext(Config config,
+    GraphContext(const Config& config,
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
