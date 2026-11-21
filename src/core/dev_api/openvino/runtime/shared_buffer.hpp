@@ -32,66 +32,68 @@ public:
     }
 
     virtual void hint_evict() noexcept override {
-        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
-            if (m_shared_object) {
-                m_shared_object->hint_evict(get_offset(), m_byte_size);
-            }
-        } else if constexpr (std::is_same_v<std::shared_ptr<ov::AlignedBuffer>, T>) {
-            if (m_shared_object) {
-                invoke_evict(*m_shared_object, get_offset(), m_byte_size);
-            }
-        } else {
-        }
+        hint_evict(get_offset(), m_byte_size);
     }
 
     util::PrefetchToken hint_prefetch_async() const noexcept override {
         return hint_prefetch_async(get_offset(), m_byte_size);
     }
 
-protected:
-    template <typename U>
-    struct is_aligned_buffer_ptr : std::false_type {};
-    template <typename U>
-    struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
-    template <typename U>
-    static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
+    using AlignedBuffer::hint_prefetch;
 
+protected:
+    // Shared object implementing the common util::IBuffer interface (MappedMemory, AlignedBuffer, ...).
+    template <typename U>
+    struct is_buffer_ptr : std::false_type {};
+    template <typename U>
+    struct is_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<util::IBuffer, U> {};
+    template <typename U>
+    static constexpr bool is_buffer_ptr_v = is_buffer_ptr<U>::value;
+
+    // The offset is relative to the root source buffer, so it is forwarded to the parents unchanged.
     virtual void hint_evict(size_t offset, size_t size) noexcept override {
-        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+        if constexpr (is_buffer_ptr_v<T>) {
             if (m_shared_object) {
-                m_shared_object->hint_evict(offset, size);
-            }
-        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
-            if (m_shared_object) {
-                invoke_evict(*m_shared_object, offset, size);
+                auto* object = m_shared_object.get();
+                if (auto* mapped = dynamic_cast<ov::MappedMemory*>(object)) {
+                    mapped->hint_evict(offset, size);
+                } else if (auto* aligned = dynamic_cast<ov::AlignedBuffer*>(object)) {
+                    invoke_evict(*aligned, offset, size);
+                } else if (offset == 0 && size == object->size()) {
+                    object->hint_evict();  // only whole-buffer hints are available
+                }
             }
         }
     }
 
-    // The offset is relative to the root source buffer, so it is forwarded to the parents unchanged.
     util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) const noexcept override {
-        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+        if constexpr (is_buffer_ptr_v<T>) {
             if (m_shared_object) {
-                return m_shared_object->hint_prefetch_async(offset, size);
-            }
-        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
-            if (m_shared_object) {
-                return invoke_hint_prefetch_async(*m_shared_object, offset, size);
+                auto* object = m_shared_object.get();
+                if (auto* mapped = dynamic_cast<ov::MappedMemory*>(object)) {
+                    return mapped->hint_prefetch_async(offset, size);
+                } else if (auto* aligned = dynamic_cast<ov::AlignedBuffer*>(object)) {
+                    return invoke_hint_prefetch_async(*aligned, offset, size);
+                } else if (offset == 0 && size == object->size()) {
+                    return object->hint_prefetch();  // only whole-buffer hints are available
+                }
             }
         }
         return {};
     }
 
     void hint_prefetch() const override {
-        if constexpr (is_aligned_buffer_ptr_v<T>) {
-            if (this->m_shared_object) {
-                AlignedBuffer::invoke_hint_prefetch(*this->m_shared_object);
+        if constexpr (is_buffer_ptr_v<T>) {
+            if (m_shared_object) {
+                if (auto* aligned = dynamic_cast<ov::AlignedBuffer*>(m_shared_object.get())) {
+                    AlignedBuffer::invoke_hint_prefetch(*aligned);
+                }
             }
         }
     }
 
     // protected to not create SharedBufferBase directly
-    SharedBufferBase(char* data,
+    SharedBufferBase(std::byte* data,
                      size_t size,
                      const T& shared_object,
                      const std::shared_ptr<IBufferDescriptor>& descriptor)
@@ -119,7 +121,7 @@ protected:
         m_byte_size = size;
     }
 
-    SharedBufferBase(char* data, size_t size, const T& shared_object)
+    SharedBufferBase(std::byte* data, size_t size, const T& shared_object)
         : m_shared_object{shared_object},
           m_source_buffer{},
           m_descriptor{} {
@@ -149,29 +151,34 @@ class SharedBuffer : public SharedBufferBase<T> {
     static std::shared_ptr<IBufferDescriptor> get_or_make_descriptor(const T& shared_object) {
         if constexpr (std::is_same_v<T, std::shared_ptr<ov::MappedMemory>>) {
             return detail::create_mmap_descriptor(shared_object);
-        } else if constexpr (SharedBufferBase<T>::template is_aligned_buffer_ptr_v<T>) {
-            return shared_object ? shared_object->get_descriptor() : nullptr;
+        } else if constexpr (SharedBufferBase<T>::template is_buffer_ptr_v<T>) {
+            if (auto mapped = std::dynamic_pointer_cast<ov::MappedMemory>(shared_object)) {
+                return detail::create_mmap_descriptor(mapped);
+            } else if (auto aligned = std::dynamic_pointer_cast<ov::AlignedBuffer>(shared_object)) {
+                return aligned->get_descriptor();
+            } else {
+                return nullptr;
+            }
         } else {
             return nullptr;
         }
     }
 
 public:
-    SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
-        : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
-
-    SharedBuffer(char* data, size_t size, const T& shared_object)
-        : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}
-
-    // std::byte* overloads so callers holding an IBuffer::data()-style pointer don't need to cast.
     SharedBuffer(std::byte* data,
                  size_t size,
                  const T& shared_object,
                  const std::shared_ptr<IBufferDescriptor>& descriptor)
-        : SharedBuffer(reinterpret_cast<char*>(data), size, shared_object, descriptor) {}
+        : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
 
     SharedBuffer(std::byte* data, size_t size, const T& shared_object)
-        : SharedBuffer(reinterpret_cast<char*>(data), size, shared_object) {}
+        : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}
+
+    SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
+        : SharedBuffer(reinterpret_cast<std::byte*>(data), size, shared_object, descriptor) {}
+
+    SharedBuffer(char* data, size_t size, const T& shared_object)
+        : SharedBuffer(reinterpret_cast<std::byte*>(data), size, shared_object) {}
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
