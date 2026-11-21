@@ -215,6 +215,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/stft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/sub.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/sum.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/swiglu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/swish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tanh.cpp

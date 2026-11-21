@@ -242,6 +242,7 @@ Data as of OpenVINO 2025.4.1 (December 18, 2025).
        STFT
        Sub
        Sum
+       SwiGLU
        Swish
        Tan
        Tanh
