@@ -42,7 +42,8 @@ void PaKVReorder::validate_and_infer_types() {
     }
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
-    set_output_type(0, ov::element::u8, output_shapes[0]);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, get_input_element_type(1), output_shapes[1]);
 }
 
 std::shared_ptr<Node> PaKVReorder::clone_with_new_inputs(const ov::OutputVector& new_args) const {

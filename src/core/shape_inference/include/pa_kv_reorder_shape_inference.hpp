@@ -18,6 +18,6 @@ std::vector<TRShape> shape_infer(const PaKVReorder* op, const std::vector<T>& in
         NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[i].rank().compatible(1));
     }
 
-    return {TRShape{1}};
+    return {input_shapes[0], input_shapes[1]};
 }
 }  // namespace ov::op::internal
