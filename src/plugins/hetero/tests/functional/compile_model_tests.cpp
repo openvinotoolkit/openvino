@@ -124,3 +124,39 @@ TEST_F(HeteroTests, get_runtime_model) {
     }
     EXPECT_EQ(0, original_names.size());
 }
+TEST_F(HeteroTests, infer_dynamic_shape_submodels_propagation) {
+    // Construct dynamic model with 2 submodels via explicit device affinities
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{-1, 3, 2, 2});
+    param->set_friendly_name("input");
+    auto const1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
+    const1->set_friendly_name("const1");
+    auto add1 = std::make_shared<ov::opset11::Add>(param, const1);
+    add1->set_friendly_name("add1");
+    add1->get_rt_info()["affinity"] = "MOCKGPU";
+
+    auto const2 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {2});
+    const2->set_friendly_name("const2");
+    auto add2 = std::make_shared<ov::opset11::Add>(add1, const2);
+    add2->set_friendly_name("add2");
+    add2->get_rt_info()["affinity"] = "MOCK0";
+
+    auto result = std::make_shared<ov::opset11::Result>(add2);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    ov::CompiledModel compiled_model;
+    ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO));
+    auto infer_request = compiled_model.create_infer_request();
+
+    // 1st iteration: dynamic batch size 1
+    auto input_tensor_1 = create_and_fill_tensor(ov::element::i64, {1, 3, 2, 2});
+    infer_request.set_input_tensor(input_tensor_1);
+    ASSERT_NO_THROW(infer_request.infer());
+    EXPECT_EQ(infer_request.get_output_tensor().get_shape(), (ov::Shape{1, 3, 2, 2}));
+
+    // 2nd iteration: dynamic batch size 2 (tests intermediate cross-submodel tensor shape update)
+    auto input_tensor_2 = create_and_fill_tensor(ov::element::i64, {2, 3, 2, 2});
+    infer_request.set_input_tensor(input_tensor_2);
+    ASSERT_NO_THROW(infer_request.infer());
+    EXPECT_EQ(infer_request.get_output_tensor().get_shape(), (ov::Shape{2, 3, 2, 2}));
+}

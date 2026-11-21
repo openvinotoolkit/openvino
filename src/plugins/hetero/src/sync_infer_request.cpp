@@ -52,6 +52,9 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         m_subrequests[submodel_idx_out]->set_tensor(output_port, temp_tensor_map[output_port]);
         const auto& input_port = m_subrequests[submodel_idx_in]->get_compiled_model()->inputs()[port_idx_in];
         m_subrequests[submodel_idx_in]->set_tensor(input_port, temp_tensor_map[output_port]);
+
+        // Cache the connection for dynamic shape propagation in infer()
+        m_submodel_connections.push_back({submodel_idx_out, output_port, submodel_idx_in, input_port});
     }
 }
 
@@ -125,9 +128,19 @@ std::vector<ov::SoPtr<ov::IVariableState>> ov::hetero::InferRequest::query_state
 }
 
 void ov::hetero::InferRequest::infer() {
-    for (auto&& request : m_subrequests) {
-        OPENVINO_ASSERT(request);
-        request->infer();
+    for (size_t i = 0; i < m_subrequests.size(); ++i) {
+        OPENVINO_ASSERT(m_subrequests[i]);
+        m_subrequests[i]->infer();
+
+        for (const auto& conn : m_submodel_connections) {
+            if (conn.out_submodel_idx == i) {
+                auto out_tensor = m_subrequests[conn.out_submodel_idx]->get_tensor(conn.out_port);
+                auto in_tensor = m_subrequests[conn.in_submodel_idx]->get_tensor(conn.in_port);
+                if (out_tensor->get_shape() != in_tensor->get_shape()) {
+                    in_tensor->set_shape(out_tensor->get_shape());
+                }
+            }
+        }
     }
 }
 
