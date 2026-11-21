@@ -480,14 +480,14 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
     return true;
 }
 
-// Plain (non-PA) SDPA PREFILL on xe2_tuned() arches at d_max 128 with f16 Q and the per-channel compressed i8 K / V of the
+// Plain (non-PA) SDPA PREFILL on xe2_tuned() arches and Xe3 at d_max 128 with f16 Q and the per-channel compressed i8 K / V of the
 // GQA decomposition: 16-key x 32-query subgroup tiles, 4 x 1 subgroups (64 keys x 32 queries), 256 GRF, with the PA
 // PREFILL loop changes (the 8-bit reads take neither PREFETCH_V nor WIDE_READS). Each subgroup widens its V tile once for
 // 32 queries instead of the table tile's 16, by convert_half4 (v_i8_convert; slower on the decode tiling, which keeps the
 // shift-based widening). The choice reads no query or key count, so the compiled stage and its
 // dispatch (shape-agnostic or not) agree ("Plain-SDPA PREFILL tiling for the per-channel i8 cache" in the docs).
 bool solve_plain_prefill_i8_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
-    if (d_max != 128 || vd_max != 128 || !xe2_tuned(arch) || !shape.i8_per_channel_kv) {
+    if (d_max != 128 || vd_max != 128 || (!xe2_tuned(arch) && arch != gpu_arch::xe3) || !shape.i8_per_channel_kv) {
         return false;
     }
     sdpa_ocl_config_t t;
@@ -548,6 +548,47 @@ bool solve_plain_decode_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool 
     return true;
 }
 
+// Plain (non-PA) SDPA on Xe3 at d_max 128, chosen by a PTL-H sweep ("Plain-SDPA tilings on Xe3" in the docs): decode with
+// 16-key (f16) or 32-key (per-channel i8) x 16-query subgroup tiles in one row of 8 subgroups, the same for both V layouts
+// so a transposed V gives the plain layout's bits; f16 PREFILL with 16-key x 32-query tiles, 4 x 2 subgroups; 256 GRF and
+// the PREFILL loop changes. Neither reads a query or key count. False: the other tilings (the i8 PREFILL has its own).
+bool solve_plain_xe3_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool decode, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
+    if (arch != gpu_arch::xe3 || d_max != 128 || vd_max != 128) {
+        return false;
+    }
+    sdpa_ocl_config_t t;
+    t.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+    if (decode) {
+        if (!shape.f16_qkv && !shape.i8_per_channel_kv) {
+            return false;
+        }
+        t.kq_sg_tile_keys = shape.f16_qkv ? 16 : 32;
+        t.kq_sg_tile_queries = 16;
+        t.kq_sg_per_wg_keys = 8;
+        t.kq_sg_per_wg_queries = 1;
+        t.plain_decode = true;
+    } else {
+        if (!shape.f16_qkv) {
+            return false;
+        }
+        t.kq_sg_tile_keys = 16;
+        t.kq_sg_tile_queries = 32;
+        t.kq_sg_per_wg_keys = 4;
+        t.kq_sg_per_wg_queries = 2;
+        t.noncausal_kq_branch = true;
+    }
+    t.large_grf = true;
+    t.prefill_pipeline = true;
+    t.v_prefetch = true;
+    t.wide_reads = 1;
+    t.micro_math = false;  // plain SDPA never emits MICRO_MATH
+    if (!solve_sv_split(t, vd_max) || !tiling_fits_device(arch, d_max, t)) {
+        return false;
+    }
+    config = t;
+    return true;
+}
+
 // The tuned tiling for d_max, with the S*V split re-derived for vd_max when they differ. Tier 2 (a 64 x 64
 // KQ workgroup tile) covers the pairs the tuned query tile cannot split, e.g. k >= 72 with v <= 32; it is
 // unreachable for k_head_size == v_head_size, so the tuned tilings stay as they are. False: no tiling.
@@ -568,6 +609,9 @@ bool solve_tiling(gpu_arch arch,
         return true;
     }
     if (plain_prefill && solve_plain_prefill_tiling(arch, d_max, vd_max, plain_shape, config)) {
+        return true;
+    }
+    if ((plain_prefill || plain_decode) && solve_plain_xe3_tiling(arch, d_max, vd_max, plain_decode, plain_shape, config)) {
         return true;
     }
     if (plain_prefill && solve_plain_prefill_d64_tiling(arch, d_max, vd_max, plain_shape, config)) {
