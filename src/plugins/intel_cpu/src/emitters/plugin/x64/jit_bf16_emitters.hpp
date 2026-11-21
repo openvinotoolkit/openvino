@@ -10,6 +10,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
+#include <type_traits>
 #include <vector>
 
 #include "emitters/utils.hpp"
@@ -46,8 +47,6 @@ private:
             emit_isa<dnnl::impl::cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
-            emit_isa<dnnl::impl::cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
         } else {
             OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
         }
@@ -56,8 +55,7 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
         using namespace Xbyak;
-        using Vmm = typename dnnl::impl::utils::
-            conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        using Vmm = std::conditional_t<isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>;
 
         const auto to_reg_idx = [](size_t idx) {
             return static_cast<int>(idx);
@@ -107,12 +105,7 @@ private:
             auto aux = Vmm(to_reg_idx(aux_vec_idxs[0]));
             auto out = Xmm(to_reg_idx(out_vec_idxs[0]));
 
-            if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                h->uni_vandps(aux, in, table_val("rounding"));
-            } else {
-                h->uni_vmovups(aux, in);
-                h->uni_vandps(aux, aux, table_val("rounding"));
-            }
+            h->uni_vandps(aux, in, table_val("rounding"));
 
             h->uni_vpsrld(aux, aux, 1);
             h->uni_vpaddd(aux, aux, in);
@@ -122,12 +115,8 @@ private:
             h->uni_vandps(aux, aux, table_val("mask_truncation_word"));
             h->uni_vpackusdw(aux, aux, aux);
 
-            if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8);  // 11 01 10 00
-                h->vextracti128(out, Ymm(aux.getIdx()), 0);
-            } else {
-                h->uni_vmovups(out, aux);
-            }
+            h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8);  // 11 01 10 00
+            h->vextracti128(out, Ymm(aux.getIdx()), 0);
         }
     }
 

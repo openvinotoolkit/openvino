@@ -47,7 +47,6 @@
 
 #    include <atomic>
 #    include <common/c_types_map.hpp>
-#    include <common/utils.hpp>
 #    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include "cpu/x64/jit_generator.hpp"
@@ -218,12 +217,12 @@ const float jit_has_special_value_base::bf16_min_mask_data[8] = {std::numeric_li
                                                                  std::numeric_limits<ov::bfloat16>::lowest()};
 template <cpu_isa_t isa>
 struct jit_has_subnormals : public jit_has_special_value_base {
-    using Vmm = typename dnnl::impl::utils::conditional<isa == sse41, Xbyak::Xmm, Xbyak::Ymm>::type;
+    using Vmm = Ymm;
 
     const Vmm rmm4 = Vmm(4);
     const Vmm rmm5 = Vmm(5);
     const Vmm rmm6 = Vmm(6);
-    const int length = isa == sse41 ? 4 : 8;
+    const int length = 8;
 
     void generate() override final {
         const size_t vlen = length;
@@ -292,12 +291,12 @@ struct jit_has_subnormals : public jit_has_special_value_base {
 };
 template <cpu_isa_t isa>
 struct jit_has_bf16_overflows : public jit_has_special_value_base {
-    using Vmm = typename dnnl::impl::utils::conditional<isa == sse41, Xbyak::Xmm, Xbyak::Ymm>::type;
+    using Vmm = Ymm;
 
     const Vmm rmm4 = Vmm(4);
     const Vmm rmm5 = Vmm(5);
     const Vmm rmm6 = Vmm(6);
-    const int length = isa == sse41 ? 4 : 8;
+    const int length = 8;
 
     void generate() override final {
         const size_t vlen = length;
@@ -370,11 +369,7 @@ jit_has_special_value_base::fn_t jit_has_subnormals_function() {
         static auto fn = generator.get();
         return fn;
     }
-    if (mayiuse(cpu_isa_t::sse41)) {
-        static jit_has_subnormals<cpu_isa_t::sse41> generator;
-        static auto fn = generator.get();
-        return fn;
-    }
+
     return nullptr;
 }
 jit_has_special_value_base::fn_t jit_has_bf16_overflows_function() {
@@ -383,11 +378,7 @@ jit_has_special_value_base::fn_t jit_has_bf16_overflows_function() {
         static auto fn = generator.get();
         return fn;
     }
-    if (mayiuse(cpu_isa_t::sse41)) {
-        static jit_has_bf16_overflows<cpu_isa_t::sse41> generator;
-        static auto fn = generator.get();
-        return fn;
-    }
+
     return nullptr;
 }
 

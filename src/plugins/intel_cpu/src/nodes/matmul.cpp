@@ -233,21 +233,13 @@ ov::element::Type MatMul::getRuntimePrecision() const {
 
 const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
-        impl_desc_type::unknown,       impl_desc_type::brgemm_avx512_amx,
-        impl_desc_type::brgemm_avx512, impl_desc_type::brgemm_avx2,
-        impl_desc_type::gemm_acl,      impl_desc_type::gemm_blas,
-        impl_desc_type::gemm_avx512,   impl_desc_type::gemm_avx2,
-        impl_desc_type::gemm_avx,      impl_desc_type::gemm_sse42,
-        impl_desc_type::gemm_any,      impl_desc_type::gemm,
-        impl_desc_type::jit_gemm,      impl_desc_type::jit_uni_dw,
-        impl_desc_type::jit_uni_1x1,   impl_desc_type::jit_uni,
-        impl_desc_type::jit_avx512_dw, impl_desc_type::jit_avx512_1x1,
-        impl_desc_type::jit_avx512,    impl_desc_type::jit_avx2_dw,
-        impl_desc_type::jit_avx2_1x1,  impl_desc_type::jit_avx2,
-        impl_desc_type::jit_avx_dw,    impl_desc_type::jit_avx_1x1,
-        impl_desc_type::jit_avx,       impl_desc_type::jit_sse42_dw,
-        impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
-        impl_desc_type::ref,
+        impl_desc_type::unknown,        impl_desc_type::brgemm_avx512_amx, impl_desc_type::brgemm_avx512,
+        impl_desc_type::brgemm_avx2,    impl_desc_type::gemm_acl,          impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,    impl_desc_type::gemm_avx2,         impl_desc_type::gemm_any,
+        impl_desc_type::gemm,           impl_desc_type::jit_gemm,          impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,    impl_desc_type::jit_uni,           impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1, impl_desc_type::jit_avx512,        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,   impl_desc_type::jit_avx2,          impl_desc_type::ref,
     };
 
     return priorities;

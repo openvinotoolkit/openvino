@@ -103,8 +103,7 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits_t<isa>::vlen;
     using Ymm = const Xbyak::Ymm;
@@ -230,8 +229,8 @@ private:
         }
     }
 
-    void apply_filter(int ow_step, int oc_blocks_step, int oc_step, int ic_step) {
-        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+    void apply_filter(int ow_step, int oc_blocks_step, [[maybe_unused]] int oc_step, int ic_step) {
+        int repeats = 1;
 
         for (int kh = 0; kh < jcp_.kh; kh++) {
             for (int kw = 0; kw < jcp_.kw; kw++) {
@@ -258,9 +257,6 @@ private:
                                 Vmm vmm_src = get_vmm_src(ow);
                                 Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
 
-                                if (isa == cpu::x64::sse41 && ow > 0) {
-                                    uni_vmovups(vmm_ker, ptr[aux2_reg_kernel + ker_off * jcp_.typesize_in]);
-                                }
                                 uni_vfmadd231ps(vmm_acc, vmm_ker, vmm_src);
                             }
                         }
@@ -270,8 +266,8 @@ private:
         }
     }
 
-    void init_accums(int ow_step, int oc_blocks_step, int oc_step) {
-        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+    void init_accums(int ow_step, int oc_blocks_step, [[maybe_unused]] int oc_step) {
+        int repeats = 1;
         for (int r = 0; r < repeats; r++) {
             for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                 for (int ow = 0; ow < ow_step; ow++) {
@@ -585,7 +581,7 @@ private:
     }
 
     void store_output(int ow_step, int oc_blocks_step, int oc_step) {
-        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        int repeats = 1;
 
         if (jcp_.with_bias) {
             for (int r = 0; r < repeats; r++) {
@@ -608,9 +604,8 @@ private:
         }
 
         for (int r = 0; r < repeats; r++) {
-            int tail_size =
-                isa == cpu::x64::sse41 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
-            bool is_scalar_store = isa == cpu::x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
+            int tail_size = oc_step;
+            bool is_scalar_store = tail_size < jcp_.oc_block;
             if (is_scalar_store) {
                 for (int ow = 0; ow < ow_step; ow++) {
                     Vmm vmm_dst = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
@@ -625,16 +620,12 @@ private:
                             uni_vmovq(reg_tmp_64, xmm_dst);
                             mov(ptr[aux_reg_output + out_off * jcp_.typesize_out], reg_tmp_32);
 
-                            if (isa == cpu::x64::sse41) {
-                                psrldq(vmm_dst, jcp_.typesize_out);
-                            } else {
-                                Ymm ymm_dst = get_ymm_acc(ow);
-                                auto vmm_tmp = Vmm(0);
-                                auto ymm_tmp = Ymm(0);
+                            Ymm ymm_dst = get_ymm_acc(ow);
+                            auto vmm_tmp = Vmm(0);
+                            auto ymm_tmp = Ymm(0);
 
-                                vperm2i128(ymm_tmp, ymm_dst, ymm_dst, 0x01);
-                                vpalignr(ymm_dst, vmm_tmp, ymm_dst, jcp_.typesize_out);
-                            }
+                            vperm2i128(ymm_tmp, ymm_dst, ymm_dst, 0x01);
+                            vpalignr(ymm_dst, vmm_tmp, ymm_dst, jcp_.typesize_out);
                         }
                     }
                 }
@@ -886,11 +877,9 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_avx512;
     } else if (ov::with_cpu_x86_avx2()) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (ov::with_cpu_x86_sse42()) {
-        impl_type = impl_desc_type::jit_sse42;
     }
 
-    if (!enforceRef && ov::with_cpu_x86_sse42()) {
+    if (!enforceRef && ov::with_cpu_x86_avx2()) {
         // optimized implementation
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
@@ -1149,8 +1138,6 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
         def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (ov::with_cpu_x86_avx2()) {
         def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx2>>(jcp);
-    } else if (ov::with_cpu_x86_sse42()) {
-        def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::sse41>>(jcp);
     } else {
         OPENVINO_THROW("Can't create DefConvJitExecutor");
     }

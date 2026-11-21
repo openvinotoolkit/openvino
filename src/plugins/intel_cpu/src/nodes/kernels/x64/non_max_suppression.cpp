@@ -312,7 +312,7 @@ void NonMaxSuppression<isa>::suppressed_by_iou(bool is_scalar) {
             kandw(k_mask, k_mask, k_mask_one);
         }
         kortestw(k_mask, k_mask);  // bitwise check if all zero
-    } else if (x64::mayiuse(x64::avx)) {
+    } else if (x64::mayiuse(x64::avx2)) {
         // vex instructions with xmm on avx and ymm on avx2
         vcmpps(vmm_temp4, vmm_temp3, vmm_iou_threshold, 0x0D);  // xmm and ymm only on V1.
         if (is_scalar) {
@@ -323,20 +323,21 @@ void NonMaxSuppression<isa>::suppressed_by_iou(bool is_scalar) {
                         vmm_temp4);  // vtestps: sign bit check if all zeros, ymm and xmm only on V1, N/A on V5
         }
     } else {
+        OPENVINO_THROW("Not defined behavior for instruction 'suppressed_by_iou' in SSE/AVX only set.");
         // pure sse path, make sure don't spoil vmm_temp3, which may used in after soft-suppression
-        uni_vmovups(vmm_temp4, vmm_temp3);
-        cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for at least one is NaN
+        // uni_vmovups(vmm_temp4, vmm_temp3);
+        // cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for at least one is NaN
 
-        uni_vmovups(vmm_temp2, vmm_temp3);
-        cmpps(vmm_temp2, vmm_iou_threshold, 0x05);  // _CMP_GE_US on sse, no direct _CMP_GE_OS supported.
+        // uni_vmovups(vmm_temp2, vmm_temp3);
+        // cmpps(vmm_temp2, vmm_iou_threshold, 0x05);  // _CMP_GE_US on sse, no direct _CMP_GE_OS supported.
 
-        uni_vandps(vmm_temp4, vmm_temp4, vmm_temp2);
-        if (is_scalar) {
-            uni_vpextrd(reg_temp_32, Xbyak::Xmm(vmm_temp4.getIdx()), 0);
-            test(reg_temp_32, reg_temp_32);
-        } else {
-            uni_vtestps(vmm_temp4, vmm_temp4);  // ptest: bitwise check if all zeros, on sse41
-        }
+        // uni_vandps(vmm_temp4, vmm_temp4, vmm_temp2);
+        // if (is_scalar) {
+        //     uni_vpextrd(reg_temp_32, Xbyak::Xmm(vmm_temp4.getIdx()), 0);
+        //     test(reg_temp_32, reg_temp_32);
+        // } else {
+        //     uni_vtestps(vmm_temp4, vmm_temp4);  // ptest: bitwise check if all zeros, on sse41
+        // }
     }
 }
 
@@ -349,14 +350,15 @@ void NonMaxSuppression<isa>::suppressed_by_score() {
                0x02);  // vcmpps w/ kmask only on V5, w/o kmask version N/A on V5
         kandw(k_mask, k_mask, k_mask_one);
         kortestw(k_mask, k_mask);  // bitwise check if all zero
-    } else if (x64::mayiuse(x64::avx)) {
+    } else if (x64::mayiuse(x64::avx2)) {
         vcmpps(vmm_temp4, vmm_temp3, vmm_score_threshold, 0x02);
         uni_vpextrd(reg_temp_32, Xbyak::Xmm(vmm_temp4.getIdx()), 0);
         test(reg_temp_32, reg_temp_32);
     } else {
-        cmpps(vmm_temp3, vmm_score_threshold, 0x02);  // _CMP_LE_OS on sse
-        uni_vpextrd(reg_temp_32, Xbyak::Xmm(vmm_temp3.getIdx()), 0);
-        test(reg_temp_32, reg_temp_32);
+        OPENVINO_THROW("Not defined behavior for instruction 'suppressed_by_score' in SSE/AVX only set.");
+        // cmpps(vmm_temp3, vmm_score_threshold, 0x02);  // _CMP_LE_OS on sse
+        // uni_vpextrd(reg_temp_32, Xbyak::Xmm(vmm_temp3.getIdx()), 0);
+        // test(reg_temp_32, reg_temp_32);
     }
 }
 
@@ -460,15 +462,7 @@ inline void NonMaxSuppression<isa>::horizontal_mul() {
     auto xmm_weight = Xbyak::Xmm(vmm_temp3.getIdx());
     auto xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
     auto xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
-    if (isa == x64::sse41) {
-        horizontal_mul_xmm(xmm_weight, xmm_temp1);
-    } else if (isa == x64::avx2) {
-        auto ymm_weight = Xbyak::Ymm(vmm_temp3.getIdx());
-        vextractf128(xmm_temp1, ymm_weight, 0);
-        vextractf128(xmm_temp2, ymm_weight, 1);
-        uni_vmulps(xmm_weight, xmm_temp1, xmm_temp2);
-        horizontal_mul_xmm(xmm_weight, xmm_temp1);
-    } else {
+    if (isa == x64::avx512_core) {
         auto zmm_weight = Xbyak::Zmm(vmm_temp3.getIdx());
         vextractf32x4(xmm_temp1, zmm_weight, 0);
         vextractf32x4(xmm_temp2, zmm_weight, 1);
@@ -478,11 +472,18 @@ inline void NonMaxSuppression<isa>::horizontal_mul() {
         uni_vmulps(xmm_weight, xmm_weight, xmm_temp2);
         uni_vmulps(xmm_weight, xmm_weight, xmm_temp1);
         horizontal_mul_xmm(xmm_weight, xmm_temp1);
+    } else if (isa == x64::avx2) {
+        auto ymm_weight = Xbyak::Ymm(vmm_temp3.getIdx());
+        vextractf128(xmm_temp1, ymm_weight, 0);
+        vextractf128(xmm_temp2, ymm_weight, 1);
+        uni_vmulps(xmm_weight, xmm_temp1, xmm_temp2);
+        horizontal_mul_xmm(xmm_weight, xmm_temp1);
+    } else {
+        OPENVINO_THROW("Not defined behavior for instruction 'horizontal_mul' in SSE/AVX only set.");
     }
 }
 
 template class NonMaxSuppression<x64::avx512_core>;
 template class NonMaxSuppression<x64::avx2>;
-template class NonMaxSuppression<x64::sse41>;
 
 }  // namespace ov::intel_cpu::kernel

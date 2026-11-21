@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
@@ -148,9 +149,7 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator_t* h, cpu_i
 }
 
 void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
-        emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
-    } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
+    if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
         emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
@@ -161,8 +160,7 @@ void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const 
 
 template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    using Vmm = typename dnnl::impl::utils::
-        conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>;
     Reg64 in_reg(in[0]);
     auto vmm_dst = Vmm(out[0]);
 

@@ -112,9 +112,6 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         L(unrolled_loop_label);
         {
             auto [step, ur_ch] = [&]() {
-                if (isa == cpu::x64::sse41) {
-                    return std::make_pair(nbits / 2, nbits);
-                }
                 if (isa == cpu::x64::avx2) {
                     return std::make_pair(nbits, nbits / 2);
                 }
@@ -157,9 +154,6 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         L(main_loop_label);
         {
             auto [repeats, step] = [&]() {
-                if (isa == cpu::x64::sse41) {
-                    return std::make_pair(2, nbits / 2);
-                }
                 if (isa == cpu::x64::avx2) {
                     return std::make_pair(1, nbits);
                 }
@@ -239,8 +233,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     Vmm vmm_src(int idx) {
         return Vmm(idx);
@@ -307,8 +300,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     Vmm vmm_val(int idx) {
         return Vmm(idx + 0);
@@ -496,7 +488,7 @@ private:
 
         int simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         int tail_simd_w = 4;
-        int repeats = isa == cpu::x64::sse41 ? 2 : 1;
+        int repeats = 1;
 
         Label main_loop_label;
         Label tail_blk4_label;
@@ -630,7 +622,7 @@ private:
         constexpr unsigned simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         constexpr unsigned tail8_simd_w = 8;
         constexpr unsigned tail4_simd_w = 4;
-        constexpr int repeats = isa == cpu::x64::sse41 ? 2 : 1;
+        constexpr int repeats = 1;
 
         Label main_loop_label;
         Label tail_blk8_label;
@@ -1512,12 +1504,9 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (ov::with_cpu_x86_sse42()) {
-            return impl_desc_type::jit_sse42;
-        }
         return impl_desc_type::ref;
     }();
-    if (!ov::with_cpu_x86_sse42() || getAxis() != 1) {
+    if (!ov::with_cpu_x86_avx2() || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
         if (!isBinarization()) {
@@ -2160,7 +2149,7 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims& post
     // if failed, fallback to append_quantization()
 
     // oneDNN quantization_injectors assumes that quantization data memory is always aligned on 16
-    // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
+    // by length of AVX512 vector register which is also enough for AVX2 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
     const size_t bufferAlignment = 16;
 
@@ -2469,12 +2458,6 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor([[maybe_unused]] 
             pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::avx2>>(_jqp);
         } else {
             pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::avx2>>(_jqp);
-        }
-    } else if (ov::with_cpu_x86_sse42()) {
-        if (isBinarization) {
-            pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::sse41>>(_jqp);
-        } else {
-            pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::sse41>>(_jqp);
         }
     } else {
         OPENVINO_THROW("Can't create jit fake quantize kernel");

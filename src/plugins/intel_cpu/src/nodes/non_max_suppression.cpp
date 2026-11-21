@@ -189,9 +189,6 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     case x64::avx2:
         impl_type = impl_desc_type::jit_avx2;
         break;
-    case x64::sse41:
-        impl_type = impl_desc_type::jit_sse42;
-        break;
     default:
         impl_type = impl_desc_type::ref;
     }

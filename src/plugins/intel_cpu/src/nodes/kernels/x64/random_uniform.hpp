@@ -62,16 +62,10 @@ public:
     void generate() override;
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
-                                                         Xbyak::Zmm,
-                                                         isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         Xbyak::Ymm>::type;
-    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
-                                                           Xbyak::Opmask,
-                                                           isa == dnnl::impl::cpu::x64::sse41,
-                                                           Xbyak::Xmm,
-                                                           Xbyak::Ymm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm, Xbyak::Ymm>::type;
+    using Vmask = typename dnnl::impl::utils::
+        conditional<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask, Xbyak::Ymm>::type;
 
     RegistersPool::Reg<Xbyak::Reg64> r64_dst;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
@@ -139,16 +133,10 @@ public:
     void generate() override;
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
-                                                         Xbyak::Zmm,
-                                                         isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         Xbyak::Ymm>::type;
-    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
-                                                           Xbyak::Opmask,
-                                                           isa == dnnl::impl::cpu::x64::sse41,
-                                                           Xbyak::Xmm,
-                                                           Xbyak::Ymm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm, Xbyak::Ymm>::type;
+    using Vmask = typename dnnl::impl::utils::
+        conditional<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask, Xbyak::Ymm>::type;
 
     RegistersPool::Reg<Xbyak::Reg64> r64_dst;
     RegistersPool::Reg<Xbyak::Reg64> r64_state;

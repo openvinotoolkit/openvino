@@ -296,8 +296,6 @@ std::string CPUTestsBase::getPrimitiveType() const {
         isaType = "jit_avx512";
     } else if (ov::with_cpu_x86_avx2()) {
         isaType = "jit_avx2";
-    } else if (ov::with_cpu_x86_sse42()) {
-        isaType = "jit_sse42";
     } else {
         isaType = "ref";
     }
@@ -313,8 +311,6 @@ std::string CPUTestsBase::getISA(bool skip_amx) const {
         isaType = "avx512";
     } else if (ov::with_cpu_x86_avx2()) {
         isaType = "avx2";
-    } else if (ov::with_cpu_x86_sse42()) {
-        isaType = "sse42";
     } else {
         isaType = "";
     }
