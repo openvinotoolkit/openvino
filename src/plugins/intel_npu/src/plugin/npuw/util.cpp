@@ -613,6 +613,7 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     const auto& dst_shape = dst->get_shape();
     NPUW_ASSERT(dst_shape.size() == 3);
     NPUW_ASSERT(src_shape[1] == dst_shape[2]);
+    NPUW_ASSERT(idx_shape[1] <= dst_shape[1]);
 
     const int64_t* pIdx = idx->data<int64_t>();
     const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
