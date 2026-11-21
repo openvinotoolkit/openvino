@@ -1,4 +1,4 @@
-bandit==1.9.2
+bandit==1.9.4
 markdown-it-py==4.2.0
 mdurl==0.1.2
 Pygments==2.21.0
