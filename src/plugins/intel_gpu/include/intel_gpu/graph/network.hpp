@@ -81,12 +81,6 @@ public:
             bool is_internal = false,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr);
 
-    network(engine& engine,
-            const std::set<std::shared_ptr<program_node>>& nodes,
-            const ExecutionConfig& config,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-            bool is_internal);
-
     network(program::ptr program, uint16_t stream_id = 0);
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
@@ -98,12 +92,6 @@ public:
                              const ExecutionConfig& config = {},
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
                              bool is_internal = false);
-
-    static ptr build_network(engine& engine,
-                             const std::set<std::shared_ptr<program_node>>& nodes,
-                             const ExecutionConfig& config,
-                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                             bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,
                                 program::ptr program,
@@ -185,6 +173,9 @@ public:
     std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void allocate_primitives();
+    // An instance of a node that may belong to another program, and its removal
+    std::shared_ptr<primitive_inst> add_primitive(const program_node& node);
+    void remove_primitive(const primitive_id& id);
     void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }

@@ -6,6 +6,8 @@
 #include "program_wrapper.h"
 #include "pass_manager.h"
 
+#include "intel_gpu/primitives/reshape.hpp"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -273,4 +275,181 @@ TEST(propagate_constants, all_reselection_targets_get_consistent_static_impl) {
         << "eltwise_1 should have been reselected to static impl";
     ASSERT_FALSE(impl_2->is_dynamic())
         << "eltwise_2 should have been reselected to static impl";
+}
+
+// Verifies that a constant subgraph of several nodes is executed with the implementations of the main program and
+// becomes a single data node, and that its intermediate node is removed.
+//
+// Topology:
+//   data("a") ---+
+//                 eltwise("w_sum", sum) --+
+//   data("b") ---+-------------------------eltwise("w_prod", prod) --> eltwise("out", sum)
+//   input_layout("input") ------------------------------------------/
+TEST(propagate_constants, multi_node_subgraph_becomes_one_constant) {
+    auto& engine = get_test_engine();
+
+    const auto l = layout{{1, 2, 2, 2}, data_types::f32, format::bfyx};
+    const std::vector<float> a_values = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+    const std::vector<float> b_values = {0.5f, -1.f, 2.f, 0.25f, -0.5f, 1.5f, 3.f, -2.f};
+    const std::vector<float> in_values = {10.f, 20.f, 30.f, 40.f, 50.f, 60.f, 70.f, 80.f};
+    auto a = engine.allocate_memory(l);
+    auto b = engine.allocate_memory(l);
+    set_values(a, a_values);
+    set_values(b, b_values);
+
+    topology topology(input_layout("input", l),
+                      data("a", a),
+                      data("b", b),
+                      eltwise("w_sum", input_info("a"), input_info("b"), eltwise_mode::sum),
+                      eltwise("w_prod", input_info("w_sum"), input_info("b"), eltwise_mode::prod),
+                      eltwise("out", input_info("input"), input_info("w_prod"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_FALSE(prog->has_node("w_sum"));
+    ASSERT_TRUE(prog->get_node("w_prod").is_type<data>());
+
+    auto input = engine.allocate_memory(l);
+    set_values(input, in_values);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto out = get_output_values_to_float(network, outputs.at("out"));
+    ASSERT_EQ(out.size(), in_values.size());
+    for (size_t i = 0; i < in_values.size(); ++i) {
+        ASSERT_FLOAT_EQ(out[i], in_values[i] + (a_values[i] + b_values[i]) * b_values[i]) << "i=" << i;
+    }
+}
+
+// Verifies that a weight read by two separate constant subgraphs gives correct results in both and that its memory is
+// released once both are folded, when the program owns the topology.
+//
+// Topology:
+//   data("w") --+--> eltwise("w_x", prod with data("k1")) --> eltwise("out1", sum with input)
+//               +--> eltwise("w_p", sum with data("k2"))  --> eltwise("out2", sum with input)
+TEST(propagate_constants, weight_shared_by_two_subgraphs) {
+    auto& engine = get_test_engine();
+
+    const auto l = layout{{1, 1, 2, 2}, data_types::f32, format::bfyx};
+    const std::vector<float> w_values = {1.f, -2.f, 3.f, 0.5f};
+    const std::vector<float> k1_values = {2.f, 2.f, 2.f, 2.f};
+    const std::vector<float> k2_values = {10.f, 20.f, 30.f, 40.f};
+    const std::vector<float> in_values = {0.25f, 0.5f, 0.75f, 1.f};
+    auto w = engine.allocate_memory(l);
+    auto k1 = engine.allocate_memory(l);
+    auto k2 = engine.allocate_memory(l);
+    set_values(w, w_values);
+    set_values(k1, k1_values);
+    set_values(k2, k2_values);
+
+    auto topo = std::make_shared<topology>(input_layout("input", l),
+                                           data("w", w),
+                                           data("k1", k1),
+                                           data("k2", k2),
+                                           eltwise("w_x", input_info("w"), input_info("k1"), eltwise_mode::prod),
+                                           eltwise("w_p", input_info("w"), input_info("k2"), eltwise_mode::sum),
+                                           eltwise("out1", input_info("input"), input_info("w_x"), eltwise_mode::sum),
+                                           eltwise("out2", input_info("input"), input_info("w_p"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, std::move(topo), config, nullptr, nullptr, false, false, false);
+
+    ASSERT_FALSE(prog->has_node("w"));
+    ASSERT_EQ(w.use_count(), 1);
+    ASSERT_TRUE(prog->get_node("w_x").is_type<data>());
+    ASSERT_TRUE(prog->get_node("w_p").is_type<data>());
+
+    network network(prog);
+
+    auto input = engine.allocate_memory(l);
+    set_values(input, in_values);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto out1 = get_output_values_to_float(network, outputs.at("out1"));
+    auto out2 = get_output_values_to_float(network, outputs.at("out2"));
+    for (size_t i = 0; i < in_values.size(); ++i) {
+        ASSERT_FLOAT_EQ(out1[i], in_values[i] + w_values[i] * k1_values[i]) << "i=" << i;
+        ASSERT_FLOAT_EQ(out2[i], in_values[i] + w_values[i] + k2_values[i]) << "i=" << i;
+    }
+}
+
+// Verifies that a reshape the main program runs in place (can_be_optimized) inside a constant subgraph reads the
+// buffer of its input when the subgraph is executed.
+//
+// Topology:
+//   data("w", 1x2x2x2) --> reshape("w_r", 1x8x1x1) --> eltwise("w_2", w_r + w_r) --> eltwise("out", sum with input)
+TEST(propagate_constants, in_place_reshape_in_subgraph) {
+    auto& engine = get_test_engine();
+
+    const auto w_layout = layout{{1, 2, 2, 2}, data_types::f32, format::bfyx};
+    const auto in_layout = layout{{1, 8, 1, 1}, data_types::f32, format::bfyx};
+    const std::vector<float> w_values = {1.f, 2.f, 3.f, 4.f, -1.f, -2.f, -3.f, -4.f};
+    const std::vector<float> in_values = {0.5f, 0.5f, 0.5f, 0.5f, 1.f, 1.f, 1.f, 1.f};
+    auto w = engine.allocate_memory(w_layout);
+    set_values(w, w_values);
+
+    topology topology(input_layout("input", in_layout),
+                      data("w", w),
+                      reshape("w_r", input_info("w"), tensor(1, 8, 1, 1)),
+                      eltwise("w_2", input_info("w_r"), input_info("w_r"), eltwise_mode::sum),
+                      eltwise("out", input_info("input"), input_info("w_2"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    ASSERT_TRUE(network.get_program()->get_node("w_2").is_type<data>());
+
+    auto input = engine.allocate_memory(in_layout);
+    set_values(input, in_values);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto out = get_output_values_to_float(network, outputs.at("out"));
+    for (size_t i = 0; i < in_values.size(); ++i) {
+        ASSERT_FLOAT_EQ(out[i], in_values[i] + 2.f * w_values[i]) << "i=" << i;
+    }
+}
+
+// Verifies that custom outputs, which name nodes of the main program (as Loop and If bodies set them), do not stop the
+// constant subgraphs from being executed.
+//
+// Topology:
+//   data("a") --+--> eltwise("w_sum", a + b) --> eltwise("out", sum with input), custom output "out"
+//   data("b") --+
+TEST(propagate_constants, custom_outputs_of_the_main_program) {
+    auto& engine = get_test_engine();
+
+    const auto l = layout{{1, 1, 2, 2}, data_types::f32, format::bfyx};
+    const std::vector<float> a_values = {1.f, 2.f, 3.f, 4.f};
+    const std::vector<float> b_values = {0.5f, -1.f, 2.f, 0.25f};
+    const std::vector<float> in_values = {10.f, 20.f, 30.f, 40.f};
+    auto a = engine.allocate_memory(l);
+    auto b = engine.allocate_memory(l);
+    set_values(a, a_values);
+    set_values(b, b_values);
+
+    topology topology(input_layout("input", l),
+                      data("a", a),
+                      data("b", b),
+                      eltwise("w_sum", input_info("a"), input_info("b"), eltwise_mode::sum),
+                      eltwise("out", input_info("input"), input_info("w_sum"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out"}));
+    network network(engine, topology, config);
+
+    ASSERT_TRUE(network.get_program()->get_node("w_sum").is_type<data>());
+
+    auto input = engine.allocate_memory(l);
+    set_values(input, in_values);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto out = get_output_values_to_float(network, outputs.at("out"));
+    for (size_t i = 0; i < in_values.size(); ++i) {
+        ASSERT_FLOAT_EQ(out[i], in_values[i] + a_values[i] + b_values[i]) << "i=" << i;
+    }
 }
