@@ -21,7 +21,7 @@ public:
     ze_command_list(ze_stream& ze_stream, QueueTypes queue_type);
     // Cloning command list is experimental Level Zero API
     ze_command_list(const ze_command_list& other) = delete;
-    ~ze_command_list();
+    ~ze_command_list() override;
 
     ze_command_list_resource resource() const { return _cmd_list; }
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -39,8 +39,8 @@ private:
     std::shared_ptr<ze_base_event> _event = nullptr;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
-#endif
     QueueTypes _queue_type;
+#endif
 };
 
 }  // namespace cldnn::ze

@@ -21,7 +21,7 @@ on:
         type: string
         required: true
       build-target:
-        description: 'CMake target to build under clang-tidy (e.g. openvino_intel_gpu_plugin)'
+        description: 'CMake targets to build under clang-tidy, separated by spaces'
         type: string
         required: true
       compile-commands-artifact:
@@ -126,11 +126,12 @@ jobs:
           BUILD_TARGET: ${{ inputs.build-target }}
           BUILD_EXTRA_ARGS: ${{ inputs.build-extra-args }}
         run: |
+          read -r -a build_targets <<< "${BUILD_TARGET}"
           cmake \
             --build "${BUILD_DIR}" \
             --parallel "${CMAKE_BUILD_PARALLEL_LEVEL}" \
             --config "${CMAKE_BUILD_TYPE}" \
-            --target "${BUILD_TARGET}" \
+            --target "${build_targets[@]}" \
             -- ${BUILD_EXTRA_ARGS}
 
       - name: Upload compile_commands

@@ -248,7 +248,8 @@ cl_image_format get_cl_image_format(const layout &layout) {
 }
 
 cl_image_desc get_cl_image_desc(const layout &layout) {
-    cl_image_desc image_desc{CL_MEM_OBJECT_IMAGE2D, 0, 0, 0, 0, 0, 0, 0, 0, nullptr};
+    cl_image_desc image_desc{};
+    image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
     auto &width = image_desc.image_width;
     auto &height = image_desc.image_height;
     switch (layout.format) {
@@ -919,8 +920,13 @@ event::ptr gpu_image2d::copy_to(stream& stream, void* data_ptr, size_t src_offse
 
 gpu_dx_buffer::gpu_dx_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params)
     : gpu_usm(engine, new_layout, import_dx_buffer(engine, params), allocation_type::cl_mem, nullptr),
-    _device(params.user_device),
-    _resource(params.mem) {}
+      _device(params.user_device)
+#ifdef _WIN32
+      ,
+      _resource(params.mem)
+#endif
+{
+}
 
 shared_mem_params gpu_dx_buffer::get_internal_params(runtime_types rt_type) const {
     auto params = gpu_usm::get_internal_params(rt_type);
