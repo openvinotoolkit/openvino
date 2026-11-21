@@ -899,6 +899,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
 
+    m_attention_mask_is_4d_float = is_4d_float_attention_mask(model);
+    if (m_attention_mask_is_4d_float && !m_cfg.has<::intel_npu::NPUW_LLM_PREFILL_HINT>()) {
+        m_cfg.update({{"NPUW_LLM_PREFILL_HINT", "STATIC"}});
+        LOG_INFO("4D float attention_mask: auto-selected NPUW_LLM_PREFILL_HINT=STATIC");
+    }
+
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
@@ -948,7 +954,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
 
-    m_attention_mask_is_4d_float = is_4d_float_attention_mask(model);
     if (m_attention_mask_is_4d_float) {
         LOG_INFO("Detected 4D float attention_mask contract [B, 1, Q, K] for NPUW LLM path.");
         if (m_use_chunk_prefill) {

@@ -132,6 +132,31 @@ TEST_F(LLM4DFloatAttentionMaskTest, RejectsMaskContractsOtherThanRank2OrFloatRan
     }
 }
 
+TEST_F(LLM4DFloatAttentionMaskTest, DefaultsToStaticPrefill) {
+    auto props = make_props({{"NPUW_LLM_MAX_PROMPT_LEN", "4100"}});
+    props.erase("NPUW_LLM_PREFILL_HINT");
+
+    std::unique_ptr<TestableLLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = compile(build_llm_test_model(make_4d_float_mask_config(ov::element::f32)), props));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_HINT").as<std::string>(), "STATIC");
+
+    const auto* prefill = m_recorder.find_contains("_prefill");
+    ASSERT_NE(prefill, nullptr);
+    const auto mask = find_port_by_name(std::as_const(*prefill->model).inputs(), "attention_mask").value();
+    EXPECT_EQ(mask.get_partial_shape(), (ov::PartialShape{1, 1, 4160, 4160}));
+}
+
+TEST_F(LLM4DFloatAttentionMaskTest, KeepsDynamicPrefillDefaultForBinary2DMask) {
+    auto props = make_props();
+    props.erase("NPUW_LLM_PREFILL_HINT");
+
+    std::unique_ptr<TestableLLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = compile(build_llm_test_model(), props));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_HINT").as<std::string>(), "DYNAMIC");
+}
+
 // Each option below is accepted with the 2D int64 mask and rejected with NotImplemented for 4D float.
 // Change when 4d float is supported for these features
 TEST_F(LLM4DFloatAttentionMaskTest, ChunkedPrefillIsRejected) {
