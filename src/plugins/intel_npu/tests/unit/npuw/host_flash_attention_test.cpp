@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "hfa_bshd_model.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "variable_state.hpp"
 
 namespace {
@@ -903,4 +905,135 @@ TEST(HostFlashAttentionHistorySizeTest, GenerateTakesHistoryAsIs) {
     selector.prepare(37);
     EXPECT_EQ(selector.this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::GENERATE);
     EXPECT_EQ(selector.context_length(), 37 + 1);
+}
+
+// ---------------------------------------------------------------------------
+// runtime::host_flash_attention::ExplicitHistory (NPUW_ATTN_HISTORY_SIZE_INPUT)
+// ---------------------------------------------------------------------------
+namespace {
+
+std::shared_ptr<ov::ISyncInferRequest> make_explicit_history_request(const ov::element::Type& type) {
+    auto history = ov::test::utils::make_param(type, ov::Shape{1}, ov::test::npuw::kHfaHistoryInputName);
+    auto result = std::make_shared<ov::op::v0::Result>(history);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{history});
+    auto compiled = std::make_shared<PosIdsStubCompiledModel>(model, std::make_shared<PosIdsNullPlugin>());
+    return std::make_shared<PosIdsFakeInferRequest>(compiled);
+}
+
+void set_explicit_history(ov::ISyncInferRequest& rq, int64_t value) {
+    const auto& port = rq.get_inputs().front();
+    ov::Tensor tensor(port.get_element_type(), ov::Shape{1});
+    if (port.get_element_type() == ov::element::i32) {
+        tensor.data<int32_t>()[0] = static_cast<int32_t>(value);
+    } else {
+        tensor.data<int64_t>()[0] = value;
+    }
+    rq.set_tensor(port, ov::get_tensor_impl(tensor));
+}
+
+}  // namespace
+
+TEST(HostFlashAttentionExplicitHistoryFindTest, RequiresConfiguredExistingInput) {
+    using ov::npuw::runtime::host_flash_attention::ExplicitHistory;
+    auto rq = make_explicit_history_request(ov::element::i64);
+    EXPECT_EQ(ExplicitHistory::find(16, "", *rq), nullptr);
+    EXPECT_EQ(ExplicitHistory::find(16, "missing_input", *rq), nullptr);
+    EXPECT_NE(ExplicitHistory::find(16, ov::test::npuw::kHfaHistoryInputName, *rq), nullptr);
+}
+
+class HostFlashAttentionExplicitHistoryTest : public ::testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(HostFlashAttentionExplicitHistoryTest, RoundsTiledPastExtentToWholeQueryTiles) {
+    auto rq = make_explicit_history_request(GetParam());
+    auto selector =
+        ov::npuw::runtime::host_flash_attention::ExplicitHistory::find(1024, ov::test::npuw::kHfaHistoryInputName, *rq);
+    ASSERT_NE(selector, nullptr);
+    EXPECT_EQ(selector->this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::PREFILL);
+
+    const std::vector<std::pair<int64_t, int64_t>> history_to_context = {{0, 1024},
+                                                                         {1024, 2048},
+                                                                         {513, 2048},
+                                                                         {2100, 4096}};
+    for (const auto& [history, context] : history_to_context) {
+        set_explicit_history(*rq, history);
+        selector->prepare(history);
+        EXPECT_EQ(selector->context_length(), context) << "history " << history;
+    }
+}
+
+TEST_P(HostFlashAttentionExplicitHistoryTest, RejectsHistoryThatDiffersFromRequest) {
+    auto rq = make_explicit_history_request(GetParam());
+    auto selector =
+        ov::npuw::runtime::host_flash_attention::ExplicitHistory::find(16, ov::test::npuw::kHfaHistoryInputName, *rq);
+    ASSERT_NE(selector, nullptr);
+    set_explicit_history(*rq, 20);
+    EXPECT_THROW(selector->prepare(16), ov::Exception);
+    set_explicit_history(*rq, -1);
+    EXPECT_THROW(selector->prepare(-1), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(HistoryTypes,
+                         HostFlashAttentionExplicitHistoryTest,
+                         ::testing::Values(ov::element::i64, ov::element::i32));
+
+// ---------------------------------------------------------------------------
+// [B, S, H, D] past KV transposed to [B, H, S, D] right before the Concat
+// ---------------------------------------------------------------------------
+namespace {
+
+std::shared_ptr<ov::Model> build_single_layer_bshd_model(bool bshd_key = true, bool bshd_value = true) {
+    ov::test::npuw::HfaBshdModelConfig cfg;
+    cfg.num_layers = 1;
+    cfg.bshd_key = bshd_key;
+    cfg.bshd_value = bshd_value;
+    return ov::test::npuw::build_hfa_bshd_model(cfg);
+}
+
+}  // namespace
+
+class HostFlashAttentionBSHDTest : public ::testing::TestWithParam<bool> {};
+
+TEST_P(HostFlashAttentionBSHDTest, TracksPastAndConcatSeqDimsSeparately) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_single_layer_bshd_model(), GetParam());
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_k_seq_dim, 2u);
+    EXPECT_EQ(result->_v_seq_dim, 2u);
+    EXPECT_EQ(result->_past_k_seq_dim, 1u);
+    EXPECT_EQ(result->_past_v_seq_dim, 1u);
+}
+
+TEST_P(HostFlashAttentionBSHDTest, RegularTileTakesBSHDAndFinalTileTakesBHSD) {
+    const ov::test::npuw::HfaBshdModelConfig cfg;
+    auto result = ov::npuw::function::HostFlashAttention::from(build_single_layer_bshd_model(), GetParam());
+    ASSERT_TRUE(result.has_value());
+    const ov::Shape bshd_tile{1, cfg.query_len, cfg.num_kv_heads, cfg.head_dim};
+    const ov::Shape bhsd_tile{1, cfg.num_kv_heads, cfg.query_len, cfg.head_dim};
+    // Inputs 3 and 4 are k_tile and v_tile in both tile models.
+    EXPECT_EQ(result->_tile_model->inputs()[3].get_shape(), bshd_tile);
+    EXPECT_EQ(result->_tile_model->inputs()[4].get_shape(), bshd_tile);
+    EXPECT_EQ(result->_final_tile_model->inputs()[3].get_shape(), bhsd_tile);
+    EXPECT_EQ(result->_final_tile_model->inputs()[4].get_shape(), bhsd_tile);
+}
+
+TEST_P(HostFlashAttentionBSHDTest, RejectsMixedPastKVLayouts) {
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(build_single_layer_bshd_model(true, false), GetParam())
+                     .has_value());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(build_single_layer_bshd_model(false, true), GetParam())
+                     .has_value());
+}
+
+INSTANTIATE_TEST_SUITE_P(FusedAndNonFused, HostFlashAttentionBSHDTest, ::testing::Bool());
+
+TEST(HostFlashAttentionInfoTest, PacksPastSeqDimWithoutChangingDefaultEncoding) {
+    using Info = ov::npuw::compiled::HostFlashAttentionInfo;
+    // Same dims keep the plain value, so blobs without [B,S,H,D] past are unchanged.
+    EXPECT_EQ(Info::pack_seq_dim(2, 2), 2u);
+    EXPECT_EQ(Info::concat_seq_dim(2), 2u);
+    EXPECT_EQ(Info::past_seq_dim(2), 2u);
+
+    const auto packed = Info::pack_seq_dim(2, 1);
+    EXPECT_NE(packed, 2u);
+    EXPECT_EQ(Info::concat_seq_dim(packed), 2u);
+    EXPECT_EQ(Info::past_seq_dim(packed), 1u);
+    EXPECT_EQ(Info::past_seq_dim(Info::pack_seq_dim(3, 0)), 0u);
 }

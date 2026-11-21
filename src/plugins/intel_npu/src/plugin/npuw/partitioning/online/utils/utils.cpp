@@ -242,5 +242,6 @@ ov::npuw::online::PassContext::PassContext(const ::intel_npu::Config& cfg) {
     isolates = ov::npuw::online::util::getIsolates(cfg);
     nofolds = ov::npuw::online::util::getNoFolds(cfg);
     fuse_unfolded = cfg.get<::intel_npu::NPUW_FUSE_UNFOLDED>();
+    allow_transposed_past_kv = cfg.get<::intel_npu::NPUW_ATTN>() == "HFA";
     fold_only_tags = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
 }

@@ -138,6 +138,7 @@ public:
     std::size_t num_submodels() const override;
     bool attention_dynamic_enabled() const;
     bool attention_no_copy() const;
+    std::string attention_history_size_input() const;
     std::shared_ptr<weights::Bank> get_weights_bank() const override;
     void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
     void finalize_weights_bank() override;

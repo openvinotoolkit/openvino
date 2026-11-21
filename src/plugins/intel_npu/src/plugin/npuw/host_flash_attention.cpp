@@ -75,7 +75,8 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
                                             const ov::element::Type& mask_dtype,
                                             int64_t tile_size,
                                             size_t kv_num_heads,
-                                            bool v_transposed = true) {
+                                            bool v_transposed = true,
+                                            bool kv_bshd = false) {
     auto batch = q_shape[0];
     auto num_heads = q_shape[1];
     auto seq_len = q_shape[2];
@@ -105,22 +106,22 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
     set_param_name(inputs.past_d, HFATileInputId::PAST_D);
 
     // KV tile tensors use kv_tile_dtype (may differ from state_dtype).
-    // k_tile: [batch, kv_num_heads, tile_size, head_dim]
-    inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(
-        kv_tile_dtype,
-        ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
+    // k_tile: [batch, kv_num_heads, tile_size, head_dim], or [batch, tile_size, kv_num_heads, head_dim] if kv_bshd
+    const auto tile_len = static_cast<size_t>(tile_size);
+    const auto kv_tile_shape = kv_bshd ? ov::Shape{batch, tile_len, kv_num_heads, head_dim}
+                                       : ov::Shape{batch, kv_num_heads, tile_len, head_dim};
+    inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(kv_tile_dtype, kv_tile_shape);
     set_param_name(inputs.k_tile, HFATileInputId::K_TILE);
 
     // v_tile: [batch, kv_num_heads, head_dim, tile_size] when V is pre-transposed by OptimizeValueTensors,
     //          [batch, kv_num_heads, tile_size, head_dim] when V is in normal (non-transposed) layout.
     if (v_transposed) {
+        NPUW_ASSERT(!kv_bshd && "Pre-transposed V is not supported with [B,S,H,D] past KV");
         inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
             kv_tile_dtype,
             ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
     } else {
-        inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
-            kv_tile_dtype,
-            ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
+        inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(kv_tile_dtype, kv_tile_shape);
     }
     set_param_name(inputs.v_tile, HFATileInputId::V_TILE);
 
@@ -461,6 +462,17 @@ static std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> broadcast
     return {k_tile_broadcast, v_tile_broadcast};
 }
 
+// The non-fused tile math expects V as [B,H,head_dim,tile]; bring normal-layout V into that form.
+static std::shared_ptr<ov::Node> v_tile_to_bhds(const std::shared_ptr<ov::Node>& v_tile_f32, bool v_transposed) {
+    if (v_transposed) {
+        return v_tile_f32;
+    }
+    auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+    auto v_bhds = std::make_shared<ov::op::v1::Transpose>(v_tile_f32, order);
+    v_bhds->set_friendly_name("v_tile_bhds");
+    return v_bhds;
+}
+
 #if ENABLE_HFA_LOOP_BASED_COMPUTATION
 // ============================================================================
 // Helper function: Reshape Q for grouped computation (loop-based approach)
@@ -630,7 +642,8 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         bool fused_flash_attention = false,
                                                         bool enable_mask_skipping = false,
                                                         bool v_transposed = true,
-                                                        const ov::element::Type& output_dtype = ov::element::f16) {
+                                                        const ov::element::Type& output_dtype = ov::element::f16,
+                                                        bool kv_bshd = false) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", state_dtype=" << state_dtype
                               << ", kv_tile_dtype=" << kv_tile_dtype << ", mask_dtype=" << mask_dtype
@@ -657,7 +670,8 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                          mask_dtype,
                                          tile_size,
                                          kv_num_heads,
-                                         v_transposed);
+                                         v_transposed,
+                                         kv_bshd);
 
     // Convert all inputs to f32.
     // For the fused operation only the final tile uses a mask, regular tiles skip mask for performance if
@@ -665,6 +679,17 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // For the non-fused operation all tiles require mask
     const bool use_mask = is_final_tile || !fused_flash_attention || !enable_mask_skipping;
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
+    if (kv_bshd) {
+        auto bshd_to_bhsd = [](const std::shared_ptr<ov::Node>& node,
+                               const std::string& name) -> std::shared_ptr<ov::Node> {
+            auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+            auto transpose = std::make_shared<ov::op::v1::Transpose>(node, order);
+            transpose->set_friendly_name(name);
+            return transpose;
+        };
+        f32_nodes.k_tile_f32 = bshd_to_bhsd(f32_nodes.k_tile_f32, "k_tile_bhsd");
+        f32_nodes.v_tile_f32 = bshd_to_bhsd(f32_nodes.v_tile_f32, "v_tile_bhsd");
+    }
 
     FlashAttentionResults results;
 
@@ -681,7 +706,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     results = execute_host_flash_attention(f32_nodes,
                                            q_grouped,             // Q: grouped format
                                            f32_nodes.k_tile_f32,  // K: original 4D
-                                           f32_nodes.v_tile_f32,  // V: original 4D
+                                           v_tile_to_bhds(f32_nodes.v_tile_f32, v_transposed),
                                            batch,
                                            num_heads,
                                            kv_num_heads,
@@ -707,7 +732,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     } else {
         // Broadcast K and V tiles from kv_num_heads to num_heads
         auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
-                                                             f32_nodes.v_tile_f32,
+                                                             v_tile_to_bhds(f32_nodes.v_tile_f32, v_transposed),
                                                              batch,
                                                              num_heads,
                                                              kv_num_heads,
@@ -788,6 +813,24 @@ static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::No
     return current;
 }
 
+// Skips Convert nodes and a [B,S,H,D]->[B,H,S,D] Transpose in front of a past-KV Concat input.
+static std::shared_ptr<ov::Node> skip_past_kv_layout_nodes(const std::shared_ptr<ov::Node>& node,
+                                                           bool* is_bshd = nullptr) {
+    auto current = skip_convert_nodes(node);
+    bool bshd = false;
+    if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(current)) {
+        auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        if (order && order->cast_vector<int64_t>() == std::vector<int64_t>{0, 2, 1, 3}) {
+            current = skip_convert_nodes(transpose->get_input_node_shared_ptr(0));
+            bshd = true;
+        }
+    }
+    if (is_bshd) {
+        *is_bshd = bshd;
+    }
+    return current;
+}
+
 // ============================================================================
 // Helper function: Build SDPA parameter index mapping
 // ============================================================================
@@ -819,7 +862,8 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
         block_indices.clear();
         block_indices.reserve(n - 1);
         for (size_t i = 0; i < n - 1; ++i) {
-            if (auto param = extract_param(concat_node->get_input_node_shared_ptr(i))) {
+            if (auto param = ov::as_type_ptr<ov::op::v0::Parameter>(
+                    skip_past_kv_layout_nodes(concat_node->get_input_node_shared_ptr(i)))) {
                 const std::size_t idx = model->get_parameter_index(param);
                 block_indices.push_back(idx);
                 LOG_DEBUG("  Found " << kv_name << " block[" << i << "] at parameter index " << idx);
@@ -1063,7 +1107,16 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // block_kv_dtype: skip any Convert(f16→f32) that sits between the block Parameter
     // and the Concat; the Concat output may be upcast to f32 (Gemma-4) but the block
     // manager allocates tensors at the underlying storage dtype (f16).
-    auto first_kv_node = skip_convert_nodes(k_concat->get_input_node_shared_ptr(0));
+    bool past_k_bshd = false;
+    bool past_v_bshd = false;
+    auto first_kv_node = skip_past_kv_layout_nodes(k_concat->get_input_node_shared_ptr(0), &past_k_bshd);
+    if (pattern_nodes.past_value_concat_node) {
+        skip_past_kv_layout_nodes(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(0), &past_v_bshd);
+    }
+    if (past_k_bshd != past_v_bshd) {
+        LOG_WARN("Past K and V must use the same layout for HFA");
+        return std::nullopt;
+    }
     const ov::element::Type block_kv_dtype = first_kv_node->get_output_element_type(0);
 
     // present_kv_dtype: dtype of the freshly-computed present-KV tensors that the
@@ -1159,14 +1212,22 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // V tensors are pre-transposed (stored as [B,H,head_dim,seq]) only when OptimizeValueTensors
     // succeeded, which is reflected by the V-concat axis being 3 instead of the default 2.
     const bool v_transposed = (v_seq_dim == 3);
+    if (past_k_bshd && (v_transposed || k_seq_dim != 2 || v_seq_dim != 2)) {
+        LOG_WARN("[B,S,H,D] past KV requires Concat on axis 2 and non-transposed V");
+        return std::nullopt;
+    }
+    // A {0,2,1,3} Transpose maps Concat axis 2 back to axis 1 of the past-KV parameter.
+    const std::size_t past_k_seq_dim = past_k_bshd ? 1 : k_seq_dim;
+    const std::size_t past_v_seq_dim = past_v_bshd ? 1 : v_seq_dim;
     // Regular tile: state and KV-tile both use block_kv_dtype (f16).
     //   past_acc/max/d: f16   k_tile/v_tile: f16  (from KV blocks)
     // Final tile: state still uses block_kv_dtype (f16) for zero-copy with regular
     //   tile outputs; KV-tile uses present_kv_dtype (f32) matching the upstream graph.
     //   past_acc/max/d: f16   k_tile/v_tile: f32  (present-KV from upstream)
-    LOG_INFO("Creating HFA tile models: past_tile_size="
-             << past_tile_size << ", final_tile_size=" << final_tile_size << ", v_transposed=" << v_transposed
-             << ", block_kv=" << block_kv_dtype << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
+    LOG_INFO("Creating HFA tile models: past_tile_size=" << past_tile_size << ", final_tile_size=" << final_tile_size
+                                                         << ", v_transposed=" << v_transposed << ", past_kv_bshd="
+                                                         << past_k_bshd << ", block_kv=" << block_kv_dtype
+                                                         << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
     // Per-SDPA mask-skipping decision
     // DetectAttentionMask (run earlier on the original SDPA node) may have annotated
@@ -1221,7 +1282,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             false,
                                             fused_flash_attention,
                                             local_enable_mask_skipping,
-                                            v_transposed);
+                                            v_transposed,
+                                            ov::element::f16,  // output_dtype (unused for regular tiles)
+                                            past_k_bshd);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
@@ -1256,6 +1319,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     hfa._final_tile_size = static_cast<int64_t>(final_tile_size);  // Final tile K/V length (== query_size)
     hfa._k_seq_dim = k_seq_dim;
     hfa._v_seq_dim = v_seq_dim;
+    hfa._past_k_seq_dim = past_k_seq_dim;
+    hfa._past_v_seq_dim = past_v_seq_dim;
 
     // ========================================================================
     // Step 7: Build SDPA parameter index mapping
@@ -1301,8 +1366,10 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Copy query size, context size, and K/V sequence dimensions from function HFA
     _sdpa_attention_info._query_size = func_hfa._query_size;
     _sdpa_attention_info._context_size = func_hfa._context_size;
-    _sdpa_attention_info._k_seq_dim = func_hfa._k_seq_dim;
-    _sdpa_attention_info._v_seq_dim = func_hfa._v_seq_dim;
+    _sdpa_attention_info._k_seq_dim =
+        HostFlashAttentionInfo::pack_seq_dim(func_hfa._k_seq_dim, func_hfa._past_k_seq_dim);
+    _sdpa_attention_info._v_seq_dim =
+        HostFlashAttentionInfo::pack_seq_dim(func_hfa._v_seq_dim, func_hfa._past_v_seq_dim);
 
     // Pre-cache all indices from function HFA maps
     LOG_INFO("Pre-caching SDPA and tile indices...");
@@ -1407,6 +1474,11 @@ bool HostFlashAttention::is_valid() const {
         return rank.is_static() && seq_dim < static_cast<std::size_t>(rank.get_length());
     };
 
+    const std::size_t k_seq_dim = HostFlashAttentionInfo::concat_seq_dim(_sdpa_attention_info._k_seq_dim);
+    const std::size_t v_seq_dim = HostFlashAttentionInfo::concat_seq_dim(_sdpa_attention_info._v_seq_dim);
+    const std::size_t past_k_seq_dim = HostFlashAttentionInfo::past_seq_dim(_sdpa_attention_info._k_seq_dim);
+    const std::size_t past_v_seq_dim = HostFlashAttentionInfo::past_seq_dim(_sdpa_attention_info._v_seq_dim);
+
     // q/k/v/acc/max/d are always present on both the regular and the final tile model.
     // mask may legitimately be absent from the regular tile model (mask-skipping optimization);
     // the runtime detects that case by comparing tin.mask against inputs().size(), so it is only
@@ -1414,10 +1486,8 @@ bool HostFlashAttention::is_valid() const {
     return in_range(tin.q, tile_inputs.size()) && in_range(tin.q, final_inputs.size()) &&
            in_range(tin.k, tile_inputs.size()) && in_range(tin.k, final_inputs.size()) &&
            in_range(tin.v, tile_inputs.size()) && in_range(tin.v, final_inputs.size()) &&
-           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, tile_inputs[tin.k]) &&
-           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, final_inputs[tin.k]) &&
-           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, tile_inputs[tin.v]) &&
-           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, final_inputs[tin.v]) &&
+           seq_dim_in_range(past_k_seq_dim, tile_inputs[tin.k]) && seq_dim_in_range(k_seq_dim, final_inputs[tin.k]) &&
+           seq_dim_in_range(past_v_seq_dim, tile_inputs[tin.v]) && seq_dim_in_range(v_seq_dim, final_inputs[tin.v]) &&
            in_range(tin.mask, final_inputs.size()) && in_range(tin.acc, tile_inputs.size()) &&
            in_range(tin.acc, final_inputs.size()) && in_range(tin.max, tile_inputs.size()) &&
            in_range(tin.max, final_inputs.size()) && in_range(tin.d, tile_inputs.size()) &&
@@ -1518,6 +1588,68 @@ Selector::Ptr HistorySize::find(std::size_t original_query_length, const ov::ISy
         return std::make_shared<HistorySize>(original_query_length);
     }
     return Selector::Ptr{};
+}
+
+ExplicitHistory::ExplicitHistory(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq)
+    : _history_idx(param_idx),
+      _query_size(query_size),
+      _rq(rq) {
+    _case = _query_size == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+Selector::Ptr ExplicitHistory::find(std::size_t query_size,
+                                    const std::string& input_name,
+                                    const ov::ISyncInferRequest& rq) {
+    if (input_name.empty()) {
+        return {};
+    }
+    const auto input_idx = find_history_input(rq.get_inputs(), input_name);
+    if (!input_idx) {
+        return {};
+    }
+    return Selector::Ptr{new ExplicitHistory(*input_idx, query_size, rq)};
+}
+
+void ExplicitHistory::prepare(int64_t past_len) {
+    const auto& port = _rq.get().get_compiled_model()->inputs()[_history_idx];
+    const auto history = read_history_input(_rq.get().get_tensor(port));
+    OPENVINO_ASSERT(history == past_len,
+                    "HFA explicit history input does not match request history size: ",
+                    history,
+                    " vs ",
+                    past_len);
+    // Past tiles span whole query-sized blocks (as in HistorySize); the mask hides positions beyond the history.
+    const auto query_size = static_cast<int64_t>(_query_size);
+    _past_length = ((history + query_size - 1) / query_size) * query_size;
+}
+
+int64_t ExplicitHistory::context_length() const {
+    return _query_size + _past_length;
+}
+
+std::optional<std::size_t> find_history_input(const std::vector<ov::Output<const ov::Node>>& inputs,
+                                              const std::string& input_name) {
+    const auto input = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
+        return port.get_names().count(input_name) != 0 || port.get_node()->get_friendly_name() == input_name;
+    });
+    if (input == inputs.end()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(std::distance(inputs.begin(), input));
+}
+
+int64_t read_history_input(const ov::SoPtr<ov::ITensor>& tensor) {
+    OPENVINO_ASSERT(tensor->get_size() > 0, "NPUW attention history input must not be empty");
+    int64_t history = 0;
+    if (tensor->get_element_type() == ov::element::i64) {
+        history = tensor->data<int64_t>()[0];
+    } else if (tensor->get_element_type() == ov::element::i32) {
+        history = tensor->data<int32_t>()[0];
+    } else {
+        OPENVINO_THROW("NPUW attention history input must have i32 or i64 element type");
+    }
+    OPENVINO_ASSERT(history >= 0, "NPUW attention history size cannot be negative");
+    return history;
 }
 
 // ============================================================================
