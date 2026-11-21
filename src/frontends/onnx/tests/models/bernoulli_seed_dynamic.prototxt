@@ -1,0 +1,44 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    output: "y"
+    op_type: "Bernoulli"
+    attribute {
+      name: "seed"
+      f: 1.5
+      type: FLOAT
+    }
+  }
+  name: "test_bernoulli_seed_dynamic"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "N"
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "N"
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 15
+}
