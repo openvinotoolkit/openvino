@@ -3022,6 +3022,128 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_3_splits_neg_length) {
               res3_values);
 }
 
+namespace {
+struct PackedSplitParams {
+    element::Type type;
+    Shape shape;
+    int64_t axis;
+    size_t num_splits;             // used by Split when lengths are empty
+    std::vector<int64_t> lengths;  // used by VariadicSplit
+};
+
+size_t stream_bit_mask(const element::Type& type, size_t pos) {
+    return size_t{1} << (type == element::u1 ? 7 - pos % 8 : pos % 8);
+}
+
+std::vector<uint8_t> pack_codes(const element::Type& type, const std::vector<uint8_t>& codes) {
+    const auto bits = type.bitwidth();
+    std::vector<uint8_t> packed((codes.size() * bits + 7) / 8, 0);
+    for (size_t i = 0; i < codes.size(); ++i) {
+        for (size_t k = 0; k < bits; ++k) {
+            const auto pos = i * bits + k;
+            if ((codes[i] >> k) & 1) {
+                packed[pos / 8] |= static_cast<uint8_t>(stream_bit_mask(type, pos));
+            }
+        }
+    }
+    return packed;
+}
+
+class ConstantFoldingPackedSplit : public testing::TestWithParam<PackedSplitParams> {};
+
+TEST_P(ConstantFoldingPackedSplit, keeps_packed_type_and_values) {
+    const auto& p = GetParam();
+    const auto bits = p.type.bitwidth();
+    std::vector<uint8_t> codes(shape_size(p.shape));
+    for (size_t i = 0; i < codes.size(); ++i) {
+        codes[i] = static_cast<uint8_t>((i * 7 + 3) % (size_t{1} << bits));
+    }
+    const auto packed = pack_codes(p.type, codes);
+    const auto data = make_shared<op::v0::Constant>(p.type, p.shape, packed.data());
+    const auto axis = op::v0::Constant::create(element::i64, Shape{}, {p.axis});
+    std::shared_ptr<Node> split;
+    if (p.lengths.empty()) {
+        split = make_shared<op::v1::Split>(data, axis, p.num_splits);
+    } else {
+        const auto lengths = op::v0::Constant::create(element::i64, Shape{p.lengths.size()}, p.lengths);
+        split = make_shared<op::v1::VariadicSplit>(data, axis, lengths);
+    }
+    const auto outputs = split->outputs();
+    auto model = make_shared<Model>(outputs, ParameterVector{});
+
+    run_constant_folding(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::Split>(model), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::VariadicSplit>(model), 0);
+
+    const auto norm_axis = static_cast<size_t>(p.axis < 0 ? p.axis + p.shape.size() : p.axis);
+    const auto outer = shape_size(p.shape.begin(), p.shape.begin() + norm_axis);
+    const auto inner = shape_size(p.shape.begin() + norm_axis + 1, p.shape.end());
+    size_t offset = 0;
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        const auto out_shape = outputs[i].get_shape();
+        const auto len = out_shape[norm_axis];
+        std::vector<uint8_t> expected_codes;
+        for (size_t o = 0; o < outer; ++o) {
+            for (size_t j = 0; j < len * inner; ++j) {
+                expected_codes.push_back(codes[(o * p.shape[norm_axis] + offset) * inner + j]);
+            }
+        }
+        offset += len;
+
+        const auto result = get_result_constant(model, i);
+        ASSERT_TRUE(result);
+        EXPECT_EQ(result->get_element_type(), p.type);
+        EXPECT_EQ(result->get_shape(), out_shape);
+        const auto expected = pack_codes(p.type, expected_codes);
+        ASSERT_EQ(result->get_byte_size(), expected.size());
+        const auto actual = static_cast<const uint8_t*>(result->get_data_ptr());
+        EXPECT_EQ(std::vector<uint8_t>(actual, actual + expected.size()), expected) << "output " << i;
+
+        if (p.type == element::i4 || p.type == element::u4) {
+            std::vector<int64_t> expected_values;
+            for (const auto code : expected_codes) {
+                expected_values.push_back(p.type == element::i4 && code > 7 ? code - 16 : code);
+            }
+            EXPECT_EQ(result->cast_vector<int64_t>(), expected_values) << "output " << i;
+        }
+    }
+}
+
+std::vector<PackedSplitParams> packed_split_params() {
+    const std::vector<PackedSplitParams> cases{
+        {{}, {6}, 0, 2, {}},
+        {{}, {2, 6}, -1, 2, {}},
+        {{}, {6, 2}, 0, 3, {}},
+        {{}, {2, 3, 4}, 1, 3, {}},
+        {{}, {3, 16}, 1, 2, {}},
+        {{}, {5}, 0, 1, {}},
+        {{}, {0, 6}, 1, 2, {}},
+        {{}, {7}, 0, 0, {1, 3, 3}},
+        {{}, {2, 6}, -1, 0, {1, 0, -1}},
+        {{}, {2, 17}, 1, 0, {9, -1}},
+        {{}, {4, 8}, 1, 0, {2, 6}},
+    };
+    std::vector<PackedSplitParams> params;
+    for (const auto& type : {element::u1,
+                             element::u2,
+                             element::u3,
+                             element::u4,
+                             element::i4,
+                             element::u6,
+                             element::nf4,
+                             element::f4e2m1}) {
+        for (auto test_case : cases) {
+            test_case.type = type;
+            params.push_back(test_case);
+        }
+    }
+    return params;
+}
+
+INSTANTIATE_TEST_SUITE_P(constant_folding, ConstantFoldingPackedSplit, testing::ValuesIn(packed_split_params()));
+}  // namespace
+
 template <typename TOpFunc>
 void OneHotConstantFoldingGenericTest(const TOpFunc& op_func) {
     const vector<int64_t> indices{0, 1, 2};

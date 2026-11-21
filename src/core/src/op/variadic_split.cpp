@@ -11,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
+#include "openvino/reference/split.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 namespace ov {
@@ -27,6 +28,23 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     const auto& axis_tensor = inputs[1];
     const auto axis =
         ov::util::normalize(get_tensor_data_as<int64_t>(axis_tensor).front(), data_tensor.get_shape().size());
+
+    const auto& data_type = data_tensor.get_element_type();
+    if (data_type.bitwidth() < 8) {
+        std::vector<size_t> split_lengths;
+        std::vector<uint8_t*> outputs_data;
+        for (auto& output : outputs) {
+            split_lengths.push_back(output.get_shape()[axis]);
+            outputs_data.push_back(static_cast<uint8_t*>(output.data()));
+        }
+        reference::split_packed(static_cast<const uint8_t*>(data_tensor.data()),
+                                data_tensor.get_shape(),
+                                data_type,
+                                static_cast<size_t>(axis),
+                                split_lengths,
+                                outputs_data.data());
+        return true;
+    }
 
     ov::Coordinate upper_bounds(data_tensor.get_shape());
     ov::Coordinate lower_bounds(upper_bounds.size());
