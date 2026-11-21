@@ -1275,8 +1275,10 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
 
     if (isa == x64::sse41) {
-        h->movups(vmm_aux0, vmm_src0);
-        h->cmpps(vmm_aux0, vmm_src1, _cmp_gt_os);
+        // _cmp_gt_os and _cmp_ge_os are the "not <=" and "not <" predicates, which are true for NaN.
+        // Swap the operands to use the ordered "<" and "<=" instead.
+        h->movups(vmm_aux0, vmm_src1);
+        h->cmpps(vmm_aux0, vmm_src0, _cmp_lt_os);
         h->movups(vmm_aux1, table_val("one"));
         h->pxor(vmm_dst, vmm_dst);
         h->blendvps(vmm_dst, vmm_aux1);
@@ -1285,7 +1287,8 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
     } else {
-        h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_gt_os);
+        // Ordered "<" and "<=" with swapped operands, as for SSE4.1 above.
+        h->vcmpps(k_mask, vmm_src1, vmm_src0, _cmp_lt_os);
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("one"));
     }
@@ -1364,8 +1367,10 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
 
     if (isa == x64::sse41) {
-        h->movups(vmm_aux0, vmm_src0);
-        h->cmpps(vmm_aux0, vmm_src1, _cmp_ge_os);
+        // _cmp_gt_os and _cmp_ge_os are the "not <=" and "not <" predicates, which are true for NaN.
+        // Swap the operands to use the ordered "<" and "<=" instead.
+        h->movups(vmm_aux0, vmm_src1);
+        h->cmpps(vmm_aux0, vmm_src0, _cmp_le_os);
         h->movups(vmm_aux1, table_val("one"));
         h->pxor(vmm_dst, vmm_dst);
         h->blendvps(vmm_dst, vmm_aux1);
@@ -1374,7 +1379,8 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
     } else {
-        h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_ge_os);
+        // Ordered "<" and "<=" with swapped operands, as for SSE4.1 above.
+        h->vcmpps(k_mask, vmm_src1, vmm_src0, _cmp_le_os);
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("one"));
     }
