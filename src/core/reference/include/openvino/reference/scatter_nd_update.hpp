@@ -81,9 +81,10 @@ void scatterNdUpdate(
 
     const auto input_data_dim_pading = [&] {
         std::vector<size_t> padding(dataShape.size(), 1);
-        for (size_t i = dataShape.size() - 1; i != 0; --i) {
+        for (size_t i = dataShape.size(); i > 1;) {
+            --i;
             padding[i - 1] = padding[i] * dataShape[i];
-        };
+        }
         return padding;
     }();
     const auto reduction = scatter_nd_update::reduction_functor_for<dataType>(reduction_type);
