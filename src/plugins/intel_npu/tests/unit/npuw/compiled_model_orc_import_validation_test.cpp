@@ -232,6 +232,24 @@ TEST(CompiledModelOrcImportValidationTest, RejectsReplacedByOutOfRange) {
     expect_validation_throw_contains(compiled, "m_compiled_submodels[0].replaced_by index 1");
 }
 
+TEST(CompiledModelOrcImportValidationTest, SubmodelDeviceRejectsOutOfRangeIndex) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    compiled->m_compiled_submodels.emplace_back();
+
+    EXPECT_THROW(compiled->submodel_device(1), ov::Exception);
+    EXPECT_EQ(compiled->submodel_device(0), "");
+}
+
+TEST(CompiledModelOrcImportValidationTest, SubmodelDeviceRejectsOutOfRangeReplacement) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    compiled->m_compiled_submodels.emplace_back();
+    compiled->m_compiled_submodels[0].replaced_by = 1u;
+
+    EXPECT_THROW(compiled->submodel_device(0), ov::Exception);
+    compiled->m_compiled_submodels[0].replaced_by = 0u;
+    EXPECT_EQ(compiled->submodel_device(0), "");
+}
+
 TEST(CompiledModelOrcImportValidationTest, RejectsInputsTableSizeMismatch) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     compiled->m_inputs_to_submodels_inputs.clear();
