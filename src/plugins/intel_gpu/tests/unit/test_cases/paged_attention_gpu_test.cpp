@@ -397,6 +397,37 @@ INSTANTIATE_TEST_SUITE_P(regression_paged_attention,
                          ::testing::Values(make_zero_key_regression_params(ov::element::u8),
                                            make_zero_key_regression_params(ov::element::u4)));
 
+// Uncompressed KV cache whose precision differs from the inference precision (f32 inference + f16 cache,
+// f16 inference + f32 cache). Scores disabled and static query padding, so no extra stage or padded-query writer.
+static paged_attention_test_params make_mixed_precision_params(const std::vector<SubsequenceDescriptor>& subsequences,
+                                                               bool disable_flashattn_v2,
+                                                               const ov::element::Type& inference_precision,
+                                                               const ov::element::Type& kv_cache_precision) {
+    paged_attention_test_params p{subsequences,
+                                  2,
+                                  2,
+                                  64,
+                                  64,
+                                  16,
+                                  0,
+                                  DISABLE_CACHE_COMPRESSION,
+                                  ov::internal::CacheQuantMode::BY_TOKEN,
+                                  STATIC_INPUT_PAD,
+                                  DISABLE_SCORES,
+                                  DISABLE_ROTATION,
+                                  disable_flashattn_v2};
+    p.inference_precision = inference_precision;
+    p.kv_cache_precision = kv_cache_precision;
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention_mixed_precision,
+                         paged_attention_test,
+                         ::testing::Values(make_mixed_precision_params({{10, 0}}, ENABLE_FA_V2, ov::element::f32, ov::element::f16),     // 1st token
+                                           make_mixed_precision_params({{10, 0}}, ENABLE_FA_V2, ov::element::f16, ov::element::f32),     // 1st token
+                                           make_mixed_precision_params({{1, 10}}, DISABLE_FA_V2, ov::element::f32, ov::element::f16),    // 2nd token
+                                           make_mixed_precision_params({{1, 10}}, DISABLE_FA_V2, ov::element::f16, ov::element::f32)));  // 2nd token
+
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
     paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
