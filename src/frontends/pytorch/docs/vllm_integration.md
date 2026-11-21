@@ -120,16 +120,16 @@ inputs, and at every step `side_channel.py` binds them from `vllm.forward_contex
 
 | Parameter | Source |
 |---|---|
-| `__pa__<layer>__key_cache`, `value_cache` | The layer's `kv_cache` tensor, split into its K and V halves without a copy; a vLLM block size that is a multiple of 32 is viewed as 32-token blocks |
+| `__pa__<layer>__key_cache`, `value_cache` | Aliased K/V halves of the layer's `kv_cache` tensor when compatible; otherwise separate persistent OV caches (see below) |
 | `__pa__<layer>__block_indices`, `block_indices_begins` | `attn_metadata.block_table` and `seq_lens`, flattened per sequence |
 | `__pa__<layer>__sliding_window` | `layer.impl.sliding_window` (0 for full attention) |
 | `__pa__shared__seq_lens`, `query_start_loc` | `attn_metadata`; `past_lens` and `max_context_len` are derived in the graph |
 | `__pa__gdn__<layer>__gdn_conv_state`, `gdn_recurrent_state` | Compact copies of the layer's conv and SSM state slots, scattered back after inference |
 
-The KV-cache tensors alias vLLM's buffers, so OV writes the real cache. Their Parameters are retyped to
-`KV_CACHE_PRECISION` before compilation (`retype_kv_cache_parameters`): a type mismatch would make the CPU plugin
-insert a Convert, and the in-place write would land in that Convert's temporary. With KV sharing, the sharing
-layer is bound to its target layer's cache.
+KV-cache tensors alias vLLM's buffers only when shape, dtype and contiguity permit and aliasing is enabled.
+Otherwise, `side_channel.py` maintains separate persistent OV caches without copying updates back to vLLM's pool.
+Cache Parameters are retyped to `KV_CACHE_PRECISION` before compilation (`retype_kv_cache_parameters`), so in-place
+writes do not land in a Convert's temporary. With KV sharing, the sharing layer is bound to its target layer's cache.
 
 ## Execution fast path
 
