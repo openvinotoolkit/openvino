@@ -9,6 +9,7 @@
 #endif
 #define FLATBUFFERS_LOCALE_INDEPENDENT 0
 #include "flatbuffers/flexbuffers.h"
+#include "openvino/core/memory_util.hpp"
 #include "schema_generated.h"
 #include "utils.hpp"
 
@@ -30,6 +31,9 @@ std::string safe_tensor_name(const tflite::Tensor* tensor) {
 TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     TensorMetaInfo tensor_meta_info;
     const auto tensor = tensor_info.tensor;
+    // validate_tensor_name() performs the null check; run it before shape()/type()/quantization()/sparsity()
+    // are dereferenced below so a null tensor raises the frontend exception instead of segfaulting.
+    validate_tensor_name(tensor);
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
     const size_t tensor_data_size =
@@ -46,9 +50,36 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
                                                                                    tensor_data_size);
     tensor_meta_info.m_tensor_data = tensor_data;
     tensor_meta_info.m_tensor_data_size = tensor_data_size;
-    tensor_meta_info.m_tensor_name = safe_tensor_name(tensor);
+    tensor_meta_info.m_tensor_name = tensor->name()->str();
 
     return tensor_meta_info;
+}
+
+// A dense constant whose FlatBuffer Buffer.data vector is present but empty provides no bytes, yet its
+// data pointer is non-null, so load_model() would create a Constant from it and copy the byte count
+// implied by the tensor's shape and type out of a zero-length buffer. Only the FlatBuffer decoder knows
+// that the vector is present, so the check lives here. load_model()'s own buffer size check is left
+// as it is: a reported size of 0 still means "size unknown" there, which keeps custom GraphIterator
+// implementations that never set TensorMetaInfo::m_tensor_data_size, and sparse tensors, working.
+void validate_constant_buffer(const TensorInfo& tensor_info, const TensorMetaInfo& tensor_meta_info) {
+    const auto buffer_data = tensor_info.buffer ? tensor_info.buffer->data() : nullptr;
+    if (buffer_data == nullptr || buffer_data->size() != 0)
+        return;
+    const auto& sparsity = tensor_meta_info.m_sparsity_info;
+    if (sparsity != nullptr && !sparsity->is_disabled())
+        return;  // densified sparse data is sized by the sparsity metadata, not by Buffer.data
+    if (!tensor_meta_info.m_partial_shape.is_static())
+        return;
+    const auto required_size =
+        ov::util::get_memory_size_safe(tensor_meta_info.m_element_type, tensor_meta_info.m_partial_shape.to_shape());
+    if (!required_size.has_value())
+        return;  // load_model() reports the overflowing shape/type combination
+    FRONT_END_GENERAL_CHECK(required_size.value() == 0,
+                            "TensorFlow Lite Frontend: tensor \"",
+                            tensor_meta_info.m_tensor_name,
+                            "\" has an empty buffer but its shape and type require ",
+                            required_size.value(),
+                            " bytes. The model file may be corrupted.");
 }
 }  // namespace
 
@@ -61,6 +92,10 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                                        std::string& producer_output_port_name,
                                        size_t& producer_output_port_index) const {
     const auto inputs = m_node_def->inputs();
+    FRONT_END_GENERAL_CHECK(inputs != nullptr,
+                            "TensorFlow Lite Frontend: node ",
+                            get_op_name(),
+                            " has no 'inputs' vector (malformed flatbuffer).");
     FRONT_END_GENERAL_CHECK(inputs->size() > input_port_idx,
                             "Input port index is out of range for node ",
                             get_op_name(),
@@ -69,9 +104,17 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                             ". Number of inputs: ",
                             inputs->size());
     auto input_tensor_idx = (*inputs)[static_cast<flatbuffers::uoffset_t>(input_port_idx)];
+    // A TFLite input index is either a non-negative tensor index or the sentinel -1 (optional input
+    // omitted). Any other negative value is malformed; reject it before it is widened to size_t.
+    FRONT_END_GENERAL_CHECK(input_tensor_idx >= -1,
+                            "TensorFlow Lite Frontend: node ",
+                            get_op_name(),
+                            " has an invalid negative input tensor index ",
+                            input_tensor_idx,
+                            ".");
     auto tensor = m_input_info.at(input_port_idx).tensor;
     producer_name = safe_tensor_name(tensor);
-    producer_output_port_index = input_tensor_idx;
+    producer_output_port_index = static_cast<size_t>(input_tensor_idx);
 }
 
 const std::string& DecoderFlatBuffer::get_op_type() const {
@@ -83,7 +126,12 @@ const std::string& DecoderFlatBuffer::get_op_name() const {
 }
 
 size_t DecoderFlatBuffer::get_output_size() const {
-    return m_node_def->outputs()->size();
+    const auto outputs = m_node_def->outputs();
+    FRONT_END_GENERAL_CHECK(outputs != nullptr,
+                            "TensorFlow Lite Frontend: node ",
+                            get_op_name(),
+                            " has no 'outputs' vector (malformed flatbuffer).");
+    return outputs->size();
 }
 
 std::string DecoderFlatBuffer::get_input_tensor_name(size_t idx) const {
@@ -241,6 +289,11 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return static_cast<int64_t>(this->get_attribute(&tflite::SplitOptions::num_splits));
     } else if (name == "axis" && m_type == "SQUEEZE") {
         auto squeeze_dims = this->get_attribute(&tflite::SqueezeOptions::squeeze_dims);
+        // squeeze_dims is an optional vector; when the field is absent the accessor returns null.
+        // Treat it as an empty axis list (squeeze all size-1 dims), matching the two-argument
+        // get_attribute default used by the SQUEEZE translator, instead of dereferencing null.
+        if (squeeze_dims == nullptr)
+            return std::vector<int64_t>{};
         std::vector<int64_t> axes{squeeze_dims->begin(), squeeze_dims->end()};
         return axes;
     } else if (name == "begin_mask" && m_type == "STRIDED_SLICE") {
@@ -433,7 +486,10 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
 TensorMetaInfo DecoderFlatBuffer::get_input_tensor_info(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
     const auto& tensor_info = m_input_info.at(idx);
-    return extract_tensor_meta_info(tensor_info);
+    auto tensor_meta_info = extract_tensor_meta_info(tensor_info);
+    // Operator inputs are the only tensors whose buffer bytes load_model() consumes (as constants).
+    validate_constant_buffer(tensor_info, tensor_meta_info);
+    return tensor_meta_info;
 }
 
 TensorMetaInfo DecoderFlatBuffer::get_output_tensor_info(size_t idx) const {
