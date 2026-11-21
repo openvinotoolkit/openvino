@@ -57,6 +57,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/ipf_client.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/ipf_client.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log_util.hpp
