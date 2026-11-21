@@ -16,6 +16,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
@@ -2747,4 +2748,294 @@ TEST_F(TransformationTestsF, ConvertToROPE_SliceAssign_I32Indices) {
                                          /*i32_indices=*/true);
     manager.register_pass<ov::pass::RoPEFusion>();
     model_ref = make_fused_rope_ref();
+}
+
+namespace {
+
+constexpr size_t packed_pairs_seq = 6;
+constexpr size_t packed_pairs_num_heads = 3;
+
+enum class PackedPairsTables {
+    F16Constants,       // Convert(f16 Constant [seq, 1, half])
+    GatheredFromPairs,  // Gather 0/1 on the last axis of one (cos, sin) table [seq, 1, half, 2]
+    FoldedConstants,    // f32 Constant [seq, 1, half]
+    AlignedConstants,   // f32 Constant [1, seq, 1, half], as left by AlignEltwiseInputRanks
+    Parameters,
+};
+
+struct PackedPairsRopeCase {
+    std::string name;
+    PackedPairsTables tables = PackedPairsTables::F16Constants;
+    bool first_as_add = false;        // x0*cos + x1*(-sin)
+    bool first_conjugated = false;    // x0*cos + x1*sin, with first_as_add
+    bool second_as_subtract = false;  // x0*sin - x1*(-cos)
+    bool stack_with_reshape = false;  // Reshape to [..., 1] instead of Unsqueeze
+    int64_t stack_axis = -1;
+    size_t half_ndims = 4;
+    bool dynamic_batch = false;
+};
+
+std::shared_ptr<v0::Constant> i64_constant(const std::vector<int64_t>& values) {
+    return v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
+}
+
+std::shared_ptr<v0::Constant> i64_scalar(const int64_t value) {
+    return v0::Constant::create(ov::element::i64, ov::Shape{}, {value});
+}
+
+// Distinct values, exact in f16.
+std::vector<float> packed_pair_table_values(const size_t half_ndims, const float base) {
+    std::vector<float> values(packed_pairs_seq * half_ndims);
+    for (size_t i = 0; i < values.size(); i++) {
+        values[i] = base + static_cast<float>(i) / 64.f;
+    }
+    return values;
+}
+
+std::vector<float> packed_pair_cos_values(const size_t half_ndims) {
+    return packed_pair_table_values(half_ndims, 0.5f);
+}
+
+std::vector<float> packed_pair_sin_values(const size_t half_ndims) {
+    return packed_pair_table_values(half_ndims, -0.25f);
+}
+
+std::vector<float> negated(std::vector<float> values) {
+    for (auto& value : values) {
+        value = -value;
+    }
+    return values;
+}
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_packed_pair_tables(const PackedPairsTables tables,
+                                                                              const std::vector<float>& cos_values,
+                                                                              const std::vector<float>& sin_values,
+                                                                              const size_t half_ndims,
+                                                                              ov::ParameterVector& parameters) {
+    const auto shape = ov::Shape{packed_pairs_seq, 1, half_ndims};
+    switch (tables) {
+    case PackedPairsTables::F16Constants: {
+        const auto table = [&](const std::vector<float>& values) {
+            return std::make_shared<v0::Convert>(v0::Constant::create(ov::element::f16, shape, values),
+                                                 ov::element::f32)
+                ->output(0);
+        };
+        return {table(cos_values), table(sin_values)};
+    }
+    case PackedPairsTables::GatheredFromPairs: {
+        std::vector<float> pairs;
+        for (size_t i = 0; i < cos_values.size(); i++) {
+            pairs.push_back(cos_values[i]);
+            pairs.push_back(sin_values[i]);
+        }
+        const auto packed = std::make_shared<v1::Reshape>(
+            v0::Constant::create(ov::element::f32, ov::Shape{packed_pairs_seq, 1, 2 * half_ndims}, pairs),
+            i64_constant({static_cast<int64_t>(packed_pairs_seq), 1, static_cast<int64_t>(half_ndims), 2}),
+            false);
+        const auto table = [&](const int64_t index) {
+            return std::make_shared<ov::op::v8::Gather>(packed, i64_scalar(index), i64_scalar(3))->output(0);
+        };
+        return {table(0), table(1)};
+    }
+    case PackedPairsTables::FoldedConstants:
+        return {v0::Constant::create(ov::element::f32, shape, cos_values),
+                v0::Constant::create(ov::element::f32, shape, sin_values)};
+    case PackedPairsTables::AlignedConstants: {
+        const auto shape4 = ov::Shape{1, packed_pairs_seq, 1, half_ndims};
+        return {v0::Constant::create(ov::element::f32, shape4, cos_values),
+                v0::Constant::create(ov::element::f32, shape4, sin_values)};
+    }
+    case PackedPairsTables::Parameters: {
+        const auto cos = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        const auto sin = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        parameters.insert(parameters.end(), {cos, sin});
+        return {cos, sin};
+    }
+    }
+    OPENVINO_THROW("Unknown packed pair tables");
+}
+
+std::shared_ptr<ov::Model> make_packed_pairs_rope_model(const PackedPairsRopeCase& test_case) {
+    const auto half_ndims = static_cast<int64_t>(test_case.half_ndims);
+    const auto seq = static_cast<int64_t>(packed_pairs_seq);
+    const auto num_heads = static_cast<int64_t>(packed_pairs_num_heads);
+    const auto hidden = num_heads * 2 * half_ndims;
+    const auto batch = test_case.dynamic_batch ? ov::Dimension::dynamic() : ov::Dimension(1);
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{batch, seq, hidden});
+    ov::ParameterVector parameters{x};
+
+    const auto packed = std::make_shared<v1::Reshape>(x, i64_constant({0, seq, num_heads, half_ndims, 2}), true);
+    const auto first = std::make_shared<ov::op::v8::Gather>(packed, i64_scalar(0), i64_scalar(4));
+    const auto second = std::make_shared<ov::op::v8::Gather>(packed, i64_scalar(1), i64_scalar(4));
+
+    const auto cos_values = packed_pair_cos_values(test_case.half_ndims);
+    const auto sin_values = packed_pair_sin_values(test_case.half_ndims);
+    const auto [cos, sin] =
+        make_packed_pair_tables(test_case.tables, cos_values, sin_values, test_case.half_ndims, parameters);
+    const auto negated_tables = test_case.tables == PackedPairsTables::AlignedConstants
+                                    ? PackedPairsTables::AlignedConstants
+                                    : PackedPairsTables::FoldedConstants;
+    const auto [neg_cos, neg_sin] = make_packed_pair_tables(negated_tables,
+                                                            negated(cos_values),
+                                                            negated(sin_values),
+                                                            test_case.half_ndims,
+                                                            parameters);
+
+    std::shared_ptr<ov::Node> rotated_first;
+    if (test_case.first_as_add) {
+        const auto second_sin = test_case.first_conjugated ? sin : neg_sin;
+        rotated_first = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(first, cos),
+                                                  std::make_shared<v1::Multiply>(second, second_sin));
+    } else {
+        rotated_first = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(first, cos),
+                                                       std::make_shared<v1::Multiply>(second, sin));
+    }
+    std::shared_ptr<ov::Node> rotated_second;
+    if (test_case.second_as_subtract) {
+        rotated_second = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(first, sin),
+                                                        std::make_shared<v1::Multiply>(second, neg_cos));
+    } else {
+        rotated_second = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(first, sin),
+                                                   std::make_shared<v1::Multiply>(second, cos));
+    }
+
+    const auto stack = [&](const std::shared_ptr<ov::Node>& rotated) -> std::shared_ptr<ov::Node> {
+        if (test_case.stack_with_reshape) {
+            return std::make_shared<v1::Reshape>(rotated, i64_constant({0, seq, num_heads, half_ndims, 1}), true);
+        }
+        return std::make_shared<v0::Unsqueeze>(rotated, i64_constant({test_case.stack_axis}));
+    };
+    const auto stacked = std::make_shared<v0::Concat>(ov::OutputVector{stack(rotated_first), stack(rotated_second)},
+                                                      test_case.stack_axis);
+    const auto result = std::make_shared<v1::Reshape>(stacked, i64_constant({0, seq, -1}), true);
+    return std::make_shared<ov::Model>(ov::OutputVector{result}, parameters);
+}
+
+std::vector<float> repeated_pair_values(const std::vector<float>& values) {
+    std::vector<float> repeated;
+    repeated.reserve(values.size() * 2);
+    for (const auto value : values) {
+        repeated.insert(repeated.end(), {value, value});
+    }
+    return repeated;
+}
+
+std::shared_ptr<ov::Model> make_packed_pairs_rope_ref(const PackedPairsRopeCase& test_case) {
+    constexpr size_t half_ndims = 4;
+    constexpr size_t head_size = 2 * half_ndims;
+    const auto seq = static_cast<int64_t>(packed_pairs_seq);
+    const auto num_heads = static_cast<int64_t>(packed_pairs_num_heads);
+    const auto hidden = num_heads * static_cast<int64_t>(head_size);
+    const auto batch = test_case.dynamic_batch ? ov::Dimension::dynamic() : ov::Dimension(1);
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{batch, seq, hidden});
+    const auto head_major =
+        std::make_shared<v1::Reshape>(x, i64_constant({-1, seq, num_heads, static_cast<int64_t>(head_size)}), false);
+
+    const auto table_shape = ov::Shape{1, packed_pairs_seq, 1, head_size};
+    const auto cos =
+        v0::Constant::create(ov::element::f32, table_shape, repeated_pair_values(packed_pair_cos_values(half_ndims)));
+    const auto sin =
+        v0::Constant::create(ov::element::f32, table_shape, repeated_pair_values(packed_pair_sin_values(half_ndims)));
+
+    ov::op::internal::RoPE::Config config;
+    config.is_interleaved = true;
+    config.head_cnt = packed_pairs_num_heads;
+    config.head_size = head_size;
+    config.rotary_ndims = head_size;
+    config.cos_sin_ndims = head_size;
+    const auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{head_major, cos, sin}, config);
+
+    const auto packed =
+        std::make_shared<v1::Reshape>(rope,
+                                      i64_constant({-1, seq, num_heads, static_cast<int64_t>(half_ndims), 2}),
+                                      false);
+    const auto result = std::make_shared<v1::Reshape>(packed, i64_constant({0, seq, -1}), true);
+    return std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{x});
+}
+
+}  // namespace
+
+class ConvertToROPEPackedPairsTest : public TransformationTestsF {
+public:
+    ConvertToROPEPackedPairsTest() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        disable_rt_info_check();
+        manager.register_pass<ov::pass::RoPEFusion>();
+    }
+};
+
+class ConvertToROPEPackedPairsParamTest : public ConvertToROPEPackedPairsTest,
+                                          public WithParamInterface<PackedPairsRopeCase> {
+public:
+    static std::string getTestCaseName(const TestParamInfo<PackedPairsRopeCase>& info) {
+        return info.param.name;
+    }
+};
+
+class ConvertToROPEPackedPairsFused : public ConvertToROPEPackedPairsParamTest {};
+
+TEST_P(ConvertToROPEPackedPairsFused, CompareWithRef) {
+    model = make_packed_pairs_rope_model(GetParam());
+    model_ref = make_packed_pairs_rope_ref(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertToROPEPackedPairsFused,
+                         Values(PackedPairsRopeCase{"F16Tables"},
+                                PackedPairsRopeCase{"TablesGatheredFromPairs", PackedPairsTables::GatheredFromPairs},
+                                PackedPairsRopeCase{"Canonicalized",
+                                                    PackedPairsTables::AlignedConstants,
+                                                    /*first_as_add=*/true,
+                                                    /*first_conjugated=*/false,
+                                                    /*second_as_subtract=*/false,
+                                                    /*stack_with_reshape=*/true},
+                                PackedPairsRopeCase{"SecondAsSubtract",
+                                                    PackedPairsTables::FoldedConstants,
+                                                    /*first_as_add=*/false,
+                                                    /*first_conjugated=*/false,
+                                                    /*second_as_subtract=*/true},
+                                PackedPairsRopeCase{"DynamicBatch",
+                                                    PackedPairsTables::F16Constants,
+                                                    /*first_as_add=*/false,
+                                                    /*first_conjugated=*/false,
+                                                    /*second_as_subtract=*/false,
+                                                    /*stack_with_reshape=*/false,
+                                                    /*stack_axis=*/-1,
+                                                    /*half_ndims=*/4,
+                                                    /*dynamic_batch=*/true}),
+                         ConvertToROPEPackedPairsParamTest::getTestCaseName);
+
+class ConvertToROPEPackedPairsNotFused : public ConvertToROPEPackedPairsParamTest {};
+
+TEST_P(ConvertToROPEPackedPairsNotFused, CompareWithRef) {
+    model = make_packed_pairs_rope_model(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertToROPEPackedPairsNotFused,
+                         Values(PackedPairsRopeCase{"RuntimeTables", PackedPairsTables::Parameters},
+                                PackedPairsRopeCase{"ConjugatedRotation",
+                                                    PackedPairsTables::F16Constants,
+                                                    /*first_as_add=*/true,
+                                                    /*first_conjugated=*/true},
+                                PackedPairsRopeCase{"HalfMajorStack",
+                                                    PackedPairsTables::F16Constants,
+                                                    /*first_as_add=*/false,
+                                                    /*first_conjugated=*/false,
+                                                    /*second_as_subtract=*/false,
+                                                    /*stack_with_reshape=*/false,
+                                                    /*stack_axis=*/-2,
+                                                    /*half_ndims=*/2}),
+                         ConvertToROPEPackedPairsParamTest::getTestCaseName);
+
+TEST_F(ConvertToROPEPackedPairsTest, IdempotentOnSecondRun) {
+    model = make_packed_pairs_rope_model(PackedPairsRopeCase{});
+    manager.register_pass<ov::pass::RoPEFusion>();
+    model_ref = make_packed_pairs_rope_ref(PackedPairsRopeCase{});
 }
