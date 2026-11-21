@@ -267,10 +267,7 @@ void LLMContinuousKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delt
         auto src = m_req.m_kvcache_request->get_tensor(m_req.m_kvcache_in_ports.at(pair.past));
         auto dst = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
 
-        // Both slices start at zero. Chunked prefill accumulates past KV
-        // left-aligned from position zero and copy_kvcache() fills the generate
-        // cache the same way; the right-aligned KV layout exists only in the
-        // non-chunked prefill path, which continued prefill excludes.
+        // Both slices start at zero because all request variants keep live KV rows left-aligned.
         auto src_slice = uu::make_tensor_slice(src, entry.src_dim, 0u, keep);
         auto dst_slice = uu::make_tensor_slice(dst, entry.dst_dim, 0u, keep);
         if (entry.aliased) {
