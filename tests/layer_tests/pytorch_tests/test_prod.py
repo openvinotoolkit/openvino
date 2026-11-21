@@ -24,7 +24,7 @@ class aten_prod_dtype(torch.nn.Module):
         self.in_dtype = in_dtype
 
     def forward(self, x):
-        return torch.prod(x.to(self.in_dtype))
+        return torch.prod(x.to(self.in_dtype), dtype=self.dtype)
 
 
 class aten_prod_dim(torch.nn.Module):
@@ -51,8 +51,13 @@ class aten_prod_dim_dtype(torch.nn.Module):
 
 
 class TestProd(PytorchLayerTest):
-    def _prepare_input(self, input_shape=(2), dtype=torch.float32):
-        return (self.random.randn(*input_shape, dtype=dtype),)
+    def _prepare_input(self, input_shape=(2,), dtype=torch.float32):
+        shape = tuple(input_shape) if isinstance(input_shape, (list, tuple)) else (input_shape,)
+        if dtype in [torch.int8, torch.int16, torch.int32]:
+            return (self.random.randint(-1, 2, size=shape, dtype=dtype),)
+        elif dtype in [torch.uint8, torch.bool]:
+            return (self.random.randint(0, 2, size=shape, dtype=dtype),)
+        return (self.random.randn(*shape, dtype=dtype),)
 
     @pytest.mark.parametrize("shape", [(1,),
                                        (2,),
@@ -61,7 +66,7 @@ class TestProd(PytorchLayerTest):
                                        (1, 2, 3, 4),
                                        (1, 2, 3, 4, 5)])
     @pytest.mark.parametrize("dtype", [None, torch.int32])
-    @pytest.mark.parametrize("in_dtype", [torch.float32, torch.bool])
+    @pytest.mark.parametrize("in_dtype", [torch.float32, torch.bool, torch.int8, torch.uint8, torch.int16, torch.int32])
     @pytest.mark.parametrize("has_dim,keepdims", [(False, None), (True, True), (True, False)])
     @pytest.mark.nightly
     @pytest.mark.precommit
