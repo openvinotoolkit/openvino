@@ -100,6 +100,31 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
+// Integrated GPUs keep constants in host memory during the build: there the per-constant uploads and the host reads
+// cost more compile time than they save.
+static bool allocates_in_device_memory(const cldnn::engine& engine, const cldnn::layout& layout) {
+    return engine.keeps_constants_in_device_memory() && engine.get_device_info().dev_type == cldnn::device_type::discrete_gpu &&
+           !layout.format.is_image_2d();
+}
+
+// A lock of usm_device memory would copy it to the host first, so upload with one copy instead
+static void upload_to_device_memory(cldnn::memory& mem,
+                                    cldnn::stream& stream,
+                                    const char* src,
+                                    const ov::element::Type& src_et,
+                                    const ov::element::Type& dst_et,
+                                    size_t count,
+                                    const cldnn::layout& layout) {
+    const auto bytes = layout.bytes_count();
+    if (src_et == dst_et) {
+        mem.copy_from(stream, src, 0, 0, bytes, true);
+    } else {
+        std::vector<char> converted(bytes);
+        convert_and_copy(src, src_et, converted.data(), dst_et, count, layout);
+        mem.copy_from(stream, converted.data(), 0, 0, bytes, true);
+    }
+}
+
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
@@ -125,17 +150,22 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     // ensuring the buffer remains valid for the lifetime of the graph. Once the graph was created,
     // the instance of CompiledModel takes on the ownership of the buffer.
     // This ensures the validity of the buffer during the lifetime of the compiled model.
+    //
+    // On discrete GPUs, kernels would read such a host buffer over the bus, so the constant is uploaded once instead and
+    // every compiled model of the remote context uses the same device memory. The device memory does not refer to the
+    // source buffer, so the source buffer is not registered in that case.
+    std::shared_ptr<ov::AlignedBuffer> weight_sharing_source_buffer;
     std::shared_ptr<ov::AlignedBuffer> weight_sharing_constant_buffer_view;
+    weight_sharing::DataID weight_sharing_constant_id = weight_sharing::invalid_constant_id;
     if (p.get_weight_sharing_ctx()) {
         // It's assumed that the constant is a shared constant with cross-device visibility if the model has
         // a weight sharing context and a valid source buffer and a constant id is registered in the weight sharing context.
         auto constant_source_id = weight_sharing::Extension::get_constant_source_id(*op);
-        auto source_buffer = weight_sharing::Extension::get_constant_source_buffer(*op);
-        if (source_buffer) {
-            p.register_weight_sharing_source_buffer(source_buffer);
-            auto constant_id = weight_sharing::Extension::get_constant_id(*op);
+        weight_sharing_source_buffer = weight_sharing::Extension::get_constant_source_buffer(*op);
+        if (weight_sharing_source_buffer) {
+            weight_sharing_constant_id = weight_sharing::Extension::get_constant_id(*op);
             weight_sharing_constant_buffer_view =
-                weight_sharing::get_buffer(*p.get_weight_sharing_ctx(), constant_source_id, constant_id);
+                weight_sharing::get_buffer(*p.get_weight_sharing_ctx(), constant_source_id, weight_sharing_constant_id);
         }
     }
     const auto cache_key =
@@ -150,20 +180,47 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     } else {
         cldnn::memory::ptr mem = nullptr;
         if (weight_sharing_constant_buffer_view) {
-            mem = p.get_engine().create_hostbuffer(
-                weight_sharing_constant_buffer_view->get_ptr(),
-                ov::util::align_size_up(weight_sharing_constant_buffer_view->size(), ov::util::get_system_page_size()),
-                cldnn::allocation_type::cl_mem,
-                constLayout);
-            p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+            auto& engine = p.get_engine();
+            if (allocates_in_device_memory(engine, constLayout)) {
+                OPENVINO_ASSERT(weight_sharing_constant_buffer_view->size() >= op->get_byte_size(),
+                                "[GPU] Shared constant ", initialconstPrimID, " has ", weight_sharing_constant_buffer_view->size(),
+                                " bytes in the weight-sharing context, the constant has ", op->get_byte_size());
+                bool uploaded = false;
+                mem = p.get_or_create_shared_constant(weight_sharing_source_buffer, weight_sharing_constant_id, constLayout, [&]() {
+                    auto device_mem = engine.allocate_memory(constLayout, cldnn::allocation_type::usm_device, false);
+                    upload_to_device_memory(*device_mem,
+                                            engine.get_service_stream(),
+                                            static_cast<const char*>(weight_sharing_constant_buffer_view->get_ptr()),
+                                            op->get_output_element_type(0),
+                                            ov::element::Type(out_dtype),
+                                            ov::shape_size(const_shape),
+                                            constLayout);
+                    uploaded = true;
+                    return device_mem;
+                });
+                GPU_DEBUG_LOG << "[" << initialconstPrimID << ": shared constant] " << (uploaded ? "uploaded" : "reused")
+                              << " device memory: source ID: " << weight_sharing::Extension::get_constant_source_id(*op)
+                              << ", constant ID: " << weight_sharing_constant_id << ", mem_ptr(" << mem << ", " << mem->size()
+                              << " bytes), layout: " << constLayout.to_short_string() << std::endl;
+            } else {
+                p.register_weight_sharing_source_buffer(weight_sharing_source_buffer);
+                mem = engine.create_hostbuffer(
+                    weight_sharing_constant_buffer_view->get_ptr(),
+                    ov::util::align_size_up(weight_sharing_constant_buffer_view->size(), ov::util::get_system_page_size()),
+                    cldnn::allocation_type::cl_mem,
+                    constLayout);
+                GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
+                              << weight_sharing::Extension::get_constant_source_id(*op)
+                              << ", constant ID: " << weight_sharing::Extension::get_constant_id(*op)
+                              << ", ptr: " << weight_sharing_constant_buffer_view->get_ptr()
+                              << ", size: " << weight_sharing_constant_buffer_view->size()
+                              << ", layout: " << constLayout.to_short_string() << std::endl;
+            }
+            auto data_prim = cldnn::data(initialconstPrimID, mem);
+            data_prim.mark_shared_between_programs();
+            p.add_primitive(*op, data_prim);
             p.blobMemCache[cache_key] = initialconstPrimID;
             constPrimID = initialconstPrimID;
-            GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
-                          << weight_sharing::Extension::get_constant_source_id(*op)
-                          << ", constant ID: " << weight_sharing::Extension::get_constant_id(*op)
-                          << ", ptr: " << weight_sharing_constant_buffer_view->get_ptr()
-                          << ", size: " << weight_sharing_constant_buffer_view->size()
-                          << ", layout: " << constLayout.to_short_string() << std::endl;
             return;
         }
         auto partial_upload = try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, constFormat, constLayout);
@@ -171,7 +228,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         if (partial_upload.enabled) {
             mem = partial_upload.memory;
         } else if (constLayout.bytes_count() > 0) {
-            mem = p.get_engine().allocate_memory(constLayout, false);
+            // Allocating in usm_device right away avoids holding a host copy of every constant until
+            // program::transfer_memory_to_device() runs at the end of the build.
+            auto& engine = p.get_engine();
+            const auto alloc_type = allocates_in_device_memory(engine, constLayout)
+                                        ? cldnn::allocation_type::usm_device
+                                        : engine.get_lockable_preferred_memory_allocation_type(constLayout.format.is_image_2d());
+            mem = engine.allocate_memory(constLayout, alloc_type, false);
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
@@ -185,8 +248,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
         if (!partial_upload.enabled) {
             auto& stream = p.get_engine().get_service_stream();
-            cldnn::mem_lock<char> lock{mem, stream};
-            auto* buf = lock.data();
             auto bufSize = constLayout.bytes_count();
             auto upload_count = ov::shape_size(const_shape);
 
@@ -194,10 +255,16 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             // instead. Convert the data in that case, otherwise just copy it.
             const auto src_et = op->get_output_element_type(0);
             const auto dst_et = ov::element::Type(out_dtype);
-            if (src_et == dst_et) {
-                std::memcpy(&buf[0], &data[0], bufSize);
+            if (mem->get_allocation_type() == cldnn::allocation_type::usm_device) {
+                upload_to_device_memory(*mem, stream, data, src_et, dst_et, upload_count, constLayout);
             } else {
-                convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
+                cldnn::mem_lock<char> lock{mem, stream};
+                auto* buf = lock.data();
+                if (src_et == dst_et) {
+                    std::memcpy(&buf[0], &data[0], bufSize);
+                } else {
+                    convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
+                }
             }
         }
         ov::wsh::Extension::hint_evict(*op);

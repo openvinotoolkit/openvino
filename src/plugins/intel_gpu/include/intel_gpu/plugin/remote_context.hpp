@@ -16,11 +16,16 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 #include <string>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 
 namespace ov::intel_gpu {
 
@@ -66,6 +71,22 @@ public:
 
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
+
+    /**
+     * @brief Returns the device memory of a constant from a weight-sharing context, created on the first request.
+     *
+     * Every compiled model of this context gets the same memory for the same constant of the same source buffer.
+     * The cache does not keep the memory alive, so it is released together with the last compiled model using it.
+     *
+     * @param source Source buffer of the constant. A hit needs this very buffer, an equal address is not enough.
+     * @param constant_id Id of the constant in the source buffer.
+     * @param layout Layout of the constant memory.
+     * @param create Allocates and fills the memory on a miss.
+     */
+    cldnn::memory::ptr get_or_create_shared_constant(const std::shared_ptr<ov::AlignedBuffer>& source,
+                                                     ov::weight_sharing::DataID constant_id,
+                                                     const cldnn::layout& layout,
+                                                     const std::function<cldnn::memory::ptr()>& create);
 
     /**
      * @brief Initializes the RemoteContext and its associated device.
@@ -115,6 +136,25 @@ private:
     cldnn::LruCache<size_t, std::weak_ptr<cldnn::memory>> m_memory_cache =
         cldnn::LruCache<size_t, std::weak_ptr<cldnn::memory>>(cache_capacity);
     std::mutex m_cache_mutex;
+
+    struct SharedConstantKey {
+        const ov::AlignedBuffer* source;
+        ov::weight_sharing::DataID constant_id;
+        cldnn::layout layout;
+        bool operator==(const SharedConstantKey& other) const {
+            return source == other.source && constant_id == other.constant_id && layout == other.layout;
+        }
+    };
+    struct SharedConstantKeyHash {
+        size_t operator()(const SharedConstantKey& key) const;
+    };
+    struct SharedConstant {
+        std::weak_ptr<ov::AlignedBuffer> source;
+        std::weak_ptr<cldnn::memory> memory;
+    };
+    // Unbounded unlike m_memory_cache: an evicted constant would silently get a second device copy
+    std::unordered_map<SharedConstantKey, SharedConstant, SharedConstantKeyHash> m_shared_constants;
+    std::mutex m_shared_constants_mutex;
 
     bool m_is_initialized = false;
     std::once_flag m_initialize_flag;

@@ -564,6 +564,7 @@ set(GPU_UNIT_TESTS_OCL_RT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/engine_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/events_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/network_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/shared_constants_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/usm_memory_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/convert_color_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/cl_mem_input_test.cpp
