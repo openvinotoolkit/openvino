@@ -88,6 +88,14 @@ public:
  *
  *   x[B, 1, H, D] ─► Reshape[B, H, 1, D] ─► RoPE ─► Reshape[B, H * D] ─► PagedQSAIndexer
  *
+ * The input_trans0213 may also be an explicit input Transpose(0, 2, 1, 3), and a partial RoPE may be left
+ * split, as when RoPEFusionPreprocess and RoPEFusionIOSlicing do not run:
+ *
+ *   x ─► Transpose ─► Split(rotary_dim) ─► RoPE ─► Concat(rotated, tail) ─► Transpose ─► QSAIndexer
+ *
+ * Split is a VariadicSplit, Slice or StridedSlice of the last axis. Only the indexer is replaced, so the RoPE and
+ * its slicing remain unchanged for other consumers.
+ *
  * Both specializations share PassConfig disable settings and callbacks, which receive the concrete indexer node.
  */
 template <class Indexer>

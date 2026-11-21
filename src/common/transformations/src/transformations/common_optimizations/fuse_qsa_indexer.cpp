@@ -5,6 +5,8 @@
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "itt.hpp"
@@ -27,6 +29,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -273,8 +276,13 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         return unsqueeze | reshape;
     };
     const auto p_head_first = optional<v1::Reshape>({p_query, any_input()});
+    // The explicit form of RoPE input_trans0213, left when RoPEFusionPreprocess does not run.
+    const auto p_head_major = wrap_type<v1::Transpose>({p_query, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
+    const auto p_rope_input = p_head_major | p_head_first;
+    const auto p_split = wrap_type_strict_index<v1::VariadicSplit>({p_rope_input, 3, {"ndims", "?"}});
+    const auto p_rotary_slice = ov::op::util::NewGenSlice(p_rope_input, 0, "ndims", 1, 3) | p_split->output(0);
     const auto p_rope = wrap_type<op_internal::RoPE>(
-        {p_head_first, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
+        {p_rotary_slice | p_rope_input, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
         [](const ov::Output<ov::Node>& output) {
             const auto rope = ov::as_type<op_internal::RoPE>(output.get_node());
             auto config = rope->get_config();
@@ -284,7 +292,20 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
                    cos_shape[-1] == static_cast<int64_t>(config.rotary_ndims);
         },
         {{"config.input_interleaved", false}, {"config.use_rope_cache", false}});
-    const auto p_token_major = optional<v1::Transpose>({p_rope, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
+    const auto p_tail =
+        ov::op::util::NewGenSlice(p_rope_input, "ndims", std::numeric_limits<std::int32_t>::max(), 1, 3) |
+        p_split->output(1);
+    const auto p_concat = optional<v0::Concat>({p_rope, p_tail}, [](const ov::Output<ov::Node>& output) {
+        const auto axis = ov::as_type<v0::Concat>(output.get_node())->get_axis();
+        const auto rank = output.get_partial_shape().rank();
+        // The split and slices above use axis 3, which must be the last axis.
+        if (rank.is_static() && rank.get_length() != 4) {
+            return false;
+        }
+        return axis == -1 || (rank.is_static() && axis == rank.get_length() - 1);
+    });
+    const auto p_token_major =
+        optional<v1::Transpose>({p_concat, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
     const auto p_query_reshape = optional<v1::Reshape>({p_token_major, any_input()}, rank_equals(2));
     // FuseQSAIndexer broadcasts the cos / sin rows with a v3 Broadcast, which ConvertBroadcast3 may turn into a
     // numpy v1 Broadcast before this pass.
@@ -311,15 +332,34 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         if (transformation_callback(indexer)) {
             return false;
         }
+        const bool partial = pattern_map.count(p_concat) != 0;
         const auto rope = ov::as_type_ptr<op_internal::RoPE>(pattern_map.at(p_rope).get_node_shared_ptr());
         OPENVINO_ASSERT(rope, "FuseQSAIndexerQueryRoPE: expected RoPE");
-        const bool head_first = pattern_map.count(p_head_first) != 0;
+        const auto& rope_config = rope->get_config();
+        auto rope_input = rope->input_value(0);
+        if (partial) {
+            // The rotated head and the pass-through tail must split the same full-width input at rotary_ndims.
+            if (!pattern_map.count(p_rotary_slice)) {
+                return false;
+            }
+            const auto concat = pattern_map.at(p_concat).get_node_shared_ptr();
+            const auto ndims = m.get_symbols()["ndims"];
+            rope_input = rope_input.get_node()->input_value(0);
+            if (!ndims.is_static() || !ndims.is_integer() ||
+                ndims.i() != static_cast<int64_t>(rope_config.rotary_ndims) ||
+                concat->input_value(1).get_node()->input_value(0) != rope_input) {
+                return false;
+            }
+        }
+        // A canonical RoPE's input can itself be a slice, without a corresponding tail Concat.
+        const bool head_first = pattern_map.count(p_head_first) && pattern_map.at(p_head_first) == rope_input;
+        const bool head_major = pattern_map.count(p_head_major) && pattern_map.at(p_head_major) == rope_input;
         const bool transposed = pattern_map.count(p_token_major) != 0;
-        if (rope->get_config().input_trans0213 != transposed ||
+        if ((head_major && rope_config.input_trans0213) || (head_major || rope_config.input_trans0213) != transposed ||
             (!transposed && (!head_first || !pattern_map.count(p_query_reshape)))) {
             return false;
         }
-        const auto query = transposed ? rope->input_value(0) : pattern_map.at(p_query);
+        const auto query = transposed && !head_major ? rope_input : pattern_map.at(p_query);
         auto config = indexer->get_config();
         config.query_rope = true;
         auto inputs = indexer->input_values();
@@ -327,6 +367,14 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         NodeVector sources{rope};
         if (head_first && !transposed) {
             sources.push_back(pattern_map.at(p_head_first).get_node_shared_ptr());
+        }
+        if (head_major) {
+            sources.push_back(pattern_map.at(p_head_major).get_node_shared_ptr());
+        }
+        if (partial) {
+            const auto concat = pattern_map.at(p_concat).get_node_shared_ptr();
+            sources.insert(sources.end(),
+                           {concat, concat->get_input_node_shared_ptr(1), rope->get_input_node_shared_ptr(0)});
         }
         if (transposed) {
             sources.push_back(pattern_map.at(p_token_major).get_node_shared_ptr());
