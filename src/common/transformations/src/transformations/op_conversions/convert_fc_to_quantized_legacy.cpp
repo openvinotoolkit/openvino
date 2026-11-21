@@ -31,7 +31,11 @@ ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     auto bias_m = pattern::any_input();
 
     auto fully_connected_m = pattern::wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
-    auto dequantization_scales_m = pattern::wrap_type<v0::Constant>();
+    // FullyConnectedQuantizedLegacy requires real-typed dequantization scales; a Multiply by any other
+    // constant is not a dequantization and is left alone rather than failing the op's validation.
+    auto dequantization_scales_m = pattern::wrap_type<v0::Constant>([](const ov::Output<ov::Node>& output) {
+        return output.get_element_type().is_real();
+    });
     auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({fully_connected_m, dequantization_scales_m});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
