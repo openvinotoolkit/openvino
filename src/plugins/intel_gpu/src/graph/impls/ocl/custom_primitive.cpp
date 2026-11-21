@@ -348,9 +348,12 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     OPENVINO_ASSERT(orig_output_layout.is_static(), "out layouts should be static for create primitive_impl!");
 
     std::vector<size_t> gws, lws;
+    const auto input_dims = primitive->calcWgDimInputIdx >= 0
+                                ? impl_param.get_input_layout(primitive->calcWgDimInputIdx).get_partial_shape()
+                                : ov::PartialShape{};
     custom_gpu_primitive::update_work_group_size(orig_output_layout.get_partial_shape(),
                                                  primitive->calcWgDimInputIdx,
-                                                 orig_output_layout.get_partial_shape(),
+                                                 input_dims,
                                                  primitive->globalSizeRules,
                                                  primitive->localSizeRules,
                                                  gws,
