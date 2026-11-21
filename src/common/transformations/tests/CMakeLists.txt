@@ -14,12 +14,15 @@ ov_add_test_target(
     NAME ${TARGET_NAME}
     SOURCES
         ${OV_TRANSFORMATIONS_TESTS_SRCS}
+    INCLUDES
+        $<TARGET_PROPERTY:openvino_transformations_obj,SOURCE_DIR>/src
     DEPENDENCIES
     LINK_LIBRARIES
         gmock
         func_test_utils
         openvino::offline_transformations
         openvino::reference
+        openvino::conditional_compilation
         ov_lpt_models
     ADD_CLANG_FORMAT
     LABELS
