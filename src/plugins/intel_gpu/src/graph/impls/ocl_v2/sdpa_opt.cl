@@ -191,6 +191,12 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #if TARGET_SEQ_LEN_BLOCK_SIZE == 1
 /* This version is used for 2nd token */
 
+// V_TRANSPOSED_READ: V order {..,3,2} (a [B, KV heads, head size, S] cache; xe_hpg, SDPAOptGeneratorSingleToken): lane
+// head_size_idx reads the keys of its own V row instead of a block read across the head dim. f16, no beam table.
+#if V_TRANSPOSED_READ && (defined(BEAM_TABLE_TYPE) || IS_KV_COMPRESSED || IS_INT4_COMPRESSED || SUBGROUP_SIZE != 16)
+#  error "sdpa_opt.cl: V_TRANSPOSED_READ is an uncompressed V without a beam table"
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, V_HEAD_SIZE * SG_SCALE_FACTOR)))
 KERNEL(sdpa_opt)(
@@ -224,7 +230,15 @@ KERNEL(sdpa_opt)(
     __global OUTPUT_TYPE* tmp_out
 )
 {
+#if V_TRANSPOSED_READ
+    // Workgroups in dispatch order (dimension 0 fastest) taken head-major: the partitions of one head run together, so
+    // those in flight read the V rows of a few KV heads rather than a slice of every row of all of them.
+    const uint vt_wg = get_group_id(0) + get_num_groups(0) * (get_group_id(1) + get_num_groups(1) * get_group_id(2));
+    const uint vt_head_seq = vt_wg / get_num_groups(2);
+    const uint batch_idx = vt_head_seq % get_num_groups(0);
+#else
     const uint batch_idx = get_global_id(0);
+#endif
     const uint b0_idx = batch_idx / NUM_HEADS; /* BATCH dim */
     const uint b1_idx = batch_idx % NUM_HEADS; /* HEADS_NUM dim */
     // Q/K/V batch may be broadcast (the output batch is their numpy broadcast): wrap the batch index by their own batch size.
@@ -244,7 +258,11 @@ KERNEL(sdpa_opt)(
 #else
     const uint b_v_idx = b0_idx;
 #endif
+#if V_TRANSPOSED_READ
+    const uint target_seq_idx = vt_head_seq / get_num_groups(0);
+#else
     const uint target_seq_idx = get_global_id(1);
+#endif
     const uint lid = get_local_id(2);
 
 #if SG_SCALE_FACTOR == 2
@@ -258,7 +276,11 @@ KERNEL(sdpa_opt)(
     const uint sgid = get_sub_group_id();
     const uint sglid = get_sub_group_local_id();
 
+#if V_TRANSPOSED_READ
+    const uint partition_idx = vt_wg % get_num_groups(2);
+#else
     const uint partition_idx = get_group_id(2);
+#endif
     const uint num_of_partitions = get_num_groups(2);
     const uint wi_num_per_partition = get_local_size(2);
 
@@ -857,6 +879,25 @@ KERNEL(sdpa_opt)(
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 qk_val[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid]);
             }
+#if V_TRANSPOSED_READ
+            // value_offset is this lane's row (head_size_idx) at the block's first key: its 16 keys, read as 8 dwords
+            // from the dword at or below the row start. A row starting 2 B off a dword (an odd pitch or start) takes
+            // its 16th key alone and shifts by 16 bits; the read stays inside the block's keys.
+            const __global ushort *v_row_p = (const __global ushort *)(value_input + value_offset);
+            const uint v_mis = (uint)as_long(v_row_p) & 2u;
+            uint8 v_w = vload8(0, (const __global uint *)((const __global char *)v_row_p - v_mis));
+            if (sub_group_any(v_mis != 0)) {  // uniform
+                const uint v_e = v_mis ? (uint)v_row_p[SUBGROUP_SIZE - 1] : 0u;
+                const uint v_sh = v_mis ? 16u : 0u;
+                const uint v_hm = v_mis ? 0xFFFF0000u : 0u;
+                const uint v_an[9] = {v_w.s0, v_w.s1, v_w.s2, v_w.s3, v_w.s4, v_w.s5, v_w.s6, v_w.s7, v_e};
+                uint v_t[8];
+                unroll_for (uint j = 0; j < 8; j++)
+                    v_t[j] = (v_an[j] >> v_sh) | ((v_an[j + 1] << 16) & v_hm);
+                v_w = (uint8)(v_t[0], v_t[1], v_t[2], v_t[3], v_t[4], v_t[5], v_t[6], v_t[7]);
+            }
+            const half16 v_row = as_half16(v_w);
+#endif
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
 #ifdef BEAM_TABLE_TYPE
@@ -866,6 +907,8 @@ KERNEL(sdpa_opt)(
     #else
                 const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
     #endif
+#elif V_TRANSPOSED_READ
+                const INPUT2_TYPE value_packed = v_row[i];
 #else
                 const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
@@ -939,6 +982,8 @@ KERNEL(sdpa_opt)(
 #if IS_INT4_COMPRESSED
             const INPUT2_TYPE value_packed = (val_packed_x + sglid < K_HEAD_SIZE / 2)
                 ? VALUE_BLOCK_READ(value_input, value_offset) : (INPUT2_TYPE)0;
+#elif V_TRANSPOSED_READ
+            const INPUT2_TYPE value_packed = value_input[value_offset];  // this lane's row
 #else
             const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
 #endif

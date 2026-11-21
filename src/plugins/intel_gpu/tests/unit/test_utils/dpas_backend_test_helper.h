@@ -54,4 +54,11 @@ inline bool plain_decode_on_opt(const cldnn::device_info& info, size_t k_head_si
     return !compressed_kv || (k_head_size % 16 == 0 && v_head_size % 16 == 0);
 }
 
+// Whether a one-query step of plain SDPA with a transposed f16 V (order {0,1,3,2}) runs on the opt single-token stage:
+// on xe_hpg where plain_decode_on_opt() and the head is a multiple of 16 (SDPAOptImpl; the stage reads it with
+// V_TRANSPOSED_READ). sdpa_ocl elsewhere.
+inline bool transposed_v_decode_on_opt(const cldnn::device_info& info, size_t head_size) {
+    return plain_decode_on_opt(info, head_size, head_size, false) && head_size % 16 == 0;
+}
+
 }  // namespace tests

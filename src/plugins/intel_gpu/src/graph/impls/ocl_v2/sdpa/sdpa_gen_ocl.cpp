@@ -1052,7 +1052,8 @@ const layout* runtime_scale_layout(const kernel_impl_params& params);  // with t
 // The same kernel serves plain SDPA PREFILL (q > 1) at the hpg_plain_head_ok() heads, causal (either alignment) only
 // without a mask, and without a runtime scalar mask, a runtime scale, a sink, a sliding window or a compressed KV
 // cache, when Q, K, V and the output are rank-4 f16 tensors whose head dimension is innermost and unpadded (every row
-// starts at a multiple of the head size). A tensor mask must be f16, bfyx and unpadded (8 keys of a row per load, no
+// starts at a multiple of the head size), or V transposed (value order {..,3,2}, transposed_v_reader_ok(): read by
+// value rows, whose start the kernel checks). A tensor mask must be f16, bfyx and unpadded (8 keys of a row per load, no
 // padding offset). A finite static scalar mask is left out: it adds the same value to every score of a row, which the
 // softmax cancels. An indirect op is admitted: SDPAOptImpl::execute() dispatches the sdpa_ocl PREFILL only when no beam
 // reorder is needed (need_indirect_load()), so no sdpa_ocl kernel reads the beam table. SDPA_OCL_HPG_PLAIN_PREFILL=0
@@ -1082,15 +1083,18 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
     const auto head_innermost = [](const std::vector<int64_t>& order) {
         return order.empty() || extend_order_in_num_heads_dim(order)[3] == 3;
     };
-    if (!head_innermost(desc->input_q_transpose_order) || !head_innermost(desc->input_k_transpose_order) || !head_innermost(desc->input_v_transpose_order) ||
-        !head_innermost(desc->output_transpose_order)) {
+    const bool v_t = SDPABase::transposed_v_reader_ok(params);
+    if (!head_innermost(desc->input_q_transpose_order) || !head_innermost(desc->input_k_transpose_order) ||
+        (!head_innermost(desc->input_v_transpose_order) && !v_t) || !head_innermost(desc->output_transpose_order)) {
         return false;
     }
-    const auto rows_ok = [](const layout& l) {
+    // A transposed V's innermost axis is the keys': padding there (a cache's capacity) only moves the value row pitch.
+    const auto rows_ok = [](const layout& l, bool keys_innermost) {
         return l.data_type == data_types::f16 && l.get_partial_shape().size() == 4 && format::is_simple_data_format(l.format) &&
-               axis_unpadded(l, ChannelName::X);
+               (keys_innermost || axis_unpadded(l, ChannelName::X));
     };
-    return rows_ok(params.input_layouts[0]) && rows_ok(params.input_layouts[1]) && rows_ok(params.input_layouts[2]) && rows_ok(params.output_layouts[0]);
+    return rows_ok(params.input_layouts[0], false) && rows_ok(params.input_layouts[1], false) && rows_ok(params.input_layouts[2], v_t) &&
+           rows_ok(params.output_layouts[0], false);
 }
 
 // Its tiling, by rule from the head: a key subgroup per 16 value columns (the head rounded up to 16), 32-key x 16-query
@@ -1348,7 +1352,7 @@ void add_prefill_pipeline_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("CAUSAL_TILE_SKIP", env_int("SDPA_OCL_CAUSAL_SKIP", tile_skip));
 }
 
-void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
+void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p, bool v_transposed) {
     const auto& t = p.tiling;
     jit.make("DPAS_K", 16);  // f16 and bf16 k16 DPAS both fix KSTEP at 16
     jit.make("DPAS_ROWS", 8);
@@ -1384,12 +1388,13 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     }
     // sdpa_ocl.cl includes sdpa_ocl_hpg_pa_prefill.cl in place of its kernel. Absent otherwise, so no other jit changes.
     // HPG_PA_V_LEAD: key blocks of V loaded ahead, at most the tile's key blocks, 3 when each V row slice is 32 values
-    // (twice the registers). Head 512 takes 1: other leads miscompile there (IGC codegen hazard, "xe_hpg follow-ups" in
-    // the docs). HPG_PA_KQ_UNROLL: unroll of the KQ depth loop, whole up to head 128 and 2 at 256, where a whole unroll
-    // loads K of every depth tile ahead (0 = whole).
+    // (twice the registers), 2 with a transposed V (its S*V is compiled twice, a longer lead spills). Head 512 takes 1:
+    // other leads miscompile there (IGC codegen hazard, "xe_hpg follow-ups" in the docs). HPG_PA_KQ_UNROLL: unroll of
+    // the KQ depth loop, whole up to head 128 and 2 at 256, where a whole unroll loads K of every depth tile ahead (0 =
+    // whole).
     if (t.hpg_pa_prefill) {
         jit.make("HPG_PA_PREFILL", 1);
-        const int v_lead = p.k_head_size == 512 ? 1 : std::min(t.sv_sg_tile_values <= 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
+        const int v_lead = p.k_head_size == 512 ? 1 : v_transposed ? 2 : std::min(t.sv_sg_tile_values <= 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
         jit.make("HPG_PA_V_LEAD", env_int("SDPA_OCL_HPG_PA_V_LEAD", v_lead));
         if (const int kq = env_int("SDPA_OCL_HPG_PA_KQ_UNROLL", p.d_max > 128 ? 2 : 0); kq > 0) {
             jit.make("HPG_PA_KQ_UNROLL", kq);
@@ -2054,7 +2059,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     add_sink_qq_bias_jit(jit, in);
     add_micro_math_jit(jit, in);
     add_prefill_pipeline_jit(jit, in);
-    add_tiling_jit(jit, in.problem);
+    add_tiling_jit(jit, in.problem, SDPABase::has_transposed_v(in.params));
     add_tensor_block_io_jit(jit, in);
     add_pa_cache_jit(jit, in);
     add_pa_page_read_jit(jit, in);

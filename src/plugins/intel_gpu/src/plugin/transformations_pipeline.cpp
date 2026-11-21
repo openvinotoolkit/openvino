@@ -1297,8 +1297,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool fuse_compressed_kv = cldnn::paged_attention::sdpa_ocl_selected(device_info) &&
                                         cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(device_info) && config.get_enable_sdpa_micro() &&
                                         infer_precision == ov::element::f16;
-        // A [B, KV heads, head size, S] V cache goes to SDPA as value order {0,1,3,2} where sdpa_ocl's transposed-V reader
-        // runs (Xe2+, the DPAS kernel on, f16); elsewhere the attention gets it through a Transpose.
+        // A [B, KV heads, head size, S] V cache goes to SDPA as value order {0,1,3,2} where the transposed-V readers run
+        // (Xe2+ and xe_hpg: sdpa_ocl_transposed_v_ok(); the DPAS kernel on, f16); elsewhere the attention gets it through a
+        // Transpose.
         const bool fuse_transposed_v = cldnn::paged_attention::sdpa_ocl_selected(device_info) &&
                                        cldnn::paged_attention::sdpa_ocl_transposed_v_ok(device_info) && config.get_enable_sdpa_micro() &&
                                        infer_precision == ov::element::f16;

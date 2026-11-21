@@ -201,6 +201,11 @@ JitConstants SDPAOptGeneratorSingleToken::get_jit_constants(const kernel_impl_pa
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::SINGLE_TOKEN);
     jit.make("SDPA_STAGE_0", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", 1);
+    // A transposed f16 V: on xe_hpg this stage serves the one-query steps of such an op (SDPAOptImpl::execute()); elsewhere
+    // sdpa_ocl does, and the stage keeps its block read.
+    if (opt_single_token_reads_transposed_v(params) && !m_indirect) {
+        jit.make("V_TRANSPOSED_READ", 1);
+    }
     return jit;
 }
 

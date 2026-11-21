@@ -2307,23 +2307,29 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
 }
 
 // Transposed V (order {0,1,3,2}) on sdpa_ocl's v_tile_t, step by step on one network (static: one step), against the same
-// op with the plain V layout (bit-exact: same tiling and V values) and the host reference. Key counts odd, even and a
-// multiple of 8 (a row starts 2 B off a dword when value * seq + key is odd), shorter than one cp block, ending inside one;
-// GQA, batch 2, heads 64 / 72 / 128 / 256, a mask, and V rows padded past the keys with NaN (a windowed view), which the
-// output must not see. Even keys on a pitch of a multiple of 8 take the 2D block read, the rest the per-lane read.
+// op with the plain V layout (bit-exact where both run the same kernel family: same tiling and V values) and the host
+// reference. Key counts odd, even and a multiple of 8 (a row starts 2 B off a dword when value * seq + key is odd), shorter
+// than one cp block, ending inside one; GQA, batch 2, heads 40 / 64 / 72 / 128 / 256, a mask, lower-right causality (GQA's),
+// and V rows padded past the keys with NaN (a windowed view), which the output must not see. Even keys on a pitch of a
+// multiple of 8 take the 2D block read (Xe2), the rest the per-lane read. On xe_hpg the PREFILL kernel reads it
+// (hpg_v_rows()), and a one-query step at the heads tests::transposed_v_decode_on_opt() takes runs the opt single-token
+// stage (V_TRANSPOSED_READ); a one-query step at another head (40, 72) the generic SG8 kernel, which the plain layout does
+// not run there (no bit-exact check then).
 struct sdpa_tv_case {
     int batch, heads, kv_heads, head_size;
     std::vector<std::pair<int, int>> steps;  // {queries, keys}
     bool dynamic = false;
     bool mask = false;
-    bool causal = false;  // upper-left; used with queries == keys only
-    int nan_pad = 0;      // keys of NaN padding after each V row (static only)
+    bool causal = false;     // upper-left; used with queries == keys only
+    int nan_pad = 0;         // keys of NaN padding after each V row (static only)
+    bool causal_lr = false;  // lower-right aligned causality (the reference gets it as a mask); without a mask
 };
 
 static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || engine.get_device_info().arch < gpu_arch::xe2)
-        GTEST_SKIP() << "sdpa_ocl's transposed-V reader is Xe2+";
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || !cldnn::paged_attention::sdpa_ocl_transposed_v_ok(engine.get_device_info()))
+        GTEST_SKIP() << "no transposed-V reader on this device (paged_attention::sdpa_ocl_transposed_v_ok())";
+    ASSERT_TRUE(!c.causal_lr || (!c.mask && !c.causal)) << "lower-right cases have no mask";
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     const int B = c.batch, H = c.heads, KVH = c.kv_heads, D = c.head_size;
@@ -2344,7 +2350,17 @@ static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
             inputs.push_back(input_info("mask"));
         }
         const std::vector<int64_t> v_order = transposed ? std::vector<int64_t>{0, 1, 3, 2} : std::vector<int64_t>{0, 1, 2, 3};
-        topo.add(scaled_dot_product_attention("sdpa", inputs, c.causal, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, v_order, {0, 1, 2, 3}, {}, false));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                              inputs,
+                                              c.causal || c.causal_lr,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              v_order,
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false,
+                                              c.causal_lr));
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -2388,10 +2404,25 @@ static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
         };
         auto plain_out = run(plain_net, v_mem);
         auto tv_out = run(tv_net, vt_mem);
-        const auto inst = tv_net->get_primitive("sdpa");
-        ASSERT_NE(inst->get_impl(), nullptr);
-        const auto entries = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
-        ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        const auto dispatched = [](network::ptr& net) {
+            const auto inst = net->get_primitive("sdpa");
+            OPENVINO_ASSERT(inst->get_impl() != nullptr);
+            return inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+        };
+        const auto entries = dispatched(tv_net);
+        const bool on_opt = seq_q == 1 && tests::transposed_v_decode_on_opt(engine.get_device_info(), D);
+        ASSERT_NE(entries.find(on_opt ? "sdpa_opt" : "sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        const bool same_family = (dispatched(plain_net).find("sdpa_ocl") != std::string::npos) == (entries.find("sdpa_ocl") != std::string::npos);
+
+        // Lower-right causality for the reference: query i sees keys [0, i + max(0, seq_kv - seq_q)].
+        std::vector<ov::float16> lr_mask;
+        if (c.causal_lr) {
+            lr_mask.resize(size_t(seq_q) * seq_kv);
+            const int shift = std::max(0, seq_kv - seq_q);
+            for (int i = 0; i < seq_q; ++i)
+                for (int j = 0; j < seq_kv; ++j)
+                    lr_mask[size_t(i) * seq_kv + j] = ov::float16(j <= i + shift ? 0.0f : -std::numeric_limits<float>::infinity());
+        }
 
         const ov::Shape q_shape{size_t(B), size_t(H), size_t(seq_q), size_t(D)};
         const ov::Shape kv_shape{size_t(B), size_t(KVH), size_t(seq_kv), size_t(D)};
@@ -2401,7 +2432,7 @@ static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
                                              kv_shape,
                                              sdpa_to_float(v_data),
                                              kv_shape,
-                                             c.mask ? sdpa_to_float(m_data) : std::vector<float>{},
+                                             c.mask ? sdpa_to_float(m_data) : (c.causal_lr ? sdpa_to_float(lr_mask) : std::vector<float>{}),
                                              m_l.get_shape(),
                                              c.causal,
                                              nullptr);
@@ -2411,7 +2442,7 @@ static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
         ASSERT_LE(diff.max_abs_err, 4e-3f) << "vs the host reference: max abs error at index " << diff.max_abs_idx;
         // A dynamic network may run its shape-agnostic or (compiled in the background) static kernel at a step, so the
         // bit-exact check is for the static cases.
-        if (!c.dynamic) {
+        if (!c.dynamic && same_family) {
             const auto plain = sdpa_to_float<ov::float16>(plain_out);
             ASSERT_EQ(plain.size(), tv.size());
             for (size_t i = 0; i < tv.size(); ++i)
@@ -2471,6 +2502,43 @@ TEST(sdpa_gpu_transposed_v, dynamic_prompt_then_decode_8q_2kv_d64) {
 }
 TEST(sdpa_gpu_transposed_v, dynamic_prompt_then_decode_32q_8kv_d128) {
     run_sdpa_transposed_v({1, 32, 8, 128, {{513, 513}, {1, 514}, {1, 515}, {1, 516}, {512, 1028}, {1, 1029}, {3, 1032}, {1, 1033}}, true, true});
+}
+// GQA's form: lower-right causality without a mask, a chunk over past keys (kv > q), odd and even key counts; decode at
+// heads 40 and 72 (on xe_hpg the generic SG8 single-token kernel) and partitions of the opt stage (1537 keys).
+TEST(sdpa_gpu_transposed_v, static_lr_32q_8kv_100q_300kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{100, 300}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_33q_193kv_d72) {
+    run_sdpa_transposed_v({1, 8, 2, 72, {{33, 193}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_17q_77kv_d40) {
+    run_sdpa_transposed_v({1, 8, 2, 40, {{17, 77}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_nanpad_16q_4kv_64q_201kv_d256) {
+    run_sdpa_transposed_v({1, 16, 4, 256, {{64, 201}}, false, false, false, 5, true});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_1q_300kv_d72) {
+    run_sdpa_transposed_v({1, 8, 2, 72, {{1, 300}}});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_1q_77kv_d40) {
+    run_sdpa_transposed_v({1, 8, 2, 40, {{1, 77}}});
+}
+TEST(sdpa_gpu_transposed_v, dynamic_lr_prompt_chunk_decode_32q_8kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{1023, 1023}, {1, 1024}, {1, 1025}, {512, 1537}, {1, 1538}, {1, 1539}}, true, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, dynamic_lr_prompt_decode_8q_2kv_d72) {
+    run_sdpa_transposed_v({1, 8, 2, 72, {{33, 33}, {1, 34}, {17, 51}, {1, 52}}, true, false, false, 0, true});
+}
+// Even key pitches over several whole key tiles: on xe_hpg the PREFILL kernel reads those tiles without per-block checks
+// (heads 64 / 128: two key blocks per read; head 256: 32 value columns per subgroup).
+TEST(sdpa_gpu_transposed_v, static_lr_32q_8kv_512q_1024kv_d128) {
+    run_sdpa_transposed_v({1, 32, 8, 128, {{512, 1024}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_300q_600kv_d64) {
+    run_sdpa_transposed_v({1, 8, 2, 64, {{300, 600}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_16q_4kv_256q_768kv_d256) {
+    run_sdpa_transposed_v({1, 16, 4, 256, {{256, 768}}, false, false, false, 0, true});
 }
 
 // Masks broadcast over keys: [1, H, Q, 1] (param false) and [1, H, 1, 1] (param true).

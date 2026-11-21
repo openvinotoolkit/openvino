@@ -162,8 +162,11 @@ public:
         };
         // xe_hpg runs a one-query step (decode) of plain SDPA on the opt stages ("Plain SDPA of stateful LLMs on xe_hpg
         // (2026-11-14)" in the docs). PREFILL keeps sdpa_ocl on every arch, and so does a decode the opt stages do not take
-        // (opt_stages_take_head()).
-        const bool ocl_single_token_ok = params.get_device_info().arch != gpu_arch::xe_hpg || !opt_stages_take_head(params);
+        // (opt_stages_take_head()), or one with a transposed V they cannot read (only the single-token stage reads it, and
+        // not at a head that is not a multiple of 16: "Transposed V on xe_hpg"), which skips the ARL-H rule below too.
+        const bool tv_needs_ocl_single_token = SDPABase::has_transposed_v(params) && !(SDPABase::opt_single_token_reads_transposed_v(params) &&
+                                                                                       opt_stages_take_head(params) && !unaligned_head_size(params));
+        const bool ocl_single_token_ok = params.get_device_info().arch != gpu_arch::xe_hpg || !opt_stages_take_head(params) || tv_needs_ocl_single_token;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";
         if (params.is_dynamic()) {
@@ -221,9 +224,9 @@ public:
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
-                const bool use_sdpa_ocl =
-                    ocl_single_token_ok && dpas_supported() && cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) && !is_indirect &&
-                    single_query_row(params);
+                const bool use_sdpa_ocl = ocl_single_token_ok && dpas_supported() &&
+                                          (cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) || tv_needs_ocl_single_token) &&
+                                          !is_indirect && single_query_row(params);
                 if (use_sdpa_ocl) {
                     add_stage(ocl_single_token, params);
                 }
@@ -273,15 +276,21 @@ public:
             return execute_stage(events, instance, multi_token_rows ? ocl_multi_tokens : ocl_single_token);
         }
         // A transposed V likewise (validate_impl() admits it where sdpa_ocl serves it): the opt stages read V's head dim as
-        // contiguous.
+        // contiguous, but for the single-token stage on xe_hpg (V_TRANSPOSED_READ), which the ctor leaves its one-query steps
+        // to where it takes the head; those go on to the opt single-token path below.
         if (SDPABase::has_transposed_v(new_params)) {
-            OPENVINO_ASSERT(!is_indirect && has_stage(multi_token_rows ? ocl_multi_tokens : ocl_single_token),
-                            "[GPU] SDPA with a transposed V needs the sdpa_ocl ",
-                            multi_token_rows ? "multi-token" : "single-token",
-                            " stage (indirect = ",
-                            is_indirect,
-                            ")");
-            return execute_stage(events, instance, multi_token_rows ? ocl_multi_tokens : ocl_single_token);
+            const bool opt_decode =
+                !multi_token_rows && !has_stage(ocl_single_token) && SDPABase::opt_single_token_reads_transposed_v(new_params) && !unaligned_head_size(new_params);
+            if (!opt_decode) {
+                OPENVINO_ASSERT(!is_indirect && has_stage(multi_token_rows ? ocl_multi_tokens : ocl_single_token),
+                                "[GPU] SDPA with a transposed V needs the sdpa_ocl ",
+                                multi_token_rows ? "multi-token" : "single-token",
+                                " stage (indirect = ",
+                                is_indirect,
+                                ")");
+                return execute_stage(events, instance, multi_token_rows ? ocl_multi_tokens : ocl_single_token);
+            }
+            OPENVINO_ASSERT(!is_indirect, "[GPU] SDPA with a transposed V has no beam-table reader");
         }
         if (multi_token_rows && !is_indirect && !is_int4_kv && has_stage(ocl_multi_tokens)) {
             GPU_DEBUG_TRACE_DETAIL << "execute ocl_multi_tokens for prefill \n";

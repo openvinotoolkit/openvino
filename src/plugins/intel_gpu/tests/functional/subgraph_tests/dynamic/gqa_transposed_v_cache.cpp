@@ -24,7 +24,8 @@
 // -> StatelessKV + SDPA or the explicit attention chain), against the TEMPLATE plugin. transpose_v: the model keeps its V cache
 // as [B, kv_heads, head_size, S] (past_value -> Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value). Covers
 // that layout reaching SDPA as value order {0,1,3,2} (sdpa_ocl's transposed-V readers on Xe2+, f16 and the fused per-channel
-// i8 cache; a Transpose elsewhere), and StatelessKV -> Transpose -> Result on the explicit attention / quantized KV paths,
+// i8 cache; on xe_hpg f16, read by its PREFILL kernel and the opt single-token stage; a Transpose elsewhere), and
+// StatelessKV -> Transpose -> Result on the explicit attention / quantized KV paths,
 // which the runtime rejects. The plain [B, kv_heads, S, head_size] layout is the control.
 namespace {
 
