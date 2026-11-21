@@ -60,10 +60,10 @@ class CsvStatisticsReport(StatisticsReport):
 
     def dump(self):
         def dump_parameters(f, parameters):
-            for k, v in parameters:
-                f.write(f'{k}{self.csv_separator}{v}\n')
+            writer = csv.writer(f, delimiter=self.csv_separator)
+            writer.writerows(parameters)
 
-        with open(os.path.join(self.config.report_folder, 'benchmark_report.csv'), 'w') as f:
+        with open(os.path.join(self.config.report_folder, 'benchmark_report.csv'), 'w', newline='') as f:
             if self.Category.COMMAND_LINE_PARAMETERS in self.parameters.keys():
                 f.write('Command line parameters\n')
                 dump_parameters(f, self.parameters[self.Category.COMMAND_LINE_PARAMETERS])
@@ -84,20 +84,20 @@ class CsvStatisticsReport(StatisticsReport):
     def dump_performance_counters(self, prof_info_list):
         def dump_performance_counters_request(f, prof_info):
             total, total_cpu = timedelta(), timedelta()
+            writer = csv.writer(f, delimiter=self.csv_separator)
 
-            f.write(self.csv_separator.join(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (ms)', 'cpuTime (ms)\n']))
+            writer.writerow(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (ms)', 'cpuTime (ms)'])
             for pi in prof_info:
-                f.write(self.csv_separator.join([pi.node_name, str(pi.status), pi.node_type, pi.exec_type,
+                writer.writerow([pi.node_name, str(pi.status), pi.node_type, pi.exec_type,
                     f"{pi.real_time / timedelta(milliseconds=1):.3f}",
-                    f"{pi.cpu_time / timedelta(milliseconds=1):.3f}"]))
-                f.write('\n')
+                    f"{pi.cpu_time / timedelta(milliseconds=1):.3f}"])
                 total += pi.real_time
                 total_cpu += pi.cpu_time
 
-            f.write(self.csv_separator.join(['Total', '', '', '',
+            writer.writerow(['Total', '', '', '',
                 f"{total / timedelta(milliseconds=1):.3f}",
-                f"{total_cpu / timedelta(milliseconds=1):.3f}"]))
-            f.write('\n\n')
+                f"{total_cpu / timedelta(milliseconds=1):.3f}"])
+            f.write('\n')
 
         if self.config.report_type == '' or self.config.report_type == noCntReport:
             logger.info("Statistics collecting for performance counters was not requested. No reports are dumped.")
@@ -108,7 +108,7 @@ class CsvStatisticsReport(StatisticsReport):
             return
 
         filename = os.path.join(self.config.report_folder, f'benchmark_{self.config.report_type}_report.csv')
-        with open(filename, 'w') as f:
+        with open(filename, 'w', newline='') as f:
             if self.config.report_type == detailedCntReport:
                 for prof_info in prof_info_list:
                     dump_performance_counters_request(f, prof_info)
