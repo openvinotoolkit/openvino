@@ -13,7 +13,9 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -149,6 +151,52 @@ public:
     }
 };
 
+// Matches the masked-add Qwen3-VL DeepStack injection produced by optimum-intel:
+//     Add(hidden, Multiply(Reshape(Gather(Gather(deepstack, L), indices)), mask))
+// and replaces it with a plain residual add: hidden + Gather(deepstack, L).
+class DeepstackMaskedAddToAdd : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::DeepstackMaskedAddToAdd");
+    explicit DeepstackMaskedAddToAdd(bool& matched) {
+        auto deepstack = opp::wrap_type<ov::op::v0::Parameter>();
+        auto select = opp::wrap_type<ov::op::v8::Gather, ov::op::v7::Gather, ov::op::v1::Gather>(
+            {deepstack, opp::any_input(), opp::any_input()});
+        auto select_tokens = opp::wrap_type<ov::op::v8::Gather, ov::op::v7::Gather, ov::op::v1::Gather>(
+            {select, opp::any_input(), opp::any_input()});
+        auto reshape = opp::wrap_type<ov::op::v1::Reshape>({select_tokens, opp::any_input()});
+        auto mult = opp::wrap_type<ov::op::v1::Multiply>({reshape, opp::any_input()});
+        auto add = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), mult});
+
+        auto callback = [=, &matched](opp::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+
+            if (!is_named(pattern_map.at(deepstack).get_node_shared_ptr(),
+                          ov::npuw::util::kDeepstackVisualEmbedsParamName)) {
+                return false;
+            }
+
+            auto select_node = pattern_map.at(select).get_node_shared_ptr();
+            auto add_node = pattern_map.at(add).get_node_shared_ptr();
+            auto mult_node = pattern_map.at(mult).get_node_shared_ptr();
+
+            ov::Output<ov::Node> base = (add_node->input_value(0).get_node_shared_ptr() == mult_node)
+                                            ? add_node->input_value(1)
+                                            : add_node->input_value(0);
+
+            auto residual = std::make_shared<ov::op::v1::Add>(base, select_node->output(0));
+            residual->set_friendly_name(select_node->get_friendly_name() + "/npuw_deepstack_optimum_residual_add");
+            ov::copy_runtime_info(add_node, residual);
+
+            ov::replace_node(add_node, residual);
+            register_new_node(residual);
+            matched = true;
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(add, "ov::npuw::DeepstackMaskedAddToAdd"),
+                         std::move(callback));
+    }
+};
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
@@ -161,6 +209,7 @@ bool ReplaceDeepstackScatterWithAdd::run_on_model(const std::shared_ptr<ov::Mode
     bool matched = false;
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<DeepstackScatterToAdd>(matched);
+    rewr.add_matcher<DeepstackMaskedAddToAdd>(matched);
     rewr.run_on_model(model);
 
     if (!matched) {

@@ -12,6 +12,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
@@ -116,6 +117,52 @@ std::shared_ptr<ov::Model> build_deepstack_model(bool with_slice_assign) {
                                        "deepstack_test_model");
 }
 
+// Builds a minimal model reproducing the optimum-intel exported Qwen3-VL DeepStack injection:
+// For each layer L:
+//   hidden = Add(hidden, Multiply(Reshape(Gather(Gather(deepstack, L), indices)), mask))
+// where mask is derived from visual_pos_masks.
+std::shared_ptr<ov::Model> build_optimum_deepstack_model() {
+    using ov::op::v0::Constant;
+    using ov::op::v0::Parameter;
+    using ov::op::v0::Result;
+
+    auto hidden = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, kSeq, kEmb});
+    hidden->set_friendly_name("inputs_embeds");
+    hidden->output(0).set_names({"inputs_embeds"});
+
+    auto deepstack = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{kNumLayers, -1, kEmb});
+    deepstack->set_friendly_name("deepstack_visual_embeds");
+    deepstack->output(0).set_names({"deepstack_visual_embeds"});
+
+    auto vpm = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, kSeq, 1});
+    vpm->set_friendly_name("visual_pos_masks");
+    vpm->output(0).set_names({"visual_pos_masks"});
+
+    auto axis0 = Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto axis1 = Constant::create(ov::element::i64, ov::Shape{}, {1});
+
+    // Dummy indices tensor representing torch.clamp(torch.cumsum(mask) - 1, min=0)
+    std::vector<int64_t> idx_vals(kSeq, 0);
+    auto indices = Constant::create(ov::element::i64, ov::Shape{static_cast<size_t>(kSeq)}, idx_vals);
+    auto reshape_shape = Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, kSeq, kEmb});
+
+    ov::Output<ov::Node> cur = hidden;
+    for (int64_t l = 0; l < kNumLayers; ++l) {
+        auto layer_idx = Constant::create(ov::element::i64, ov::Shape{}, {l});
+        auto select_layer = std::make_shared<ov::op::v8::Gather>(deepstack, layer_idx, axis0);
+        auto select_tokens = std::make_shared<ov::op::v8::Gather>(select_layer, indices, axis1);
+        auto reshape_tokens = std::make_shared<ov::op::v1::Reshape>(select_tokens, reshape_shape, false);
+        auto mult = std::make_shared<ov::op::v1::Multiply>(reshape_tokens, vpm);
+        auto add = std::make_shared<ov::op::v1::Add>(cur, mult);
+        cur = add;
+    }
+
+    auto result = std::make_shared<Result>(cur);
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       ov::ParameterVector{hidden, deepstack, vpm},
+                                       "optimum_deepstack_test_model");
+}
+
 // --- Test 1 -------------------------------------------------------------------
 // Core transformation: gather/scatter cluster replaced by residual adds, visual_pos_masks
 // dropped, deepstack kept as a single [num_layers, ...] input.
@@ -169,6 +216,34 @@ TEST(ReplaceDeepstackScatterWithAddTest, BypassesSliceAssignWrapper) {
 }
 
 // --- Test 3 -------------------------------------------------------------------
+// Transformation replaces the masked-add form produced by optimum-intel exports.
+TEST(ReplaceDeepstackScatterWithAddTest, ReplacesOptimumMaskedAddCluster) {
+    auto model = build_optimum_deepstack_model();
+
+    ASSERT_EQ(count_ops<ov::op::v1::Multiply>(model), static_cast<std::size_t>(kNumLayers));
+    ASSERT_EQ(count_ops<ov::op::v1::Add>(model), static_cast<std::size_t>(kNumLayers));
+    ASSERT_NE(find_param(model, "visual_pos_masks"), nullptr);
+    ASSERT_EQ(model->get_parameters().size(), 3u);
+
+    const bool changed = ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(model);
+    EXPECT_TRUE(changed);
+
+    // Multiply nodes are replaced; visual_pos_masks is pruned
+    EXPECT_EQ(count_ops<ov::op::v1::Multiply>(model), 0u);
+    EXPECT_EQ(find_param(model, "visual_pos_masks"), nullptr);
+    EXPECT_EQ(model->get_parameters().size(), 2u);
+
+    auto ds = find_param(model, "deepstack_visual_embeds");
+    ASSERT_NE(ds, nullptr);
+    ASSERT_EQ(ds->get_partial_shape().rank().get_length(), 3);
+    EXPECT_EQ(ds->get_partial_shape()[0].get_length(), kNumLayers);
+
+    // Exactly kNumLayers residual Add nodes remain, each fed by Gather(deepstack, L)
+    EXPECT_EQ(count_ops<ov::op::v8::Gather>(model), static_cast<std::size_t>(kNumLayers));
+    EXPECT_EQ(count_ops<ov::op::v1::Add>(model), static_cast<std::size_t>(kNumLayers));
+}
+
+// --- Test 4 -------------------------------------------------------------------
 // A model without deepstack must be left untouched (pass returns false).
 TEST(ReplaceDeepstackScatterWithAddTest, NoDeepstackIsUntouched) {
     using ov::op::v0::Parameter;
