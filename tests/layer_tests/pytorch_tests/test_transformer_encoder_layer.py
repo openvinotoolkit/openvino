@@ -127,3 +127,26 @@ class TestTransformerEncoderLayerFwd(PytorchLayerTest):
         self._test(aten_transformer_encoder_layer_module(norm_first, activation, mask_type, mask_data),
                    "aten::_transformer_encoder_layer_fwd", ie_device, precision, ir_version,
                    trace_model=True, custom_eps=1e-4)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_transformer_encoder_layer_dynamic_shapes(
+        self, ie_device, precision, ir_version
+    ):
+        self._test(
+            aten_transformer_encoder_layer_module(False, "relu"),
+            "aten::scaled_dot_product_attention",
+            ie_device,
+            precision,
+            ir_version,
+            dynamic_shapes=True,
+            dynamic_shapes_for_export={
+                "src": {
+                    0: torch.export.Dim("batch", min=1, max=4),
+                    1: torch.export.Dim("sequence", min=2, max=12),
+                }
+            },
+            fx_kind="aten.scaled_dot_product_attention.default",
+            custom_eps=1e-4,
+        )
