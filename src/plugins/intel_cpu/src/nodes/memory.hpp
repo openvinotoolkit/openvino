@@ -247,6 +247,7 @@ private:
     std::shared_ptr<ov::Model> body = nullptr;
     std::unique_ptr<ov::intel_cpu::Graph> subGraph = nullptr;
     std::vector<MemoryPtr> subgraphMemoryPtrs;
+    MemoryDescCPtr lastInitGraphOutputDesc;
 
     ProxyMemoryBlockPtr memBlock = nullptr;
 };
