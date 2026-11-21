@@ -14,6 +14,8 @@ GridSample
 
 **Detailed description:** *GridSample* operates on a 4D input tensor representing an image. It calculates the output by selecting a location in the input image based on the values of the ``grid`` input. The latter contains a pair of float numbers for each output element that the operator is supposed to produce. Conceptually the operator behaves like *Gather* or *GatherND* but the difference is that the pixels to be selected are denoted by pairs of floats which belong to the range ``[-1, 1]``. Those values have to be denormalized first (mapped to the integer coordinates of the input tensor) and then the output value is calculated according to the interpolation ``mode``.
 
+*GridSample* also supports 5D (volumetric) input. In that case the ``data`` tensor has the ``[N, C, D, H, W]`` layout and the ``grid`` tensor has the shape ``[N, D_out, H_out, W_out, 3]``, where the last dimension stores ``(x, y, z)`` triplets (``x`` maps to ``W``, ``y`` to ``H`` and ``z`` to ``D``). The ``bilinear`` mode performs trilinear interpolation over the 8 surrounding voxels and ``nearest`` selects the closest voxel. The ``bicubic`` mode is only defined for 4D input and is rejected for 5D. The number of spatial dimensions of ``data`` and the last dimension of ``grid`` must be consistent (``2`` for 4D, ``3`` for 5D).
+
 **Attributes**
 
 * *align_corners*
@@ -52,13 +54,17 @@ GridSample
 **Inputs**
 
 * **1**: ``data`` - Input tensor of type ``T`` with data to be sampled. This input is expected to
-  be a 4-dimensional tensor with NCHW layout. **Required.**
-* **2**: ``grid`` - A 4-dimensional tensor containing normalized sampling coordinates(pairs of floats).
-  The shape of this tensor is ``[N, H_out, W_out, 2]`` and the data type is ``T1``. **Required.**
+  be a 4-dimensional tensor with NCHW layout, or a 5-dimensional tensor with NCDHW layout for
+  volumetric sampling. **Required.**
+* **2**: ``grid`` - A tensor containing normalized sampling coordinates. For 4D ``data`` it is a
+  4-dimensional tensor of shape ``[N, H_out, W_out, 2]`` holding ``(x, y)`` pairs; for 5D ``data`` it
+  is a 5-dimensional tensor of shape ``[N, D_out, H_out, W_out, 3]`` holding ``(x, y, z)`` triplets.
+  The data type is ``T1``. **Required.**
 
 **Outputs**
 
-* **1**: A 4-dimensional tensor of type ``T`` with ``[N, C, H_out, W_out]`` shape.
+* **1**: A tensor of type ``T`` with ``[N, C, H_out, W_out]`` shape for 4D input, or
+  ``[N, C, D_out, H_out, W_out]`` for 5D input.
   It contains the interpolated values calculated by this operator.
 
 **Types**

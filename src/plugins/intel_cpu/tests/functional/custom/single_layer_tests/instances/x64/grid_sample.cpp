@@ -69,4 +69,19 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_2,
                                             ::testing::Values(additionalConfigX64[1])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    x64_smoke_5D,
+    GridSampleLayerTestCPU,
+    ::testing::Combine(::testing::Values(std::vector<InputShape>{{{}, {{1, 2, 3, 4, 5}}}, {{}, {{1, 3, 4, 2, 3}}}},
+                                         std::vector<InputShape>{{{}, {{2, 3, 4, 5, 6}}}, {{}, {{2, 6, 2, 3, 3}}}}),
+                       ::testing::Values(ov::op::v9::GridSample::InterpolationMode::BILINEAR,
+                                         ov::op::v9::GridSample::InterpolationMode::NEAREST),
+                       ::testing::ValuesIn(allPaddingModes()),
+                       ::testing::ValuesIn(alignCornersValues()),
+                       ::testing::Values(ElementType::f32),
+                       ::testing::Values(ElementType::f32),
+                       ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"}),
+                       ::testing::Values(additionalConfigX64[0])),
+    GridSampleLayerTestCPU::getTestCaseName);
+
 }  // namespace ov::test
