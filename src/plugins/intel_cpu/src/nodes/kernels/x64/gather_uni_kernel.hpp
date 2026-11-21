@@ -77,7 +77,7 @@ struct gatherJitExecArgs {
     // Blocked short.
     uint64_t specIdxAndAfterAxIterB = 0UL;
     uint64_t specIdxAndAfterAxSizeB = 0UL;
-    // Only static
+    // Precomputed per-thread offsets.
     const int* specIdxB = nullptr;
     const int* idxBatchSumB = nullptr;
     const int* dataBeforeAxisSumB = nullptr;

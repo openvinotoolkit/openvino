@@ -574,6 +574,25 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
             arg.workAmount = workAmount;
 
             const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
+            int specIdxInBytes[16];
+            int idxBatchSumInBytes[16];
+            int dataBeforeAxisSumInBytes[16];
+            // Keep the division in integer arithmetic. Thread offsets can exceed the
+            // exact integer range of float32 even when every byte offset fits int32.
+            for (uint64_t i = 0; i < idxElPerVec; i++) {
+                const uint64_t index = (start + i) / afterAxisSize;
+                specIdxInBytes[i] = static_cast<int>((index % specIndicesSize) * idxTypeSize);
+                idxBatchSumInBytes[i] =
+                    static_cast<int>((index / (betweenBatchAndAxisSize * specIndicesSize)) *
+                                     specIndicesSize * idxTypeSize);
+                dataBeforeAxisSumInBytes[i] =
+                    static_cast<int>((index / specIndicesSize) * axisAndAfterAxisSizeInBytes);
+            }
+            arg.specIdxB = specIdxInBytes;
+            arg.idxBatchSumB = idxBatchSumInBytes;
+            arg.dataBeforeAxisSumB = dataBeforeAxisSumInBytes;
+            arg.betweenBatchAndAxisIter = (start / specIndicesSize) % betweenBatchAndAxisSize;
+
             int permIdxMask[16];
             int beforeAxisDiff[16];
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) {
