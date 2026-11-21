@@ -190,6 +190,51 @@ TEST_F(CPUTensorTest, canAccessF16Tensor) {
     }
 }
 
+TEST_F(CPUTensorTest, canAccessSubByteTensorStrides) {
+    // BlockedMemoryDesc strides are always element-granular; for a dense u4 tensor of shape
+    // {2, 100} that is {100, 1}.
+    Shape shape{2, 100};
+    auto strides = ov::Strides({100, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::u4, t->get_element_type());
+    // byte strides: 100 elements * 4 bits / 8 bits = 50 bytes; the innermost dimension's byte
+    // stride is a non-addressable placeholder and must equal the element type size (1 byte).
+    ASSERT_EQ(ov::Strides({50, 1}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, canAccessSubBytePaddedTensorStrides) {
+    // row padded to 128 elements (64 bytes) instead of the dense 100 elements (50 bytes).
+    Shape shape{2, 100};
+    auto strides = ov::Strides({128, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::u4, t->get_element_type());
+    ASSERT_EQ(ov::Strides({64, 1}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, canAccessNonUnitInnermostStrideForByteGranularType) {
+    // Every other f16 element is used: innermost element stride is 2, not 1.
+    Shape shape{2, 3};
+    auto strides = ov::Strides({6, 2});
+
+    auto memptr = create_memory(create_memdesc(ov::element::f16, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::f16, t->get_element_type());
+    ASSERT_EQ(ov::Strides({12, 4}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, isContinuousDoesNotThrowForDenseSubByteTensorWithUnalignedShape) {
+    Shape shape{3, 5};
+    auto strides = ov::row_major_strides(ov::Shape{3, 5});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u4, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    EXPECT_NO_THROW(EXPECT_TRUE(t->is_continuous()));
+}
+
 // SetShape
 TEST_F(CPUTensorTest, canSetShape) {
     const Shape origShape = {1, 2, 3};

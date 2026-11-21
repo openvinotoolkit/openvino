@@ -5,6 +5,7 @@
 #include "cpu_tensor.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -93,10 +94,16 @@ void Tensor::update_strides() const {
     auto blocked_desc = m_memptr->getDescWithType<BlockedMemoryDesc>();
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
     const auto& strides = blocked_desc->getStrides();
+    const auto bitwidth = m_element_type.bitwidth();
     m_strides.resize(strides.size());
-    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this](const size_t stride) {
-        return stride * m_element_type.size();
+    std::ranges::transform(strides, m_strides.begin(), [bitwidth](const size_t stride) {
+        return stride * bitwidth / CHAR_BIT;
     });
+    if (!m_strides.empty() && bitwidth < CHAR_BIT && strides.back() != 0) {
+        // the innermost dimension's byte stride is a non-addressable placeholder for sub-byte
+        // types (unless the tensor is degenerate, i.e. its element stride is already 0)
+        m_strides.back() = m_element_type.size();
+    }
 }
 
 void* Tensor::data() {
