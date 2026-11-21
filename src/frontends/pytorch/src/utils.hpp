@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <tuple>
+
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
@@ -88,6 +90,13 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 
 op::PadType convert_pad(const std::string& pt_pad);
+
+// Returns the auto pad type and explicit pads for a convolution padding mode. "same" with unit strides and a static
+// kernel is converted to explicit pads, so later Pad fusion keeps its semantics.
+std::tuple<op::PadType, CoordinateDiff, CoordinateDiff> convert_conv_pad(const std::string& pt_pad,
+                                                                         const Output<Node>& weight,
+                                                                         const Strides& strides,
+                                                                         const Strides& dilations);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
 

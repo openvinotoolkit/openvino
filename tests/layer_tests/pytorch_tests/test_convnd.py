@@ -161,6 +161,33 @@ class TestConv3D(PytorchLayerTest):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version)
 
+class TestPadConv2DSame(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(1, 3, 24, 30),)
+
+    def create_model(self, kernel, dilation):
+        import torch
+        import torch.nn.functional as F
+
+        class pad_conv2d_same(torch.nn.Module):
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(4, 3, kernel, kernel)
+                self.dilation = dilation
+
+            def forward(self, x):
+                return F.conv2d(F.pad(x, [0, 1, 0, 1]), self.weight, padding="same", dilation=self.dilation)
+
+        return pad_conv2d_same(self.random), "aten::conv2d"
+
+    @pytest.mark.parametrize("kernel,dilation", [(3, 1), (4, 1), (3, 2)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_pad_conv2d_same(self, kernel, dilation, ie_device, precision, ir_version):
+        self._test(*self.create_model(kernel, dilation), ie_device, precision, ir_version)
+
+
 class TestConv2DInSubgraph(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np

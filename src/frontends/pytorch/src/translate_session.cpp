@@ -528,6 +528,12 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
             canonical_op_type = normalize_op_type(raw_op_type);
             it = m_translator_map.find(canonical_op_type);
         }
+        if (it == m_translator_map.end()) {
+            const auto legacy_op_type = context.get_decoder()->get_legacy_op_type();
+            if (!legacy_op_type.empty()) {
+                it = m_translator_map.find(legacy_op_type);
+            }
+        }
         const std::string& op_type = canonical_op_type.empty() ? raw_op_type : canonical_op_type;
         if (it != m_translator_map.end()) {
             auto outputs = it->second(context);
