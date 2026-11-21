@@ -474,5 +474,65 @@ TEST_F(TypePropCol2ImTest, kernel_size_product_wraps_to_zero) {
         HasSubstr("kernel_size product overflows"));
 }
 
+TEST_F(TypePropCol2ImTest, partially_dynamic_output_size_1d) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{1, 18, 16});
+    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{3, 3});
+
+    const auto op = make_op(data, output_size, kernel_size);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
+}
+
+TEST_F(TypePropCol2ImTest, partially_dynamic_kernel_size_1d) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 16});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{6, 6});
+    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+
+    const auto op = make_op(data, output_size, kernel_size);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{1, Dimension::dynamic(), 6, 6}));
+}
+
+TEST_F(TypePropCol2ImTest, partially_dynamic_output_size_interval_1d) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{1, 18, 16});
+    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{Dimension(1, 4)});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{3, 3});
+
+    const auto op = make_op(data, output_size, kernel_size);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
+}
+
+TEST_F(TypePropCol2ImTest, invalid_partially_dynamic_output_size_2d) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{1, 18, 16});
+    const auto output_size =
+        std::make_shared<Parameter>(element::i64, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{3, 3});
+
+    OV_EXPECT_THROW(std::ignore = make_op(data, output_size, kernel_size),
+                    ov::NodeValidationFailure,
+                    HasSubstr("output_size must be a 1D input of shape [2]"));
+}
+
+TEST_F(TypePropCol2ImTest, invalid_partially_dynamic_kernel_size_incompatible_interval) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{1, 18, 16});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{6, 6});
+    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{Dimension(3, 5)});
+
+    OV_EXPECT_THROW(std::ignore = make_op(data, output_size, kernel_size),
+                    ov::NodeValidationFailure,
+                    HasSubstr("kernel_size must be a 1D input of shape [2]"));
+}
+
 }  // namespace test
 }  // namespace ov

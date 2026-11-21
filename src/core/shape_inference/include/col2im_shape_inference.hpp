@@ -30,8 +30,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                            data_shape);
 
     const auto is_two_elem_1d = [](const TShape& shape) -> bool {
-        static const auto exp_shape = Shape{2};
-        return shape.rank().is_dynamic() || shape.to_shape() == exp_shape;
+        return shape.rank().compatible(1) && (shape.rank().is_dynamic() || shape[0].compatible(2));
     };
 
     if (output_size_shape.rank().is_static()) {
