@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/paged_causal_conv1d.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
@@ -65,6 +66,17 @@ protected:
         jit.make("HIDDEN_SIZE", static_cast<int>(input_shape[1].get_length()));
         jit.make("KERNEL_SIZE", static_cast<int>(state_shape[2].get_length()));
         jit.make("HAS_BIAS", has_bias ? 1 : 0);
+
+        // A single SWISH activation fused by prepare_primitive_fusing is applied in the epilogue (same contract as the
+        // ref kernel). Any other fused primitive is not handled here, so the guard in prepare_primitive_fusing only
+        // allows this one case and an unhandled fusion can never be silently dropped.
+        if (params.has_fused_primitives() && params.fused_desc.size() == 1 && params.fused_desc[0].is_type<cldnn::activation>()) {
+            const auto act = params.fused_desc[0].typed_desc<cldnn::activation>();
+            if (act->activation_function == cldnn::activation_func::swish) {
+                jit.make("FUSE_SWISH", 1);
+                jit.make("FUSE_SWISH_BETA", act->additional_params.a);
+            }
+        }
 
         return jit;
     }
