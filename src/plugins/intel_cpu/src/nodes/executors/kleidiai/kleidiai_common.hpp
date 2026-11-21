@@ -33,8 +33,13 @@
 #include "utils/precision_support.h"
 
 // Headers for F32 KAI kernels
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32p_f32p/kai_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32p_f32p/kai_matmul_clamp_f32_f32p_f32p_interface.h"
+#include "kai/ukernels/matmul/pack/kai_lhs_pack_f32p2vlx1_f32_sme.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 
 // Headers for INT8 KAI kernels
@@ -73,6 +78,7 @@ inline constexpr float FLOAT_MAX = std::numeric_limits<float>::max();
 inline constexpr float FLOAT_MIN = (-std::numeric_limits<float>::max());
 enum class KAIKernelTag : std::uint8_t {
     F32_NEON_MLA,
+    F32_SME2_MOPA,
     I8_NEON_DOTPROD,
     I8_NEON_IMM,
     I4_NEON_DOTPROD,
@@ -84,6 +90,7 @@ enum class KAIKernelTag : std::uint8_t {
 };
 
 using KernelInterface = std::variant<kai_matmul_clamp_f32_f32_f32p_ukernel,
+                                     kai_matmul_clamp_f32_f32p_f32p_ukernel,
                                      kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel,
                                      kai_matmul_clamp_f32_qai8dxp_qsi4cxp_ukernel,
                                      kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel,
@@ -151,6 +158,160 @@ template <KAIKernelTag tag>
 class uKernel;
 
 // uKernel specialized for FP32
+template <>
+class uKernel<KAIKernelTag::F32_SME2_MOPA> : public uKernelBase {
+private:
+    static constexpr kai_matmul_clamp_f32_f32p_f32p_ukernel mopaInterface{
+        kai_get_m_step_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_n_step_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_mr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_nr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_kr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_sr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_lhs_packed_offset_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_rhs_packed_offset_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_dst_offset_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_get_dst_size_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa,
+        kai_run_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa};
+    static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel mlaInterface{
+        kai_get_m_step_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_n_step_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_nr_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_kr_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_sr_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_lhs_offset_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_rhs_packed_offset_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_dst_offset_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_get_dst_size_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla,
+        kai_run_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla};
+    MemoryPtr rhsPackedMem;
+    MemoryPtr& lhsPackedMem;
+
+public:
+    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem) : lhsPackedMem(lhsPackedMem) {
+        this->N = N;
+        this->K = K;
+        this->mr = kai_get_mr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+        this->nr = kai_get_nr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+        this->kr = kai_get_kr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+        this->sr = kai_get_sr_matmul_clamp_f32_f32p2vlx1_f32p2vlx1biasf32_sme2_mopa();
+    }
+
+    size_t get_rhsPackedSize() override {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme(N, K);
+    }
+
+    void packData([[maybe_unused]] bool isTransposed,
+                  MemoryCPtr weightsMemory,
+                  MemoryPtr biasMem,
+                  [[maybe_unused]] bool hasBias,
+                  [[maybe_unused]] float* rhs_scales,
+                  MemoryPtr rhsPackedMemory) override {
+        rhsPackedMem = rhsPackedMemory;
+        kai_run_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme(1,
+                                                          N,
+                                                          K,
+                                                          kai_get_n_step_rhs_pack_kxn_f32p2vlx1biasf32_f32_f32_sme(),
+                                                          1,
+                                                          1,
+                                                          N * sizeof(float),
+                                                          weightsMemory->getData(),
+                                                          biasMem->getData(),
+                                                          nullptr,
+                                                          rhsPackedMem->getData(),
+                                                          0,
+                                                          nullptr);
+    }
+
+    KernelInterface getuKernelInterface() override {
+        return mopaInterface;
+    }
+
+    KAIKernelTag getKernelTag() override {
+        return KAIKernelTag::F32_SME2_MOPA;
+    }
+
+    size_t getLHSPackedSize(size_t m) override {
+        if (m <= 1) {
+            return 0;
+        }
+        packedlhs_block_in_bytes = kai_get_lhs_packed_size_lhs_pack_f32p2vlx1_f32_sme(m, K, mr, kr, sr);
+        return packedlhs_block_in_bytes;
+    }
+
+    void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
+                 ov::intel_cpu::Dim M,
+                 ov::intel_cpu::Dim K,
+                 ov::intel_cpu::MemoryPtr dstMem,
+                 ov::intel_cpu::MemoryPtr srcMem) override {
+        auto* lhs = srcMem->getDataAs<float>();
+        auto* dst = dstMem->getDataAs<float>();
+        auto* rhs_packed = rhsPackedMem->getDataAs<uint8_t>();
+        const size_t dst_stride_row = N * sizeof(float);
+        const size_t dst_stride_col = sizeof(float);
+
+        if (M == 1) {
+            const size_t n_step = mlaInterface.get_n_step();
+            const size_t n_blocks = (N + n_step - 1) / n_step;
+            cpu_parallel->parallel_for(n_blocks, [&](size_t n_block) {
+                const size_t n_start = n_block * n_step;
+                const size_t n_iter = std::min(N - n_start, n_step);
+                const size_t rhs_offset = mlaInterface.get_rhs_packed_offset(n_start, K);
+                const size_t dst_offset = mlaInterface.get_dst_offset(0, n_start, dst_stride_row);
+                kai_run_matmul_clamp_f32_f32_f32p2vlx1b_1x16vl_sme2_mla(1,
+                                                                        n_iter,
+                                                                        K,
+                                                                        lhs,
+                                                                        K * sizeof(float),
+                                                                        rhs_packed + rhs_offset,
+                                                                        dst + dst_offset / sizeof(float),
+                                                                        dst_stride_row,
+                                                                        dst_stride_col,
+                                                                        FLOAT_MIN,
+                                                                        FLOAT_MAX);
+            });
+            return;
+        }
+
+        const size_t m_step = mopaInterface.get_m_step();
+        const size_t n_step = mopaInterface.get_n_step();
+        auto* lhs_packed = lhsPackedMem->getDataAs<uint8_t>();
+        kai_run_lhs_pack_f32p2vlx1_f32_sme(M,
+                                           K,
+                                           kai_get_m_step_lhs_pack_f32p2vlx1_f32_sme(mr),
+                                           kr,
+                                           sr,
+                                           0,
+                                           lhs,
+                                           K * sizeof(float),
+                                           lhs_packed);
+        const size_t m_blocks = (M + m_step - 1) / m_step;
+        const size_t n_blocks = (N + n_step - 1) / n_step;
+        ParallelNestingContext nested_context;
+        cpu_parallel->parallel_for(m_blocks, [&](size_t m_block) {
+            const size_t m_start = m_block * m_step;
+            const size_t m_iter = std::min(M - m_start, m_step);
+            const size_t lhs_offset = mopaInterface.get_lhs_packed_offset(m_start, K);
+            cpu_parallel->parallel_for(n_blocks, [&](size_t n_block) {
+                const size_t n_start = n_block * n_step;
+                const size_t n_iter = std::min(N - n_start, n_step);
+                const size_t rhs_offset = mopaInterface.get_rhs_packed_offset(n_start, K);
+                const size_t dst_offset = mopaInterface.get_dst_offset(m_start, n_start, dst_stride_row);
+                mopaInterface.run_matmul(m_iter,
+                                         n_iter,
+                                         K,
+                                         lhs_packed + lhs_offset,
+                                         rhs_packed + rhs_offset,
+                                         dst + dst_offset / sizeof(float),
+                                         dst_stride_row,
+                                         dst_stride_col,
+                                         FLOAT_MIN,
+                                         FLOAT_MAX);
+            });
+        });
+    }
+};
+
 template <>
 class uKernel<KAIKernelTag::F32_NEON_MLA> : public uKernelBase {
 private:
