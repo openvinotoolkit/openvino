@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cache_warmup.hpp"
+#include "cache_manager.hpp"
 #include "common.hpp"
 #include "compiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -100,12 +100,12 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
-    CacheWarmupManager& get_cache_warmup_manager() {
-        return *m_cache_warmup_manager;
+    CacheManager& get_cache_manager() {
+        return *m_cache_manager;
     }
 
-    const CacheWarmupManager& get_cache_warmup_manager() const {
-        return *m_cache_warmup_manager;
+    const CacheManager& get_cache_manager() const {
+        return *m_cache_manager;
     }
 
 private:
@@ -113,6 +113,8 @@ private:
                                                            const std::shared_ptr<const ov::Model>& model,
                                                            const ov::AnyMap& properties,
                                                            const std::string& model_precision = "FP32") const;
+    // the config a device is compiled with: the supported user properties plus the default hints AUTO adds
+    ov::AnyMap get_device_config(const DeviceName& device_with_id, const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device(const std::vector<DeviceInformation>& meta_devices,
                                                  const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
@@ -135,7 +137,7 @@ private:
     PluginConfig m_plugin_config;
     mutable std::once_flag m_telemetry_client_init_once;
     mutable std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
-    std::unique_ptr<CacheWarmupManager> m_cache_warmup_manager = std::make_unique<CacheWarmupManager>();
+    std::unique_ptr<CacheManager> m_cache_manager = std::make_unique<CacheManager>();
 };
 
 }  // namespace auto_plugin

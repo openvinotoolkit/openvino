@@ -6,6 +6,8 @@
 #pragma once
 
 #include "common.hpp"
+#include "compile_service.hpp"
+#include "instance_registry.hpp"
 #include "itt.hpp"
 
 namespace ov {
@@ -21,6 +23,8 @@ public:
     void run(ov::threading::Task infer_task) override;
     virtual ~Schedule();
     virtual ISyncInferPtr create_sync_infer_request();
+    // the published instance that answers the model queries, read without any lock of the scheduler
+    ActiveDevice get_active_device() const;
     static thread_local WorkerInferRequest* m_this_worker_infer_request;
     // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
@@ -32,22 +36,38 @@ public:
 protected:
     virtual void init() = 0;
     virtual void release_execution_slot() {}
-    static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
-                                  const DeviceName& preferred_device);
-    virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_model);
-    virtual void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) = 0;
+    // runs the task on an idle worker of the pool, which stays leased until the inference completes
+    static bool run_pipeline_task(ov::threading::Task& pipeline_task, WorkerPool& pool);
+    virtual void generate_workers(const ModelInstanceKey& key, const SoCompiledModel& compiled_model);
+    // the result is empty if the compilation failed or the context reuses a ready device
+    virtual CompileResult try_to_compile_model(CompileRequest& request, const std::shared_ptr<ov::Model>& model) = 0;
     virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
-    virtual bool select_other_device(const std::string& cur_dev_name) = 0;
+    // picks another device after an inference failed on the given instance
+    virtual bool select_other_device(const ModelInstanceKey& failed_instance) = 0;
     virtual SoCompiledModel wait_first_compiled_model_ready() = 0;
     std::string get_log_tag() const noexcept;
+    // keeps the ports of the first compiled model and the default remote context of its device, not the model
+    void capture_hw_metadata(const SoCompiledModel& first_compiled_model);
+    // add_device_context() is idempotent and must not be called once the scheduler serves requests
+    DeviceExecutionContext& add_device_context(const ModelInstanceKey& key);
+    // asserts if the instance was not added by init()
+    DeviceExecutionContext& get_device_context(const ModelInstanceKey& key);
+    DeviceExecutionContext* find_device_context(const ModelInstanceKey& key);
+    // moves a successful compilation into the context of request.instance_key(): creates the workers, and the
+    // context becomes the owner of the model
+    DeviceExecutionContext& register_compile_result(const CompileRequest& request, SoCompiledModel compiled_model);
+    // records a failed compilation in the context of the device the compile context targets
+    void mark_compile_failure(const CompileRequest& request, const std::string& reason);
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
-    DeviceMap<NotBusyPriorityWorkerRequests>                             m_idle_worker_requests;
-    DeviceMap<std::vector<WorkerInferRequest>>                           m_worker_requests;
-    // start/end times of the workers released with their compiled model, merged into the summary of ~Schedule()
-    DeviceMap<std::pair<std::list<Time>, std::list<Time>>>               m_released_infer_times;
     TaskQueue                                                            m_infer_pipeline_tasks;
-    DeviceMap<std::unique_ptr<TaskQueue>>                                m_infer_pipeline_tasks_device_specific;
-    SoCompiledModel                                                      m_passthrough_compiled_model;
+    // filled by init() only, the contexts keep their address until the schedule is destroyed
+    InstanceRegistry                                                     m_instances;
+    // created by launch() before init(), every compilation of the schedule goes through it
+    std::unique_ptr<CompileService>                                      m_compile_service;
+    // the context holding the compiled model that serves every request directly, null if requests are scheduled
+    DeviceExecutionContext*                                              m_passthrough_context = nullptr;
+    // set before compiling: the model is only held by its context, no worker is created for it
+    bool                                                                 m_model_only = false;
     ScheduleContext::Ptr                                                 m_context;
     std::shared_ptr<Plugin>                                              m_plugin;
     std::string                                                          m_log_tag;

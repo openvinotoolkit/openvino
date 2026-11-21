@@ -3,6 +3,8 @@
 //
 
 #include <common_test_utils/test_constants.hpp>
+#include <atomic>
+#include <chrono>
 #include <thread>
 
 #include "include/auto_unit_test.hpp"
@@ -145,6 +147,58 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
             continue;
         OV_ASSERT_NO_THROW(exeNetwork->get_property(cfg).as<std::string>());
     }
+}
+
+TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, queriesRunConcurrentlyWithTheHelperRelease) {
+    const auto& [cpuSleep, actSleep] = this->GetParam();
+    plugin->set_device_name("AUTO");
+    ON_CALL(*mockIExeNet.get(), get_runtime_model()).WillByDefault(Return(model));
+    ON_CALL(*mockIExeNetActual.get(), get_runtime_model()).WillByDefault(Return(model));
+    ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::loaded_from_cache.name())))
+        .WillByDefault(Return(ov::Any(false)));
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::loaded_from_cache.name())))
+        .WillByDefault(Return(ov::Any(false)));
+    const auto compile_on = [this](const std::string& device, const ov::SoPtr<ov::MockICompiledModel>& compiled, bool slow) {
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(device)),
+                              _))
+            .WillByDefault(InvokeWithoutArgs([compiled, slow]() {
+                if (slow) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                return compiled;
+            }));
+    };
+    compile_on(ov::test::utils::DEVICE_GPU, mockExeNetworkActual, actSleep);
+    compile_on(ov::test::utils::DEVICE_CPU, mockExeNetwork, cpuSleep);
+    metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
+    ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
+    ON_CALL(*plugin, get_valid_device)
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string&) {
+            return std::list<DeviceInformation>(metaDevices.begin(), metaDevices.end());
+        });
+    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _, _, _))
+        .WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _, _, _))
+        .WillByDefault(Return(metaDevices[0]));
+    config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    // the actual device becomes ready and the helper is released while the queries keep running
+    std::atomic<bool> done{false};
+    std::thread querier([&] {
+        while (!done) {
+            EXPECT_NO_THROW(compiled_model->get_property(ov::loaded_from_cache.name()));
+            EXPECT_NO_THROW(compiled_model->get_property(ov::device::properties.name()));
+            EXPECT_NO_THROW(compiled_model->get_property(ov::execution_devices.name()));
+            EXPECT_NO_THROW(compiled_model->get_property(ov::model_name.name()));
+            EXPECT_NO_THROW(compiled_model->get_runtime_model());
+        }
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    done = true;
+    querier.join();
 }
 
 TEST_P(AutoReleaseHelperTest, releaseResource) {

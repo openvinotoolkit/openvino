@@ -296,10 +296,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", false}, {"GPU.1", true}}, 1, true, false, false, false},
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}}, 1, true, false, false, false},
-    // CPU_HELP does not throw
+    // the startup helper does not throw
     ConfigParams{{{"GPU.0", false}, {"CPU", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", false}}, 2, true, false, false, false},
-    // CPU_HELP throw
+    // the startup helper throws
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, true, true, false, false},
     // 3 devices
@@ -307,11 +307,11 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"OTHER", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", false}}, 3, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", true}}, 3, true, true, false, false},
-    // CPU_HELP does not throw
+    // the startup helper does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", false}}, 2, true, false, false, false},
-    // CPU_HELP throw
+    // the startup helper throws
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", true}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 3, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 3, true, true, false, false},
@@ -320,10 +320,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}}, 1, false, true, false, false},
     ConfigParams{{{"GPU.0", false}, {"GPU.1", true}}, 1, false, false, false, false},
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}}, 1, false, false, false, false},
-    // CPU_HELP does not throw
+    // the startup helper does not throw
     ConfigParams{{{"GPU.0", false}, {"CPU", false}}, 2, false, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", false}}, 2, false, false, false, false},
-    // CPU_HELP throw
+    // the startup helper throws
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, false, true, false, false},
     // 3 devices
@@ -331,11 +331,11 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"OTHER", false}}, 1, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", false}}, 1, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", true}}, 1, false, true, false, false},
-    // CPU_HELP does not throw
+    // the startup helper does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", false}}, 2, false, false, false, false},
-    // CPU_HELP throw
+    // the startup helper throws
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 2, false, true, false, false},

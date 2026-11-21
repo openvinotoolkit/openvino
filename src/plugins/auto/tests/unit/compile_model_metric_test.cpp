@@ -242,6 +242,9 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
     // only logged by AUTO after a compile
     EXPECT_CALL(*mockIExeNet.get(), get_property(StrEq(ov::loaded_from_cache.name()))).Times(AnyNumber());
     EXPECT_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::loaded_from_cache.name()))).Times(AnyNumber());
+    // read once by AUTO from the first compiled model
+    EXPECT_CALL(*mockIExeNet.get(), get_property(StrEq(ov::model_name.name()))).Times(AnyNumber());
+    EXPECT_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::model_name.name()))).Times(AnyNumber());
 
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
