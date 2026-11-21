@@ -2496,11 +2496,11 @@ void jit_soft_sign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux = Vmm(aux_vec_idxs[0]);
 
-    // y = x; x = abs(x); x++; y = y/x
-    h->uni_vmovups(vmm_aux, vmm_src);
-    h->uni_vandps(vmm_dst, vmm_src, table_val("positive_mask"));
-    h->uni_vaddps(vmm_dst, vmm_dst, table_val("one"));
-    h->uni_vdivps(vmm_dst, vmm_aux, vmm_dst);
+    // y = x / (|x| + 1). The denominator goes to vmm_aux, not vmm_dst: on SSE4.1, uni_vdivps(dst, a, b)
+    // copies a into dst before dividing, which would overwrite a denominator held in dst.
+    h->uni_vandps(vmm_aux, vmm_src, table_val("positive_mask"));
+    h->uni_vaddps(vmm_aux, vmm_aux, table_val("one"));
+    h->uni_vdivps(vmm_dst, vmm_src, vmm_aux);
 }
 
 void jit_soft_sign_emitter::register_table_entries() {
