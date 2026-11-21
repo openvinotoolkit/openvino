@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/openvino.hpp"
 
 using namespace ov;
@@ -536,4 +537,162 @@ TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_last_dim) {
                                                                                    causal),
                     AssertFailure,
                     testing::HasSubstr("Sink input has not compatible shape."));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_key) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 6});
+    auto causal = false;
+
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_key_and_value_5_inputs) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::u8, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::i4, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_key_and_value_6_inputs) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_key_dynamic_query_type) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{2, 5, 6});
+    auto causal = false;
+
+    const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_query_still_rejected) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 6});
+    auto causal = false;
+
+    OV_EXPECT_THROW(auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal),
+                    AssertFailure,
+                    testing::HasSubstr("The element type of the input tensor must be a floating-point."));
+}
+
+TEST(type_prop, scaled_dot_product_attention_non_quantized_integer_key_still_rejected) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 6});
+    auto causal = false;
+
+    OV_EXPECT_THROW(auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, causal),
+                    AssertFailure,
+                    testing::HasSubstr("Mixed input types are not supported."));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_attention_mask_still_rejected) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{1, 3, 5});
+    auto causal = false;
+
+    OV_EXPECT_THROW(
+        auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
+        AssertFailure,
+        testing::HasSubstr("The element type of attention_mask must be either floating-point or boolean."));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_sink_still_rejected) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 3, 1});
+    auto causal = false;
+
+    OV_EXPECT_THROW(auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   attention_mask,
+                                                                                   scale,
+                                                                                   sink,
+                                                                                   causal),
+                    AssertFailure,
+                    testing::HasSubstr("Mixed input types are not supported."));
+}
+
+TEST(type_prop, scaled_dot_product_attention_quantized_scale_still_rejected) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{});
+    auto causal = false;
+
+    OV_EXPECT_THROW(
+        auto op =
+            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal),
+        AssertFailure,
+        testing::HasSubstr("Mixed input types are not supported."));
+}
+
+// Seven consumers gate on these two predicates, so pin the set here: a consumer that disagrees
+// with the op about which operands are integers would reinterpret them instead of converting them.
+TEST(type_prop, scaled_dot_product_attention_integer_kv_type_predicate) {
+    using SDPA = op::v13::ScaledDotProductAttention;
+    using op::util::is_sdpa_integer_kv_type, op::util::sdpa_has_integer_kv;
+
+    for (const auto& type : {element::i8, element::u8, element::i4, element::u4}) {
+        EXPECT_TRUE(is_sdpa_integer_kv_type(type)) << type;
+    }
+    for (const auto& type : {element::f16,
+                             element::f32,
+                             element::f64,
+                             element::bf16,
+                             element::i16,
+                             element::i32,
+                             element::i64,
+                             element::u16,
+                             element::u32,
+                             element::u64,
+                             element::boolean,
+                             element::nf4,
+                             element::f8e4m3,
+                             element::dynamic}) {
+        EXPECT_FALSE(is_sdpa_integer_kv_type(type)) << type;
+    }
+
+    const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
+    const auto f16_key = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 4});
+    const auto i8_key = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{2, 5, 4});
+    const auto f16_value = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 6});
+    const auto u4_value = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{2, 5, 6});
+
+    EXPECT_FALSE(sdpa_has_integer_kv(SDPA(query, f16_key, f16_value, false)));
+    EXPECT_TRUE(sdpa_has_integer_kv(SDPA(query, i8_key, f16_value, false)));
+    EXPECT_TRUE(sdpa_has_integer_kv(SDPA(query, f16_key, u4_value, false)));
 }
