@@ -104,6 +104,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.cumsum.default": None,
             "torch.ops.aten.detach.default": None,
             "torch.ops.aten.detach_.default": None,
+            "torch.ops.aten.diagonal.default": None,
             "torch.ops.aten.div.Scalar": None,
             "torch.ops.aten.div.Tensor": None,
             "torch.ops.aten.div.Tensor_mode": None,

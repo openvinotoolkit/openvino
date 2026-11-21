@@ -62,4 +62,26 @@ static std::vector<reshapeParams> generate_tests() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReshapeTests, ReshapeLayerTest, ::testing::ValuesIn(generate_tests()), ReshapeLayerTest::getTestCaseName);
 
+// Static empty tensors: a literal 0 in the pattern (special_zero=false) is a real zero-sized dim.
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeZeroDims, ReshapeLayerTest,
+        ::testing::Combine(
+                ::testing::Values(false),
+                ::testing::Values(ov::element::f32, ov::element::f16, ov::element::i64),
+                ::testing::Values(std::vector<size_t>({2, 0, 4})),
+                ::testing::Values(std::vector<int64_t>({2, 0}),
+                                  std::vector<int64_t>({0, 8}),
+                                  std::vector<int64_t>({2, 0, 2, 2}),
+                                  std::vector<int64_t>({0})),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                ReshapeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeZeroDimsSpecialZero, ReshapeLayerTest,
+        ::testing::Combine(
+                ::testing::Values(true),
+                ::testing::Values(ov::element::f32),
+                ::testing::Values(std::vector<size_t>({2, 0, 4})),
+                ::testing::Values(std::vector<int64_t>({0, 0})),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                ReshapeLayerTest::getTestCaseName);
+
 }  // namespace
