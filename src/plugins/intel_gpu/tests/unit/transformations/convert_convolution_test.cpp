@@ -269,6 +269,68 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_5) {
     }
 }
 
+// Runtime weights with dynamic output channels and kernel size, e.g. filters built from another dynamic-shape input
+TEST_F(TransformationTestsF, ConvertConvolutionToInternal_RuntimeWeightsDynamicOutputChannels) {
+    ov::Strides strides{1, 1};
+    ov::Strides dilations{1, 1};
+    ov::CoordinateDiff pads_begin{0, 0};
+    ov::CoordinateDiff pads_end{0, 0};
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ 1, 3, -1, -1 });
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 3, -1, -1 });
+        auto conv = std::make_shared<ov::op::v1::Convolution>(input,
+                                                              weights,
+                                                              strides,
+                                                              pads_begin,
+                                                              pads_end,
+                                                              dilations,
+                                                              ov::op::PadType::EXPLICIT);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input, weights});
+        manager.register_pass<ConvertConvolutionToInternal>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ 1, 3, -1, -1 });
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 3, -1, -1 });
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto conv = std::make_shared<ov::intel_gpu::op::Convolution>(input,
+                                                                     weights,
+                                                                     no_bias,
+                                                                     strides,
+                                                                     pads_begin,
+                                                                     pads_end,
+                                                                     dilations,
+                                                                     -1,
+                                                                     ov::op::PadType::EXPLICIT,
+                                                                     ov::element::f32);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input, weights});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+// The groups count is the first dimension of grouped weights, so it must stay static for the internal Convolution
+TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_DynamicGroupsNotConverted) {
+    ov::Strides strides{1, 1};
+    ov::Strides dilations{1, 1};
+    ov::CoordinateDiff pads_begin{0, 0};
+    ov::CoordinateDiff pads_end{0, 0};
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ 1, 8, -1, -1 });
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, -1, -1, 3, 3 });
+        auto conv = std::make_shared<ov::op::v1::GroupConvolution>(input,
+                                                                   weights,
+                                                                   strides,
+                                                                   pads_begin,
+                                                                   pads_end,
+                                                                   dilations,
+                                                                   ov::op::PadType::EXPLICIT);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input, weights});
+        manager.register_pass<ConvertConvolutionToInternal>();
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_1) {
     ov::Strides strides{1, 1};
     ov::Strides dilations{1, 1};
