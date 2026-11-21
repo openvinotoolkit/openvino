@@ -19,8 +19,11 @@ RUN apt-get update && \
     apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
+    add-apt-repository --yes --no-update ppa:kobuk-team/intel-graphics && \
     apt-get update && \
     apt-get install \
+    libze-dev \
+    libze1 \
     curl \
     git \
     gpg-agent \
@@ -85,4 +88,3 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 # Install newer ninja (apt ships 1.10.1 on 22.04 / 1.11.1 on 24.04; pin for consistency)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
-
