@@ -28,6 +28,9 @@ namespace metric_defaults {
     constexpr double psnr_reference       = 30.0;
     constexpr double psnr_tolerance       = 1e-4;
     constexpr double sem_seg_threshold    = 0.98;
+    constexpr double pixellink_text_threshold = 0.55;
+    constexpr double pixellink_link_threshold = 0.60;
+    constexpr double pixellink_nms_iou        = 0.50;
 } // namespace metric_defaults
 
 /**
@@ -112,6 +115,10 @@ DECLARE_uint32(sem_seg_classes);
 DECLARE_string(sem_seg_threshold);
 DECLARE_uint32(sem_seg_ignore_label);
 DECLARE_string(dataset);
+DECLARE_string(pixellink_text_threshold);
+DECLARE_string(pixellink_link_threshold);
+DECLARE_string(pixellink_nms_iou);
+DECLARE_string(pixellink_image_size);
 
 namespace utils {
 

@@ -5,6 +5,7 @@
 #include "map_metric_helpers.hpp"
 
 #include "argument_parse_helpers.hpp"
+#include "pixellink_helpers.hpp"
 #include "tensor_utils.hpp"
 
 #include <algorithm>
@@ -199,9 +200,57 @@ static std::vector<Detection> parseTwoTensorDetections(const ov::Tensor& pred_bo
     return detections;
 }
 
+// Reduce PixelLink oriented polygons to axis-aligned detection boxes so that the
+// standard mAP matching (which works on axis-aligned Detection boxes) can be reused.
+// Scene-text detection is single-class, so every box is assigned class_id 0.
+static std::vector<Detection> parsePixelLinkDetections(const std::map<std::string, ov::Tensor>& outputs,
+                                                       float confidence_threshold,
+                                                       const pixellink::DecodeParams& params) {
+    std::vector<Detection> detections;
+
+    std::vector<pixellink::ScaleData> scales;
+    if (!pixellink::buildScales(outputs, scales)) {
+        return detections;
+    }
+
+    std::vector<pixellink::Polygon> polygons;
+    std::vector<float> scores;
+    pixellink::decodeLinkAware(scales, params, polygons, scores);
+
+    for (size_t i = 0; i < polygons.size(); ++i) {
+        const auto& poly = polygons[i];
+        if (poly.size() < 3) {
+            continue;
+        }
+
+        float score = i < scores.size() ? scores[i] : 0.0f;
+        if (score <= confidence_threshold) {
+            continue;
+        }
+
+        float x_min = std::numeric_limits<float>::max();
+        float y_min = std::numeric_limits<float>::max();
+        float x_max = std::numeric_limits<float>::lowest();
+        float y_max = std::numeric_limits<float>::lowest();
+        for (const auto& pt : poly) {
+            x_min = std::min(x_min, pt.x);
+            y_min = std::min(y_min, pt.y);
+            x_max = std::max(x_max, pt.x);
+            y_max = std::max(y_max, pt.y);
+        }
+
+        if (x_max > x_min && y_max > y_min) {
+            detections.emplace_back(x_min, y_min, x_max, y_max, score, 0);
+        }
+    }
+
+    return detections;
+}
+
 // Automatically detects the output formats for DETR and YOLOv10 style models
 std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov::Tensor>& outputs,
-                                                  float confidence_threshold) {
+                                                  float confidence_threshold,
+                                                  const pixellink::DecodeParams& pixellinkParams) {
     std::vector<Detection> detections;
 
     if (outputs.empty()) {
@@ -217,7 +266,27 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
         return parseTwoTensorDetections(pred_boxes_it->second, logits_it->second, confidence_threshold);
     }
 
-    // Strategy 2: Single output tensor so parse as combined detections
+    // Strategy 2: PixelLink scene-text heads (multiple 4D [1, C, H, W] score/delta/link
+    // tensors). Decode oriented polygons and reduce them to axis-aligned boxes.
+    {
+        bool all_4d = true;
+        for (const auto& [name, tensor] : outputs) {
+            const auto shape = tensor.get_shape();
+            if (shape.size() != 4 || shape[0] != 1) {
+                all_4d = false;
+                break;
+            }
+        }
+
+        if (all_4d) {
+            std::vector<Detection> pixellink_detections = parsePixelLinkDetections(outputs, confidence_threshold, pixellinkParams);
+            if (!pixellink_detections.empty()) {
+                return pixellink_detections;
+            }
+        }
+    }
+
+    // Strategy 3: Single output tensor so parse as combined detections
     if (outputs.size() == 1) {
         const auto& [name, tensor] = *outputs.begin();
         const auto shape = tensor.get_shape();
@@ -231,7 +300,7 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
         return detections;
     }
 
-    // Strategy 3: Two outputs without standard names so infer roles by shape
+    // Strategy 4: Two outputs without standard names so infer roles by shape
     // The tensor with last dim == 4 is boxes, the other is logits/classes
     if (outputs.size() == 2) {
         const ov::Tensor* boxes_tensor = nullptr;
