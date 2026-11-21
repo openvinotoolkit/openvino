@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <memory>
 #include <type_traits>
@@ -35,6 +34,8 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
+using ov::intel_cpu::CacheSpec;
+using ov::intel_cpu::is_quantized_cache;
 using ov::intel_cpu::PlainTensor;
 
 namespace {

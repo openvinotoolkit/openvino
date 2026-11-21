@@ -124,7 +124,7 @@ public:
     VariableStateKVcache(const std::string& name,
                          MemoryDescPtr external_desc,
                          BlockedMemoryDescPtr dense_internal_desc,
-                         ov::Extensions::Cpu::CacheSpec spec);
+                         ov::intel_cpu::CacheSpec spec);
 
     // ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;
@@ -162,7 +162,7 @@ public:
         m_scale_zp = t;
     }
 
-    const ov::Extensions::Cpu::CacheSpec& get_spec() const {
+    const ov::intel_cpu::CacheSpec& get_spec() const {
         return m_spec;
     }
 
@@ -182,7 +182,7 @@ private:
 
     // for u8 kv cache: [B, H, L, 2], 0 for scale, 1 for zp
     PlainTensor m_scale_zp;
-    ov::Extensions::Cpu::CacheSpec m_spec;
+    ov::intel_cpu::CacheSpec m_spec;
 };
 
 #if defined(OPENVINO_ARCH_X86_64)

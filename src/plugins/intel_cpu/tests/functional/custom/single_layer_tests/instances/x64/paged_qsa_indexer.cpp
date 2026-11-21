@@ -26,13 +26,6 @@ constexpr size_t kPageSize = 32;
 
 }  // namespace
 
-// The steps of the query that the op applies (query_norm / query_rope): both, one of them, or none of them (the graph
-// in front of the op does the rest). The host reference applies the same steps.
-static const auto all_query_fusion_types = testing::Values(QSAIndexerQueryFusionType::kNormAndRope,
-                                                           QSAIndexerQueryFusionType::kNormOnly,
-                                                           QSAIndexerQueryFusionType::kRopeOnly,
-                                                           QSAIndexerQueryFusionType::kNone);
-
 // H_iq == H_ik, h_sel == 1: every index-query head contributes to the single selection head.
 INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Hsel1,
                          PagedQSAIndexerLayerCPUTest,
@@ -44,7 +37,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Hsel1,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({7})),
                                           testing::Values(kPageSize),
-                                          all_query_fusion_types),
+                                          all_query_fusion_types,
+                                          testing::Values(PagedQSAIndexerScenario::kReference)),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // H_iq = 2 * H_ik, h_sel == H_ik: exercises the grouped per-selection-head scoring path.
@@ -58,7 +52,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_HselEqualsHik,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({7})),
                                           testing::Values(kPageSize),
-                                          all_query_fusion_types),
+                                          all_query_fusion_types,
+                                          testing::Values(PagedQSAIndexerScenario::kReference)),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // Other query lengths: a decode step (1 token: a block completes or not, nothing or the past blocks to score) and a
@@ -74,7 +69,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Lengths,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({1}), calls({20})),
                                           testing::Values(kPageSize),
-                                          all_query_fusion_types),
+                                          all_query_fusion_types,
+                                          testing::Values(PagedQSAIndexerScenario::kReference)),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // Long sequences over many pages: the scoring takes 32 blocks at a time, which run over two pages (a page of 32 tokens
@@ -92,7 +88,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_LongSequences,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({1}), calls({300})),
                                           testing::Values(kPageSize),
-                                          all_query_fusion_types),
+                                          all_query_fusion_types,
+                                          testing::Values(PagedQSAIndexerScenario::kReference)),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // Several calls over the same sequences and caches, the way a model runs: a prefill, then decode steps (a block
@@ -108,7 +105,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_MultiCall,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({7, 1, 1, 1, 5, 1})),
                                           testing::Values(kPageSize),
-                                          all_query_fusion_types),
+                                          all_query_fusion_types,
+                                          testing::Values(PagedQSAIndexerScenario::kReference)),
+                         PagedQSAIndexerLayerCPUTest::getTestCaseName);
+
+// Degenerate scores: NaN in the keys, scores overflowing to +-Inf / NaN, and scores that differ by less than
+// 256 / FLT_MAX (the gains of the last two are out of the f16 range). 160 tokens give 40 blocks to choose 2 from, so
+// the vectorized selection runs. There is no reference: the selection invariants are checked.
+INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_DegenerateScores_NaN,
+                         PagedQSAIndexerLayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
+                                          testing::Values(static_cast<size_t>(2), static_cast<size_t>(4)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(calls({160})),
+                                          testing::Values(kPageSize),
+                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope),
+                                          testing::Values(PagedQSAIndexerScenario::kNaNScores)),
+                         PagedQSAIndexerLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_DegenerateScores_OverflowAndTiny,
+                         PagedQSAIndexerLayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::f32, ov::element::bf16),
+                                          testing::Values(static_cast<size_t>(2), static_cast<size_t>(4)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(calls({160})),
+                                          testing::Values(kPageSize),
+                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope),
+                                          testing::Values(PagedQSAIndexerScenario::kOverflowScores,
+                                                          PagedQSAIndexerScenario::kTinyScores)),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 }  // namespace test

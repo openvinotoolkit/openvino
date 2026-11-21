@@ -63,8 +63,6 @@ ov::Tensor make_zero_tensor(const ov::element::Type& precision, const ov::Shape&
     return t;
 }
 
-namespace {
-
 float rms_inv_scale(const float* x, size_t n, float eps) {
     float sumsq = 0.0F;
     for (size_t i = 0; i < n; i++) {
@@ -135,7 +133,6 @@ void query_row_ref(const float* src,
 // of the CPU node's PlainTensor-based indexing/control flow. `summary_cache`/`past_raw_k`/
 // `past_rope` are caller-owned state threaded in by reference across sequential calls, mirroring
 // the production op's state (fed back from the op's state outputs).
-}  // namespace
 
 QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
                                                     int64_t length,

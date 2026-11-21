@@ -8,18 +8,18 @@
 // Nothing here is instruction-set specific.
 
 #include <algorithm>
-#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <tuple>
-#include <utility>
 
 #include "cpu_parallel.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "utils/plain_tensor.hpp"
+
+namespace ov::intel_cpu {
+class BrgemmKernel;
+}  // namespace ov::intel_cpu
 
 namespace ov::Extensions::Cpu::qsa {
 
@@ -38,54 +38,26 @@ struct Config {
     ov::element::Type precision;     ///< of the floating-point ports (f32, f16 or bf16)
     bool query_norm = true;          ///< the op applies the RMSNorm to the query (else it is done in front of the op)
     bool query_rope = true;          ///< the op applies the RoPE to the query (else it is done in front of the op)
+};
 
-    // The configuration is the key of a node's executor in the params cache: it fixes the executor and its scorer.
-    [[nodiscard]] size_t hash() const {
-        size_t seed = 0;
-        for (const size_t value : {key_block_size,
-                                   num_selection_heads,
-                                   block_topk,
-                                   head_dim,
-                                   index_query_heads,
-                                   index_key_heads,
-                                   rotary_dim,
-                                   num_threads}) {
-            seed = dnnl::impl::hash_combine(seed, value);
-        }
-        seed = dnnl::impl::hash_combine(seed, eps);
-        seed = dnnl::impl::hash_combine(seed, scale);
-        seed = dnnl::impl::hash_combine(seed, precision.hash());
-        seed = dnnl::impl::hash_combine(seed, query_norm);
-        return dnnl::impl::hash_combine(seed, query_rope);
-    }
+// The cache key of an executor and the cache of the brgemm kernels are the nodes' (nodes/qsa_executor_cache.h): the
+// kernels are built there and handed to the cross-compiled factories, which only keep them.
 
-    bool operator==(const Config& rhs) const {
-        return std::tie(key_block_size,
-                        num_selection_heads,
-                        block_topk,
-                        head_dim,
-                        index_query_heads,
-                        index_key_heads,
-                        rotary_dim,
-                        num_threads,
-                        eps,
-                        scale,
-                        precision,
-                        query_norm,
-                        query_rope) == std::tie(rhs.key_block_size,
-                                                rhs.num_selection_heads,
-                                                rhs.block_topk,
-                                                rhs.head_dim,
-                                                rhs.index_query_heads,
-                                                rhs.index_key_heads,
-                                                rhs.rotary_dim,
-                                                rhs.num_threads,
-                                                rhs.eps,
-                                                rhs.scale,
-                                                rhs.precision,
-                                                rhs.query_norm,
-                                                rhs.query_rope);
-    }
+/// @brief The blocks one brgemm call scores: the M of the score kernel.
+inline constexpr size_t kScoreBlockRows = 32;
+/// @brief Rows of the query tile of a call: (tokens x heads of a K head) up to this many.
+inline constexpr size_t kScoreMaxCols = 128;
+
+/// @brief Tokens one brgemm call scores together for K heads of `heads_per_key` query heads.
+constexpr size_t score_tokens_per_call(size_t heads_per_key) {
+    return std::max<size_t>(1, kScoreMaxCols / heads_per_key);
+}
+
+/// @brief The brgemm kernels of the block scorer, built by the node; empty where this CPU or the configuration has no
+/// brgemm scoring (the stages of the executor score then).
+struct ScoreKernels {
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> q_k;  ///< several tokens: C[tokens x heads, 32] = Q . K^T
+    std::shared_ptr<ov::intel_cpu::BrgemmKernel> k_q;  ///< one token (decode):  C[32, heads] = K . Q^T
 };
 
 /// @brief The tensors of a call of the QSAIndexer node (dense caches, see qsa_indexer_kernel.cpp).
@@ -120,14 +92,6 @@ struct PagedIndexerArgs {
     ov::intel_cpu::PlainTensor raw_k_cache, indexer_rope_cache, summary_cache;  ///< paged caches, written in place
     ov::intel_cpu::PlainTensor sel_indices, sel_count;                          ///< [tokens, H_sel, K], [tokens, H_sel]
 };
-
-/// @brief The implementation type of the cross-compiled stages: the instruction set they are dispatched to on this CPU.
-inline ov::intel_cpu::impl_desc_type qsa_kernel_impl_type() {
-    if (ov::with_cpu_x86_avx512f()) {
-        return ov::intel_cpu::impl_desc_type::avx512;
-    }
-    return ov::with_cpu_x86_avx2() ? ov::intel_cpu::impl_desc_type::avx2 : ov::intel_cpu::impl_desc_type::ref;
-}
 
 /// @brief The executor of a QSA node: `prepare` the caches, then score the tokens with the stages or the brgemm scorer.
 /// It is stateless and shared through the params cache.

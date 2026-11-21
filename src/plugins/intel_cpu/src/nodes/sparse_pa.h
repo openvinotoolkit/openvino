@@ -8,15 +8,12 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
-#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
 #include "nodes/kernels/sparse_attn/sparse_pa_kernel.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
-#include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -87,7 +84,7 @@ private:
     /// see CacheSpec.
     bool deriveQuant(std::string& reason);
     [[nodiscard]] bool isQuantized() const {
-        return ov::Extensions::Cpu::is_quantized_cache(m_config.key_spec);
+        return ov::intel_cpu::is_quantized_cache(m_config.key_spec);
     }
 
     Config m_config{};

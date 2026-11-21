@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "custom/single_layer_tests/classes/qsa_indexer.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/parameter.hpp"
@@ -305,19 +306,7 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 std::vector<ov::Tensor> SparseSDPALayerCPUTest::calculate_refs() {
     const auto& params = function->get_parameters();
     const auto to_f32 = [&](const std::shared_ptr<ov::Node>& p) {
-        const auto& t = host_inputs.at(p);
-        std::vector<float> out(t.get_size());
-        if (t.get_element_type() == ov::element::bf16) {
-            const auto* ptr = t.data<const ov::bfloat16>();
-            std::copy(ptr, ptr + t.get_size(), out.begin());
-        } else if (t.get_element_type() == ov::element::f16) {
-            const auto* ptr = t.data<const ov::float16>();
-            std::copy(ptr, ptr + t.get_size(), out.begin());
-        } else {
-            const auto* ptr = t.data<const float>();
-            std::copy(ptr, ptr + t.get_size(), out.begin());
-        }
-        return out;
+        return read_tensor_to_f32(host_inputs.at(p));
     };
     const auto to_i32 = [&](const std::shared_ptr<ov::Node>& p) {
         const auto& t = host_inputs.at(p);

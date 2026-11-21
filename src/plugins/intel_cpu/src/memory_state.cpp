@@ -232,7 +232,7 @@ void VariableStateSingleBuffer::commit_impl() {
 VariableStateKVcache::VariableStateKVcache(const std::string& name,
                                            MemoryDescPtr external_desc,
                                            BlockedMemoryDescPtr dense_internal_desc,
-                                           ov::Extensions::Cpu::CacheSpec spec)
+                                           ov::intel_cpu::CacheSpec spec)
     : VariableStateBase(name, std::move(external_desc)),
       m_dense_internal_desc(std::move(dense_internal_desc)),
       m_spec(spec) {
@@ -450,12 +450,6 @@ void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
 }
 
 #if defined(OPENVINO_ARCH_X86_64)
-namespace {
-bool is_quantized(const ov::Extensions::Cpu::CacheSpec& spec) {
-    return spec.precision == ov::element::u8 || spec.precision == ov::element::u4;
-}
-}  // namespace
-
 ov::SoPtr<ov::ITensor> VariableStateKVcacheBHLS::get_state() const {
     auto mem = internal_state_mem();
     if (!mem || is_reset_state()) {
@@ -479,7 +473,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcacheBHLS::get_state() const {
     const auto S = src.size(3);
     // rows along L are contiguous in both the cache (capacity strides) and the dense external tensor
     OPENVINO_ASSERT(all_of(1U, src.stride(3), dst.stride(3)) && dst.stride(2) == S);
-    if (is_quantized(get_spec())) {
+    if (ov::intel_cpu::is_quantized_cache(get_spec())) {
         // dequantize into f32 rows and convert them to the external precision
         auto& scale_zp = const_cast<VariableStateKVcacheBHLS*>(this)->get_scale_zp();
         parallel_for2d(B, H, [&](size_t b, size_t h) {
@@ -503,7 +497,7 @@ void VariableStateKVcacheBHLS::set_state_impl(const ov::SoPtr<ov::ITensor>& stat
     auto dense_internal_desc = internal_desc()->cloneWithNewDims(state_desc->getShape().getStaticDims());
     auto internal_mem = std::make_shared<Memory>(get_engine(), dense_internal_desc);
     Memory external_mem(get_engine(), state_desc, m_state->data());
-    if (is_quantized(get_spec())) {
+    if (ov::intel_cpu::is_quantized_cache(get_spec())) {
         static const auto cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC);
         auto&& dims = state_desc->getShape().getStaticDims();
         OPENVINO_ASSERT(dims.size() == 4, "BHLS KV cache state is expected to be 4D");

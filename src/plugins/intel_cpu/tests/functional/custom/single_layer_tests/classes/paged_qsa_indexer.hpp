@@ -19,6 +19,19 @@
 namespace ov {
 namespace test {
 
+// What the inputs of a test are: random ones checked against the host oracle, or degenerate scores (as the dense
+// QSAIndexerScenario ones) that have no reference and check only the selection invariants (distinct, visible, ascending
+// block ids, the count of the visible blocks).
+enum class PagedQSAIndexerScenario {
+    kReference,
+    // a NaN in the keys of a few tokens
+    kNaNScores,
+    // query norm weights that overflow the scores to +-Inf and NaN
+    kOverflowScores,
+    // query norm weights that make the scores of a row differ by less than 256 / FLT_MAX
+    kTinyScores
+};
+
 // target device, data precision (q_idx/k_idx/rotary/caches/norm weights),
 // H_iq (index-query head count), H_ik (index-key head count), h_sel (selection-head count),
 // num_sequences (each sequence gets its own past_len and its own run of physical cache blocks,
@@ -28,7 +41,8 @@ namespace test {
 // target shapes),
 // page_size (tokens of a cache page: a multiple of the compress ratio; 32 blocks of the scoring can lie in one page or
 // run over several),
-// the steps of the query that the op applies (QSAIndexerQueryFusionType of the dense op)
+// the steps of the query that the op applies (QSAIndexerQueryFusionType of the dense op),
+// the scenario of the inputs
 using PagedQSAIndexerLayerTestParams = std::tuple<std::string,
                                                   ov::element::Type,
                                                   size_t,
@@ -37,7 +51,8 @@ using PagedQSAIndexerLayerTestParams = std::tuple<std::string,
                                                   size_t,
                                                   InputShape,
                                                   size_t,
-                                                  QSAIndexerQueryFusionType>;
+                                                  QSAIndexerQueryFusionType,
+                                                  PagedQSAIndexerScenario>;
 
 class PagedQSAIndexerLayerCPUTest : public testing::WithParamInterface<PagedQSAIndexerLayerTestParams>,
                                     virtual public SubgraphBaseTest {
@@ -55,6 +70,9 @@ private:
     // The past length of a sequence in the current call: the calls of a test continue the sequences.
     size_t sequence_past_len(size_t seq) const;
     void check_caches_updated() const;
+    [[nodiscard]] bool is_degenerate_scores_scenario() const;
+    // The selection of a call without a reference: the count of visible blocks, distinct ascending visible ids.
+    void check_selection_invariants(const std::vector<ov::Tensor>& outs) const;
 
     // The tokens of a sequence over the calls so far, which the oracle replays (the result of a call depends on the
     // caches the previous calls filled).
@@ -76,6 +94,7 @@ private:
     size_t m_h_sel = 1;
     bool m_query_norm = true;
     bool m_query_rope = true;
+    PagedQSAIndexerScenario m_scenario = PagedQSAIndexerScenario::kReference;
     size_t m_num_sequences = 1;
     // Share of the elements of an output that may differ: selections of (almost) tied blocks flip with the rounding of
     // a 16-bit cache, which the f32 oracle does not do. 0 for f32; for the small tests of the 16-bit types the share

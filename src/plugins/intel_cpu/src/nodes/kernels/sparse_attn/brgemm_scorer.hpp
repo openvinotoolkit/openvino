@@ -19,11 +19,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 
-#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
@@ -33,19 +33,15 @@
 
 #    include <immintrin.h>
 
-#    include <algorithm>
 #    include <bitset>
 #    include <common/utils.hpp>
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <functional>
-#    include <limits>
 #    include <utility>
 
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/parallel.hpp"
-#    include "openvino/core/type/bfloat16.hpp"
-#    include "openvino/core/type/float16.hpp"
 #    include "openvino/runtime/system_conf.hpp"
 #    include "utils/general_utils.h"
 
@@ -55,11 +51,14 @@ namespace ov::Extensions::Cpu::XARCH::brgemm_scorer_impl {
 
 using ov::Extensions::Cpu::qsa::Config;
 using ov::Extensions::Cpu::qsa::IndexerArgs;
+using ov::Extensions::Cpu::qsa::kScoreBlockRows;
+using ov::Extensions::Cpu::qsa::kScoreMaxCols;
 using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
+using ov::Extensions::Cpu::qsa::score_tokens_per_call;
+using ov::Extensions::Cpu::qsa::ScoreKernels;
 using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
-using ov::intel_cpu::MultiCachePtr;
 using ov::intel_cpu::rnd_up;
 using qsa_kernel::batch_entry_plan;
 using qsa_kernel::block_address;
@@ -69,9 +68,6 @@ using qsa_kernel::row_view;
 using qsa_kernel::sanitize_score;
 using qsa_kernel::seq_plan;
 using qsa_kernel::SeqPlan;
-
-// The blocks one brgemm call scores: the M of the kernel (BrgemmKernel::get_mblk_size()).
-inline constexpr size_t kScoreBlockRows = 32;
 
 // The layout of a QSAIndexer call (see BrgemmScorer): rows are batch rows; q_idx [B, L, H_iq, D], RoPE tables
 // [1 | B, L, Dr], summary_cache [B, H_ik, NB, D] (with this call's new blocks), selection [B, H_sel, L, block_topk]
@@ -233,8 +229,6 @@ private:
 using ov::intel_cpu::AmxTileState;
 using ov::intel_cpu::BrgemmKernel;
 
-// Rows of the query tile of a call: (tokens x heads of a K head) up to this many.
-inline constexpr size_t kScoreMaxCols = 128;
 inline constexpr size_t kSelectBuckets = 256;
 
 // Step 5 sanitizes the scores (see qsa_kernel::sanitize_score; the executor's select_topk does the same).
@@ -367,27 +361,13 @@ class BrgemmScorer {
 public:
     using Args = typename Source::Args;
 
-    // The scorer of `config`, nullptr if this CPU or the configuration has no brgemm scoring. The selection heads have
-    // to be covered by the K heads. The kernels come from the cache of the kernels by shape.
-    static std::unique_ptr<BrgemmScorer> create(const MultiCachePtr& cache, const Config& config) {
-        if (config.index_key_heads == 0 || config.index_query_heads % config.index_key_heads != 0 ||
-            config.num_selection_heads > config.index_key_heads ||
-            !score_kernel_supported(config.precision, config.head_dim)) {
+    // The scorer of `config` on the kernels the node built, nullptr if it built none: the CPU, the precision or the
+    // head counts of the configuration have no brgemm scoring (see getScoreKernels() in nodes/qsa_executor_cache.cpp).
+    static std::unique_ptr<BrgemmScorer> create(const Config& config, const ScoreKernels& kernels) {
+        if (!kernels.q_k || !kernels.k_q) {
             return nullptr;
         }
-        const size_t heads_per_key = config.index_query_heads / config.index_key_heads;
-        // `q_k` scores a full set of tokens (query rows: tokens_per_call * heads_per_key), `k_q` a single token
-        // (heads_per_key rows): the decode step is one token wide.
-        auto q_k = get_score_kernel(cache,
-                                    config.precision,
-                                    score_tokens_per_call(heads_per_key) * heads_per_key,
-                                    config.head_dim,
-                                    false);
-        auto k_q = get_score_kernel(cache, config.precision, heads_per_key, config.head_dim, true);
-        if (!q_k || !k_q) {
-            return nullptr;
-        }
-        return std::unique_ptr<BrgemmScorer>(new BrgemmScorer(config, std::move(q_k), std::move(k_q)));
+        return std::unique_ptr<BrgemmScorer>(new BrgemmScorer(config, kernels.q_k, kernels.k_q));
     }
 
     // The implementation type the scorer reports (execution graph, profiling): the matrix extension of the kernels of
@@ -429,6 +409,7 @@ private:
         size_t score_stride = 0;      // floats between the score rows of two tokens
         size_t score_tile_bytes = 0;  // the score matrix of one tile of tokens of one row
         size_t tiles_total = 0;       // tiles of tokens of the longest row
+        size_t rows_per_round = 0;    // the rows in flight, bounded by the memory of their score matrices
         size_t tiles_per_round = 0;   // the tiles in flight, bounded by the memory of their score matrices
         size_t shared_bytes = 0;      // scratch shared by the threads: the score matrices of the tiles of a round
         size_t thread_bytes = 0;      // scratch of one worker thread
@@ -454,27 +435,6 @@ private:
     // Bound of the score matrices of the tokens in flight.
     static constexpr size_t kScoreBudgetBytes = 32UL << 20;
 
-    // The key of a score kernel in the params cache.
-    struct ScoreKernelKey {
-        size_t query_rows = 0;  // rows of the query tile: tokens x heads of a K head
-        size_t dim = 0;         // head dim, the K of the product
-        ov::element::Type precision;
-        bool is_k_q_gemm =
-            false;  // C = K.Q^T, the blocks are the A matrix (one token); else C = Q.K^T, the query tile is
-
-        [[nodiscard]] size_t hash() const {
-            size_t seed = 0;
-            seed = dnnl::impl::hash_combine(seed, query_rows);
-            seed = dnnl::impl::hash_combine(seed, dim);
-            seed = dnnl::impl::hash_combine(seed, precision.hash());
-            return dnnl::impl::hash_combine(seed, is_k_q_gemm);
-        }
-        bool operator==(const ScoreKernelKey& rhs) const {
-            return query_rows == rhs.query_rows && dim == rhs.dim && precision == rhs.precision &&
-                   is_k_q_gemm == rhs.is_k_q_gemm;
-        }
-    };
-
     BrgemmScorer(const Config& config,
                  std::shared_ptr<BrgemmKernel> q_k_kernel,
                  std::shared_ptr<BrgemmKernel> k_q_kernel)
@@ -486,76 +446,6 @@ private:
           m_tile_tokens(m_tokens_per_call * kQuerySlicesPerItem),
           m_packed_query_bytes(rnd_up(m_k_q_kernel->get_scratch_b_size(), kAlign)),
           m_packed_blocks_bytes(rnd_up(m_q_k_kernel->get_scratch_b_size(), kAlign)) {}
-
-    // Tokens one brgemm call scores together for K heads of `heads_per_key` query heads.
-    static size_t score_tokens_per_call(size_t heads_per_key) {
-        return std::max<size_t>(1, kScoreMaxCols / heads_per_key);
-    }
-
-    // Whether this CPU runs the scorer for `precision` and head dim `dim`. The scorer kernel
-    // (indexer_brgemm_kernel.cpp) is cross-compiled for AVX-512 only, so the dispatcher has to select that build too.
-    static bool score_kernel_supported(const ov::element::Type& precision, size_t dim) {
-        using namespace dnnl::impl::cpu::x64;
-        if (dim % 2 != 0 || !ov::with_cpu_x86_avx512f()) {
-            return false;
-        }
-        if (precision == ov::element::bf16) {
-            return mayiuse(avx512_core_bf16);
-        }
-        if (precision == ov::element::f16) {
-            return mayiuse(avx512_core_fp16);
-        }
-        return precision == ov::element::f32 && mayiuse(avx512_core);
-    }
-
-    // The kernel of the q . k of 32 blocks and `query_rows` query rows, with the ReLU, from the cache; nullptr if it
-    // can not be built. Two forms, by how many tokens a call scores:
-    //   is_k_q_gemm == false (q.k, several tokens)  C[query_rows, 32] = max(0, query_tile[query_rows, D] x blocks[32,
-    //   D]^T)
-    //       A: the query tile, B: the transposed packed blocks. A row of C is 32 scores of one token.
-    //   is_k_q_gemm == true (k.q, one token)        C[32, query_rows] = max(0, blocks[32, D] x query_tile[query_rows,
-    //   D]^T)
-    //       A: the blocks, read in place; B: the transposed packed query tile. A decode step does not make an extra
-    //       pass over the cache (packing it would double its memory traffic, the cache is what a decode step is bound
-    //       by).
-    static std::shared_ptr<BrgemmKernel> get_score_kernel(const MultiCachePtr& cache,
-                                                          const ov::element::Type& precision,
-                                                          size_t query_rows,
-                                                          size_t dim,
-                                                          bool is_k_q_gemm) {
-        if (!score_kernel_supported(precision, dim)) {
-            return nullptr;
-        }
-        const auto builder = [](const ScoreKernelKey& key) -> std::shared_ptr<BrgemmKernel> {
-            if (key.is_k_q_gemm) {
-                return std::make_shared<BrgemmKernel>(kScoreBlockRows,
-                                                      key.query_rows,
-                                                      key.dim,
-                                                      key.dim,
-                                                      key.dim,
-                                                      key.query_rows,
-                                                      /*b_transposed=*/true,
-                                                      key.precision,
-                                                      /*b_accumulate=*/false,
-                                                      /*fuse_relu=*/true);
-            }
-            return std::make_shared<BrgemmKernel>(key.query_rows,
-                                                  kScoreBlockRows,
-                                                  key.dim,
-                                                  key.dim,
-                                                  key.dim,
-                                                  kScoreBlockRows,
-                                                  /*b_transposed=*/true,
-                                                  key.precision,
-                                                  /*b_accumulate=*/false,
-                                                  /*fuse_relu=*/true);
-        };
-        try {
-            return cache->getOrCreate(ScoreKernelKey{query_rows, dim, precision, is_k_q_gemm}, builder).first;
-        } catch (const ov::Exception&) {
-            return nullptr;
-        }
-    }
 
     // The sizes of a call of `batch` rows, the longest of `max_q_len` tokens and with at most `max_blocks`
     // complete blocks in a batch entry / sequence.
@@ -573,9 +463,14 @@ private:
         p.score_tile_bytes =
             rnd_up(alloc_tokens * m_config.num_selection_heads * p.score_stride * sizeof(float), kAlign);
         if (needs_scoring(p) && p.score_tile_bytes != 0) {
-            p.tiles_per_round = std::clamp<size_t>(kScoreBudgetBytes / (batch * p.score_tile_bytes), 1, p.tiles_total);
+            // The budget holds that many (tile, row) score matrices: the rows of the batch first, then the tiles. A
+            // batch whose first tile alone exceeds it is split in rounds of rows, so the scratch does not grow with
+            // the batch (a score matrix is as long as the longest row). At least one (tile, row) is in flight.
+            const size_t matrices = kScoreBudgetBytes / p.score_tile_bytes;
+            p.rows_per_round = std::clamp<size_t>(matrices, 1, batch);
+            p.tiles_per_round = std::clamp<size_t>(matrices / p.rows_per_round, 1, p.tiles_total);
         }
-        p.shared_bytes = p.tiles_per_round * batch * p.score_tile_bytes;
+        p.shared_bytes = p.tiles_per_round * p.rows_per_round * p.score_tile_bytes;
         p.thread_bytes = partition_thread(nullptr, p.padded_blocks).bytes;
         return p;
     }
@@ -605,33 +500,38 @@ private:
         const size_t tile_alloc_tokens = std::min(m_tile_tokens, static_cast<size_t>(plan.max_q_len));
         for (size_t first_tile = 0; first_tile < plan.tiles_total; first_tile += plan.tiles_per_round) {
             const size_t tiles = std::min(plan.tiles_per_round, plan.tiles_total - first_tile);
-            // Few work items (decode, short windows): split the block range of an item among several threads.
-            const size_t splits = std::clamp<size_t>(div_up(2 * m_config.num_threads, tiles * plan.batch),
-                                                     1,
-                                                     std::max<size_t>(1, groups_total / 4));
+            for (size_t first_row = 0; first_row < plan.batch; first_row += plan.rows_per_round) {
+                const size_t rows = std::min(plan.rows_per_round, plan.batch - first_row);
+                // Few work items (decode, short windows): split the block range of an item among several threads.
+                const size_t splits = std::clamp<size_t>(div_up(2 * m_config.num_threads, tiles * rows),
+                                                         1,
+                                                         std::max<size_t>(1, groups_total / 4));
 
-            parallel.parallel_for3d(tiles, plan.batch, splits, [&](size_t tile, size_t b, size_t split) {
-                score_item(ctx, first_tile + tile, tile, b, split, splits);
-            });
-            if (splits == 1) {
-                continue;  // the items selected already
-            }
-            parallel.parallel_for3d(tiles, plan.batch, tile_alloc_tokens, [&](size_t tile, size_t b, size_t t) {
-                const auto v = static_cast<int64_t>((first_tile + tile) * m_tile_tokens + t);
-                if (v < source.tokens(b)) {
-                    select_token(ctx,
-                                 b,
-                                 v,
-                                 tile_scores(ctx, tile, b) + t * m_config.num_selection_heads * plan.score_stride);
+                parallel.parallel_for3d(tiles, rows, splits, [&](size_t tile, size_t row, size_t split) {
+                    score_item(ctx, first_tile + tile, tile, first_row + row, split, splits);
+                });
+                if (splits == 1) {
+                    continue;  // the items selected already
                 }
-            });
+                parallel.parallel_for3d(tiles, rows, tile_alloc_tokens, [&](size_t tile, size_t row, size_t t) {
+                    const size_t b = first_row + row;
+                    const auto v = static_cast<int64_t>((first_tile + tile) * m_tile_tokens + t);
+                    if (v < source.tokens(b)) {
+                        select_token(ctx,
+                                     b,
+                                     v,
+                                     tile_scores(ctx, tile, b) + t * m_config.num_selection_heads * plan.score_stride);
+                    }
+                });
+            }
         }
     }
 
     struct Context {
         const Source& source;
         const Plan& plan;
-        float* score_matrices;  // [tile of the round, row][tile token, selection head, block (padded stride)]
+        float*
+            score_matrices;  // [tile of the round, row of the round][tile token, selection head, block (padded stride)]
         uint8_t* threads;
         const CpuParallel& parallel;
     };
@@ -669,7 +569,9 @@ private:
     };
 
     [[nodiscard]] float* tile_scores(const Context& ctx, size_t tile, size_t b) const {
-        return ctx.score_matrices + (tile * ctx.plan.batch + b) * (ctx.plan.score_tile_bytes / sizeof(float));
+        // The rounds of rows start at multiples of rows_per_round: `b % rows_per_round` is the row of the round.
+        return ctx.score_matrices + (tile * ctx.plan.rows_per_round + b % ctx.plan.rows_per_round) *
+                                        (ctx.plan.score_tile_bytes / sizeof(float));
     }
 
     // The buffers of the slice that starts at `base`; with a null base only `bytes` is meaningful. The selection
@@ -1016,7 +918,7 @@ class BrgemmScorer {
 public:
     using Args = typename Source::Args;
 
-    static std::unique_ptr<BrgemmScorer> create(const MultiCachePtr& /*cache*/, const Config& /*config*/) {
+    static std::unique_ptr<BrgemmScorer> create(const Config& /*config*/, const ScoreKernels& /*kernels*/) {
         return nullptr;
     }
     // Never called: there is no scorer to call it on.

@@ -14,7 +14,6 @@
 #include "graph_context.h"
 #include "memory_state.h"
 #include "node.h"
-#include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
 #include "openvino/core/node.hpp"
@@ -73,13 +72,13 @@ public:
     [[nodiscard]] ov::element::Type getValueCachePrecision() const {
         return m_value_spec.precision;
     }
-    [[nodiscard]] const ov::Extensions::Cpu::CacheSpec& getKeySpec() const {
+    [[nodiscard]] const ov::intel_cpu::CacheSpec& getKeySpec() const {
         return m_key_spec;
     }
-    [[nodiscard]] const ov::Extensions::Cpu::CacheSpec& getValueSpec() const {
+    [[nodiscard]] const ov::intel_cpu::CacheSpec& getValueSpec() const {
         return m_value_spec;
     }
-    [[nodiscard]] static bool isQuantizedCache(const ov::Extensions::Cpu::CacheSpec& spec) {
+    [[nodiscard]] static bool isQuantizedCache(const ov::intel_cpu::CacheSpec& spec) {
         return spec.precision == ov::element::u8 || spec.precision == ov::element::u4;
     }
 
@@ -94,8 +93,8 @@ private:
     // precision of the plain (not quantized) cache and the precision the quantized cache is decoded to: the query's
     ov::element::Type m_cache_prec = ov::element::f32;
     // the stored precision of the key / value cache (m_cache_prec, u8 or u4) and its quantization parameters
-    ov::Extensions::Cpu::CacheSpec m_key_spec;
-    ov::Extensions::Cpu::CacheSpec m_value_spec;
+    ov::intel_cpu::CacheSpec m_key_spec;
+    ov::intel_cpu::CacheSpec m_value_spec;
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
 

@@ -9,13 +9,6 @@
 namespace ov {
 namespace test {
 
-// The steps of the query that the op applies (query_norm / query_rope): both, one of them, or none of them (the graph
-// in front of the op does the rest). The host reference applies the same steps.
-static const auto all_query_fusion_types = testing::Values(QSAIndexerQueryFusionType::kNormAndRope,
-                                                           QSAIndexerQueryFusionType::kNormOnly,
-                                                           QSAIndexerQueryFusionType::kRopeOnly,
-                                                           QSAIndexerQueryFusionType::kNone);
-
 // Dense (no padding) single-call prefill: H_iq == H_ik, h_sel == 1.
 INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_DensePrefill_Hsel1,
                          QSAIndexerLayerCPUTest,

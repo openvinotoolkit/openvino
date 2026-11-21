@@ -140,7 +140,7 @@ struct ExecutorKey {
     ov::Extensions::Cpu::SparseSdpaConfig config;
 
     [[nodiscard]] size_t hash() const {
-        using namespace dnnl::impl;
+        using dnnl::impl::hash_combine;
         const auto& c = config;
         size_t seed = 0;
         for (const size_t value :
@@ -162,15 +162,11 @@ struct ExecutorKey {
     bool operator==(const ExecutorKey& rhs) const {
         const auto& l = config;
         const auto& r = rhs.config;
-        const auto same_spec = [](const ov::Extensions::Cpu::CacheSpec& a, const ov::Extensions::Cpu::CacheSpec& b) {
-            return a.alg == b.alg && a.precision == b.precision && a.group_size == b.group_size &&
-                   a.by_channel == b.by_channel;
-        };
         return l.num_heads == r.num_heads && l.num_kv_heads == r.num_kv_heads &&
                l.num_selection_heads == r.num_selection_heads && l.k_head_size == r.k_head_size &&
                l.v_head_size == r.v_head_size && l.key_block_size == r.key_block_size &&
                l.data_precision == r.data_precision && l.causal == r.causal && l.scale == r.scale &&
-               same_spec(l.key_spec, r.key_spec) && same_spec(l.value_spec, r.value_spec);
+               l.key_spec == r.key_spec && l.value_spec == r.value_spec;
     }
 };
 
@@ -225,14 +221,14 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
                              const ov::Dimension& head_dim,
                              bool by_channel,
                              ov::internal::CacheQuantAlgorithm alg) {
-            ov::Extensions::Cpu::CacheSpec spec;
+            ov::intel_cpu::CacheSpec spec;
             spec.precision = ov::element::dynamic;  // plain cache: set in initSupportedPrimitiveDescriptors
             spec.group_size = head_dim.is_static() ? static_cast<size_t>(head_dim.get_length()) : 0;
             if (none_of(hint, ov::element::u8, ov::element::u4) || spec.group_size == 0 ||
                 alg == ov::internal::CacheQuantAlgorithm::TURBO) {
                 return spec;
             }
-            const size_t group = ov::Extensions::Cpu::resolve_group_size(group_size, spec.group_size);
+            const size_t group = ov::intel_cpu::resolve_group_size(group_size, spec.group_size);
             if (by_channel) {
                 if (hint != ov::element::u8) {
                     return spec;
@@ -493,7 +489,7 @@ void SparseSDPA::updateKVCache() {
     auto update = [&](const std::shared_ptr<VariableStateKVcache>& state,
                       const PlainTensor& cur,
                       size_t init_port,
-                      const ov::Extensions::Cpu::CacheSpec& spec) {
+                      const ov::intel_cpu::CacheSpec& spec) {
         const auto prec = spec.precision;
         const bool quantized = isQuantizedCache(spec);
         const size_t S = cur.size(3);

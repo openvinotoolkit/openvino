@@ -21,7 +21,7 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
-using ov::Extensions::Cpu::CacheSpec;
+using ov::intel_cpu::CacheSpec;
 
 // Prefetch lookahead: number of records ahead to prefetch.
 // At ~50 cycles/record and ~200 cycle DRAM latency, 4-8 records ahead hides latency.

@@ -51,7 +51,7 @@ struct ExecutorKey {
     ov::Extensions::Cpu::SparsePAConfig config;
 
     [[nodiscard]] size_t hash() const {
-        using namespace dnnl::impl;
+        using dnnl::impl::hash_combine;
         const auto& c = config;
         size_t seed = 0;
         for (const size_t value : {c.num_heads,
@@ -78,15 +78,11 @@ struct ExecutorKey {
     bool operator==(const ExecutorKey& rhs) const {
         const auto& l = config;
         const auto& r = rhs.config;
-        const auto same_spec = [](const ov::Extensions::Cpu::CacheSpec& a, const ov::Extensions::Cpu::CacheSpec& b) {
-            return a.alg == b.alg && a.precision == b.precision && a.group_size == b.group_size &&
-                   a.by_channel == b.by_channel;
-        };
         return l.num_heads == r.num_heads && l.num_kv_heads == r.num_kv_heads &&
                l.num_selection_heads == r.num_selection_heads && l.k_head_size == r.k_head_size &&
                l.v_head_size == r.v_head_size && l.key_block_size == r.key_block_size && l.page_size == r.page_size &&
                l.max_run_rows == r.max_run_rows && l.causal == r.causal && l.data_precision == r.data_precision &&
-               same_spec(l.key_spec, r.key_spec) && same_spec(l.value_spec, r.value_spec);
+               l.key_spec == r.key_spec && l.value_spec == r.value_spec;
     }
 };
 

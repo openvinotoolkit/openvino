@@ -219,7 +219,7 @@ bool SparseAttentionKVCacheFusion::run_on_model(const std::shared_ptr<ov::Model>
 
         auto new_node = std::make_shared<SparseAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(sparse_node->get_friendly_name());
-        copy_runtime_info(sparse_node, new_node);
+        copy_runtime_info({sparse_node, concat_k_node, concat_v_node, gather_k_node, gather_v_node}, new_node);
         ov::replace_node(sparse_node, {new_node->output(0)});
 
         // The new present key / value feed the Assign sinks of the states.

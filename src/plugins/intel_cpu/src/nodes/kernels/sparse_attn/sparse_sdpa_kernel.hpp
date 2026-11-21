@@ -28,8 +28,8 @@ struct SparseSdpaConfig {
     size_t key_block_size = 0;
     bool causal = true;
     float scale = 1.0F;
-    CacheSpec key_spec;
-    CacheSpec value_spec;
+    ov::intel_cpu::CacheSpec key_spec;
+    ov::intel_cpu::CacheSpec value_spec;
     /// The AMX prefill kernels; empty when the executor is not eligible. The config owns them, so an executor that
     /// copies the config keeps them alive.
     TileBrgemmKernels brgemm;
@@ -74,7 +74,7 @@ std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> make_sparse_sdpa_execut
 
 // Dequantizes the rows [0, L) of the compressed cache (b, h) into dense f32 rows, `dst` is [L, D].
 void sparse_kv_dequantize_rows(const ov::intel_cpu::PlainTensor& cache,
-                               const ov::Extensions::Cpu::CacheSpec& spec,
+                               const ov::intel_cpu::CacheSpec& spec,
                                const ov::intel_cpu::PlainTensor& scale_zp,
                                size_t b,
                                size_t h,

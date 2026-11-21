@@ -73,10 +73,10 @@ public:
     ov::element::Type getKVCachePrecision() {
         return getKeyCachePrecision();
     }
-    const ov::Extensions::Cpu::CacheSpec& getKeySpec() const {
+    const ov::intel_cpu::CacheSpec& getKeySpec() const {
         return m_key_spec;
     }
-    const ov::Extensions::Cpu::CacheSpec& getValueSpec() const {
+    const ov::intel_cpu::CacheSpec& getValueSpec() const {
         return m_value_spec;
     }
 
@@ -104,8 +104,8 @@ private:
                              MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp,
                              const PlainTensor& v_scale_zp,
-                             const ov::Extensions::Cpu::CacheSpec& k_spec,
-                             const ov::Extensions::Cpu::CacheSpec& v_spec,
+                             const ov::intel_cpu::CacheSpec& k_spec,
+                             const ov::intel_cpu::CacheSpec& v_spec,
                              float* per_thread_head_scratch,
                              size_t per_thread_head_stride,
                              const PlainTensor& k_quant_meta_data,
@@ -127,8 +127,8 @@ private:
     // (0, 1, 2, 3) for BHLS
     // (2, 0, 1, 3) for LBHS
     std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
-    ov::Extensions::Cpu::CacheSpec m_key_spec;
-    ov::Extensions::Cpu::CacheSpec m_value_spec;
+    ov::intel_cpu::CacheSpec m_key_spec;
+    ov::intel_cpu::CacheSpec m_value_spec;
     MemoryPtr m_per_thread_head_scratch;
     // Per-token TBQ norm. Populated only when a side has alg=TURBO; empty otherwise.
     PlainTensor m_k_quant_meta_data;

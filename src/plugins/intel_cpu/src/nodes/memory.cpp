@@ -1091,7 +1091,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     const auto sdpa_inputs = node->getOriginalInputsNumber();
     const bool is_key = static_cast<size_t>(m_child_port_idx) == sdpa_inputs - 2;
     auto kv_precision = is_key ? node->getKeyCachePrecision() : node->getValueCachePrecision();
-    ov::Extensions::Cpu::CacheSpec quant_param;
+    ov::intel_cpu::CacheSpec quant_param;
     if (kv_precision == ov::element::u8 || kv_precision == ov::element::u4) {
         quant_param = is_key ? node->getKeySpec() : node->getValueSpec();
     }
@@ -1237,7 +1237,7 @@ MemStatePtr MemoryInputSparseSDPA::makeState() const {
         ArbitraryOrderDescCreator(SparseSDPA::getKVCacheOrder()).createSharedDesc(spec.precision, outputShapes.at(0));
 
     // the quantization parameters matter for a compressed cache only
-    ov::Extensions::Cpu::CacheSpec quant_param;
+    ov::intel_cpu::CacheSpec quant_param;
     if (SparseSDPA::isQuantizedCache(spec)) {
         quant_param = spec;
     }

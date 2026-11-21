@@ -30,6 +30,8 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
+using ov::intel_cpu::CacheSpec;
+using ov::intel_cpu::is_quantized_cache;
 using ov::intel_cpu::PlainTensor;
 
 namespace {
@@ -665,7 +667,7 @@ std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> make_sparse_sdpa_execut
 }
 
 void sparse_kv_dequantize_rows(const ov::intel_cpu::PlainTensor& cache,
-                               const ov::Extensions::Cpu::CacheSpec& spec,
+                               const ov::intel_cpu::CacheSpec& spec,
                                const ov::intel_cpu::PlainTensor& scale_zp,
                                size_t b,
                                size_t h,

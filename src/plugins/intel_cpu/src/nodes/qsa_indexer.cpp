@@ -22,6 +22,7 @@
 #include "node.h"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp"
+#include "nodes/qsa_executor_cache.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -151,8 +152,8 @@ void QSAIndexer::createPrimitive() {
     // The executor is shared by the layers of the same configuration.
     const auto cache = context->getParamsCache();
     [[maybe_unused]] const auto [qsa_indexer_executor, lookup_status] =
-        cache->getOrCreate(config, [&cache](const ov::Extensions::Cpu::qsa::Config& key) {
-            return ov::Extensions::Cpu::XARCH::make_indexer_executor(cache, key);
+        cache->getOrCreate(QsaExecutorKey{config}, [&cache](const QsaExecutorKey& key) {
+            return ov::Extensions::Cpu::XARCH::make_indexer_executor(key.config, getScoreKernels(cache, key.config));
         });
     OPENVINO_ASSERT(qsa_indexer_executor, "QSAIndexer executor creation fails");
     m_executor = qsa_indexer_executor;

@@ -22,6 +22,29 @@ std::vector<float> read_tensor_to_f32(const ov::Tensor& t);
 void write_f32_to_tensor(ov::Tensor& t, const std::vector<float>& data);
 ov::Tensor make_zero_tensor(const ov::element::Type& precision, const ov::Shape& shape);
 
+// The per-token math of the dense and paged references (cos_row / sin_row: `rotary_dim` values each).
+float rms_inv_scale(const float* x, size_t n, float eps);
+void rmsnorm_partial_rope(const float* src,
+                          float* dst,
+                          const float* weight,
+                          size_t dim,
+                          size_t rotary_dim,
+                          float eps,
+                          const float* cos_row,
+                          const float* sin_row);
+// The row of a query head: the steps of rmsnorm_partial_rope that the op applies (`norm`, `rope`), the others leave
+// `src` as it is.
+void query_row_ref(const float* src,
+                   float* dst,
+                   const float* weight,
+                   size_t dim,
+                   size_t rotary_dim,
+                   float eps,
+                   const float* cos_row,
+                   const float* sin_row,
+                   bool norm,
+                   bool rope);
+
 // Host-vector reference of one QSAIndexer call, written from new_spec/qsa-prepare-17.rst, not from the node's
 // code. `summary_cache`, `past_raw_k` and `past_rope` are state the caller threads across calls.
 struct QSAIndexerOracle {
@@ -81,6 +104,12 @@ enum class QSAIndexerScenario {
 
 // The steps of the query that the op applies: the query_norm / query_rope attributes.
 enum class QSAIndexerQueryFusionType { kNormAndRope, kNormOnly, kRopeOnly, kNone };
+
+// All the combinations of the steps, for the instantiations of the dense and the paged op.
+inline const auto all_query_fusion_types = testing::Values(QSAIndexerQueryFusionType::kNormAndRope,
+                                                           QSAIndexerQueryFusionType::kNormOnly,
+                                                           QSAIndexerQueryFusionType::kRopeOnly,
+                                                           QSAIndexerQueryFusionType::kNone);
 
 // target device, data precision, H_iq, H_ik, h_sel, batch (only kDensePrefill uses it; the other scenarios force
 // 2), scenario, query steps

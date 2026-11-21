@@ -19,9 +19,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <utility>
 
-#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/sparse_attn/brgemm_scorer.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
@@ -40,16 +38,16 @@ namespace {
 
 using ov::Extensions::Cpu::qsa::Config;
 using ov::Extensions::Cpu::qsa::IndexerArgs;
-using ov::Extensions::Cpu::qsa::qsa_kernel_impl_type;
 using ov::Extensions::Cpu::qsa::QSAIndexerExecutor;
+using ov::Extensions::Cpu::qsa::ScoreKernels;
 using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
-using ov::intel_cpu::MultiCachePtr;
 using ov::intel_cpu::rnd_up;
 using qsa_kernel::batch_entry_plan;
 using qsa_kernel::BatchEntryPlan;
 using qsa_kernel::BlockScore;
+using qsa_kernel::qsa_kernel_impl_type;
 using qsa_kernel::rope_batch;
 
 // The buffers of one worker thread's slice of the scratch. The stages run one after the other, so they share them; the
@@ -361,10 +359,11 @@ void run_token_scorer(const IndexerArgs& call,
 template <typename T>
 class DenseExecutorImpl final : public QSAIndexerExecutor {
 public:
-    // The scorer on brgemm is chosen here: null where the CPU, the precision or the head counts do not allow it.
-    DenseExecutorImpl(const MultiCachePtr& cache, const Config& config)
+    // The scorer on brgemm is built on the kernels of the node: none where the CPU, the precision or the head counts do
+    // not allow it.
+    DenseExecutorImpl(const Config& config, const ScoreKernels& score_kernels)
         : m_config(config),
-          m_brgemm_scorer(BrgemmScorer::create(cache, config)) {}
+          m_brgemm_scorer(BrgemmScorer::create(config, score_kernels)) {}
 
     [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
         return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : qsa_kernel_impl_type();
@@ -420,16 +419,16 @@ private:
 }  // namespace
 
 std::shared_ptr<ov::Extensions::Cpu::qsa::QSAIndexerExecutor> make_indexer_executor(
-    const ov::intel_cpu::MultiCachePtr& cache,
-    const ov::Extensions::Cpu::qsa::Config& config) {
+    const ov::Extensions::Cpu::qsa::Config& config,
+    const ov::Extensions::Cpu::qsa::ScoreKernels& score_kernels) {
     if (config.precision == ov::element::f32) {
-        return std::make_shared<DenseExecutorImpl<float>>(cache, config);
+        return std::make_shared<DenseExecutorImpl<float>>(config, score_kernels);
     }
     if (config.precision == ov::element::f16) {
-        return std::make_shared<DenseExecutorImpl<ov::float16>>(cache, config);
+        return std::make_shared<DenseExecutorImpl<ov::float16>>(config, score_kernels);
     }
     if (config.precision == ov::element::bf16) {
-        return std::make_shared<DenseExecutorImpl<ov::bfloat16>>(cache, config);
+        return std::make_shared<DenseExecutorImpl<ov::bfloat16>>(config, score_kernels);
     }
     OPENVINO_THROW("QSAIndexer: unsupported precision ", config.precision);
 }
