@@ -94,6 +94,7 @@
 #include "plugin/transformations/convert_gated_residual_scale_layout.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/fuse_moe_expert_sort.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/batch_replicated_branches.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
@@ -1148,6 +1149,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::pass::MoeOpFusion>();
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
+                manager.register_pass<ov::intel_gpu::FuseMoEExpertSort>(device_info.max_work_group_size);
             }
         }
 
