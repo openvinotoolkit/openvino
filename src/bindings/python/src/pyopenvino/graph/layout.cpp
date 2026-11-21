@@ -48,4 +48,15 @@ void regclass_graph_Layout(py::module m) {
     layout.def("__repr__", [](const ov::Layout& self) {
         return "<" + Common::get_class_name(self) + ": " + self.to_string() + ">";
     });
+
+    layout.def("__copy__", [](const ov::Layout& self) -> ov::Layout {
+        return ov::Layout(self);
+    });
+
+    layout.def(
+        "__deepcopy__",
+        [](const ov::Layout& self, py::dict) -> ov::Layout {
+            return ov::Layout(self);
+        },
+        "memo");
 }

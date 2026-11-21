@@ -59,6 +59,18 @@ void regclass_graph_Type(py::module m) {
     type.attr("f8e8m0") = ov::element::f8e8m0;
 
     type.def("__hash__", &ov::element::Type::hash);
+
+    type.def("__copy__", [](const ov::element::Type& self) -> ov::element::Type {
+        return ov::element::Type(self);
+    });
+
+    type.def(
+        "__deepcopy__",
+        [](const ov::element::Type& self, py::dict) -> ov::element::Type {
+            return ov::element::Type(self);
+        },
+        "memo");
+
     type.def("__repr__", [](const ov::element::Type& self) {
         std::string class_name = Common::get_class_name(self);
         if (self == ov::element::f32 || self == ov::element::f64) {

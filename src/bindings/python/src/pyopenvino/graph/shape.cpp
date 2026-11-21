@@ -93,5 +93,16 @@ void regclass_graph_Shape(py::module m) {
         return "<" + Common::get_class_name(self) + ": " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 
+    shape.def("__copy__", [](const ov::Shape& self) -> ov::Shape {
+        return ov::Shape(self);
+    });
+
+    shape.def(
+        "__deepcopy__",
+        [](const ov::Shape& self, py::dict) -> ov::Shape {
+            return ov::Shape(self);
+        },
+        "memo");
+
     shape.def("to_string", &ov::Shape::to_string);
 }
