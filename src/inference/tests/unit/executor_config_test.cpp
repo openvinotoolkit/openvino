@@ -56,6 +56,15 @@ public:
         ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_pinning());
         ASSERT_EQ(test_data._streams_info_table, config.get_streams_info_table());
         ASSERT_EQ(test_data._stream_processors, config.get_stream_processor_ids());
+        if (test_data._streams_info_table_in.empty() && test_data._num_streams > 0) {
+            ASSERT_LE(config.get_streams(), test_data._num_streams);
+            ASSERT_LE(config.get_threads(), test_data._num_streams * test_data._threads_per_stream);
+            if (config.get_streams() > 1) {
+                for (const auto& stream_info : config.get_streams_info_table()) {
+                    ASSERT_GT(stream_info[NUMBER_OF_STREAMS], 0);
+                }
+            }
+        }
         if (!test_data._cores_limit) {
             ASSERT_EQ(test_data._num_streams, config.get_streams());
             ASSERT_EQ(0, config.get_threads_per_stream());
@@ -1420,6 +1429,132 @@ ExecutorConfigTestCase _streams_info_table_cores_limit_false_2 = {
     {},
 };
 
+ExecutorConfigTestCase _partial_core_pool_streams_3 = {
+    {{6, 5, 1, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 5, -1},
+    },
+    3,
+    2,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    true,
+    {},
+    {{2, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 1, 0, 0}},
+    {{0, 1}, {2, 3}, {5}},
+};
+
+ExecutorConfigTestCase _partial_core_pool_then_full_pool_streams_5 = {
+    {{10, 5, 1, 0, 4, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 5, -1},
+        {6, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {7, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {8, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
+        {9, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
+    },
+    5,
+    2,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    true,
+    {},
+    {{2, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 1, 0, 0}, {2, HYPER_THREADING_PROC, 2, 0, 0}},
+    {{0, 1}, {2, 3}, {5}, {6, 7}, {8, 9}},
+};
+
+ExecutorConfigTestCase _partial_pools_streams_2_threads_4 = {
+    {{8, 2, 4, 0, 2, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, EFFICIENT_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, EFFICIENT_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 5, -1},
+        {6, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {7, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
+    },
+    2,
+    4,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    true,
+    {},
+    {{1, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 4, 0, 0}},
+    {{0, 1}, {2, 3, 4, 5}},
+};
+
+ExecutorConfigTestCase _partial_pools_streams_2_threads_2 = {
+    {{5, 2, 1, 0, 2, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {4, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
+    },
+    2,
+    2,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    true,
+    {},
+    {{1, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 1, 0, 0}},
+    {{0, 1}, {2}},
+};
+
+ExecutorConfigTestCase _mixed_core_pool_stream_1_threads_4 = {
+    {{8, 2, 4, 0, 2, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, EFFICIENT_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, EFFICIENT_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 5, -1},
+        {6, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {7, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
+    },
+    1,
+    4,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    true,
+    {},
+    {{1, ALL_PROC, 4, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, EFFICIENT_CORE_PROC, 2, 0, 0}},
+    {{0, 1, 2, 3}},
+};
+
+ExecutorConfigTestCase _streams_clamped_to_single_ecore = {
+    {{1, 0, 1, 0, 0, 0, 0}},
+    {{0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1}},
+    2,
+    1,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    true,
+    true,
+    {},
+    {{1, ALL_PROC, 1, 0, 0}, {0, EFFICIENT_CORE_PROC, 1, 0, 0}},
+    {{0}},
+};
+
 TEST_P(ExecutorConfigTest, ExecutorConfig) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
@@ -1460,6 +1595,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
                                          _pecore_streams_info_table_1,
                                          _pecore_streams_info_table_2,
                                          _streams_info_table_cores_limit_false_1,
-                                         _streams_info_table_cores_limit_false_2));
+                                         _streams_info_table_cores_limit_false_2,
+                                         _partial_core_pool_streams_3,
+                                         _partial_core_pool_then_full_pool_streams_5,
+                                         _partial_pools_streams_2_threads_4,
+                                         _partial_pools_streams_2_threads_2,
+                                         _mixed_core_pool_stream_1_threads_4,
+                                         _streams_clamped_to_single_ecore));
 #endif
 }  // namespace
