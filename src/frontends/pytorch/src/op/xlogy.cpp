@@ -1,0 +1,59 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/is_nan.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/select.hpp"
+#include "utils.hpp"
+
+namespace ov::frontend::pytorch::op {
+
+using namespace ov::op;
+
+OutputVector translate_xlogy(const NodeContext& context) {
+    // aten::xlogy(Tensor self, Tensor other, *, Tensor? out=None) -> Tensor
+    // xlogy(x, y) = 0 when x == 0 and y is not NaN; NaN when y is NaN; otherwise x * log(y)
+    num_inputs_check(context, 2, 3);
+    Output<Node> x;
+    Output<Node> y;
+    std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
+
+    // torch.xlogy returns the default floating point type for integer and boolean inputs
+    const auto dtype = x.get_element_type();
+    if (dtype.is_static() && !dtype.is_real()) {
+        auto float_type = element::f32;
+        const auto out_type = simplified_type_interpret(context.get_output_type(0));
+        if (out_type.is<element::Type>() && out_type.as<element::Type>().is_real()) {
+            float_type = out_type.as<element::Type>();
+        }
+        x = context.mark_node(std::make_shared<v0::Convert>(x, float_type));
+        y = context.mark_node(std::make_shared<v0::Convert>(y, float_type));
+    }
+
+    auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
+
+    const auto log_y = context.mark_node(std::make_shared<v0::Log>(y));
+    const auto x_log_y = context.mark_node(std::make_shared<v1::Multiply>(x, log_y));
+    const auto x_is_zero = context.mark_node(std::make_shared<v1::Equal>(x, zero));
+    const auto y_is_nan = context.mark_node(std::make_shared<v10::IsNaN>(y));
+    const auto y_not_nan = context.mark_node(std::make_shared<v1::LogicalNot>(y_is_nan));
+    const auto use_zero = context.mark_node(std::make_shared<v1::LogicalAnd>(x_is_zero, y_not_nan));
+    auto result = context.mark_node(std::make_shared<v1::Select>(use_zero, zero, x_log_y));
+
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, result);
+    }
+    return {result};
+}
+
+}  // namespace ov::frontend::pytorch::op
