@@ -103,6 +103,24 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
     return res;
 }
 
+dnnl::memory::dims convert_layout(const cldnn::layout& l, size_t dims, bool is_grouped) {
+    const auto& pshape = l.get_partial_shape();
+    size_t rank = pshape.rank().is_static() ? static_cast<size_t>(pshape.rank().get_length()) : dims;
+    size_t out_size = std::max(rank, dims);
+
+    dnnl::memory::dims res;
+    res.reserve(out_size);
+    for (size_t i = 0; i < out_size; ++i) {
+        if (i < rank) {
+            const auto& dim = pshape[i];
+            res.push_back(dim.is_dynamic() ? DNNL_RUNTIME_DIM_VAL : static_cast<int64_t>(dim.get_length()));
+        } else {
+            res.push_back(1);
+        }
+    }
+    return res;
+}
+
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     switch (l.get_partial_shape().size()) {
     case 2:

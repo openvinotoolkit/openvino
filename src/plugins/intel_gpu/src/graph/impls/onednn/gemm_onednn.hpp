@@ -55,7 +55,17 @@ struct GemmImplementationManager : public ImplementationManager {
             return false;
         }
 
+        if (get_shape_type() == shape_types::dynamic_shape && !node.get_fused_primitives().empty()) {
+            return false;
+        }
+
         if (out_layout.data_padding) {
+            return false;
+        }
+
+        if (!is_supported_pad(in0_layout) || !is_supported_pad(in1_layout) ||
+            (get_shape_type() == shape_types::dynamic_shape &&
+             (in0_layout.data_padding || in1_layout.data_padding))) {
             return false;
         }
 

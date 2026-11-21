@@ -790,6 +790,70 @@ public:
         }
     }
 
+    template <typename T>
+    void test_dynamic_multi_inference_different_shape_onednn(bool is_caching_test, data_types data_type) {
+        auto& engine = get_test_engine();
+
+#ifndef ENABLE_ONEDNN_FOR_GPU
+        GTEST_SKIP() << "oneDNN support is disabled in this build";
+ #endif
+        if (!engine.get_device_info().supports_immad)
+            return;
+
+        auto in1_dyn_layout = layout{ov::PartialShape{1, 1, ov::Dimension(1, 10), 4}, data_type, format::bfyx};
+        auto in1_actual_layout1 = layout{ov::PartialShape{1, 1, 3, 4}, data_type, format::bfyx};
+        auto in1_actual_layout2 = layout{ov::PartialShape{1, 1, 4, 4}, data_type, format::bfyx};
+        auto in2_dyn_layout = layout{ov::PartialShape{4, ov::Dimension(1, 10)}, data_type, format::bfyx};
+        auto in2_actual_layout = layout{ov::PartialShape{4, 1}, data_type, format::bfyx};
+        auto input1_1 = engine.allocate_memory(in1_actual_layout1);
+        auto input1_2 = engine.allocate_memory(in1_actual_layout2);
+        auto input2 = engine.allocate_memory(in2_actual_layout);
+
+        const auto make_values = [](std::initializer_list<float> values) {
+            std::vector<T> result;
+            result.reserve(values.size());
+            for (auto value : values)
+                result.emplace_back(value);
+            return result;
+        };
+        set_values(input1_1, make_values({1.f, -2.f, 3.f, -4.f, 5.f, 6.f, 1.f, 2.f, 3.f, 3.f, 2.f, -1.f}));
+        set_values(input1_2, make_values({-1.f, 2.f, -3.f, 4.f, 5.f, 6.f, -1.f, 2.f,
+                                           3.f, -3.f, 2.f, 1.f, 1.f, 2.f, -5.f, 6.f}));
+        set_values(input2, make_values({2.f, 5.f, -4.f, -7.f}));
+
+        topology topology;
+        topology.add(input_layout("input1", in1_dyn_layout),
+                     input_layout("input2", in2_dyn_layout),
+                     gemm("gemm", {input_info("input1"), input_info("input2")}, data_type, false, false, 1.0f, 0.0f, 4, 2));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"gemm", {format::bfyx, "", impl_types::onednn}}}));
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto execute_and_check = [&](const memory::ptr& input1, size_t expected_size, const std::vector<float>& expected) {
+            network->set_input_data("input1", input1);
+            network->set_input_data("input2", input2);
+            auto outputs = network->execute();
+
+            auto impl = network->get_primitive("gemm")->get_impl();
+            ASSERT_NE(impl, nullptr);
+            ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+            ASSERT_TRUE(impl->is_dynamic());
+
+            auto output = outputs.at("gemm").get_memory();
+            mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+            ASSERT_EQ(output_ptr.size(), expected_size);
+            for (size_t i = 0; i < expected.size(); ++i)
+                ASSERT_NEAR(static_cast<float>(output_ptr[i]), expected[i], data_type == data_types::bf16 ? 0.1f : 0.01f);
+        };
+
+        execute_and_check(input1_1, 3, {8.f, 22.f, 20.f});
+        execute_and_check(input1_2, 4, {-8.f, 30.f, -24.f, -10.f});
+    }
+
     void test_dynamic_multi_inference_different_shape(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -1941,6 +2005,22 @@ TEST_F(gemm_gpu_tests, dynamic_multi_inference_same_shape) {
 
 TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape) {
     this->test_dynamic_multi_inference_different_shape(false);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_f16_onednn) {
+    this->test_dynamic_multi_inference_different_shape_onednn<ov::float16>(false, data_types::f16);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_bf16_onednn) {
+    this->test_dynamic_multi_inference_different_shape_onednn<ov::bfloat16>(false, data_types::bf16);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_f16_onednn_cached) {
+    this->test_dynamic_multi_inference_different_shape_onednn<ov::float16>(true, data_types::f16);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_bf16_onednn_cached) {
+    this->test_dynamic_multi_inference_different_shape_onednn<ov::bfloat16>(true, data_types::bf16);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_1d_f16) {
@@ -3551,6 +3631,36 @@ TEST_F(gemm_onednn, dynamic_padding_n_dim_only) {
 
 TEST_F(gemm_onednn, dynamic_padding_input_transpose) {
     this->test_dynamic_padding_transpose();
+}
+
+TEST_F(gemm_onednn, dynamic_lower_spatial_padding_uses_ocl) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const ov::Shape input0_shape = {1, 1, 3, 4};
+    const ov::Shape input1_shape = {1, 1, 4, 3};
+    const padding input0_padding{{0, 0, 1, 0}, {0, 0, 0, 0}};
+
+    topology topology;
+    topology.add(input_layout("input0",
+                              layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx, input0_padding}),
+                 input_layout("input1", layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx}),
+                 gemm("gemm", {input_info("input0"), input_info("input1")}, data_types::f16));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    auto input0 = engine.allocate_memory(
+        layout{ov::PartialShape(input0_shape), data_types::f16, format::bfyx, input0_padding});
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx});
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+
+    auto impl = network.get_primitive("gemm")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::ocl);
 }
 
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>

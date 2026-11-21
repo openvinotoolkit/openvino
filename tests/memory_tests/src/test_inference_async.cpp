@@ -31,6 +31,8 @@ void do_test(memory_tests::Context &test) {
     }
     model->reshape(input_shapes);
     ov::CompiledModel compiled_model = core.compile_model(model, test.device);
+    input_shapes.clear();
+    model.reset();
     test.sample("compile_model");
 
     auto ireq = compiled_model.create_infer_request();
