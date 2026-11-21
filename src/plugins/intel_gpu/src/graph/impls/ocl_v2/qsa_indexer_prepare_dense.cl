@@ -24,7 +24,7 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
                                   const __global int* key_length,       // [B]
                                   const __global half* raw_in,          // [B, 1, r-1, Di]
                                   const __global half* rope_in,         // [B, 2*rotary_dim]
-                                  __global half* summary_cache,         // [B, 1, floor(S_cap/r), Di]
+                                  __global half* summary_cache,         // [B, 1, max(key_length)/r, Di], the output
                                   __global half* raw_out,               // [B, 1, r-1, Di]
                                   __global half* rope_out,              // [B, 2*rotary_dim]
                                   __global half* indexer_q,             // [tokens, Hiq, Di]

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "intel_gpu/primitives/sparse_sdpa.hpp"
 #include "primitive_inst.h"
@@ -20,6 +21,13 @@ public:
 
     program_node& input(size_t index = 0) const {
         return get_dependency(index);
+    }
+
+    // The output shape follows the query shape only, and the impl reads no input on the host. The default would make
+    // every input a shape infer dependency, so each execution would wait on the host for the selection plan the indexer
+    // just produced (and for K/V), a per-layer synchronization.
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
     }
 };
 using sparse_sdpa_node = typed_program_node<sparse_sdpa>;

@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <set>
 #include <string>
+#include <vector>
 
 #include "intel_gpu/primitives/qsa_indexer.hpp"
 #include "primitive_inst.h"
@@ -20,6 +22,19 @@ public:
 
     program_node& input(size_t index = 0) const {
         return get_dependency(index);
+    }
+
+    // The block_index_keys_cache output has max(key_length) / r rows, so the output shape depends on the key_length
+    // values and shape inference reads them on the host. As paged_attention does for past_lens, a key_length that is
+    // a network input is uploaded blocking into lockable (host-visible USM) memory, so that read does not synchronize
+    // the queue. This holds only when key_length is directly a network input: if another GPU primitive produces it,
+    // the host read waits for that primitive to finish.
+    std::set<size_t> get_lockable_input_ids() const override {
+        return {qsa_indexer::InputIdx::KEY_LENGTH};
+    }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {qsa_indexer::InputIdx::KEY_LENGTH};
     }
 };
 using qsa_indexer_node = typed_program_node<qsa_indexer>;
