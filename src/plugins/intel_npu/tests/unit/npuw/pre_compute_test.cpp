@@ -735,4 +735,92 @@ TEST(PreComputeTest, RopeCacheLeavesNonDuplicatingConcatUntouched) {
     EXPECT_EQ(count_ops_of_type_sin_cos(model), 2u) << "Sin/Cos must stay as-is, not be wrongly replaced by the LUT";
 }
 
+// Qwen3.5-style interleaved mRoPE: position_ids [4, 1, L] -> Slice -> [3, 1, L] -> angles
+// [3, 1, L, n] -> per-frequency pick of the T/H/W stream -> Concat([x, x]) -> Sin/Cos.
+// With `pad_with_constant` the Concat pads with zeros instead of duplicating, which does not
+// commute with cos and so must not be cached.
+std::shared_ptr<ov::Model> make_interleaved_mrope_model(bool pad_with_constant) {
+    namespace op = ov::op;
+    auto i64 = [](const std::vector<int64_t>& v) {
+        return op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
+    };
+    auto scalar = [](int64_t v) {
+        return op::v0::Constant::create(ov::element::i64, ov::Shape{}, {v});
+    };
+
+    auto position_ids = std::make_shared<op::v0::Parameter>(ov::element::i64, ov::Shape{4, 1, 4});
+    auto positions = std::make_shared<op::v8::Slice>(position_ids, i64({1}), i64({4}), i64({1}), i64({0}));
+    auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(positions, i64({2}));  // [3, 1, 1, 4]
+    auto convert = std::make_shared<op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto inv_freq = op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 2, 1}, {0.5f, 0.1f});
+    auto broadcast = std::make_shared<op::v3::Broadcast>(inv_freq, i64({3, 1, 2, 1}), op::BroadcastType::BIDIRECTIONAL);
+    auto matmul = std::make_shared<op::v0::MatMul>(broadcast, convert);
+    auto transpose = std::make_shared<op::v1::Transpose>(matmul, i64({0, 1, 3, 2}));  // [3, 1, 4, 2]
+
+    // Frequency 0 comes from the T stream, frequency 1 from the H stream.
+    auto t_stream = std::make_shared<op::v8::Gather>(transpose, scalar(0), scalar(0));  // [1, 4, 2]
+    auto h_stream = std::make_shared<op::v8::Gather>(transpose, scalar(1), scalar(0));
+    auto t_part = std::make_shared<op::v8::Slice>(t_stream, i64({0}), i64({1}), i64({1}), i64({2}));
+    auto h_part = std::make_shared<op::v8::Slice>(h_stream, i64({1}), i64({2}), i64({1}), i64({2}));
+    auto picked = std::make_shared<op::v0::Concat>(ov::OutputVector{t_part, h_part}, 2);  // [1, 4, 2]
+
+    ov::Output<ov::Node> second = picked->output(0);
+    if (pad_with_constant) {
+        second = op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 2}, std::vector<float>(8, 0.f));
+    }
+    auto emb = std::make_shared<op::v0::Concat>(ov::OutputVector{picked, second}, -1);
+
+    auto sin = std::make_shared<op::v0::Sin>(emb);
+    auto cos = std::make_shared<op::v0::Cos>(emb);
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<op::v0::Result>(sin), std::make_shared<op::v0::Result>(cos)},
+        ov::ParameterVector{position_ids},
+        "interleaved_mrope_test_model");
+}
+
+ov::TensorVector evaluate_model(const std::shared_ptr<ov::Model>& model, const ov::Tensor& input) {
+    ov::TensorVector outputs;
+    for (const auto& result : model->get_results()) {
+        outputs.emplace_back(result->get_input_element_type(0), result->get_input_shape(0));
+    }
+    OPENVINO_ASSERT(model->evaluate(outputs, ov::TensorVector{input}));
+    return outputs;
+}
+
+TEST(PreComputeTest, RopeCacheTransformsInterleavedMRope) {
+    auto model = make_interleaved_mrope_model(/*pad_with_constant=*/false);
+    auto reference = model->clone();
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u) << "Sin/Cos should be replaced by Gather from the LUT";
+
+    ov::Tensor position_ids(ov::element::i64, ov::Shape{4, 1, 4});
+    auto* data = position_ids.data<int64_t>();
+    for (int64_t i = 0; i < 16; ++i) {
+        data[i] = i;  // every stream uses distinct positions, all below max_prompt_len
+    }
+
+    const auto expected = evaluate_model(reference, position_ids);
+    const auto actual = evaluate_model(model, position_ids);
+    ASSERT_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i].get_shape(), actual[i].get_shape());
+        const auto* lhs = expected[i].data<float>();
+        const auto* rhs = actual[i].data<float>();
+        for (size_t k = 0; k < expected[i].get_size(); ++k) {
+            EXPECT_NEAR(lhs[k], rhs[k], 1e-3f) << "output " << i << ", element " << k;  // LUT is stored as f16
+        }
+    }
+}
+
+TEST(PreComputeTest, RopeCacheLeavesInterleavedMRopeWithConstantPaddingUntouched) {
+    auto model = make_interleaved_mrope_model(/*pad_with_constant=*/true);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 2u) << "Sin/Cos must stay as-is, not be wrongly replaced by the LUT";
+}
+
 }  // namespace
