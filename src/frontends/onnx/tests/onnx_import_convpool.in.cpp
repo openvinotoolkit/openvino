@@ -459,6 +459,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_ceil_last_window_start
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_ceil_explicit_padding_divisor) {
+    const auto model = convert_model("average_pool_ceil_explicit_padding_divisor.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>(8, 1.0f));
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 3}, {0.5f, 1.0f, 1.0f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
     const auto model = convert_model("max_pool_empty_auto_pad.onnx");
 
