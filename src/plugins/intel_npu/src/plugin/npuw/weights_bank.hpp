@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <tuple>
@@ -29,9 +30,7 @@ class Bank {
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =
         static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::WeightsBank::ID);
-    // Version 0 is the frozen baseline on the wire. Any further layout changes
-    // must be introduced through a new versioned payload rather than by mutating v0.
-    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+    static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
 
     Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
 
@@ -56,21 +55,38 @@ private:
     struct StoredTensor {
         LazyTensor lt;
         ov::Tensor tensor;
+        std::optional<int64_t> owner_uid;
     };
+    // Constant data pointer -> allocation uids, one per element type and size
+    using BufferOwners = std::unordered_map<const void*, std::vector<int64_t>>;
     // Bank for specified device and their allocated memory
     struct DeviceBank {
         std::unordered_map<int64_t, StoredTensor> storage;
-        std::unordered_map<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
+        std::unordered_multimap<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
+        std::vector<LazyTensor> duplicates;
+        // The source buffer may be gone or its address reused, so a hit is only trusted after comparing the bytes
+        BufferOwners aliases;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
-    void evaluate_cpu(DeviceBank& device_bank, const std::vector<LazyTensor>& to_process);
-    void evaluate_and_allocate_on_device(DeviceBank& device_bank,
-                                         const std::vector<LazyTensor>& to_process,
-                                         const std::string& device);
+    // uid -> tensor to evaluate, ordered by uid
+    using Candidates = std::map<int64_t, LazyTensor>;
+    using Pending = std::vector<std::pair<int64_t, LazyTensor>>;
+    // view uid -> uid of the allocation it shares
+    using Views = std::map<int64_t, int64_t>;
 
-    void serialize(ov::npuw::orc::Stream& stream);
+    static Views find_earlier_owners(const DeviceBank& device_bank, const Candidates& candidates);
+    static BufferOwners split_owners_and_views(const Candidates& candidates, Views& views);
+    static void bind_views(DeviceBank& device_bank, const Views& views, const std::string& device);
+
+    int64_t register_tensor(DeviceBank& device_bank, const LazyTensor& tensor, bool use_reshape_views);
+    void evaluate_cpu(DeviceBank& device_bank, const Pending& to_process);
+    void evaluate_and_allocate_on_device(DeviceBank& device_bank, const Pending& to_process, const std::string& device);
+
+    void serialize(ov::npuw::orc::Stream& stream, bool preserve_views = true);
+    void deserialize(ov::npuw::orc::Stream& stream, std::optional<ov::npuw::orc::Version> expected_version = {});
     void read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device);
+    void read_and_add_view(int64_t uid, int64_t owner_uid, const ov::Shape& shape, const std::string& device);
 
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;

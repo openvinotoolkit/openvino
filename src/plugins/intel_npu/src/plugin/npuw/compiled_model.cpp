@@ -1458,6 +1458,13 @@ void ov::npuw::CompiledModel::ensure_phase0_compatibility() const {
         if (subm.pipeline.runtime_behavior.has_value()) {
             fail("runtime behavior");
         }
+        for (const auto& tensor : subm.lazy_closure) {
+            for (const auto& transform : tensor.get_transformations()) {
+                if (std::holds_alternative<ov::npuw::weights::op::Reshape>(transform)) {
+                    fail("LazyTensor Reshape");
+                }
+            }
+        }
     }
 }
 
@@ -1509,12 +1516,14 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
         }
 
         if (include_weights_bank) {
-            ov::npuw::orc::with_leaf_section(body_stream, weights::Bank::kOrcType, weights::Bank::kOrcVersion, [&] {
+            const bool preserve_views = !m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>();
+            const auto bank_version = preserve_views ? weights::Bank::kOrcVersion : 0u;
+            ov::npuw::orc::with_leaf_section(body_stream, weights::Bank::kOrcType, bank_version, [&] {
                 auto weights_stream = ov::npuw::s11n::Stream::writer(body_stream);
                 auto bank_name = m_weights_bank->get_name();
                 weights_stream & bank_name;
                 if (!is_weightless) {
-                    weights_stream&* m_weights_bank;
+                    m_weights_bank->serialize(weights_stream, preserve_views);
                 }
             });
         }
@@ -1668,7 +1677,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         if (child.header().type != weights::Bank::kOrcType) {
             OPENVINO_THROW("Unexpected ORC child type ID ", child.header().type, " in NPUW CompiledModel container");
         }
-        if (child.header().version != weights::Bank::kOrcVersion) {
+        if (child.header().version > weights::Bank::kOrcVersion) {
             OPENVINO_THROW("Unsupported ORC NPUW weights version ", child.header().version);
         }
 
@@ -1680,7 +1689,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
             child.expect_end();
             compiled->finalize_weights_bank();
         } else {
-            child_stream& * compiled->m_weights_bank;
+            compiled->m_weights_bank->deserialize(child_stream, child.header().version);
             child.expect_end();
             compiled->reconstruct_closure();
         }
@@ -1966,6 +1975,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+            const auto device = submodel_device(real_idx);
+            const auto& alloc_device = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+            const auto& device_for_alloc = alloc_device.empty() ? device : alloc_device;
 
             validate_closure_metadata_sizes(comp_model_desc.closure.unsafe_get().closure.size(),
                                             comp_model_desc.lazy_closure.size(),
@@ -1976,8 +1988,12 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
+                if (device_for_alloc != "CPU" && !m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
+                    comp_model_desc.lazy_closure[tidx] =
+                        comp_model_desc.lazy_closure[tidx].canonicalize_constant_shape();
+                }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], submodel_device(real_idx));
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], device);
             }
         }
 

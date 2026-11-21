@@ -28,6 +28,7 @@ class Permute;
 class Convert;
 class Gather;
 class Subtract128;
+class Reshape;
 }  // namespace op
 
 class LazyTensor {
@@ -43,7 +44,8 @@ public:
                                    ov::npuw::weights::op::Permute,
                                    ov::npuw::weights::op::Convert,
                                    ov::npuw::weights::op::Gather,
-                                   ov::npuw::weights::op::Subtract128>;
+                                   ov::npuw::weights::op::Subtract128,
+                                   ov::npuw::weights::op::Reshape>;
 
     LazyTensor() = default;
     LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr);
@@ -61,6 +63,9 @@ public:
     LazyTensor permute(const std::vector<std::size_t>& axes);
     LazyTensor convert(const ov::element::Type& type);
     LazyTensor subtract_128();
+    LazyTensor reshape(const ov::Shape& shape) const;
+    LazyTensor reshape_source() const;
+    LazyTensor canonicalize_constant_shape() const;
 
     bool operator==(const LazyTensor& other) const;
     bool operator!=(const LazyTensor& other) const;
@@ -76,11 +81,21 @@ public:
     };
     Meta eval_meta() const;
 
+    // Data pointer of the Constant behind a plain Constant-backed tensor. nullptr for tensors with
+    // transformations, detached tensors and imported (weightless) ones.
+    const void* const_data_ptr() const;
+    ov::Tensor imported_const_for_comparison() const;
+    bool is_plain_constant() const;
+    bool shares_impl_with(const LazyTensor& other) const;
+
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     operator bool() const;
 
 private:
     friend void ov::npuw::orc::serialize(ov::npuw::orc::Stream& stream, LazyTensor& var);
+    friend struct LazyTensorImpl;
+    friend class op::Reshape;
+    bool mark_canonical_offset();
     void serialize(ov::npuw::orc::Stream& stream);
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
 };
@@ -91,6 +106,7 @@ namespace op {
 // instead of changing the existing v0 layout.
 class Const {
     friend struct ov::npuw::weights::LazyTensorImpl;
+    friend class ov::npuw::weights::LazyTensor;
 
 public:
     static constexpr std::uint16_t kVersion = 0u;
@@ -116,6 +132,9 @@ private:
     const void* m_cached_ptr = nullptr;
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
+    bool m_has_offset = false;
+    // An offset is only a candidate identity; the bank checks bytes before sharing.
+    bool m_canonical_offset = false;
     ov::Tensor m_read_from_bin;
     std::string m_weights_path;
     ov::FileHandleProvider m_handle_provider = nullptr;
@@ -239,6 +258,32 @@ public:
 
 private:
     LazyTensor tensor;
+};
+
+class Reshape {
+    friend struct ov::npuw::weights::LazyTensorImpl;
+
+public:
+    static constexpr std::uint16_t kVersion = 0u;
+
+    Reshape() = default;
+    Reshape(const LazyTensor& source, ov::Shape target_shape, bool canonical = false)
+        : tensor(source),
+          shape(std::move(target_shape)),
+          canonical_offset(canonical) {}
+
+    std::size_t hash() const;
+    bool operator==(const Reshape& other) const;
+    ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void detach();
+    void serialize(ov::npuw::orc::Stream& stream);
+
+private:
+    LazyTensor tensor;
+    ov::Shape shape;
+    bool canonical_offset = false;
 };
 
 class Gather {
