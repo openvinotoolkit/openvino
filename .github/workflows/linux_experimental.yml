@@ -1,0 +1,98 @@
+name: Linux Experimental Check
+
+on:
+  pull_request:
+    branches: [ master, experimental_path_ov_rt ]
+  push:
+    branches: [ master, experimental_path_ov_rt ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  parity_gate:
+    name: Experimental parity (OFF)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: 'recursive'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3 python3-dev cmake ninja-build \
+            build-essential libtool pkg-config automake \
+            git ca-certificates binutils
+      - name: Configure (experimental OFF)
+        run: |
+          cmake -S . -B build_parity \
+            -DENABLE_OV_EXPERIMENTAL=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_INTEL_GPU=ON \
+            -DENABLE_INTEL_CPU=OFF \
+            -DENABLE_INTEL_NPU=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+      - name: Build (experimental OFF)
+        run: |
+          cmake --build build_parity --target openvino openvino_intel_gpu_plugin ov_core_unit_tests -j $(nproc)
+      - name: Run experimental parity check
+        run: |
+          bash scripts/check_experimental_parity.sh build_parity
+
+  experimental_build_test:
+    name: Experimental build and GPU unit tests (ON)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: 'recursive'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3 python3-dev cmake ninja-build \
+            build-essential libtool pkg-config automake \
+            git ca-certificates binutils
+      - name: Configure (experimental ON)
+        run: |
+          cmake -S . -B build \
+            -DENABLE_OV_EXPERIMENTAL=ON \
+            -DENABLE_TESTS=ON \
+            -DENABLE_INTEL_GPU=ON \
+            -DENABLE_INTEL_CPU=OFF \
+            -DENABLE_INTEL_NPU=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+      - name: Build unit tests
+        run: |
+          cmake --build build --target ov_core_unit_tests ov_gpu_unit_tests -j $(nproc)
+      - name: Run core experimental unit tests
+        run: |
+          BIN=bin/intel64/Release/ov_core_unit_tests
+          test -x "${BIN}" || { echo "Missing test executable: ${BIN}"; exit 1; }
+          FILTER="*BlockSparseAttention*:*DraftBlockMask*:*block_sparse_attention*:*draft_block_mask*"
+          MATCHED_COUNT=$("${BIN}" --gtest_filter="${FILTER}" --gtest_list_tests | grep -cE '^\s+\S')
+          echo "Matched ${MATCHED_COUNT} core experimental tests"
+          [ "${MATCHED_COUNT}" -ge 41 ] || { echo "Expected >= 41 tests (16+13 type_prop, 2+2 visitors, 4+4 eval), got ${MATCHED_COUNT}"; exit 1; }
+          "${BIN}" --gtest_filter="${FILTER}"
+      - name: Verify GPU Experimental Tests Registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN=bin/intel64/Release/ov_gpu_unit_tests
+          test -x "${BIN}" || { echo "Missing test executable: ${BIN}"; exit 1; }
+          if [ -d "/dev/dri" ] && [ -n "$(find /dev/dri -name 'renderD*' 2>/dev/null)" ]; then
+            "${BIN}" --gtest_list_tests --gtest_filter="*BlockSparseAttention*:*DraftBlockMask*:*block_sparse_attention*:*draft_block_mask*" | grep -E "block_sparse_attention_gpu\.|draft_block_mask_gpu\."
+          else
+            echo "No GPU device detected (/dev/dri/renderD* missing). In upstream OpenVINO CI, GPU tests are constrained to runners with GPU hardware."
+            test $(strings "${BIN}" | grep -cE "^(block_sparse_attention_gpu|draft_block_mask_gpu)$") -ge 2
+          fi

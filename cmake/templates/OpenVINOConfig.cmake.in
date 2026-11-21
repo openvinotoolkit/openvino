@@ -653,4 +653,7 @@ unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND)
 
+# Optional experimental feature flag (installed only when ENABLE_OV_EXPERIMENTAL is ON).
+include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOExperimental.cmake" OPTIONAL)
+
 cmake_policy(POP)
