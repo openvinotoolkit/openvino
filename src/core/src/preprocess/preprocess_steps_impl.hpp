@@ -221,6 +221,8 @@ struct InternalPostprocessAction {
 /// \brief PostProcessStepsImpl - internal data structure
 class PostStepsList {
 public:
+    void add_scale_impl(const std::vector<float>& values);
+    void add_mean_impl(const std::vector<float>& values);
     void add_clamp(double min_value, double max_value);
     void add_convert_impl(const element::Type& type);
     void add_convert_layout_impl(const Layout& layout);

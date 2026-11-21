@@ -238,6 +238,70 @@ static void regclass_graph_PostProcessSteps(py::module m) {
     steps.doc() = "openvino.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
 
     steps.def(
+        "mean",
+        [](ov::preprocess::PostProcessSteps& self, float value) {
+            return &self.mean(value);
+        },
+        py::arg("value"),
+        R"(
+            Subtracts single float value from each element in output tensor.
+            Output tensor must have ov.Type.f32 data type.
+
+            :param value: Value to subtract.
+            :type value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.preprocess.PostProcessSteps
+        )");
+
+    steps.def(
+        "mean",
+        [](ov::preprocess::PostProcessSteps& self, const std::vector<float>& values) {
+            return &self.mean(values);
+        },
+        py::arg("values"),
+        R"(
+            Subtracts a given single float value from each element in a given channel from output tensor.
+            Output tensor must have ov.Type.f32 data type.
+
+            :param values: Values to subtract.
+            :type values: list[float]
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.preprocess.PostProcessSteps
+        )");
+
+    steps.def(
+        "scale",
+        [](ov::preprocess::PostProcessSteps& self, float value) {
+            return &self.scale(value);
+        },
+        py::arg("value"),
+        R"(
+            Divides each element in output tensor by specified constant float value.
+            Output tensor must have ov.Type.f32 data type.
+
+            :param value: Value used in division.
+            :type value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.preprocess.PostProcessSteps
+        )");
+
+    steps.def(
+        "scale",
+        [](ov::preprocess::PostProcessSteps& self, const std::vector<float>& values) {
+            return &self.scale(values);
+        },
+        py::arg("values"),
+        R"(
+            Divides each element in a given channel from output tensor by a given single float value.
+            Output tensor must have ov.Type.f32 data type.
+
+            :param values: Values which are used in division.
+            :type values: list[float]
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.preprocess.PostProcessSteps
+        )");
+
+    steps.def(
         "convert_element_type",
         [](ov::preprocess::PostProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);

@@ -40,6 +40,36 @@ public:
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     PostProcessSteps& clamp(double min_value, double max_value);
 
+    /// \brief Add scale postprocess operation
+    /// Divide each element of output by specified value
+    ///
+    /// \param value Scaling value.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PostProcessSteps& scale(float value);
+
+    /// \brief Add scale postprocess operation by specified array of scale values for each channel
+    ///
+    /// \param values Scaling values. Layout with channels dimension must be specified for output
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PostProcessSteps& scale(const std::vector<float>& values);
+
+    /// \brief Add mean postprocess operation
+    /// Subtract specified value from each element of output
+    ///
+    /// \param value Value to subtract from each element.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PostProcessSteps& mean(float value);
+
+    /// \brief Add mean postprocess operation by specified array of mean values for each channel
+    ///
+    /// \param values Mean values. Layout with channels dimension must be specified for output
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PostProcessSteps& mean(const std::vector<float>& values);
+
     /// \brief Add convert element type post-process operation
     ///
     /// \param type Desired type of output. If not specified, type will be obtained from 'tensor' output information

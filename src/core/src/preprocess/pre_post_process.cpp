@@ -556,6 +556,26 @@ OutputModelInfo& OutputModelInfo::set_color_format(const ov::preprocess::ColorFo
 PostProcessSteps::PostProcessSteps() : m_impl(std::unique_ptr<PostProcessStepsImpl>(new PostProcessStepsImpl())) {}
 PostProcessSteps::~PostProcessSteps() = default;
 
+PostProcessSteps& PostProcessSteps::scale(float value) {
+    m_impl->add_scale_impl(std::vector<float>{value});
+    return *this;
+}
+
+PostProcessSteps& PostProcessSteps::scale(const std::vector<float>& values) {
+    m_impl->add_scale_impl(values);
+    return *this;
+}
+
+PostProcessSteps& PostProcessSteps::mean(float value) {
+    m_impl->add_mean_impl(std::vector<float>{value});
+    return *this;
+}
+
+PostProcessSteps& PostProcessSteps::mean(const std::vector<float>& values) {
+    m_impl->add_mean_impl(values);
+    return *this;
+}
+
 PostProcessSteps& PostProcessSteps::clamp(double min_value, double max_value) {
     m_impl->add_clamp(min_value, max_value);
     return *this;
