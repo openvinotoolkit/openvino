@@ -24,6 +24,7 @@
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
 #include "npuw_transformations/drop_zp_subtract.hpp"
+#include "npuw_transformations/fold_scalar_dq.hpp"
 #include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -351,6 +352,9 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     // multiple layers; NPUW's FOLD pass requires per-instance scalars.
     ov::npuw::UntangleDQScale untangle_dq_scale;
     untangle_dq_scale.run_on_model(model);
+    // Fold single-element all-Constant DQ chains into one Constant.
+    ov::npuw::FoldScalarDQ fold_scalar_dq;
+    fold_scalar_dq.run_on_model(model);
     // Drop all-zero zero-point Subtract nodes so ConvToMatMul sees a clean
     // Convert(Parameter) → Multiply(scale) weight chain.
     ov::npuw::DropZPSubtract drop_zp_subtract;
