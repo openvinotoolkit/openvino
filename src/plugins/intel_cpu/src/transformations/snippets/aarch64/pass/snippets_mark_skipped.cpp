@@ -311,6 +311,10 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
         }
 #if defined(OPENVINO_ARCH_ARM64)
+        // The activation zero point Subtract is fused into the int8 ACL convolution
+        if (match_acl_int8_conv_with_zero_point(node)) {
+            SetSnippetsNodeType(node->get_input_node_shared_ptr(0), snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        }
         if (mark_acl_int8_fq_chain(node, match_acl_int8_pooling_fq_chain, false)) {
             continue;
         }

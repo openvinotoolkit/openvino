@@ -271,6 +271,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
+                // The activation zero point is applied only by the int8 ACL convolution
+                VERIFY(config.attrs.inputZeroPointsType == ZeroPointsType::None, UNSUPPORTED_BY_EXECUTOR);
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},

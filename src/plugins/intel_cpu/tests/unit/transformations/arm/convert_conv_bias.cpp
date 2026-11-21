@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -18,6 +19,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
@@ -28,9 +30,16 @@
 
 using namespace ov::intel_cpu;
 
+// Zero point on the activations, as LPT creates it: Subtract(low precision data, constant) -> f32
+struct ZeroPoint {
+    ov::element::Type type = ov::element::dynamic;
+    std::vector<float> values;
+};
+
 static std::shared_ptr<ov::Node> createConvolution(ov::element::Type input_type,
                                                     ov::element::Type weights_type,
-                                                    std::shared_ptr<ov::op::v0::Parameter>& input) {
+                                                    std::shared_ptr<ov::op::v0::Parameter>& input,
+                                                    const ZeroPoint& zero_point = {}) {
     static const size_t spatial_dims = 2;
     ov::Strides strides(spatial_dims, 1);
     ov::CoordinateDiff pads(spatial_dims, 0);
@@ -38,14 +47,25 @@ static std::shared_ptr<ov::Node> createConvolution(ov::element::Type input_type,
     input = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 3, 224, 224});
     auto weights = ov::op::v0::Constant::create(weights_type, ov::Shape{16, 3, 3, 3}, {1});
 
+    ov::Output<ov::Node> activations = input;
+    if (!zero_point.values.empty()) {
+        auto zero_point_const =
+            ov::op::v0::Constant::create(zero_point.type, ov::Shape{1, zero_point.values.size(), 1, 1}, zero_point.values);
+        activations = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Subtract>>(
+            ov::element::TypeVector{ov::element::f32, ov::element::f32},
+            ov::element::TypeVector{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(input, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(zero_point_const, ov::element::f32).get());
+    }
+
     if (input_type == ov::element::f32 && weights_type == ov::element::f32) {
         return std::make_shared<ov::op::v1::Convolution>(
-            input, weights, strides, pads, pads, strides);
+            activations, weights, strides, pads, pads, strides);
     } else {
         return std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Convolution>>(
             ov::element::TypeVector{ov::element::f32, ov::element::f32},
             ov::element::TypeVector{ov::element::f32},
-            ov::op::TemporaryReplaceOutputType(input, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(activations, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
             strides, pads, pads, strides);
     }
@@ -79,9 +99,10 @@ static std::shared_ptr<ov::op::v0::FakeQuantize> createFakeQuantize(const ov::Ou
 static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
                                                   ov::element::Type weights_type,
                                                   ov::element::Type bias_type,
-                                                  bool keep_fq_output_precision = false) {
+                                                  bool keep_fq_output_precision = false,
+                                                  const ZeroPoint& zero_point = {}) {
     std::shared_ptr<ov::op::v0::Parameter> input;
-    auto conv = createConvolution(input_type, weights_type, input);
+    auto conv = createConvolution(input_type, weights_type, input, zero_point);
 
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(conv, dequant_scale);
@@ -98,9 +119,10 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
 // Pattern: Input -> Convolution -> Add(Round(bias)->Convert(i32)) -> Multiply -> FQ -> Result
 static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
                                                  ov::element::Type weights_type,
-                                                 ov::element::Type bias_type) {
+                                                 ov::element::Type bias_type,
+                                                 const ZeroPoint& zero_point = {}) {
     std::shared_ptr<ov::op::v0::Parameter> input;
-    auto conv = createConvolution(input_type, weights_type, input);
+    auto conv = createConvolution(input_type, weights_type, input, zero_point);
 
     auto bias = ov::op::v0::Constant::create(bias_type, {1, 16, 1, 1}, {1.5f});
     auto round = std::make_shared<ov::op::v5::Round>(bias, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
@@ -153,5 +175,33 @@ TEST_F(TransformationTestsF, ConvertConvolutionBias_F32Input_F32Weights_NotAppli
 // fq output does not match activation precision -> transformation should NOT be applied
 TEST_F(TransformationTestsF, ConvertConvolutionBias_FqOutputDoesNotMatchActivationPrecision_NotApplied) {
     model = createInitGraph(ov::element::i8, ov::element::i8, ov::element::f32, true);
+    manager.register_pass<ConvertConvolutionBias>();
+}
+
+// i8 input with a per-tensor i8 zero point -> transformation should be applied, the zero point is kept
+TEST_F(TransformationTestsF, ConvertConvolutionBias_I8InputWithZeroPoint_Applied) {
+    const ZeroPoint zero_point{ov::element::i8, {-5.0f, -5.0f, -5.0f}};
+    model = createInitGraph(ov::element::i8, ov::element::i8, ov::element::f32, false, zero_point);
+    manager.register_pass<ConvertConvolutionBias>();
+    model_ref = createRefGraph(ov::element::i8, ov::element::i8, ov::element::f32, zero_point);
+}
+
+// u8 input with a zero point -> transformation should NOT be applied (not supported by the int8 ACL convolution)
+TEST_F(TransformationTestsF, ConvertConvolutionBias_U8InputWithZeroPoint_NotApplied) {
+    model = createInitGraph(ov::element::u8,
+                            ov::element::i8,
+                            ov::element::f32,
+                            false,
+                            ZeroPoint{ov::element::u8, {5.0f, 5.0f, 5.0f}});
+    manager.register_pass<ConvertConvolutionBias>();
+}
+
+// i8 input with a per-channel zero point -> transformation should NOT be applied
+TEST_F(TransformationTestsF, ConvertConvolutionBias_I8InputWithPerChannelZeroPoint_NotApplied) {
+    model = createInitGraph(ov::element::i8,
+                            ov::element::i8,
+                            ov::element::f32,
+                            false,
+                            ZeroPoint{ov::element::i8, {-5.0f, 3.0f, 0.0f}});
     manager.register_pass<ConvertConvolutionBias>();
 }

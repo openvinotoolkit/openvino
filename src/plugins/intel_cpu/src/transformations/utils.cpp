@@ -4,6 +4,7 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -25,6 +26,8 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
@@ -50,6 +53,30 @@ std::shared_ptr<ov::Node> get_consumer(const ov::Output<const ov::Node>& output)
 }
 
 }  // namespace
+
+bool is_supported_activation_zero_point(const std::shared_ptr<const ov::Node>& subtract) {
+    if (!ov::is_type<const ov::op::v1::Subtract>(subtract) || subtract->get_input_element_type(0) != ov::element::i8) {
+        return false;
+    }
+    const auto zero_point = ov::as_type_ptr<const ov::op::v0::Constant>(subtract->get_input_node_shared_ptr(1));
+    if (!zero_point || zero_point->get_element_type() != ov::element::i8) {
+        return false;
+    }
+    const auto values = zero_point->cast_vector<int32_t>();
+    return std::all_of(values.begin(), values.end(), [&values](const int32_t value) {
+        return value == values.front();
+    });
+}
+
+ov::element::Type get_int8_activation_type(const std::shared_ptr<const ov::Node>& gemm) {
+    if (ov::is_type<const ov::op::v1::Convolution>(gemm)) {
+        const auto activation = gemm->get_input_node_shared_ptr(0);
+        if (is_supported_activation_zero_point(activation)) {
+            return activation->get_input_element_type(0);
+        }
+    }
+    return gemm->get_input_element_type(0);
+}
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
     return match_gemm_bias_fq_same_types<ov::op::v1::Convolution>(node, pattern, /* optional_swish_allowed = */ true);
@@ -186,6 +213,24 @@ bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node
     }
 
     return false;
+}
+
+bool match_acl_int8_conv_with_zero_point(const std::shared_ptr<const ov::Node>& node) {
+    const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(node);
+    if (!conv || !is_supported_activation_zero_point(conv->get_input_node_shared_ptr(0))) {
+        return false;
+    }
+
+    // Skip the dequantization Multiply and the bias Add, in any order
+    auto consumer = get_consumer(conv->output(0));
+    for (size_t i = 0; i < 2 && consumer && ov::is_type_any_of<ov::op::v1::Multiply, ov::op::v1::Add>(consumer); i++) {
+        consumer = get_consumer(consumer->output(0));
+    }
+    if (consumer && ov::is_type<ov::op::v4::Swish>(consumer)) {
+        consumer = get_consumer(consumer->output(0));
+    }
+    return consumer && ov::is_type<ov::op::v0::FakeQuantize>(consumer) &&
+           consumer->get_output_element_type(0) == get_int8_activation_type(conv);
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,

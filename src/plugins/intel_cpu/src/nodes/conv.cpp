@@ -891,4 +891,12 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     }
 }
 
+void Convolution::initializePerTensorInputZeroPoint(const int32_t inputZeroPoint) {
+    const bool zeroPointsNotSet = inputZeroPoints.empty() && legacyInputZeroPoints.empty();
+    CPU_NODE_ASSERT(zeroPointsNotSet, "input zero points are not empty");
+
+    m_attrs.inputZeroPointsType = ZeroPointsType::PerTensor;
+    inputZeroPoints.push_back(inputZeroPoint);
+}
+
 }  // namespace ov::intel_cpu::node

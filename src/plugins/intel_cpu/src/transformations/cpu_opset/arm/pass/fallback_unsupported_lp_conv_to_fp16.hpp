@@ -12,8 +12,9 @@
  *     Convolution -> Multiply -> Add -> FakeQuantize that cannot execute as int8.
  *
  *     The pass fires when either:
- *       1. The Convolution activation comes from a Subtract (zero-point dequantization),
- *          indicating the int8 path is broken for this Conv (unconditional fallback).
+ *       1. The Convolution activation comes from a Subtract (zero-point dequantization)
+ *          that the int8 ACL convolution executor does not support. Only a per-tensor zero
+ *          point on i8 activations is supported (see is_supported_activation_zero_point).
  *       2. The FakeQuantize output precision differs from Conv activation precision
  *          (original type-mismatch case).
  *
