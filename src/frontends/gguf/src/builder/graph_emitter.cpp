@@ -133,7 +133,7 @@ void GraphEmitter::validate_hadamard() const {
             OPENVINO_ASSERT(m_hadamard_consumed.count(name), "[GGUF] unused Hadamard weight: ", name);
 }
 
-void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>& config) {
+void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>& config, bool allow_inverse_only) {
     const std::string prefix = "prism.hadamard.";
     if (!config.count(prefix + "version")) {
         OPENVINO_ASSERT(std::none_of(config.begin(),
@@ -169,7 +169,6 @@ void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>&
             required_metadata<std::string>(config, prefix + "axis") == "input-last-dimension",
         "[GGUF] unsupported Hadamard transform/axis");
     const auto& names = required_metadata<std::vector<std::string>>(config, prefix + "weight_names");
-    OPENVINO_ASSERT(!names.empty(), "[GGUF] empty Hadamard weight_names");
     for (const auto& name : names) {
         OPENVINO_ASSERT(has_weight(name) && m_hadamard_weights.insert(name).second,
                         "[GGUF] missing or duplicate Hadamard weight: ",
@@ -191,6 +190,8 @@ void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>&
         OPENVINO_ASSERT(m_hadamard_inverse_weights.empty() || has_weight("output.weight"),
                         "[GGUF] latent tied embedding requires Hadamard version 2");
     }
+    OPENVINO_ASSERT(!m_hadamard_weights.empty() || (allow_inverse_only && !m_hadamard_inverse_weights.empty()),
+                    "[GGUF] empty Hadamard weight_names");
     const auto& mode = required_metadata<std::string>(config, prefix + "sign_mode");
     OPENVINO_ASSERT(mode == "identity" || mode == "explicit", "[GGUF] unsupported Hadamard sign_mode");
     if (mode == "explicit") {
@@ -261,6 +262,11 @@ void GraphEmitter::add_extra_input_node(const std::string& name, const std::shar
 
 void GraphEmitter::emit_weight(const std::string& name, const GgufWeight& source) {
     if (m_emitted_weights.count(name)) {
+        return;
+    }
+    if (m_weight_source && m_weight_source->m_emitted_weights.count(name)) {
+        (*m_graph->values)[name] = m_weight_source->value(name);
+        m_emitted_weights.insert(name);
         return;
     }
     add_op("GGML_OP_NONE", name, {}, 0, {{"gguf_source", source}});

@@ -26,6 +26,8 @@ public:
     std::shared_ptr<Model> translate_graph(const frontend::InputModel::Ptr& input_model);
 
 private:
+    std::shared_ptr<Model> assemble_model(const std::shared_ptr<GgufDecoder>& decoder);
+    std::shared_ptr<Model> finalize_model(std::shared_ptr<Model> model, const GgufDecoder& decoder);
     std::shared_ptr<Model> apply_transformations(std::shared_ptr<Model> model);
     const frontend::InputModel::Ptr m_input_model;
     const std::unordered_map<std::string, CreatorFunction>& m_translator_map;

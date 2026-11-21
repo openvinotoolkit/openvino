@@ -96,7 +96,9 @@ also lets the llama.cpp adapter supply resolved facts. Architecture names are di
 An explicit `batchable_recurrent` value overrides structural inference; leave it unset to infer
 batching from generic operation capabilities. All three states survive IR serialization.
 `sequence_outputs` names auxiliary decoder outputs that `AdaptToGenAI` reshapes to
-`[B,T,D]`. `component_groups` declares named groups of independently selectable models,
+`[B,T,D]`. `sequence_inputs` names auxiliary rank-3 `[B,T,D]` parameters that it
+preserves, such as a NextN draft's target hidden states.
+`component_groups` declares named groups of independently selectable models,
 the primary model of each group, its output names and its recurrent-state prefix.
 The contracts survive IR serialization; adaptation consumes them without family-name checks.
 `supports_genai_adaptation` lets a builder reject the standard decoder interface
@@ -164,6 +166,9 @@ Do not add `DecoderConfig` flags for non-decoder families such as encoders; writ
 Implement `ModelBuilder::build()` with a `GgufGraphContext`. `BuildContext` borrows metadata and
 weights for the synchronous factory/build call; a builder may copy it but must not use it afterward.
 The returned graph retains weight storage.
+`BuildContext::component` contains the component selected when conversion runs. A custom builder
+that handles the requested component must call `GgufGraphContext::acknowledge_component()`; otherwise
+the frontend rejects the graph rather than silently treating it as the target model.
 
 - Scalar getters `get_int`, `get_float`, `get_bool`, `get_str` return `std::optional`; use
   `value_or` only for defaults present in the reference. Array getters return typed vectors.

@@ -226,6 +226,11 @@ void GgufGraphContext::set_output(const GgufValue& value, const std::string& nam
     emitter.graph()->model_output_names.push_back(name);
 }
 
+void GgufGraphContext::acknowledge_component() {
+    m_impl->check_open();
+    m_impl->emitter.graph()->component = m_impl->build_ctx.component;
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),

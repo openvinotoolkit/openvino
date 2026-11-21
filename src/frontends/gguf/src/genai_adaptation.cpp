@@ -19,6 +19,56 @@ namespace {
 using pass::AdaptMmprojToGenAI;
 
 ModelMap adapt_decoder(const std::shared_ptr<ov::Model>& model, const GenAIAdaptOptions& options) {
+    if (model->has_rt_info("gguf_mtp_components")) {
+        const auto info = model->get_rt_info<ov::AnyMap>({"gguf_mtp_components"});
+        const auto result_count = info.at("target_results").as<int64_t>();
+        const auto parameter_count = info.at("target_parameters").as<int64_t>();
+        OPENVINO_ASSERT(result_count > 0 && parameter_count > 0 &&
+                            static_cast<size_t>(result_count) < model->get_results().size() &&
+                            static_cast<size_t>(parameter_count) < model->get_parameters().size(),
+                        "[GGUF] invalid MTP component boundaries");
+        const auto select = [&](bool target) {
+            auto branch = model->clone();
+            const auto results = branch->get_results();
+            const auto parameters = branch->get_parameters();
+            for (size_t i = 0; i < results.size(); ++i)
+                if ((i < static_cast<size_t>(result_count)) != target)
+                    branch->remove_result(results[i]);
+            for (size_t i = 0; i < parameters.size(); ++i)
+                if ((i < static_cast<size_t>(parameter_count)) != target)
+                    branch->remove_parameter(parameters[i]);
+            if (target) {
+                branch->get_rt_info() = model->get_rt_info();
+                branch->get_rt_info().erase("gguf_mtp_components");
+            } else {
+                branch->get_rt_info() = info.at("draft_rt_info").as<ov::AnyMap>();
+                const auto unprefix = [](const std::string& name) {
+                    OPENVINO_ASSERT(name.rfind("mtp.", 0) == 0, "[GGUF] invalid MTP boundary name: ", name);
+                    return name.substr(4);
+                };
+                const auto restore_names = [&](const ov::Output<ov::Node>& output) {
+                    std::unordered_set<std::string> names;
+                    for (const auto& name : output.get_names())
+                        names.insert(unprefix(name));
+                    output.get_tensor().set_names(names);
+                };
+                for (const auto& parameter : branch->get_parameters()) {
+                    parameter->set_friendly_name(unprefix(parameter->get_friendly_name()));
+                    restore_names(parameter->output(0));
+                }
+                for (const auto& result : branch->get_results()) {
+                    result->set_friendly_name(unprefix(result->get_friendly_name()));
+                    restore_names(result->input_value(0));
+                }
+            }
+            branch->validate_nodes_and_infer_types();
+            return branch;
+        };
+        auto models = adapt_decoder(select(true), options);
+        auto draft = adapt_decoder(select(false), options);
+        models.emplace("mtp_draft", draft.at("language"));
+        return models;
+    }
     if (!find_parameter(model, "beam_idx")) {
         auto live = std::make_shared<std::unordered_set<const ov::Node*>>();
         pass::SnapshotLiveParameters(live).run_on_model(model);

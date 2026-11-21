@@ -12,6 +12,10 @@
 
 namespace ov::frontend::gguf {
 
+struct LoadOptions {
+    bool include_mtp_draft = false;
+};
+
 class GGUF_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;

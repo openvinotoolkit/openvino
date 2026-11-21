@@ -39,7 +39,9 @@ TEST(GGUFArchitectureLibrary, ExternalModuleMatchesDirectRegistrationAcrossToken
     ov::frontend::gguf::FrontEnd direct;
     direct.add_extension(
         std::make_shared<ov::frontend::gguf::ArchitectureExtension>(example::projector_architecture()));
-    auto from_definition = direct.convert(direct.load(path.string()));
+    ASSERT_TRUE(direct.supported(path.string(), ov::frontend::gguf::LoadOptions{true}, false));
+    ASSERT_TRUE(direct.load(path.string(), ov::frontend::gguf::LoadOptions{true}, false));
+    auto from_definition = direct.convert(direct.load(path.string(), ov::frontend::gguf::LoadOptions{}, false));
     for (size_t tokens : {1u, 3u, 7u}) {
         ov::Tensor data(ov::element::f32, {1, 1, tokens, 2});
         std::iota(data.data<float>(), data.data<float>() + data.get_size(), 1.0f);
