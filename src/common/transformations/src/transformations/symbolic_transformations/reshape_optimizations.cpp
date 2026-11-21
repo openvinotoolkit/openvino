@@ -52,6 +52,11 @@ ReshapeOptimizations::ReshapeOptimizations() {
         int64_t cnt_neg_ones = std::count(output_pattern.begin(), output_pattern.end(), -1);
         if (cnt_static_zeros == 0 && cnt_neg_ones <= 1) {
             auto new_pattern = v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
+            const auto candidate = std::make_shared<ov::op::v1::Reshape>(reshape->input_value(0), new_pattern, true);
+            // Skip this change if it makes the output shape range larger.
+            if (!candidate->get_output_partial_shape(0).refines(out_shape)) {
+                return false;
+            }
             ov::copy_runtime_info(reshape->get_input_node_shared_ptr(1), new_pattern);
             reshape->set_special_zero(true);
             reshape->input(1).replace_source_output(new_pattern->output(0));
