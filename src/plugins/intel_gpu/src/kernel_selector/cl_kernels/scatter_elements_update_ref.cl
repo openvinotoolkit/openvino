@@ -312,18 +312,24 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         int val_fixed = FUNC_CALL(to_int)(val);
 
         #ifndef NO_LOCAL_MEMORY
+            // count_add_local returns the pre-increment value, so exactly one work item per
+            // output element observes 0. Elect that one to seed the accumulator with a real
+            // contribution and let its peers reduce into the seed. Nothing loads
+            // reduction_thread[] back: the count is only ever known through this return value,
+            // which is why the election needs no ordering with respect to the other fetch-adds.
             INPUT1_TYPE write_thread = FUNC_CALL(count_add_local)(&reduction_thread[output_idx], 1);
-            #if REDUCE_MODE != MEAN_MODE
-                if (write_thread == 0) {
-                    #if USE_INIT_VAL == 0
-                        output_fp[output_idx] = FUNC_CALL(to_int)(REDUCTION_NEUTRAL_VALUE);
-                    #endif
-                }
-            #endif
-            if (reduction_thread[output_idx] > 1) {
-                FUNC_CALL(atomic_reduce_local)(&reduction_v[output_idx], val_fixed);
-            } else {
+
+            if (write_thread == 0) {
+                #if REDUCE_MODE != MEAN_MODE && USE_INIT_VAL == 0
+                    output_fp[output_idx] = FUNC_CALL(to_int)(REDUCTION_NEUTRAL_VALUE);
+                #endif
                 reduction_v[output_idx] = val_fixed;
+            }
+
+            barrier(CLK_LOCAL_MEM_FENCE);
+
+            if (write_thread != 0) {
+                FUNC_CALL(atomic_reduce_local)(&reduction_v[output_idx], val_fixed);
             }
 
             barrier(CLK_LOCAL_MEM_FENCE);
