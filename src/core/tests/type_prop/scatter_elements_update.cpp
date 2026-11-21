@@ -140,6 +140,32 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_axis_validation)
                     HasSubstr("Axis 8 out of the tensor rank range [-4, 3]"));
 }
 
+TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_axis_one_element_1d) {
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 5, 7});
+    auto indices = make_shared<op::v0::Parameter>(element::i16, Shape{2, 2, 2, 2});
+    auto updates = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2, 2});
+
+    for (const auto& axis : OutputVector{make_shared<op::v0::Constant>(element::i16, Shape{1}, std::vector<int>{1}),
+                                         make_shared<op::v0::Parameter>(element::i16, PartialShape{-1})}) {
+        auto scatter = make_shared<TypeParam>(data, indices, updates, axis);
+        EXPECT_EQ(scatter->get_output_partial_shape(0), PartialShape({2, 4, 5, 7}));
+    }
+}
+
+TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_axis_not_one_element) {
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 5, 7});
+    auto indices = make_shared<op::v0::Parameter>(element::i16, Shape{2, 2, 2, 2});
+    auto updates = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2, 2});
+
+    for (const auto& axis : OutputVector{make_shared<op::v0::Constant>(element::i16, Shape{0}, std::vector<int>{}),
+                                         make_shared<op::v0::Constant>(element::i16, Shape{2}, std::vector<int>{0, 1}),
+                                         make_shared<op::v0::Parameter>(element::i16, Shape{2})}) {
+        OV_EXPECT_THROW(std::ignore = make_shared<TypeParam>(data, indices, updates, axis),
+                        NodeValidationFailure,
+                        HasSubstr("Axis input must be scalar or have 1 element"));
+    }
+}
+
 TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_updates_indices_shape) {
     Shape data_shape{2, 4, 5, 7};
     Shape indices_shape{3, 3, 3, 3};
@@ -212,6 +238,8 @@ REGISTER_TYPED_TEST_SUITE_P(ScatterElementsUpdateTest,
                             scatter_elements_update_default_ctor,
                             scatter_elements_update_preserve_partial_values_and_labels_via_evaluates_bounds,
                             scatter_elements_update_axis_validation,
+                            scatter_elements_update_axis_one_element_1d,
+                            scatter_elements_update_axis_not_one_element,
                             scatter_elements_updates_indices_shape,
                             scatter_elements_updates_indices_rank,
                             scatter_elements_data_indices_rank);
