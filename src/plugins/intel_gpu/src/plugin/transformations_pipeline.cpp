@@ -91,9 +91,11 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_gated_residual_scale_layout.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
+#include "plugin/transformations/batch_replicated_branches.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
@@ -112,6 +114,7 @@
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/fuse_rms_rope.hpp"
+#include "plugin/transformations/gated_residual_fusion.hpp"
 #include "plugin/transformations/group_query_attention_decomposition.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
@@ -126,6 +129,7 @@
 #include "plugin/transformations/stateless_kv_fusion.hpp"
 #include "plugin/transformations/swoosh_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
@@ -247,8 +251,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/reverse_sequence.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "openvino/op/roll.hpp"
@@ -929,6 +931,16 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
     manager.register_pass<ov::intel_gpu::SwooshFusion>();
     manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+
+    // GatedResidual kernel (scalar included) needs the OpenCL subgroup extensions, else a fused node has no implementation.
+    // The fusion also hides the Add / MatMul ops that the activation scaling has to rescale, so it is skipped then.
+    const bool fp16_activation_scaling = config.get_activations_scale_factor() > 0.F && infer_precision == ov::element::f16;
+    if (cldnn::gated_residual_caps::is_device_supported(device_info) && !fp16_activation_scaling) {
+        manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::uses_dpas_kernels(device_info, config));
+        // The fusion keeps the scales / zero points in the operation layout [N, G]; the kernels read [G, N].
+        manager.register_pass<ov::intel_gpu::ConvertGatedResidualScaleLayout>();
+    }
+
     // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
     manager.register_pass<ov::pass::Validate>();
 
@@ -1001,46 +1013,6 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
-
-    // OTD: Stamp a plain "otd_bin_offset" rt_info entry on each constant that has
-    // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
-    // are automatically propagated by copy_runtime_info through all transformations.
-    // This allows moe.cpp to find bin offsets even when WCA is lost.
-    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() <= 100) {
-        // First stamp WCA on constants with mmap descriptors but no WCA yet
-        for (const auto& op : func->get_ops()) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node) {
-                continue;
-            }
-            if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0U) {
-                continue;
-            }
-            auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_node);
-            if (source_buf) {
-                size_t bin_offset = ov::weight_sharing::Extension::get_constant_id(*const_node);
-                size_t byte_size = const_node->get_byte_size();
-                auto dtype = const_node->get_element_type();
-                const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                    ov::WeightlessCacheAttribute(byte_size, bin_offset, dtype);
-            }
-        }
-
-        // Stamp "otd_bin_offset" as a plain int64_t on every constant with WCA.
-        // Plain ov::Any entries survive copy_runtime_info automatically.
-        for (const auto& op : func->get_ops()) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node) {
-                continue;
-            }
-            const auto& rt = const_node->get_rt_info();
-            auto it = rt.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (it != rt.end()) {
-                const auto& wca = it->second.as<ov::WeightlessCacheAttribute>();
-                const_node->get_rt_info()["otd_bin_offset"] = static_cast<int64_t>(wca.bin_offset);
-            }
-        }
-    }
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
@@ -1302,6 +1274,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        // After CommonOptimizations: ShapeOf consumers of static branches are folded and do not block batching
+        manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
