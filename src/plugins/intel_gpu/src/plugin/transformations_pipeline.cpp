@@ -10,6 +10,7 @@
 #include <deque>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <tuple>
 #include <unordered_set>
@@ -51,6 +52,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
@@ -244,6 +246,7 @@
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "transformations/utils/utils.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
@@ -975,11 +978,16 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
         //   (a) arithmetic on a tensor converted from an integer/boolean type, e.g. the T5 additive
         //       attention mask (1 - Convert(mask)) * lowest, which run-2 LPT would normalize to
         //       (Convert(mask) - 1) * 65504 and rewrite the Add's other input as (x - 65504) * (1/65504);
-        //   (b) any branch factored out of the Add whose zero point, scaled to the output (S * SH), is large
-        //       enough that f16 rounding at that magnitude noticeably corrupts the other input:
-        //       AddTransformation folds it into the other input x as x - S * SH / S_x. The added error scales
-        //       with |S * SH| (about |S * SH|/1000 in the worst case, first element over a 0.02 tolerance at
-        //       |S * SH| = 100), so the bound is a heuristic that keeps the error near the f16 noise floor.
+        //   (b) any branch factored out of the Add with a zero point large enough that f16 rounding at that
+        //       magnitude noticeably corrupts the other input. For the moved branch S * (y - SH) and the other
+        //       input S_x * (x - SH_x) (S_x = 1 and SH_x = 0 without a dequantization), AddTransformation
+        //       computes S * (S_x / S * (x - SH_x - Z) + y) with Z = S * SH / S_x: the zero point is folded into
+        //       the data x of the other input. The error added to x scales with |Z| (about |Z|/1000 in the worst
+        //       case, first element over a 0.02 tolerance at |Z| = 100 for an unscaled x), so the bound is a
+        //       heuristic that keeps the error near the f16 noise floor of x. Z is bounded in the scale of x, not
+        //       of the output: f16 stores the scaled x, so a bias c of a scaled branch (e.g. of a product of two
+        //       scaled branches), which LPT turns into the zero point of its scale-up, is folded into a scaled x
+        //       as c / S_x, which f16 rounds like an Add of c to the other input at full magnitude.
         //       A branch without a zero point only rescales the other input and is not bounded: that keeps
         //       the scale-up moves of activations scaling alive, including the ASF^2 scale that
         //       MultiplyPartialTransformation composes for a product of two scaled branches.
@@ -1003,27 +1011,35 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
                 moved_port = 1;
             }
             const auto& moved = (moved_port == 0) ? dq0 : dq1;
-
-            if (moved.subtractConstant != nullptr) {
-                // max|S| * max|SH| bounds the folded zero point for per-channel constants too
-                const auto max_abs = [](const std::shared_ptr<ov::op::v0::Constant>& constant) {
-                    float max_value = 0.0F;
-                    for (const float value : constant->cast_vector<float>()) {
-                        max_value = std::max(max_value, std::abs(value));
-                    }
-                    return max_value;
-                };
-                constexpr float kMaxFoldedZeroPoint = 64.0F;
-                const float scale = moved.multiplyConstant != nullptr ? max_abs(moved.multiplyConstant) : 1.0F;
-                if (scale * max_abs(moved.subtractConstant) > kMaxFoldedZeroPoint) {
-                    return true;
-                }
-            }
+            const auto& other = (moved_port == 0) ? dq1 : dq0;
 
             const auto convert =
                 moved.convert != nullptr ? moved.convert
                                          : ov::as_type_ptr<ov::op::v0::Convert>(moved.data.get_node_shared_ptr());
-            return convert != nullptr && !convert->get_input_element_type(0).is_real();
+            if (convert != nullptr && !convert->get_input_element_type(0).is_real()) {
+                return true;
+            }
+            if (moved.subtract == nullptr) {
+                return false;
+            }
+
+            // max|Z|, Z = S * SH / S_x folded element-wise as AddTransformation folds it (per-channel constants broadcast)
+            using ov::op::util::make_try_fold;
+            const auto [zero_point, scale] = NetworkHelper::createEmptyValues(moved, ov::element::f32);
+            const auto other_scale = std::get<1>(NetworkHelper::createEmptyValues(other, ov::element::f32));
+            const auto abs_folded_zero_point =
+                make_try_fold<ov::op::v0::Abs>(make_try_fold<ov::op::v1::Divide>(make_try_fold<ov::op::v1::Multiply>(zero_point, scale), other_scale));
+            const auto& shape = abs_folded_zero_point->get_output_shape(0);
+            if (ov::shape_size(shape) == 0) {
+                return false;
+            }
+            std::vector<int64_t> axes(shape.size());
+            std::iota(axes.begin(), axes.end(), 0);
+            const auto max_folded_zero_point = ov::as_type_ptr<ov::op::v0::Constant>(
+                make_try_fold<ov::op::v1::ReduceMax>(abs_folded_zero_point, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes), false));
+            OPENVINO_ASSERT(max_folded_zero_point != nullptr, "The zero point folded into ", node->get_friendly_name(), " is not a constant");
+            constexpr float kMaxFoldedZeroPoint = 64.0F;
+            return max_folded_zero_point->cast_vector<float>()[0] > kMaxFoldedZeroPoint;
         });
 
         manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);

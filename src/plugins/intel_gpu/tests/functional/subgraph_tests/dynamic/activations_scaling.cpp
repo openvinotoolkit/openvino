@@ -521,18 +521,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
 // The product of two scaled MatMul outputs carries the scale-up ASF^2 after the activations scaling LPT run
 // (MultiplyPartialTransformation). It has to move through the residual Add down to the RMS, which absorbs it: the
 // product exceeds the f16 range at full magnitude. With ASF 16 the composed scale-up is 256, so a bound on the scale of
-// the branches moved through an Add would apply it in front of the Add.
+// the branches moved through an Add would apply it in front of the Add. The test parameter adds a bias of 128 to the
+// product, which LPT turns into the zero point of that scale-up, (product / 256 + 0.5) * 256. AddTransformation folds
+// it into the residual in the residual's own scale ASF, as 128 / 16 = 8, so a bound on the zero point scaled to the
+// output (128) would also apply the scale-up in front of the Add.
 //
 //               input
 //          /      |      \_
 //      MatMul  MatMul  MatMul
 //         |       \      /
 //         |       Multiply
+//         |          |
+//         |    [Add(128)]
 //          \        /
 //             Add
 //              |
 //             RMS
-class ActivationsScalingComposedScaleUp : public ov::test::SubgraphBaseTest {
+class ActivationsScalingComposedScaleUp : public testing::WithParamInterface<bool>, virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        return obj.param ? "biased_product" : "product";
+    }
+
 protected:
     static constexpr int64_t hidden_size = 64;
 
@@ -552,7 +562,10 @@ protected:
             return std::make_shared<ov::op::v0::MatMul>(data, std::make_shared<ov::op::v0::Constant>(weights), false, true);
         };
         const auto residual = linear(input);
-        const auto product = std::make_shared<ov::op::v1::Multiply>(linear(input), linear(input));
+        std::shared_ptr<ov::Node> product = std::make_shared<ov::op::v1::Multiply>(linear(input), linear(input));
+        if (GetParam()) {
+            product = std::make_shared<ov::op::v1::Add>(product, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {128.f}));
+        }
         const auto sum = std::make_shared<ov::op::v1::Add>(residual, product);
 
         const auto power = std::make_shared<ov::op::v1::Power>(sum, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f}));
@@ -575,7 +588,12 @@ protected:
     }
 };
 
-TEST_F(ActivationsScalingComposedScaleUp, smoke_Inference) {
+TEST_P(ActivationsScalingComposedScaleUp, Inference) {
     run();
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingComposedScaleUp,
+                         ActivationsScalingComposedScaleUp,
+                         ::testing::Bool(),
+                         ActivationsScalingComposedScaleUp::getTestCaseName);
 } // namespace
