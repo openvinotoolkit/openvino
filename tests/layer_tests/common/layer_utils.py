@@ -33,7 +33,7 @@ class BaseInfer:
     def fw_infer(self, input_data, config=None):
         raise RuntimeError("This is base class, please implement infer function for the specific framework")
 
-    def get_inputs_info(self, precision) -> dict:
+    def get_inputs_info(self, precision, input_names=None) -> dict:
         raise RuntimeError("This is base class, please implement get_inputs_info function for the specific framework")
 
     def infer(self, input_data, config=None, infer_timeout=10):
@@ -78,14 +78,18 @@ class InferAPI(BaseInfer):
 
         return result
 
-    def get_inputs_info(self, precision) -> dict:
+    def get_inputs_info(self, precision, input_names=None) -> dict:
         core = Core()
         net = core.read_model(self.model, self.weights)
         inputs_info = {}
         for item in net.inputs:
+            # Identity operations can merge input and output tensor names. Prefer
+            # the framework input name so the same feed dict works for both runtimes.
+            input_name = next((name for name in input_names or [] if name in item.get_names()),
+                              item.get_any_name())
             if item.partial_shape.is_dynamic:
-                inputs_info[item.get_any_name()] = item.partial_shape
+                inputs_info[input_name] = item.partial_shape
             else:
-                inputs_info[item.get_any_name()] = item.partial_shape.to_shape()
+                inputs_info[input_name] = item.partial_shape.to_shape()
 
         return inputs_info

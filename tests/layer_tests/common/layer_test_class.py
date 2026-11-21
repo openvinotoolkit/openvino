@@ -84,11 +84,11 @@ class CommonLayerTest:
                              weights=path_to_bin,
                              device=ie_device)
         # Prepare feed dict
+        inputs_info = ie_engine.get_inputs_info(precision, kwargs.get('input_names'))
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
-            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
-                                              kwargs['kwargs_to_prepare_input'])
+            inputs_dict = self._prepare_input(inputs_info, kwargs['kwargs_to_prepare_input'])
         else:
-            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
+            inputs_dict = self._prepare_input(inputs_info)
 
         # OV infer:
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
