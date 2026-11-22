@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 154,
+  "total": 155,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1547,6 +1547,17 @@
       "category": "Flaky Test",
       "signature_hash": "9f9ea52f699d8da3",
       "commit_sha": "97f11ab802f5cf32f0edf7e5f7f2561e9dc5d88b"
+    },
+    {
+      "investigation_id": "2026-11-22-11-01-16-000-45010607927",
+      "run_id": "45010607927",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45010607927",
+      "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+      "timestamp": "2026-11-22T11:01:16Z",
+      "title": "Windows build job terminated mid-build with unavailable job logs",
+      "category": "Infrastructure",
+      "signature_hash": "afb479532c52bf68",
+      "commit_sha": "e264be1b5554fb037e584673e94df3c3b56af179"
     }
   ]
 }
