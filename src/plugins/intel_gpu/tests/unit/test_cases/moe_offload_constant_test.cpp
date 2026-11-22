@@ -563,7 +563,7 @@ TEST(moe_offload_constant, auto_ratio_zero_budget_resolves_zero) {
 
 TEST(moe_offload_constant, auto_ratio_non_positive_budget_for_moe_resolves_zero) {
     auto g = MoETestGraph::build();
-    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
     // Set budget such that budget * 0.85 <= fixed_bytes (i.e. budget_for_moe <= 0)
     const uint64_t budget = fixed_bytes;
 
@@ -587,8 +587,8 @@ TEST(moe_offload_constant, auto_ratio_uses_routed_expert_bytes_for_resident_frac
 
 TEST(moe_offload_constant, auto_ratio_calculates_boundary_ratio_75) {
     auto g = MoETestGraph::build();
-    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
-    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
     // 25% resident -> 75% offload
     const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.25 * static_cast<double>(routed_bytes)) / 0.85);
 
@@ -597,8 +597,8 @@ TEST(moe_offload_constant, auto_ratio_calculates_boundary_ratio_75) {
 
 TEST(moe_offload_constant, auto_ratio_calculates_quarter_offload_25) {
     auto g = MoETestGraph::build();
-    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
-    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
     // 75% resident -> 25% offload
     const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.75 * static_cast<double>(routed_bytes)) / 0.85);
 
@@ -631,8 +631,8 @@ TEST(moe_offload_constant, resolve_auto_offload_ratio_with_engine_small_model_fi
 
 TEST(moe_offload_constant, mixed_consumer_routed_and_shared_is_not_routed_eligible) {
     // When a constant is connected to both routed expert and shared expert inputs,
-    // it must not be classified as RoutedExpert (must not be cropped by partial upload),
-    // and must be classified as SharedExpert.
+    // it must not be classified as OffloadableRoutedExpert (must not be cropped by partial upload),
+    // and must be classified as AlwaysResidentSharedExpert.
     auto g = MoETestGraph::build();
     // g.constants[0] is w0_weight (connected to MOECompressed input 3)
     // Also connect g.constants[0] to input 12 (shared) by creating an additional consumer input
@@ -654,8 +654,8 @@ TEST(moe_offload_constant, mixed_consumer_routed_and_shared_is_not_routed_eligib
     }
     auto extra_moe = std::make_shared<ov::op::internal::MOECompressed>(inputs, g.moe_node->get_config());
 
-    EXPECT_NE(get_moe_constant_role(c), MoEConstantRole::RoutedExpert);
-    EXPECT_EQ(get_moe_constant_role(c), MoEConstantRole::SharedExpert);
+    EXPECT_NE(get_moe_constant_role(c), MoEConstantRole::OffloadableRoutedExpert);
+    EXPECT_EQ(get_moe_constant_role(c), MoEConstantRole::AlwaysResidentSharedExpert);
 }
 
 TEST(moe_offload_constant, mixed_consumer_routed_and_non_moe_is_not_routed_eligible) {
@@ -666,23 +666,23 @@ TEST(moe_offload_constant, mixed_consumer_routed_and_non_moe_is_not_routed_eligi
 
     auto non_moe_consumer = std::make_shared<ov::op::v0::Result>(c);
 
-    EXPECT_NE(get_moe_constant_role(c), MoEConstantRole::RoutedExpert);
-    EXPECT_EQ(get_moe_constant_role(c), MoEConstantRole::NotMoE);
+    EXPECT_NE(get_moe_constant_role(c), MoEConstantRole::OffloadableRoutedExpert);
+    EXPECT_EQ(get_moe_constant_role(c), MoEConstantRole::NotOffloadableRoutedExpert);
 }
 
 TEST(moe_offload_constant, auto_ratio_mixed_consumer_constant_counted_as_fixed_weight) {
     auto g = MoETestGraph::build();
     auto mixed_c = g.constants[0];  // g.constants[0] is w0_weight (connected to MOECompressed input 3)
 
-    // Connect mixed_c to a non-MoE consumer so it becomes ineligible for routed offload (classified as NotMoE)
+    // Connect mixed_c to a non-MoE consumer so it becomes ineligible for routed offload.
     auto extra_res = std::make_shared<ov::op::v0::Result>(mixed_c);
     auto moe_res = std::make_shared<ov::op::v0::Result>(g.moe_node);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{moe_res, extra_res}, g.parameters);
 
-    EXPECT_EQ(get_moe_constant_role(mixed_c), MoEConstantRole::NotMoE);
+    EXPECT_EQ(get_moe_constant_role(mixed_c), MoEConstantRole::NotOffloadableRoutedExpert);
 
-    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
-    const uint64_t shared_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::OffloadableRoutedExpert);
+    const uint64_t shared_bytes = sum_constant_bytes(g, MoEConstantRole::AlwaysResidentSharedExpert);
     const uint64_t mixed_c_bytes = mixed_c->get_byte_size();
     // mixed_c is now non-routed (NotMoE), so it is counted as fixed weight along with shared experts:
     const uint64_t w_fixed = shared_bytes + mixed_c_bytes;

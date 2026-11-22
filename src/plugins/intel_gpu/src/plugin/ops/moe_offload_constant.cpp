@@ -553,7 +553,7 @@ void accumulate_weight_bytes(const ov::Model& model,
         if (!constant || !visited.insert(constant.get()).second)
             continue;
         stats.total += constant->get_byte_size();
-        if (get_moe_constant_role(constant) == MoEConstantRole::RoutedExpert)
+        if (get_moe_constant_role(constant) == MoEConstantRole::OffloadableRoutedExpert)
             stats.routed += constant->get_byte_size();
     }
 }
