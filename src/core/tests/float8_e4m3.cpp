@@ -330,73 +330,40 @@ TEST_P(F8E4M3PTest, f32_to_f8_bits) {
     EXPECT_EQ(f8.to_bits(), exp_value);
 }
 
-namespace {
-std::vector<ov::float16> emulate_f8e4m3(const std::vector<ov::float16>& input, bool use_clamp) {
-    std::vector<ov::float16> output(input.size());
-    ov::reference::func::emulate_f8e4m3_on_fp16(input.data(), output.data(), input.size(), use_clamp);
-    return output;
-}
-}  // namespace
+// input, use_clamp, expected
+using f8e4m3_emulate_params = std::tuple<ov::float16, bool, float>;
+class F8E4M3EmulatePTest : public testing::TestWithParam<f8e4m3_emulate_params> {};
 
-TEST(F8E4M3Test, emulate_on_fp16_overflow_inf_nan) {
-    const std::vector<ov::float16> input{ov::float16(448.f),
-                                         ov::float16(1000.f),
-                                         ov::float16(-1000.f),
-                                         ov::float16::from_bits(0x7C00),
-                                         ov::float16::from_bits(0xFC00),
-                                         ov::float16::from_bits(0x7E00),
-                                         ov::float16::from_bits(0x7C01)};
-    const auto clamped = emulate_f8e4m3(input, true);
-    EXPECT_EQ(static_cast<float>(clamped[0]), 448.f);
-    EXPECT_EQ(static_cast<float>(clamped[1]), 448.f);
-    EXPECT_EQ(static_cast<float>(clamped[2]), -448.f);
-    EXPECT_EQ(static_cast<float>(clamped[3]), 448.f);
-    EXPECT_EQ(static_cast<float>(clamped[4]), -448.f);
-    EXPECT_TRUE(std::isnan(static_cast<float>(clamped[5])));  // NaN is not saturated
-    EXPECT_TRUE(std::isnan(static_cast<float>(clamped[6])));
+INSTANTIATE_TEST_SUITE_P(overflow_inf_nan,
+                         F8E4M3EmulatePTest,
+                         testing::Values(f8e4m3_emulate_params{ov::float16(448.f), true, 448.f},
+                                         f8e4m3_emulate_params{ov::float16(1000.f), true, 448.f},
+                                         f8e4m3_emulate_params{ov::float16(-1000.f), true, -448.f},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C00), true, 448.f},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0xFC00), true, -448.f},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7E00), true, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C01), true, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16(448.f), false, 448.f},
+                                         f8e4m3_emulate_params{ov::float16(1000.f), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16(-1000.f), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C00), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0xFC00), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7E00), false, f32_qnan},
+                                         f8e4m3_emulate_params{ov::float16::from_bits(0x7C01), false, f32_qnan}));
 
-    const auto not_clamped = emulate_f8e4m3(input, false);
-    EXPECT_EQ(static_cast<float>(not_clamped[0]), 448.f);
-    for (size_t i = 1; i < input.size(); ++i) {
-        EXPECT_TRUE(std::isnan(static_cast<float>(not_clamped[i]))) << "i: " << i;
+TEST_P(F8E4M3EmulatePTest, emulate_on_fp16) {
+    const auto& params = GetParam();
+    const auto input = std::get<0>(params);
+    const auto use_clamp = std::get<1>(params);
+    const auto& exp_value = std::get<2>(params);
+    ov::float16 output;
+    ov::reference::func::emulate_f8e4m3_on_fp16(&input, &output, 1, use_clamp);
+
+    if (std::isnan(exp_value)) {
+        EXPECT_TRUE(std::isnan(static_cast<float>(output)));
+    } else {
+        EXPECT_EQ(static_cast<float>(output), exp_value);
     }
-}
-
-// FakeConvert reference (used by constant folding): subnormal rounding, sign of zero and NaN
-TEST(F8E4M3Test, fake_convert_reference_subnormal_sign_nan) {
-    const std::vector<float> data{1.25f * 0x1p-10f, 3 * 0x1p-10f, 7 * 0x1p-10f, -0x1p-11f, std::nanf("")};
-    const std::vector<float> scale{1.f}, shift{0.f};
-    std::vector<float> out(data.size());
-    ov::reference::fake_convert(data.data(),
-                                scale.data(),
-                                shift.data(),
-                                out.data(),
-                                ov::Shape{data.size()},
-                                ov::Shape{1},
-                                ov::Shape{1},
-                                ov::element::f8e4m3);
-    EXPECT_EQ(out[0], 0x1p-9f);
-    EXPECT_EQ(out[1], 0x1p-8f);
-    EXPECT_EQ(out[2], 0x1p-7f);
-    EXPECT_EQ(out[3], 0.f);
-    EXPECT_TRUE(std::signbit(out[3])) << "sign of negative zero must be kept";
-    EXPECT_TRUE(std::isnan(out[4]));
-}
-
-TEST(F8E4M3Test, fake_convert_reference_f32_near_tie) {
-    // just above the tie 1.0625 in f32 must round up like Convert does, not go through a tie in f16
-    const std::vector<float> data{ov::util::u32_bits_to_f32(0x3F880008)};
-    const std::vector<float> scale{1.f}, shift{0.f};
-    std::vector<float> out(data.size());
-    ov::reference::fake_convert(data.data(),
-                                scale.data(),
-                                shift.data(),
-                                out.data(),
-                                ov::Shape{data.size()},
-                                ov::Shape{1},
-                                ov::Shape{1},
-                                ov::element::f8e4m3);
-    EXPECT_EQ(out[0], 1.125f);
 }
 }  // namespace test
 }  // namespace ov

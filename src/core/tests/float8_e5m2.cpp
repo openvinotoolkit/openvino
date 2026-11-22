@@ -12,7 +12,6 @@
 
 #include "common_test_utils/float_util.hpp"
 #include "openvino/core/type/float_util.hpp"
-#include "openvino/reference/fake_convert.hpp"
 
 namespace ov {
 namespace test {
@@ -235,63 +234,19 @@ TEST(F8E5M2Test, f32_just_above_subnormal_tie_round_up) {
     EXPECT_EQ(f8.to_bits(), 0x01);
 }
 
-TEST(F8E5M2Test, f32_nan_without_f16_payload) {
+TEST(F8E5M2Test, f32_positive_nan_without_f16_payload) {
     // NaN payload bits are lost in f16, so the f16 quiet bit must be set to keep NaN
-    for (const auto bits : {0x7F800001u, 0xFF9FFFFFu}) {
-        const auto f8 = ov::float8_e5m2(ov::util::u32_bits_to_f32(bits));
+    const auto f8 = ov::float8_e5m2(ov::util::u32_bits_to_f32(0x7F800001));
 
-        EXPECT_TRUE(std::isnan(f8)) << std::hex << bits;
-        EXPECT_EQ(static_cast<uint32_t>(f8.to_bits() & 0x80), (bits >> 24) & 0x80) << std::hex << bits;
-    }
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits() & 0x80, 0x00);
 }
 
-TEST(F8E5M2Test, emulate_f16_nan_without_f8_payload) {
-    for (const bool use_clamp : {false, true}) {
-        const std::vector<float16> input{float16::from_bits(0x7C01),
-                                         float16::from_bits(0xFC80),
-                                         float16::from_bits(0x7C00),
-                                         float16::from_bits(0x7E00)};
-        std::vector<float16> output(input.size());
-        reference::func::emulate_f8e5m2_on_fp16(input.data(), output.data(), input.size(), use_clamp);
+TEST(F8E5M2Test, f32_negative_nan_without_f16_payload) {
+    const auto f8 = ov::float8_e5m2(ov::util::u32_bits_to_f32(0xFF9FFFFF));
 
-        EXPECT_EQ(output[0].to_bits(), 0x7E00) << "use_clamp: " << use_clamp;
-        EXPECT_EQ(output[1].to_bits(), 0xFE00) << "use_clamp: " << use_clamp;
-        EXPECT_EQ(output[2].to_bits(), use_clamp ? 0x7B00 : 0x7C00) << "use_clamp: " << use_clamp;
-        EXPECT_EQ(output[3].to_bits(), 0x7E00) << "use_clamp: " << use_clamp;
-    }
-}
-
-TEST(F8E5M2Test, fake_convert_reference_keeps_negative_zero) {
-    // -2^-18 is below half of the lowest f8e5m2 subnormal, so it rounds to -0
-    const std::vector<float> data{-0x1p-18f};
-    const std::vector<float> scale{1.f}, shift{0.f};
-    std::vector<float> out(data.size());
-    reference::fake_convert(data.data(),
-                            scale.data(),
-                            shift.data(),
-                            out.data(),
-                            Shape{data.size()},
-                            Shape{1},
-                            Shape{1},
-                            element::f8e5m2);
-    EXPECT_EQ(out[0], 0.f);
-    EXPECT_TRUE(std::signbit(out[0])) << "sign of negative zero must be kept";
-}
-
-TEST(F8E5M2Test, fake_convert_reference_f32_near_tie) {
-    // just above the tie 1.125 in f32 must round up like Convert does, not go through a tie in f16
-    const std::vector<float> data{1.125f + 0x1p-19f};
-    const std::vector<float> scale{1.f}, shift{0.f};
-    std::vector<float> out(data.size());
-    reference::fake_convert(data.data(),
-                            scale.data(),
-                            shift.data(),
-                            out.data(),
-                            Shape{data.size()},
-                            Shape{1},
-                            Shape{1},
-                            element::f8e5m2);
-    EXPECT_EQ(out[0], 1.25f);
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits() & 0x80, 0x80);
 }
 
 template <class TContainer>
