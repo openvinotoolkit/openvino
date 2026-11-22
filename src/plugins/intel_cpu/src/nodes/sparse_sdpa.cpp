@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -175,15 +174,8 @@ std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> makeExecutor(const Mult
                                                                       ov::Extensions::Cpu::SparseSdpaConfig config) {
     config.brgemm = {};
     // The matrix type of the AMX prefill: bf16 / f16 when the data is natively that type and the CPU has the matching
-    // AMX.
-    const auto prec = config.data_precision;
-    ov::element::Type amx_type = ov::element::dynamic;
-    if (prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) {
-        amx_type = ov::element::bf16;
-    } else if (prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16)) {
-        amx_type = ov::element::f16;
-    }
-    // Prefill over packs of query heads (brgemm products, whose M is the pack): it needs the AMX type and a causal op.
+    // AMX. Prefill over packs of query heads (brgemm products, whose M is the pack) needs it and a causal op.
+    const ov::element::Type amx_type = ov::Extensions::Cpu::TileBrgemmKernels::amx_type(config.data_precision);
     if (amx_type != ov::element::dynamic && config.causal) {
         const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(config.num_heads,
                                                                       config.num_kv_heads,

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -19,6 +21,17 @@ void visit_float_type(ov::element::Type prec, const F& f) {
         f(ov::float16{});
     } else {
         f(float{});
+    }
+}
+
+/// @brief Calls f(std::integral_constant<ov::element::Type_t, PREC>{}) with the compressed cache precision `prec` (u4,
+/// otherwise u8).
+template <typename F>
+void visit_quant_precision(ov::element::Type prec, const F& f) {
+    if (prec == ov::element::u4) {
+        f(std::integral_constant<ov::element::Type_t, ov::element::u4>{});
+    } else {
+        f(std::integral_constant<ov::element::Type_t, ov::element::u8>{});
     }
 }
 

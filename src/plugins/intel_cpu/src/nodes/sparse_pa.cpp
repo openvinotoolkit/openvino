@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -90,15 +89,11 @@ struct ExecutorKey {
 std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> makeExecutor(const MultiCachePtr& cache,
                                                                     ov::Extensions::Cpu::SparsePAConfig config) {
     config.brgemm = {};
-    // AMX matrix products over the selected rows of a work item (see attn_brgemm_tiles.hpp), for the prefill and the
-    // decode of a large selection: bf16 / f16 data on hardware with the matching AMX, a pack of several query heads
-    // (the M of the products), and the causal selection.
     const auto prec = config.data_precision;
-    const bool amx = (prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
-                     (prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));
     const size_t pack =
         ov::Extensions::Cpu::max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads);
-    if (amx && config.causal && ov::Extensions::Cpu::TileBrgemmKernels::supports_pack(pack)) {
+    if (ov::Extensions::Cpu::TileBrgemmKernels::amx_type(prec) == prec && config.causal &&
+        ov::Extensions::Cpu::TileBrgemmKernels::supports_pack(pack)) {
         config.brgemm = ov::Extensions::Cpu::TileBrgemmKernels::get(cache,
                                                                     pack,
                                                                     config.k_head_size,

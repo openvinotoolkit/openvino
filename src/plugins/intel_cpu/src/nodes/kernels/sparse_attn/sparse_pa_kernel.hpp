@@ -15,9 +15,6 @@
 // Defined outside XARCH so the cross-compiled dispatcher can name the types in the signature.
 namespace ov::Extensions::Cpu {
 
-/// @brief What is fixed for the lifetime of a SparsePA node. The caches are either both quantized (u8 / u4 in the
-/// specs, with the PagedAttention layouts, see CacheSpec) or both plain f32 / f16 / bf16. Query and output share one
-/// floating-point type; plain caches have it too, or are f16 next to f32 data (like PagedAttention).
 struct SparsePAConfig {
     size_t num_heads = 0;
     size_t num_kv_heads = 0;
@@ -57,12 +54,6 @@ struct SparsePATensors {
     float scale = 1.0F;
 };
 
-/// @brief Sparse attention of the SparsePA node over the paged caches (see sparse_pa.h for the algorithm). A call
-/// first writes the current-step K/V into the caches (parallel over token x kv head, quantizing them for u8 / u4
-/// caches), then runs the attention, which only reads them. The executor is shared by the nodes of the same
-/// configuration (through the params cache of the graph context) and owns the buffers of the cache write, which it
-/// resizes per call, like the PagedAttention executor: the nodes of a graph run one after another. The node asks for
-/// the scratch size of the attention, allocates it and passes it to execute.
 class SparsePAExecutor {
 public:
     virtual ~SparsePAExecutor() = default;
@@ -77,7 +68,6 @@ public:
 
 namespace ov::Extensions::Cpu::XARCH {
 
-// Cross-compiled factory (AVX-512, AVX2 or plain C++ by the CPU).
 std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> make_sparse_pa_executor(
     const ov::Extensions::Cpu::SparsePAConfig& config);
 

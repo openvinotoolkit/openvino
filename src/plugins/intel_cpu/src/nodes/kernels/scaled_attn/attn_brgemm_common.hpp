@@ -19,6 +19,7 @@
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include "cache/multi_cache.h"
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
@@ -146,6 +147,18 @@ struct TileBrgemmLayout {
 /// through the graph context's params cache. The only way to get one is get().
 class TileBrgemmKernels {
 public:
+    /// @brief The matrix type of the AMX products for data of precision `data_prec`: bf16 / f16 data on a CPU with the
+    /// matching AMX gives the same type, anything else ov::element::dynamic (no brgemm path).
+    static ov::element::Type amx_type(ov::element::Type data_prec) {
+        if (data_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) {
+            return ov::element::bf16;
+        }
+        if (data_prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16)) {
+            return ov::element::f16;
+        }
+        return ov::element::dynamic;
+    }
+
     /// A pack of several query heads is the M of the products; the kernels run it as an M tail, so fewer than the 32
     /// rows of an M block.
     static bool supports_pack(size_t pack) {

@@ -101,36 +101,16 @@ void dequant(TDST* dst,
     // The layout for per token per head:
     // i8: |scale(f32)|quantized feature(i8,idx_1)|...|quantized feature(i8,idx_S)|
     // u8/u4: |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|...|quantized feature(u8,idx_S)|
-    auto* s = reinterpret_cast<uint8_t*>(src);
-    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
-    constexpr size_t param_count = SRC_PREC == ov::element::i8 ? 1 : 2;
-    constexpr size_t params_offset = sizeof(float) * param_count;
     if (quant_bychannel) {
         if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
-            auto* p_scales = reinterpret_cast<float*>(s);
-            auto* p_zps = p_scales + K;
-            s = s + sizeof(float) * 2 * K;
-            attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
+            attn_dequant_page_rows_by_channel<TDST, SRC_PREC>(src, dst, 0, N, K, K);
         } else {
             OPENVINO_THROW("dequant: i8 doesn't support by-channel quantization.");
         }
     } else {
-        for (size_t n = 0; n < N; n++) {
-            size_t src_offset = 0;
-            size_t dst_offset = 0;
-            while (dst_offset < K) {
-                auto* params = reinterpret_cast<float*>(s + src_offset);
-                attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
-                                                    dst + dst_offset,
-                                                    group_size,
-                                                    params);
-                src_offset += group_size / sub_byte_multiplier + params_offset;
-                dst_offset += group_size;
-            }
-            s += src_offset;
-            dst += K;
-        }
+        attn_dequant_rows_by_token<TDST, SRC_PREC>(src, dst, N, K, group_size, K);
     }
+    dst += N * K;
     for (size_t n = N; n < block_size; n++) {
         memset(dst, 0, sizeof(TDST) * K);
         dst += K;
@@ -156,34 +136,11 @@ static void pack_32NxK(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
-    auto t = tmp;
     // if group_size not set, the whole row is used as a group
-    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     if (quant_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
-        s = s + sizeof(float) * 2 * K;
-        if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
-            attn_dequant_by_channel_kernel<TDST,
-                                           SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
-        }
+        attn_dequant_page_rows_by_channel<TDST, SRC_PREC>(src, tmp, 0, N, K, src_stride);
     } else {
-        for (size_t n = 0; n < N; n++) {
-            size_t src_offset = 0;
-            size_t dst_offset = 0;
-            while (dst_offset < K) {
-                auto params = reinterpret_cast<float*>(s + src_offset);
-                attn_dequant_kernel<TDST, SRC_PREC>(s + (src_offset + sizeof(float) * 2),
-                                                    t + dst_offset,
-                                                    group_size,
-                                                    params);
-                src_offset += group_size / sub_byte_multiplier + sizeof(float) * 2;
-                dst_offset += group_size;
-            }
-            s += src_offset;
-            t += src_stride;
-        }
+        attn_dequant_rows_by_token<TDST, SRC_PREC>(src, tmp, N, K, group_size, src_stride);
     }
     for (size_t n = N; n < block_size; n++) {
         memset(tmp + n * src_stride, 0, sizeof(TDST) * (K));

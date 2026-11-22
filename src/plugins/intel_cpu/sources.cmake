@@ -831,7 +831,6 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_selection_tiles.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/brgemm_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/brgemm_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/dft_uni_kernel.cpp

@@ -83,6 +83,23 @@ struct BrgemmBuffers {
     }
 };
 
+/// @brief The buffers of a thread's gather tile: the brgemm kernels and the regions of its scratch block `ws`, laid out
+/// by `layout` (TileBrgemmLayout).
+template <typename T>
+BrgemmBuffers<T> make_brgemm_buffers(const TileBrgemm& brgemm, const TileBrgemmLayout& layout, uint8_t* ws) {
+    return {static_cast<ov::intel_cpu::BrgemmKernel*>(brgemm.qk),
+            static_cast<ov::intel_cpu::BrgemmKernel*>(brgemm.pv_overwrite),
+            static_cast<ov::intel_cpu::BrgemmKernel*>(brgemm.pv_accumulate),
+            reinterpret_cast<T*>(ws + layout.k_rows),
+            reinterpret_cast<T*>(ws + layout.v_rows),
+            reinterpret_cast<const T**>(ws + layout.k_ptrs),
+            reinterpret_cast<const T**>(ws + layout.v_ptrs),
+            {reinterpret_cast<float*>(ws + layout.weights), brgemm.tile_rows},
+            ws + layout.brg_wsp,
+            ws + layout.brg_a,
+            ws + layout.brg_b};
+}
+
 /// Phase 1: scores[head, kv] = query[head] . keys[kv] for the pack's heads and every row block of the tile. The keys
 /// of a row block are packed into the AMX layout once for all the heads of the pack.
 template <typename T>

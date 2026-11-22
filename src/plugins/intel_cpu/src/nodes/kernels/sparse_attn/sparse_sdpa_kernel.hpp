@@ -15,9 +15,6 @@
 
 namespace ov::Extensions::Cpu {
 
-/// @brief What is fixed for the lifetime of a SparseSDPA node. A cache is compressed when its spec holds u8 / u4 (see
-/// CacheSpec: per-token groups of `group_size` elements, or per-channel groups of tokens with `by_channel`); any other
-/// precision is a plain cache read as is.
 struct SparseSdpaConfig {
     size_t num_heads = 0;            ///< query heads
     size_t num_kv_heads = 0;         ///< key / value heads
@@ -35,8 +32,6 @@ struct SparseSdpaConfig {
     TileBrgemmKernels brgemm;
 };
 
-/// @brief The tensors of one call. Query, key, value and output share one floating-point type (f32 / f16 / bf16),
-/// except the key / value of a compressed cache, which are the u8 / u4 rows with {scale, zero point} in `*_scale_zp`.
 struct SparseSdpaTensors {
     const ov::intel_cpu::PlainTensor& query;        ///< [N, H, L, E]
     const ov::intel_cpu::PlainTensor& key;          ///< [N, Hkv, S, E]
@@ -50,9 +45,6 @@ struct SparseSdpaTensors {
     const ov::intel_cpu::PlainTensor* value_scale_zp = nullptr;  ///< compressed value cache only
 };
 
-/// @brief Block-sparse group-query attention of the SparseSDPA node over a dense BHLS key / value cache. Built by the
-/// factory below and shared by the nodes of the same configuration through the params cache of the graph context; the
-/// node asks for the scratch size of a call, allocates it and passes it to execute.
 class SparseSdpaExecutor {
 public:
     virtual ~SparseSdpaExecutor() = default;
@@ -67,8 +59,6 @@ public:
 
 namespace ov::Extensions::Cpu::XARCH {
 
-// Cross-compiled factory (AVX-512, AVX2 or plain C++ by the CPU): the SIMD decode, the AMX prefill and the row
-// conversion live in sparse_sdpa_kernel.cpp so the per-ISA clones vectorize them.
 std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> make_sparse_sdpa_executor(
     const ov::Extensions::Cpu::SparseSdpaConfig& config);
 
