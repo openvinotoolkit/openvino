@@ -40,7 +40,7 @@ void basic_memory_dependencies::run(program& p) {
         }
 
         if (inplace_kv) {
-            // As for the oneDNN sum post-op: keep both ends of the alias out of pool sharing.
+            // The KV cache is written in place into its past buffer: keep both ends of the alias out of pool sharing.
             node->can_share_buffer(false);
             auto* root = &node->get_dependency(0);
             while (root->can_be_optimized() && !root->get_dependencies().empty()) {
@@ -63,7 +63,7 @@ void basic_memory_dependencies::run(program& p) {
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0) {
                         continue;
                     }
@@ -73,12 +73,15 @@ void basic_memory_dependencies::run(program& p) {
                     eltw_dep = fused_op.outer_dep_start_idx;
                     auto& eltw_node = node->get_dependency(eltw_dep);
                     node->can_share_buffer(false);
-                    // Walk up the in-place chain to mark the root buffer owner as non-shareable.
+                    // Walk up the in-place chain to mark the root buffer owner as non-shareable. An eltw_node that owns
+                    // its buffer stays in the pool: add_memory_dependency extends its restrictions through this node.
                     auto* root = &eltw_node;
                     while (root->can_be_optimized() && !root->get_dependencies().empty()) {
                         root = &root->get_dependency(0);
                     }
-                    root->can_share_buffer(false);
+                    if (root != &eltw_node) {
+                        root->can_share_buffer(false);
+                    }
 
                     for (const auto& user : node->get_users()) {
                         add_memory_dependency(user, &eltw_node);

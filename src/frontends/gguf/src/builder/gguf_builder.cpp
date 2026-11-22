@@ -48,14 +48,15 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
     return cfg;
 }
 
-}  // namespace
-
-GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry) {
-    auto data = std::make_shared<decltype(get_gguf_data(file))>(get_gguf_data(file));
-    auto& [metadata, weights, qtypes, mmap] = *data;
+GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
+    auto data = std::make_shared<GGUFLoad>(std::move(loaded));
+    auto& metadata = std::get<0>(*data);
 
     const detail::MetadataStore meta_store{metadata};
     const GgufMetadata meta_view(meta_store);
+    if (meta_view.architecture() == "this model cannot be used as LLM, use it via --model-vocoder in TTS examples") {
+        metadata["general.architecture"] = std::string("lfm2.audio_vocoder");
+    }
 
     // Built-in and external definitions share selection, construction and postprocessing.
     // Family detection is only a diagnostic fallback; it must not reject a registered family.
@@ -74,12 +75,10 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
     }
     return [data, definition = *definition, projectors = registry.projectors()](
                const std::unordered_map<std::string, CreatorFunction>& translators) {
-        const auto& [metadata, source_weights, source_qtypes, mmap] = *data;
-        auto weights = source_weights;
-        auto qtypes = source_qtypes;
+        const auto& [metadata, weights, mmap] = *data;
         const detail::MetadataStore meta_store{metadata};
         const GgufMetadata meta_view(meta_store);
-        detail::WeightStore weight_store{weights, qtypes, &translators};
+        detail::WeightStore weight_store{weights, &translators};
         BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
         auto builder = definition.factory(ctx);
         OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
@@ -89,6 +88,16 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
         graph->architecture = meta_view.architecture();
         return graph;
     };
+}
+
+}  // namespace
+
+GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry) {
+    return make_gguf_builder(get_gguf_data(file), registry);
+}
+
+GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files, const ArchRegistry& registry) {
+    return make_gguf_builder(get_gguf_data(files), registry);
 }
 
 }  // namespace ov::frontend::gguf

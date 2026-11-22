@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/rope.hpp>
@@ -641,4 +642,80 @@ TEST_P(rope_gpu_test, rope_chatglm_cache) {
 // RoPE ChatGLM variant with use_rope_cache, 8 heads x 64 dims - VEC_SIZE=16 path
 TEST_P(rope_gpu_test, rope_chatglm_cache_large) {
     run_rope(GetParam(), ov::PartialShape{16, 1, 512}, 8, 64, false, false, rope_variant::chatglm, true);
+}
+
+// RoPE with a per-head RMSNorm folded in (FuseRMSRoPE): input 3 is the RMSNorm gamma, and the
+// output must match RMSNorm over each head followed by RotateHalf RoPE.
+static void run_rope_fused_rms(const ov::PartialShape& in_shape, size_t head_size, bool dynamic) {
+    auto& engine = get_test_engine();
+    const size_t batch = in_shape[0].get_length(), head_cnt = in_shape[1].get_length(), seq = in_shape[2].get_length();
+    const float eps = 1e-6f;
+    const ov::PartialShape cos_shape{1, 1, static_cast<int64_t>(seq), static_cast<int64_t>(head_size)};
+
+    auto input = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+    auto cos = engine.allocate_memory({cos_shape, data_types::f16, format::bfyx});
+    auto sin = engine.allocate_memory({cos_shape, data_types::f16, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(head_size)}, data_types::f16, format::bfyx});
+    auto normed = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+    tests::set_random_values<ov::float16>(input, true, 10, 4);
+    tests::set_random_values<ov::float16>(cos, true, 10, 1);
+    tests::set_random_values<ov::float16>(sin, true, 10, 1);
+    tests::set_random_values<ov::float16>(gamma, true, 10, 2);
+
+    {
+        cldnn::mem_lock<ov::float16> in(input, get_test_stream());
+        cldnn::mem_lock<ov::float16> g(gamma, get_test_stream());
+        cldnn::mem_lock<ov::float16> out(normed, get_test_stream());
+        for (size_t row = 0; row < batch * head_cnt * seq; ++row) {
+            float ss = 0.0f;
+            for (size_t i = 0; i < head_size; ++i)
+                ss += static_cast<float>(in[row * head_size + i]) * static_cast<float>(in[row * head_size + i]);
+            const float scale = 1.0f / std::sqrt(ss / static_cast<float>(head_size) + eps);
+            for (size_t i = 0; i < head_size; ++i)
+                out[row * head_size + i] = ov::float16(static_cast<float>(in[row * head_size + i]) * scale * static_cast<float>(g[i]));
+        }
+    }
+    rope_ref(normed, cos, sin, output_ref, batch, head_cnt, seq, head_size, head_size, false);
+
+    ov::op::internal::RoPE::Config config;
+    config.head_cnt = head_cnt;
+    config.head_size = head_size;
+    config.rotary_ndims = head_size;
+
+    const auto in_lay = dynamic ? layout{ov::PartialShape::dynamic(4), data_types::f16, format::bfyx} : input->get_layout();
+    topology topology(input_layout("input", in_lay),
+                      input_layout("cos", cos->get_layout()),
+                      input_layout("sin", sin->get_layout()),
+                      data("gamma", gamma),
+                      rope("rope", {input_info("input"), input_info("cos"), input_info("sin"), input_info("gamma")}, config, 0, true, eps));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, cfg);
+    network.set_input_data("input", input);
+    network.set_input_data("cos", cos);
+    network.set_input_data("sin", sin);
+    auto outputs = network.execute();
+
+    cldnn::mem_lock<ov::float16> out(outputs.at("rope").get_memory(), get_test_stream());
+    cldnn::mem_lock<ov::float16> ref(output_ref, get_test_stream());
+    ASSERT_EQ(out.size(), ref.size());
+    for (size_t i = 0; i < ref.size(); ++i) {
+        const float r = static_cast<float>(ref[i]);
+        ASSERT_LE(std::abs(static_cast<float>(out[i]) - r), std::max(0.02f, std::abs(r) * 0.04f)) << "Mismatch at i=" << i;
+    }
+}
+
+// 16-wide f16 path the fusion is restricted to (head_size % 32 == 0)
+TEST(rope_gpu_fused_rms, head64) {
+    run_rope_fused_rms(ov::PartialShape{1, 8, 16, 64}, 64, false);
+}
+
+TEST(rope_gpu_fused_rms, head128) {
+    run_rope_fused_rms(ov::PartialShape{2, 4, 5, 128}, 128, false);
+}
+
+TEST(rope_gpu_fused_rms, head128_dynamic) {
+    run_rope_fused_rms(ov::PartialShape{1, 16, 7, 128}, 128, true);
 }

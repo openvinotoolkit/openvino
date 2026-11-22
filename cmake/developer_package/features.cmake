@@ -46,6 +46,8 @@ ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN3
 
 ov_dependent_option (ENABLE_PDB_IN_RELEASE "Enables PDB files for Release build" OFF "WIN32" OFF)
 
+ov_dependent_option (ENABLE_STATIC_LIBS_PDB "Keeps debug information of developer package static libraries in separate PDB files when CMAKE_MSVC_DEBUG_INFORMATION_FORMAT is Embedded" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
+
 # Defines CPU capabilities
 
 ov_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)

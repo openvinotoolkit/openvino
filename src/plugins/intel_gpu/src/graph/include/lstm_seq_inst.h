@@ -32,8 +32,7 @@ public:
     static layout calc_output_layout(lstm_seq_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_seq_node const& node);
 
-public:
-    typed_primitive_inst(network& network, lstm_seq_node const& node);
+    typed_primitive_inst(network& network, const lstm_seq_node& node);
 };
 
 using lstm_seq_inst = typed_primitive_inst<lstm_seq>;

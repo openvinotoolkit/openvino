@@ -49,10 +49,11 @@ bool normalize_single_value(std::vector<T> vec, float& value, bool check_value_r
     return true;
 }
 
-template <class T>
+template <class... T>
 bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
+    static_assert(sizeof...(T) > 0, "has_op_with_type requires at least one operation type");
     for (const auto& op : function->get_ops()) {
-        if (ov::as_type_ptr<T>(op)) {
+        if (ov::is_type_any_of<T...>(op)) {
             return true;
         }
     }
@@ -239,6 +240,23 @@ TRANSFORMATIONS_API bool have_same_fake_quantize_params(const std::shared_ptr<ov
                                                         const std::shared_ptr<ov::op::v0::FakeQuantize>& rhs);
 
 /**
+ * \brief Collects the attributes reported by node->visit_attributes() into a map that supports equality comparison.
+ *
+ * \param node  The node whose attributes are collected.
+ * \return The map from the attribute name to its value.
+ * \throws ov::NotImplemented for the attributes that can not be compared, e.g. sub-models or raw buffers.
+ */
+TRANSFORMATIONS_API ov::AnyMap get_comparable_attributes(const std::shared_ptr<ov::Node>& node);
+
+/**
+ * \brief Checks that two constants have the same element type, shape and data.
+ *
+ * \return false if any of the constants is nullptr or if they differ.
+ */
+TRANSFORMATIONS_API bool constants_are_equal(const std::shared_ptr<ov::op::v0::Constant>& lhs,
+                                             const std::shared_ptr<ov::op::v0::Constant>& rhs);
+
+/**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
  * and calls "func" for each ov::Node.
  *
@@ -289,6 +307,16 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
                                                     const Output<Node>& non_constant_input);
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
+
+/// Returns axes of unit dimensions of `out_shape` which are not present in `data_shape`,
+/// i.e. axes of dimensions inserted by Unsqueeze-like shape change
+TRANSFORMATIONS_API std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
+                                                            const PartialShape& out_shape);
+
+/// Returns axes of unit dimensions of `data_shape` which are not present in `out_shape`,
+/// i.e. axes of dimensions removed by Squeeze-like shape change
+TRANSFORMATIONS_API std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape,
+                                                          const PartialShape& out_shape);
 
 template <typename... AllowedTypes>
 bool is_on_path(const ov::Output<ov::Node>& output) {

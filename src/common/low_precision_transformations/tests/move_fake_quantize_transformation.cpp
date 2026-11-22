@@ -343,6 +343,30 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
          {},
          {},
      }},
+    // Q/DQ concat by the last axis with rank-2 dequantization constants
+    {LayerTransformation::createParamsU8I8(),
+     false,
+     3,
+     {
+         2,
+         {},
+         {},
+         {},
+         "",
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
+     },
+     {
+         2,
+         {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
+         "",
+         {},
+         {},
+         {},
+     }},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

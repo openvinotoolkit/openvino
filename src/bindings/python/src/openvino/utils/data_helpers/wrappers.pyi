@@ -94,7 +94,7 @@ class OVDict(collections.abc.Mapping):
         """
     def to_dict(self) -> dict[openvino._pyopenvino.ConstOutput, numpy.ndarray]:
         """
-        Return underlaying native dictionary.
+        Return a shallow copy of the underlying native dictionary.
         
                 Function performs shallow copy, thus any modifications to
                 returned values may affect this class as well.

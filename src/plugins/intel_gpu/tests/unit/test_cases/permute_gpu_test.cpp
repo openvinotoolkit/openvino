@@ -7,6 +7,7 @@
 #include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/implementation_desc.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -2771,5 +2772,95 @@ TEST(permute_gpu_f32, tile_8x8_4x4_fy_swap) {
             ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(tile_ptr[i]), 1e-3f)
                 << "Mismatch at " << i;
         }
+    }
+}
+
+TEST(permute_gpu_u2, bf_swap_selected_for_aligned_bfyx) {
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({data_types::u2, format::bfyx, tensor{2, 3, 16, 4}});
+
+        topology topology(input_layout("input", input->get_layout()),
+                          permute("output", input_info("input"), {1, 0, 2, 3}));
+        network network(engine, topology, get_test_default_config(engine));
+
+        const auto& output_node = network.get_program()->get_node("output");
+        ASSERT_NE(output_node.get_selected_impl(), nullptr);
+        EXPECT_EQ(output_node.get_selected_impl()->get_kernel_name(), "permute_bf_swap");
+}
+
+TEST(permute_gpu_u2, bf_swap_rejected_for_unaligned_plane) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::u2, format::bfyx, tensor{2, 3, 8, 4}});
+
+    topology topology(input_layout("input", input->get_layout()),
+                      permute("output", input_info("input"), {1, 0, 2, 3}));
+
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, "Could not find a suitable kernel"));
+}
+
+TEST(permute_gpu_u2, bf_swap_rejected_for_wrong_data_type) {
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{2, 3, 16, 4}});
+
+        topology topology(input_layout("input", input->get_layout()),
+                          permute("output", input_info("input"), {1, 0, 2, 3}));
+        network network(engine, topology, get_test_default_config(engine));
+
+        const auto& output_node = network.get_program()->get_node("output");
+        ASSERT_NE(output_node.get_selected_impl(), nullptr);
+        EXPECT_NE(output_node.get_selected_impl()->get_kernel_name(), "permute_bf_swap");
+}
+
+TEST(permute_gpu_u2, bf_swap_packed_output_matches_permutation) {
+    auto& engine = get_test_engine();
+    constexpr size_t batches = 2;
+    constexpr size_t features = 3;
+    constexpr size_t height = 16;
+    constexpr size_t width = 4;
+    constexpr size_t input_elements = batches * features * height * width;
+
+    auto input = engine.allocate_memory({data_types::u2, format::bfyx, tensor{batches, features, height, width}});
+    std::vector<uint8_t> input_data((input_elements + 3) / 4, 0);
+    std::vector<uint8_t> expected_data(input_data.size(), 0);
+
+    auto pack = [](std::vector<uint8_t>& data, size_t index, uint8_t value) {
+        data[index / 4] |= static_cast<uint8_t>((value & 0x03) << ((index % 4) * 2));
+    };
+    auto input_index = [&](size_t batch, size_t feature, size_t y, size_t x) {
+        return x + width * (y + height * (feature + features * batch));
+    };
+    auto output_index = [&](size_t batch, size_t feature, size_t y, size_t x) {
+        return x + width * (y + height * (feature + batches * batch));
+    };
+
+    for (size_t batch = 0; batch < batches; ++batch) {
+        for (size_t feature = 0; feature < features; ++feature) {
+            for (size_t y = 0; y < height; ++y) {
+                for (size_t x = 0; x < width; ++x) {
+                    const auto value = static_cast<uint8_t>((x * 3 + y * (feature + 1) + batch) % 4);
+                    pack(input_data, input_index(batch, feature, y, x), value);
+                    pack(expected_data, output_index(feature, batch, y, x), value);
+                }
+            }
+        }
+    }
+    ASSERT_NE(input_data, expected_data);
+    set_values(input, input_data);
+
+    topology topology(input_layout("input", input->get_layout()),
+                      permute("output", input_info("input"), {1, 0, 2, 3}));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    const auto& output_node = network.get_program()->get_node("output");
+    ASSERT_NE(output_node.get_selected_impl(), nullptr);
+    ASSERT_EQ(output_node.get_selected_impl()->get_kernel_name(), "permute_bf_swap");
+
+    auto output = network.execute().at("output").get_memory();
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(expected_data.size(), output_ptr.size());
+    for (size_t i = 0; i < expected_data.size(); ++i) {
+        EXPECT_EQ(expected_data[i], output_ptr[i]) << "mismatch at packed byte " << i;
     }
 }

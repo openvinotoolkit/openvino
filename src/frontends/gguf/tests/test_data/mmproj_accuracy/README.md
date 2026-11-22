@@ -23,7 +23,7 @@ vision/interleaved RoPE, antialiased bilinear resize and 2D im2col.
 
 ## Reference revision
 
-All fixtures and op expectations come from llama.cpp
+Base fixtures and op expectations come from llama.cpp
 [`03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4),
 which has aligned-corner position interpolation, the Muse Glimmer encoder, and a `ggml_clamp`
 that no longer clamps its source in place. The Gemma4 fixtures clip only the Q input, so
@@ -58,3 +58,16 @@ shared by the generator and the model hub tests.
 See [testing](../../../docs/testing.md#real-checkpoints) for pytest commands, dependencies,
 oracle caches, and local-file lists, and [coverage limits](../../../docs/mmproj.md#validation-coverage)
 for checkpoint tolerance overrides and skipped cases.
+
+`lfm2` and `lfm2_no_norm` use the same pinned oracle revision above and the two-grid
+generator seed 2718. They cover SigLIP, resized positions, spatial unshuffle and the
+optional input LayerNorm at 16x8 and 8x24 pixels, through both native and embedding-adapted IO.
+
+`lfm2a` uses the same pinned llama.cpp CPU oracle, with 49 and 101 feature frames.
+It exercises depthwise subsampling, relative attention shift and temporal convolution.
+The dynamic test returns to the first shape to check request reuse.
+
+`minicpmv4_7` and `minicpmv4_7_4x` are extracted from PR #39000. The pinned
+llama.cpp CPU references at `098ce526b546b5a190327c1da82929cee051b9ac`
+cover the window-attention and direct 2x2 merger paths,
+with unequal image grids and packed-patch GenAI input adaptation.

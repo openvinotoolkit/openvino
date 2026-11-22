@@ -19,6 +19,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -104,7 +105,7 @@ public:
         auto scatter = opp::wrap_type<ov::op::v3::ScatterNDUpdate, ov::op::v15::ScatterNDUpdate>(
             {opp::any_input(), opp::any_input(), add});
 
-        auto callback = [=, &matched](opp::Matcher& m) {
+        auto callback = [OV_CAPTURE_CPY_AND_THIS, &matched](opp::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
 
             // The Add/GatherND/ScatterNDUpdate shape is generic; only accept it when the gathered

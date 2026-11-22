@@ -12,6 +12,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -203,7 +204,10 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     auto x2 = op_util::NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
-    auto x2neg = pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto minus_one = pattern::wrap_type<v0::Constant>(pattern::value_matches("-1"));
+    auto minus_one_convert = pattern::optional<v0::Convert>({minus_one});
+    auto x2neg =
+        pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), minus_one_convert}, {{"auto_broadcast", "numpy"}});
     auto x1 = op_util::NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
     auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
@@ -396,8 +400,9 @@ RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 RoPEFusionPreprocess::RoPEFusionPreprocess() {
     MATCHER_SCOPE(RoPEFusionPreprocess);
 
-    // Pattern for input to be sliced (for models with combined QKV projection)
-    auto input_to_slice = pattern::any_input(pattern::rank_equals(4));
+    // Pattern for input to be sliced (for models with combined QKV projection). Axis 3 must
+    // be static so a negative Slice/StridedSlice bound can be resolved against its extent.
+    auto input_to_slice = pattern::any_input(pattern::rank_equals(4) && pattern::has_static_dim(3));
     // Pattern for input to be transposed (for models that transpose before RoPE)
     auto input_to_trans = pattern::any_input(pattern::rank_equals(4));
 
@@ -425,13 +430,21 @@ RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
         auto config = rope_node->get_config();
         if (pattern_map.count(input_to_slice) && slice_start.is_integer() && slice_stop.is_integer()) {
-            config.slice_start = static_cast<size_t>(slice_start.i());
-            config.slice_stop = static_cast<size_t>(slice_stop.i());
+            // Axis 3 is static (guaranteed by input_to_slice's predicate); resolve the
+            // negative bounds against its real extent before storing as size_t offsets.
+            const auto& sliced_input = pattern_map.at(input_to_slice);
+            const auto extent = sliced_input.get_partial_shape()[3].get_length();
+            auto start = ov::util::normalize(slice_start.i(), extent);
+            auto stop = ov::util::normalize(slice_stop.i(), extent);
+            if (start < 0 || stop <= start || stop > extent)
+                return false;
+            config.slice_start = static_cast<size_t>(start);
+            config.slice_stop = static_cast<size_t>(stop);
             config.input_trans0213 = true;
-            rope_node->set_argument(0, pattern_map.at(input_to_slice));
+            rope_node->input(0).replace_source_output(sliced_input);
         } else if (pattern_map.count(input_to_trans)) {
             config.input_trans0213 = true;
-            rope_node->set_argument(0, pattern_map.at(input_to_trans));
+            rope_node->input(0).replace_source_output(pattern_map.at(input_to_trans));
         } else {
             return false;
         }
