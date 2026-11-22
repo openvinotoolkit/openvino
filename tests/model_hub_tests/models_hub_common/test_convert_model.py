@@ -10,7 +10,7 @@ try:
 except:
     pass
 from models_hub_common.multiprocessing_utils import multiprocessing_run
-from models_hub_common.utils import compare_two_tensors
+from models_hub_common.utils import compare_two_tensors, npu_compile_only
 from openvino import convert_model
 from openvino import Core
 
@@ -61,20 +61,20 @@ class TestConvertModel:
         raise "infer_fw_model is not implemented"
 
     def get_compile_config(self, ie_device):
-        # NPU: compile-only (offline); compiler-in-plugin is required to compile without a device
+        # NPU: compiler-in-plugin is required to compile without a device
         config = dict(self.ov_config)
         if 'NPU' in (ie_device or ''):
             config["NPU_COMPILER_TYPE"] = "PLUGIN"
             npu_platform = os.environ.get("NPU_PLATFORM")
-            if npu_platform:
+            # on real hardware the platform is detected from the device
+            if npu_platform and npu_compile_only(ie_device):
                 config["NPU_PLATFORM"] = npu_platform
         return config
 
     def infer_ov_model(self, ov_model, inputs, ie_device):
         core = Core()
         compiled = core.compile_model(ov_model, ie_device, self.get_compile_config(ie_device))
-        # Compile-only for NPU device
-        if 'NPU' in (ie_device or ''):
+        if npu_compile_only(ie_device):
             return None
         ov_outputs = compiled(inputs)
         return ov_outputs

@@ -4,9 +4,14 @@ on:
   workflow_call:
     inputs:
       runner:
-        description: 'Machine on which the tests would run'
+        description: 'JSON runs-on value: list of labels or {"group": ..., "labels": [...]}. e.g. ["aks-win-4-cores-8gb-test"]'
         type: string
         required: true
+      mode:
+        description: 'compile: offline compilation for each NPU platform, no device needed. infer: compile, infer and compare on a host with a real NPU of that platform'
+        type: string
+        required: false
+        default: 'compile'
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
@@ -18,7 +23,7 @@ on:
         required: false
         default: '{}'
       npu-platforms:
-        description: 'JSON list of NPU platforms to compile for (offline), each runs on its own runner. e.g. ["3720","4000","5010","5020","6010"]'
+        description: 'JSON list of NPU platforms, each runs on its own runner. In infer mode the runner must have that NPU. e.g. ["3720","4000","5010","5020","6010"]'
         type: string
         required: false
         default: '["3720","4000","5010","5020","6010"]'
@@ -40,7 +45,8 @@ env:
 jobs:
   NPU_Models_Tests:
     name: ${{ matrix.npu-platform }}
-    timeout-minutes: 40
+    # inference and the framework reference run come on top of compilation
+    timeout-minutes: ${{ inputs.mode == 'infer' && 90 || 40 }}
     strategy:
       # one runner per NPU platform; keep going even if one platform fails.
       fail-fast: false
@@ -49,13 +55,14 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ fromJSON(inputs.runner) }}
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       TEST_DEVICE: 'NPU'
       NPU_PLATFORM: ${{ matrix.npu-platform }}
+      NPU_TEST_MODE: ${{ inputs.mode }}
       MODEL_SCOPE: ${{ inputs.model-scope }}
       # Force UTF-8 stdio so third-party progress bars (e.g. easyocr's block
       # glyph) don't crash on the cp1252 Windows console.
@@ -77,9 +84,17 @@ jobs:
 
       - name: Setup Variables
         run: |
-          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
-          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
-          Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_WIN }}"
+          # AKS runners mount the shared HF cache and token; NPU hosts fall back to the
+          # default per-user HF cache, which outlives the per-job work dir cleanup.
+          if (Test-Path "${{ env.HF_HUB_CACHE_WIN }}") {
+            Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
+            Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
+          }
+          if (Test-Path "${{ env.HF_TOKEN_PATH_WIN }}") {
+            Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_WIN }}"
+          } else {
+            Write-Host "::warning::No HF token at ${{ env.HF_TOKEN_PATH_WIN }}, downloading anonymously (rate limited)"
+          }
 
       - name: Extract OpenVINO tests package
         run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
@@ -103,6 +118,17 @@ jobs:
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
           use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
 
+      - name: Trust the Intel proxy root CA
+        run: |
+          $proxyCa = 'C:\certs\IntelProxyRootCA.crt'
+          if (-not (Test-Path $proxyCa)) { exit 0 }
+          $bundle = Join-Path $env:RUNNER_TEMP 'ca-bundle.pem'
+          $publicCa = python3 -c "import pip._vendor.certifi as c; print(c.where())"
+          Get-Content $publicCa, $proxyCa | Set-Content -Encoding ascii $bundle
+          foreach ($var in 'SSL_CERT_FILE', 'REQUESTS_CA_BUNDLE', 'CURL_CA_BUNDLE', 'PIP_CERT') {
+            Add-Content -Path $env:GITHUB_ENV -Value "$var=$bundle"
+          }
+
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
         with:
@@ -110,14 +136,28 @@ jobs:
           wheels-to-install: 'openvino'
 
       - name: Install certifi and set SSL_CERT_FILE for model downloading
+        if: ${{ env.SSL_CERT_FILE == '' }}
         run: python3 -m pip install certifi && echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
+      - name: Check NPU device
+        if: ${{ inputs.mode == 'infer' }}
+        run: |
+          @'
+          import os
+          import openvino as ov
+          core = ov.Core()
+          assert "NPU" in core.available_devices, f"no NPU among {core.available_devices}"
+          arch = core.get_property("NPU", "DEVICE_ARCHITECTURE")
+          print(core.get_property("NPU", "FULL_DEVICE_NAME"), arch)
+          assert os.environ["NPU_PLATFORM"] in arch, f"runner labels promise NPU {os.environ['NPU_PLATFORM']}, device is {arch}"
+          '@ | python3 -
 
       # --- TensorFlow ---------------------------------------------------------
       - name: Install TF Models tests requirements
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
-      - name: TensorFlow Models Tests - NPU compile-only (convert_model)
+      - name: TensorFlow Models Tests - NPU ${{ inputs.mode }} (convert_model)
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
         shell: cmd
         run: |
@@ -125,7 +165,7 @@ jobs:
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_convert_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
-      - name: TensorFlow Models Tests - NPU compile-only (read_model)
+      - name: TensorFlow Models Tests - NPU ${{ inputs.mode }} (read_model)
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE) }}
         shell: cmd
         run: |
@@ -138,7 +178,7 @@ jobs:
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
 
-      - name: JAX/Flax Models Tests - NPU compile-only
+      - name: JAX/Flax Models Tests - NPU ${{ inputs.mode }}
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         shell: cmd
         run: |
@@ -153,7 +193,7 @@ jobs:
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\npu_models.txt
 
-      - name: PyTorch Models Tests - NPU compile-only
+      - name: PyTorch Models Tests - NPU ${{ inputs.mode }}
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).PyTorch_FE) }}
         shell: cmd
         env:
@@ -167,7 +207,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
-          name: test-results-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
+          name: test-results-npu-models-${{ matrix.npu-platform }}-${{ inputs.mode }}-${{ inputs.model-scope }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
             ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_unsupported_ops_*.log
