@@ -54,7 +54,8 @@ jobs:
         npu-platform: ${{ fromJSON(inputs.npu-platforms) }}
     defaults:
       run:
-        shell: pwsh
+        # Windows PowerShell 5.1: the NPU hosts (ov-dmz-*) have no pwsh, unlike AKS
+        shell: powershell
     runs-on: ${{ fromJSON(inputs.runner) }}
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
@@ -105,13 +106,12 @@ jobs:
         run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python and install wheels actions
+      - name: Fetch setup_python action
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
-            .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -134,15 +134,20 @@ jobs:
             Add-Content -Path $env:GITHUB_ENV -Value "$var=$bundle"
           }
 
-      - name: Install OpenVINO Python wheels
-        uses: ./openvino/.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
+      # Not the install_ov_wheels action: it runs in pwsh, which the NPU hosts don't have
+      - name: Install OpenVINO Python wheel
+        run: |
+          $py = python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')"
+          $wheel = Get-ChildItem -Path $env:INSTALL_WHEELS_DIR -Filter "openvino-*-$py-*.whl" | Select-Object -First 1
+          if (-not $wheel) { throw "No openvino wheel for $py in $env:INSTALL_WHEELS_DIR" }
+          python3 -m pip install $wheel.FullName
 
       - name: Install certifi and set SSL_CERT_FILE for model downloading
         if: ${{ env.SSL_CERT_FILE == '' }}
-        run: python3 -m pip install certifi && echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+        run: |
+          python3 -m pip install certifi
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Add-Content -Path $env:GITHUB_ENV -Value "SSL_CERT_FILE=$(python3 -m certifi)"
 
       - name: Check NPU device
         if: ${{ inputs.mode == 'infer' }}
