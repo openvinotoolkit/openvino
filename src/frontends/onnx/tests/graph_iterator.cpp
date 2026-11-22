@@ -628,6 +628,75 @@ TEST(FrontEndGraphIteratorTest, loads_programmatic_empty_shape_initializer_graph
     }
 }
 
+TEST(FrontEndGraphIteratorTest, multidimensional_empty_initializer_is_not_parameter) {
+    const ov::Shape input_shape{1, 31, 8};
+    const ov::Shape empty_shape{1, 31, 0};
+    const std::vector<float> input_values(ov::shape_size(input_shape), 1.f);
+
+    for (bool materialize_places : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "materialize_places=" << materialize_places);
+        auto model_proto = std::make_shared<ModelProto>();
+        model_proto->set_ir_version(8);
+        model_proto->add_opset_import()->set_version(13);
+        auto* graph = model_proto->mutable_graph();
+        graph->set_name("multidimensional_empty_initializer");
+
+        auto* initializer = graph->add_initializer();
+        initializer->set_name("empty");
+        initializer->set_data_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+        for (const auto dimension : empty_shape) {
+            initializer->add_dims(static_cast<int64_t>(dimension));
+        }
+
+        auto* input = graph->add_input();
+        input->set_name("input");
+        auto* input_type = input->mutable_type()->mutable_tensor_type();
+        input_type->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+        for (const auto dimension : input_shape) {
+            input_type->mutable_shape()->add_dim()->set_dim_value(static_cast<int64_t>(dimension));
+        }
+
+        auto* concat = graph->add_node();
+        concat->set_op_type("Concat");
+        concat->add_input("empty");
+        concat->add_input("input");
+        concat->add_output("output");
+        auto* axis = concat->add_attribute();
+        axis->set_name("axis");
+        axis->set_type(ONNX_NAMESPACE::AttributeProto_AttributeType_INT);
+        axis->set_i(2);
+
+        auto* output = graph->add_output();
+        output->set_name("output");
+        *output->mutable_type() = input->type();
+
+        auto iterator = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+            ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+        iterator->initialize(model_proto);
+        iterator->reset();
+        ov::frontend::onnx::GraphIterator::Ptr graph_iterator = iterator;
+        auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+        ASSERT_NE(frontend, nullptr);
+        auto input_model = frontend->load(graph_iterator);
+        ASSERT_NE(input_model, nullptr);
+        if (materialize_places) {
+            // Force the Place-graph conversion path; otherwise convert directly from the iterator.
+            ASSERT_EQ(input_model->get_inputs().size(), 1);
+        }
+
+        auto model = frontend->convert(input_model);
+        ASSERT_NE(model, nullptr);
+        ASSERT_EQ(model->get_parameters().size(), 1);
+        EXPECT_EQ(model->input().get_any_name(), "input");
+        EXPECT_EQ(model->output().get_shape(), input_shape);
+
+        ov::test::TestCase test_case(model);
+        test_case.add_input<float>(input_shape, input_values);
+        test_case.add_expected_output<float>(input_shape, input_values);
+        test_case.run();
+    }
+}
+
 // =====================================================================================================
 // Accuracy / structural equivalence of the deferred-InputModel single-pass converter (translate
 // straight from the GraphIterator decoders, skipping load_model()) against the InputModel-backed
@@ -780,7 +849,10 @@ INSTANTIATE_TEST_SUITE_P(OnnxConvertEquivalence,
                              return n;
                          });
 
-TEST(FrontEndGraphIteratorTest, rejects_empty_dropout_training_mode) {
+class DropoutTrainingModeTest : public testing::TestWithParam<std::pair<std::vector<int32_t>, std::string>> {};
+
+TEST_P(DropoutTrainingModeTest, validates_training_mode) {
+    const auto& [training_mode_values, expected_error] = GetParam();
     auto model = std::make_shared<ONNX_NAMESPACE::ModelProto>();
     model->set_ir_version(13);
     auto* opset = model->add_opset_import();
@@ -795,7 +867,10 @@ TEST(FrontEndGraphIteratorTest, rejects_empty_dropout_training_mode) {
     auto* init = graph->add_initializer();
     init->set_name("training_mode");
     init->set_data_type(ONNX_NAMESPACE::TensorProto_DataType_BOOL);
-    init->add_dims(0);
+    init->add_dims(training_mode_values.size());
+    for (const auto value : training_mode_values) {
+        init->add_int32_data(value);
+    }
     auto* input = graph->add_input();
     input->set_name("X");
     input->mutable_type()->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
@@ -812,12 +887,26 @@ TEST(FrontEndGraphIteratorTest, rejects_empty_dropout_training_mode) {
     ASSERT_NE(frontend, nullptr);
     auto input_model = frontend->load(std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator));
     ASSERT_NE(input_model, nullptr);
+    if (expected_error.empty()) {
+        const auto converted_model = frontend->convert(input_model);
+        ASSERT_NE(converted_model, nullptr);
+        EXPECT_EQ(converted_model->output(0).get_node()->input_value(0),
+                  converted_model->get_parameters().at(0)->output(0));
+        return;
+    }
     try {
         frontend->convert(input_model);
-        FAIL() << "Expected empty training_mode to be rejected";
+        FAIL() << "Expected training_mode to be rejected";
     } catch (const ov::Exception& e) {
         const std::string error_msg = e.what();
-        EXPECT_NE(error_msg.find("training_mode input must contain one element."), std::string::npos)
-            << "Unexpected error message: " << error_msg;
+        EXPECT_NE(error_msg.find(expected_error), std::string::npos) << "Unexpected error message: " << error_msg;
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    FrontEndGraphIteratorTest,
+    DropoutTrainingModeTest,
+    testing::Values(std::make_pair(std::vector<int32_t>{}, "training_mode input must contain one element."),
+                    std::make_pair(std::vector<int32_t>{0}, ""),
+                    std::make_pair(std::vector<int32_t>{1}, "Training mode is not supported for Dropout op"),
+                    std::make_pair(std::vector<int32_t>{0, 1}, "training_mode input must contain one element.")));

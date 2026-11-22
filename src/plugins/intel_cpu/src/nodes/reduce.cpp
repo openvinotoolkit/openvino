@@ -2112,7 +2112,7 @@ void Reduce::getSupportedDescriptors() {
         bool is_emulated_0d_as_1d =
             getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
         const bool rank_condition = getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank();
-        const bool invalid_config = rank_condition && !is_emulated_0d_as_1d;
+        const bool invalid_config = rank_condition && !is_emulated_0d_as_1d && !raw_axes.empty();
         CPU_NODE_ASSERT(!invalid_config, "gets incorrect number of input/output dimensions!");
     }
 }

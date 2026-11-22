@@ -6,12 +6,15 @@ Supported configurations:
 - Windows 10 x86 64-bit or higher with Visual Studio 2019 or higher build for X64 architecture.
 - Windows on ARM (shortly WoA) to build for ARM64 architecture. OpenVINO was validated on [Windows DevKit 2023](https://developer.qualcomm.com/hardware/windows-on-snapdragon/windows-dev-kit-2023)
 
+Current validation includes x86_64 builds with Visual Studio 2022 and Visual Studio 2026.
+Visual Studio 2019 remains the documented minimum but is not exercised by the current CI matrix.
+
 ## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
-- Microsoft Visual Studio 2019 or higher, version 16.3 or later
+- Microsoft Visual Studio 2019 or higher, version 16.8 or later (MSVC 19.28, required for C++20)
   > **NOTE**: Native Microsoft Visual Studio for WoA has been available since version 3.11.
-- Python 3.11 - 3.14 for OpenVINO Runtime Python API
+- Python 3.11 - 3.15 for OpenVINO Runtime Python API
 - [Git for Windows*]
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
   > **NOTE**: After installation, make sure `clang-cl` compiler is available from `PATH`.

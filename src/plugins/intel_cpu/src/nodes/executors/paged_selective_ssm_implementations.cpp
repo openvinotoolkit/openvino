@@ -12,12 +12,30 @@
 #include "nodes/executors/paged_selective_ssm_config.hpp"
 #include "utils/arch_macros.h"
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/executors/memory_arguments.hpp"
+#    include "nodes/executors/x64/selective_ssm_jit_executor.hpp"
+#endif
+
 namespace ov::intel_cpu {
 
 // clang-format off
 template <>
 const std::vector<ExecutorImplementation<PagedSelectiveSSMAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<PagedSelectiveSSMAttrs>> implementations {
+        OV_CPU_INSTANCE_X64(
+            "paged_selective_ssm_jit_executor",
+            ExecutorType::Jit,
+            OperationType::PagedSelectiveSSM,
+            [](const PagedSelectiveSSMConfig& config) -> bool {
+                return PagedSelectiveSSMJitExecutor::supports(config);
+            },
+            HasNoOptimalConfig<PagedSelectiveSSMAttrs>{},
+            [](const PagedSelectiveSSMAttrs&, const MemoryArgs& memory) -> bool {
+                return PagedSelectiveSSMJitExecutor::accepts_shape(memory);
+            },
+            CreateDefault<PagedSelectiveSSMJitExecutor, PagedSelectiveSSMAttrs>{}
+        )
         OV_CPU_INSTANCE_COMMON(
             "paged_selective_ssm_common_executor",
             ExecutorType::Common,

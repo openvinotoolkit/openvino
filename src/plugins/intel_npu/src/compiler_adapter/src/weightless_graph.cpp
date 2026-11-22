@@ -11,7 +11,6 @@
 #include <queue>
 
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -264,14 +263,16 @@ WeightlessGraph::WeightlessGraph(
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const bool blobIsPersistent,
-    const std::optional<std::string>& compatibilityDescriptor)
+    const std::optional<std::string>& compatibilityDescriptor,
+    const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
             compatibilityDescriptor,
-            blobIsPersistent),
+            blobIsPersistent,
+            profilingDecoder),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
@@ -370,7 +371,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
 void WeightlessGraph::initialize_impl(const Config& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
-        // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
+        // To ensure that no issues are thrown during subsequent calls.
         return;
     }
 
@@ -584,11 +585,6 @@ void WeightlessGraph::run_init_multi_threaded() {
         },
         [&](QueueData&& data, std::condition_variable& cv, std::atomic_bool& flag) {
             // Create zero-pipeline and run it (infer init schedule)
-            ze_device_properties_t properties = {};
-            properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-            THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                        zeDeviceGetProperties(_zeroInitStruct->getDevice(), &properties));
-
             create_pipeline(data.initIndex, data.inputs.tensors, data.outputs.tensors);
 
             // progress task 1:
@@ -613,6 +609,9 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
 
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+    }
+    if (_zeroInitStruct == nullptr) {
+        OPENVINO_THROW("Zero init structure wasn't initialized");
     }
 
     _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);
@@ -669,16 +668,9 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex) {
-    if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
-        _initBlobs == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
-        return;
-    }
-
-    ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
-    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsGraphDesc.at(initIndex)._handle, &properties);
-
-    if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
+    if (_blobIsPersistent || _initBlobs == std::nullopt || _zeGraphExt == nullptr ||
+        _zeGraphExt->isBlobDataImported(_graphDesc) ||
+        !_zeGraphExt->isInitStageRequired(_initsGraphDesc.at(initIndex))) {
         return;
     }
 

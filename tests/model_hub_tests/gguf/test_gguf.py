@@ -7,10 +7,8 @@
 #
 # Each test downloads one .gguf file, converts it, compiles it, and runs two forward steps,
 # feeding the cache/state outputs of the first step into the second. The checks cover finite,
-# correctly shaped logits and populated, changing KV caches. The suite does not build a tokenizer
-# because it verifies frontend conversion/inference correctness rather than text coherence (which
-# src/frontends/gguf/tests/compare_with_llama.py and the GenAI-based harness described in
-# supported_models.md already cover for the architectures where that matters).
+# correctly shaped logits and populated, changing KV caches. It does not compare tokens or logits
+# with a reference; see the OV_GGUF_ACCURACY_DATA replay in tests/test_data/arch_accuracy/README.md.
 #
 # gguf_models_precommit lists the small (<=~4B parameter) architectures, run on every commit.
 # gguf_models_nightly lists the rest (up to ~30B), run nightly given their download size.
@@ -21,7 +19,7 @@ import pytest
 
 from models_hub_common.constants import clean_hf_cache_dir, hf_cache_dir
 from models_hub_common.utils import cleanup_dir
-from utils import assert_valid_logits, parse_gguf_model_list, run_gguf_model
+from utils import assert_valid_logits, parse_gguf_model_list, run_gguf_embedding_model, run_gguf_model
 
 
 class TestGGUF:
@@ -35,6 +33,10 @@ class TestGGUF:
             pytest.skip(reason)
         if mark == "xfail":
             pytest.xfail(reason)
+
+        if arch == "llama-embed":
+            run_gguf_embedding_model(repo_id, filename, device=ie_device)
+            return
 
         logits = run_gguf_model(repo_id, filename, device=ie_device)
         assert_valid_logits(logits)

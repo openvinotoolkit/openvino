@@ -215,7 +215,6 @@ The following properties are supported (may differ based on current system confi
 | `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
-| `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | This property is deprecated and has no effect on the NPU Plugin. It will be removed in the OpenVINO 2027.0 release. | `YES`/ `NO` /</br>`NO` 
 | `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_NONE`/</br>`LOG_ERROR`/</br>`LOG_WARNING`/</br>`LOG_INFO`/</br>`LOG_DEBUG`/</br>`LOG_TRACE` |  `LOG_NONE` |
 | `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | Any string pointing towards a valid directory path | empty |
 | `ov::cache_encryption_callbacks`/</br>`CACHE_ENCRYPTION_CALLBACKS` | WO | Encryption/Decryption functions called when exporting or reading the blob. | ov::EncryptionCallbacks structures populated with any function respecting signature `std::string(const std::string&)` for both encryption and decryption callbacks | ov::EncryptionCallbacks{nullptr, nullptr} |
@@ -319,7 +318,7 @@ Supported values:
 
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
 
-For on-device compilation, the plugin queries the driver for the available number of tiles and sets `ov::intel_npu::max_tiles`.  
+For on-device compilation, the plugin queries the driver for the available number of tiles and reports it through `ov::intel_npu::max_tiles`.  
 `ov::intel_npu::max_tiles` is a read-only property, and it will not be listed as supported in cases where no device is present.
 Note that `ov::intel_npu::max_tiles` represents the maximum number of tiles available, but the compiler may target a lower number of tiles depending on other properties. Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.  
 
@@ -345,7 +344,7 @@ Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler
 If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.  
 The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.  
 Notes regarding on-device vs offline compilation:
-- For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information). Such compiled models are compatible with all the drivers released for that platform.
+- For on-device compilation with ``Compiler-In-Plugin``, the plugin queries the platform information from the driver and passes it to the compiler via the device descriptor supplied at compiler creation. With ``Compiler-In-Driver``, the driver provides the same device descriptor to the compiler on the plugin's behalf. Such compiled models are compatible with all the drivers released for that platform.
 - For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).  
 Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.

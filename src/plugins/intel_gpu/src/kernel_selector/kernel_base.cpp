@@ -1,9 +1,10 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "kernel_base.h"
 
+#include <algorithm>
 #include <sstream>
 
 namespace kernel_selector {
@@ -131,7 +132,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IsSIMDSizeSupported
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) const {
+bool KernelBase::IsSIMDSizeSupported(const EngineInfo& info, size_t simd_size) {
     auto supported_sizes = info.supportedSimdSizes;
     return std::find(supported_sizes.begin(), supported_sizes.end(), simd_size) != supported_sizes.end();
 }
@@ -148,10 +149,15 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
         return jit;
     }
 
-    if (std::all_of(params.fused_ops.cbegin(), params.fused_ops.cend(),
-        [](fused_operation_desc desc) { return desc.GetType() == KernelType::REORDER; })) {
+    if (std::all_of(params.fused_ops.cbegin(), params.fused_ops.cend(), [](fused_operation_desc desc) {
+            return cldnn::one_of(desc.GetType(), {KernelType::REORDER, KernelType::DYNAMIC_QUANTIZE});
+        })) {
         return jit;
     }
+
+    const bool has_dyn_quan = std::any_of(params.fused_ops.cbegin(), params.fused_ops.cend(), [](fused_operation_desc desc) {
+        return desc.GetType() == KernelType::DYNAMIC_QUANTIZE;
+    });
 
     try {
         for (const auto& c : conf) {
@@ -165,7 +171,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             Datatype last_fused_out_dtype = c.input_dt;
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
                 // Reorder is not processed by jitter
-                if (params.fused_ops[i].GetType() == FusedOpType::REORDER) {
+                if (cldnn::one_of(params.fused_ops[i].GetType(), {FusedOpType::REORDER, FusedOpType::DYNAMIC_QUANTIZE})) {
                     continue;
                 }
 
@@ -189,14 +195,16 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                     fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
                 }
                 fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
-                last_fused_out_dtype = params.fused_ops[i].output_tensor.GetDType();
+                OPENVINO_ASSERT(params.fused_ops[i].output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+                last_fused_out_dtype = params.fused_ops[i].output_tensors[0].GetDType();
             }
 
             jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
             // Convert dtype, only if last fused op has a different one from kernel output
-            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype) {
+            // Unless dynamic quantize is fused later, then it's handled separately.
+            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype && !has_dyn_quan) {
                 if (last_fused_out_dtype == Datatype::BF16) {
                     out_name = "CONVERT_AS_BFLOAT16_FLOAT(" + out_name + ", " + toCodeString(c.vec_size) + ")";
                 }
@@ -250,20 +258,17 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
 }
 
 bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const {
-    for (auto& supported_op : GetSupportedFusedOps()) {
-        if (fused_op.GetType() == supported_op) {
-            return true;
-        }
-    }
-
-    return false;
+    const auto& supported_ops = GetSupportedFusedOps();
+    return std::any_of(supported_ops.begin(), supported_ops.end(), [&fused_op](auto& supported_op) {
+        return fused_op.GetType() == supported_op;
+    });
 }
 
 std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
     return {};
 }
 
-DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params) const {
+DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params) {
     DeviceFeaturesKey k;
 
     bool requires_blocked_read_write_char = false;

@@ -56,7 +56,7 @@ void pre_replace_deconv::run(program& p) {
                 perform_opt |= cldnn::format::dimension(input_layout.format) == 4 &&
                                (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
                                ((lo.get_optimization_attributes().b_fs_yx_fsv16_network == 0 && input_layout.format != format::b_fs_yx_fsv16) ||
-                                !lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
+                                !layout_optimizer::is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
                 // int8/uint8 input
                 perform_opt |= (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
 
@@ -75,19 +75,10 @@ void pre_replace_deconv::run(program& p) {
                 auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
-                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
-                p.remove_connection(input_node, deconv_node);
-                std::vector<std::shared_ptr<program_node>> weight_connections;
-                auto weights_iter = p.nodes_map.find(weights_nodes_id.pid);
-                OPENVINO_ASSERT(weights_iter != p.nodes_map.end());
-
-                auto weights_node_ptr = weights_iter->second;
-                weight_connections.push_back(weights_node_ptr);
-                p.remove_connection(*weights_node_ptr, deconv_node);
-
                 ov::CoordinateDiff pad_begin(spatial_rank, 0);
                 ov::CoordinateDiff pad_end(spatial_rank, 0);
 
+                bool invalid_pad = false;
                 for (size_t i = 0; i < spatial_rank; i++) {
                     auto fs = filter_layout.spatial(spatial_rank - i - 1);
                     auto out_dim = output_pshape[2 + i].get_length();
@@ -95,7 +86,19 @@ void pre_replace_deconv::run(program& p) {
 
                     pad_begin[i] = (fs - 1) - std::abs(pad[i]);
                     pad_end[i] = (out_dim - 1) * stride[i] + fs - in_dim - pad_begin[i];
+                    if (pad_begin[i] < 0 || pad_end[i] < 0) {
+                        invalid_pad = true;
+                        break;
+                    }
                 }
+
+                if (invalid_pad) {
+                    continue;
+                }
+
+                auto weights_iter = p.nodes_map.find(weights_nodes_id.pid);
+                OPENVINO_ASSERT(weights_iter != p.nodes_map.end());
+                auto weights_node_ptr = weights_iter->second;
 
                 std::vector<std::shared_ptr<program_node>> bias_connections;
                 if (biases_nodes_id.is_valid()) {
@@ -106,7 +109,16 @@ void pre_replace_deconv::run(program& p) {
 
                     auto bias_id_node_ptr = bias_iter->second;
                     bias_connections.push_back(bias_id_node_ptr);
-                    p.remove_connection(*bias_id_node_ptr, deconv_node);
+                }
+
+                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
+                program::remove_connection(input_node, deconv_node);
+                std::vector<std::shared_ptr<program_node>> weight_connections;
+                weight_connections.push_back(weights_node_ptr);
+                program::remove_connection(*weights_node_ptr, deconv_node);
+
+                for (auto& bias_node_ptr : bias_connections) {
+                    program::remove_connection(*bias_node_ptr, deconv_node);
                 }
                 auto was_output = deconv_node.is_output();
                 if (was_output) {
@@ -137,20 +149,20 @@ void pre_replace_deconv::run(program& p) {
                 conv_node.set_forced_impl_type(deconv_node.get_forced_impl_type());
 
                 // add connections input->convolution, weights->convolution and bias->convolution
-                p.add_connection(input_node, conv_node);
+                program::add_connection(input_node, conv_node);
 
                 for (auto& weight_node : weight_connections) {
-                    p.add_connection(*weight_node, conv_node);
+                    program::add_connection(*weight_node, conv_node);
                 }
 
                 for (auto& bias_node : bias_connections) {
-                    p.add_connection(*bias_node, conv_node);
+                    program::add_connection(*bias_node, conv_node);
                 }
 
                 auto deconv_node_itr = p.nodes_map.find(rename_id);
                 if (deconv_node_itr != p.nodes_map.end()) {
                     auto deconv_node_ptr = deconv_node_itr->second;
-                    p.replace_all_usages(*deconv_node_ptr, conv_node);
+                    program::replace_all_usages(*deconv_node_ptr, conv_node);
                     p.optimized_out.push_back(rename_id);
                     p.nodes_map.erase(rename_id);
                 }
@@ -160,7 +172,7 @@ void pre_replace_deconv::run(program& p) {
                     p.get_outputs().push_back(&conv_node);
                 }
 
-                p.mark_if_data_flow(conv_node);
+                program::mark_if_data_flow(conv_node);
                 conv_node.recalc_output_layout(true);
 
                 update_processing_order = true;
@@ -200,10 +212,10 @@ void pre_replace_deconv::run(program& p) {
 
                 // remove deconvolution node and its connections to weights and biases,
                 // rename it and move to the optimized list
-                p.remove_connection(input_node, deconv_node);
+                program::remove_connection(input_node, deconv_node);
 
-                p.remove_connection(*weights_node_ptr, deconv_node);
-                p.remove_connection(*bias_id_node_ptr, deconv_node);
+                program::remove_connection(*weights_node_ptr, deconv_node);
+                program::remove_connection(*bias_id_node_ptr, deconv_node);
 
                 auto rename_id = deconv_node_id + "_tmp";
                 p.rename(deconv_node, rename_id);
@@ -277,13 +289,13 @@ void pre_replace_deconv::run(program& p) {
                 auto& conv_node = created_node.as<convolution>();
 
                 // add connections input->convolution, weights->convolution and bias->convolution
-                p.add_connection(input_node, conv_node);
+                program::add_connection(input_node, conv_node);
 
                 {
                     auto iter = p.nodes_map.find(weight_replace_node_id);
                     OPENVINO_ASSERT(iter != p.nodes_map.end(), weight_replace_node_id, " is not in nodes_map.");
                     auto weights_node_conv_rpl_ptr = iter->second;
-                    p.add_connection(*weights_node_conv_rpl_ptr, conv_node);
+                    program::add_connection(*weights_node_conv_rpl_ptr, conv_node);
                     p.inputs.push_back(weights_node_conv_rpl_ptr.get());
                 }
 
@@ -307,16 +319,16 @@ void pre_replace_deconv::run(program& p) {
                 program_node& bias_node = p.get_or_create(bias_prim);
 
                 // add connections input->depth_to_space, depth_to_space->bias
-                p.add_connection(conv_node, pixel_shuffle_node);
-                p.add_connection(pixel_shuffle_node, bias_node);
+                program::add_connection(conv_node, pixel_shuffle_node);
+                program::add_connection(pixel_shuffle_node, bias_node);
 
                 auto deconv_node_ptr = p.nodes_map.find(rename_id);
                 if (deconv_node_ptr != p.nodes_map.end()) {
-                    p.replace_all_usages(*deconv_node_ptr->second, bias_node);
+                    program::replace_all_usages(*deconv_node_ptr->second, bias_node);
                     p.optimized_out.push_back(rename_id);
                     p.nodes_map.erase(rename_id);
                 }
-                p.mark_if_data_flow(conv_node);
+                program::mark_if_data_flow(conv_node);
                 conv_node.recalc_output_layout(true);
 
                 update_processing_order = true;

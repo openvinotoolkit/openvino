@@ -148,11 +148,13 @@ public:
             for (size_t fi = 0; fi < updated_impl_params.fused_desc.size(); fi++) {
                 auto& fd = updated_impl_params.fused_desc[fi];
                 // Extend fused op output_layout rank to match the restored output rank
-                auto fd_out_pshape = fd.output_layout.get_partial_shape();
+                auto fd_out_pshape = fd.get_output_layout().get_partial_shape();
                 if (fd_out_pshape.size() < output_pshape.size()) {
                     fd_out_pshape.insert(fd_out_pshape.begin() + prim->axis, ov::Dimension(1));
-                    fd.output_layout.set_partial_shape(fd_out_pshape);
-                    fd.output_layout.format = format::adjust_to_rank(fd.output_layout.format, fd_out_pshape.size());
+                    auto fd_output_layout = fd.get_output_layout();
+                    fd_output_layout.set_partial_shape(fd_out_pshape);
+                    fd_output_layout.format = format::adjust_to_rank(fd.get_output_layout().format, fd_out_pshape.size());
+                    fd.set_output_layout(fd_output_layout);
                 }
 
                 // Extend all fused op peer dependency tensor ranks (quantize has multiple: in_lo, in_hi, out_lo, out_hi)
@@ -213,11 +215,13 @@ attach_gather_impl::attach_gather_impl() {
                       data_types::u8,
                       data_types::i4,
                       data_types::u4,
+                      data_types::u2,
                       data_types::i32,
                       data_types::f8e4m3};
 
     auto dyn_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx
     };
@@ -258,6 +262,7 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i4, format::bfyx),
         std::make_tuple(data_types::u4, format::bfyx),
+        std::make_tuple(data_types::u2, format::bfyx),
 
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),

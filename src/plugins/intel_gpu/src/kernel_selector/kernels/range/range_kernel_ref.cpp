@@ -6,6 +6,8 @@
 
 #include <kernel_selector_utils.h>
 
+#include <algorithm>
+
 namespace kernel_selector {
 
 namespace {
@@ -83,7 +85,9 @@ ParamsKey RangeKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
     return k;
@@ -99,10 +103,10 @@ bool RangeKernelRef::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (const auto& input : params.inputs) {
-        if (input.LogicalSize() != 1) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.inputs.begin(), params.inputs.end(), [](const auto& input) {
+            return input.LogicalSize() != 1;
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     return true;
 }

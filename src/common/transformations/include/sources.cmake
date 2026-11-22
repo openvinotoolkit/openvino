@@ -24,6 +24,7 @@ set(OV_OPS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/grouped_matmul_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/lora_subgraph.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/moe_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/msda.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/multiclass_nms_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_static_shape_ie.hpp
@@ -87,6 +88,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_gated_delta_net.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_moe_experts.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.hpp
@@ -114,8 +116,10 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/move_fc_reshape_to_weights.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_conv_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_fake_quantize_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mvn_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/ngram_hash_function_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nop_elimination.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_l2_fusion.hpp
@@ -207,6 +211,7 @@ set(OP_CONVERSIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_matmul.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate11_downgrade.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp
@@ -283,11 +288,13 @@ set(OPSET_CONVERSIONS_HEADERS
 )
 
 set(PAGED_ATTENTION_HEADERS
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/attention_mask_shape_replacer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_qsa_indexer_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_sparse_attention_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.hpp
@@ -325,6 +332,7 @@ set(SMART_RESHAPE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/proposal_scales_stridedslice.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_sinking.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_to_1D.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/restore_traced_batch.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/shape_of_const_folding.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/smart_reshape.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/strided_slice_squeeze.hpp

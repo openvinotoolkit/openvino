@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/gguf/frontend.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 
@@ -19,7 +20,10 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/util/file_util.hpp"
 #include "translate_session.hpp"
 
 namespace ov::frontend::gguf {
@@ -44,6 +48,7 @@ struct FrontEnd::Impl {
     // Transformation extensions run in the normalization stage. A caller uses these to swap the
     // default (stateless) SetRows lowering for an alternative (e.g. a backend stateful lowering).
     std::vector<DecoderTransformationExtension::Ptr> transformation_extensions;
+    std::shared_ptr<GenAIExtension> genai_extension;
     TelemetryExtension::Ptr telemetry;
     // Per-instance catalog: runtime registrations do not affect other frontends.
     ArchRegistry arch_registry;
@@ -73,6 +78,24 @@ bool has_gguf_magic(const std::filesystem::path& path) {
     return f.gcount() == 4 && magic[0] == 'G' && magic[1] == 'G' && magic[2] == 'U' && magic[3] == 'F';
 }
 
+std::optional<std::vector<std::filesystem::path>> model_paths(const std::vector<ov::Any>& variants) {
+    const auto size = variants.size() - (variants.back().is<bool>() ? 1 : 0);
+    if (size == 1) {
+        if (auto paths = ov::frontend::get_path_vec_from_any(variants.front())) {
+            return paths;
+        }
+    }
+    std::vector<std::filesystem::path> paths;
+    for (size_t i = 0; i < size; ++i) {
+        auto path = ov::frontend::get_path_from_any(variants[i]);
+        if (!path) {
+            return std::nullopt;
+        }
+        paths.push_back(std::move(*path));
+    }
+    return paths;
+}
+
 }  // namespace
 
 FrontEnd::FrontEnd() : m_impl(std::make_shared<Impl>()) {}
@@ -87,10 +110,29 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         auto conversion_input = gguf_model;
         if (gguf_model->m_builder) {
             auto graph = gguf_model->m_builder(ops);
+            for (const auto& [output, adapter] : graph->model_adapters) {
+                if (adapter)
+                    adapter->lifetime.insert(adapter->lifetime.end(),
+                                             gguf_model->m_extensions.begin(),
+                                             gguf_model->m_extensions.end());
+            }
             conversion_input = std::make_shared<gguf::InputModel>(std::make_shared<GgufBuilderDecoder>(graph));
         }
         TranslateSession translate_session(conversion_input, ops, m_impl->transformation_extensions);
         converted_model = translate_session.get_converted_model();
+    }
+    // TODO: Remove this compatibility path once GenAI no longer uses GenAIExtension.
+    if (const auto& genai = m_impl->genai_extension) {
+        FRONT_END_GENERAL_CHECK(!converted_model->has_rt_info("gguf_mmproj"),
+                                "GenAIExtension requires a GGUF decoder with adaptable inputs");
+        auto models = adapt_to_genai(converted_model, {genai->m_mode});
+        const auto model = [&](const std::string& name) {
+            const auto found = models.find(name);
+            return found == models.end() ? nullptr : found->second;
+        };
+        converted_model = model("language");
+        genai->m_embedding_model = model("text_embeddings");
+        genai->m_per_layer_embedding_model = model("text_embeddings_per_layer");
     }
     return converted_model;
 }
@@ -111,6 +153,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
+    } else if (const auto& genai = std::dynamic_pointer_cast<GenAIExtension>(extension)) {
+        FRONT_END_GENERAL_CHECK(!m_impl->genai_extension, "GenAIExtension is already registered");
+        m_impl->genai_extension = genai;
     } else if (const auto& transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_impl->transformation_extensions.push_back(transformation);
     } else if (const auto& arch_ext = std::dynamic_pointer_cast<ArchitectureExtension>(extension)) {
@@ -134,9 +179,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::shared_ptr<GgufDecoder>>()) {
         return true;
     }
-    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
-        std::filesystem::path model_path = std::move(*path);
-        return model_path.extension() == ".gguf" && has_gguf_magic(model_path);
+    if (auto paths = model_paths(variants)) {
+        return !paths->empty() && std::all_of(paths->begin(), paths->end(), [](const auto& path) {
+            return path.extension() == ".gguf" && has_gguf_magic(path);
+        });
     }
     return false;
 }
@@ -152,19 +198,23 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return std::make_shared<InputModel>(decoder);
     }
 
-    // Path 2: a .gguf file path -> native builder -> GgufBuilderDecoder.
-    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
-        std::filesystem::path model_path = std::move(*path);
-        FRONT_END_GENERAL_CHECK(model_path.extension() == ".gguf",
-                                "GGUF Frontend file loading expects a .gguf file, got: ",
-                                model_path.string());
-        return std::make_shared<InputModel>(load_gguf_builder(model_path.string(), m_impl->arch_registry),
-                                            m_extensions);
+    // Path 2: GGUF file paths -> native builder -> GgufBuilderDecoder.
+    if (auto paths = model_paths(variants)) {
+        FRONT_END_GENERAL_CHECK(!paths->empty(), "GGUF Frontend file list is empty");
+        for (const auto& path : *paths) {
+            FRONT_END_GENERAL_CHECK(path.extension() == ".gguf",
+                                    "GGUF Frontend file loading expects a .gguf file, got: ",
+                                    ov::util::path_to_string(path));
+        }
+        const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
+        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry)
+                                      : load_gguf_builder(*paths, m_impl->arch_registry);
+        return std::make_shared<InputModel>(builder, m_extensions);
     }
 
     FRONT_END_GENERAL_CHECK(false,
                             "GGUF Frontend doesn't support the provided model representation. Provide a GgufDecoder "
-                            "or a path to a .gguf file.");
+                            "or paths to GGUF files.");
 }
 
 }  // namespace ov::frontend::gguf

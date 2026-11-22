@@ -17,11 +17,11 @@ You can get started easily with pre-built and published docker images, which are
 
 .. note::
 
-   The Ubuntu20 and Ubuntu22 Docker images (runtime and development) now include the tokenizers
+   The Ubuntu20, Ubuntu22, Ubuntu24, and Ubuntu26 Docker images (runtime and development) include the tokenizers
    and GenAI CPP modules. The development versions of these images also have the Python modules
    for these components pre-installed.
 
-You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__
+You can use the `available Dockerfile templates on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/templates>`__
 or generate a Dockerfile with your settings via `DockerHub CI framework <https://github.com/openvinotoolkit/docker_ci/>`__,
 which can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit.
 
@@ -56,8 +56,6 @@ Also, verify you have permissions to run containers (sudo or docker group member
    OpenVINO's `Docker <https://docs.docker.com/>`__ and :doc:`Bare Metal <../install-openvino>`
    distributions are identical, so the documentation applies to both.
 
-   Note that Ubuntu docker images are no longer provided, Debian-based ones are available instead.
-
 .. note::
 
    OpenVINO development environment in a docker container is also available in the
@@ -71,5 +69,5 @@ More information about Docker CI for Intel® Distribution of OpenVINO™ toolset
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
 * `Using OpenVINO™ Toolkit containers with GPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
-* `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
+* `Dockerfile templates for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/tree/master/templates>`__
 

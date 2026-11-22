@@ -16,6 +16,7 @@
 #include "transformations/smart_reshape/proposal_scales_stridedslice.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/smart_reshape/reshape_to_1D.hpp"
+#include "transformations/smart_reshape/restore_traced_batch.hpp"
 #include "transformations/smart_reshape/shape_of_const_folding.hpp"
 #include "transformations/smart_reshape/strided_slice_squeeze.hpp"
 
@@ -24,6 +25,7 @@ bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     ov::pass::Manager static_manager("SmartReshape:static");
     // This pass must be called first in pipeline
     static_manager.register_pass<ov::pass::InitNodeInfo>();
+    static_manager.register_pass<ov::pass::RestoreTracedBatch>();
     static_manager.register_pass<ov::pass::ReshapeTo1D>();
     static_manager.register_pass<ov::pass::Proposal1Scales>();
     static_manager.register_pass<ov::pass::Proposal4Scales>();

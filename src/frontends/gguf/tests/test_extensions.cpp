@@ -209,7 +209,7 @@ TEST(GGUFExtensions, GGUFMakeStatefulExtensionYieldsStatefulCache) {
     const auto& info = model->get_variables()[0]->get_info();
     EXPECT_EQ(info.variable_id, "cache");
     EXPECT_EQ(info.data_type, ov::element::f16);
-    EXPECT_EQ(info.data_shape, ov::PartialShape({1, -1, 2, 4}));
+    EXPECT_EQ(info.data_shape, ov::PartialShape({-1, -1, 2, 4}));
 }
 
 // skip_caches leaves a named cache stateless while other caches are converted. A sliding-window
@@ -343,6 +343,41 @@ TEST(GGUFExtensions, GGUFMakeStatefulAddsOnlyBeamIdx) {
     EXPECT_EQ(stateful, stateless);
 }
 
+// adapt_to_genai makes an already converted model stateful, so the pass also recognizes the
+// lowered ScatterUpdate write and must produce the same state as the conversion-time extension.
+class GGUFMakeStatefulLoweredCacheTests : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<pass::GGUFMakeStateful>();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+};
+
+TEST_F(GGUFMakeStatefulLoweredCacheTests, RewritesLoweredCacheWrite) {
+    model = kv_cache_write_builder().build();
+    model_ref = kv_cache_write_builder().build_with_extensions(
+        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful())});
+
+    const auto cache_result = model->get_results().front();
+    const auto cache_write = cache_result->input_value(0);
+    model->remove_result(cache_result);
+    auto converted_observation = std::make_shared<ov::op::v0::Abs>(cache_write);
+    converted_observation->output(0).set_names({"cache_observation"});
+    auto converted_result = std::make_shared<ov::op::v0::Result>(converted_observation);
+    converted_result->set_friendly_name("cache_observation");
+    model->add_results({converted_result});
+
+    const auto assign = ov::as_type_ptr<ov::op::v6::Assign>(model_ref->get_sinks().front());
+    ASSERT_TRUE(assign);
+    auto reference_observation = std::make_shared<ov::op::v0::Abs>(assign->input_value(0));
+    reference_observation->output(0).set_names({"cache_observation"});
+    auto reference_result = std::make_shared<ov::op::v0::Result>(reference_observation);
+    reference_result->set_friendly_name("cache_observation");
+    model_ref->add_results({reference_result});
+}
+
 // A DecoderTransformationExtension can hold any pass, not only the ones the frontend ships: here a
 // plain lambda pass, which must run during conversion (it renames the model, observable after).
 TEST(GGUFExtensions, ArbitraryTransformationExtensionRuns) {
@@ -374,14 +409,13 @@ TEST(GGUFExtensions, ArbitraryTransformationExtensionRuns) {
 namespace {
 
 // A model with one static-shape Parameter/Result recurrent-state pair, optionally alongside a KV
-// cache SetRows write (kv_cache_write_builder's shape) to model a hybrid stack. state_out is an
-// arbitrary op fed by the state Parameter; its friendly name is what
-// make_recurrent_states_stateful matches a Result's producer against (see make_stateful.cpp).
+// cache SetRows write (kv_cache_write_builder's shape) to model a hybrid stack. Like translation,
+// the state's Result is named after the state output.
 std::shared_ptr<ov::Model> recurrent_state_model(bool with_kv_cache) {
     auto state_in = ov::test::utils::make_param(ov::element::f32, ov::Shape{1, 2, 4}, "state_in");
     auto state_out = std::make_shared<ov::op::v0::Abs>(state_in);
-    state_out->set_friendly_name("state_out");
     auto state_result = std::make_shared<ov::op::v0::Result>(state_out);
+    state_result->set_friendly_name("state_out");
 
     ov::ParameterVector params{state_in};
     ov::ResultVector results{state_result};
@@ -420,7 +454,7 @@ TEST(GGUFExtensions, GGUFMakeStatefulRewritesRecurrentOnlyState) {
         EXPECT_NE(p->get_friendly_name(), "state_in");
     }
     for (const auto& r : model->get_results()) {
-        EXPECT_EQ(r->get_input_node_shared_ptr(0)->get_friendly_name().find("state_out"), std::string::npos);
+        EXPECT_NE(r->get_friendly_name(), "state_out");
     }
 }
 
@@ -484,8 +518,9 @@ TEST(GGUFExtensions, GGUFMakeStatefulNormalizesCausalConvCache) {
                                     v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()}),
                                     v0::Constant::create(ov::element::i64, {1}, {1}),
                                     v0::Constant::create(ov::element::i64, {1}, {3}));
-    update->set_friendly_name("conv_state_out");
-    model->add_results({std::make_shared<v0::Result>(update)});
+    auto update_result = std::make_shared<v0::Result>(update);
+    update_result->set_friendly_name("conv_state_out");
+    model->add_results({update_result});
     model->get_rt_info()[pass::gguf_recurrent_states_key()] = std::vector<std::string>{"conv_state", "conv_state_out"};
 
     pass::GGUFMakeStateful normalize;

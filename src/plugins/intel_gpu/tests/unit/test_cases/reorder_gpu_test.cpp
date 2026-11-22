@@ -25,6 +25,69 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
+template <typename InputT, typename OutputT>
+static void check_fast_dtype_only_batch_offset(data_types input_type, data_types output_type) {
+    auto& engine = get_test_engine();
+    const tensor logical_size{1, 3, 5, 2};
+    const size_t count = logical_size.count();
+
+    for (int32_t batch_offset : {0, 1}) {
+        SCOPED_TRACE(batch_offset);
+        // Batch-only padding preserves contiguous logical pitches, so the
+        // dtype-only branch must still account for the first element's offset.
+        const layout in_layout(input_type,
+                               format::bfyx,
+                               logical_size,
+                               padding({batch_offset, 0, 0, 0}, {0, 0, 0, 0}));
+        const layout out_layout(output_type, format::bfyx, logical_size);
+        auto input = engine.allocate_memory(in_layout);
+        const size_t offset = in_layout.get_linear_offset(tensor{0});
+        ASSERT_EQ(offset, static_cast<size_t>(batch_offset) * count);
+        {
+            mem_lock<InputT> input_ptr(input, get_test_stream());
+            std::fill(input_ptr.begin(), input_ptr.end(), InputT(-123.0f));
+            for (size_t idx = 0; idx < count; ++idx) {
+                input_ptr[offset + idx] = InputT((static_cast<int>(idx) - 13) * 0.25f);
+            }
+        }
+
+        topology topology(cldnn::input_layout("input", in_layout),
+                          reorder("reorder", input_info("input"), out_layout));
+        auto reference_config = get_test_default_config(engine);
+        reference_config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"reorder", {format::bfyx, "reorder_data", impl_types::ocl}}}));
+        auto fast_config = get_test_default_config(engine);
+        fast_config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"reorder", {format::bfyx, "reorder_data_fast_b1", impl_types::ocl}}}));
+
+        network reference(engine, topology, reference_config);
+        network fast(engine, topology, fast_config);
+        reference.set_input_data("input", input);
+        fast.set_input_data("input", input);
+        auto reference_output = reference.execute().at("reorder").get_memory();
+        auto fast_output = fast.execute().at("reorder").get_memory();
+        ASSERT_NE(fast.get_primitive("reorder")->get_impl()->get_kernel_name().find("reorder_data_fast_b1"),
+                  std::string::npos);
+
+        mem_lock<OutputT> reference_ptr(reference_output, get_test_stream());
+        mem_lock<OutputT> fast_ptr(fast_output, get_test_stream());
+        ASSERT_EQ(fast_output->get_layout(), out_layout);
+        for (size_t idx = 0; idx < count; ++idx) {
+            const auto expected = OutputT((static_cast<int>(idx) - 13) * 0.25f);
+            ASSERT_EQ(reference_ptr[idx], expected) << "index " << idx;
+            ASSERT_EQ(fast_ptr[idx], reference_ptr[idx]) << "index " << idx;
+        }
+    }
+}
+
+TEST(reorder_gpu, fast_dtype_only_f32_to_f16_batch_offset) {
+    check_fast_dtype_only_batch_offset<float, ov::float16>(data_types::f32, data_types::f16);
+}
+
+TEST(reorder_gpu, fast_dtype_only_f16_to_f32_batch_offset) {
+    check_fast_dtype_only_batch_offset<ov::float16, float>(data_types::f16, data_types::f32);
+}
+
 template <typename T>
 static void compare_result(std::map<cldnn::primitive_id, cldnn::network_output> ref_result,
                            std::map<cldnn::primitive_id, cldnn::network_output> opt_result) {
@@ -2487,6 +2550,82 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
     }
 }
 
+struct reorder_dynamic_byxf_params {
+    format::type in_fmt;
+    format::type out_fmt;
+    std::vector<float> input;
+    std::vector<float> expected_output;
+};
+
+class reorder_gpu_f32_dynamic_byxf : public ::testing::TestWithParam<reorder_dynamic_byxf_params> {};
+
+TEST_P(reorder_gpu_f32_dynamic_byxf, basic) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+
+    // Logical shape b=1, f=2, y=2, x=2
+    ov::Shape in_shape{1, 2, 2, 2};
+    layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, p.in_fmt};
+    auto input = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f32, p.in_fmt});
+    set_values(input, p.input);
+
+    topology topology(input_layout("input", in_layout),
+                      reorder("reorder", input_info("input"), p.out_fmt, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto impl = network.get_primitive("reorder")->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    network.set_input_data("input", input);
+    auto output = network.execute().at("reorder").get_memory();
+    ASSERT_EQ(output->get_layout().format, p.out_fmt);
+    ASSERT_EQ(output->get_layout().get_partial_shape(), ov::PartialShape(in_shape));
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
+    for (size_t i = 0; i < p.expected_output.size(); ++i) {
+        ASSERT_FLOAT_EQ(p.expected_output[i], output_ptr[i]);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(reorder_gpu_f32,
+                         reorder_gpu_f32_dynamic_byxf,
+                         ::testing::Values(
+                             reorder_dynamic_byxf_params{format::bfyx, format::byxf,
+                                                         {
+                                                             1.f, 2.f,
+                                                             3.f, 4.f,
+                                                             5.f, 6.f,
+                                                             7.f, 8.f,
+                                                         },
+                                                         {
+                                                             1.f, 5.f,
+                                                             2.f, 6.f,
+                                                             3.f, 7.f,
+                                                             4.f, 8.f,
+                                                         }},
+                             reorder_dynamic_byxf_params{format::byxf, format::bfyx,
+                                                         {
+                                                             1.f, 5.f,
+                                                             2.f, 6.f,
+                                                             3.f, 7.f,
+                                                             4.f, 8.f,
+                                                         },
+                                                         {
+                                                             1.f, 2.f,
+                                                             3.f, 4.f,
+                                                             5.f, 6.f,
+                                                             7.f, 8.f,
+                                                         }}),
+                         [](const ::testing::TestParamInfo<reorder_dynamic_byxf_params>& info) {
+                             return format(info.param.in_fmt).to_string() + "_to_" + format(info.param.out_fmt).to_string();
+                         });
+
 TEST(reorder_gpu_bf16, dynamic_bfyx_to_bfzyx) {
     auto& engine = get_test_engine();
 
@@ -3255,6 +3394,107 @@ TEST(reorder_weights_gpu_i32, reorder_weights)
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_EQ(output_ptr[i], ref_output[i]);
     }
+}
+
+template <typename T>
+static void check_imad_isv4_weight_padding(data_types data_type,
+                                           format input_format,
+                                           format output_format,
+                                           const tensor& weights_size,
+                                           size_t groups,
+                                           size_t output_features,
+                                           size_t input_features) {
+    auto& engine = get_test_engine();
+
+    layout input_weights_layout(data_type, input_format, weights_size);
+    layout output_weights_layout(data_type, output_format, weights_size);
+    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false, groups > 1);
+
+    std::vector<T> input_values(input_weights_layout.get_linear_size());
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<T>(i % 127 + 1);
+    }
+
+    auto input = engine.allocate_memory(input_weights_layout);
+    set_values(input, input_values);
+
+    topology test_topology {
+        input_layout("input", input_weights_layout),
+        reorder("reorder", input_info("input"), weights_reorder_params)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc wr_impl_desc = { output_format, "reorder_weights", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", wr_impl_desc} }));
+
+    network network(engine, test_topology, config);
+    network.set_input_data("input", input);
+
+    auto output = engine.allocate_memory(output_weights_layout);
+    std::vector<T> sentinel_values(output_weights_layout.get_linear_size(), static_cast<T>(42));
+    set_values(output, sentinel_values);
+    network.set_output_memory("reorder", output);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+    ASSERT_TRUE(engine.is_the_same_buffer(*output, *outputs.begin()->second.get_memory()));
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    ASSERT_NE(groups, size_t(0));
+    ASSERT_EQ(output_features % groups, size_t(0));
+    ASSERT_EQ(input_features % groups, size_t(0));
+    const size_t output_features_per_group = output_features / groups;
+    const size_t input_features_per_group = input_features / groups;
+    const size_t filter_y = static_cast<size_t>(weights_size.spatial[1]);
+    const size_t filter_x = static_cast<size_t>(weights_size.spatial[0]);
+    const auto get_os_is_yx_osv16_isv4_offset = [=](size_t g, size_t o, size_t i, size_t y, size_t x) {
+        const size_t isv = i % 4;
+        const size_t osv = o % 16;
+        const size_t input_slice = i / 4;
+        const size_t output_slice = o / 16;
+        const size_t x_pitch = 16 * 4;
+        const size_t y_pitch = x_pitch * filter_x;
+        const size_t input_slice_pitch = y_pitch * filter_y;
+        const size_t output_slice_pitch = input_slice_pitch * align_to(input_features_per_group, size_t{4}) / 4;
+        const size_t group_pitch = output_slice_pitch * align_to(output_features_per_group, size_t{16}) / 16;
+
+        return isv +
+               osv * 4 +
+               x * x_pitch +
+               y * y_pitch +
+               input_slice * input_slice_pitch +
+               output_slice * output_slice_pitch +
+               g * group_pitch;
+    };
+
+    for (size_t g = 0; g < groups; ++g) {
+        for (size_t o = 0; o < output_features_per_group; ++o) {
+            for (size_t i = input_features_per_group; i < align_to(input_features_per_group, size_t{4}); ++i) {
+                for (size_t y = 0; y < filter_y; ++y) {
+                    for (size_t x = 0; x < filter_x; ++x) {
+                        ASSERT_LT(get_os_is_yx_osv16_isv4_offset(g, o, i, y, x), output_ptr.size());
+                        ASSERT_EQ(output_ptr[get_os_is_yx_osv16_isv4_offset(g, o, i, y, x)], 0)
+                            << "at g=" << g << " o=" << o << " i=" << i << " y=" << y << " x=" << x;
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(reorder_weights_gpu_i8, reorder_weights_imad_isv4_padding) {
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::oiyx, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::goiyx, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::os_is_yx_osv16_isv4, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::g_os_is_yx_osv16_isv4, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+}
+
+TEST(reorder_weights_gpu_u8, reorder_weights_imad_isv4_padding) {
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::oiyx, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::goiyx, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::os_is_yx_osv16_isv4, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::g_os_is_yx_osv16_isv4, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
 }
 
 TEST(reorder_weights_gpu_i32, reorder_weights_in_dynamic_convolution)
@@ -4876,12 +5116,9 @@ static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<
     layout in_layout({in_shape, data_types::i4, format::bfyx});
     auto input = engine.allocate_memory(in_layout);
 
-    std::vector<uint8_t> input_data  = {
-        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
-        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8,
-        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
-        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8
-    };
+    std::vector<uint8_t> input_data(in_layout.bytes_count());
+    for (size_t i = 0; i < input_data.size(); ++i)
+        input_data[i] = static_cast<uint8_t>(i * 37 + 0x21);
 
     set_values(input, input_data);
 
@@ -4908,16 +5145,18 @@ static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<
 
     auto output = outputs.begin()->second.get_memory();
 
-    std::vector<uint8_t> expected_data  = {
-        0x21, 0x43, 0x65, 0x07,
-        0x98, 0xba, 0xdc, 0x0e,
-        0x1f, 0x25, 0x83, 0x0a,
-        0xd2, 0xf7, 0x89, 0x0e,
-        0x21, 0x43, 0x65, 0x07,
-        0x98, 0xba, 0xdc, 0x0e,
-        0x1f, 0x25, 0x83, 0x0a,
-        0xd2, 0xf7, 0x89, 0x0e
-    };
+    const auto row_size = in_shape.back();
+    const auto padded_row_size = row_size + upper_size.back();
+    const auto rows = in_layout.count() / row_size;
+    std::vector<uint8_t> expected_data(rows * padded_row_size / 2, 0);
+    for (size_t row = 0; row < rows; ++row) {
+        for (size_t col = 0; col < row_size; ++col) {
+            const auto input_index = row * row_size + col;
+            const auto value = (input_data[input_index / 2] >> (4 * (input_index % 2))) & 0x0f;
+            const auto output_index = row * padded_row_size + col;
+            expected_data[output_index / 2] |= value << (4 * (output_index % 2));
+        }
+    }
 
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
@@ -4940,6 +5179,17 @@ TEST(reorder_weight_gpu_i4, reorder_for_padding_3d)
 TEST(reorder_weight_gpu_i4, reorder_for_padding_4d)
 {
     run_reorder_weight_int4({2, 2, 2, 7}, {0, 0, 0, 1});
+}
+
+TEST(reorder_weight_gpu_i4, reorder_for_padding_alignment_8)
+{
+    for (const size_t k : {1, 3, 5, 7, 9, 11, 13, 15}) {
+        SCOPED_TRACE(k);
+        const auto pad = static_cast<ov::Dimension::value_type>(8 - k % 8);
+        run_reorder_weight_int4({3, k}, {0, pad});
+        run_reorder_weight_int4({2, 2, k}, {0, 0, pad});
+        run_reorder_weight_int4({2, 2, 2, k}, {0, 0, 0, pad});
+    }
 }
 
 template <typename T>

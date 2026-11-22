@@ -6,8 +6,25 @@
 #include "kernel_selector_utils.h"
 #include <string>
 
+namespace {
+    std::vector<kernel_selector::fused_operation_desc>::const_iterator get_dq_it(const kernel_selector::rms_params& params) {
+        return std::find_if(params.fused_ops.begin(), params.fused_ops.end(), [](const kernel_selector::fused_operation_desc& f) {
+            return f.GetType() == kernel_selector::KernelType::DYNAMIC_QUANTIZE;
+        });
+    }
+
+    bool has_dynamic_quantize_post_op(const kernel_selector::rms_params& params) {
+        return get_dq_it(params) != params.fused_ops.end();
+    }
+} // namespace
+
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
+
+static bool is_feature_axis_normalization(const rms_params& params) {
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    return axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5);
+}
 
 // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
 static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, size_t data_size) {
@@ -18,6 +35,9 @@ static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, s
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
 
     while ((itemsNum > 8 || lws < itemsNum) && (2 * lws <= max_lws)) {
+        if (has_dynamic_quantize_post_op(params) && (itemsNum / 2) % 2 == 1) {
+            break;
+        }
         lws *= 2;
         itemsNum /= 2;
     }
@@ -32,6 +52,9 @@ ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F8E4M3);
+    k.EnableOutputDataType(Datatype::F8E5M2);
+    k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -62,6 +85,21 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("RMS_GAMMA_IS_SCALAR", gamma_is_scalar));
 
+    const bool feature_axis = is_feature_axis_normalization(params);
+    jit.AddConstant(MakeJitConstant("RMS_FEATURE_AXIS", feature_axis));
+    if (feature_axis) {
+        if (!params.fused_ops.empty()) {
+            std::vector<std::string> idx_order;
+            if (params.inputs[0].GetDims().size() == 5) {
+                idx_order = {"(b_idx)", "(f_idx)", "(z_idx)", "(y_idx)", "(x_idx)"};
+            } else {
+                idx_order = {"(b_idx)", "(f_idx)", "(y_idx)", "(x_idx)"};
+            }
+            auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
+    }
+
     // Check for any padding (dynamic or static) on input dimensions.
     // The flat addressing path (data_idx * data_size) assumes contiguous memory,
     // which breaks when padding introduces gaps between slices (e.g., from in-place crop).
@@ -82,19 +120,23 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         const auto& input = params.inputs[0];
         DimensionAccessHelperJit dims(input);
         std::string data_size;
-        switch (params.ov_input_rank) {
-            case 1 :
+        if (feature_axis) {
+            data_size = dims.f();
+        } else {
+            switch (params.ov_input_rank) {
+            case 1:
                 data_size = dims.b();
                 break;
-            case 2 :
+            case 2:
                 data_size = dims.f();
                 break;
-            case 3 :
+            case 3:
                 data_size = dims.y();
                 break;
             default:
                 data_size = dims.x();
                 break;
+            }
         }
 
         const std::string lws_0 = "get_local_size(0)";
@@ -121,7 +163,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
-    if (!params.fused_ops.empty()) {
+    if (!params.fused_ops.empty() && !feature_axis) {
         switch (params.ov_input_rank) {
             case 1 :
                 jit.AddConstant(MakeJitConstant("LAST_DIM", "b"));
@@ -146,8 +188,14 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             OPENVINO_THROW("rms_bfyx_opt doesn't support 5D or higher dims.");
         }
 
-        auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
+        const bool has_dynamic_quantize = has_dynamic_quantize_post_op(params);
+        const auto fused_output_type = has_dynamic_quantize ? Datatype::F32 : params.outputs[0].GetDType();
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized", fused_output_type, 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        if (has_dynamic_quantize) {
+            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_QUANTIZE", "1"));
+            jit.AddConstant(MakeJitConstant("OUTPUT1", get_dq_it(params)->output_tensors[1]));
+        }
     }
 
     return jit;
@@ -162,7 +210,11 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     dispatchData.maxSlmSize = max_lws;
     if (!params.has_dynamic_tensors()) {
         // data size to be processed within a LWG
-        switch (params.ov_input_rank) {
+        if (is_feature_axis_normalization(params)) {
+            dispatchData.dataSize = input.Feature().v;
+            dispatchData.dataCount = input.Batch().v * input.Z().v * input.Y().v * input.X().v;
+        } else {
+            switch (params.ov_input_rank) {
             case 1:
                 dispatchData.dataSize = input.Batch().v;
                 dispatchData.dataCount = 1;
@@ -179,6 +231,7 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
                 dispatchData.dataSize = input.X().v;
                 dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
                 break;
+            }
         }
         dispatchData.gws[0] = 1;
         dispatchData.gws[1] = dispatchData.dataCount;
@@ -205,6 +258,9 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
         }
     } else {
         dispatchData.subgroupBlockSize = 8;
+    }
+    if (has_dynamic_quantize_post_op(params)) {
+        OPENVINO_ASSERT(dispatchData.subgroupBlockSize != 1 && dispatchData.leftovers == 0 && subgroup_size == 16);
     }
     return dispatchData;
 }

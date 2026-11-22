@@ -15,6 +15,7 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/tensor_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/validation_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/weight_sharing_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/weights_prefetch.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/rt_info/weightless_caching_attributes.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/element_iterator.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/element_type_info.hpp
@@ -23,12 +24,17 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/gated_delta_net.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/group_query_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/moe.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/ngram_hash_function.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/ops_decl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/pa_kv_reorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_sparse_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_causal_conv1d.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_selective_ssm.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_sparse_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/rms_norm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/node_util.hpp

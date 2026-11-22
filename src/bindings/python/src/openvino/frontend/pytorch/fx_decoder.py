@@ -25,6 +25,7 @@ from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
     torch_tensor_to_ov_const)
+from openvino.frontend.pytorch.vmap_lowering import lower_vmap_regions
 
 logger = logging.getLogger(__name__)
 
@@ -221,8 +222,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
                  input_types=None, dynamic_shapes=False,
-                 op_type_mapping=None):
+                 op_type_mapping=None, output_names=None):
         super().__init__(mark_node_callback)
+        if isinstance(pt_module, torch.fx.GraphModule):
+            lowered = lower_vmap_regions(pt_module)
+            fx_gm = lowered if fx_gm is pt_module else fx_gm
+            pt_module = lowered
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
@@ -232,6 +237,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         self.input_shapes = input_shapes or []
 
         self._input_signature = []
+        self._input_names = None
         self._example_input = None
 
         if isinstance(pt_module, torch.fx.graph_module.GraphModule):
@@ -258,6 +264,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 elif value.op == "output":
                     # Instead of putting output index, refer to its target
                     uargs = self.unpack_containers(value.args)
+                    if output_names is not None and len(output_names) == len(uargs):
+                        uargs = [(name or arg[0], arg[1]) for name, arg in zip(output_names, uargs)]
                     self._outputs = [(arg[0], self._nodes.index(arg[1]))
                                      for arg in uargs if arg[1] is not None]
 
@@ -266,9 +274,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             if not input_types or len(input_types) == 0:
                 self.input_types = found_types
 
+            placeholder_names = list(self._input_signature)
             if hasattr(self.pt_module, "forward"):
                 input_params = inspect.signature(self.pt_module.forward).parameters
                 self._input_signature = list(input_params)
+                self._input_names = self._get_input_names_from_spec(placeholder_names)
 
         elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
@@ -339,7 +349,37 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         gm = exported_program.module()
         logger.debug(gm.code)
         return cls(gm, dynamic_shapes=dynamic_shapes,
-                   op_type_mapping=op_type_mapping)
+                   op_type_mapping=op_type_mapping,
+                   output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec))
+
+    @staticmethod
+    def _output_names_from_spec(out_spec):
+        """Name flattened outputs by their dict keys, the graph output node has no containers."""
+        if out_spec is None:
+            return None
+        try:
+            from torch.utils._pytree import MappingKey, tree_flatten_with_path, tree_unflatten
+        except ImportError:
+            return None
+        paths, _ = tree_flatten_with_path(tree_unflatten(list(range(out_spec.num_leaves)), out_spec))
+        return [str(path[-1].key) if path and isinstance(path[-1], MappingKey) else ""
+                for path, _ in paths]
+
+    def _named_outputs(self):
+        """Map output node index to its name, skipping ambiguous names and names of other nodes."""
+        names_by_idx = {}
+        idxs_by_name = {}
+        for name, idx in self._outputs:
+            if name:
+                names_by_idx.setdefault(idx, set()).add(name)
+                idxs_by_name.setdefault(name, set()).add(idx)
+        node_idx_by_name = {node.name: i for i, node in enumerate(self._nodes)}
+        named = {}
+        for idx, names in names_by_idx.items():
+            name = next(iter(names))
+            if len(names) == 1 and len(idxs_by_name[name]) == 1 and node_idx_by_name.get(name, idx) == idx:
+                named[idx] = name
+        return named
 
     @classmethod
     def from_model(
@@ -444,6 +484,51 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
         return torch.export.export(model, **export_args_dict)
 
+    def _get_input_names_from_spec(self, placeholder_names: list) -> "list | None":
+        """Name each flattened input after its forward parameter, or after its placeholder inside a container.
+
+        Container arguments (list, tuple, dict) are flattened into several inputs, so the forward parameter names
+        do not line up with the input indices. Returns None if the input spec of the module is not available.
+        """
+        def children(spec):
+            # children() replaces the deprecated children_specs in newer torch versions
+            return list(spec.children()) if hasattr(spec, "children") else list(spec.children_specs)
+
+        in_spec = getattr(self.pt_module, "_in_spec", None)
+        if in_spec is None or in_spec.num_leaves != len(placeholder_names) or len(children(in_spec)) != 2:
+            return None
+        args_spec, kwargs_spec = children(in_spec)
+        argument_specs = list(zip(self._input_signature, children(args_spec)))
+        if kwargs_spec.num_leaves:
+            argument_specs += list(zip(kwargs_spec.context, children(kwargs_spec)))
+        names = []
+        is_container_leaf = []
+        for name, spec in argument_specs:
+            start = len(names)
+            leaves = [name] if spec.is_leaf() else placeholder_names[start:start + spec.num_leaves]
+            names += leaves
+            is_container_leaf += [not spec.is_leaf()] * len(leaves)
+        if len(names) != len(placeholder_names):
+            return None
+        # A plain argument keeps its own name. A container leaf whose placeholder name is already taken,
+        # e.g. pair[0] -> "pair_0" next to an argument called "pair_0", gets a suffix instead.
+        taken = {name for name, leaf in zip(names, is_container_leaf) if not leaf}
+        reserved = taken | {name for name, leaf in zip(names, is_container_leaf) if leaf}
+        for i, name in enumerate(names):
+            if is_container_leaf[i] and name in taken:
+                suffix = 1
+                while f"{name}_{suffix}" in reserved:
+                    suffix += 1
+                name = names[i] = f"{name}_{suffix}"
+                reserved.add(name)
+            taken.add(name)
+        return names
+
+    def get_input_signature_name(self, index: int) -> str:
+        if self._input_names is not None and index < len(self._input_names):
+            return self._input_names[index]
+        return super().get_input_signature_name(index)
+
     @staticmethod
     def get_found_shape(value) -> str:
         # If input is a tensor, read the shape from meta data
@@ -498,8 +583,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if arg.op != "get_attr":
             return False, None
 
-        # Get the attribute from the root graph module
-        subgraph = getattr(self.fx_gm, arg.target, None)
+        subgraph = fetch_attr(self.fx_gm, arg.target)
         if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
             return True, subgraph
         # Also handle callables with graph attribute (lambda-wrapped GraphModules)
@@ -546,6 +630,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     def get_output_type(self, index):
         output = self._raw_output(index)
+        if isinstance(self.pt_module, torch.fx.GraphModule) and isinstance(output, torch.fx.Node):
+            # Graph outputs report the dtype recorded by export, e.g. for bodies of autocast regions.
+            value = output.meta.get("val")
+            if isinstance(value, torch.Tensor) and not value.is_complex() and str(value.dtype) in pt_to_ov_type_map:
+                return OVAny(pt_to_ov_type_map[str(value.dtype)])
         return self.get_type_for_value(output)
 
     def get_shape_for_value(self, value):
@@ -585,6 +674,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         raise RuntimeError("This input is not a Node")
 
     def visit_subgraph(self, node_visitor):
+        output_names = self._named_outputs()
         # make sure topological order is satisfied
         for node in self._nodes:
             if node.op in {"placeholder", "output"}:
@@ -601,6 +691,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 node, self.fx_gm, self._nodes,
                 mark_node_callback=self.mark_node_callback,
                 op_type_mapping=self._module_extension_target_ops)
+            node_idx = decoder._outputs[0][1]
+            if node_idx in output_names:
+                # model output tensor gets its name, e.g. key of the returned dict
+                decoder._outputs = [(output_names[node_idx], node_idx)]
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -709,6 +803,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return max_out_id + 1
 
     def _node_name_prefix(self):
+        for module_path, _ in reversed(self.pt_module.meta.get("nn_module_stack", {}).values()):
+            if module_path:
+                return f"{module_path}/{self.pt_module.name}"
         return self.pt_module.name
 
     def as_constant(self):

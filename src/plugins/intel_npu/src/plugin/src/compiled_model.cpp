@@ -176,10 +176,18 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
                 std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr());
 
             // A dummy node is required for constructing and populating the Result node. A Constant one is perhaps the
-            // most fitting choice here.
+            // most fitting choice here. A dimension without an upper bound has no size to allocate, so it is left
+            // empty.
+            ov::Shape constantShape;
+            const auto& partialShape = nodeOutput.get_partial_shape();
+            if (partialShape.rank().is_static()) {
+                for (const ov::Dimension& dimension : partialShape) {
+                    constantShape.push_back(dimension.get_interval().has_upper_bound() ? dimension.get_max_length()
+                                                                                       : 0);
+                }
+            }
             std::shared_ptr<ov::Node> constantDummy =
-                std::make_shared<ov::op::v0::Constant>(nodeOutput.get_element_type(),
-                                                       nodeOutput.get_partial_shape().get_max_shape());
+                std::make_shared<ov::op::v0::Constant>(nodeOutput.get_element_type(), constantShape);
             // Attached to the Result node as output tensor in order to provide the correct tensor names. Additionally,
             // the dummy Constant node could use only static shapes. If the shape is dynamic, this construct can provide
             // the correct shape to the Result node.

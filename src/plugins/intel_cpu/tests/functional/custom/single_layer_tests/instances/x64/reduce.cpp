@@ -59,6 +59,10 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_Dynmic_ZeroDim = {
     {{{2, 0, -1, -1}, {{2, 0, 3, 0}}}}
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_EmptyAxes = {
+    {{{}, {{2, 19, 2, 9}}}},
+};
+
 std::vector<CPUSpecificParams> cpuParams_3D = {
         CPUSpecificParams({ncw}, {ncw}, {}, {}),
 };
@@ -204,6 +208,19 @@ const auto params_OneAxis = testing::Combine(testing::Combine(testing::ValuesIn(
                                              testing::Values(emptyFusingSpec),
                                              testing::ValuesIn(additionalConfig()));
 
+// An empty axes list reduces nothing, so the output keeps the shape of the input.
+const auto params_EmptyAxes = testing::Combine(testing::Combine(testing::Values(std::vector<int>{}),
+                                                                testing::Values(ov::test::utils::OpType::VECTOR),
+                                                                testing::Values(false),
+                                                                testing::ValuesIn(reductionTypes()),
+                                                                testing::ValuesIn(inpOutPrc()),
+                                                                testing::Values(ElementType::dynamic),
+                                                                testing::Values(ElementType::dynamic),
+                                                                testing::ValuesIn(inputShapes_EmptyAxes)),
+                                               testing::Values(emptyCPUSpec),
+                                               testing::Values(emptyFusingSpec),
+                                               testing::ValuesIn(additionalConfig()));
+
 const auto params_MultiAxis_4D = testing::Combine(testing::Combine(testing::ValuesIn(axesND()),
                                                                    testing::Values(ov::test::utils::OpType::VECTOR),
                                                                    testing::Values(true),
@@ -332,6 +349,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,
         ReduceCPULayerTest,
         params_OneAxis,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_EmptyAxes_CPU,
+        ReduceCPULayerTest,
+        params_EmptyAxes,
         ReduceCPULayerTest::getTestCaseName
 );
 

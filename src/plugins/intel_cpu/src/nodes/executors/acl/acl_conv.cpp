@@ -136,6 +136,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
                                      dstDesc->getPrecision() == ov::element::f32;
 
     VERIFY(isQuantizedU8 || isQuantizedI8 || isQuantizedI8DstF32, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(!isQuantizedI8DstF32 || config.attrs.dqScales.size() <= 1, UNSUPPORTED_PER_CHANNEL_QUANTIZATION);
     if (config.attrs.withBias) {
         const auto biasPrecision = config.descs.at(ARG_BIAS)->getPrecision();
         if (isQuantizedI8DstF32) {

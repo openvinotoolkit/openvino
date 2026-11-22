@@ -17,10 +17,17 @@ bool RMSKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    const bool last_axis = axis == params.ov_input_rank - 1;
+    const bool feature_axis = axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5);
+    if (!last_axis && !feature_axis) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     return true;
 }
 
-JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelBase::DispatchData) const {
+JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelBase::DispatchData /*unused*/) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto normalization_axis = GetNormalizationAxis(params);
@@ -46,6 +53,11 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
 }
 
 Tensor::DataChannelName RMSKernelBase::GetNormalizationAxis(const rms_params& params) {
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    if (axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5)) {
+        return Tensor::DataChannelName::FEATURE;
+    }
+
     switch (params.ov_input_rank) {
         case 1: return Tensor::DataChannelName::BATCH;
         case 2: return Tensor::DataChannelName::FEATURE;
@@ -115,6 +127,9 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
 
     auto& kernel = kd.kernels[0];
     auto inputs_count = orgParams.elementwise_affine ? 2 : 1;
+    const bool has_dynamic_quantize = std::any_of(orgParams.fused_ops.begin(), orgParams.fused_ops.end(), [](const fused_operation_desc& fused_op) {
+        return fused_op.GetType() == KernelType::DYNAMIC_QUANTIZE;
+    });
     FillCLKernelData(kernel,
                      dispatchData,
                      params.engineInfo,
@@ -126,13 +141,13 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
                      false,
                      inputs_count,
                      GetFusedPrimitiveInputsCount(params),
-                     1,
+                     has_dynamic_quantize ? 2 : 1,
                      orgParams.is_shape_agnostic);
 
     return {kd};
 }
 
-Datatype RMSKernelBase::GetAccumulatorType(const rms_params& params) const {
+Datatype RMSKernelBase::GetAccumulatorType(const rms_params& params) {
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {

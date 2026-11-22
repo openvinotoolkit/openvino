@@ -865,6 +865,7 @@ struct non_max_suppression_basic : public testing::Test {
 };
 
 using nms_types = testing::Types<TypeWithLayoutFormat<float, cldnn::format::bfyx>,
+                                 TypeWithLayoutFormat<float, cldnn::format::byxf>,
                                  TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv32>,
                                  TypeWithLayoutFormat<float, cldnn::format::b_fs_yx_fsv16>,
                                  TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv16>,
@@ -872,6 +873,7 @@ using nms_types = testing::Types<TypeWithLayoutFormat<float, cldnn::format::bfyx
                                  TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv32>,
 
                                  TypeWithLayoutFormat<ov::float16, cldnn::format::bfyx>,
+                                 TypeWithLayoutFormat<ov::float16, cldnn::format::byxf>,
                                  TypeWithLayoutFormat<ov::float16, cldnn::format::b_fs_yx_fsv32>,
                                  TypeWithLayoutFormat<ov::float16, cldnn::format::b_fs_yx_fsv16>,
                                  TypeWithLayoutFormat<ov::float16, cldnn::format::bs_fs_yx_bsv32_fsv16>,

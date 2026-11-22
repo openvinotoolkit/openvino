@@ -5,10 +5,7 @@
 #pragma once
 
 #include "../graph_converter.hpp"
-// #include <openvino/op/add.hpp>
-// #include <openvino/op/divide.hpp>
-// #include <openvino/op/multiply.hpp>
-// #include <openvino/op/subtract.hpp>
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 
 namespace ov::intel_gpu::mlir {
 
@@ -16,6 +13,12 @@ class ReluPattern : public MarkPattern {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ReluPattern");
     ReluPattern();
+};
+
+class GeluPattern : public MarkPattern {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GeluPattern");
+    GeluPattern();
 };
 
 class ConcatPattern : public MarkPattern {
@@ -34,6 +37,12 @@ class GatherPattern : public MarkPattern {
 public:
     OPENVINO_MATCHER_PASS_RTTI("GatherPattern");
     GatherPattern();
+};
+
+class GroupedMatMulPattern : public MarkPattern {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GroupedMatMulPattern");
+    GroupedMatMulPattern();
 };
 
 class MatMulPattern : public MarkPattern {
@@ -103,7 +112,7 @@ public:
     BinaryEltwisePatternBase(NodeTypeInfo wrapped_type, const GraphConverter::Convertor& convertor, const std::set<element::Type>& element_types = {});
 };
 
-template <typename OVOp, typename LinalgOp>
+template <typename OVOp, linalg::ElementwiseKind Kind>
 class BinaryEltwisePattern : public BinaryEltwisePatternBase {
 public:
     BinaryEltwisePattern(const std::set<element::Type>& element_types = {});
@@ -111,7 +120,7 @@ public:
     BinaryEltwisePattern(const element::Type& element_type) : BinaryEltwisePattern(std::set<element::Type>{element_type}) {}
 };
 
-template <typename OVOp, typename LinalgOp>
+template <typename OVOp, linalg::ElementwiseKind Kind>
 class UnaryEltwisePattern : public MarkPattern {
 public:
     UnaryEltwisePattern();

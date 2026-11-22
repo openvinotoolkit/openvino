@@ -80,9 +80,32 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
     FILTER_TYPE wei_21 = DT_FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
     FILTER_TYPE wei_22 = DT_FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
 
-    INPUT_TYPE8 src_block_0 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch);
-    INPUT_TYPE8 src_block_1 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch);
-    INPUT_TYPE8 src_block_2 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 2) * input_y_pitch + (input_x) * input_x_pitch);
+    const uint src_line_0 = input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch;
+    const uint src_line_1 = input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch;
+    const uint src_line_2 = input_offset + (input_y + 2) * input_y_pitch + (input_x) * input_x_pitch;
+
+    // In the last x block an 8-wide read can run past the padded row, and past the buffer end on the last row.
+    const int src_line_avail = (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) - (INPUT0_PAD_BEFORE_SIZE_X + input_x);
+
+    INPUT_TYPE8 src_block_0;
+    INPUT_TYPE8 src_block_1;
+    INPUT_TYPE8 src_block_2;
+    if (src_line_avail >= 8) {
+        src_block_0 = DT_INPUT_BLOCK_READ8(input, src_line_0);
+        src_block_1 = DT_INPUT_BLOCK_READ8(input, src_line_1);
+        src_block_2 = DT_INPUT_BLOCK_READ8(input, src_line_2);
+    } else {
+        src_block_0 = (INPUT_TYPE8)(INPUT0_VAL_ZERO);
+        src_block_1 = (INPUT_TYPE8)(INPUT0_VAL_ZERO);
+        src_block_2 = (INPUT_TYPE8)(INPUT0_VAL_ZERO);
+        unroll_for (int i = 0; i < 8; i++) {
+            if (i < src_line_avail) {
+                src_block_0[i] = DT_INPUT_BLOCK_READ(input, src_line_0 + i * input_x_pitch);
+                src_block_1[i] = DT_INPUT_BLOCK_READ(input, src_line_1 + i * input_x_pitch);
+                src_block_2[i] = DT_INPUT_BLOCK_READ(input, src_line_2 + i * input_x_pitch);
+            }
+        }
+    }
 
     const bool valid_x6 = (x + 6) < OUTPUT_SIZE_X;
     const bool valid_x7 = (x + 7) < OUTPUT_SIZE_X;
@@ -181,11 +204,17 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
     INPUT_TYPE src[X_BLOCK_SIZE * FILTER_SIZE_Y * FILTER_SIZE_X];
 
     unroll_for (uint k = 0; k < X_BLOCK_SIZE; k++) {
+        // Pixels past the output width can lie past the input buffer end, so they are not read.
+        const bool valid_k = (x + k) < OUTPUT_SIZE_X;
         unroll_for (uint i = 0; i < FILTER_SIZE_Y; i++) {
             unroll_for (uint j = 0; j < FILTER_SIZE_X; j++) {
-                src[k * FILTER_SIZE_Y * FILTER_SIZE_X + i * FILTER_SIZE_X + j] = DT_INPUT_BLOCK_READ(input, input_offset +
-                                                                                                         (input_y + (i * DILATION_SIZE_Y)) * input_y_pitch +
-                                                                                                         (input_x + (j * DILATION_SIZE_X) + k * STRIDE_SIZE_X) * input_x_pitch);
+                INPUT_TYPE val = INPUT0_VAL_ZERO;
+                if (valid_k) {
+                    val = DT_INPUT_BLOCK_READ(input, input_offset +
+                                                     (input_y + (i * DILATION_SIZE_Y)) * input_y_pitch +
+                                                     (input_x + (j * DILATION_SIZE_X) + k * STRIDE_SIZE_X) * input_x_pitch);
+                }
+                src[k * FILTER_SIZE_Y * FILTER_SIZE_X + i * FILTER_SIZE_X + j] = val;
             }
         }
     }
