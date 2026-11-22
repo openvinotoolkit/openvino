@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 import random
@@ -90,3 +91,32 @@ class TestProd(PytorchLayerTest):
                 m = aten_prod(in_dtype)
         self._test(m, 'aten::prod', ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'input_shape': shape, 'dtype': in_dtype})
+
+
+class aten_prod_overflow(torch.nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, x):
+        return torch.prod(x) if self.dim is None else torch.prod(x, self.dim)
+
+
+class TestProdIntegerOverflow(PytorchLayerTest):
+    # Integer prod must be computed in int64 like PyTorch does (issue #38719),
+    # including products that do not fit into int32.
+    def _prepare_input(self, values, dtype):
+        return (np.array(values, dtype=dtype),)
+
+    @pytest.mark.parametrize("values,dtype,dim", [
+        ([100, 100], "int8", None),             # 10000: overflows int8
+        ([16, 16], "uint8", None),              # 256: overflows uint8
+        ([1000, 1000, 1000, 1000], "int32", None),  # 1e12: overflows int32
+        ([[70000, 70000], [3, 5]], "int32", 1),     # 4.9e9 along a dim
+        ([[70000, 70000], [70000, 5]], "int32", 0),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_prod_integer_overflow(self, values, dtype, dim, ie_device, precision, ir_version):
+        self._test(aten_prod_overflow(dim), 'aten::prod', ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={'values': values, 'dtype': dtype}, use_convert_model=True)
