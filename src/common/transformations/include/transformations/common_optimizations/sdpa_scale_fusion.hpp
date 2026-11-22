@@ -48,6 +48,11 @@ namespace pass {
 /// Multiply ops for Q and K are eliminated in the following cases:
 /// 1. Q_scale and K_scale are constant
 /// 2. Q_scale * SDPA_Scale == 1 or K_scale * SDPA_Scale == 1
+/// A constant scalar Multiply is also found when it is separated from the SDPA input by
+/// single-consumer Reshape/Squeeze/Unsqueeze/Transpose ops, since scaling commutes with them.
+/// A constant scalar Multiply on V is merged into a constant scalar Multiply that is the only
+/// consumer of the SDPA output (the output is linear in V); the merged Multiply is removed when
+/// its scale becomes 1.
 class TRANSFORMATIONS_API SDPAScaleFusionPass : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("SDPAScaleFusionPass", "0");
