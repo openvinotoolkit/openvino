@@ -67,6 +67,11 @@ jobs:
       # Force UTF-8 stdio so third-party progress bars (e.g. easyocr's block
       # glyph) don't crash on the cp1252 Windows console.
       PYTHONUTF8: '1'
+      # Non-AKS hosts (ov-dmz-*) are behind proxy-dmz, which re-signs TLS with the Intel
+      # proxy root CA, as in GPU_Unit_Tests (windows_vs2022_release.yml). Node-based actions
+      # (artifacts, checkout) need it from the first step; Python gets it in a step below.
+      PROXY_CA: ${{ !contains(inputs.runner, 'aks') && 'C:\certs\IntelProxyRootCA.crt' || '' }}
+      NODE_EXTRA_CA_CERTS: ${{ !contains(inputs.runner, 'aks') && 'C:\certs\IntelProxyRootCA.crt' || '' }}
     steps:
       - name: Download OpenVINO artifacts (tests)
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -118,13 +123,13 @@ jobs:
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
           use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
 
-      - name: Trust the Intel proxy root CA
+      # public CAs + proxy root CA, before the first pip install (pip's bundled certifi needs no network)
+      - name: Trust the Intel proxy root CA (Python)
+        if: ${{ env.PROXY_CA != '' }}
         run: |
-          $proxyCa = 'C:\certs\IntelProxyRootCA.crt'
-          if (-not (Test-Path $proxyCa)) { exit 0 }
           $bundle = Join-Path $env:RUNNER_TEMP 'ca-bundle.pem'
           $publicCa = python3 -c "import pip._vendor.certifi as c; print(c.where())"
-          Get-Content $publicCa, $proxyCa | Set-Content -Encoding ascii $bundle
+          Get-Content $publicCa, $env:PROXY_CA | Set-Content -Encoding ascii $bundle
           foreach ($var in 'SSL_CERT_FILE', 'REQUESTS_CA_BUNDLE', 'CURL_CA_BUNDLE', 'PIP_CERT') {
             Add-Content -Path $env:GITHUB_ENV -Value "$var=$bundle"
           }
