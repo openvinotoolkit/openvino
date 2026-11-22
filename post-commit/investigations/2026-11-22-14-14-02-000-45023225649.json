@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-22-14-14-02-000-45023225649",
+  "timestamp": "2026-11-22T14:14:02Z",
+  "run_id": "45023225649",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45023225649",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "41e483fc50de932565fbfe96f8fb9f423fbbb396",
+  "pr_number": "38097",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38097",
+  "author": "Anurag-M1",
+  "category": "Code Issue",
+  "title": "smoke_ScatterElementsUpdateOutOfRangeIndices tests fail - expected ov::Exception not thrown",
+  "signature": "test ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices and GatherND8LayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices failed: Expected exception ov::Exception was not thrown|Code Issue",
+  "signature_hash": "c679b29f4fb1c2b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "4 of 179795 smoke tests failed: all 4 parameterizations of ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices (i32/f32 data x i32/i64 index) expected ov::Exception to be thrown for out-of-range index -1000 but none was thrown."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the CPU functional tests job failed."
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_elements_update.cpp:183: Failure",
+    "Expected exception ov::Exception",
+    "[  FAILED  ] smoke_ScatterElementsUpdateOutOfRangeIndices/ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/i32_IS=[?.?]_[?.?]_[?.?]_TS=((2.2)_)_((2.2)_)_((2.2)_)__indices_values=(_1000.1.0.0)axis=0_idx_precision=i32 (55 ms)",
+    "INFO:test_parallel_runner:passed test counter is: 163633 / failed test counter is: 4"
+  ],
+  "root_cause": "ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices (src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_elements_update.cpp:183) is a negative test that supplies an out-of-range index (-1000) and expects the CPU plugin to raise ov::Exception during inference. All 4 parameterizations failed because no exception was thrown, meaning the CPU ScatterElementsUpdate kernel still accepts out-of-range indices silently instead of validating and rejecting them. This is an exact repeat of signature c679b29f4fb1c2b4, previously recorded twice on 2026-11-20 against unrelated commits (#40041 touching the GPU plugin, #39332 touching HSM compile-options codec). The current triggering commit (#38097, 'Support aten::ravel operator') only adds a new PyTorch frontend operator translator (src/frontends/pytorch/src/op/ravel.cpp, op_table.cpp) and its layer tests — entirely unrelated to the CPU plugin's ScatterElementsUpdate kernel (src/plugins/intel_cpu/src/nodes/). This confirms, for a third consecutive time, a persistent, commit-independent gap in CPU plugin index bounds-checking for ScatterElementsUpdate rather than a regression introduced by any specific push.",
+  "reproduction_steps": "Build the CPU plugin functional test binary and run: ./bin/intel64/Release/ov_cpu_func_tests --gtest_filter='*smoke_ScatterElementsUpdateOutOfRangeIndices/ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices*'. Confirm no ov::Exception is thrown for the out-of-range index value -1000 on axis 0 against a (2,2) tensor.",
+  "recommended_actions": [
+    "Add bounds-checking to the ScatterElementsUpdate CPU kernel (src/plugins/intel_cpu/src/nodes/scatter_update.cpp) so out-of-range indices throw ov::Exception during execution.",
+    "Treat this as a confirmed recurring systemic issue (3rd occurrence of c679b29f4fb1c2b4 in under 3 days) and escalate to CPU plugin owners rather than re-triaging per push.",
+    "Consider temporarily marking the affected ScatterElementsUpdate out-of-range parameterizations as known-failing (with a tracking ticket) to stop repeatedly red-flagging unrelated commits in post-commit CI until the kernel fix lands."
+  ],
+  "prevention_strategies": "Fix the missing bounds validation once in a shared index-check helper used by all scatter/gather CPU kernels, then keep this test permanently enabled as a regression guard. Since this signature has now recurred three times against unrelated commits, open a tracking issue referencing pattern c679b29f4fb1c2b4 so future recurrences are deduplicated against a single ticket instead of being re-triaged.",
+  "historical_context": "Exact repeat of signature c679b29f4fb1c2b4 (count now 3): first recorded 2026-11-20T11:47:11Z (run 44713158000, unrelated GPU commit #40041), second 2026-11-20T20:33:54Z (run 44799752720, unrelated HSM commit #39332), and now a third time against unrelated PyTorch FE commit #38097. The consistent factor across all three occurrences is that the triggering commit never touches the CPU plugin's ScatterElementsUpdate kernel, confirming this is a persistent, pre-existing gap in CPU kernel index validation rather than a new regression."
+}
