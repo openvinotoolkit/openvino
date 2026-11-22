@@ -125,6 +125,7 @@ std::vector<unsigned char> nested_if_weights() {
 }
 
 constexpr size_t small_stack_size = 512 * 1024;
+constexpr size_t tiny_stack_size = 96 * 1024;
 
 }  // namespace
 
@@ -140,8 +141,21 @@ TEST_F(IRFrontendTestsIf, nested_if_shallow_loads) {
 TEST_F(IRFrontendTestsIf, nested_if_deep_ir_is_rejected) {
     createTemporalModelFile(generate_nested_if_xml(512), nested_if_weights());
 
-    const auto error = ov::test::utils::run_with_stack_size(small_stack_size, [this] {
+    if (!ov::test::utils::is_stack_size_observable(small_stack_size)) {
+        GTEST_SKIP() << "Stack bounds are not available";
+    }
+    OV_EXPECT_THROW(ov::test::utils::run_with_stack_size(small_stack_size,
+                                                         [this] {
+                                                             std::ignore = core.read_model(xmlFileName, binFileName);
+                                                         }),
+                    ov::Exception,
+                    HasSubstr("nesting level is too big"));
+}
+
+TEST_F(IRFrontendTestsIf, nested_if_not_nested_loads_on_small_stack) {
+    createTemporalModelFile(generate_nested_if_xml(1), nested_if_weights());
+
+    OV_ASSERT_NO_THROW(ov::test::utils::run_with_stack_size(tiny_stack_size, [this] {
         std::ignore = core.read_model(xmlFileName, binFileName);
-    });
-    EXPECT_THAT(error, HasSubstr("deeper than the stack of the current thread"));
+    }));
 }

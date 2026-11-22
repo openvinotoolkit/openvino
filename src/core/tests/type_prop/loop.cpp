@@ -1641,8 +1641,14 @@ TEST(type_prop, mixed_subgraph_ops_shallow_nesting_validates) {
 }
 
 TEST(type_prop, mixed_subgraph_ops_deep_nesting_reports_error_instead_of_overflowing_the_stack) {
-    const auto error = ov::test::utils::run_with_stack_size(512 * 1024, [] {
-        std::ignore = make_mixed_nested(100000);
-    });
-    EXPECT_THAT(error, HasSubstr("deeper than the stack of the current thread"));
+    constexpr size_t small_stack_size = 512 * 1024;
+    if (!ov::test::utils::is_stack_size_observable(small_stack_size)) {
+        GTEST_SKIP() << "Stack bounds are not available";
+    }
+    OV_EXPECT_THROW(ov::test::utils::run_with_stack_size(small_stack_size,
+                                                         [] {
+                                                             std::ignore = make_mixed_nested(100000);
+                                                         }),
+                    ov::Exception,
+                    HasSubstr("nesting level is too big"));
 }

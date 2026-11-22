@@ -71,6 +71,7 @@ set(COMMON_TEST_UTILS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/common_test_utils/subgraph_builders/weights_decompression_builders.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/common_test_utils/test_assertions.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/common_test_utils/thread_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/common_test_utils/test_case.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/common_test_utils/test_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/common_test_utils/test_constants.hpp
@@ -151,6 +152,7 @@ set(COMMON_TEST_UTILS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/test_constants.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/test_control.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/test_enums.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/thread_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/type_prop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/unicode_utils.cpp
 )

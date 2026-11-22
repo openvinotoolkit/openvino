@@ -6,16 +6,13 @@
 
 #include <cstddef>
 #include <functional>
-#include <string>
 
-namespace ov {
-namespace test {
-namespace utils {
+namespace ov::test::utils {
 
-/// \brief Runs `body` on a new thread with the given stack size.
-/// \return The `what()` of the exception thrown by `body`, or an empty string if it returned.
-std::string run_with_stack_size(size_t stack_bytes, const std::function<void()>& body);
+/// \brief Runs `body` on a new thread with the given stack size; rethrows what `body` throws.
+void run_with_stack_size(size_t stack_bytes, const std::function<void()>& body);
 
-}  // namespace utils
-}  // namespace test
-}  // namespace ov
+/// \brief Whether the stack bounds of a thread created by `run_with_stack_size` are known.
+bool is_stack_size_observable(size_t stack_bytes);
+
+}  // namespace ov::test::utils

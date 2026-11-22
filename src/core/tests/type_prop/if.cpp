@@ -480,17 +480,31 @@ shared_ptr<Node> make_nested_if(size_t depth) {
     return if_op;
 }
 
-constexpr size_t small_stack_size = 512 * 1024;
+constexpr size_t tiny_stack_size = 96 * 1024;
 }  // namespace
 
 TEST(type_prop, if_shallow_nested_bodies_validate) {
     OV_ASSERT_NO_THROW(std::ignore = make_nested_if(8));
 }
 
-// Runs on a small stack; asserts the error, not the depth at which it fires.
+// Small stacks: asserts the error, not the depth. Destroying the nesting while the exception
+// propagates needs stack proportional to the depth.
 TEST(type_prop, if_deep_nesting_reports_error_instead_of_overflowing_the_stack) {
-    const auto error = ov::test::utils::run_with_stack_size(small_stack_size, [] {
-        std::ignore = make_nested_if(100000);
-    });
-    EXPECT_THAT(error, HasSubstr("deeper than the stack of the current thread"));
+    for (const size_t stack_size : {512 * 1024, 2 * 1024 * 1024}) {
+        if (!ov::test::utils::is_stack_size_observable(stack_size)) {
+            GTEST_SKIP() << "Stack bounds are not available";
+        }
+        OV_EXPECT_THROW(ov::test::utils::run_with_stack_size(stack_size,
+                                                             [] {
+                                                                 std::ignore = make_nested_if(100000);
+                                                             }),
+                        ov::Exception,
+                        HasSubstr("nesting level is too big"));
+    }
+}
+
+TEST(type_prop, if_not_nested_validates_on_small_stack) {
+    OV_ASSERT_NO_THROW(ov::test::utils::run_with_stack_size(tiny_stack_size, [] {
+        std::ignore = make_nested_if(1);
+    }));
 }

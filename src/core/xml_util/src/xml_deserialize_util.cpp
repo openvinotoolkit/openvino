@@ -45,9 +45,6 @@ void str_to_container<std::vector<std::string>>(const std::string& value, std::v
 }
 namespace {
 
-// Stack space that must remain free before parsing another nested subgraph body.
-constexpr size_t STACK_HEADROOM_REQUIRED = 128 * 1024;
-
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
     if (!node)
         return false;
@@ -929,9 +926,8 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
 std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node& root) {
     // Nested subgraph bodies are parsed recursively, before any of them is validated.
-    OPENVINO_ASSERT(ov::util::stack_bytes_available() > STACK_HEADROOM_REQUIRED,
-                    "Model deserialization stopped: the model nests subgraph bodies (If, Loop, "
-                    "TensorIterator, ...) deeper than the stack of the current thread can handle safely.");
+    OPENVINO_ASSERT(ov::util::has_stack_headroom(),
+                    "Stack is too small for the nested subgraphs or the nesting level is too big.");
 
     // OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
