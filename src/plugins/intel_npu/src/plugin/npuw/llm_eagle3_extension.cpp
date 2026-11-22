@@ -194,14 +194,17 @@ void Eagle3Extension::initialize(bool is_eagle_model,
     if (has_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Draft;
         LOG_INFO("Eagle3 Draft Model detected" << (has_eagle_tree_mask_input ? " (topk)" : " (top1)"));
-    } else if (!has_hidden_states_input && has_last_hidden_state_output) {
+    } else if (!has_hidden_states_input && (has_last_hidden_state_output || has_eagle_tree_mask_input)) {
+        // Tree verification needs only eagle_tree_mask: a pipeline whose drafter doesn't use the target's features
+        // (e.g. n-gram lookup) runs a target without last_hidden_state.
         m_role = Eagle3ModelRole::Target;
-        LOG_INFO("Eagle3 Target Model detected" << (has_eagle_tree_mask_input ? " (topk)" : " (top1)"));
+        LOG_INFO("Eagle3 Target Model detected" << (has_eagle_tree_mask_input ? " (topk)" : " (top1)")
+                                                << (has_last_hidden_state_output ? "" : " without last_hidden_state"));
     } else {
         OPENVINO_THROW(
             "Eagle3 mode enabled via NPUW_EAGLE property, but model structure doesn't match Draft or Target pattern. "
             "Draft requires: hidden_states input + last_hidden_state output. "
-            "Target requires: last_hidden_state output (no hidden_states input).");
+            "Target requires: last_hidden_state output or eagle_tree_mask input (no hidden_states input).");
     }
 
     // Create sampling state for external pipeline communication
