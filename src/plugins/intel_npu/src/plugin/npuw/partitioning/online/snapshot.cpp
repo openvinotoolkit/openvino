@@ -253,6 +253,10 @@ bool isRegularCrossGroupConsumerCase(const std::unordered_map<std::shared_ptr<Re
 
                 std::vector<bool> mask;
                 for (auto&& output_desc : layer_ptr->outputs()) {
+                    // This check only protects F16IC, and F16IC converts only f32 interconnects.
+                    // Ports of all other types (f16, bf16, integer, boolean) keep their type,
+                    // so a mismatch on them is harmless. Do not check for f16 only: a mismatch on
+                    // an i64 or boolean port would then still turn off F16IC without a reason.
                     if (output_desc.get_element_type() != ov::element::f32) {
                         mask.push_back(false);
                         continue;
