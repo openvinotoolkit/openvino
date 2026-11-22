@@ -79,6 +79,18 @@ SDPA_OCL_INLINE void FUNC(v_tile_prefetch)(const __global void *surf, const int 
 }
 #endif
 
+#if PREFETCH_V_I8
+// The same for the 8-bit V of v_i8_read(): 16-row blocks dealt over the subgroups, each the whole row in 64 B blocks.
+SDPA_OCL_INLINE void FUNC(v_i8_tile_prefetch)(const __global VAL_DATA_T *V, const int w, const int h, const int p,
+                                              const int k0, const int sg_ij) {
+    for (int rb = sg_ij; rb < kq_wg_tile_keys / 16; rb += sg_per_wg) {
+        #pragma unroll
+        for (int cb = 0; cb < (V_HEAD_SIZE + 63) / 64; ++cb)
+            intel_sub_group_2d_block_prefetch_8b_16r16x4c((global void *)V, w, h, p, (int2)(cb * 64, k0 + rb * 16));
+    }
+}
+#endif
+
 #if PREFETCH_V_L3
 // L3-only prefetch of the same V rows: one byte address per 256 B L3 line, dealt over the workgroup's lanes, rows
 // clamped to the last key; L1UC_L3C (2) keeps the lines out of L1.

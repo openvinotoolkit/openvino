@@ -1026,6 +1026,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         FUNC_CALL(v_tile_prefetch)(V_b2d, VD_w_b2d, VD_h, VD_p, VD_x0, k0, (int)sg_ij);
 #elif PREFETCH_V_L3
         FUNC_CALL(v_tile_prefetch_l3)(V, VD_p, k0, k, (int)sg_ij);
+#elif PREFETCH_V_I8
+        FUNC_CALL(v_i8_tile_prefetch)(V, VD_w, VD_h, VD_p, k0, (int)sg_ij);
 #endif
 #if MAX_SPLIT_BARRIER
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);

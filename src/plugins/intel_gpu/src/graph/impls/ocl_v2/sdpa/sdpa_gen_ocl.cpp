@@ -511,8 +511,8 @@ bool solve_plain_prefill_i8_tiling(gpu_arch arch, size_t d_max, size_t vd_max, c
 // Plain (non-PA) SDPA decode (one query) on xe2_tuned() arches with f16 Q / K / V, or f16 Q with the per-channel
 // compressed i8 K / V of the GQA decomposition (types_ok): every subgroup takes keys, 32-key x 16-query subgroup tiles in
 // one row of 16 subgroups (8 at d_max 64, whose S*V cannot split a 64-wide head over 16), 256 GRF, and the PREFILL loop
-// changes except CAUSAL_TILE_SKIP (add_prefill_pipeline_jit()). The i8 cache keeps its 8-bit K / V reads, so neither
-// PREFETCH_V nor WIDE_READS (both on the f16 2D reads only). The tiling reads no query or key count, so a shape-agnostic
+// changes except CAUSAL_TILE_SKIP (add_prefill_pipeline_jit()). The i8 cache keeps its 8-bit K / V reads, so no
+// WIDE_READS, and its V prefetch is PREFETCH_V_I8. The tiling reads no query or key count, so a shape-agnostic
 // stage gets the same one at compile time and dispatch ("Plain-SDPA decode tiling" in the docs). False: keep the table
 // tile.
 bool solve_plain_decode_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool types_ok, sdpa_ocl_config_t& config) {
@@ -1655,6 +1655,10 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     if (per_channel) {
         jit.make("KV_COMP_PER_CHANNEL", 1);
         jit.make("V_I8_CONVERT", in.problem.tiling.v_i8_convert ? 1 : 0);
+        // The 8-bit PREFETCH_V of the V block read, where the tiling sets v_prefetch; SDPA_OCL_V_I8_PREFETCH=0/1 forces it.
+        if (v_i8_2d != 0) {
+            jit.make("PREFETCH_V_I8", env_int("SDPA_OCL_V_I8_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0));
+        }
         // Negative controls of the per-channel reads, each must fail the per-channel tests: 1 = K scale/zp of the
         // neighbouring channel, 2 = V scale/zp of the neighbouring column, 3 = K nibbles swapped, 4 = V nibbles swapped
         // (3, 4: 4-bit only). Absent unless asked for, so the default jit is unchanged.

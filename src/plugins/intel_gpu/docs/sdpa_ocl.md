@@ -2284,6 +2284,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg; `SDPA_OCL_256GRF=0` turns it off for the PA PREFILL tiling) |
 | `SDPA_OCL_V_PREFETCH`, `_SM_BRANCHLESS`, `_MAX_SPLIT`, `_MASK_LAST` | PA PREFILL loop changes ("Paged-attention PREFILL tiling"): `0`/`1` forces each off/on |
 | `SDPA_OCL_V_PREFETCH_L3` | PA PREFILL V tile L3 prefetch (on at `d_max` 512): `0`/`1` forces it off/on; on replaces `PREFETCH_V` |
+| `SDPA_OCL_V_I8_PREFETCH` | Plain-SDPA per-channel i8 V tile prefetch (`PREFETCH_V_I8`, "V prefetch for the per-channel i8 plain V"): `0`/`1` forces it off/on where the 8-bit V block read is on |
 | `SDPA_OCL_PLAIN_MIRROR`, `SDPA_OCL_PLAIN_TABLE_FLAGS` | Plain-SDPA f16 `d_max` 128 PREFILL ("Plain-SDPA PREFILL tiling"): `0`/`1` forces the table / the 256 x 128 tile; `0` drops the table tile's loop changes |
 | `SDPA_OCL_PLAIN_D64` | Plain-SDPA f16 `d_max` 64 PREFILL on Xe2 ("Plain-SDPA PREFILL tiling (`d_max` 64)": the 32 x 32 tile, or the table with loop changes under a mask): `0` keeps the bare table tile (the jit before that change) |
 | `SDPA_OCL_PLAIN_D512` | Plain-SDPA f16 `d_max` 512 PREFILL on Xe2 ("Plain-SDPA PREFILL tiling (`d_max` 512)"): `0` keeps the bare table tile at 128 GRF (the jit before that change) |
@@ -3767,6 +3768,43 @@ head 128; master's own transposed-V decode is wrong on DG2, cos 0.04-0.07, so it
   take 1.03-1.40x master (the entry above 0.99-1.11; SDPA 81-108 against 64-73 us for plain V, lead-independent; not
   analysed); a compressed cache keeps the Transpose and the dequantization (i8 transposed V decode 1.16 / 1.06 at 4096 /
   16384 keys, where master's `sdpa_micro` reads it fused; i8 tiny 1.13-1.36). Not checked: ARL-H, bf16.
+
+### V prefetch for the per-channel i8 plain V (2026-11-21)
+
+After the Xe3 tilings the per-channel i8 plain-V decode was still 1.2-1.8x `sdpa_micro` on PTL-H. Attribution there
+(a second PTL-H, Ubuntu 24.04: Arc B390, gfx 30.0.4, IGC 2.42.6, compute-runtime 26.40, power profile `performance`;
+kit `test/xe2fix/x1b/xe3kit`, one process per case, medians of 3-5 rounds; knock-outs are temporary builds, timing only,
+wrong output by design; logs `xe3kit/logs/s2_*`, scripts `test/xe2fix/x1b/xe3/s2_exp`):
+
+- At 16384 keys leaving out the V read took SDPA from 721 to 331 us, the K read 0.82x, both widenings 0.94x. The cost is
+  the V read: every subgroup reads a 16 B column slice of the 128 B rows (the 8-bit transform read, `32r16x1c`), with no
+  prefetch, about 46 GB/s against 84 for this kernel's f16 and 78 for `sdpa_micro`'s i8.
+- Of five prefetch positions, this tile's V after the S_max barrier (where `PREFETCH_V` sits for f16) was the best. At
+  the top of the iteration (where `PA_MIXED_PREFETCH_V` sits) it delays the K reads and lost at 1K / 4K keys; every K
+  prefetch lost; 32 / 64 B K reads changed nothing.
+- `PREFETCH_V_I8` (`v_i8_tile_prefetch()`, `sdpa_ocl_v_load.cl`): `8b_16r16x4c` block prefetches, 16-row blocks dealt
+  over the subgroups, each the whole row. The jit sets it where the per-channel i8 V block read is on
+  (`USE_2D_BLOCK_IO_V_I8`; not transposed V, the 4-bit cache, the by-token cache or PA) and the tiling sets `v_prefetch`,
+  i.e. on the plain decode tilings (`solve_plain_decode_tiling()`, Xe2 heads 64-512; `solve_plain_xe3_tiling()`, head
+  128). `SDPA_OCL_V_I8_PREFETCH=0/1` forces it. It only prefetches: the outputs are bit-identical (kit cos unchanged on
+  every row; per-channel, transposed-V and GQA suites, 128 unit + 44 func, pass).
+- Not on the i8 PREFILL tiling: there every row of both builds falls into one of two modes per process (for example
+  4600 / 4900 us at 4096 queries; the unchanged f16 PREFILL kernel has them too, 3585 / 3890), and within a mode the
+  prefetch was 0.3-1.3% slower (all PTL-H runs, 5-18 processes per row). Its medians looked better (1024 queries 0.84x,
+  4096 0.94x) only because more of its processes landed in the fast mode, whose cause is unknown.
+- ISA (IGC ShaderDump, `test/xe2fix/x1b/xe3/pf8_isa`): the product decode kernel has the opcode histogram of the
+  measured temporary build within +-1 (`sync`, `add3`, `or`); +4 sends; spill 0. The i8 PREFILL kernel and the f16 and
+  transposed-V kernels keep their jit; their ISA matches the build before within the noise that two compiles of the same
+  build already show on this IGC (+-1-2 `sel` / `jmpi` / `sync`, other flag registers).
+- SDPA us on PTL-H, i8 plain decode (H 32, KV heads 8, head 128), keys 1024 / 1025 / 4096 / 4097 / 16384 / 16385, with /
+  without / `sdpa_micro` (product build, 3 rounds): 33 / 42 / 100.5 / 111 / 467 / 515.5 against 33 / 51 / 110.5 / 116 /
+  763.5 / 736 and 27 / 34.5 / 89.5 / 93 / 435 / 460.5 (the temporary build, 5 rounds: 32 / 41 / 100.5 / 111 / 462 /
+  507.5). The 9 unchanged-kernel rows re-run 6 rounds (f16 decode, f16 / i8 transposed V) gave 0.99-1.02x.
+- Not measured: the B70 and other Xe2 (the decode tiling is shared, so the change runs there, heads 64-512), heads other
+  than 128 on Xe3, a mask, a sliding window.
+- Still slower than `sdpa_micro` on PTL-H: the i8 plain decode (1.07-1.22x; left: the V widening at 4K, the K read at
+  16K, about +17 us for a partial last tile) and the i8 plain PREFILL / chunk (1.1-1.3x; the V widening is 12-13%, so
+  it needs another structure: dequantization shared by more queries).
 
 ## Known issues
 
