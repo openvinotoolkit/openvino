@@ -164,8 +164,8 @@ public:
         // (2026-11-14)" in the docs). PREFILL keeps sdpa_ocl on every arch, and so does a decode the opt stages do not take
         // (opt_stages_take_head()), or one with a transposed V they cannot read (only the single-token stage reads it, and
         // not at a head that is not a multiple of 16: "Transposed V on xe_hpg"), which skips the ARL-H rule below too.
-        const bool tv_needs_ocl_single_token = SDPABase::has_transposed_v(params) && !(SDPABase::opt_single_token_reads_transposed_v(params) &&
-                                                                                       opt_stages_take_head(params) && !unaligned_head_size(params));
+        const bool tv_needs_ocl_single_token = SDPABase::has_transposed_v(params) && (!SDPABase::opt_single_token_reads_transposed_v(params) ||
+                                                                                      !opt_stages_take_head(params) || unaligned_head_size(params));
         const bool ocl_single_token_ok = params.get_device_info().arch != gpu_arch::xe_hpg || !opt_stages_take_head(params) || tv_needs_ocl_single_token;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";

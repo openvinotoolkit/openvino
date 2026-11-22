@@ -1394,7 +1394,15 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p, bool v_transpo
     // whole).
     if (t.hpg_pa_prefill) {
         jit.make("HPG_PA_PREFILL", 1);
-        const int v_lead = p.k_head_size == 512 ? 1 : v_transposed ? 2 : std::min(t.sv_sg_tile_values <= 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
+        const int v_lead = [&]() {
+            if (p.k_head_size == 512) {
+                return 1;
+            }
+            if (v_transposed) {
+                return 2;
+            }
+            return std::min(t.sv_sg_tile_values <= 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
+        }();
         jit.make("HPG_PA_V_LEAD", env_int("SDPA_OCL_HPG_PA_V_LEAD", v_lead));
         if (const int kq = env_int("SDPA_OCL_HPG_PA_KQ_UNROLL", p.d_max > 128 ? 2 : 0); kq > 0) {
             jit.make("HPG_PA_KQ_UNROLL", kq);

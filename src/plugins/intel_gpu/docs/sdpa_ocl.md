@@ -3800,8 +3800,17 @@ wrong output by design; logs `xe3kit/logs/s2_*`, scripts `test/xe2fix/x1b/xe3/s2
   without / `sdpa_micro` (product build, 3 rounds): 33 / 42 / 100.5 / 111 / 467 / 515.5 against 33 / 51 / 110.5 / 116 /
   763.5 / 736 and 27 / 34.5 / 89.5 / 93 / 435 / 460.5 (the temporary build, 5 rounds: 32 / 41 / 100.5 / 111 / 462 /
   507.5). The 9 unchanged-kernel rows re-run 6 rounds (f16 decode, f16 / i8 transposed V) gave 0.99-1.02x.
-- Not measured: the B70 and other Xe2 (the decode tiling is shared, so the change runs there, heads 64-512), heads other
-  than 128 on Xe3, a mask, a sliding window.
+- B70 (Xe2, GPU pinned at 1800 MHz; the same kit, arms `sdpa_micro` / `bb611cbdec` / this change, one process per row,
+  3 rounds; logs `xe3kit/logs/b70_pf8_dec`, `b70_pf8_full`, summary `test/xe2fix/x1b/b70/RESULT_A.md`): SDPA us of the
+  i8 plain decode (H 32, KV heads 8) at 1024 / 4096 / 16384 keys, before -> after (`sdpa_micro`): head 64 19 / 65 / 350
+  -> 19 / 65 / 249 (29 / 107 / 419), head 128 18 / 61 / 356 -> 18 / 60 / 245 (21 / 75 / 289), head 256 25.5 / 109 / 456
+  -> 26 / 82 / 322 (19 / 63 / 254). No row is slower than before (1.00 up to 4K keys at heads 64 / 128); the 60 rows of
+  the full set whose kernel did not change gave a per-round median of 1.000. Only the per-channel i8 configs gain the
+  macro: 1 on the decode tiling (+2 / +4 / +8 block prefetches at heads 64 / 128 / 256, no spill), 0 on the PREFILL
+  tiling (identical ISA); the 512 configurations of the B70 corpus keep their kernel text (L1). Still slower than
+  `sdpa_micro` on the B70, all of it before this change: the head-128 decode at 1025 keys (27 against 23 us) and the
+  head-256 decode (1.27-1.68x).
+- Not measured: other Xe2 parts, heads other than 128 on Xe3, a mask, a sliding window.
 - Still slower than `sdpa_micro` on PTL-H: the i8 plain decode (1.07-1.22x; left: the V widening at 4K, the K read at
   16K, about +17 us for a partial last tile) and the i8 plain PREFILL / chunk (1.1-1.3x; the V widening is 12-13%, so
   it needs another structure: dequantization shared by more queries).
@@ -4143,10 +4152,20 @@ Each needs its own measured change.
   per layer against 1.2 ms with `is_causal` (B70, 1800 MHz), about half its first-token latency. Recognising a causal
   mask (or skipping key tiles the mask fills with -inf) would remove most of it. Not tried.
 - Plain-SDPA decode ("Plain-SDPA decode tiling"): with few heads at head 256 and up to 4K keys it still trails
-  `sdpa_micro` (8 / 4 heads: 1.05-1.19x). There `PREFETCH_V` costs what it gains on long contexts, so a runtime gate on
-  the key count (one stage serves every count) might keep both; a key split or one workgroup per KV head (each query
-  head's workgroup reads its whole KV head now, as in `sdpa_micro`) would go past `sdpa_micro` on GQA. bf16, compressed
-  K / V, `d_max` 32 and Xe3 keep the table tile, unmeasured with this one.
+  `sdpa_micro` (8 / 4 heads: 1.05-1.19x), as do the per-channel i8 decode at head 256 (1.27-1.68x) and at 1025 keys at
+  head 128 (B70, "V prefetch for the per-channel i8 plain V"). There `PREFETCH_V` costs what it gains on long contexts,
+  so a runtime gate on the key count (one stage serves every count) might keep both. Each query head's workgroup reads
+  its whole KV head (as in `sdpa_micro`) and the keys are not split. Running the step on `sdpa_ocl_decode` instead was
+  designed on 2026-11-22 and not started (the user's decision): a dense mode of `sdpa_ocl_decode.cl` (the (batch, KV
+  head) slab as the 2D surface with the key count as its height, the transposed V read like K, the per-channel scales
+  folded once per call), an `SDPAOptImpl` stage beside `ocl_single_token`, and `sdpa_opt`'s finalization and internal
+  buffers as they are (the same exp_sums / max_logits / tmp_out layout for one query, 256-key partitions). That
+  finalization keeps at most 128 partitions in local memory (32K keys) and nothing on the host caps the count (code
+  reading, not run). Room on the B70 (H 32, KV heads 8, cliloader device time; the K + V read at about 590 GB/s in
+  brackets): f16 head 128 at 1K / 4K / 16K keys 13 / 43 / 183 us (7 / 28 / 114), head 64 11.5 / 36 / 162 (3.6 / 14 /
+  57), per-channel i8 head 128 19 / 60 / 245 (3.6 / 14 / 57). `sdpa_opt` itself is no candidate on Xe2: its decode
+  (single-token stage + finalization) is 1.15-1.80x this kernel at heads 64 / 128 on the B70 and 1.03-1.38x at head 128
+  on PTL-H. bf16, the by-token compressed cache and `d_max` 32 keep the table tile, unmeasured with this one.
 - `sdpa_ocl_decode` checks pages with the strict `% 64` rule. The relaxed `% 16` page rule of the
   MIXED kernel would give block reads to i8 heads 80, 96, 112 and f16 heads 48, 80. For i8 head 96 it
   would not pay: the per-lane K read with `K_LANE_TILES` measured the same as the K block read, and the
