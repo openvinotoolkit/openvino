@@ -479,6 +479,20 @@ def test_shape_slicing_step(shape_type):
         Dimension(5),
         Dimension(2, 8),
         Dimension(),
+    ],
+)
+def test_copy_of_mutable_value_types(copy_func, value):
+    copied = copy_func(value)
+
+    assert type(copied) is type(value)
+    assert copied == value
+    assert copied is not value
+
+
+@pytest.mark.parametrize("copy_func", [copy.copy, copy.deepcopy])
+@pytest.mark.parametrize(
+    "value",
+    [
         Layout("NCHW"),
         Layout("N...C"),
         Layout(),
@@ -487,12 +501,8 @@ def test_shape_slicing_step(shape_type):
         Type.dynamic,
     ],
 )
-def test_copy_of_value_types(copy_func, value):
-    copied = copy_func(value)
-
-    assert type(copied) is type(value)
-    assert copied == value
-    assert copied is not value
+def test_copy_of_immutable_value_types(copy_func, value):
+    assert copy_func(value) is value
 
 
 def test_deepcopy_of_container_with_value_types():

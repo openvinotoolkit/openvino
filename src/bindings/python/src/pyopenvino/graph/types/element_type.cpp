@@ -60,14 +60,15 @@ void regclass_graph_Type(py::module m) {
 
     type.def("__hash__", &ov::element::Type::hash);
 
-    type.def("__copy__", [](const ov::element::Type& self) -> ov::element::Type {
-        return ov::element::Type(self);
+    // Type is immutable, so copies can share the original object.
+    type.def("__copy__", [](py::object& self) {
+        return self;
     });
 
     type.def(
         "__deepcopy__",
-        [](const ov::element::Type& self, py::dict) -> ov::element::Type {
-            return ov::element::Type(self);
+        [](py::object& self, py::dict) {
+            return self;
         },
         "memo");
 
