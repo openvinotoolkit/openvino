@@ -9,6 +9,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -441,6 +442,37 @@ protected:
 
 TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensToLargerVariant) {
     check_continuous_switch_migration({}, /*expect_aux=*/false);
+}
+
+// A multi-token step (e.g. speculative verification) writes all its rows at num_stored_tokens, so the request must
+// move to a larger variant as soon as the rows would not fit, not only once the active variant is full.
+TEST_F(LLMInferRequestVariantSwitchTest, MultiTokenStepSwitchesBeforeOverflowingActiveVariant) {
+    constexpr uint32_t kRows = 8;
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", std::to_string(kRows)}}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::max_generation_token_len(compiled), kRows);
+
+    ov::npuw::LLMInferRequest req(compiled);
+    LLMVariantSwitchTestAccess::select_smallest_generate_variant(req);
+    auto run_step = [&](uint32_t stored) {
+        auto input_ids = ov::make_tensor(ov::element::i64, ov::Shape{1, kRows});
+        std::fill_n(input_ids->data<int64_t>(), kRows, int64_t{42});
+        auto position_ids = ov::make_tensor(ov::element::i64, ov::Shape{1, kRows});
+        std::iota(position_ids->data<int64_t>(), position_ids->data<int64_t>() + kRows, int64_t{stored});
+        auto attention_mask = ov::make_tensor(ov::element::i64, ov::Shape{1, stored + kRows});
+        std::fill_n(attention_mask->data<int64_t>(), attention_mask->get_size(), int64_t{1});
+        LLMVariantSwitchTestAccess::set_num_stored_tokens(req, stored);
+        LLMVariantSwitchTestAccess::generate(req, input_ids, attention_mask, position_ids);
+    };
+
+    // 3 slots left in the smallest variant: the 8 rows go to the next one.
+    ASSERT_NO_THROW(run_step(LLMVariantSwitchTestAccess::current_variant_capacity(req) - 3u));
+    EXPECT_EQ(LLMVariantSwitchTestAccess::current_variant_index(req), 1u);
+
+    // The largest variant has no successor: a step that does not fit is rejected before it runs.
+    EXPECT_THROW(run_step(LLMVariantSwitchTestAccess::current_variant_capacity(req) - 3u), ov::Exception);
 }
 
 // Same migration path, but for an i8-quantized KV cache: on_generate_variant_switch() must also
