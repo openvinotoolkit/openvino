@@ -55,7 +55,7 @@ struct GQAConfig {
     bool transpose_v = false;
     bool sdpa_support_immad = true;
     bool fuse_compressed_kv = true;  // the pass's mode; the GPU pipeline sets it on the sdpa_ocl lane only
-    bool fuse_transposed_v = false;  // the pass's mode; the GPU pipeline sets it where sdpa_ocl reads a transposed V
+    bool fuse_transposed_v = false;  // the pass's mode; the GPU pipeline sets it where a transposed-V reader runs (Xe2+, xe_hpg)
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
