@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-22-13-37-00-000-45023224702",
+  "timestamp": "2026-11-22T13:37:00Z",
+  "run_id": "45023224702",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45023224702",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "41e483fc50de932565fbfe96f8fb9f423fbbb396",
+  "pr_number": "38097",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38097",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "Windows CC build job fails quickly with no retrievable log content (HTTP 404)",
+  "signature": "Windows Conditional Compilation build step Cmake build - CC ON fails quickly after a successful CMake configure, but job log content is permanently unavailable via the GitHub Actions API (HTTP 404), preventing identification of the underlying compiler or linker error|Infrastructure",
+  "signature_hash": "afb479532c52bf68",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "Step 'CMake configure - CC ON' (#7) succeeded at 13:16:23Z; step 'Cmake build - CC ON' (#8) ran 13:16:23-13:19:34Z (~3 min) and finished with conclusion=failure; subsequent steps 'List bin files' and 'Run with CC-ed runtime' were skipped. Job log download returns HTTP 404 for job 137215967384 (pre-downloaded log file contains only '(log download failed)')."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status-check step 'Check status of all jobs' exits 1 solely because upstream job 'Conditional Compilation' failed; no independent root cause."
+    }
+  ],
+  "key_errors": [
+    "job-137215967384.log: (log download failed)",
+    "get_job_logs 137215967384: failed to get job logs: failed to download log content for job 137215967384: failed to download logs: HTTP 404",
+    "Step 'Cmake build - CC ON' (#8): started_at=2026-11-22T13:16:23Z, completed_at=2026-11-22T13:19:34Z, conclusion=failure (clean ~3min13s failure, not a stuck/cancelled step)",
+    "ci/gha_overall_status_windows_cc log:\n##[group]Run exit 1\nexit 1\n##[endgroup]\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Conditional Compilation build job's 'Cmake build - CC ON' step failed after only ~3 minutes of building (following a successful CMake configure), but GitHub Actions never persisted retrievable log content for this job - both the pre-downloaded log file and a live get_job_logs call return only 'log download failed' / HTTP 404. This is the fourth recorded occurrence of pattern afb479532c52bf68 (Windows CC build job logs unavailable via the Actions API), though this instance differs slightly from the three earlier ones: those showed the step stuck 'in_progress' for 14-26 minutes with no completed_at, while this run shows a clean, fast (~3 min) 'failure' conclusion with both started_at and completed_at recorded. Both variants share the same diagnostic blocker (API/log-retention failure on this Windows runner pool preventing root-cause identification) and the same remediation path, so they are tracked under one signature. The triggering commit (merge-queue PR #38097, adding a new PyTorch frontend op translator 'aten::ravel' as a self-contained additive file plus two op_table.cpp registration lines) is unlikely to be the cause: op_table.cpp and ravel.cpp were inspected and show no syntax issues, use standard existing includes/patterns matching sibling ops (e.g., reshape.cpp), and a single new translator file/registration would not plausibly crash the Windows build machinery itself without producing any compiler/linker diagnostic in the surviving aggregator log. Because no compiler or linker error text is available, a code-level defect in the PR cannot be fully ruled out, but the complete absence of error text (rather than a partial or truncated error) combined with the pre-existing recurring 404-log signature strongly favors an infrastructure/log-pipeline issue on the AKS Windows build runner pool.",
+  "reproduction_steps": "N/A - cannot be reproduced locally; the failure signature is an infrastructure/log-retrieval issue on GitHub's Windows self-hosted (AKS) runner pool, not a deterministic local build failure. To attempt reproduction: run the 'Windows Conditional Compilation (VS 2022, Python 3.11)' workflow against commit 41e483fc50de932565fbfe96f8fb9f423fbbb396 and inspect whether 'Cmake build - CC ON' fails quickly while runner telemetry/logs are unavailable.",
+  "recommended_actions": [
+    "Re-run the 'Conditional Compilation' job for this commit; if it passes on a clean retry, this confirms the infrastructure/log-retention theory rather than a code defect in PR #38097.",
+    "If the job still fails on retry, inspect the raw workflow run logs ZIP (via get_workflow_run_logs_url) instead of per-job log API, since the per-job download endpoint has now failed 404 on at least 4 separate post-commit runs for this specific job/workflow.",
+    "Escalate to GitHub Actions / self-hosted runner infrastructure owners: the 'aks-win-16-cores-32gb-build' runner pool for Windows CC builds has repeatedly failed to persist job logs (HTTP 404) across at least 4 incidents since 2026-10-10, suggesting a systemic logging/telemetry gap on this runner image or pool rather than isolated flakiness.",
+    "As a defensive measure, consider adding step-level log archiving (e.g., tee build output to an uploaded artifact) in windows_conditional_compilation.yml so build output survives even if the GitHub Actions log API fails to persist/return it."
+  ],
+  "prevention_strategies": "Add redundant log capture (artifact upload of raw ninja/MSBuild output) for the Windows CC build step so investigations are not blocked when the GitHub Actions log API returns 404. Track the afb479532c52bf68 pattern's recurrence rate; if it continues to grow, file a dedicated infrastructure ticket against the AKS Windows build runner pool rather than relying on ad-hoc re-investigation each time. AI agent note: When a Windows Conditional Compilation ('Cmake build - CC ON') job fails and job log download returns HTTP 404 (both pre-downloaded log and live get_job_logs), do not block the investigation trying to force log retrieval. Immediately check the post-commit pattern database for signature afb479532c52bf68 ('Windows build job logs unavailable via Actions API') - if found, treat this as a very likely recurrence of a known Windows AKS runner infrastructure/log-retention issue rather than a code defect, even if step started_at/completed_at timing differs slightly (stuck-in-progress vs. clean fast failure) from prior occurrences, since both share the same unusable-log blocker. Only deep-dive into the PR diff when no 404/log-unavailability pattern match exists.",
+  "historical_context": "This is the 4th recorded occurrence of signature afb479532c52bf68 ('Windows build job terminated mid-build with unavailable job logs'), first seen 2026-10-10 (run 38092857471, PR #38105) and most recently seen 2026-11-22T11:01:16Z (run 45010607927, PR #39146) - i.e. only ~2.5 hours before this run. Three of the four occurrences (including this one) involve the exact same job name 'Conditional Compilation' / step 'Cmake build - CC ON' on the aks-win-16-cores-32gb-build runner pool, each with the GitHub Actions log API returning HTTP 404 and no retrievable compiler/linker error text. A related but distinct pattern (73496f939a352d74, count=1) recorded a similar Windows CC job being outright cancelled mid-compilation; and a much more frequent pattern (80cfa127185fbf3e, count=18) covers Windows CC builds that DO produce retrievable logs showing explicit LNK1102/C1060 out-of-memory errors under high build parallelism - this run could not be confirmed as that OOM pattern because no log content was available to verify."
+}

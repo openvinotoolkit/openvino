@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 155,
+  "total": 156,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1558,6 +1558,17 @@
       "category": "Infrastructure",
       "signature_hash": "afb479532c52bf68",
       "commit_sha": "e264be1b5554fb037e584673e94df3c3b56af179"
+    },
+    {
+      "investigation_id": "2026-11-22-13-37-00-000-45023224702",
+      "run_id": "45023224702",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45023224702",
+      "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+      "timestamp": "2026-11-22T13:37:00Z",
+      "title": "Windows CC build job fails quickly with no retrievable log content (HTTP 404)",
+      "category": "Infrastructure",
+      "signature_hash": "afb479532c52bf68",
+      "commit_sha": "41e483fc50de932565fbfe96f8fb9f423fbbb396"
     }
   ]
 }
