@@ -39,6 +39,8 @@ namespace test {
  *            \     /
  *             Matmul
  *               |
+ *              Mul (Opt)
+ *               |
  *              Bias
  */
 typedef std::tuple<MatMulDecompressionShapeParams,
@@ -63,6 +65,7 @@ public:
 protected:
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,
                                             const ov::Shape& weights_shape,
+                                            const std::optional<ov::Shape>& post_multiply_shape,
                                             const int group_size,
                                             const ov::element::Type data_precision,
                                             const ov::element::Type weights_precision,
