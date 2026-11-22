@@ -51,7 +51,7 @@ public:
     [[nodiscard]] virtual size_t scratch_bytes(const SparseSdpaTensors& tensors,
                                                const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
     virtual void execute(const SparseSdpaTensors& tensors,
-                         uint8_t* scratch,
+                         const ov::intel_cpu::MemoryPtr& scratch,
                          const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
 };
 

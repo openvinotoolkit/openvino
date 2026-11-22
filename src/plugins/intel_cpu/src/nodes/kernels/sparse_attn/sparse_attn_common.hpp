@@ -12,6 +12,7 @@
 
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::Extensions::Cpu {
 
@@ -23,6 +24,43 @@ namespace ov::Extensions::Cpu {
 inline size_t max_q_head_pack_size(size_t q_head_num, size_t k_head_num, size_t sel_head_num) {
     return std::gcd(q_head_num / k_head_num, q_head_num / sel_head_num);
 }
+
+}  // namespace ov::Extensions::Cpu
+
+// Everything below is used by the cross-compiled kernels only. It lives in XARCH so that every ISA build has its own
+// copy: an inline function in a shared namespace would be merged by the linker, and the AVX-512 copy could then run on
+// an AVX2 CPU.
+namespace ov::Extensions::Cpu::XARCH {
+
+/// @brief Lays out the buffers of a scratch (or of a slice of it) one after the other, each aligned to 64 bytes. The
+/// layout of every scratch is built with it, so its size and the places of its buffers come from the same code: with a
+/// null base it only measures (bytes() is the size), with a base take() returns the buffers. reserve() gives offsets,
+/// for layouts that are bound to memory later.
+class ScratchPartition {
+public:
+    static constexpr size_t kAlign = 64;
+
+    explicit ScratchPartition(uint8_t* base = nullptr) : m_base(base) {}
+
+    /// @brief The offset of the next buffer of `bytes` bytes.
+    size_t reserve(size_t bytes) {
+        const size_t start = m_bytes;
+        m_bytes = ov::intel_cpu::rnd_up(m_bytes + bytes, kAlign);
+        return start;
+    }
+    template <typename T>
+    T* take(size_t count) {
+        const size_t start = reserve(count * sizeof(T));
+        return m_base != nullptr ? reinterpret_cast<T*>(m_base + start) : nullptr;
+    }
+    [[nodiscard]] size_t bytes() const {
+        return m_bytes;
+    }
+
+private:
+    uint8_t* m_base;
+    size_t m_bytes = 0;
+};
 
 /// @brief Number of rows of [kpos0, kpos0 + n) a query may attend: the rows from `first_valid` (the start of the real
 /// history of a left-padded sequence) up to `valid_end` (exclusive).
@@ -37,9 +75,52 @@ inline int64_t causal_tail_start(int64_t token_pos, int64_t pad, int64_t key_blo
     return pad + ((token_pos - pad + 1) / key_block_size) * key_block_size;
 }
 
-}  // namespace ov::Extensions::Cpu
+/// @brief KV chunks the selected blocks of each decode item are split into, so few (batch, head pack, query) items
+/// still fill the threads; the partial softmax states are merged afterwards. 1 = no split (enough items, or too few
+/// blocks).
+inline size_t decode_kv_chunk_count(size_t items, size_t max_blocks, size_t num_threads) {
+    constexpr size_t kMinKvChunkBlocks = 16;
+    if (items == 0 || items >= num_threads) {
+        return 1;
+    }
+    const size_t kv_chunks = std::min(num_threads / items, max_blocks / kMinKvChunkBlocks);
+    return kv_chunks > 1 ? kv_chunks : 1;
+}
 
-namespace ov::Extensions::Cpu::XARCH {
+/// @brief Merges the partial online-softmax states of the `kv_chunks` slices of one pack into the normalized outputs
+/// `out[pack, Dv]` (f32). The state of a kv_chunk is run_max[pack] | run_sum[pack] | acc[pack, Dv], pack * (Dv + 2)
+/// floats, the states lie one after the other. A head without any attended row gets zeros.
+inline void merge_decode_partials(const float* partials, size_t kv_chunks, size_t pack, size_t Dv, float* out) {
+    constexpr float kNegInf = -std::numeric_limits<float>::infinity();
+    const size_t slot = pack * (Dv + 2);
+    for (size_t head = 0; head < pack; head++) {
+        float max = kNegInf;
+        for (size_t c = 0; c < kv_chunks; c++) {
+            max = std::max(max, partials[c * slot + head]);
+        }
+        float* acc = out + head * Dv;
+        std::fill(acc, acc + Dv, 0.0F);
+        float sum = 0.0F;
+        if (max > kNegInf) {
+            for (size_t c = 0; c < kv_chunks; c++) {
+                const float* part = partials + c * slot;
+                if (part[head] == kNegInf) {
+                    continue;
+                }
+                const float weight = std::exp(part[head] - max);
+                sum += weight * part[pack + head];
+                const float* part_acc = part + 2 * pack + head * Dv;
+                for (size_t d = 0; d < Dv; d++) {
+                    acc[d] += weight * part_acc[d];
+                }
+            }
+        }
+        const float inv_sum = sum > 0.0F ? 1.0F / sum : 0.0F;
+        for (size_t d = 0; d < Dv; d++) {
+            acc[d] *= inv_sum;
+        }
+    }
+}
 
 /// @brief Starts the attention of a head pack: zero accumulators, empty online softmax.
 inline void init_pack_state(float* acc, float* running_max, float* running_sum, size_t pack_size, size_t v_head_size) {

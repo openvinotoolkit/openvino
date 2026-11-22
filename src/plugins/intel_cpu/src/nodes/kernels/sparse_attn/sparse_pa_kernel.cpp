@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <type_traits>
 #include <utility>
 
@@ -35,6 +36,7 @@ namespace ov::Extensions::Cpu::XARCH {
 
 using ov::intel_cpu::CacheSpec;
 using ov::intel_cpu::is_quantized_cache;
+using ov::intel_cpu::MemoryPtr;
 using ov::intel_cpu::PlainTensor;
 
 namespace {
@@ -194,6 +196,81 @@ struct WorkList {
     size_t fallback_tokens = 0;
     size_t brgemm_pack = 1;    ///< query heads of one item of a brgemm token
     size_t fallback_pack = 1;  ///< query heads of one item of a fallback token
+    size_t kv_chunks = 1;      ///< slices of the selected blocks of a fallback item (a decode of few items is split)
+};
+
+// A compressed cache is dequantized once per call for prefill sequences when their tokens gather at least as many rows
+// as their pages hold, so a row many tokens select is not dequantized per token. Returns the block_indices entries
+// covered (0: per-row path).
+size_t dequantized_cache_pages(const SparsePATensors& t, const SparsePAConfig& cfg) {
+    if (!cfg.brgemm.handle().enabled() || !cfg.causal || !is_quantized_cache(cfg.key_spec) ||
+        t.query.get_precision() != cfg.brgemm.handle().prec) {
+        return 0;
+    }
+    const auto* begins = t.subsequence_begins.ptr<int32_t>();
+    const auto* blocks = t.block_indices_begins.ptr<int32_t>();
+    const size_t sequences = t.subsequence_begins.size(0) - 1;
+    size_t tokens = 0;
+    size_t pages = 0;
+    for (size_t seq = 0; seq < sequences; seq++) {
+        const auto new_tokens = static_cast<size_t>(begins[seq + 1] - begins[seq]);
+        if (new_tokens > 1) {
+            tokens += new_tokens;
+            pages += static_cast<size_t>(blocks[seq + 1] - blocks[seq]);
+        }
+    }
+    const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
+    return pages > 0 && tokens * t.sel_indices.size(2) * cfg.key_block_size >= pages * page_size
+               ? static_cast<size_t>(blocks[sequences])
+               : 0;
+}
+
+// Where the dequantized pages of `entries` block_indices entries lie in their region of the scratch: the identity page
+// table, then the key rows and the value rows ([entries, Hkv, page_size, head size] each).
+struct DequantizedLayout {
+    size_t table = 0;  ///< byte offsets in the region
+    size_t key = 0;
+    size_t value = 0;
+    size_t bytes = 0;
+
+    DequantizedLayout(size_t entries, const SparsePATensors& t, const SparsePAConfig& cfg) {
+        const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
+        const size_t page_rows = entries * cfg.num_kv_heads * page_size;
+        ScratchPartition region;
+        table = region.reserve(entries * sizeof(int32_t));
+        key = region.reserve(page_rows * cfg.k_head_size * cfg.data_precision.size());
+        value = region.reserve(page_rows * cfg.v_head_size * cfg.data_precision.size());
+        bytes = region.bytes();
+    }
+};
+
+/// @brief The scratch of a call, laid out in one place so that its size and the places of its parts cannot disagree:
+///   | one block per worker thread | one token id per token | partial states OR dequantized pages |
+/// A call has partial states only when it splits a decode (no brgemm token) and dequantized pages only for a prefill
+/// (brgemm tokens), never both, so they share the memory. All the offsets are in bytes from the start of the scratch.
+struct SparsePAScratch {
+    size_t threads = 0;  ///< num_threads blocks of thread_bytes, see SparsePAScratchLayout
+    size_t thread_bytes = 0;
+    size_t token_ids = 0;  ///< int32[tokens]
+    size_t partials =
+        0;  ///< float[num_threads, max_pack * (v_head_size + 2)]: the partial softmax states of a split decode
+    size_t dequantized = 0;          ///< the pages of DequantizedLayout
+    size_t dequantized_entries = 0;  ///< block_indices entries they cover, 0: none
+    DequantizedLayout dequantized_layout;
+    size_t total = 0;
+
+    SparsePAScratch(const SparsePAConfig& cfg, const SparsePATensors& t, size_t num_threads, size_t block_bytes)
+        : thread_bytes(block_bytes),
+          dequantized_entries(dequantized_cache_pages(t, cfg)),
+          dequantized_layout(dequantized_entries, t, cfg) {
+        const size_t max_pack = max_q_head_pack_size(cfg.num_heads, cfg.num_kv_heads, cfg.num_selection_heads);
+        ScratchPartition scratch;
+        threads = scratch.reserve(num_threads * thread_bytes);
+        token_ids = scratch.reserve(t.query.size(0) * sizeof(int32_t));
+        partials = dequantized = scratch.reserve(
+            std::max(num_threads * max_pack * (cfg.v_head_size + 2) * sizeof(float), dequantized_layout.bytes));
+        total = scratch.bytes();
+    }
 };
 
 // ---- everything the sparse attention work items read from the arguments, see SparsePAExecutor ----
@@ -202,8 +279,9 @@ struct SparsePAArgs {
     const SparsePAConfig& cfg;  // fixed with the executor: head sizes, key_block_size, causal, specs, brgemm
     const SparsePATensors& t;   // the tensors of the call: shapes give the page size, the heads of the selection ...
     WorkList work;
-    uint8_t* scratch;
-    size_t scratch_bytes_per_thread;
+    const MemoryPtr& scratch_memory;  // the scratch pad memory of the call: the owner of its parts
+    uint8_t* scratch;                 // its data
+    const SparsePAScratch& layout;    // where the parts of the scratch are
 };
 
 // State of one work item: a query token and a pack of `pack_size` consecutive query heads sharing K/V rows and selected
@@ -375,7 +453,7 @@ void attention_over_run_quant(PackWork& w, int64_t kpos0, int64_t n) {
 // Number of rows of the run [kpos0, kpos0 + n) that the query may see.
 int64_t visible_rows(const PackWork& w, int64_t kpos0, int64_t n) {
     const int64_t limit = w.cfg.causal ? std::min(w.valid_max, w.token_pos + 1) : w.valid_max;
-    return ov::Extensions::Cpu::visible_rows(kpos0, n, 0, limit);
+    return XARCH::visible_rows(kpos0, n, 0, limit);
 }
 
 // Attention over up to `n` consecutive logical positions [kpos0, kpos0 + n) that lie inside one physical page, clamped
@@ -485,14 +563,18 @@ void attention_full_selection_brgemm(
 #endif  // OPENVINO_ARCH_X86_64 && HAVE_AVX512F
 
 // One work item: attention of one query token and one head pack, on the brgemm path (whole selection at once) or the
-// SIMD path (selected blocks run by run, then the causal tail).
+// SIMD path (the `kv_chunk`-th of `kv_chunks` slices of the selected blocks, run by run; the last slice also takes the
+// causal tail). The result is written out, or left in `partial` as a softmax state when the blocks are split.
 template <typename T>
 void attention_work_item(const SparsePAArgs& a,
                          const SparsePAScratchLayout& layout,
                          size_t token,
                          size_t pack,
                          size_t pack_size,
-                         [[maybe_unused]] bool brgemm_item) {
+                         [[maybe_unused]] bool brgemm_item,
+                         size_t kv_chunk,
+                         size_t kv_chunks,
+                         float* partial) {
     const auto* subsequence_begins = a.t.subsequence_begins.ptr<int32_t>();
     // The sequence whose tokens contain `token`.
     const auto* const begins_end = subsequence_begins + a.t.subsequence_begins.size(0);
@@ -516,7 +598,7 @@ void attention_work_item(const SparsePAArgs& a,
     const size_t sel_head = first_head / (a.cfg.num_heads / a.t.sel_indices.size(1));
 
     // Per-thread scratch, see SparsePAScratchLayout.
-    uint8_t* ws = a.scratch + static_cast<size_t>(parallel_get_thread_num()) * a.scratch_bytes_per_thread;
+    uint8_t* ws = a.scratch + a.layout.threads + static_cast<size_t>(parallel_get_thread_num()) * a.layout.thread_bytes;
     PackWork w(a,
                layout,
                ws,
@@ -548,48 +630,185 @@ void attention_work_item(const SparsePAArgs& a,
     }
 #endif
     if (!done) {
-        attention_selected_blocks_simd(w, block_ids, nblocks);
-        attention_causal_tail_simd(w);
+        // This item takes the blocks [first, last) of the selection; the last kv_chunk also takes the causal tail.
+        const size_t first = nblocks * kv_chunk / kv_chunks;
+        const size_t last = nblocks * (kv_chunk + 1) / kv_chunks;
+        attention_selected_blocks_simd(w, block_ids + first, last - first);
+        if (kv_chunk + 1 == kv_chunks) {
+            attention_causal_tail_simd(w);
+        }
     }
 
+    if (partial != nullptr) {
+        std::copy_n(w.running_max, w.pack_size, partial);
+        std::copy_n(w.running_sum, w.pack_size, partial + w.pack_size);
+        std::copy_n(w.acc, w.pack_size * a.cfg.v_head_size, partial + 2 * w.pack_size);
+        return;
+    }
     store_normalized_pack(w.acc, w.running_sum, w.pack_size, a.cfg.v_head_size, [&](size_t head) {
         return a.t.out.ptr<T>(token, (first_head + head) * a.cfg.v_head_size);
     });
 }
 
-// Sparse attention of every (global query token, query head pack) item of the work list, in parallel: the brgemm items
-// first, then the fallback items.
+// The pages of the compressed caches that a call dequantized: views of the scratch pad memory, which they share the
+// ownership of.
+struct DequantizedPages {
+    PlainTensor key;  // [entries, Hkv, page_size, k_head_size] in the data type, page i = the page of block_indices[i]
+    PlainTensor value;  // [entries, Hkv, page_size, v_head_size]
+    PlainTensor table;  // [entries] identity page table: the pages are packed in block_indices order, so the page of
+                        // entry i is i (the physical block ids of block_indices index the compressed cache, not these)
+};
+
+// Dequantizes the pages of prefill sequences into their region of the scratch (see SparsePAScratch) and sets the views
+// of them in `pages`.
+template <typename T>
+void build_dequantized_pages(const SparsePAArgs& a,
+                             DequantizedPages& pages,
+                             const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    const auto& cfg = a.cfg;
+    const auto& t = a.t;
+    const auto& region = a.layout.dequantized_layout;
+    const size_t entries = a.layout.dequantized_entries;
+    const size_t k_head_num = t.key_cache.size(1);
+    const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
+    pages.table.resize_view<int32_t>({entries}, a.scratch_memory, a.layout.dequantized + region.table);
+    pages.key.resize_view<T>({entries, k_head_num, page_size, cfg.k_head_size},
+                             a.scratch_memory,
+                             a.layout.dequantized + region.key);
+    pages.value.resize_view<T>({entries, k_head_num, page_size, cfg.v_head_size},
+                               a.scratch_memory,
+                               a.layout.dequantized + region.value);
+    auto* table = pages.table.ptr<int32_t>();
+    std::iota(table, table + entries, 0);
+    const auto* begins = t.subsequence_begins.ptr<int32_t>();
+    const auto* blocks = t.block_indices_begins.ptr<int32_t>();
+    const size_t sequences = t.subsequence_begins.size(0) - 1;
+    cpu_parallel->parallel_for2d(entries, k_head_num, [&](size_t entry, size_t hk) {
+        const int32_t phys_block = t.block_indices.ptr<int32_t>()[entry];
+        const auto seq = static_cast<size_t>(
+            std::upper_bound(blocks, blocks + sequences + 1, static_cast<int32_t>(entry)) - blocks - 1);
+        if (phys_block < 0 || seq >= sequences || begins[seq + 1] - begins[seq] <= 1) {
+            return;  // an unused page, or one of a sequence that does not use the dequantized pages
+        }
+        dequant_k_rows<T>(cfg,
+                          t.key_cache,
+                          static_cast<size_t>(phys_block),
+                          hk,
+                          0,
+                          page_size,
+                          cfg.k_head_size,
+                          pages.key.ptr<T>(entry, hk));
+        dequant_v_rows<T>(cfg,
+                          t.value_cache,
+                          static_cast<size_t>(phys_block),
+                          hk,
+                          0,
+                          page_size,
+                          cfg.v_head_size,
+                          pages.value.ptr<T>(entry, hk));
+    });
+}
+
+// Sparse attention of every (global query token, query head pack, kv_chunk) item of the work list, in parallel: the
+// brgemm items first, then the fallback items. A split decode leaves partial softmax states in `partials` for a second
+// merging pass; the brgemm items of a compressed cache read its dequantized pages.
 template <typename T>
 void sparse_pa_impl(const SparsePAArgs& a, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    const SparsePAScratchLayout layout(
-        a.cfg.k_head_size,
-        a.cfg.v_head_size,
-        a.cfg.max_run_rows,
-        max_q_head_pack_size(a.cfg.num_heads, a.cfg.num_kv_heads, a.cfg.num_selection_heads),
-        sizeof(T),
-        a.cfg.key_spec,
-        tile_brgemm_sizes(a.cfg.brgemm.handle()));
-    OPENVINO_ASSERT(layout.total <= a.scratch_bytes_per_thread, "[CPU] sparse_pa: scratch is too small");
+    const size_t max_pack = max_q_head_pack_size(a.cfg.num_heads, a.cfg.num_kv_heads, a.cfg.num_selection_heads);
+    const SparsePAScratchLayout layout(a.cfg.k_head_size,
+                                       a.cfg.v_head_size,
+                                       a.cfg.max_run_rows,
+                                       max_pack,
+                                       sizeof(T),
+                                       a.cfg.key_spec,
+                                       tile_brgemm_sizes(a.cfg.brgemm.handle()));
+    OPENVINO_ASSERT(layout.total <= a.layout.thread_bytes, "[CPU] sparse_pa: scratch is too small");
     const auto& work = a.work;
+    auto* const partials = reinterpret_cast<float*>(a.scratch + a.layout.partials);
+
+    // The brgemm items read dequantized copies of the pages of a compressed cache, see build_dequantized_pages. They
+    // share their memory with the partial states, which a call has only without brgemm tokens.
+    DequantizedPages dequantized;
+    bool use_dequantized = false;
+    if constexpr (!std::is_same_v<T, float>) {
+        if (a.layout.dequantized_entries > 0 && work.brgemm_tokens > 0) {
+            build_dequantized_pages<T>(a, dequantized, cpu_parallel);
+            use_dequantized = true;
+        }
+    }
+    const SparsePATensors dequantized_t{a.t.query,
+                                        a.t.key,
+                                        a.t.value,
+                                        dequantized.key,
+                                        dequantized.value,
+                                        dequantized.table,
+                                        a.t.block_indices_begins,
+                                        a.t.subsequence_begins,
+                                        a.t.past_lens,
+                                        a.t.sel_indices,
+                                        a.t.sel_count,
+                                        a.t.out,
+                                        a.t.scale};
+    SparsePAConfig dequantized_cfg = a.cfg;  // the dequantized pages are plain caches
+    dequantized_cfg.key_spec = {};
+    dequantized_cfg.value_spec = {};
+    const SparsePAArgs dequantized_args{dequantized_cfg, dequantized_t, work, a.scratch_memory, a.scratch, a.layout};
+
     const size_t brgemm_per_token = a.cfg.num_heads / work.brgemm_pack;
     const size_t fallback_per_token = a.cfg.num_heads / work.fallback_pack;
     const size_t brgemm_items = work.brgemm_tokens * brgemm_per_token;
-    cpu_parallel->parallel_for(brgemm_items + work.fallback_tokens * fallback_per_token, [&](size_t item) {
-        if (item < brgemm_items) {
-            attention_work_item<T>(a,
-                                   layout,
-                                   work.token_ids[item / brgemm_per_token],
-                                   item % brgemm_per_token,
-                                   work.brgemm_pack,
-                                   true);
-        } else {
-            const size_t fallback_item = item - brgemm_items;
-            attention_work_item<T>(a,
-                                   layout,
-                                   work.token_ids[work.brgemm_tokens + fallback_item / fallback_per_token],
-                                   fallback_item % fallback_per_token,
-                                   work.fallback_pack,
-                                   false);
+    const size_t partial_floats = work.fallback_pack * (a.cfg.v_head_size + 2);
+    // Items are (token, pack, kv_chunk): the brgemm tokens first, each with packs of brgemm_pack heads and one chunk,
+    // then the fallback tokens; a split decode leaves its state in the slot of the item.
+    cpu_parallel->parallel_for(brgemm_items + work.fallback_tokens * fallback_per_token * work.kv_chunks,
+                               [&](size_t item) {
+                                   if (item < brgemm_items) {
+                                       attention_work_item<T>(use_dequantized ? dequantized_args : a,
+                                                              layout,
+                                                              work.token_ids[item / brgemm_per_token],
+                                                              item % brgemm_per_token,
+                                                              work.brgemm_pack,
+                                                              true,
+                                                              0,
+                                                              1,
+                                                              nullptr);
+                                   } else {
+                                       const size_t local = item - brgemm_items;
+                                       const size_t per_token = fallback_per_token * work.kv_chunks;
+                                       attention_work_item<T>(
+                                           a,
+                                           layout,
+                                           work.token_ids[work.brgemm_tokens + local / per_token],
+                                           (local % per_token) / work.kv_chunks,
+                                           work.fallback_pack,
+                                           false,
+                                           local % work.kv_chunks,
+                                           work.kv_chunks,
+                                           work.kv_chunks > 1 ? partials + local * partial_floats : nullptr);
+                                   }
+                               });
+    if (work.kv_chunks == 1) {
+        return;
+    }
+    // Second pass: merge the partial states of every fallback (token, pack) item into the output.
+    cpu_parallel->parallel_for(work.fallback_tokens * fallback_per_token, [&](size_t token_pack) {
+        const size_t token = work.token_ids[work.brgemm_tokens + token_pack / fallback_per_token];
+        const size_t first_head = (token_pack % fallback_per_token) * work.fallback_pack;
+        auto* const merged = reinterpret_cast<float*>(
+            a.scratch + a.layout.threads + static_cast<size_t>(parallel_get_thread_num()) * a.layout.thread_bytes +
+            layout.pack.acc);
+        merge_decode_partials(partials + token_pack * work.kv_chunks * partial_floats,
+                              work.kv_chunks,
+                              work.fallback_pack,
+                              a.cfg.v_head_size,
+                              merged);
+        for (size_t head = 0; head < work.fallback_pack; head++) {
+            cvt_copy(a.t.out.ptr<T>(token, (first_head + head) * a.cfg.v_head_size),
+                     merged + head * a.cfg.v_head_size,
+                     1,
+                     a.cfg.v_head_size,
+                     0,
+                     0);
         }
     });
 }
@@ -613,13 +832,15 @@ public:
 
     [[nodiscard]] size_t scratch_bytes(const SparsePATensors& t,
                                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
-        // One block per worker thread, then one token id per token for the work list.
-        return static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * m_thread_block_bytes +
-               t.query.size(0) * sizeof(int32_t);
+        return SparsePAScratch(m_cfg,
+                               t,
+                               static_cast<size_t>(cpu_parallel->get_num_worker_threads()),
+                               m_thread_block_bytes)
+            .total;
     }
 
     void execute(const SparsePATensors& t,
-                 uint8_t* scratch,
+                 const MemoryPtr& scratch,
                  const ov::intel_cpu::CpuParallelPtr& cpu_parallel) override {
         // Phase 1 completes before phase 2, the sparse attention, reads the caches.
         write_kv(t, cpu_parallel);
@@ -684,10 +905,17 @@ private:
                            cpu_parallel);
     }
 
-    void run(const SparsePATensors& t, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
+    void run(const SparsePATensors& t,
+             const MemoryPtr& scratch_memory,
+             const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
         const TileBrgemm& brgemm = m_cfg.brgemm.handle();
-        auto* const token_ids = reinterpret_cast<int32_t*>(
-            scratch + static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * m_thread_block_bytes);
+        uint8_t* const scratch = scratch_memory->getDataAs<uint8_t>();
+        const SparsePAScratch scratch_layout(m_cfg,
+                                             t,
+                                             static_cast<size_t>(cpu_parallel->get_num_worker_threads()),
+                                             m_thread_block_bytes);
+        OPENVINO_ASSERT(scratch_memory->getSize() >= scratch_layout.total, "[CPU] sparse_pa: scratch is too small");
+        auto* const token_ids = reinterpret_cast<int32_t*>(scratch + scratch_layout.token_ids);
 
         const auto data_prc = t.query.get_precision();
         OPENVINO_ASSERT(t.out.get_precision() == data_prc, "[CPU] sparse_pa: query/output precisions must match");
@@ -738,11 +966,15 @@ private:
             }
         }
         work.brgemm_pack = max_pack_size;
+        // Few fallback items on many threads: split their blocks into kv_chunks (not with brgemm tokens in the call,
+        // which run in the same loop).
+        const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
         const size_t fallback_items = work.fallback_tokens * (m_cfg.num_heads / max_pack_size);
-        work.fallback_pack =
-            fallback_items >= 2 * static_cast<size_t>(cpu_parallel->get_num_worker_threads()) ? max_pack_size : 1;
+        work.kv_chunks =
+            work.brgemm_tokens == 0 ? decode_kv_chunk_count(fallback_items, t.sel_indices.size(2), num_threads) : 1;
+        work.fallback_pack = (work.kv_chunks > 1 || fallback_items >= 2 * num_threads) ? max_pack_size : 1;
 
-        const SparsePAArgs args{m_cfg, t, work, scratch, m_thread_block_bytes};
+        const SparsePAArgs args{m_cfg, t, work, scratch_memory, scratch, scratch_layout};
 
         // The data type is dispatched once; everything below works on T.
         if (data_prc == ov::element::f32) {

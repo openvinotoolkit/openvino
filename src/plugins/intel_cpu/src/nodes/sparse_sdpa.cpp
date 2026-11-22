@@ -414,7 +414,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
                                                ov::intel_cpu::Shape{m_executor->scratch_bytes(tensors, cpu_parallel)}));
-    m_executor->execute(tensors, scratch->getDataAs<uint8_t>(), cpu_parallel);
+    m_executor->execute(tensors, scratch, cpu_parallel);
 }
 
 void SparseSDPA::assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx) {

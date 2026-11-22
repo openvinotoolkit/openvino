@@ -18,10 +18,13 @@
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/simd/simd_loop.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
+#include "nodes/kernels/sparse_attn/sparse_attn_common.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu::XARCH::qsa_kernel {
+
+using ov::Extensions::Cpu::XARCH::ScratchPartition;
 
 /// @brief The implementation type of the stages of this instruction-set variant. It is fixed when the variant is
 /// compiled, as the dispatcher picks the variant by the same CPU check.
@@ -132,29 +135,6 @@ inline void rms_rope(const float* src,
 }
 
 // ---- block scores ----
-
-// Hands out the buffers of a scratch slice one after the other, each aligned to 64 bytes. With a null base it only
-// measures: bytes() is the size of the slice, so the size and the buffers come from the same code.
-class ScratchPartition {
-public:
-    static constexpr size_t kAlign = 64;
-
-    explicit ScratchPartition(uint8_t* base) : m_base(base) {}
-
-    template <typename T>
-    T* take(size_t count) {
-        const size_t start = m_bytes;
-        m_bytes = ov::intel_cpu::rnd_up(m_bytes + count * sizeof(T), kAlign);
-        return m_base != nullptr ? reinterpret_cast<T*>(m_base + start) : nullptr;
-    }
-    [[nodiscard]] size_t bytes() const {
-        return m_bytes;
-    }
-
-private:
-    uint8_t* m_base;
-    size_t m_bytes = 0;
-};
 
 // The rows the scoring handles together: each loaded chunk of a query head is used by all of them, and their
 // accumulators are independent chains (the FMA latency would otherwise bound the loop).

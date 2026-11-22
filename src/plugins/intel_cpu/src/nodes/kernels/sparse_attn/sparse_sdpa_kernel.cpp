@@ -31,6 +31,7 @@ namespace ov::Extensions::Cpu::XARCH {
 
 using ov::intel_cpu::CacheSpec;
 using ov::intel_cpu::is_quantized_cache;
+using ov::intel_cpu::MemoryPtr;
 using ov::intel_cpu::PlainTensor;
 
 namespace {
@@ -183,17 +184,12 @@ struct DecodeItem {
           dequant(row + scratch.dequant) {}
 };
 
-// Rows of [kpos0, kpos0 + n) the query attends (a prefix: the history ends at valid_end).
-inline int64_t visible_rows(const DecodeItem& it, int64_t kpos0, int64_t n) {
-    return ov::Extensions::Cpu::visible_rows(kpos0, n, it.pad, it.valid_end);
-}
-
 // Attention over up to `n` consecutive rows from the physical position kpos0, clamped to the rows the query attends. A
 // quantized cache is dequantized into f32 rows (as the SIMD kernels of scaled_attn compute in float); plain rows are T.
 // The rows are converted once and multiplied with all the heads of the pack (one head is a pack of one).
 template <typename T>
 void attend_run(DecodeItem& it, int64_t kpos0, int64_t n) {
-    n = visible_rows(it, kpos0, n);
+    n = XARCH::visible_rows(kpos0, n, it.pad, it.valid_end);
     if (n <= 0) {
         return;
     }
@@ -258,14 +254,23 @@ void attend_blocks(DecodeItem& it, size_t count, StartFn start) {
     }
 }
 
+// A compressed cache is dequantized once for the whole prefill (as ScaledDotProductAttention does before its brgemm)
+// when the queries gather at least as many rows as the cache holds, so a row that many queries select is not
+// dequantized for each of them.
+bool dequantize_whole_cache(bool compressed, size_t L, size_t S, size_t selected_blocks, size_t block_size) {
+    return compressed && L * selected_blocks * block_size >= S;
+}
+
 #if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
 // ---- AMX prefill over a pack of query heads (attn_brgemm_tiles.hpp) ----
 
 // The dense caches for the shared tile loop: the key/value rows of (batch b, kv head) are contiguous in positions; the
 // rows [pad, row_limit) are the ones the query attends.
 struct SdpaBrgemmArgs {
-    const SparseSdpaConfig& cfg;  // fixed with the executor: key_block_size, scale, the brgemm kernels
-    const SparseSdpaTensors& t;   // the tensors of the call: their shapes give the head counts and sizes
+    const SparseSdpaConfig& cfg;           // fixed with the executor: key_block_size, scale, the brgemm kernels
+    const SparseSdpaTensors& t;            // the tensors of the call: their shapes give the head counts and sizes
+    const PlainTensor* key_dequantized;    // dequantized copy of a compressed key cache (brgemm type), else nullptr
+    const PlainTensor* value_dequantized;  // the same for the value cache
     const PackStateLayout& pack_layout;
     const TileBrgemmLayout& layout;
     uint8_t* scratch;
@@ -281,7 +286,7 @@ struct DenseRowSource {
     int64_t row_limit;
 
     [[nodiscard]] int64_t visible(int64_t kpos0, int64_t n) const {
-        return ov::Extensions::Cpu::visible_rows(kpos0, n, pad, row_limit);
+        return XARCH::visible_rows(kpos0, n, pad, row_limit);
     }
 
     template <typename T>
@@ -290,13 +295,17 @@ struct DenseRowSource {
         const size_t Dv = a.cfg.v_head_size;
         const auto pos = static_cast<size_t>(kpos0);
         const T* k_src = k_stage;
-        if (is_quantized_cache(a.cfg.key_spec)) {
+        if (a.key_dequantized != nullptr) {
+            k_src = a.key_dequantized->ptr<T>(b, kv, pos);
+        } else if (is_quantized_cache(a.cfg.key_spec)) {
             dequant_rows<T>(a.t.key, a.cfg.key_spec, *a.t.key_scale_zp, b, kv, pos, n, Dh, k_stage);
         } else {
             k_src = a.t.key.ptr<T>(b, kv, pos);
         }
         const T* v_src = v_stage;
-        if (is_quantized_cache(a.cfg.value_spec)) {
+        if (a.value_dequantized != nullptr) {
+            v_src = a.value_dequantized->ptr<T>(b, kv, pos);
+        } else if (is_quantized_cache(a.cfg.value_spec)) {
             dequant_rows<T>(a.t.value, a.cfg.value_spec, *a.t.value_scale_zp, b, kv, pos, n, Dv, v_stage);
         } else {
             v_src = a.t.value.ptr<T>(b, kv, pos);
@@ -374,6 +383,35 @@ void sparse_sdpa_brgemm(const SdpaBrgemmArgs& a, const ov::intel_cpu::CpuParalle
                                      attention_item_brgemm<T>(a, b, l, pack_index);
                                  });
 }
+
+// Dequantizes the whole compressed `cache` [B, Hkv, S, D] into the scratch at `byte_offset`; `dequantized` views it.
+template <typename T>
+void dequantize_cache(const PlainTensor& cache,
+                      const CacheSpec& spec,
+                      const PlainTensor& scale_zp,
+                      size_t D,
+                      const MemoryPtr& scratch,
+                      size_t byte_offset,
+                      PlainTensor& dequantized,
+                      const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    constexpr size_t kRowsPerTask = 256;
+    const size_t B = cache.size(0);
+    const size_t Hkv = cache.size(1);
+    const size_t S = cache.size(2);
+    dequantized.resize_view<T>({B, Hkv, S, D}, scratch, byte_offset);
+    cpu_parallel->parallel_for3d(B, Hkv, (S + kRowsPerTask - 1) / kRowsPerTask, [&](size_t b, size_t kv, size_t task) {
+        const size_t first = task * kRowsPerTask;
+        dequant_rows<T>(cache,
+                        spec,
+                        scale_zp,
+                        b,
+                        kv,
+                        first,
+                        std::min(kRowsPerTask, S - first),
+                        D,
+                        dequantized.ptr<T>(b, kv, first));
+    });
+}
 #endif  // OPENVINO_ARCH_X86_64 && HAVE_AVX512F
 
 class SdpaExecutor final : public SparseSdpaExecutor {
@@ -381,23 +419,36 @@ public:
     // The heads and head sizes are fixed by the config, so the scratch layout is computed once here.
     explicit SdpaExecutor(const SparseSdpaConfig& config) : m_cfg(config), m_scratch(config) {}
 
-    [[nodiscard]] size_t scratch_bytes([[maybe_unused]] const SparseSdpaTensors& t,
+    [[nodiscard]] size_t scratch_bytes(const SparseSdpaTensors& t,
                                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
-        const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
-        return m_scratch.brgemm_offset(num_threads) + num_threads * m_scratch.brgemm_bytes_per_thread;
+        return scratch_parts(t, static_cast<size_t>(cpu_parallel->get_num_worker_threads())).total;
     }
 
     void execute(const SparseSdpaTensors& t,
-                 uint8_t* scratch,
+                 const MemoryPtr& scratch,
                  const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
         run(t, scratch, cpu_parallel);
     }
 
 private:
-    // The scratch of a call, one allocation: the per-thread floats of the decode path, then (64-byte aligned) the
-    // per-thread buffers of the brgemm prefill: the state of the head pack, the gather tile and the brgemm scratch.
+    // The scratch of a call, one allocation. A call runs either the SIMD decode path or the brgemm prefill path, so the
+    // parts of the two share the memory:
+    //   | decode floats of every thread | partial states of a split decode |
+    //   | brgemm buffers of every thread (state of the head pack, gather tile, brgemm scratch) | dequantized K | V |
+    // The offsets are in bytes from the start of the scratch.
+    struct SdpaScratch {
+        size_t decode = 0;
+        size_t partials = 0;
+        size_t brgemm = 0;
+        size_t dequantized_key = 0;  // a compressed cache of a prefill, see dequantized_bytes()
+        size_t dequantized_value = 0;
+        size_t total = 0;
+    };
+
+    // What is fixed with the executor: the per-thread layouts of the two paths.
     struct SdpaScratchLayout {
         size_t max_pack;  // query heads of the largest pack
+        size_t v_head_size;
         DecodeScratch decode;
         PackStateLayout pack_layout;
         TileBrgemmLayout brgemm_layout;
@@ -405,6 +456,7 @@ private:
 
         explicit SdpaScratchLayout(const SparseSdpaConfig& c)
             : max_pack(max_q_head_pack_size(c.num_heads, c.num_kv_heads, c.num_selection_heads)),
+              v_head_size(c.v_head_size),
               decode(c.k_head_size,
                      c.v_head_size,
                      max_pack,
@@ -422,13 +474,47 @@ private:
                 brgemm_bytes_per_thread = brgemm_layout.total;
             }
         }
-        // Where the brgemm buffers start: after the decode floats of every thread.
-        [[nodiscard]] size_t brgemm_offset(size_t num_threads) const {
-            return aligned(num_threads * decode.total * sizeof(float));
+        // The parts of a call of `num_threads` worker threads with dequantized caches of the given sizes. At most one
+        // partial state per worker thread: a split decode has fewer items than threads.
+        [[nodiscard]] SdpaScratch partition(size_t num_threads, size_t key_bytes, size_t value_bytes) const {
+            SdpaScratch s;
+            ScratchPartition decode_path;
+            s.decode = decode_path.reserve(num_threads * decode.total * sizeof(float));
+            s.partials = decode_path.reserve(num_threads * max_pack * (v_head_size + 2) * sizeof(float));
+            ScratchPartition prefill_path;
+            s.brgemm = prefill_path.reserve(num_threads * brgemm_bytes_per_thread);
+            s.dequantized_key = prefill_path.reserve(key_bytes);
+            s.dequantized_value = prefill_path.reserve(value_bytes);
+            s.total = std::max(decode_path.bytes(), prefill_path.bytes());
+            return s;
         }
     };
 
-    void run(const SparseSdpaTensors& t, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
+    // The parts of the scratch of a call on `t`.
+    [[nodiscard]] SdpaScratch scratch_parts(const SparseSdpaTensors& t, size_t num_threads) const {
+        return m_scratch.partition(num_threads,
+                                   dequantized_bytes(t, m_cfg.key_spec, m_cfg.k_head_size),
+                                   dequantized_bytes(t, m_cfg.value_spec, m_cfg.v_head_size));
+    }
+
+    // Bytes of the dequantized copy of a compressed cache (head size `head_size`) that a prefill on the brgemm path
+    // works on; 0 for a plain cache, a decode or a prefill that selects few rows.
+    [[nodiscard]] size_t dequantized_bytes(const SparseSdpaTensors& t, const CacheSpec& spec, size_t head_size) const {
+        const bool dequantized = m_cfg.brgemm.handle().enabled() && m_cfg.causal && t.query.size(2) > 1 &&
+                                 dequantize_whole_cache(is_quantized_cache(spec),
+                                                        t.query.size(2),
+                                                        t.key.size(2),
+                                                        t.sel_indices.size(3),
+                                                        m_cfg.key_block_size);
+        return dequantized
+                   ? t.key.size(0) * t.key.size(1) * t.key.size(2) * head_size * m_cfg.brgemm.handle().prec.size()
+                   : 0;
+    }
+
+    void run(const SparseSdpaTensors& t,
+             const MemoryPtr& scratch_memory,
+             const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
+        uint8_t* const scratch = scratch_memory->getDataAs<uint8_t>();
         OPENVINO_ASSERT((!is_quantized_cache(m_cfg.key_spec) || t.key_scale_zp != nullptr) &&
                             (!is_quantized_cache(m_cfg.value_spec) || t.value_scale_zp != nullptr),
                         "[CPU] sparse_sdpa: a compressed cache needs its scale / zero point tensor");
@@ -444,8 +530,10 @@ private:
                         "[CPU] sparse_sdpa: the head counts and sizes of the call differ from the executor's");
         const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
         [[maybe_unused]] const TileBrgemm& brgemm = m_cfg.brgemm.handle();
+        const SdpaScratch parts = scratch_parts(t, num_threads);
+        OPENVINO_ASSERT(scratch_memory->getSize() >= parts.total, "[CPU] sparse_sdpa: scratch is too small");
         [[maybe_unused]] uint8_t* const brgemm_scratch =
-            m_scratch.brgemm_bytes_per_thread > 0 ? scratch + m_scratch.brgemm_offset(num_threads) : nullptr;
+            m_scratch.brgemm_bytes_per_thread > 0 ? scratch + parts.brgemm : nullptr;
 
         const size_t q_per_sel = num_heads / h_sel;
         const size_t group = num_heads / num_kv_heads;
@@ -458,13 +546,6 @@ private:
         // Prefill: the query heads sharing a K head and a selection head are one item of matrix products over the
         // gathered rows. A decode (one query) keeps the SIMD loop below.
         if (brgemm.enabled() && m_cfg.causal && L > 1) {
-            const SdpaBrgemmArgs args{m_cfg,
-                                      t,
-                                      m_scratch.pack_layout,
-                                      m_scratch.brgemm_layout,
-                                      brgemm_scratch,
-                                      m_scratch.brgemm_bytes_per_thread,
-                                      m_scratch.max_pack};
             // The brgemm path reads the query and the output as the brgemm's data type, and so the key and value unless
             // the cache is compressed (u8 / u4 rows, dequantized on the fly).
             OPENVINO_ASSERT(t.query.get_precision() == brgemm.prec && t.out.get_precision() == brgemm.prec &&
@@ -473,84 +554,169 @@ private:
                             "[CPU] sparse_sdpa: the brgemm path requires the query, output and plain key and value of "
                             "the brgemm precision");
             OPENVINO_ASSERT(brgemm_scratch != nullptr, "[CPU] sparse_sdpa: the brgemm scratch is missing");
+            const auto run_brgemm = [&](auto type_tag) {
+                using T = decltype(type_tag);
+                // A prefill over a compressed cache works on dequantized copies of it (see dequantize_whole_cache()).
+                const size_t key_bytes = dequantized_bytes(t, m_cfg.key_spec, k_head_size);
+                const size_t value_bytes = dequantized_bytes(t, m_cfg.value_spec, v_head_size);
+                PlainTensor key_dequantized;
+                PlainTensor value_dequantized;
+                if (key_bytes > 0) {
+                    dequantize_cache<T>(t.key,
+                                        m_cfg.key_spec,
+                                        *t.key_scale_zp,
+                                        k_head_size,
+                                        scratch_memory,
+                                        parts.dequantized_key,
+                                        key_dequantized,
+                                        cpu_parallel);
+                }
+                if (value_bytes > 0) {
+                    dequantize_cache<T>(t.value,
+                                        m_cfg.value_spec,
+                                        *t.value_scale_zp,
+                                        v_head_size,
+                                        scratch_memory,
+                                        parts.dequantized_value,
+                                        value_dequantized,
+                                        cpu_parallel);
+                }
+                const SdpaBrgemmArgs args{m_cfg,
+                                          t,
+                                          key_bytes > 0 ? &key_dequantized : nullptr,
+                                          value_bytes > 0 ? &value_dequantized : nullptr,
+                                          m_scratch.pack_layout,
+                                          m_scratch.brgemm_layout,
+                                          brgemm_scratch,
+                                          m_scratch.brgemm_bytes_per_thread,
+                                          m_scratch.max_pack};
+                sparse_sdpa_brgemm<T>(args, cpu_parallel);
+            };
             if (brgemm.prec == ov::element::bf16) {
-                sparse_sdpa_brgemm<ov::bfloat16>(args, cpu_parallel);
+                run_brgemm(ov::bfloat16{});
             } else {
-                sparse_sdpa_brgemm<ov::float16>(args, cpu_parallel);
+                run_brgemm(ov::float16{});
             }
             return;
         }
 #endif
 
         // Query heads sharing a K head and a selection head form one item: the rows are read once for all of them. With
-        // too little work for the threads (a decode of few sequences) every head is its own item.
+        // too little work for the threads (a decode of few sequences) every head is its own item or, if the selection
+        // is wide, its blocks are split into kv_chunks that merge afterwards.
         const size_t max_pack = m_scratch.max_pack;
         const DecodeScratch& decode = m_scratch.decode;
         const size_t per_thread_floats = decode.total;
-        auto* const scratch_floats = reinterpret_cast<float*>(scratch);
-        // Items are (b, pack, l). A pack shares the chunk split and the K/V reads but divides the item count, so use
-        // packs only with at least 2 items per worker thread; otherwise every query head is its own item.
-        const size_t pack =
-            B * L * (num_heads / max_pack) >= 2 * static_cast<size_t>(cpu_parallel->get_num_worker_threads()) ? max_pack
-                                                                                                              : 1;
+        auto* const scratch_floats = reinterpret_cast<float*>(scratch + parts.decode);
+        auto* const partials = reinterpret_cast<float*>(scratch + parts.partials);
+        // Items are (b, pack, l, kv_chunk). A pack shares the chunk split and the K/V reads but divides the item count,
+        // so use packs only with at least 2 items per worker thread (or when split); otherwise every query head is its
+        // own item.
+        const size_t pack_items = B * L * (num_heads / max_pack);
+        const size_t kv_chunks = decode_kv_chunk_count(pack_items, t.sel_indices.size(3), num_threads);
+        const size_t pack = (kv_chunks > 1 || pack_items >= 2 * num_threads) ? max_pack : 1;
+        const size_t packs = num_heads / pack;
+        const size_t partial_floats = pack * (v_head_size + 2);
 
         const auto run_decode = [&](auto type_tag) {
             using T = decltype(type_tag);
-            cpu_parallel->parallel_for3d(B, num_heads / pack, L, [&](size_t b, size_t pack_index, size_t l) {
-                // Bottom-right-aligned logical position: the query at index l aligns with the last l-th
-                // position of the dense [0, S) key/value history. Invariant to left-padding since
-                // pad[b] + p == token_pos for the spec's logical query position p.
-                const int64_t token_pos = static_cast<int64_t>(S) - static_cast<int64_t>(L) + static_cast<int64_t>(l);
-                const size_t first_head = pack_index * pack;
-                const size_t sh = first_head / q_per_sel;
-                const size_t kv = first_head / group;
-                // Physical start of batch b's real (non-padded) history; 0 when key_length is absent.
-                const int64_t pad = t.key_length ? static_cast<int64_t>(S) -
-                                                       static_cast<int64_t>(t.key_length[t.key_length_batch_stride * b])
-                                                 : 0;
+            cpu_parallel
+                ->parallel_for4d(B, packs, L, kv_chunks, [&](size_t b, size_t pack_index, size_t l, size_t kv_chunk) {
+                    // Bottom-right-aligned logical position: the query at index l aligns with the last l-th
+                    // position of the dense [0, S) key/value history. Invariant to left-padding since
+                    // pad[b] + p == token_pos for the spec's logical query position p.
+                    const int64_t token_pos =
+                        static_cast<int64_t>(S) - static_cast<int64_t>(L) + static_cast<int64_t>(l);
+                    const size_t first_head = pack_index * pack;
+                    const size_t sh = first_head / q_per_sel;
+                    const size_t kv = first_head / group;
+                    // Physical start of batch b's real (non-padded) history; 0 when key_length is absent.
+                    const int64_t pad = t.key_length
+                                            ? static_cast<int64_t>(S) -
+                                                  static_cast<int64_t>(t.key_length[t.key_length_batch_stride * b])
+                                            : 0;
 
-                const auto tid = static_cast<size_t>(parallel_get_thread_num());
-                float* const row = scratch_floats + tid * per_thread_floats;
-                DecodeItem it(
-                    m_cfg,
-                    t,
-                    decode,
-                    row,
-                    b,
-                    kv,
-                    first_head,
-                    l,
-                    pack,
-                    pad,
-                    m_cfg.causal ? std::min(static_cast<int64_t>(S), token_pos + 1) : static_cast<int64_t>(S));
-                for (size_t head = 0; head < pack; head++) {
-                    cvt_copy(it.q + head * k_head_size, t.query.ptr<T>(b, first_head + head, l), 1, k_head_size, 0, 0);
-                }
-                init_pack_state(it.acc, it.run_max, it.run_sum, pack, v_head_size);
+                    const auto tid = static_cast<size_t>(parallel_get_thread_num());
+                    float* const row = scratch_floats + tid * per_thread_floats;
+                    DecodeItem it(
+                        m_cfg,
+                        t,
+                        decode,
+                        row,
+                        b,
+                        kv,
+                        first_head,
+                        l,
+                        pack,
+                        pad,
+                        m_cfg.causal ? std::min(static_cast<int64_t>(S), token_pos + 1) : static_cast<int64_t>(S));
+                    for (size_t head = 0; head < pack; head++) {
+                        cvt_copy(it.q + head * k_head_size,
+                                 t.query.ptr<T>(b, first_head + head, l),
+                                 1,
+                                 k_head_size,
+                                 0,
+                                 0);
+                    }
+                    init_pack_state(it.acc, it.run_max, it.run_sum, pack, v_head_size);
 
-                const int32_t* block_ids = t.sel_indices.ptr<int32_t>(b, sh, l);
-                // The count comes from the producer of the selection: a negative one becomes a huge size_t, so it fails
-                // here too.
-                const auto nblocks = static_cast<size_t>(*t.sel_count.ptr<int32_t>(b, sh, l));
-                OPENVINO_ASSERT(nblocks <= t.sel_indices.size(3),
-                                "[CPU] sparse_sdpa: block_count exceeds the width of block_indices");
-                const auto block_start = [&](size_t i) {
-                    return pad + static_cast<int64_t>(block_ids[i]) * static_cast<int64_t>(m_cfg.key_block_size);
-                };
-                attend_blocks<T>(it, nblocks, block_start);
+                    const int32_t* block_ids = t.sel_indices.ptr<int32_t>(b, sh, l);
+                    // The count comes from the producer of the selection: a negative one becomes a huge size_t, so it
+                    // fails here too.
+                    const auto nblocks = static_cast<size_t>(*t.sel_count.ptr<int32_t>(b, sh, l));
+                    OPENVINO_ASSERT(nblocks <= t.sel_indices.size(3),
+                                    "[CPU] sparse_sdpa: block_count exceeds the width of block_indices");
+                    // This item takes the blocks [first, last) of the selection.
+                    const size_t first = nblocks * kv_chunk / kv_chunks;
+                    const size_t last = nblocks * (kv_chunk + 1) / kv_chunks;
+                    const auto block_start = [&](size_t i) {
+                        return pad +
+                               static_cast<int64_t>(block_ids[first + i]) * static_cast<int64_t>(m_cfg.key_block_size);
+                    };
+                    attend_blocks<T>(it, last - first, block_start);
 
-                // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never
-                // encodes the current incomplete trailing block. When causal, this consumer must derive and
-                // attend that tail itself from the query's own logical position.
-                if (m_cfg.causal) {
-                    const int64_t tail_start =
-                        causal_tail_start(token_pos, pad, static_cast<int64_t>(m_cfg.key_block_size));
-                    attend_run<T>(it, tail_start, token_pos - tail_start + 1);
-                }
+                    // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never
+                    // encodes the current incomplete trailing block. When causal, this consumer must derive and
+                    // attend that tail itself from the query's own logical position (the last chunk does).
+                    if (m_cfg.causal && kv_chunk + 1 == kv_chunks) {
+                        const int64_t tail_start =
+                            causal_tail_start(token_pos, pad, static_cast<int64_t>(m_cfg.key_block_size));
+                        attend_run<T>(it, tail_start, token_pos - tail_start + 1);
+                    }
 
-                store_normalized_pack(it.acc, it.run_sum, pack, v_head_size, [&](size_t head) {
-                    return t.out.ptr<T>(b, first_head + head, l);
+                    if (kv_chunks > 1) {
+                        float* const part =
+                            partials + (((b * packs + pack_index) * L + l) * kv_chunks + kv_chunk) * partial_floats;
+                        std::copy(it.run_max, it.run_max + pack, part);
+                        std::copy(it.run_sum, it.run_sum + pack, part + pack);
+                        std::copy(it.acc, it.acc + pack * v_head_size, part + 2 * pack);
+                        return;
+                    }
+                    store_normalized_pack(it.acc, it.run_sum, pack, v_head_size, [&](size_t head) {
+                        return t.out.ptr<T>(b, first_head + head, l);
+                    });
                 });
+            if (kv_chunks == 1) {
+                return;
+            }
+            // Second pass: merge the partial states of every (b, pack, l) item into the output.
+            cpu_parallel->parallel_for3d(B, packs, L, [&](size_t b, size_t pack_index, size_t l) {
+                float* const merged =
+                    scratch_floats + static_cast<size_t>(parallel_get_thread_num()) * per_thread_floats + decode.acc;
+                const size_t item = (b * packs + pack_index) * L + l;
+                merge_decode_partials(partials + item * kv_chunks * partial_floats,
+                                      kv_chunks,
+                                      pack,
+                                      v_head_size,
+                                      merged);
+                for (size_t head = 0; head < pack; head++) {
+                    cvt_copy(t.out.ptr<T>(b, pack_index * pack + head, l),
+                             merged + head * v_head_size,
+                             1,
+                             v_head_size,
+                             0,
+                             0);
+                }
             });
         };
         visit_float_type(t.query.get_precision(), run_decode);

@@ -258,7 +258,13 @@ void SparsePA::createPrimitive() {
     // every block is its own run.
     m_config.max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
     m_config.brgemm = {};  // set by the builder of the executor
+    // The kernel reads QUERY, KEY, VALUE and writes the output as one data type.
     m_config.data_precision = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+    CPU_NODE_ASSERT(getOriginalInputPrecisionAtPort(InputIdx::KEY) == m_config.data_precision &&
+                        getOriginalInputPrecisionAtPort(InputIdx::VALUE) == m_config.data_precision &&
+                        getOriginalOutputPrecisionAtPort(0) == m_config.data_precision,
+                    "query, key, value and output must have one precision, but the query is ",
+                    m_config.data_precision);
     // The executor is shared by the nodes of the same configuration, see ExecutorKey.
     const auto cache = context->getParamsCache();
     [[maybe_unused]] const auto [sparse_pa_executor, lookup_status] =
@@ -375,7 +381,7 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto scratch = context->getScratchPad()->createScratchPadMem(
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
                                                ov::intel_cpu::Shape{m_executor->scratch_bytes(tensors, cpu_parallel)}));
-    m_executor->execute(tensors, scratch->getDataAs<uint8_t>(), cpu_parallel);
+    m_executor->execute(tensors, scratch, cpu_parallel);
 }
 
 bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
