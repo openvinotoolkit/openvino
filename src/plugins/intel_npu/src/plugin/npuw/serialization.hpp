@@ -170,8 +170,9 @@ struct WeightsContext {
     // NOTE: This constructor should only be used when exporting blobs.
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
-    // NOTE: This constructor is used on blob import to carry the resolved weight source
-    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
+    // NOTE: This constructor is used on blob import to carry the resolved weight
+    // source (embedded weights, mmap'ed weights file, or model-backed constants
+    // cache).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
@@ -196,7 +197,8 @@ struct WeightsContext {
 
 // Context for deserializing submodels with dynamic attention mechanisms
 // (Pyramid Attention, Host Flash Attention, etc.)
-// Provides plugin, device, and compiled model reference for proper deserialization
+// Provides plugin, device, and compiled model reference for proper
+// deserialization
 struct SubmodelDeserializeCtx {
     SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
                            const std::string& _device,
