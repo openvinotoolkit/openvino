@@ -5,12 +5,15 @@
 #include "sliding_window_mask.hpp"
 
 #include "../logging.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -144,6 +147,122 @@ bool is_zero_scalar_constant(const ov::Output<ov::Node>& output) {
     const auto values = constant->cast_vector<int64_t>();
     return !values.empty() && values.front() == 0;
 }
+
+class DistanceSlidingMaskMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::DistanceSlidingMaskMatcher");
+
+    explicit DistanceSlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask) {
+        // Sliding window mask built from the query-key distance, nested in the causal/padding mask, as
+        // emitted by optimum-intel exports that keep the window extractable for SDPAToPagedAttention
+        // (ex.: LFM3):
+        //
+        //   Q = Range(past_kv_len, past_kv_len + seq_len) as [seq, 1], K = Range(0, total_seq) as [1, total_seq]
+        //   Select(!(K <= Q && key_valid), fill, Select(Q - K >= window, fill, 0))
+        //
+        // With static KV buffers Q is a physical cache position. Past tokens are left-aligned in the buffer,
+        // so all of them end up out of the window and SWA layers drop the whole history. Measure the distance
+        // to past keys from the position of the query among the valid tokens instead. Keep Q for the causal
+        // bound and for keys of the current chunk, which is contiguous at the right end of the buffer.
+        auto integer = [](int64_t value) {
+            return opp::wrap_type<ov::op::v0::Constant>([value](const ov::Output<ov::Node>& output) {
+                auto c = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+                return c && c->get_element_type().is_integral_number() && ov::shape_size(c->get_shape()) == 1 &&
+                       c->cast_vector<int64_t>().front() == value;
+            });
+        };
+        auto past_shape = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
+        auto past_len = opp::wrap_type<ov::op::v8::Gather>({past_shape, integer(2), integer(0)});
+        auto full_len = opp::wrap_type<ov::op::v1::Add>({past_len, opp::any_input()});
+        auto query_range =
+            opp::wrap_type<ov::op::v4::Range>({past_len, full_len, integer(1)}, opp::type_matches(ov::element::i64));
+        auto query_col = opp::wrap_type<ov::op::v0::Unsqueeze>({query_range, integer(1)});
+        // The attention mask of the model itself, [batch, total_seq].
+        auto mask_param = opp::wrap_type<ov::op::v0::Parameter>([attention_mask](const ov::Output<ov::Node>& output) {
+            return output.get_node() == attention_mask.get() && output.get_partial_shape().rank() == 2;
+        });
+        auto mask_shape = opp::wrap_type<ov::op::v3::ShapeOf>({mask_param});
+        auto mask_len = opp::wrap_type<ov::op::v8::Gather>({mask_shape, integer(1), integer(0)});
+        auto key_range =
+            opp::wrap_type<ov::op::v4::Range>({integer(0), mask_len, integer(1)}, opp::type_matches(ov::element::i64));
+        auto key_row = opp::wrap_type<ov::op::v0::Unsqueeze>({key_range, integer(0)});
+        auto distance = opp::wrap_type<ov::op::v1::Subtract>({query_col, key_row});
+        // A positive scalar-broadcast window. The distance is a signed i64, so is the window.
+        auto window = opp::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+            auto c = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+            return c && c->get_element_type() == ov::element::i64 && ov::shape_size(c->get_shape()) == 1 &&
+                   c->get_shape().size() <= 2 && c->cast_vector<int64_t>().front() > 0;
+        });
+        auto forget = opp::wrap_type<ov::op::v1::GreaterEqual>({distance, window});
+        auto expand_mask = [&](const std::shared_ptr<ov::Node>& mask) {
+            auto batch = opp::wrap_type<ov::op::v0::Unsqueeze>({mask, integer(0)});
+            return opp::wrap_type<ov::op::v0::Unsqueeze>({batch, integer(1)});
+        };
+        auto causal = opp::wrap_type<ov::op::v1::LessEqual>({key_row, query_col});
+        auto valid = opp::wrap_type<ov::op::v13::BitwiseAnd>({expand_mask(causal), opp::any_input()});
+        auto invalid = opp::wrap_type<ov::op::v13::BitwiseNot>({valid});
+        auto sliding_select =
+            opp::wrap_type<ov::op::v1::Select>({expand_mask(forget), opp::any_input(), opp::any_input()});
+        auto mask_select = opp::wrap_type<ov::op::v1::Select>({invalid, opp::any_input(), sliding_select});
+
+        auto callback = [OV_CAPTURE_CPY_AND_THIS](opp::Matcher& m) {
+            const auto& values = m.get_pattern_value_map();
+            const auto mask = values.at(mask_param);
+            const auto k = values.at(key_row);
+
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+            auto one_1d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+            auto column = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {-1, 1});
+            auto past_len_1d = std::make_shared<ov::op::v1::Reshape>(values.at(past_len), one_1d, false);
+            auto mask_len_1d = std::make_shared<ov::op::v1::Reshape>(values.at(mask_len), one_1d, false);
+
+            // Query positions in the cache coordinates of the left-aligned history, where slot k holds the k-th
+            // valid token. The invalid slots are the tail of the history buffer and the left padding of the
+            // current chunk, all of them before the valid tokens of the chunk, so:
+            //   q_cache = Q - (total_seq - ReduceSum(attention_mask))
+            // Derived from the attention mask only, it does not depend on the baseline of the RoPE positions.
+            auto num_valid = std::make_shared<ov::op::v1::ReduceSum>(mask, one_1d, false);
+            auto num_invalid = std::make_shared<ov::op::v1::Subtract>(values.at(mask_len), num_valid);
+            auto query_cache_col = std::make_shared<ov::op::v1::Subtract>(values.at(query_col), num_invalid);
+
+            // History keys: distance in the cache coordinates. Keys of the current chunk are contiguous at the
+            // right end of the buffer: keep Q - K there, including for chunks longer than a window. The shared
+            // Q/K ranges are not replaced.
+            auto history_distance = std::make_shared<ov::op::v1::Subtract>(query_cache_col, k);
+            auto forget_history = std::make_shared<ov::op::v1::GreaterEqual>(history_distance, values.at(window));
+            auto is_history = std::make_shared<ov::op::v1::Less>(k, values.at(past_len));
+            auto mapped_forget = std::make_shared<ov::op::v1::Select>(is_history, forget_history, values.at(forget));
+
+            // The outputs of padded query rows are discarded. Mask them out fully, so that they do not depend on
+            // the positions computed for the padding.
+            auto query_valid = std::make_shared<ov::op::v8::Slice>(mask, past_len_1d, mask_len_1d, one_1d, one_1d);
+            auto query_valid_bool = std::make_shared<ov::op::v0::Convert>(query_valid, ov::element::boolean);
+            auto query_valid_col = std::make_shared<ov::op::v1::Reshape>(query_valid_bool, column, false);
+            auto query_invalid = std::make_shared<ov::op::v1::LogicalNot>(query_valid_col);
+            auto clean_forget = std::make_shared<ov::op::v1::LogicalOr>(mapped_forget, query_invalid);
+            auto batch = std::make_shared<ov::op::v0::Unsqueeze>(clean_forget, zero);
+            auto heads = std::make_shared<ov::op::v0::Unsqueeze>(batch, one);
+
+            // Change only the inner condition; preserve both fill values and the outer causal/key-padding
+            // Select, which is shared with the full attention layers.
+            auto sliding_select_node = values.at(sliding_select).get_node_shared_ptr();
+            const auto old_condition = sliding_select_node->get_input_node_shared_ptr(0);
+            ov::copy_runtime_info(
+                old_condition,
+                {zero,       one,           one_1d,           column,          past_len_1d,      mask_len_1d,
+                 num_valid,  num_invalid,   query_cache_col,  query_valid,     history_distance, forget_history,
+                 is_history, mapped_forget, query_valid_bool, query_valid_col, query_invalid,    clean_forget,
+                 batch,      heads});
+            heads->set_friendly_name(old_condition->get_friendly_name());
+            sliding_select_node->input(0).replace_source_output(heads);
+            LOG_INFO("Distance-based sliding window attention mask pattern found and patched.");
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(mask_select, "DistanceSlidingMaskMatcher"),
+                         std::move(callback));
+    }
+};
 
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
@@ -678,6 +797,7 @@ bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
+    rewriter->add_matcher<DistanceSlidingMaskMatcher>(attention_mask_node_ptr);
     rewriter->add_matcher<Gemma4SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Gemma4UnifiedSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
