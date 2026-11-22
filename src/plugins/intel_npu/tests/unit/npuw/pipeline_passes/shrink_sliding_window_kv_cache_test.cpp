@@ -103,13 +103,14 @@ std::shared_ptr<ov::Model> build_hybrid_gqa_model() {
 std::shared_ptr<ov::Model> run_shrink_pass(const std::shared_ptr<ov::Model>& model,
                                            uint32_t input_size,
                                            uint32_t kvcache_size,
-                                           bool is_prefill) {
+                                           bool is_prefill,
+                                           bool multi_token_ring = false) {
     ov::npuw::AddPositionIdsParam().run_on_model(model);
     ov::pass::StatefulToStateless().run_on_model(model);
     ov::npuw::DetectAttentionMask().run_on_model(model);
     ov::npuw::ReshapeToStatic(input_size, kvcache_size, kAxes, /*lora_rank=*/0, /*lhs_seq_size=*/0, is_prefill)
         .run_on_model(model);
-    ov::npuw::ShrinkSlidingWindowKVCache(kvcache_size, input_size, kAxes).run_on_model(model);
+    ov::npuw::ShrinkSlidingWindowKVCache(kvcache_size, input_size, kAxes, multi_token_ring).run_on_model(model);
     return model;
 }
 
@@ -262,6 +263,44 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, ChunkedPrefill_SlidingLayerKeepsWindowSiz
     EXPECT_EQ((*sliding_past)[2], kWindowSize);
 }
 
+// Multi-token generation (speculative / tree verification) writes all its input rows to the ring before the
+// rejected ones are dropped, so the ring gets input_size - 1 extra slots.
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_MultiTokenRingAddsSlackSlots) {
+    constexpr uint32_t kInputSize = 16;
+    std::shared_ptr<ov::Model> single;
+    std::shared_ptr<ov::Model> multi;
+    ASSERT_NO_THROW(single = run_shrink_pass(build_hybrid_model(), kInputSize, kKvCacheSize, /*is_prefill=*/false));
+    ASSERT_NO_THROW(multi = run_shrink_pass(build_hybrid_model(),
+                                            kInputSize,
+                                            kKvCacheSize,
+                                            /*is_prefill=*/false,
+                                            /*multi_token_ring=*/true));
+
+    // window=32, input=16: 16 + 32 = 48 -> past 32; with 15 slack slots 63 -> aligned 64 -> past 48.
+    const auto single_past = input_shape(single, "past_key_values.0.swa.key");
+    const auto multi_past = input_shape(multi, "past_key_values.0.swa.key");
+    ASSERT_TRUE(single_past.has_value() && multi_past.has_value());
+    EXPECT_EQ((*single_past)[2], aligned_past(kWindowSize, kInputSize));
+    EXPECT_EQ((*multi_past)[2], aligned_past(kWindowSize + kInputSize - 1, kInputSize));
+    EXPECT_GT((*multi_past)[2], (*single_past)[2]);
+}
+
+// A KV variant smaller than the window (e.g. the smallest generate pyramid variant) keeps its whole past, still
+// SWA-managed, instead of failing compilation.
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_WindowExceedsAvailablePast_KeepsWholePast) {
+    constexpr uint32_t kSmallKvCacheSize = 24;  // available_past = 23 < window (32).
+    std::shared_ptr<ov::Model> generate;
+    ASSERT_NO_THROW(generate = run_shrink_pass(build_hybrid_model(),
+                                               kGenerateInputSize,
+                                               kSmallKvCacheSize,
+                                               /*is_prefill=*/false));
+
+    const auto sliding_past = input_shape(generate, "past_key_values.0.swa.key");
+    ASSERT_TRUE(sliding_past.has_value()) << "past_key_values.0.swa.key not found in generate model";
+    EXPECT_EQ((*sliding_past)[2], kSmallKvCacheSize - kGenerateInputSize);
+    EXPECT_EQ(count_inputs(generate, "sliding_window_attention_mask"), 1u);
+}
+
 // Shape-privatization invariant: KV target-shape constants that carried the full kvcache
 // length are replaced by private constants holding the new post-concat KV total.
 TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingKVShapeConstantsPatchedToNewKvTotal) {
@@ -390,16 +429,6 @@ TEST(ShrinkSlidingWindowKVCacheDetectionTest, AllLayersCausal_NoOp) {
 TEST(ShrinkSlidingWindowKVCacheDetectionTest, InconsistentWindowSizes_Throws) {
     const auto model = make_annotated_sdpa_model(3, {{0, 128}, {1, -1}, {2, 256}});
     EXPECT_THROW(ov::npuw::ShrinkSlidingWindowKVCache(kKvCacheSize, kGenerateInputSize, kAxes).run_on_model(model),
-                 ov::Exception);
-}
-
-// Configuration error: the detected SWA window is larger than the KV budget actually
-// available (kvcache_size - input_size).
-TEST(ShrinkSlidingWindowKVCacheDetectionTest, WindowSizeExceedsAvailablePast_Throws) {
-    const auto model = make_annotated_sdpa_model(1, {{0, 128}});
-    constexpr uint32_t kSmallKvCacheSize = 100;
-    constexpr uint32_t kSmallInputSize = 50;  // available_past = 50 < window_size (128).
-    EXPECT_THROW(ov::npuw::ShrinkSlidingWindowKVCache(kSmallKvCacheSize, kSmallInputSize, kAxes).run_on_model(model),
                  ov::Exception);
 }
 

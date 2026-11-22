@@ -412,12 +412,30 @@ void Eagle3Extension::trim_kvcache_by_sampling(
 
         // Write accepted segments contiguously starting at gen_start_pos,
         // compacting the KV cache in-place to remove rejected-token entries.
+        // A sliding-window (SWA) ring keeps the token at position p in slot p % capacity, so its rows are moved slot
+        // by slot (in contiguous runs between wrap points).
+        const bool ring = uu::is_swa_kv_cache_name(input_name);
+        const uint32_t ring_cap = ring ? static_cast<uint32_t>(past_kv_tensor->get_shape()[current_kv_dim]) : 0u;
         uint32_t write_pos = gen_start_pos;
         for (const auto& seg : segments) {
             uint32_t read_start = gen_start_pos + seg.start_idx;
             uint32_t read_end = read_start + seg.length;
 
-            if (write_pos != read_start) {
+            if (ring) {
+                for (uint32_t done = 0; done < seg.length;) {
+                    const uint32_t src_slot = (read_start + done) % ring_cap;
+                    const uint32_t dst_slot = (write_pos + done) % ring_cap;
+                    const uint32_t run = std::min({seg.length - done, ring_cap - src_slot, ring_cap - dst_slot});
+                    if (src_slot != dst_slot) {
+                        auto src_slice =
+                            uu::make_tensor_slice(past_kv_tensor, current_kv_dim, src_slot, src_slot + run);
+                        auto dst_slice =
+                            uu::make_tensor_slice(past_kv_tensor, current_kv_dim, dst_slot, dst_slot + run);
+                        uu::copy_tensor_by_dim(src_slice, dst_slice, current_kv_dim, current_kv_dim);
+                    }
+                    done += run;
+                }
+            } else if (write_pos != read_start) {
                 auto src_slice = uu::make_tensor_slice(past_kv_tensor, current_kv_dim, read_start, read_end);
                 auto dst_slice =
                     uu::make_tensor_slice(past_kv_tensor, current_kv_dim, write_pos, write_pos + seg.length);

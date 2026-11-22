@@ -441,4 +441,77 @@ TEST_F(FillSlidingWindowAttentionMaskTest, TokenTypeIdsSizeMismatchThrows) {
                  ov::Exception);
 }
 
+class FillTreeSlidingWindowMaskTest : public ::testing::Test {};
+
+TEST_F(FillTreeSlidingWindowMaskTest, SiblingsShareTheirPositionWindowAndSeeOnlyTheirAncestors) {
+    // Wrapped ring: past_width=6, stored=8 => slot->abs=[6,7,2,3,4,5]; window=4.
+    // Tree: token 0 at position 8, tokens 1 and 2 are siblings at position 9 (both children of token 0).
+    auto mask = make_mask_tensor(/*rows=*/3u, /*cols=*/9u, /*init_value=*/777.f);
+    const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+    const float M = std::numeric_limits<float>::lowest();
+
+    // Staged like the full-attention tree mask, [1, 1, rows, kv]: the first 2 columns stand for past keys (ignored
+    // here), this call's tokens are the last 3.
+    auto tree_mask = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1u, 1u, 3u, 5u}));
+    const std::vector<std::vector<float>> tree_rows = {
+        {0.f, 0.f, 0.f, M, M},    // token 0: itself
+        {0.f, 0.f, 0.f, 0.f, M},  // token 1: token 0 and itself
+        {0.f, 0.f, 0.f, M, 0.f},  // token 2: token 0 and itself, not its sibling
+    };
+    float* tree_data = tree_mask->data<float>();
+    for (const auto& row : tree_rows) {
+        tree_data = std::copy(row.begin(), row.end(), tree_data);
+    }
+    const std::vector<int64_t> positions = {8, 9, 9};
+
+    uu::fill_tree_sliding_window_mask(mask,
+                                      tree_mask,
+                                      positions.data(),
+                                      /*num_stored_tokens=*/8u,
+                                      /*num_new_tokens=*/3u,
+                                      /*window_size=*/4u,
+                                      /*past_is_circular=*/true);
+
+    // row 0 (q=8): past abs 5..7 = slots 5, 0, 1; only itself among the new tokens.
+    const std::vector<float> row0 = {0.f, 0.f, kMasked, kMasked, kMasked, 0.f, 0.f, kMasked, kMasked};
+    // rows 1, 2 (q=9): past abs 6, 7 = slots 0, 1 (abs 5 left the window); token 0 and itself, not the sibling.
+    const std::vector<float> row1 = {0.f, 0.f, kMasked, kMasked, kMasked, kMasked, 0.f, 0.f, kMasked};
+    const std::vector<float> row2 = {0.f, 0.f, kMasked, kMasked, kMasked, kMasked, 0.f, kMasked, 0.f};
+    for (uint32_t col = 0; col < 9u; ++col) {
+        EXPECT_FLOAT_EQ(mask_at(mask, 0u, col), row0[col]) << "row 0, col " << col;
+        EXPECT_FLOAT_EQ(mask_at(mask, 1u, col), row1[col]) << "row 1, col " << col;
+        EXPECT_FLOAT_EQ(mask_at(mask, 2u, col), row2[col]) << "row 2, col " << col;
+    }
+}
+
+TEST_F(FillTreeSlidingWindowMaskTest, LeavesPaddingRowsUntouched) {
+    // One new token in a 2-row call: row 0 is padding, row 1 is the token at position 3 (stored=3, past_width=4).
+    auto mask = make_mask_tensor(/*rows=*/2u, /*cols=*/6u, /*init_value=*/777.f);
+    const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+
+    auto tree_mask = ov::get_tensor_impl(ov::Tensor(ov::element::f16, ov::Shape{1u, 1u, 2u, 2u}));
+    const std::vector<ov::float16> tree_values = {ov::float16(0.f),
+                                                  std::numeric_limits<ov::float16>::lowest(),
+                                                  std::numeric_limits<ov::float16>::lowest(),
+                                                  ov::float16(0.f)};
+    std::copy(tree_values.begin(), tree_values.end(), tree_mask->data<ov::float16>());
+    const std::vector<int64_t> positions = {3};
+
+    uu::fill_tree_sliding_window_mask(mask,
+                                      tree_mask,
+                                      positions.data(),
+                                      /*num_stored_tokens=*/3u,
+                                      /*num_new_tokens=*/1u,
+                                      /*window_size=*/8u,
+                                      /*past_is_circular=*/true);
+
+    for (uint32_t col = 0; col < 6u; ++col) {
+        EXPECT_FLOAT_EQ(mask_at(mask, 0u, col), 777.f) << "padding row, col " << col;
+    }
+    const std::vector<float> row1 = {0.f, 0.f, 0.f, kMasked, kMasked, 0.f};
+    for (uint32_t col = 0; col < 6u; ++col) {
+        EXPECT_FLOAT_EQ(mask_at(mask, 1u, col), row1[col]) << "row 1, col " << col;
+    }
+}
+
 }  // namespace ov::test::npuw

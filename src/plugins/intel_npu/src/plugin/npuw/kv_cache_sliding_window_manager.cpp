@@ -367,6 +367,129 @@ void ov::npuw::util::fill_sliding_window_attention_mask(
     }
 }
 
+namespace {
+
+template <typename T, typename U>
+void fill_tree_sliding_window_mask_typed(const MaskView& mask_view,
+                                         const U* tree_mask,
+                                         size_t tree_cols,
+                                         const int64_t* row_positions,
+                                         uint32_t num_stored_tokens,
+                                         uint32_t window_size,
+                                         bool past_is_circular) {
+    const T kAttend = T(0.0f);
+    const T kMasked = T(std::numeric_limits<ov::float16>::lowest());
+    const int64_t past_width = static_cast<int64_t>(mask_view.past_width);
+    const int64_t stored = static_cast<int64_t>(num_stored_tokens);
+    // Absolute positions held by the past region (same slot layout as fill_causal_sliding_window_mask_typed).
+    const int64_t first_past_abs = std::max<int64_t>(0, stored - past_width);
+    T* base = static_cast<T*>(mask_view.data);
+    for (uint32_t row = mask_view.row_pad; row < mask_view.row_dim; ++row) {
+        T* row_ptr = base + static_cast<size_t>(row) * mask_view.col_dim;
+        std::fill_n(row_ptr, mask_view.col_dim, kMasked);
+
+        // Past: abs in [pos - window + 1, stored - 1], mapped to slots in contiguous runs.
+        const int64_t pos = row_positions[row - mask_view.row_pad];
+        const int64_t last = std::min(stored - 1, pos);
+        for (int64_t abs = std::max(first_past_abs, pos - static_cast<int64_t>(window_size) + 1); abs <= last;) {
+            int64_t slot = abs;
+            int64_t run = last - abs + 1;
+            if (past_is_circular) {
+                slot = abs % past_width;
+                run = std::min(run, past_width - slot);
+            } else if (stored >= past_width) {
+                slot = abs - (stored - past_width);  // chronologically packed
+            }
+            std::fill_n(row_ptr + slot, static_cast<size_t>(run), kAttend);
+            abs += run;
+        }
+
+        // This call's tokens: as the tree mask says (its last row_dim columns).
+        const U* tree_row = tree_mask + static_cast<size_t>(row) * tree_cols + (tree_cols - mask_view.row_dim);
+        for (uint32_t col = mask_view.row_pad; col < mask_view.row_dim; ++col) {
+            if (static_cast<float>(tree_row[col]) > -1.0f) {
+                row_ptr[mask_view.past_width + col] = kAttend;
+            }
+        }
+    }
+}
+
+template <typename T>
+void fill_tree_sliding_window_mask_dispatch(const MaskView& mask_view,
+                                            const ov::SoPtr<ov::ITensor>& tree_mask_tensor,
+                                            const int64_t* row_positions,
+                                            uint32_t num_stored_tokens,
+                                            uint32_t window_size,
+                                            bool past_is_circular) {
+    const size_t tree_cols = tree_mask_tensor->get_shape().back();
+    switch (tree_mask_tensor->get_element_type()) {
+    case ov::element::f32:
+        fill_tree_sliding_window_mask_typed<T>(mask_view,
+                                               tree_mask_tensor->data<float>(),
+                                               tree_cols,
+                                               row_positions,
+                                               num_stored_tokens,
+                                               window_size,
+                                               past_is_circular);
+        break;
+    case ov::element::f16:
+        fill_tree_sliding_window_mask_typed<T>(mask_view,
+                                               tree_mask_tensor->data<ov::float16>(),
+                                               tree_cols,
+                                               row_positions,
+                                               num_stored_tokens,
+                                               window_size,
+                                               past_is_circular);
+        break;
+    default:
+        OPENVINO_THROW("fill_tree_sliding_window_mask: unsupported tree mask element type ",
+                       tree_mask_tensor->get_element_type());
+    }
+}
+
+}  // namespace
+
+void ov::npuw::util::fill_tree_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                                   const ov::SoPtr<ov::ITensor>& tree_mask_tensor,
+                                                   const int64_t* row_positions,
+                                                   uint32_t num_stored_tokens,
+                                                   uint32_t num_new_tokens,
+                                                   uint32_t window_size,
+                                                   bool past_is_circular) {
+    const auto mask_view = get_mask_view(mask_tensor, num_new_tokens, "fill_tree_sliding_window_mask");
+    OPENVINO_ASSERT(window_size > 0, "fill_tree_sliding_window_mask: window_size must be > 0");
+    const auto& tree_shape = tree_mask_tensor->get_shape();
+    OPENVINO_ASSERT(tree_shape.size() >= 2 && tree_shape[tree_shape.size() - 2] == mask_view.row_dim &&
+                        tree_shape.back() >= mask_view.row_dim,
+                    "fill_tree_sliding_window_mask: tree mask shape ",
+                    tree_shape,
+                    " does not cover the ",
+                    mask_view.row_dim,
+                    " query rows");
+    OPENVINO_ASSERT(!past_is_circular || mask_view.past_width > 0,
+                    "fill_tree_sliding_window_mask: a circular past needs a past region");
+    switch (mask_view.element_type) {
+    case ov::element::f32:
+        fill_tree_sliding_window_mask_dispatch<float>(mask_view,
+                                                      tree_mask_tensor,
+                                                      row_positions,
+                                                      num_stored_tokens,
+                                                      window_size,
+                                                      past_is_circular);
+        break;
+    case ov::element::f16:
+        fill_tree_sliding_window_mask_dispatch<ov::float16>(mask_view,
+                                                            tree_mask_tensor,
+                                                            row_positions,
+                                                            num_stored_tokens,
+                                                            window_size,
+                                                            past_is_circular);
+        break;
+    default:
+        OPENVINO_THROW("fill_tree_sliding_window_mask: unsupported mask element type ", mask_view.element_type);
+    }
+}
+
 void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_tensor,
                                                      ov::SoPtr<ov::ITensor> src_new_kv,
                                                      uint32_t dst_kv_dim,
