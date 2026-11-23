@@ -410,7 +410,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_transposed_param_weig
                                             ::testing::Values(false),
                                             ::testing::Values(true),
                                             ::testing::Values(0),
-                                            ::testing::Values(1.0f)),
+                                            ::testing::Values(1.0f),
+                                            ::testing::Values(ov::hint::ExecutionMode::PERFORMANCE)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 // per_tensor_zp=0 is not supported
@@ -541,7 +542,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
 smoke_MatMulCompressedWeights_dyn_quan_mxfp4,
 MatmulWeightsDecompression,
-::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{1, 1, 128}, {8, 1, 128}}}, {128, 1024}, 32}),  // shape
+::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}, {8, 1, 4096}}}, {4096, 1024}, 32}),  // shape
                       ::testing::ValuesIn({ov::element::f4e2m1}),
                       ::testing::Values(ov::element::f16),
                       ::testing::Values(ov::element::f8e8m0),
@@ -552,7 +553,24 @@ MatmulWeightsDecompression,
                       ::testing::Values(false),
                       ::testing::Values(32),
                       ::testing::Values(3.0f),
-                      ::testing::ValuesIn({ov::hint::ExecutionMode::PERFORMANCE, ov::hint::ExecutionMode::ACCURACY})),
+                      ::testing::Values(ov::hint::ExecutionMode::PERFORMANCE)),
+   MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(
+smoke_MatMulCompressedWeights_dyn_quan_mxfp4_mxfp8,
+MatmulWeightsDecompression,
+::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}, {8, 1, 4096}}}, {4096, 1024}, 32}),  // shape
+                      ::testing::ValuesIn({ov::element::f4e2m1}),
+                      ::testing::Values(ov::element::f16),
+                      ::testing::Values(ov::element::f8e8m0),
+                      ::testing::Values(true),
+                      ::testing::Values(ov::test::utils::DecompressionType::empty),
+                      ::testing::Values(false),
+                      ::testing::Values(false),
+                      ::testing::Values(false),
+                      ::testing::Values(32),
+                      ::testing::Values(3.0f),
+                      ::testing::Values(ov::hint::ExecutionMode::ACCURACY)), // quantizes activations to mxfp8 if weights are mxfp4
    MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -654,6 +672,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_gemm_output_coherency,
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(0),
-                                            ::testing::Values(1.0f)),
+                                            ::testing::Values(1.0f),
+                                            ::testing::Values(ov::hint::ExecutionMode::PERFORMANCE)),
                          MatmulWeightsDecompression::get_test_case_name);
 } // namespace
