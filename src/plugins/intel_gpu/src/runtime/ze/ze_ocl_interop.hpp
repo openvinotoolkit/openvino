@@ -67,7 +67,7 @@ public:
     bool check_support(ze_device_handle_t ze_device) const;
 
     cl_device_id find_ocl_device(ze_device_handle_t ze_device) const;
-    ze_driver_handle_t find_ze_driver(cl_device_id ocl_device) const;
+    static ze_driver_handle_t find_ze_driver(cl_device_id ocl_device);
 
     ze_context_handle_t get_ze_context(cl_context context) const;
     ze_command_list_handle_t get_ze_cmd_list(cl_command_queue queue) const;
@@ -80,8 +80,8 @@ public:
     cl_context create_cl_context(ze_context_handle_t context, const ocl_context_args& args) const;
     cl_command_queue create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args) const;
     cl_mem create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args) const;
-    cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args) const;  // from 1 ZE image
-    cl_mem create_cl_image(const std::vector<ze_image_handle_t>& images, const ocl_image_args& args) const; // from multiple ZE images
+    cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args);  // from 1 ZE image
+    cl_mem create_cl_image(const std::vector<ze_image_handle_t>& images, const ocl_image_args& args); // from multiple ZE images
 protected:
     ze_ocl_interop() = default;
     /// @brief Initialize OpenCL and L0 drivers and fill device_map
