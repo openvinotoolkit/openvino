@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <tuple>
 #include <unordered_map>
 
@@ -36,8 +37,7 @@ public:
     Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id.
-    // host_access: the host reads this tensor at inference time (host gather, CPU unpack), so it must stay cacheable.
-    int64_t registerLT(const LazyTensor& tensor, const std::string& device, bool host_access = false);
+    int64_t registerLT(const LazyTensor& tensor, const std::string& device, ov::AnyMap params = {});
 
     // Get registered, allocated and evaluated tensor on a specified device
     ov::Tensor get(int64_t uid, const std::string& device);
@@ -57,7 +57,7 @@ private:
     struct StoredTensor {
         LazyTensor lt;
         ov::Tensor tensor;
-        bool host_access = false;
+        std::optional<ov::AnyMap> params;
     };
     // Bank for specified device and their allocated memory
     struct DeviceBank {

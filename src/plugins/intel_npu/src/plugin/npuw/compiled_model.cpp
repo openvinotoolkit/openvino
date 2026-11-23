@@ -23,6 +23,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
@@ -1949,30 +1950,7 @@ void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    // True if the host reads this closure at inference time (host gather source, quantized gather source, or CPU
-    // unpack because the closure type differs from the function's port type); such weights must stay cacheable.
-    auto closure_read_by_host = [&](std::size_t idx, std::size_t tidx) {
-        const auto& desc = m_compiled_submodels[idx];
-        const auto& func_desc = m_compiled_submodels[desc.replaced_by.value_or(idx)];
-        const auto pid = static_cast<int64_t>(desc.param_base + tidx);
-        for (const auto* d : {&desc, &func_desc}) {
-            if (d->host_gather.dst_idx != -1 && d->host_gather.src_idx == pid) {
-                return true;
-            }
-            const auto& qg = d->quant_unpack_gather;
-            if (qg.dst_idx != -1 && (qg.src_w_idx == pid || qg.src_z_idx == pid || qg.src_s_idx == pid)) {
-                return true;
-            }
-        }
-        if (func_desc.compiled_model) {
-            const auto& iport = func_desc.compiled_model->inputs()[desc.param_base + tidx];
-            if (desc.lazy_closure[tidx].eval_meta().type != iport.get_element_type()) {
-                return true;
-            }
-        }
-        return false;
-    };
-    auto finalize_weights = [&, closure_read_by_host]() {
+    auto finalize_weights = [&, this]() {
         // Register lazy tensors
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1993,10 +1971,14 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
+                ov::AnyMap params;
+                if (!this->is_read_by_host_closure(idx, tidx)) {
+                    params.insert(ov::intel_npu::tensor_type(ov::intel_npu::TensorType::INPUT));
+                }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
                     m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx],
                                                submodel_device(real_idx),
-                                               closure_read_by_host(idx, tidx));
+                                               std::move(params));
             }
         }
 
@@ -2997,10 +2979,31 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
     auto& func_desc = m_compiled_submodels.at(real_idx);
 
     auto& closure = comp_model_desc.closure.get().closure.at(cidx);
-    const auto closure_param_id = comp_model_desc.param_base + cidx;
+    const auto closure_param_id = comp_model_desc.get_closure_param_id(cidx);
 
     auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
     return (closure.get_element_type() != iport.get_element_type());
+}
+
+bool ov::npuw::CompiledModel::is_read_by_host_closure(const std::size_t idx, const std::size_t cidx) const {
+    // True if the host reads this closure at inference time (host gather source, quantized gather source, or CPU
+    // unpack because the closure type differs from the function's port type); such weights must stay cacheable.
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    auto& func_desc = m_compiled_submodels.at(real_idx);
+
+    for (const auto* d : {&comp_model_desc, &func_desc}) {
+        if (d->need_to_share_on_host_with(cidx)) {
+            return true;
+        }
+    }
+    if (func_desc.compiled_model) {
+        const auto& iport = func_desc.compiled_model->inputs()[comp_model_desc.get_closure_param_id(cidx)];
+        if (comp_model_desc.lazy_closure[cidx].eval_meta().type != iport.get_element_type()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std::size_t cidx) const {
@@ -3008,7 +3011,7 @@ bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_compiled_submodels.at(real_idx);
 
-    const auto closure_param_id = comp_model_desc.param_base + cidx;
+    const auto closure_param_id = comp_model_desc.get_closure_param_id(cidx);
 
     if (func_desc.host_gather.dst_idx != -1 &&
         static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {

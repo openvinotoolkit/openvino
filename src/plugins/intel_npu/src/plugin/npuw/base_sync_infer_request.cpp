@@ -355,7 +355,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
 
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
         auto& closure = desc_closure[cidx];
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
+        const auto closure_param_id = comp_model_desc.get_closure_param_id(cidx);
 
         if (m_npuw_model->is_gather_closure(idx, cidx)) {
             // No need to set/copy the host_gather's closure tensor int
@@ -383,7 +383,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     ov::parallel_for(closure_copy_required.size(), [&](std::size_t j) {
         auto cidx = closure_copy_required[j];
         auto& closure = desc_closure[cidx];
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
+        const auto closure_param_id = comp_model_desc.get_closure_param_id(cidx);
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         auto clparam = request->get_tensor(iport);
         ov::get_tensor_impl(closure)->copy_to(clparam._ptr);
@@ -399,7 +399,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         // FIXME: zerops are stored with absolute indexing, this needs to be aligned
         auto& closure = desc_closure[cidx];
 
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
+        const auto closure_param_id = comp_model_desc.get_closure_param_id(cidx);
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         auto clparam = request->get_tensor(iport);
 

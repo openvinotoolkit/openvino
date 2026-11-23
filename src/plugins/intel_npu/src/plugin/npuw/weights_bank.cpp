@@ -54,7 +54,24 @@ Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& allo
     }
 }
 
-int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device, bool host_access) {
+static void merge_tensor_params(std::optional<ov::AnyMap>& stored_params, ov::AnyMap params) {
+    if (!stored_params) {
+        stored_params = std::move(params);
+        return;
+    }
+
+    const auto tensor_type = ov::intel_npu::tensor_type.name();
+    if (params.count(tensor_type) == 0) {
+        stored_params->erase(tensor_type);
+    }
+    for (auto& param : params) {
+        if (param.first != tensor_type || stored_params->count(tensor_type) != 0) {
+            stored_params->insert_or_assign(param.first, std::move(param.second));
+        }
+    }
+}
+
+int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device, ov::AnyMap params) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::unique_lock guard(m_mutex);
@@ -66,11 +83,12 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device, bo
         NPUW_ASSERT(uid_count < std::numeric_limits<int64_t>::max() && "Weights bank uid space exhausted");
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
-        device_bank.storage[uid] = {tensor, ov::Tensor(), host_access};
+        auto& stored_tensor = device_bank.storage[uid];
+        stored_tensor.lt = tensor;
+        merge_tensor_params(stored_tensor.params, std::move(params));
         return uid;
     } else {
-        // A tensor shared by several closures stays cacheable if any of them is read by the host
-        device_bank.storage.at(iter_registered->second).host_access |= host_access;
+        merge_tensor_params(device_bank.storage.at(iter_registered->second).params, std::move(params));
         // Already registered - can be safely detach the incoming tensor
         const_cast<LazyTensor&>(tensor).detach();
     }
@@ -113,7 +131,7 @@ struct TensorToAllocate {
     LazyTensor::Meta meta;
     ov::Tensor allocated_tensor;
     int64_t uid;
-    bool host_access = false;
+    ov::AnyMap params;
 };
 
 // PoC gate (HSD 22023555429): NPUW_WC_WEIGHTS=1 allocates NPU-only weights write-combined, i.e. not snooped by the NPU.
@@ -186,7 +204,8 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid, device_bank.storage.at(uid).host_access});
+        uids_to_allocated.push_back(
+            {lt.eval_meta(), ov::Tensor(), uid, device_bank.storage.at(uid).params.value_or(ov::AnyMap{})});
     }
     // Sort by UIDs, lowest first
     std::sort(uids_to_allocated.begin(),
@@ -196,18 +215,16 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
               });
 
     // Allocate memory sequentially - in order of UID
-    auto remote_ctx = m_core->get_default_context(device)._ptr;
-    // tensor_type INPUT makes the NPU plugin allocate with ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED
     const bool use_wc = wc_weights_requested() && ov::npuw::util::starts_with(device, "NPU");
-    ov::SoPtr<ov::IRemoteContext> wc_ctx;
-    if (use_wc) {
-        wc_ctx = m_core->create_context(device, {ov::intel_npu::tensor_type(ov::intel_npu::TensorType::INPUT)});
-    }
     std::size_t n_wc = 0, n_cached = 0, bytes_wc = 0, bytes_cached = 0;
     for (auto&& allocated : uids_to_allocated) {
-        const bool wc = use_wc && !allocated.host_access;
-        const auto& ctx = wc ? wc_ctx._ptr : remote_ctx;
-        ov::SoPtr<ov::ITensor> remote_tensor = ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
+        if (!use_wc) {
+            allocated.params.erase(ov::intel_npu::tensor_type.name());
+        }
+        const bool wc = allocated.params.count(ov::intel_npu::tensor_type.name()) != 0;
+        auto ctx = allocated.params.empty() ? m_core->get_default_context(device)
+                                            : m_core->create_context(device, allocated.params);
+        ov::SoPtr<ov::ITensor> remote_tensor = ctx._ptr->create_host_tensor(allocated.meta.type, allocated.meta.shape);
         allocated.allocated_tensor = ov::make_tensor(remote_tensor);
         (wc ? n_wc : n_cached)++;
         (wc ? bytes_wc : bytes_cached) += allocated.allocated_tensor.get_byte_size();
