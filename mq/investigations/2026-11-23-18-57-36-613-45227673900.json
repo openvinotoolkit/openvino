@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-18-57-36-613-45227673900",
+  "timestamp": "2026-11-23T18:57:36Z",
+  "run_id": "45227673900",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45227673900",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39030",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39030",
+  "author": "jkasprza",
+  "category": "Flaky Test",
+  "title": "PyTorch layer test test_tuple_unpack fails with TorchScript method redefinition on retry",
+  "signature": "couldn't get torchscript module by scripting: retrying hit method redefinition|Flaky Test",
+  "signature_hash": "184bee2aff548cb1",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Pytorch Layer Tests / PyTorch Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_tuple_unpack.py::TestTupleUnpack::test_tuple_unpack fails: RuntimeError on retry after TorchScript scripting error"
+    }
+  ],
+  "key_errors": [
+    "FAILED ../../../home/runner/_work/openvino/openvino/install/tests/layer_tests/pytorch_tests/test_tuple_unpack.py::TestTupleUnpack::test_tuple_unpack[ ie_device:CPU - precision:FP32 ] - RuntimeError: Retrying hit TorchScript method redefinition and can mask the original failure. First error: Couldn't get TorchScript module by scripting.",
+    "builtin cannot be used as a tuple: File \"test_tuple_unpack.py\", line 24, N, _, H, W = self.dims",
+    "Last error: Couldn't get TorchScript module by scripting. Exception: Can't redefine method: forward on class: __torch__.test_tuple_unpack.TupleArgument"
+  ],
+  "root_cause": "The pytest retry/rerun mechanism for layer tests re-invokes the test's model-tracing helper after an initial TorchScript scripting failure (caused by unpacking a tuple attribute with `_` placeholders, which `torch.jit.script` cannot handle via `builtin cannot be used as a tuple`). The retry attempts to redefine the `forward` method on an already-compiled TorchScript compilation unit, which PyTorch disallows, masking the original error with 'Can't redefine method: forward'. This is unrelated to the PR under test (src/plugins/intel_gpu/src/graph/impls/ocl/kernels_cache.cpp, a GPU kernel compile-flag change) and does not touch PyTorch frontend code; the same signature was previously observed in run 33753760233 (PR #37799) on 2026-09-03.",
+  "reproduction_steps": "cd src/bindings/python/tests/layer_tests && python -m pytest pytorch_tests/test_tuple_unpack.py::TestTupleUnpack::test_tuple_unpack -k 'CPU and FP32' (reproduces intermittently; requires pytest-rerunfailures retry behavior to trigger the method-redefinition path).",
+  "recommended_actions": [
+    "Disable or special-case pytest automatic retries for test_tuple_unpack (and other tests whose model triggers torch.jit.script failures) so retries don't attempt to redefine a TorchScript module in the same compilation unit.",
+    "Fix the underlying scripting incompatibility in test_tuple_unpack.py: the `N, _, H, W = self.dims` tuple-unpack-with-placeholder pattern is not supported by torch.jit.script; rewrite without the `_` placeholder or force tracing (example_input) instead of scripting for this test.",
+    "No action required on PR #39030 itself; this is an unrelated pre-existing flaky test in the merge queue."
+  ],
+  "prevention_strategies": "Add torch.jit.script compatibility checks for layer-test forward() methods that use starred/placeholder tuple unpacking in CI linting, and avoid relying on the pytest retry-on-failure mechanism for tests whose failure mode (TorchScript module redefinition) is itself non-idempotent across retries.",
+  "historical_context": "Identical failure signature (184bee2aff548cb1) previously recorded on 2026-09-03T13:13:23Z in run 33753760233 (PR #37799). This is occurrence #2 in the knowledge base; the rerun_search_string 'Couldn't get TorchScript module by scripting' is already approved in .github/scripts/workflow_rerun/errors_to_look_for.json, so the automated workflow rerunner should already catch and retry this class of failure."
+}

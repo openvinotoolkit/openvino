@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 498,
+  "total": 499,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5411,6 +5411,17 @@
       "category": "Network",
       "signature_hash": "a3d456bd40bd9f42",
       "pr_number": "40116"
+    },
+    {
+      "investigation_id": "2026-11-23-18-57-36-613-45227673900",
+      "run_id": "45227673900",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45227673900",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-23T18:57:36Z",
+      "title": "PyTorch layer test test_tuple_unpack fails with TorchScript method redefinition on retry",
+      "category": "Flaky Test",
+      "signature_hash": "184bee2aff548cb1",
+      "pr_number": "39030"
     }
   ]
 }
