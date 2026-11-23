@@ -6,6 +6,7 @@
 #include "program_wrapper.h"
 #include "pass_manager.h"
 
+#include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
 using namespace cldnn;
@@ -451,5 +452,163 @@ TEST(propagate_constants, custom_outputs_of_the_main_program) {
     auto out = get_output_values_to_float(network, outputs.at("out"));
     for (size_t i = 0; i < in_values.size(); ++i) {
         ASSERT_FLOAT_EQ(out[i], in_values[i] + a_values[i] + b_values[i]) << "i=" << i;
+    }
+}
+
+// Verifies that a concat inside a constant subgraph is computed and not left to run in place: the subgraph is executed
+// without the in-place buffers of the main program, so an in-place concat would read buffers its inputs never wrote.
+//
+// Topology:
+//   data("a") --+--> eltwise("w_sum", a + b)  --+
+//   data("b") --+--> eltwise("w_prod", a * b) --+--> concatenation("w_cat", feature) --> eltwise("out", sum with input)
+TEST(propagate_constants, concat_in_subgraph) {
+    auto& engine = get_test_engine();
+
+    const auto l = layout{{1, 2, 2, 2}, data_types::f32, format::bfyx};
+    const auto out_layout = layout{{1, 4, 2, 2}, data_types::f32, format::bfyx};
+    const std::vector<float> a_values = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+    const std::vector<float> b_values = {0.5f, -1.f, 2.f, 0.25f, -0.5f, 1.5f, 3.f, -2.f};
+    std::vector<float> in_values(out_layout.count());
+    for (size_t i = 0; i < in_values.size(); ++i) {
+        in_values[i] = 100.f + static_cast<float>(i);
+    }
+    auto a = engine.allocate_memory(l);
+    auto b = engine.allocate_memory(l);
+    set_values(a, a_values);
+    set_values(b, b_values);
+
+    topology topology(input_layout("input", out_layout),
+                      data("a", a),
+                      data("b", b),
+                      eltwise("w_sum", input_info("a"), input_info("b"), eltwise_mode::sum),
+                      eltwise("w_prod", input_info("a"), input_info("b"), eltwise_mode::prod),
+                      concatenation("w_cat", {input_info("w_sum"), input_info("w_prod")}, 1),
+                      eltwise("out", input_info("input"), input_info("w_cat"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    ASSERT_TRUE(network.get_program()->get_node("w_cat").is_type<data>());
+
+    auto input = engine.allocate_memory(out_layout);
+    set_values(input, in_values);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto out = get_output_values_to_float(network, outputs.at("out"));
+    ASSERT_EQ(out.size(), in_values.size());
+    for (size_t i = 0; i < a_values.size(); ++i) {
+        ASSERT_FLOAT_EQ(out[i], in_values[i] + a_values[i] + b_values[i]) << "i=" << i;
+        ASSERT_FLOAT_EQ(out[a_values.size() + i], in_values[a_values.size() + i] + a_values[i] * b_values[i]) << "i=" << i;
+    }
+}
+
+// Verifies a subgraph with two outputs where one reads the other: the first is replaced by data while the second, a
+// constant user that is replaced after it, is disconnected from it on both sides.
+//
+// Topology:
+//   data("a") --+--> eltwise("w_sum", a + b) --+--> eltwise("out1", sum with input)
+//   data("b") --+                              +--> eltwise("w_prod", w_sum * b) --> eltwise("out2", sum with input)
+TEST(propagate_constants, output_read_by_another_output) {
+    auto& engine = get_test_engine();
+
+    const auto l = layout{{1, 1, 2, 2}, data_types::f32, format::bfyx};
+    const std::vector<float> a_values = {1.f, 2.f, 3.f, 4.f};
+    const std::vector<float> b_values = {0.5f, -1.f, 2.f, 0.25f};
+    const std::vector<float> in_values = {10.f, 20.f, 30.f, 40.f};
+    auto a = engine.allocate_memory(l);
+    auto b = engine.allocate_memory(l);
+    set_values(a, a_values);
+    set_values(b, b_values);
+
+    topology topology(input_layout("input", l),
+                      data("a", a),
+                      data("b", b),
+                      eltwise("w_sum", input_info("a"), input_info("b"), eltwise_mode::sum),
+                      eltwise("w_prod", input_info("w_sum"), input_info("b"), eltwise_mode::prod),
+                      eltwise("out1", input_info("input"), input_info("w_sum"), eltwise_mode::sum),
+                      eltwise("out2", input_info("input"), input_info("w_prod"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    for (const std::string id : {"w_sum", "w_prod"}) {
+        auto& node = prog->get_node(id);
+        ASSERT_TRUE(node.is_type<data>()) << id;
+        ASSERT_TRUE(node.get_dependencies().empty()) << id;
+        for (auto* user : node.get_users()) {
+            ASSERT_FALSE(user->is_constant()) << id << " -> " << user->id();
+        }
+    }
+
+    auto input = engine.allocate_memory(l);
+    set_values(input, in_values);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto out1 = get_output_values_to_float(network, outputs.at("out1"));
+    auto out2 = get_output_values_to_float(network, outputs.at("out2"));
+    for (size_t i = 0; i < in_values.size(); ++i) {
+        ASSERT_FLOAT_EQ(out1[i], in_values[i] + a_values[i] + b_values[i]) << "i=" << i;
+        ASSERT_FLOAT_EQ(out2[i], in_values[i] + (a_values[i] + b_values[i]) * b_values[i]) << "i=" << i;
+    }
+}
+
+// Verifies that subgraphs of different sizes give correct results when the small ones run together in one batch
+// (a batch allocates no more than the largest subgraph).
+//
+// Topology: for k = 0..3, data("w<k>") * data("c<k>") --> eltwise("e<k>") --> eltwise("out<k>", sum with input<k>);
+// subgraph 0 is 16 times larger than the others.
+TEST(propagate_constants, small_subgraphs_batched_next_to_a_large_one) {
+    auto& engine = get_test_engine();
+
+    const std::vector<layout> layouts = {layout{{1, 16, 4, 4}, data_types::f32, format::bfyx},
+                                         layout{{1, 1, 4, 4}, data_types::f32, format::bfyx},
+                                         layout{{1, 1, 4, 4}, data_types::f32, format::bfyx},
+                                         layout{{1, 1, 4, 4}, data_types::f32, format::bfyx}};
+    topology topology;
+    std::vector<std::vector<float>> w_values, c_values, in_values;
+    for (size_t k = 0; k < layouts.size(); ++k) {
+        const auto n = layouts[k].count();
+        std::vector<float> w(n), c(n), in(n);
+        for (size_t i = 0; i < n; ++i) {
+            w[i] = static_cast<float>(k + 1) * 0.5f + static_cast<float>(i % 7);
+            c[i] = static_cast<float>(i % 5) - 2.f;
+            in[i] = 10.f * static_cast<float>(k) + static_cast<float>(i % 3);
+        }
+        auto w_mem = engine.allocate_memory(layouts[k]);
+        auto c_mem = engine.allocate_memory(layouts[k]);
+        set_values(w_mem, w);
+        set_values(c_mem, c);
+        const auto s = std::to_string(k);
+        topology.add(input_layout("input" + s, layouts[k]),
+                     data("w" + s, w_mem),
+                     data("c" + s, c_mem),
+                     eltwise("e" + s, input_info("w" + s), input_info("c" + s), eltwise_mode::prod),
+                     eltwise("out" + s, input_info("input" + s), input_info("e" + s), eltwise_mode::sum));
+        w_values.push_back(std::move(w));
+        c_values.push_back(std::move(c));
+        in_values.push_back(std::move(in));
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    for (size_t k = 0; k < layouts.size(); ++k) {
+        const auto s = std::to_string(k);
+        ASSERT_TRUE(network.get_program()->get_node("e" + s).is_type<data>()) << k;
+        auto input = engine.allocate_memory(layouts[k]);
+        set_values(input, in_values[k]);
+        network.set_input_data("input" + s, input);
+    }
+    auto outputs = network.execute();
+    for (size_t k = 0; k < layouts.size(); ++k) {
+        auto out = get_output_values_to_float(network, outputs.at("out" + std::to_string(k)));
+        ASSERT_EQ(out.size(), in_values[k].size());
+        for (size_t i = 0; i < out.size(); ++i) {
+            ASSERT_FLOAT_EQ(out[i], in_values[k][i] + w_values[k][i] * c_values[k][i]) << "k=" << k << " i=" << i;
+        }
     }
 }

@@ -1346,7 +1346,7 @@ std::vector<std::pair<primitive_inst*, int>> network::get_primitives(const std::
     return result;
 }
 
-std::shared_ptr<primitive_inst> network::add_primitive(const program_node& node) {
+std::shared_ptr<primitive_inst> network::add_detached_instance(const program_node& node) {
     // Not allocate_primitive_instance: the instance is temporary, so it is neither an input or output of the network nor
     // transferred to the device
     auto inst = node.type()->create_instance(*this, node);
@@ -1357,10 +1357,11 @@ std::shared_ptr<primitive_inst> network::add_primitive(const program_node& node)
     }
     OPENVINO_ASSERT(_primitives.emplace(node.id(), inst).second, "[GPU] Primitive instance ", node.id(), " already exists");
     inst->build_deps();
+    inst->configure_shape_of_dependencies();
     return inst;
 }
 
-void network::remove_primitive(const primitive_id& id) {
+void network::remove_detached_instance(const primitive_id& id) {
     OPENVINO_ASSERT(_primitives.erase(id) == 1, "[GPU] No primitive instance ", id, " to remove");
 }
 

@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "data_inst.h"
+#include "debug_helper.hpp"
 #include "impls/ocl/kernels_cache.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -116,24 +117,26 @@ void propagate_constants::run(program& p) {
                 }
             }
         }
-        build_kernels(p, subgraphs);
-
-        // An empty network only provides the stream and the memory allocation for the instances of the constant nodes.
-        // The custom outputs name nodes of the main program, which this one does not have.
+        // An empty program provides the kernels cache, the stream and the memory allocation for the instances of the
+        // constant nodes. The custom outputs name nodes of the main program, which this one does not have.
         ExecutionConfig context_config = p.get_config().clone();
         context_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{}));
         auto context = program::build_program(p.get_engine(), topology(), context_config, p.get_task_executor(), true);
+        build_kernels(subgraphs, context->get_kernels_cache());
         auto net = network::allocate_network(p.get_engine(), context, true, true);
-        for (const auto& subgraph : subgraphs) {
+
+        for (const auto& [begin, end] : make_batches(subgraphs)) {
             std::vector<program_node*> inputs;
-            for (auto* node : subgraph) {
-                for (const auto& dep : node->get_dependencies()) {
-                    if (dep.first->is_type<data>() && std::find(inputs.begin(), inputs.end(), dep.first) == inputs.end()) {
-                        inputs.push_back(dep.first);
+            for (size_t s = begin; s < end; ++s) {
+                for (auto* node : subgraphs[s]) {
+                    for (const auto& dep : node->get_dependencies()) {
+                        if (dep.first->is_type<data>() && std::find(inputs.begin(), inputs.end(), dep.first) == inputs.end()) {
+                            inputs.push_back(dep.first);
+                        }
                     }
                 }
             }
-            auto outputs = execute_subgraph(*net, inputs, subgraph);
+            auto outputs = execute_subgraphs(*net, inputs, subgraphs, begin, end);
 
             std::unordered_set<program_node*> replaced;
             std::vector<cache_tuple> cache_info;
@@ -141,16 +144,18 @@ void propagate_constants::run(program& p) {
                 replaced.insert(output.first);
                 cache_info.push_back(get_weightless_cache_info(*output.first));
             }
-            for (auto* node : subgraph) {
-                if (replaced.count(node) == 0) {
-                    remove_node(p, *node);
+            for (size_t s = begin; s < end; ++s) {
+                for (auto* node : subgraphs[s]) {
+                    if (replaced.count(node) == 0) {
+                        remove_node(p, *node);
+                    }
                 }
             }
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const bool was_dynamic = dynamic_nodes.count(outputs[i].first) != 0;
                 replace_with_data(p, *outputs[i].first, outputs[i].second, cache_info[i], was_dynamic, reselection_targets);
             }
-            // Weights read by no other node are freed here, before the next subgraph allocates its outputs
+            // Weights read by no other node are freed here, before the next batch allocates its outputs
             for (auto* input : inputs) {
                 if (input->get_users().empty() && !input->is_output()) {
                     p.remove_if_dangling(*input);
@@ -266,7 +271,7 @@ void propagate_constants::add_weights_rotation(program& p, program_node& node) {
 
 // compile_graph selected the implementations of the constant nodes but their kernels are built only in
 // build_implementations, after this pass. Build them here in one batch, the same way.
-void propagate_constants::build_kernels(program& p, const std::vector<std::vector<program_node*>>& subgraphs) {
+void propagate_constants::build_kernels(const std::vector<std::vector<program_node*>>& subgraphs, kernels_cache& cache) {
     // The inputs of the constant nodes are static, so the layouts that compile_graph left dynamic can be computed now
     for (const auto& subgraph : subgraphs) {
         for (auto* node : subgraph) {
@@ -277,7 +282,6 @@ void propagate_constants::build_kernels(program& p, const std::vector<std::vecto
         }
     }
 
-    auto& cache = p.get_kernels_cache();
     for (const auto& subgraph : subgraphs) {
         for (auto* node : subgraph) {
             if (auto* impl = node->get_selected_impl()) {
@@ -299,23 +303,65 @@ void propagate_constants::build_kernels(program& p, const std::vector<std::vecto
     cache.reset();
 }
 
-// Runs the nodes of one subgraph with their compiled implementations and returns the memory of the nodes read at
-// inference. All instances are removed again, so intermediates are freed when the subgraph is done.
-std::vector<std::pair<program_node*, memory::ptr>> propagate_constants::execute_subgraph(network& net,
-                                                                                         const std::vector<program_node*>& inputs,
-                                                                                         const std::vector<program_node*>& subgraph) {
+// Bytes of the outputs of all nodes of a subgraph, which are allocated while it runs
+size_t propagate_constants::allocation_size(const std::vector<program_node*>& subgraph) {
+    size_t bytes = 0;
+    for (auto* node : subgraph) {
+        for (size_t i = 0; i < node->get_outputs_count(); ++i) {
+            bytes += node->get_output_layout(false, i).bytes_count();
+        }
+    }
+    return bytes;
+}
+
+// Splits the subgraphs into ranges of consecutive ones that run together with one wait. A range allocates no more than
+// the largest subgraph does on its own, so batching does not raise the peak memory of running them one by one.
+std::vector<std::pair<size_t, size_t>> propagate_constants::make_batches(const std::vector<std::vector<program_node*>>& subgraphs) {
+    std::vector<size_t> sizes;
+    for (const auto& subgraph : subgraphs) {
+        sizes.push_back(allocation_size(subgraph));
+    }
+    const size_t limit = *std::max_element(sizes.begin(), sizes.end());
+
+    std::vector<std::pair<size_t, size_t>> batches;
+    size_t begin = 0;
+    size_t bytes = 0;
+    for (size_t s = 0; s < subgraphs.size(); ++s) {
+        if (s > begin && bytes + sizes[s] > limit) {
+            batches.emplace_back(begin, s);
+            begin = s;
+            bytes = 0;
+        }
+        bytes += sizes[s];
+    }
+    batches.emplace_back(begin, subgraphs.size());
+    return batches;
+}
+
+// Runs the nodes of subgraphs [begin, end) with their compiled implementations and returns the memory of the nodes read
+// at inference. All instances are removed again, so intermediates are freed when the batch is done.
+std::vector<std::pair<program_node*, memory::ptr>> propagate_constants::execute_subgraphs(network& net,
+                                                                                          const std::vector<program_node*>& inputs,
+                                                                                          const std::vector<std::vector<program_node*>>& subgraphs,
+                                                                                          size_t begin,
+                                                                                          size_t end) {
     std::vector<primitive_id> added;
     for (auto* input : inputs) {
-        net.add_primitive(*input);
+        net.add_detached_instance(*input);
         added.push_back(input->id());
     }
+    std::vector<program_node*> nodes;
     std::vector<std::shared_ptr<primitive_inst>> insts;
-    for (auto* node : subgraph) {
-        insts.push_back(net.add_primitive(*node));
-        added.push_back(node->id());
+    for (size_t s = begin; s < end; ++s) {
+        for (auto* node : subgraphs[s]) {
+            nodes.push_back(node);
+            insts.push_back(net.add_detached_instance(*node));
+            added.push_back(node->id());
+        }
     }
 
     for (auto& inst : insts) {
+        NODE_DEBUG(*inst);
         inst->prepare_primitive();
         // network::set_arguments binds the kernel arguments of static instances once before the first execution
         if (!inst->is_dynamic() && !inst->can_be_optimized() && inst->get_impl() != nullptr) {
@@ -326,14 +372,14 @@ std::vector<std::pair<program_node*, memory::ptr>> propagate_constants::execute_
     net.get_stream().finish();
 
     std::vector<std::pair<program_node*, memory::ptr>> outputs;
-    for (size_t i = 0; i < subgraph.size(); ++i) {
-        if (is_read_at_inference(*subgraph[i])) {
-            outputs.emplace_back(subgraph[i], insts[i]->output_memory_ptr());
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        if (is_read_at_inference(*nodes[i])) {
+            outputs.emplace_back(nodes[i], insts[i]->output_memory_ptr());
         }
     }
     insts.clear();
     for (const auto& id : added) {
-        net.remove_primitive(id);
+        net.remove_detached_instance(id);
     }
     return outputs;
 }
@@ -348,7 +394,7 @@ propagate_constants::cache_tuple propagate_constants::get_weightless_cache_info(
         return {};
     }
     auto rprim = node.as<reorder>().get_primitive();
-    return {in.as<data>().get_primitive()->cache_info, std::make_shared<layout>(in.get_output_layout()), std::shared_ptr<reorder>(new reorder(*rprim))};
+    return {in.as<data>().get_primitive()->cache_info, std::make_shared<layout>(in.get_output_layout()), std::make_shared<reorder>(*rprim)};
 }
 
 void propagate_constants::replace_with_data(program& p,
@@ -382,14 +428,17 @@ void propagate_constants::replace_with_data(program& p,
     }
 
     curr_node.dependencies.clear();
-    // remove all constant users (as they will be either removed or replaced by cldnn::data which does not have any
-    // dependencies)
-    curr_node.users.erase(std::remove_if(curr_node.users.begin(),
-                                         curr_node.users.end(),
-                                         [](program_node* node) {
-                                             return node->is_constant();
-                                         }),
-                          curr_node.users.end());
+    // Constant users are replaced by data or removed later. Disconnect them on both sides: p.replace destroys curr_node,
+    // and a user that still lists it as a dependency would read freed memory when it is replaced itself
+    std::vector<program_node*> const_users;
+    for (auto* user : curr_node.users) {
+        if (user->is_constant()) {
+            const_users.push_back(user);
+        }
+    }
+    for (auto* user : const_users) {
+        program::remove_connection(curr_node, *user);
+    }
     p.replace(curr_node, new_node);
     new_node.recalc_output_layout(was_dynamic);
 

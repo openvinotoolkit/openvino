@@ -173,9 +173,6 @@ public:
     std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void allocate_primitives();
-    // An instance of a node that may belong to another program, and its removal
-    std::shared_ptr<primitive_inst> add_primitive(const program_node& node);
-    void remove_primitive(const primitive_id& id);
     void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
@@ -300,6 +297,11 @@ private:
     void prepare_record_replay();
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
+    // A temporary instance of a node that may belong to another program, outside the execution order, and its removal.
+    // Only propagate_constants runs such instances.
+    std::shared_ptr<primitive_inst> add_detached_instance(const program_node& node);
+    void remove_detached_instance(const primitive_id& id);
+    friend class propagate_constants;
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;

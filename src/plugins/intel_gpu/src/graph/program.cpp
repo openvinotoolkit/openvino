@@ -176,9 +176,13 @@ program::program(engine& engine_ref,
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
+    OPENVINO_ASSERT(topology != nullptr, "[GPU] No topology to build the program from");
     prepare_nodes(*topology);
     topology.reset();
-    program_node::reset_unique_id();
+    // An internal program can be built while another one is being built (propagate_constants), whose ids must not restart
+    if (!is_internal) {
+        program_node::reset_unique_id();
+    }
     if (no_optimizations) {
         init_graph();
     } else {

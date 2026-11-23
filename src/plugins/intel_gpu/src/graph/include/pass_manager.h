@@ -257,10 +257,14 @@ private:
     static bool is_read_at_inference(program_node& node);
     static std::vector<std::vector<program_node*>> find_constant_subgraphs(program& p);
     static void add_weights_rotation(program& p, program_node& node);
-    static void build_kernels(program& p, const std::vector<std::vector<program_node*>>& subgraphs);
-    static std::vector<std::pair<program_node*, memory::ptr>> execute_subgraph(network& net,
-                                                                               const std::vector<program_node*>& inputs,
-                                                                               const std::vector<program_node*>& subgraph);
+    static void build_kernels(const std::vector<std::vector<program_node*>>& subgraphs, kernels_cache& cache);
+    static size_t allocation_size(const std::vector<program_node*>& subgraph);
+    static std::vector<std::pair<size_t, size_t>> make_batches(const std::vector<std::vector<program_node*>>& subgraphs);
+    static std::vector<std::pair<program_node*, memory::ptr>> execute_subgraphs(network& net,
+                                                                                const std::vector<program_node*>& inputs,
+                                                                                const std::vector<std::vector<program_node*>>& subgraphs,
+                                                                                size_t begin,
+                                                                                size_t end);
     static cache_tuple get_weightless_cache_info(program_node& node);
     static void replace_with_data(program& p,
                                   program_node& node,
