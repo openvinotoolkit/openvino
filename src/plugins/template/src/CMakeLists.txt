@@ -5,31 +5,14 @@
 # [cmake:plugin]
 set(TARGET_NAME "openvino_template_plugin")
 
-set(SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/async_infer_request.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/compiled_model.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/config.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader_handler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_writer_handler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugin.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/remote_context.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/sync_infer_request.cpp
-)
-set(HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/async_infer_request.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/attach_cache_manager_to_paged_attention.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/compiled_model.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/config.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_common.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader_handler.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_writer_handler.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/itt.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugin.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/remote_context.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/remote_tensor.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/sync_infer_request.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/variable_state.hpp
-)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+
+ov_option(ENABLE_TEMPLATE_UTILS "Build template plugin utils library" ON)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+add_definitions(-DTEMPLATE_UTILS_ENABLED)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
 
 if (NOT ENABLE_TEMPLATE_REGISTRATION)
     # Skip install and registration of template component
@@ -65,3 +48,10 @@ endif()# [cmake:plugin]
 
 install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+
+if(ENABLE_TEMPLATE_UTILS)
+    add_library(template_utils SHARED ${CMAKE_CURRENT_SOURCE_DIR}/utils/template_utils.cpp)
+    target_link_libraries(template_utils PUBLIC openvino::runtime openvino::pugixml)
+    target_link_libraries(openvino PUBLIC template_utils)
+    install(TARGETS template_utils LIBRARY DESTINATION lib)
+endif()
