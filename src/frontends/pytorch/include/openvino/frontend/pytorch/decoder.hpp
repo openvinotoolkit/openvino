@@ -151,11 +151,6 @@ public:
     virtual InputSequences get_input_sequences() const {
         return {};
     }
-
-    std::string get_legacy_op_type() const {
-        const auto legacy_op_type = get_attribute("__openvino_legacy_op_type");
-        return legacy_op_type.is<std::string>() ? legacy_op_type.as<std::string>() : std::string{};
-    }
 };
 
 }  // namespace ov::frontend::pytorch

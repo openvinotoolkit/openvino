@@ -30,6 +30,11 @@ namespace ov::frontend::pytorch {
 using namespace ov::op;
 
 namespace {
+std::string get_legacy_op_type(const TorchDecoder& decoder) {
+    const auto value = decoder.get_attribute("__openvino_legacy_op_type");
+    return value.is<std::string>() ? value.as<std::string>() : std::string{};
+}
+
 // Alias views and their base values belong to the graph where they were converted.
 class AliasScope {
 public:
@@ -529,7 +534,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
             it = m_translator_map.find(canonical_op_type);
         }
         if (it == m_translator_map.end()) {
-            const auto legacy_op_type = context.get_decoder()->get_legacy_op_type();
+            const auto legacy_op_type = get_legacy_op_type(*context.get_decoder());
             if (!legacy_op_type.empty()) {
                 it = m_translator_map.find(legacy_op_type);
             }
