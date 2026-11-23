@@ -91,12 +91,22 @@ Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port,
 
 op::PadType convert_pad(const std::string& pt_pad);
 
-// Returns the auto pad type and explicit pads for a convolution padding mode. "same" with unit strides and a static
-// kernel is converted to explicit pads, so later Pad fusion keeps its semantics.
-std::tuple<op::PadType, CoordinateDiff, CoordinateDiff> convert_conv_pad(const std::string& pt_pad,
-                                                                         const Output<Node>& weight,
-                                                                         const Strides& strides,
-                                                                         const Strides& dilations);
+struct ConvPadConfig {
+    op::PadType pad_type;
+    CoordinateDiff pads_begin;
+    CoordinateDiff pads_end;
+    bool dynamic_same_padding = false;
+};
+
+// Resolves convolution padding where possible; dynamic SAME kernels are padded at runtime before the convolution.
+ConvPadConfig convert_conv_pad(const std::string& pt_pad,
+                               const Output<Node>& weight,
+                               const Strides& strides,
+                               const Strides& dilations);
+Output<Node> apply_dynamic_same_padding(const NodeContext& context,
+                                        const Output<Node>& input,
+                                        const Output<Node>& weight,
+                                        const Strides& dilations);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
 

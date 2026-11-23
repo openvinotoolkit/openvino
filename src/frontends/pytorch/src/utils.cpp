@@ -32,6 +32,7 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -352,10 +353,10 @@ PadType convert_pad(const std::string& pt_pad) {
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
-std::tuple<PadType, CoordinateDiff, CoordinateDiff> convert_conv_pad(const std::string& pt_pad,
-                                                                     const Output<Node>& weight,
-                                                                     const Strides& strides,
-                                                                     const Strides& dilations) {
+ConvPadConfig convert_conv_pad(const std::string& pt_pad,
+                               const Output<Node>& weight,
+                               const Strides& strides,
+                               const Strides& dilations) {
     const auto pad_type = convert_pad(pt_pad);
     const auto num_spatial = strides.size();
     CoordinateDiff pads_begin(num_spatial, 0), pads_end(num_spatial, 0);
@@ -372,7 +373,7 @@ std::tuple<PadType, CoordinateDiff, CoordinateDiff> convert_conv_pad(const std::
     for (size_t i = 0; i < num_spatial; ++i) {
         const auto& dim = kernel[i + 2];
         if (dim.is_dynamic()) {
-            return {pad_type, CoordinateDiff(num_spatial, 0), CoordinateDiff(num_spatial, 0)};
+            return {PadType::VALID, pads_begin, pads_end, true};
         }
         // Torch places the extra padding at the end, same as SAME_UPPER.
         const auto total = static_cast<std::ptrdiff_t>(dilations[i] * (dim.get_length() - 1));
@@ -380,6 +381,39 @@ std::tuple<PadType, CoordinateDiff, CoordinateDiff> convert_conv_pad(const std::
         pads_end[i] = total - pads_begin[i];
     }
     return {PadType::EXPLICIT, pads_begin, pads_end};
+}
+
+Output<Node> apply_dynamic_same_padding(const NodeContext& context,
+                                        const Output<Node>& input,
+                                        const Output<Node>& weight,
+                                        const Strides& dilations) {
+    const auto spatial_dims = dilations.size();
+    const auto weight_shape = context.mark_node(std::make_shared<v3::ShapeOf>(weight, element::i64));
+    const auto starts = v0::Constant::create(element::i64, Shape{1}, {2});
+    const auto stops = v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(2 + spatial_dims)});
+    const auto steps = v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto kernel = context.mark_node(std::make_shared<v8::Slice>(weight_shape, starts, stops, steps));
+
+    std::vector<int64_t> ones(spatial_dims, 1);
+    std::vector<int64_t> divisors(spatial_dims, 2);
+    std::vector<int64_t> dilation_values(dilations.begin(), dilations.end());
+    const auto one = context.mark_node(v0::Constant::create(element::i64, Shape{spatial_dims}, ones));
+    const auto dilation = context.mark_node(v0::Constant::create(element::i64, Shape{spatial_dims}, dilation_values));
+    const auto kernel_minus_one = context.mark_node(std::make_shared<v1::Subtract>(kernel, one));
+    const auto effective_padding = context.mark_node(std::make_shared<v1::Multiply>(kernel_minus_one, dilation));
+    const auto divisor = context.mark_node(v0::Constant::create(element::i64, Shape{spatial_dims}, divisors));
+    const auto pads_begin_spatial = context.mark_node(std::make_shared<v1::Divide>(effective_padding, divisor, false));
+    const auto pads_end_spatial =
+        context.mark_node(std::make_shared<v1::Subtract>(effective_padding, pads_begin_spatial));
+
+    const auto no_padding = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {0, 0}));
+    const auto pads_begin =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{no_padding, pads_begin_spatial}, 0));
+    const auto pads_end =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{no_padding, pads_end_spatial}, 0));
+    const auto pad_value =
+        context.mark_node(std::make_shared<v1::ConvertLike>(v0::Constant::create(element::f32, Shape{}, {0}), input));
+    return context.mark_node(std::make_shared<v12::Pad>(input, pads_begin, pads_end, pad_value, PadMode::CONSTANT));
 }
 
 Output<Node> concat_list_construct(const Output<Node>& input) {

@@ -20,19 +20,28 @@ OutputVector translate_convnd(const NodeContext& context) {
     auto pads_begin = CoordinateDiff(strides.size(), 0);
     auto pads_end = pads_begin;
     auto pad_type = ov::op::PadType::EXPLICIT;
+    bool dynamic_same_padding = false;
     auto dtype = context.get_input_type(4);
     if (dtype.is<type::Str>()) {
-        std::tie(pad_type, pads_begin, pads_end) =
+        const auto config =
             convert_conv_pad(context.const_input<std::string>(4), context.get_input(1), strides, dilations);
+        pad_type = config.pad_type;
+        pads_begin = config.pads_begin;
+        pads_end = config.pads_end;
+        dynamic_same_padding = config.dynamic_same_padding;
     } else {
         pads_begin = context.const_input<CoordinateDiff>(4);
         pads_end = pads_begin;
     }
     auto groups = context.const_input<int64_t>(6);
+    auto data = context.get_input(0);
+    if (dynamic_same_padding) {
+        data = apply_dynamic_same_padding(context, data, context.get_input(1), dilations);
+    }
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
-        conv = std::make_shared<v1::Convolution>(context.get_input(0),
+        conv = std::make_shared<v1::Convolution>(data,
                                                  context.get_input(1),
                                                  strides,
                                                  pads_begin,
@@ -40,7 +49,7 @@ OutputVector translate_convnd(const NodeContext& context) {
                                                  dilations,
                                                  pad_type);
     } else {
-        conv = std::make_shared<v1::GroupConvolution>(context.get_input(0),
+        conv = std::make_shared<v1::GroupConvolution>(data,
                                                       reshape_kernel_for_group(context, context.get_input(1), groups),
                                                       strides,
                                                       pads_begin,

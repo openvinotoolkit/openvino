@@ -188,6 +188,69 @@ class TestPadConv2DSame(PytorchLayerTest):
         self._test(*self.create_model(kernel, dilation), ie_device, precision, ir_version)
 
 
+@pytest.mark.parametrize("capture", ["trace", "export"])
+@pytest.mark.parametrize("groups", [1, 2])
+@pytest.mark.parametrize("kernel_parity", ["odd", "even"])
+@pytest.mark.parametrize("dilation", [1, 2])
+@pytest.mark.precommit
+def test_conv2d_same_dynamic_kernel_after_pad(capture, groups, kernel_parity, dilation, ie_device, precision):
+    import numpy as np
+    import torch
+    import torch.nn.functional as F
+    import openvino as ov
+
+    class Model(torch.nn.Module):
+        def forward(self, x, weight):
+            return F.conv2d(
+                F.pad(x, [0, 1, 0, 1]),
+                weight,
+                padding="same",
+                dilation=dilation,
+                groups=groups,
+            )
+
+    model = Model().eval()
+    x = torch.randn(1, 4, 12, 14)
+    sample_kernel = 3 if kernel_parity == "odd" else 4
+    weight = torch.randn(4, 4 // groups, sample_kernel, sample_kernel)
+    if capture == "trace":
+        traced = torch.jit.trace(model, (x, weight))
+        converted = ov.convert_model(
+            traced,
+            input=[ov.PartialShape(x.shape), ov.PartialShape([4, 4 // groups, -1, -1])],
+        )
+    else:
+        if kernel_parity == "odd":
+            kernel_h = 2 * torch.export.Dim("kernel_h_half", min=2, max=3) - 1
+            kernel_w = 2 * torch.export.Dim("kernel_w_half", min=2, max=3) - 1
+            kernel_shapes = ((3, 3), (3, 5), (5, 5))
+        else:
+            kernel_h = 2 * torch.export.Dim("kernel_h_half", min=1, max=3)
+            kernel_w = 2 * torch.export.Dim("kernel_w_half", min=1, max=3)
+            kernel_shapes = ((2, 2), (2, 4), (4, 4))
+        exported = torch.export.export(
+            model,
+            (x, weight),
+            dynamic_shapes=({}, {2: kernel_h, 3: kernel_w}),
+        )
+        converted = ov.convert_model(exported)
+    if capture == "trace":
+        kernel_shapes = ((2, 2), (2, 4), (4, 4)) if kernel_parity == "even" else ((3, 3), (3, 5), (5, 5))
+
+    for kernel_shape in kernel_shapes:
+        shape_model = converted.clone()
+        weight_shape = [4, 4 // groups, *kernel_shape]
+        shape_model.reshape(dict(zip(shape_model.inputs, [x.shape, weight_shape])))
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        compiled = ov.Core().compile_model(shape_model, ie_device, config)
+        test_x = torch.randn_like(x)
+        test_weight = torch.randn(weight_shape)
+        actual = compiled([test_x.numpy(), test_weight.numpy()])[0]
+        expected = model(test_x, test_weight).numpy()
+        assert actual.shape == expected.shape
+        np.testing.assert_allclose(actual, expected, atol=1e-4, rtol=1e-4)
+
+
 class TestConv2DInSubgraph(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
