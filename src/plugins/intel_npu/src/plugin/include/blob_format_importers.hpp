@@ -13,6 +13,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -50,10 +51,13 @@ public:
      * @param network_name The resulted graph object will use this network name.
      * @param core The OV core. The weights separation feature may depend on this object to extract the original
      * weights.
+     * @param vclFunctionsProvider Supplies the VCL entry points provider, forwarded to the parser factory.
      * @return A graph object. The type of graph depends on the content of the blob. E.g. a "weightless" graph will be
      * returned if the weights separation feature was detected.
      */
-    std::shared_ptr<IGraph> create_graph(const std::string_view network_name, const std::shared_ptr<ov::ICore>& core);
+    std::shared_ptr<IGraph> create_graph(const std::string_view network_name,
+                                         const std::shared_ptr<ov::ICore>& core,
+                                         const VCLFunctionTableProvider& vclFunctionsProvider);
 
     /**
      * @brief Uses the metadata of the resulted graph object to build a minimalistic OV model.
