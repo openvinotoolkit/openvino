@@ -24,21 +24,26 @@ namespace ov::pass::pattern {
  * when independent instances must accept different rotary dimensions.
  */
 struct TRANSFORMATIONS_API GPTNeoXRoPEPattern {
+    struct Anchors {
+        PatternAnchor input;
+        PatternAnchor cos_input_1;
+        PatternAnchor cos_input_2;
+        PatternAnchor sin;
+        PatternAnchor minus_one_convert;
+        PatternAnchor negated_half;
+        PatternAnchor rotated_input;
+        PatternAnchor mul_cos;
+        PatternAnchor mul_sin;
+        PatternAnchor root;
+
+        std::array<const PatternAnchor*, 10> all() const&;
+        std::array<const PatternAnchor*, 10> all() const&& = delete;
+    };
+
     GPTNeoXRoPEPattern(const std::shared_ptr<Node>& input, int rank, std::string half_ndims_symbol = "half_ndims");
 
-    std::array<PatternAnchor, 10> anchors() const;
-
-    std::shared_ptr<Node> input;
+    Anchors anchors;
     std::string half_ndims_symbol;
-    std::shared_ptr<Node> cos_input_1;
-    std::shared_ptr<Node> cos_input_2;
-    std::shared_ptr<Node> sin;
-    std::shared_ptr<Node> minus_one_convert;
-    std::shared_ptr<Node> negated_half;
-    std::shared_ptr<Node> rotated_input;
-    std::shared_ptr<Node> mul_cos;
-    std::shared_ptr<Node> mul_sin;
-    std::shared_ptr<Node> root;
 };
 
 }  // namespace ov::pass::pattern

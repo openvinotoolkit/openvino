@@ -267,18 +267,17 @@ For a pattern that must compose with other patterns, a struct holding its root a
 ```cpp
 auto input = pattern::any_input(pattern::rank_equals(3));
 pattern::GPTNeoXRoPEPattern rope(input, 3, "query_half_ndims");
-auto matcher = std::make_shared<pattern::Matcher>(rope.root, "QueryRoPE");
+auto matcher = std::make_shared<pattern::Matcher>(rope.anchors.root.node, "QueryRoPE");
 
 // After a successful match:
 const auto& matches = matcher->get_pattern_value_map();
-auto matched_input = matches.at(rope.input);
-auto matched_sin = matches.at(rope.sin);
+auto matched_input = matches.at(rope.anchors.input.node);
+auto matched_sin = matches.at(rope.anchors.sin.node);
 ```
 
-For generic inspection, `rope.anchors()` returns named `PatternAnchor` entries. These are ordinary C++ declarations,
-not macro registrations; names are maintained explicitly and are a runtime contract for generic consumers. Check
-whether a name is listed separately from whether its node is present in the match map: an optional node may be
-registered but unmatched. The returned array is a snapshot, so request it again if a handle is changed.
+Each `PatternAnchor` holds its debug name and pattern node together, without macro registration. For debugging,
+`rope.anchors.all()` returns pointers to the anchors; they remain valid only while `rope.anchors` exists. Names
+are maintained explicitly. An optional anchor can exist even when its node is absent from the match map.
 
 Existing patterns such as `CompressedWeightsBlock` use `pattern::op::Block` and named anchors. Add a reusable pattern instead of re-describing the same subgraph in a third pass.
 

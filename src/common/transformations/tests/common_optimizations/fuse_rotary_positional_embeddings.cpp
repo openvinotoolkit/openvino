@@ -395,11 +395,11 @@ TEST(GPTNeoXRoPEPatternTest, SharesInputWithEnclosingPattern) {
 
     const auto shared_input = pattern::any_input(pattern::rank_equals(3));
     const pattern::GPTNeoXRoPEPattern rope(shared_input, 3);
-    const auto root = pattern::wrap_type<v1::Subtract>({shared_input, rope.root});
+    const auto root = pattern::wrap_type<v1::Subtract>({shared_input, rope.anchors.root.node});
     pattern::Matcher matcher(root);
 
     ASSERT_TRUE(matcher.match(std::make_shared<v1::Subtract>(input, rope_output)->output(0)));
-    EXPECT_EQ(matcher.get_pattern_value_map().at(rope.input), input->output(0));
+    EXPECT_EQ(matcher.get_pattern_value_map().at(rope.anchors.input.node), input->output(0));
     ASSERT_FALSE(matcher.match(std::make_shared<v1::Subtract>(other, rope_output)->output(0)));
 }
 
@@ -413,7 +413,7 @@ TEST(GPTNeoXRoPEPatternTest, SharesSymbolsWithEnclosingPattern) {
     const auto input = pattern::any_input(pattern::shape_matches("sequence, ?, ?"));
     const pattern::GPTNeoXRoPEPattern rope(input, 3);
     const auto sibling = pattern::any_input(pattern::shape_matches("sequence, ?, ?"));
-    const auto root = pattern::wrap_type<v1::Subtract>({rope.root, sibling});
+    const auto root = pattern::wrap_type<v1::Subtract>({rope.anchors.root.node, sibling});
     pattern::Matcher matcher(root);
 
     ASSERT_TRUE(matcher.match(std::make_shared<v1::Subtract>(rope_output, matching)->output(0)));
@@ -430,7 +430,8 @@ TEST(GPTNeoXRoPEPatternTest, InstancesHaveIndependentHandles) {
     const auto second_input = pattern::any_input(pattern::rank_equals(3));
     const pattern::GPTNeoXRoPEPattern first(first_input, 3, "first_half_ndims");
     const pattern::GPTNeoXRoPEPattern second(second_input, 3, "second_half_ndims");
-    const auto root = pattern::wrap_type<v0::Concat>({first.root, second.root}, {{"axis", -1}});
+    const auto root =
+        pattern::wrap_type<v0::Concat>({first.anchors.root.node, second.anchors.root.node}, {{"axis", -1}});
     const auto graph = std::make_shared<v0::Concat>(ov::OutputVector{first_model->get_results().at(0)->input_value(0),
                                                                      second_model->get_results().at(0)->input_value(0)},
                                                     -1);
@@ -438,9 +439,9 @@ TEST(GPTNeoXRoPEPatternTest, InstancesHaveIndependentHandles) {
 
     ASSERT_TRUE(matcher.match(graph->output(0)));
     const auto& matches = matcher.get_pattern_value_map();
-    EXPECT_EQ(matches.at(first.input), first_model->get_parameters().at(0)->output(0));
-    EXPECT_EQ(matches.at(second.input), second_model->get_parameters().at(0)->output(0));
-    EXPECT_NE(matches.at(first.mul_sin), matches.at(second.mul_sin));
+    EXPECT_EQ(matches.at(first.anchors.input.node), first_model->get_parameters().at(0)->output(0));
+    EXPECT_EQ(matches.at(second.anchors.input.node), second_model->get_parameters().at(0)->output(0));
+    EXPECT_NE(matches.at(first.anchors.mul_sin.node), matches.at(second.anchors.mul_sin.node));
     EXPECT_EQ(matcher.get_symbols().at(first.half_ndims_symbol).i(), 40);
     EXPECT_EQ(matcher.get_symbols().at(second.half_ndims_symbol).i(), 80);
 }
@@ -448,32 +449,36 @@ TEST(GPTNeoXRoPEPatternTest, InstancesHaveIndependentHandles) {
 TEST(GPTNeoXRoPEPatternTest, EnumeratesMatchedAndOptionalAnchors) {
     namespace pattern = ov::pass::pattern;
     const pattern::GPTNeoXRoPEPattern rope(pattern::any_input(pattern::rank_equals(3)), 3);
-    const auto anchors = rope.anchors();
+    const auto anchors = rope.anchors.all();
     const auto anchor = [&](std::string_view name) {
         return std::find_if(anchors.begin(), anchors.end(), [&](const auto& entry) {
-            return entry.name == name;
+            return entry->name == name;
         });
     };
 
     std::set<std::string_view> names;
-    for (const auto& entry : anchors) {
-        EXPECT_TRUE(names.insert(entry.name).second);
-        EXPECT_NE(entry.node, nullptr);
+    for (const auto* entry : anchors) {
+        EXPECT_TRUE(names.insert(entry->name).second);
+        EXPECT_NE(entry->node, nullptr);
     }
     ASSERT_NE(anchor("input"), anchors.end());
     ASSERT_NE(anchor("minus_one_convert"), anchors.end());
     EXPECT_EQ(anchor("unknown"), anchors.end());
+    EXPECT_EQ(*anchor("input"), &rope.anchors.input);
+    const auto copied_rope = rope;
+    EXPECT_EQ(copied_rope.anchors.all().front(), &copied_rope.anchors.input);
+    EXPECT_NE(copied_rope.anchors.all().front(), anchors.front());
 
-    pattern::Matcher matcher(rope.root);
+    pattern::Matcher matcher(rope.anchors.root.node);
     const auto without_convert = buildROPE_GPTNEOX_3D(16, 32, 80, "Slice");
     ASSERT_TRUE(matcher.match(without_convert->get_results().at(0)->input_value(0)));
-    EXPECT_EQ(matcher.get_pattern_value_map().at(anchor("input")->node),
+    EXPECT_EQ(matcher.get_pattern_value_map().at((*anchor("input"))->node),
               without_convert->get_parameters().at(0)->output(0));
-    EXPECT_EQ(matcher.get_pattern_value_map().count(anchor("minus_one_convert")->node), 0);
+    EXPECT_EQ(matcher.get_pattern_value_map().count((*anchor("minus_one_convert"))->node), 0);
 
     const auto with_convert = buildROPE_GPTNEOX_3D(16, 32, 80, "Slice", true);
     ASSERT_TRUE(matcher.match(with_convert->get_results().at(0)->input_value(0)));
-    const auto& convert = matcher.get_pattern_value_map().at(anchor("minus_one_convert")->node);
+    const auto& convert = matcher.get_pattern_value_map().at((*anchor("minus_one_convert"))->node);
     EXPECT_TRUE(ov::is_type<v0::Convert>(convert.get_node_shared_ptr()));
 }
 
