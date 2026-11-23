@@ -219,14 +219,13 @@ protected:
         _wzp_data_type = data_type;
     }
 
-    template <typename T>
     static void set_activation_zero_points_attr(const std::shared_ptr<dnnl::primitive_attr>& attrs,
-                                                cldnn::data_node& node, int& zero_point_mask) {
-        int32_t zp_val = DNNL_RUNTIME_S32_VAL;
-        bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
+                                                cldnn::data_node& node,
+                                                bool per_tensor,
+                                                int& zero_point_mask) {
         memory::ptr s32_mem = onednn::convert_zp_data_to_s32(node.get_attached_memory_ptr());
         node.attach_memory(s32_mem, false);
-        zero_point_mask = is_per_tensor ? 0 : 2;
+        zero_point_mask = per_tensor ? 0 : 2;
         attrs->set_zero_points_mask(DNNL_ARG_SRC, zero_point_mask);
     }
 
@@ -250,13 +249,9 @@ protected:
                 throw std::runtime_error("Unsupported data type for activations zero points for oneDNN convolution");
             }
 
-            if (a_zp_dtype == data_types::i8) {
-                set_activation_zero_points_attr<ov::element_type_traits<data_types::i8>::value_type>(attrs, a_zp.as<data>(), zero_point_mask);
-            } else if (a_zp_dtype == data_types::u8) {
-                set_activation_zero_points_attr<ov::element_type_traits<data_types::u8>::value_type>(attrs, a_zp.as<data>(), zero_point_mask);
-            } else if (a_zp_dtype == data_types::i32) {
-                set_activation_zero_points_attr<ov::element_type_traits<data_types::i32>::value_type>(attrs, a_zp.as<data>(), zero_point_mask);
-            }
+            // The mask is part of the cached impl: it must depend only on the impl cache key (the flag and the zero-points layout)
+            const bool per_tensor = arg.get_primitive()->activations_zero_point_per_tensor || a_zp.get_output_layout().count() == 1;
+            set_activation_zero_points_attr(attrs, a_zp.as<data>(), per_tensor, zero_point_mask);
         }
 
         if (arg.weights_zero_points_term()) {

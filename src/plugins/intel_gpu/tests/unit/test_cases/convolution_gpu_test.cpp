@@ -13886,7 +13886,7 @@ TEST(convolution_1d_small_ic_gemm_gate, rejects_input_features_above_max) {
 
 namespace {
 // Two dynamic oneDNN convolutions with equal shapes: the second one reuses the impl created for the first one
-void test_onednn_conv_dynamic_azp_impl_reuse(bool per_channel0, bool per_channel1) {
+void test_onednn_conv_dynamic_azp_impl_reuse(bool per_channel0, bool per_channel1, bool set_per_tensor_flag = true) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP();
@@ -13920,7 +13920,8 @@ void test_onednn_conv_dynamic_azp_impl_reuse(bool per_channel0, bool per_channel
         auto conv_prim =
             convolution("conv" + idx, input_info("input"), "weights" + idx, "", "", "azp" + idx, "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false, data_types::f32);
         // Set by the plugin (ops/convolution.cpp) when the OV Constant is converted to the primitive
-        conv_prim.activations_zero_point_per_tensor = !(i == 0 ? per_channel0 : per_channel1);
+        if (set_per_tensor_flag)
+            conv_prim.activations_zero_point_per_tensor = !(i == 0 ? per_channel0 : per_channel1);
         topology.add(conv_prim);
         topology.add(reorder("out" + idx, input_info("conv" + idx), format::bfyx, data_types::f32));
     }
@@ -13956,10 +13957,15 @@ TEST(convolution_onednn_dynamic_azp, impl_reuse_per_tensor) {
 TEST(convolution_onednn_dynamic_azp, impl_reuse_per_channel) {
     test_onednn_conv_dynamic_azp_impl_reuse(true, true);
 }
-// Same shapes, different zero-point kinds: the impl must not be shared between a per-tensor and a per-channel conv
-TEST(convolution_onednn_dynamic_azp, impl_reuse_mixed_tensor_then_channel) {
+// Same shapes, different zero-point kinds: the impl must not be shared between a per-tensor and a per-channel conv.
+// conv1 is executed before conv0 and creates the impl that conv0 reuses
+TEST(convolution_onednn_dynamic_azp, impl_reuse_mixed_conv0_tensor_conv1_channel) {
     test_onednn_conv_dynamic_azp_impl_reuse(false, true);
 }
-TEST(convolution_onednn_dynamic_azp, impl_reuse_mixed_channel_then_tensor) {
+TEST(convolution_onednn_dynamic_azp, impl_reuse_mixed_conv0_channel_conv1_tensor) {
     test_onednn_conv_dynamic_azp_impl_reuse(true, false);
+}
+// The per-tensor flag is not set (e.g. the zero-point is not a Constant): uniform data must not make the impl per-tensor
+TEST(convolution_onednn_dynamic_azp, impl_reuse_no_flag_conv0_channel_conv1_uniform) {
+    test_onednn_conv_dynamic_azp_impl_reuse(true, false, false);
 }

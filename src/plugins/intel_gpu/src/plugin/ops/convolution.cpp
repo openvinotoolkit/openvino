@@ -33,8 +33,8 @@ static bool is_uniform_zero_point(const std::shared_ptr<ov::Node>& node) {
     auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!zp_const || ov::shape_size(zp_const->get_shape()) == 0)
         return false;
-    const auto values = zp_const->cast_vector<float>();
-    return std::all_of(values.begin(), values.end(), [&](float v) {
+    const auto values = zp_const->cast_vector<double>();
+    return std::all_of(values.begin(), values.end(), [&](double v) {
         return v == values[0];
     });
 }
