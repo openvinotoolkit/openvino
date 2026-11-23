@@ -13,8 +13,11 @@ namespace {
 
 static constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x42B0;
 static constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x42B1;
+static constexpr cl_uint CL_L0_EVENT_HANDLE = 0x42B2;
 static constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x42B3;
 static constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
+static constexpr cl_uint CL_L0_PLATFORM_DRIVER_HANDLE = 0x42B5;
+static constexpr cl_uint CL_L0_IMAGE_HANDLE = 0x42B6;
 
 inline void expect_success(cl_int error, void *handle, const std::string& message) {
     if (error != CL_SUCCESS || handle == nullptr) {
@@ -205,7 +208,7 @@ cl_mem ze_ocl_interop::create_cl_buffer(void* usm_ptr, const ocl_buffer_args& ar
 }
 
 cl_mem ze_ocl_interop::create_cl_image(ze_image_handle_t image, const ocl_image_args &args) const {
-    cl_mem_properties properties[] = {CL_L0_MEM_OBJ_HANDLE, reinterpret_cast<cl_mem_properties>(image), 0};
+    cl_mem_properties properties[] = {CL_L0_IMAGE_HANDLE, reinterpret_cast<cl_mem_properties>(image), 0, 0};
     cl_int error;
     cl_mem converted_mem = clCreateImageWithProperties(args.context, properties, args.flags, &args.format, &args.desc, nullptr, &error);
     expect_success(error, converted_mem, "[GPU] Attempt to create CL image from ZE image failed");
