@@ -124,6 +124,11 @@ public:
         cldnn::kernel_arguments_data args;
         cldnn::kernel_arguments_desc kargs_desc;
 
+        if (is_dynamic()) {
+            kargs_desc.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+            args.shape_info = instance.shape_info_memory_ptr();
+        }
+
         for (uint32_t i = 0; i < inputs.size(); i++) {
             kargs_desc.arguments.push_back({ArgumentDescriptor::Types::INPUT, i});
             args.inputs.push_back(inputs[i]);
