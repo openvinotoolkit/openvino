@@ -295,15 +295,13 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
     const auto p_tail =
         ov::op::util::NewGenSlice(p_rope_input, "ndims", std::numeric_limits<std::int32_t>::max(), 1, 3) |
         p_split->output(1);
-    const auto p_concat = optional<v0::Concat>({p_rope, p_tail}, [](const ov::Output<ov::Node>& output) {
-        const auto axis = ov::as_type<v0::Concat>(output.get_node())->get_axis();
-        const auto rank = output.get_partial_shape().rank();
-        // The split and slices above use axis 3, which must be the last axis.
-        if (rank.is_static() && rank.get_length() != 4) {
-            return false;
-        }
-        return axis == -1 || (rank.is_static() && axis == rank.get_length() - 1);
-    });
+    // The split and slices above use axis 3, which must be the last axis.
+    const auto p_concat = optional<v0::Concat>(
+        {p_rope, p_tail},
+        rank_equals(4) && [](const ov::Output<ov::Node>& output) {
+            const auto axis = ov::as_type<v0::Concat>(output.get_node())->get_axis();
+            return axis == -1 || axis == 3;
+        });
     const auto p_token_major =
         optional<v1::Transpose>({p_concat, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
     const auto p_query_reshape = optional<v1::Reshape>({p_token_major, any_input()}, rank_equals(2));
