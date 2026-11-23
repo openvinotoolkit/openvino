@@ -41,6 +41,12 @@ bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
     });
 }
 
+// Weights reorder for a convolution that replaces a stride-1 deconvolution, which rotates the weights by 180 degrees
+bool rotates_weights(const program_node& reorder_node) {
+    const auto& weights_params = reorder_node.as<reorder>().get_primitive()->weights_reorder_params;
+    return weights_params != nullptr && weights_params->should_be_transposed();
+}
+
 }  // namespace
 
 remove_redundant_reorders::remove_redundant_reorders(bool enable_reorder_fusing, bool update_implementations, bool remove_output_reorders)
@@ -426,7 +432,8 @@ void remove_redundant_reorders::run(program& p) {
                 auto l1_port_idx = node->get_dependency_with_port(0).second;
                 auto l2_port_idx = user->get_dependency_with_port(0).second;
 
-                if (l1.identical(l2) && (l1_port_idx == l2_port_idx)) {
+                // A reorder that rotates the weights gives other data than one that doesn't, even with the same output layout
+                if (l1.identical(l2) && (l1_port_idx == l2_port_idx) && rotates_weights(*node) == rotates_weights(*user)) {
                     r_nodes_to_remove.push_back(user);
                 }
             }

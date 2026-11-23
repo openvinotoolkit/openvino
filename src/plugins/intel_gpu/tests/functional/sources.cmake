@@ -326,6 +326,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/tensor_iterator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/batch_replicated_branches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/condition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_backprop_data_runtime_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_in_place_crop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/activations_scaling.cpp
