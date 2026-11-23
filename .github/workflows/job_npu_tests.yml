@@ -103,10 +103,17 @@ jobs:
           }
 
       - name: Extract OpenVINO tests package
-        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
+        run: |
+          # no progress bar: in Windows PowerShell 5.1 it slows Expand-Archive down a lot
+          $ProgressPreference = 'SilentlyContinue'
+          Expand-Archive openvino_tests.zip -DestinationPath .
         working-directory: ${{ env.INSTALL_DIR }}
 
+      # The NPU hosts have no git, so checkout falls back to downloading the whole repo
+      # archive, which Windows PowerShell fails to extract. They need no pip proxy either,
+      # so they use actions/setup-python directly, like GPU_Unit_Tests on the same hosts.
       - name: Fetch setup_python action
+        if: ${{ contains(inputs.runner, 'aks') }}
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
@@ -116,12 +123,19 @@ jobs:
           path: 'openvino'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
+        if: ${{ contains(inputs.runner, 'aks') }}
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           set-pip-install-path: 'false'
-          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
-          use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }} (NPU hosts)
+        if: ${{ !contains(inputs.runner, 'aks') }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       # public CAs + proxy root CA, before the first pip install (pip's bundled certifi needs no network)
       - name: Trust the Intel proxy root CA (Python)
