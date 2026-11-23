@@ -145,8 +145,8 @@ python3 src/frontends/gguf/tests/graph_fingerprint.py \
   --cases CASE_A,CASE_B --update --report /tmp/changed_cases.json
 ```
 
-Default mode checks references; CI never updates. On a mismatch, the check prints the
-per-case deltas, how to set the runner, the exact `--update` command for the changed cases,
+Default mode checks references; CI never updates. On a mismatch, the check prints grouped
+representative deltas, how to set the runner, the exact `--update` command for the changed cases,
 and a link to the review policy below. In GitHub Actions it also adds an error annotation and a job summary table. Updates require explicit IDs, capture
 all selected cases before writing, stage replacements, and roll back a publication failure.
 If rollback fails, the error lists retained recovery backups. Existing malformed,
@@ -186,12 +186,19 @@ not evidence of a speedup.
 
 ### 1. Group affected cases by change signature
 
-Group the changed cases by their per-model net operation/projection deltas from `changed_cases.json`
-(for example "+1 Convert before MatMul" or "Q6_K projection rank 4 -> 3"). Cases whose
-hash changed with equal counts form groups by the operation types whose structure or
-attributes changed; inspect them with the runner's `--gguf-snapshot` diagnostic. Describe
-every group in the PR, identifying the affected named graphs. Changes to component-map
-membership must also be explained; auxiliary encoders and embedding graphs are not exempt.
+The check groups changes automatically. Each named graph of a case (adaptation variant such
+as `ids/language`, `embeds/language` or `vision_embeddings`) is grouped on its own; a
+projector identity change is a separate member. A group contains graphs with the same status
+that gained or lost the same operation and projection types. Delta magnitudes are ignored
+because they scale with depth. The log prints each group once, including its architectures,
+members and the full deltas of one representative graph. It prefers a real checkpoint over
+synthetic fixtures. `changed_cases.json` keeps every case's deltas and adds the groups under
+`change_groups`. Matching signatures do not prove that graph changes are equivalent. Graphs
+with a changed hash but equal counts are grouped by graph name only.
+Split such groups by the operation types whose structure or attributes changed, using the
+runner's `--gguf-snapshot` diagnostic. Describe every group in the PR, identifying the
+affected named graphs. Changes to component-map membership must also be explained;
+auxiliary encoders and embedding graphs are not exempt.
 
 ### 2. Select representatives
 

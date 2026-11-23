@@ -162,6 +162,38 @@ def test_detects_rewiring_with_unchanged_operation_counts(capsys):
     assert "canonical" not in first
 
 
+def test_groups_each_named_graph_by_changed_operation_types_regardless_of_depth(capsys):
+    def delta(ops):
+        return {"status": "changed", "before_nodes": 10, "after_nodes": 10 + sum(ops.values()),
+                "graph_changed": True, "projections": [],
+                "ops": [{"signature": [op, "opset1"], "delta": count} for op, count in ops.items()]}
+
+    def change(name, graphs, projectors_changed=False):
+        return {"case": name, "architecture": name.split("--")[0], "models": [name],
+                "change": {"projectors_changed": projectors_changed,
+                           "models": {graph_name: delta(ops) for graph_name, ops in graphs.items()}}}
+    changes = [change("representative--llama-ggml-2", {"ids/language": {"Multiply": 4}}),
+               change("llama--small", {"ids/language": {"Multiply": 16}}),
+               change("qwen3--deep", {"ids/language": {"Multiply": 36}}),
+               change("qwen3--removed", {"ids/language": {"Multiply": -36}}),
+               change("gemma3--multimodal", {"ids/language": {"Multiply": 8}, "embeds/language": {"Add": 8},
+                                             "embeds/text_embeddings": {}, "vision": {}}, True)]
+    groups = graph.group_changes(changes)
+    assert [[graph.member_label(member) for member in group["members"]] for group in groups] == [
+        ["representative--llama-ggml-2 [ids/language]", "llama--small [ids/language]",
+         "qwen3--deep [ids/language]", "gemma3--multimodal [ids/language]"],
+        ["qwen3--removed [ids/language]"], ["gemma3--multimodal [embeds/language]"],
+        ["gemma3--multimodal [embeds/text_embeddings]"], ["gemma3--multimodal [vision]"],
+        ["gemma3--multimodal [projectors]"]]
+    assert groups[0]["representative"] == {"case": "llama--small", "graph": "ids/language"}
+    assert groups[0]["architectures"] == ["gemma3", "llama", "qwen3", "representative"]
+    graph.print_groups(groups, limit=2)
+    output = capsys.readouterr().out
+    assert "Change group 1: 4 graph(s) in 4 case(s)" in output and "... and 2 more" in output
+    assert "Representative (deltas shown for this graph): llama--small [ids/language]" in output
+    assert "gemma3--multimodal: projector identities changed" in output
+
+
 def test_histogram_reports_net_added_and_removed_counts():
     assert graph.histogram_delta([["Add", "opset1", 3], ["MatMul", "opset1", 2]],
                                  [["Add", "opset1", 1], ["Gather", "opset8", 4]]) == [
@@ -276,7 +308,7 @@ def test_reference_format_keeps_histogram_rows_diffable():
     assert json.loads(data) == value
 
 
-def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path, monkeypatch):
+def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path, monkeypatch, capsys):
     value = recipe()
     original = json.dumps(reference())
     cases = []
@@ -297,7 +329,9 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
     def capture(value, runner):
         if value["tensors"][0]["name"] == "two":
             raise ValueError("intentional second-case failure")
-        return captured_models()
+        result = captured_models()
+        result["models"]["ids/language"]["graph_sha256"] = "f" * 64
+        return result
     monkeypatch.setattr(graph, "capture", capture)
     args.cases = "one,two"
     with pytest.raises(ValueError, match="second-case failure"):
@@ -306,6 +340,8 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
     report = json.loads(args.report.read_text())
     assert report["selected"] == 2 and report["completed"] == 1
     assert "second-case failure" in report["errors"][0]
+    assert report["change_groups"][0]["members"] == [{"case": "one", "graph": "ids/language"}]
+    assert "one [ids/language]: changed" in capsys.readouterr().out
     monkeypatch.setattr(graph, "capture", lambda value, runner: captured_models())
     replace = graph.os.replace
 
@@ -407,8 +443,12 @@ def test_check_failure_explains_update_and_evidence_in_ci(tmp_path, monkeypatch,
     assert "::error title=GGUF structural references changed::" in out
     text = summary.read_text()
     assert command in text and policy in text and graph.RUNNER_EXPORT in text
-    assert "| `changed` |" in text and "structure/attributes only" in text and "`same`" not in text
-    assert "`ids/language`" in text
+    assert "| 1 | 1 | 1 | `changed` | `ids/language` | changed |" in text
+    assert "structure/attributes only" in text and "`same`" not in text
+    assert "- `changed` `[ids/language]`" in text
+    report = json.loads(args.report.read_text())
+    assert report["change_groups"][0]["members"] == [{"case": "changed", "graph": "ids/language"}]
+    assert "does not prove equivalent" in out and "does not prove equivalent" in text
 
 
 def test_compares_every_named_model_and_detects_added_removed_and_renamed_components(capsys):

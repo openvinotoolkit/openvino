@@ -109,17 +109,88 @@ def reference_delta(expected, actual):
     return {"models": changes, "projectors_changed": projectors_changed} if changes or projectors_changed else None
 
 
+def print_delta(case, name, delta):
+    print(f"{case} [{name}]: {delta['status']}; operations {delta['before_nodes']} -> {delta['after_nodes']}")
+    for field in ("ops", "projections"):
+        for row in delta[field]:
+            kind = "added" if row["delta"] > 0 else "removed"
+            print(f"  {kind} {field}: {'/'.join(map(str, row['signature']))} {row['delta']:+d}")
+    if delta["graph_changed"] and not delta["ops"]:
+        print("  structure/attributes changed; operation counts unchanged")
+
+
 def print_changes(case, change):
     for name, delta in change["models"].items():
-        print(f"{case} [{name}]: {delta['status']}; operations {delta['before_nodes']} -> {delta['after_nodes']}")
-        for field in ("ops", "projections"):
-            for row in delta[field]:
-                kind = "added" if row["delta"] > 0 else "removed"
-                print(f"  {kind} {field}: {'/'.join(map(str, row['signature']))} {row['delta']:+d}")
-        if delta["graph_changed"] and not delta["ops"]:
-            print("  structure/attributes changed; operation counts unchanged")
+        print_delta(case, name, delta)
     if change["projectors_changed"]:
         print(f"{case}: projector identities changed")
+
+
+PROJECTORS = "projectors"
+
+
+def change_signature(name, delta):
+    if delta is None:
+        return (PROJECTORS,)
+    # Delta magnitudes scale with depth, so only the direction is part of the signature.
+    rows = {field: tuple((tuple(row["signature"]), row["delta"] > 0) for row in delta[field])
+            for field in ("ops", "projections")}
+    # Without count deltas the graph name is the only discriminator left.
+    scope = name if not rows["ops"] and not rows["projections"] else None
+    return (scope, delta["status"], rows["ops"], rows["projections"], delta["graph_changed"])
+
+
+def group_changes(changes):
+    # Each named graph (adaptation variant) is grouped on its own, independent of its case's other graphs.
+    groups = {}
+    for change in changes:
+        entries = list(change["change"]["models"].items())
+        if change["change"]["projectors_changed"]:
+            entries.append((PROJECTORS, None))
+        for name, delta in entries:
+            member = {"case": change["case"], "graph": name, "architecture": change["architecture"],
+                      "models": change["models"], "delta": delta}
+            groups.setdefault(change_signature(name, delta), []).append(member)
+    result = []
+    for members in sorted(groups.values(), key=lambda members: -len(members)):
+        synthetic = ("fixture--", "representative--")
+        representative = next((member for member in members if not member["case"].startswith(synthetic)),
+                              members[0])
+        result.append({
+            "representative": {"case": representative["case"], "graph": representative["graph"]},
+            "architectures": sorted({member["architecture"] for member in members}),
+            "members": [{"case": member["case"], "graph": member["graph"]} for member in members],
+            "cases": list(dict.fromkeys(member["case"] for member in members)),
+            "models": sorted({model for member in members for model in member["models"]}),
+            "delta": representative["delta"]})
+    return result
+
+
+def member_label(member):
+    return f"{member['case']} [{member['graph']}]"
+
+
+def print_groups(groups, limit=10):
+    for index, group in enumerate(groups, 1):
+        members = group["members"]
+        print(f"\nChange group {index}: {len(members)} graph(s) in {len(group['cases'])} case(s), "
+              f"{len(group['models'])} model alias(es); architectures: {', '.join(group['architectures'])}")
+        representative = group["representative"]
+        print(f"Representative (deltas shown for this graph): {member_label(representative)}")
+        if group["delta"] is None:
+            print(f"{representative['case']}: projector identities changed")
+        else:
+            print_delta(representative["case"], representative["graph"], group["delta"])
+        listed = ", ".join(map(member_label, members[:limit]))
+        if len(members) > limit:
+            listed += f", ... and {len(members) - limit} more"
+        print(f"  members: {listed}")
+
+
+def record_groups(report):
+    groups = group_changes(report["changed_cases"])
+    report["change_groups"] = [{key: value for key, value in group.items() if key != "delta"} for group in groups]
+    print_groups(groups)
 
 
 def source_link(path, anchor=""):
@@ -143,9 +214,15 @@ def update_command(changes):
 
 
 def failure_guidance(changes, report_path):
+    groups = group_changes(changes)
     return [
         f"GGUF structural regression check FAILED: {len(changes)} case(s) differ from the "
-        "committed references.",
+        f"committed references, in {len(groups)} group(s) by net change signature.",
+        "Each named graph is grouped separately. A shared signature does not prove equivalent "
+        "graph changes; inspect each group and select real checkpoints as described in the review policy:",
+        *(f"  group {index}: {member_label(group['representative'])} ({len(group['members'])} graph(s) in "
+          f"{len(group['cases'])} case(s); {', '.join(group['architectures'])})"
+          for index, group in enumerate(groups, 1)),
         "If the change is unintended, fix the frontend change instead of the references.",
         "If the change is intended:",
         f"  1. {RUNNER_HINT}",
@@ -170,21 +247,34 @@ def publish_failure(changes, report_path):
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if not summary:
         return
-    rows = ["| Case | Model | Status | Operations | Changed operation types | Changed projections |",
-            "|---|---|---|---|---|---|"]
-    for change in changes:
-        for name, delta in change["change"]["models"].items():
+    groups = group_changes(changes)
+    rows = ["| Group | Graphs | Cases | Representative | Graph | Status | Operations | Changed operation types | "
+            "Changed projections |", "|---|---|---|---|---|---|---|---|---|"]
+    details = []
+    for index, group in enumerate(groups, 1):
+        representative, delta = group["representative"], group["delta"]
+        prefix = (f"| {index} | {len(group['members'])} | {len(group['cases'])} | "
+                  f"`{representative['case']}` | `{representative['graph']}` |")
+        if delta is None:
+            rows.append(f"{prefix} projector identities changed | - | - | - |")
+        else:
             ops, projections = (", ".join(f"{'/'.join(map(str, row['signature']))} {row['delta']:+d}"
                                           for row in delta[field]) or "-" for field in ("ops", "projections"))
             if ops == "-" and projections == "-":
                 ops = "structure/attributes only"
-            rows.append(f"| `{change['case']}` | `{name}` | {delta['status']} | "
-                        f"{delta['before_nodes']} → {delta['after_nodes']} | {ops} | {projections} |")
-        if change["change"]["projectors_changed"]:
-            rows.append(f"| `{change['case']}` | - | projector identities changed | - | - | - |")
+            rows.append(f"{prefix} {delta['status']} | {delta['before_nodes']} → {delta['after_nodes']} | "
+                        f"{ops} | {projections} |")
+        details += [f"<details><summary>Group {index}: {len(group['members'])} graph(s) in "
+                    f"{len(group['cases'])} case(s); {', '.join(group['architectures'])}</summary>", "",
+                    *(f"- `{member['case']}` `[{member['graph']}]`" for member in group["members"]),
+                    "", "</details>", ""]
     text = "\n".join([
         "## GGUF structural regression check failed", "",
-        f"{len(changes)} case(s) differ from the committed references.", "", *rows, "",
+        f"{len(changes)} case(s) differ from the committed references, in {len(groups)} group(s) by "
+        "net change signature. Each named graph is grouped separately. A shared signature does not "
+        "prove equivalent graph changes; inspect each group and select real checkpoints according "
+        "to the review policy. Operation deltas are shown for each group's representative.", "",
+        *rows, "", *details,
         "If the change is unintended, fix the frontend change instead of the references. "
         "If it is intended:", "",
         f"1. {RUNNER_HINT}", "",
@@ -751,6 +841,8 @@ def run_cases(args):
         return status
     except (OSError, ValueError, KeyError, TypeError) as error:
         report["errors"].append(str(error))
+        if "change_groups" not in report:
+            record_groups(report)
         raise
     finally:
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -790,7 +882,7 @@ def _run_cases(args, report):
         raise ValueError("--update requires explicit --cases")
     report["selected"] = len(requested)
     runner = runner_path(args.runner)
-    changes, pending = [], []
+    changes, pending = report["changed_cases"], []
     for case in catalog["cases"]:
         if case["id"] not in requested:
             continue
@@ -821,11 +913,12 @@ def _run_cases(args, report):
             reference_bytes(expected)
         delta = reference_delta(expected, actual)
         if delta:
-            print_changes(case["id"], delta)
-            changes.append({"case": case["id"], "models": case["models"], "change": delta})
+            changes.append({"case": case["id"], "architecture": case["architecture"], "models": case["models"],
+                            "change": delta})
         pending.append((target, reference_bytes(actual)))
         report["changed_cases"] = changes
         report["completed"] = len(pending)
+    record_groups(report)
     if args.update:
         install_references(pending)
         for target, _ in pending:
