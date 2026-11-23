@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
@@ -491,7 +491,7 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     shim_options.useTileOps = true;
     shim_options.decorator = "moe";
 
-    kd.code->jit += generateShim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (moe_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }

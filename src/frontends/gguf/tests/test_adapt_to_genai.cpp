@@ -18,10 +18,14 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
+#include "node_context.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
+#include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
@@ -31,6 +35,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -53,6 +59,7 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "quant/weights.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -82,6 +89,22 @@ struct MinimalGgufModel {
     // NOT end in "_embd" -- FixEmbdAxis must find it structurally (rooted at inp_tokens), not by name.
     std::shared_ptr<ov::Node> pe_tok;
 };
+
+void add_probe_result(const std::shared_ptr<ov::Model>& model,
+                      const ov::Output<ov::Node>& value,
+                      const std::string& name) {
+    auto result = std::make_shared<v0::Result>(value);
+    result->set_friendly_name(name);
+    model->add_results({result});
+}
+
+void name_probe_outputs(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& result : model->get_results()) {
+        const auto& name = result->get_friendly_name();
+        if (name.rfind("test_probe_", 0) == 0)
+            result->input_value(0).set_names({name});
+    }
+}
 
 std::map<std::string, ov::Tensor> make_genai_inputs(size_t length, size_t past = 0) {
     ov::Tensor ids(ov::element::i64, {1, length}), mask(ov::element::i64, {1, past + length});
@@ -208,6 +231,41 @@ TEST(GGUFAdaptToGenAI, RewritesIOContract) {
     EXPECT_EQ(m.model->get_results()[0]->get_output_partial_shape(0).rank().get_length(), 3);
 }
 
+TEST(GGUFAdaptToGenAI, EmbeddingLookupRetainsBorrowedWeightParameter) {
+    auto m = build_minimal_gguf_model();
+    std::shared_ptr<v8::Gather> lookup;
+    for (const auto& node : m.model->get_ops()) {
+        if (auto gather = ov::as_type_ptr<v8::Gather>(node)) {
+            if (ov::as_type_ptr<v0::Constant>(gather->get_input_node_shared_ptr(0))) {
+                lookup = gather;
+                break;
+            }
+        }
+    }
+    ASSERT_NE(lookup, nullptr);
+    auto table = ov::test::utils::make_param(ov::element::f32, {4, 2}, "gguf.target_token_embedding");
+    lookup->input(0).replace_source_output(table);
+    m.model->add_parameters({table});
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(adapter.run_on_model(m.model));
+    auto extracted = adapter.get_embedding_model();
+    ASSERT_NE(extracted, nullptr);
+    ASSERT_NO_THROW(extracted->validate_nodes_and_infer_types());
+    EXPECT_NE(find_parameter(extracted, "gguf.target_token_embedding"), nullptr);
+    ov::Core core;
+    auto request = core.compile_model(extracted, "CPU").create_infer_request();
+    ov::Tensor ids(ov::element::i64, {1, 2});
+    ids.data<int64_t>()[0] = 1;
+    ids.data<int64_t>()[1] = 3;
+    request.set_tensor("input_ids", ids);
+    request.set_tensor("gguf.target_token_embedding", make_f32_tensor({4, 2}, {0, 1, 2, 3, 4, 5, 6, 7}));
+    request.infer();
+    const auto result = request.get_tensor("inputs_embeds");
+    ASSERT_EQ(result.get_shape(), (ov::Shape{1, 2, 2}));
+    EXPECT_EQ(std::vector<float>(result.data<float>(), result.data<float>() + result.get_size()),
+              (std::vector<float>{2, 3, 6, 7}));
+}
+
 TEST(GGUFAdaptToGenAI, AcceptsPrunedTokenCountInput) {
     auto m = build_minimal_gguf_model();
     auto count = find_parameter(m.model, "token_len_per_seq");
@@ -278,6 +336,64 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
     EXPECT_EQ(batch_embeddings[0].data<float>()[0], 2.f);
     EXPECT_EQ(batch_embeddings[0].data<float>()[2], 6.f);
     EXPECT_FALSE(pass.run_on_model(m.model));
+}
+
+TEST(GGUFAdaptToGenAI, DeepStackScattersMediaFeaturesAcrossBatchesAndAcceptsTextOnly) {
+    auto m = build_minimal_gguf_model(4, 2);
+    auto deepstack = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{-1, 2, -1, 2}, "deepstack_embeds");
+    auto injection = std::make_shared<v1::ReduceSum>(deepstack, v0::Constant::create(ov::element::i64, {1}, {1}), true);
+    auto combined = std::make_shared<v1::Add>(m.embd, injection);
+    m.embd->output(0).replace(combined->output(0));
+    combined->input(0).replace_source_output(m.embd);
+    m.model->add_parameters({deepstack});
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(adapter.run_on_model(m.model));
+    ov::Core core;
+    auto request =
+        core.compile_model(m.model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    for (size_t batch : {1, 2}) {
+        for (size_t length : {3, 1, 2}) {
+            ov::Tensor embeds(ov::element::f32, {batch, length, 2});
+            std::fill_n(embeds.data<float>(), embeds.get_size(), 1.f);
+            ov::Tensor positions(ov::element::i64, {batch, length});
+            std::fill_n(positions.data<int64_t>(), positions.get_size(), 0);
+            ov::Tensor attention(ov::element::i64, {batch, length});
+            std::fill_n(attention.data<int64_t>(), attention.get_size(), 1);
+            for (bool media : {true, false}) {
+                for (bool packed : {false, true}) {
+                    const ov::Shape token_shape = packed ? ov::Shape{batch * length, 1} : ov::Shape{batch, length};
+                    embeds.set_shape({token_shape[0], token_shape[1], 2});
+                    positions.set_shape(token_shape);
+                    attention.set_shape(token_shape);
+                    ov::Tensor mask(ov::element::boolean, {batch, media ? length : 1});
+                    std::fill_n(mask.data<bool>(), mask.get_size(), false);
+                    if (media)
+                        for (size_t b = 0; b < batch; ++b)
+                            mask.data<bool>()[b * length + length - 1] = true;
+                    ov::Tensor features(ov::element::f32, {2, media ? batch : 1, 2});
+                    for (size_t i = 0; i < features.get_size(); ++i)
+                        features.data<float>()[i] = float(i + 1);
+                    request.set_tensor("inputs_embeds", embeds);
+                    request.set_tensor("position_ids", positions);
+                    request.set_tensor("attention_mask", attention);
+                    request.set_tensor("visual_pos_masks", mask);
+                    request.set_tensor("deepstack_visual_embeds", features);
+                    request.infer();
+                    const auto output = request.get_output_tensor();
+                    ASSERT_EQ(output.get_shape(), (ov::Shape{token_shape[0], token_shape[1], 1}));
+                    for (size_t b = 0; b < batch; ++b)
+                        for (size_t t = 0; t < length; ++t) {
+                            float expected = 2.f;
+                            if (media && t == length - 1)
+                                for (size_t layer = 0; layer < 2; ++layer)
+                                    for (size_t d = 0; d < 2; ++d)
+                                        expected += features.data<float>()[(layer * batch + b) * 2 + d];
+                            EXPECT_EQ(output.data<float>()[b * length + t], expected);
+                        }
+                }
+            }
+        }
+    }
 }
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToItsOwnModel) {
@@ -398,12 +514,13 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeRetainsScalingOnce) {
 TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
     auto m = build_minimal_gguf_model();
     auto mask = find_parameter(m.model, "self_kq_mask");
-    m.model->add_results({std::make_shared<v0::Result>(mask)});
+    add_probe_result(m.model, mask, "test_probe_global_mask");
     auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     m.model->add_parameters({swa});
-    m.model->add_results({std::make_shared<v0::Result>(swa)});
+    add_probe_result(m.model, swa, "test_probe_sliding_mask");
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{2};
     ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    name_probe_outputs(m.model);
     ov::Core core;
     auto request = core.compile_model(m.model, "CPU").create_infer_request();
     // The second sequence has two left-padding columns and one current token.
@@ -425,7 +542,7 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
         request.set_tensor("beam_idx", beams);
         request.infer();
         for (size_t layer = 0; layer < 2; ++layer) {
-            const auto actual = request.get_output_tensor(layer);
+            const auto actual = request.get_tensor(layer == 0 ? "test_probe_global_mask" : "test_probe_sliding_mask");
             ASSERT_EQ(actual.get_shape(), (ov::Shape{2, 1, 3, past + 3}));
             for (size_t b = 0; b < 2; ++b) {
                 // Padded query rows are ignored by generation.
@@ -444,18 +561,342 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
     }
 }
 
-class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<std::string> {};
+using ImageAttentionMode = ov::frontend::gguf::ModelContract::ImageAttentionMode;
+
+static void image_attention_contract(const std::shared_ptr<ov::Model>& model, ImageAttentionMode mode) {
+    ov::frontend::gguf::ModelContract contract;
+    contract.image_attention = mode;
+    ov::frontend::gguf::write_model_contract(model, contract);
+}
+
+using GenAIContract = ov::frontend::gguf::ModelContract::GenAIContract;
+
+TEST(GGUFAdaptToGenAI, TextPositionsRespectExplicitMultimodalLayout) {
+    for (const auto layout :
+         {GenAIContract::PositionLayout::THREE_AXIS, GenAIContract::PositionLayout::SEQUENCE_THREE_AXIS}) {
+        auto m = build_minimal_gguf_model();
+        m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
+        add_probe_result(m.model, find_parameter(m.model, "inp_pos"), "test_probe_positions");
+        ov::frontend::gguf::ModelContract contract;
+        contract.genai.emplace();
+        contract.genai->position_layout = layout;
+        ov::frontend::gguf::write_model_contract(m.model, contract);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+        name_probe_outputs(m.model);
+        auto inputs = make_genai_inputs(3);
+        const std::vector<int64_t> positions{3, 7, 11};
+        std::copy(positions.begin(), positions.end(), inputs.at("position_ids").data<int64_t>());
+        auto request = ov::Core{}.compile_model(m.model, "CPU").create_infer_request();
+        for (const auto& [name, value] : inputs)
+            request.set_tensor(name, value);
+        request.infer();
+        const auto actual = request.get_tensor("test_probe_positions");
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, 1, 12}));
+        const std::vector<int32_t> expected = layout == GenAIContract::PositionLayout::THREE_AXIS
+                                                  ? std::vector<int32_t>{3, 7, 11, 3, 7, 11, 3, 7, 11, 0, 0, 0}
+                                                  : std::vector<int32_t>{3, 7, 11, 3, 7, 11, 3, 7, 11, 3, 7, 11};
+        EXPECT_EQ(std::vector<int32_t>(actual.data<int32_t>(), actual.data<int32_t>() + actual.get_size()), expected);
+    }
+}
+
+TEST(GGUFAdaptToGenAI, RejectsNoncausalSlidingWindowBeforeRewriting) {
+    auto m = build_minimal_gguf_model();
+    auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+    m.model->add_parameters({swa});
+    m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{2};
+    ov::frontend::gguf::ModelContract contract;
+    contract.genai.emplace();
+    contract.genai->causal_attention = false;
+    ov::frontend::gguf::write_model_contract(m.model, contract);
+
+    EXPECT_THROW(AdaptToGenAI().run_on_model(m.model), ov::Exception);
+    EXPECT_NE(find_parameter(m.model, "inp_tokens"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "self_kq_mask_swa"), nullptr);
+    EXPECT_EQ(find_parameter(m.model, "input_ids"), nullptr);
+    EXPECT_NO_THROW(m.model->validate_nodes_and_infer_types());
+}
+
+TEST(GGUFAdaptToGenAI, ExplicitPositionLayoutSurvivesIRReloadAndArchitectureRename) {
+    for (const auto layout :
+         {GenAIContract::PositionLayout::THREE_AXIS, GenAIContract::PositionLayout::SEQUENCE_THREE_AXIS}) {
+        for (const std::string architecture : {"unknown-decoder", "qwen3vl", "qwen35"}) {
+            SCOPED_TRACE(architecture);
+            auto m = build_minimal_gguf_model();
+            m.embd->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)->set_friendly_name("token_embd.weight");
+            m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
+            m.model->get_rt_info()["gguf_architecture"] = "qwen3tts";
+            add_probe_result(m.model, find_parameter(m.model, "inp_pos"), "test_probe_positions");
+            ov::frontend::gguf::ModelContract contract;
+            contract.genai.emplace();
+            contract.genai->position_layout = layout;
+            ov::frontend::gguf::write_model_contract(m.model, contract);
+            auto restored = reload_ir_model(m.model);
+            restored->get_rt_info()["gguf_architecture"] = architecture;
+            ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(restored));
+            name_probe_outputs(restored);
+            const bool three = layout == GenAIContract::PositionLayout::THREE_AXIS;
+            EXPECT_EQ(restored->input("position_ids").get_partial_shape(), (ov::PartialShape{three ? 3 : 4, -1, -1}));
+            auto inputs = make_genai_inputs(2);
+            inputs.erase("input_ids");
+            inputs["inputs_embeds"] = make_f32_tensor({1, 2, 2}, {0, 1, 2, 3});
+            const std::vector<int64_t> positions =
+                three ? std::vector<int64_t>{3, 7, 11, 2, 5, 13} : std::vector<int64_t>{3, 7, 11, 2, 5, 13, 17, 19};
+            ov::Tensor coordinates(ov::element::i64, {three ? size_t{3} : size_t{4}, 1, 2});
+            std::copy(positions.begin(), positions.end(), coordinates.data<int64_t>());
+            inputs["position_ids"] = coordinates;
+            auto request = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+            for (const auto& [name, value] : inputs)
+                request.set_tensor(name, value);
+            request.infer();
+            const auto actual = request.get_tensor("test_probe_positions");
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, 1, 8}));
+            const std::vector<int32_t> expected = three ? std::vector<int32_t>{3, 7, 11, 2, 5, 13, 0, 0}
+                                                        : std::vector<int32_t>{11, 2, 5, 13, 17, 19, 3, 7};
+            EXPECT_EQ(std::vector<int32_t>(actual.data<int32_t>(), actual.data<int32_t>() + actual.get_size()),
+                      expected);
+            EXPECT_FALSE(AdaptToGenAI().run_on_model(restored));
+        }
+    }
+}
+
+TEST(GGUFAdaptToGenAI, ExplicitNamedOutputsAndBorrowedInputsSurviveIRReload) {
+    for (const auto& [architecture, logits_first] : std::vector<std::pair<std::string, bool>>{{"unknown-draft", false},
+                                                                                              {"unknown-draft", true},
+                                                                                              {"eagle3", true},
+                                                                                              {"qwen3tts", true}}) {
+        SCOPED_TRACE(architecture + (logits_first ? " logits first" : " logits last"));
+        auto m = build_minimal_gguf_model();
+        auto table = ov::test::utils::make_param(ov::element::f32, {4, 2}, "external_table");
+        m.embd->get_input_node_shared_ptr(0)->input(0).replace_source_output(table);
+        m.embd->output(0).set_names({"opaque_features"});
+        auto mapping = v0::Constant::create(ov::element::i64, {2}, {3, 7});
+        mapping->output(0).set_names({"opaque_mapping"});
+        m.model->add_parameters({table});
+        m.model->add_results({std::make_shared<v0::Result>(m.embd), std::make_shared<v0::Result>(mapping)});
+        m.model->get_rt_info()["gguf_architecture"] = "eagle3";
+        ov::frontend::gguf::ModelContract contract;
+        contract.genai.emplace();
+        contract.genai->logits_first = logits_first;
+        contract.genai->preserved_inputs = {"external_table"};
+        contract.genai->auxiliary_outputs = {{"opaque_features", "last_hidden_state", 1},
+                                             {"opaque_mapping", "token_mapping", std::nullopt}};
+        ov::frontend::gguf::write_model_contract(m.model, contract);
+        auto restored = reload_ir_model(m.model);
+        restored->get_rt_info()["gguf_architecture"] = architecture;
+        const auto decoded = ov::frontend::gguf::read_model_contract(restored);
+        ASSERT_TRUE(decoded.genai);
+        EXPECT_EQ(decoded.genai->logits_first, logits_first);
+        ASSERT_EQ(decoded.genai->auxiliary_outputs.size(), 2);
+        EXPECT_EQ(decoded.genai->auxiliary_outputs[0].source_tensor, "opaque_features");
+        EXPECT_EQ(decoded.genai->auxiliary_outputs[0].squeeze_axis, std::optional<int64_t>{1});
+        EXPECT_EQ(decoded.genai->preserved_inputs, (std::vector<std::string>{"external_table"}));
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(restored));
+        EXPECT_EQ(restored->output(logits_first ? 0 : 2).get_any_name(), "logits");
+        EXPECT_EQ(restored->output(logits_first ? 1 : 0).get_any_name(), "last_hidden_state");
+        EXPECT_EQ(restored->output(logits_first ? 2 : 1).get_any_name(), "token_mapping");
+        EXPECT_NE(find_parameter(restored, "external_table"), nullptr);
+        auto inputs = make_genai_inputs(2);
+        inputs["external_table"] = make_f32_tensor({4, 2}, {0, 1, 2, 3, 4, 5, 6, 7});
+        auto compiled = ov::Core{}.compile_model(restored, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (const auto& [name, value] : inputs)
+            request.set_tensor(name, value);
+        request.infer();
+        const auto hidden = request.get_tensor("last_hidden_state");
+        ASSERT_EQ(hidden.get_shape(), (ov::Shape{1, 2, 2}));
+        EXPECT_EQ(std::vector<float>(hidden.data<float>(), hidden.data<float>() + hidden.get_size()),
+                  (std::vector<float>{0, 1, 2, 3}));
+        const auto actual_mapping = request.get_tensor("token_mapping");
+        EXPECT_EQ(std::vector<int64_t>(actual_mapping.data<int64_t>(),
+                                       actual_mapping.data<int64_t>() + actual_mapping.get_size()),
+                  (std::vector<int64_t>{3, 7}));
+    }
+}
+
+TEST(GGUFAdaptToGenAI, PreservesInputByFriendlyNameWhenTensorAliasDiffers) {
+    auto m = build_minimal_gguf_model();
+    auto table = ov::test::utils::make_param(ov::element::f32, {4, 2}, "external_table_alias");
+    table->set_friendly_name("external_table_friendly");
+    table->output(0).set_names({"external_table_alias"});
+    m.embd->get_input_node_shared_ptr(0)->input(0).replace_source_output(table);
+    m.model->add_parameters({table});
+
+    ov::frontend::gguf::ModelContract contract;
+    contract.genai.emplace();
+    contract.genai->preserved_inputs = {"external_table_friendly"};
+    ov::frontend::gguf::write_model_contract(m.model, contract);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    EXPECT_NE(find_parameter(m.model, "external_table_friendly"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "external_table_alias"), nullptr);
+    EXPECT_NO_THROW(m.model->validate_nodes_and_infer_types());
+}
+
+TEST(GGUFAdaptToGenAI, LegacyAuxiliaryOutputsAndBorrowedInputsSurviveIRReload) {
+    for (const std::string architecture : {"eagle3", "qwen3tts"}) {
+        for (const bool older_contract : {false, true}) {
+            SCOPED_TRACE(architecture);
+            auto m = build_minimal_gguf_model();
+            auto table = ov::test::utils::make_param(ov::element::f32, {4, 2}, "gguf.target_token_embedding");
+            m.embd->get_input_node_shared_ptr(0)->input(0).replace_source_output(table);
+            m.embd->set_friendly_name(architecture == "eagle3" ? "eagle3.prenorm" : "qwen3tts.hidden_states");
+            m.model->add_parameters({table});
+            m.model->add_results({std::make_shared<v0::Result>(m.embd)});
+            if (architecture == "eagle3") {
+                auto mapping = v0::Constant::create(ov::element::i64, {2}, {3, 7});
+                mapping->set_friendly_name("d2t");
+                m.model->add_results({std::make_shared<v0::Result>(mapping)});
+            }
+            m.model->get_rt_info()["gguf_architecture"] = architecture;
+            if (older_contract)
+                ov::frontend::gguf::write_model_contract(m.model, {});
+            auto restored = reload_ir_model(m.model);
+            ASSERT_TRUE(AdaptToGenAI().run_on_model(restored));
+            EXPECT_EQ(restored->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, 2}));
+            EXPECT_NE(find_parameter(restored, "gguf.target_token_embedding"), nullptr);
+            auto compiled = ov::Core{}.compile_model(restored, "CPU", ov::hint::inference_precision(ov::element::f32));
+            auto request = compiled.create_infer_request();
+            auto inputs = make_genai_inputs(2);
+            inputs["gguf.target_token_embedding"] = make_f32_tensor({4, 2}, {0, 1, 2, 3, 4, 5, 6, 7});
+            for (const auto& [name, value] : inputs)
+                request.set_tensor(name, value);
+            request.infer();
+            const auto hidden = request.get_tensor("last_hidden_state");
+            EXPECT_EQ(std::vector<float>(hidden.data<float>(), hidden.data<float>() + hidden.get_size()),
+                      (std::vector<float>{0, 1, 2, 3}));
+            if (architecture == "eagle3") {
+                EXPECT_EQ(restored->output(0).get_any_name(), "logits");
+                const auto mapping = request.get_tensor("d2t");
+                EXPECT_EQ(std::vector<int64_t>(mapping.data<int64_t>(), mapping.data<int64_t>() + mapping.get_size()),
+                          (std::vector<int64_t>{3, 7}));
+            }
+        }
+    }
+}
+
+TEST(GGUFAdaptToGenAI, ExplicitRoleOverridesArchitectureAndLegacyInputNames) {
+    const std::vector<std::tuple<bool, std::optional<bool>, bool>> cases{{false, std::nullopt, false},
+                                                                         {true, std::nullopt, true},
+                                                                         {false, true, true},
+                                                                         {true, false, false}};
+    for (const auto& [nested, capability, enabled] : cases) {
+        auto m = build_minimal_gguf_model();
+        m.model->get_rt_info()["gguf_architecture"] = "dspark";
+        m.model->add_parameters({ov::test::utils::make_param(ov::element::f32, {1, 1, 2, 3}, "dspark_ctx_feat")});
+        ov::frontend::gguf::ModelContract contract;
+        contract.genai.emplace();
+        contract.genai->enabled = nested;
+        contract.supports_genai_adaptation = capability;
+        ov::frontend::gguf::write_model_contract(m.model, contract);
+        m.model->set_rt_info(std::string(nested ? "true" : "false"), {"gguf_model_contract", "genai", "enabled"});
+        if (!capability)
+            m.model->get_rt_info()["gguf_model_contract"].as<ov::AnyMap>().erase("supports_genai_adaptation");
+        auto restored = reload_ir_model(m.model);
+        EXPECT_EQ(AdaptToGenAI().run_on_model(restored), enabled);
+        EXPECT_EQ(find_parameter(restored, enabled ? "input_ids" : "inp_tokens") != nullptr, true);
+    }
+}
+
+TEST(GGUFAdaptToGenAI, PrefixAttentionContractHandlesCachedAndPaddedKeysAfterIRReload) {
+    for (const bool legacy : {false, true}) {
+        SCOPED_TRACE(legacy);
+        auto m = build_minimal_gguf_model();
+        const std::string context_input = legacy ? "hidden_states" : "opaque_context";
+        auto context = ov::test::utils::make_param(ov::element::f32, {1, 1, -1, 3}, context_input);
+        m.model->add_parameters({context});
+        add_probe_result(m.model, find_parameter(m.model, "self_kq_mask"), "test_probe_prefix_mask");
+        add_probe_result(m.model, find_parameter(m.model, "token_len_per_seq"), "test_probe_prefix_count");
+        m.model->get_rt_info()["gguf_architecture"] = legacy ? "dflash" : "unknown-prefix-decoder";
+        ov::frontend::gguf::ModelContract contract;
+        if (!legacy) {
+            contract.genai.emplace();
+            contract.genai->causal_attention = false;
+            contract.genai->attention_context_input = context_input;
+        }
+        ov::frontend::gguf::write_model_contract(m.model, contract);
+        auto restored = reload_ir_model(m.model);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(restored));
+        name_probe_outputs(restored);
+        auto inputs = make_genai_inputs(3, 4);
+        inputs["attention_mask"].data<int64_t>()[1] = 0;
+        inputs["attention_mask"].data<int64_t>()[6] = 0;
+        inputs["hidden_states"] = make_f32_tensor({1, 2, 3}, std::vector<float>(6, 0.f));
+        auto compiled = ov::Core{}.compile_model(restored, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (const auto& [name, value] : inputs)
+            request.set_tensor(name, value);
+        request.infer();
+        const auto mask = request.get_tensor("test_probe_prefix_mask");
+        ASSERT_EQ(mask.get_shape(), (ov::Shape{1, 1, 5, 7}));
+        expect_mask(mask.data<float>(), 5, 7, [](size_t, size_t key) {
+            return key != 1 && key != 6;
+        });
+        EXPECT_EQ(request.get_tensor("test_probe_prefix_count").data<int64_t>()[0], 5);
+    }
+}
+
+TEST(GGUFAdaptToGenAI, LegacyGenAIFieldsResolveWhenOnlyOlderContractFieldsExist) {
+    for (const bool older_contract : {false, true}) {
+        auto m = build_minimal_gguf_model();
+        m.model->get_rt_info()["gguf_architecture"] = "qwen3tts";
+        if (older_contract)
+            m.model->get_rt_info()["gguf_model_contract"] =
+                ov::AnyMap{{"image_attention", std::string{"causal"}}, {"batchable_recurrent", std::string{"auto"}}};
+        const auto restored = reload_ir_model(m.model);
+        const auto contract = ov::frontend::gguf::read_model_contract(restored);
+        ASSERT_TRUE(contract.genai);
+        EXPECT_EQ(contract.genai->position_layout, GenAIContract::PositionLayout::THREE_AXIS);
+        EXPECT_TRUE(contract.genai->enabled);
+        restored->get_rt_info()["gguf_architecture"] = "dspark";
+        restored->add_parameters({ov::test::utils::make_param(ov::element::f32, {1, 1, 2, 3}, "dspark_ctx_feat")});
+        EXPECT_FALSE(AdaptToGenAI().run_on_model(restored));
+    }
+}
+
+TEST(GGUFAdaptToGenAI, RejectsMalformedSerializedGenAIContracts) {
+    const std::vector<std::pair<std::string, std::string>> invalid{{"version", "2"},
+                                                                   {"enabled", "auto"},
+                                                                   {"causal_attention", "yes"},
+                                                                   {"logits_first", "1"},
+                                                                   {"position_layout", "unknown"},
+                                                                   {"output_count", "-1"},
+                                                                   {"input_count", "1025"}};
+    for (const auto& [field, value] : invalid) {
+        SCOPED_TRACE(field);
+        auto m = build_minimal_gguf_model();
+        ov::frontend::gguf::ModelContract contract;
+        contract.genai.emplace();
+        ov::frontend::gguf::write_model_contract(m.model, contract);
+        m.model->set_rt_info(value, {"gguf_model_contract", "genai", field});
+        const auto restored = reload_ir_model(m.model);
+        EXPECT_THROW(ov::frontend::gguf::read_model_contract(restored), ov::Exception);
+    }
+    auto m = build_minimal_gguf_model();
+    ov::frontend::gguf::ModelContract contract;
+    contract.genai.emplace();
+    contract.genai->auxiliary_outputs = {{"features", "last_hidden_state", 4}};
+    EXPECT_THROW(ov::frontend::gguf::write_model_contract(m.model, contract), ov::Exception);
+    contract.genai->auxiliary_outputs = {{"features", "last_hidden_state", 1}, {"features", "mapping", std::nullopt}};
+    EXPECT_THROW(ov::frontend::gguf::write_model_contract(m.model, contract), ov::Exception);
+    contract.genai->auxiliary_outputs.clear();
+    contract.genai->preserved_inputs = {"external_table", "external_table"};
+    EXPECT_THROW(ov::frontend::gguf::write_model_contract(m.model, contract), ov::Exception);
+}
+
+class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<ImageAttentionMode> {};
 
 TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     auto m = build_minimal_gguf_model();
-    m.model->get_rt_info()["gguf_architecture"] = GetParam();
+    image_attention_contract(m.model, GetParam());
+    m.model->get_rt_info()["gguf_architecture"] = std::string("custom-image-decoder");
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
     auto mask = find_parameter(m.model, "self_kq_mask");
     auto swa_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     m.model->add_parameters({swa_mask});
-    m.model->add_results({std::make_shared<v0::Result>(mask), std::make_shared<v0::Result>(swa_mask)});
+    add_probe_result(m.model, mask, "test_probe_global_mask");
+    add_probe_result(m.model, swa_mask, "test_probe_sliding_mask");
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
-    // Adaptation replaces the original first result with logits; the retained mask is now first.
+    name_probe_outputs(m.model);
     ov::Core core;
     for (const auto& node : m.model->get_ops())
         node->get_rt_info().clear();
@@ -480,9 +921,9 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
                 request.set_tensor(entry.first, entry.second);
             request.infer();
             for (size_t layer = 0; layer < 2; ++layer) {
-                auto actual = request.get_output_tensor(layer);
+                auto actual = request.get_tensor(layer == 0 ? "test_probe_global_mask" : "test_probe_sliding_mask");
                 ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
-                const bool bidirectional = layer == 1 || GetParam() == "gemma3";
+                const bool bidirectional = layer == 1 || GetParam() == ImageAttentionMode::GLOBAL_AND_SLIDING;
                 SCOPED_TRACE("layer=" + std::to_string(layer) + " past=" + std::to_string(past));
                 expect_mask(actual.data<const float>(), types.size(), past + types.size(), [&](size_t q, size_t k) {
                     const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
@@ -494,19 +935,21 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(Gemma,
+INSTANTIATE_TEST_SUITE_P(Contract,
                          GGUFAdaptToGenAIImageMask,
-                         testing::Values(std::string("gemma3"), std::string("gemma4")),
-                         [](const testing::TestParamInfo<std::string>& info) {
-                             return info.param;
+                         testing::Values(ImageAttentionMode::GLOBAL_AND_SLIDING, ImageAttentionMode::SLIDING_ONLY),
+                         [](const testing::TestParamInfo<ImageAttentionMode>& info) {
+                             return info.param == ImageAttentionMode::GLOBAL_AND_SLIDING ? "GlobalAndSliding"
+                                                                                         : "SlidingOnly";
                          });
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
     auto m = build_minimal_gguf_model();
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
     auto positions = find_parameter(m.model, "inp_pos");
-    m.model->add_results({std::make_shared<v0::Result>(positions)});
+    add_probe_result(m.model, positions, "test_probe_rope_positions");
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
+    name_probe_outputs(m.model);
     auto inputs = make_genai_inputs(2, 7);
     inputs.erase("input_ids");
     inputs.emplace("inputs_embeds", make_f32_tensor({1, 2, 2}, {1, 2, 3, 4}));
@@ -514,7 +957,11 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
     const std::vector<int64_t> data{3, 7, 11, 2, 5, 13, 17, 19};
     std::copy(data.begin(), data.end(), coordinates.data<int64_t>());
     inputs["position_ids"] = coordinates;
-    auto actual = run_on_cpu(m.model, inputs);
+    auto request = ov::Core{}.compile_model(m.model, "CPU").create_infer_request();
+    for (const auto& [name, tensor] : inputs)
+        request.set_tensor(name, tensor);
+    request.infer();
+    auto actual = request.get_tensor("test_probe_rope_positions");
     ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, 1, 8}));
     for (size_t i = 0; i < data.size(); ++i)
         EXPECT_EQ(actual.data<int32_t>()[i], data[(i + 2) % data.size()]);
@@ -523,28 +970,52 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
 // translate_get_rows's embedding lookup restores ggml's rank-4 form with Unsqueeze(axis=0),
 // pinning the leading axis to a literal 1. AdaptToGenAI moves it to axis 1 so it instead mirrors
 // input_ids' own (backend-dependent) leading dim -- see FixEmbdAxis in adapt_to_genai.cpp.
+TEST(GGUFAdaptToGenAI, PackedTernaryEmbeddingAdaptsForBatchedLookup) {
+    constexpr size_t vocab = 4;
+    constexpr size_t hidden = 256;
+    auto m = build_minimal_gguf_model(vocab, hidden);
+    const auto bytes = load_npy<uint8_t>("pq2_0_qbytes");
+    ov::Tensor payload(ov::element::u8, {bytes.size()});
+    std::memcpy(payload.data(), bytes.data(), bytes.size());
+    auto weight = make_weight_node(payload, "PQ2_0", {vocab, hidden});
+    auto decoder = SingleOpBuilder()
+                       .op("GGML_OP_GET_ROWS")
+                       .input("weight", ov::element::f32, {vocab, hidden})
+                       .input("inp_tokens", ov::element::i32, {1, 1, 1, -1})
+                       .output("embd", ov::element::f32, {1, 1, -1, hidden})
+                       .decoder();
+    auto tensors = std::make_shared<TensorMap>();
+    (*tensors)["weight"] = weight;
+    (*tensors)["inp_tokens"] = m.inp_tokens;
+    NodeContext context(decoder, tensors);
+    auto embedding = op::translate_get_rows(context)[0].get_node_shared_ptr();
+    embedding->set_friendly_name(m.embd->get_friendly_name());
+    embedding->get_rt_info()["gguf.token_embedding"] = true;
+    m.embd->output(0).replace(embedding);
+    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(pass.run_on_model(m.model));
+    const auto lookup = pass.get_embedding_model();
+    ASSERT_TRUE(lookup);
+    const auto reference = load_npy<float>("pq2_0_deq");
+    const auto ids = make_i64_tensor({2, 3}, {3, 0, 1, 2, 1, 3});
+    auto output = run_on_cpu(lookup, {{lookup->input().get_any_name(), ids}});
+    ASSERT_EQ(output.get_shape(), (ov::Shape{2, 3, hidden}));
+    for (size_t i = 0; i < ids.get_size(); ++i) {
+        for (size_t j = 0; j < hidden; ++j)
+            EXPECT_FLOAT_EQ(output.data<float>()[i * hidden + j], reference[ids.data<const int64_t>()[i] * hidden + j]);
+    }
+}
+
 TEST(GGUFAdaptToGenAI, FixesEmbdAxisStructurally) {
     auto m = build_minimal_gguf_model();
     auto embd_gather_input = m.embd->input_value(0);  // survives the Unsqueeze replacement
 
     ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
 
-    // The original Unsqueeze(axis=0) node was replaced; find its successor by name (the
-    // replacement copies it) and confirm the new axis is 1, fed by the same Gather.
-    std::shared_ptr<ov::Node> fixed_embd;
-    for (const auto& op : m.model->get_ordered_ops()) {
-        if (op->get_friendly_name() == "Unsqueeze_test_embd") {
-            fixed_embd = op;
-            break;
-        }
-    }
-    ASSERT_NE(fixed_embd, nullptr);
-    ASSERT_EQ(fixed_embd->get_type_name(), std::string("Unsqueeze"));
-    EXPECT_EQ(fixed_embd->input_value(0), embd_gather_input);  // still the same Gather, unchanged
-
-    auto axis_const = ov::as_type_ptr<v0::Constant>(fixed_embd->input_value(1).get_node_shared_ptr());
-    ASSERT_NE(axis_const, nullptr);
-    EXPECT_EQ(axis_const->cast_vector<int64_t>(), std::vector<int64_t>({1}));
+    const auto logits = ov::as_type_ptr<v1::ReduceSum>(m.model->get_results()[0]->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(logits, nullptr);
+    EXPECT_EQ(logits->input_value(0), embd_gather_input);
+    EXPECT_EQ(embd_gather_input.get_partial_shape(), ov::PartialShape({-1, -1, 2}));
 }
 
 // Regression test for the BLOCKER FixEmbdAxis's name-only matcher used to miss: Gemma4 has a
@@ -641,39 +1112,6 @@ TEST(GGUFAdaptToGenAI, EmbdLeadingAxisSelfCorrectsUnderBothLayouts) {
     }
 }
 
-// translate_get_rows's inp_out_ids row-selection (attn_out_g/inpSA_g/...) uses a batch_dims=1
-// Gather keyed on the residual stream's leading axis staying literal 1. FixInpOutIdsRowSelect
-// replaces it with a flatten-based selection that works regardless of which axis holds the real
-// token count -- see FixInpOutIdsRowSelect in adapt_to_genai.cpp.
-TEST(GGUFAdaptToGenAI, FixesInpOutIdsRowSelectStructurally) {
-    auto m = build_minimal_gguf_model(/*vocab=*/4, /*hidden=*/2, /*with_inp_out_ids=*/true);
-
-    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
-
-    std::shared_ptr<ov::Node> fixed_row_select;
-    std::shared_ptr<ov::Node> fixed_embd;
-    for (const auto& op : m.model->get_ordered_ops()) {
-        if (op->get_friendly_name() == "Unsqueeze_test_row_select") {
-            fixed_row_select = op;
-        } else if (op->get_friendly_name() == "Unsqueeze_test_embd") {
-            fixed_embd = op;  // the *replaced* embd node -- m.embd itself is now a stale, orphaned copy
-        }
-    }
-    ASSERT_NE(fixed_row_select, nullptr);
-    ASSERT_NE(fixed_embd, nullptr);
-    ASSERT_EQ(fixed_row_select->get_type_name(), std::string("Unsqueeze"));
-
-    auto gather = ov::as_type_ptr<v8::Gather>(fixed_row_select->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(gather, nullptr);
-
-    // Both the activation and the indices are now fed through a Reshape (flatten), not a Squeeze.
-    auto data_flat = ov::as_type_ptr<v1::Reshape>(gather->input_value(0).get_node_shared_ptr());
-    auto indices_flat = ov::as_type_ptr<v1::Reshape>(gather->input_value(1).get_node_shared_ptr());
-    ASSERT_NE(data_flat, nullptr);
-    ASSERT_NE(indices_flat, nullptr);
-    EXPECT_EQ(data_flat->input_value(0), fixed_embd->output(0));  // still fed by the (now-fixed) embd
-}
-
 // Functional regression test: under the pre-PA layout ([1, tokens]), FixInpOutIdsRowSelect must
 // still select just the last token's row (the row-selection's whole point -- skip projecting
 // every other prompt position to vocab). Under the post-PA layout ([tokens, 1]) each row already
@@ -702,12 +1140,18 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
         req.set_tensor("input_ids", t);
         req.infer();
         auto row_out = req.get_tensor(row_result->output(0));
+        auto logits = req.get_tensor("logits");
 
         ASSERT_EQ(row_out.get_size(), (size_t)hidden);
+        ASSERT_EQ(logits.get_shape(), (ov::Shape{1, 1, 1}));
         const float* data = row_out.data<float>();
+        float expected = 0.f;
         for (int64_t h = 0; h < hidden; ++h) {
-            EXPECT_FLOAT_EQ(data[h], static_cast<float>(tokens.back() * hidden + h));
+            const auto value = static_cast<float>(tokens.back() * hidden + h);
+            EXPECT_FLOAT_EQ(data[h], value);
+            expected += value;
         }
+        EXPECT_FLOAT_EQ(logits.data<float>()[0], expected);
     }
 
     // Post-PA layout: input_ids [tokens, 1] -- every row already holds one token, so all T rows
@@ -718,13 +1162,19 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
         req.set_tensor("input_ids", t);
         req.infer();
         auto row_out = req.get_tensor(row_result->output(0));
+        auto logits = req.get_tensor("logits");
 
         ASSERT_EQ(row_out.get_size(), T * (size_t)hidden);
+        ASSERT_EQ(logits.get_shape(), (ov::Shape{T, 1, 1}));
         const float* data = row_out.data<float>();
         for (size_t i = 0; i < T; ++i) {
+            float expected = 0.f;
             for (int64_t h = 0; h < hidden; ++h) {
-                EXPECT_FLOAT_EQ(data[i * hidden + h], static_cast<float>(tokens[i] * hidden + h));
+                const auto value = static_cast<float>(tokens[i] * hidden + h);
+                EXPECT_FLOAT_EQ(data[i * hidden + h], value);
+                expected += value;
             }
+            EXPECT_FLOAT_EQ(logits.data<float>()[i], expected);
         }
     }
 }
@@ -864,7 +1314,7 @@ TEST_P(GGUFAdaptToGenAISlidingWindow, PreservedByPagedAttention) {
                                                   v0::Constant::create(ov::element::i64, {1}, {1}));
     }
     mask->output(0).replace(mask_source);
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, ImageAttentionMode::SLIDING_ONLY);
     model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{64};
     AdaptToGenAI(embeds ? AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS : AdaptToGenAI::InputMode::IDS_TO_LOGITS)
         .run_on_model(model);
@@ -912,7 +1362,7 @@ TEST_P(GGUFAdaptToGenAIImageWindow, MatchesSDPAAndPagedAttention) {
     auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     model->add_parameters({swa});
     mask->output(0).replace(swa->output(0));
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, ImageAttentionMode::SLIDING_ONLY);
     model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model);
     if (paged)
@@ -1065,6 +1515,42 @@ std::shared_ptr<v0::MatMul> find_genai_lm_head(const std::shared_ptr<ov::Model>&
 
 }  // namespace
 
+TEST(GGUFAdaptToGenAI, PackedTernaryEmbeddingSurvivesPagedAttentionPrefill) {
+    constexpr size_t vocab = 4;
+    constexpr size_t hidden = 256;
+    auto model = build_attention_gguf_model(vocab, hidden);
+    const auto bytes = load_npy<uint8_t>("pq2_0_qbytes");
+    ov::Tensor payload(ov::element::u8, {bytes.size()});
+    std::memcpy(payload.data(), bytes.data(), bytes.size());
+    auto weight = make_weight_node(payload, "PQ2_0", {vocab, hidden});
+    std::shared_ptr<ov::Node> old_embedding;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_friendly_name() == "embd")
+            old_embedding = node;
+    }
+    ASSERT_TRUE(old_embedding);
+    const auto indices = old_embedding->input_value(0).get_node_shared_ptr()->input_value(1);
+    auto embedding = std::make_shared<v0::Unsqueeze>(gather_weight_rows(weight, indices),
+                                                     v0::Constant::create(ov::element::i64, {1}, {0}));
+    embedding->set_friendly_name("embd");
+    embedding->get_rt_info()["gguf.token_embedding"] = true;
+    old_embedding->output(0).replace(embedding);
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    auto ids = find_parameter(model, "input_ids");
+    ASSERT_TRUE(ids);
+    ids->set_partial_shape({3});
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    size_t attention_count = 0;
+    for (const auto& node : model->get_ops()) {
+        if (auto attention = ov::as_type_ptr<PagedAttentionExtension>(node)) {
+            ++attention_count;
+            EXPECT_EQ(attention->get_input_partial_shape(0), (ov::PartialShape{3, hidden}));
+        }
+    }
+    EXPECT_EQ(attention_count, 1);
+}
+
 TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
     const int64_t vocab = 8;
     const int64_t hidden = 4;
@@ -1161,11 +1647,75 @@ TEST_P(GGUFAdaptToGenAILmHead, KeepsHeadFormThroughSDPAToPagedAttention) {
 
 INSTANTIATE_TEST_SUITE_P(Softcap, GGUFAdaptToGenAILmHead, ::testing::Bool());
 
+class GGUFAdaptToGenAIScaledLmHead : public ::testing::TestWithParam<float> {};
+
+TEST_P(GGUFAdaptToGenAIScaledLmHead, ExposesHeadForTokenSelectionAndPreservesLogits) {
+    const int64_t vocab = 6, hidden = 3;
+    auto m = build_minimal_gguf_model(vocab, hidden);
+    attach_lm_head(m.model, m.embd, vocab, hidden, false);
+    const auto head = m.model->get_results()[0]->input_value(0);
+    auto scaled =
+        std::make_shared<v1::Multiply>(head, v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {GetParam()}));
+    m.model->get_results()[0]->input(0).replace_source_output(scaled);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    ASSERT_NE(find_genai_lm_head(m.model, false), nullptr);
+    auto request = ov::Core{}
+                       .compile_model(m.model, "CPU", ov::hint::inference_precision(ov::element::f32))
+                       .create_infer_request();
+    const size_t length = 3;
+    for (const auto& [name, tensor] : make_genai_inputs(length)) {
+        request.set_tensor(name, tensor);
+    }
+    request.infer();
+    const auto logits = request.get_tensor("logits");
+    ASSERT_EQ(logits.get_shape(), (ov::Shape{1, length, (size_t)vocab}));
+    for (size_t token = 0; token < length; ++token) {
+        for (int64_t v = 0; v < vocab; ++v) {
+            float expected = 0.f;
+            for (int64_t h = 0; h < hidden; ++h) {
+                expected += lm_head_weight(v, h) * static_cast<float>(token * hidden + h);
+            }
+            EXPECT_NEAR(logits.data<float>()[token * vocab + v], expected * GetParam(), 1e-4f);
+        }
+    }
+}
+
+TEST_P(GGUFAdaptToGenAIScaledLmHead, KeepsHeadVisibleAfterPagedAttentionConversion) {
+    const int64_t vocab = 8, hidden = 4;
+    auto model = build_attention_gguf_model(vocab, hidden);
+    attach_lm_head(model, model->get_results()[0]->input_value(0), vocab, hidden, false);
+    const auto head = model->get_results()[0]->input_value(0);
+    auto scaled =
+        std::make_shared<v1::Multiply>(head, v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {GetParam()}));
+    model->get_results()[0]->input(0).replace_source_output(scaled);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    ASSERT_NE(find_genai_lm_head(model, false), nullptr);
+}
+
+INSTANTIATE_TEST_SUITE_P(OutputScale, GGUFAdaptToGenAIScaledLmHead, ::testing::Values(0.25f, 1.5f));
+
+TEST(GGUFAdaptToGenAI, SharedHeadRetainsSeparateOutputScale) {
+    auto m = build_minimal_gguf_model(6, 3);
+    attach_lm_head(m.model, m.embd, 6, 3, false);
+    const auto head = m.model->get_results()[0]->input_value(0);
+    ov::frontend::gguf::name_output(head.get_node_shared_ptr(), "unscaled_logits");
+    auto scaled = std::make_shared<v1::Multiply>(head, v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {0.25f}));
+    m.model->get_results()[0]->input(0).replace_source_output(scaled);
+    m.model->add_results({std::make_shared<v0::Result>(head)});
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    EXPECT_NE(ov::as_type_ptr<v1::Multiply>(m.model->get_results()[0]->get_input_node_shared_ptr(0)), nullptr);
+    EXPECT_FALSE(ov::is_type<v1::Multiply>(head.get_node_shared_ptr()->get_input_node_shared_ptr(0)));
+}
+
 // The per-layer token lookup becomes a per_layer_inputs input, so the language model takes
 // embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
 TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     auto model = build_attention_gguf_model(8, 1536, true);
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, ImageAttentionMode::CAUSAL);
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
     ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
     ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
@@ -1180,19 +1730,732 @@ TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-class GGUFAdaptToGenAIGemma4VisionAttention : public ::testing::TestWithParam<int64_t> {};
+class GGUFAdaptToGenAIImageAttentionContract
+    : public ::testing::TestWithParam<std::tuple<int64_t, ImageAttentionMode>> {};
 
-TEST_P(GGUFAdaptToGenAIGemma4VisionAttention, MatchesLlamaVariantSelection) {
-    const auto hidden = GetParam();
+TEST_P(GGUFAdaptToGenAIImageAttentionContract, UsesDeclaredSemanticsForAnyEmbeddingWidth) {
+    const auto& [hidden, mode] = GetParam();
     auto model = build_attention_gguf_model(8, hidden, true);
-    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    image_attention_contract(model, mode);
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-image-decoder");
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
-    EXPECT_EQ(find_parameter(model, "token_type_ids") == nullptr, hidden == 1536 || hidden == 2560);
+    EXPECT_EQ(find_parameter(model, "token_type_ids") == nullptr, mode == ImageAttentionMode::CAUSAL);
 }
 
 INSTANTIATE_TEST_SUITE_P(EmbeddingWidth,
-                         GGUFAdaptToGenAIGemma4VisionAttention,
-                         ::testing::Values(int64_t{32}, int64_t{1536}, int64_t{2560}));
+                         GGUFAdaptToGenAIImageAttentionContract,
+                         ::testing::Combine(::testing::Values(int64_t{32}, int64_t{1536}, int64_t{2560}),
+                                            ::testing::Values(ImageAttentionMode::CAUSAL,
+                                                              ImageAttentionMode::GLOBAL_AND_SLIDING,
+                                                              ImageAttentionMode::SLIDING_ONLY)));
+
+TEST(GGUFAdaptToGenAI, SequenceOutputsUseDeclaredContractBeforeAndAfterReload) {
+    auto native = build_minimal_gguf_model();
+    native.embd->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)->set_friendly_name("token_embd.weight");
+    auto features = std::make_shared<v1::Multiply>(native.embd, v0::Constant::create(ov::element::f32, {}, {2.f}));
+    ov::frontend::gguf::name_output(features, "decoder_features");
+    features->output(0).set_names({"decoder_features", "features_alias", "extra_alias"});
+    auto summary = std::make_shared<v1::Multiply>(native.embd, v0::Constant::create(ov::element::f32, {}, {3.f}));
+    ov::frontend::gguf::name_output(summary, "decoder_summary");
+    native.model->add_results({std::make_shared<v0::Result>(features), std::make_shared<v0::Result>(summary)});
+    native.model->get_rt_info()["gguf_architecture"] = std::string("custom-sequence-decoder");
+    ov::frontend::gguf::ModelContract contract;
+    contract.sequence_outputs = {"decoder_features", "features_alias", "decoder_summary"};
+    contract.genai.emplace();
+    contract.genai->auxiliary_outputs = {{"features_alias", "renamed_features", 1}};
+    ov::frontend::gguf::write_model_contract(native.model, contract);
+    for (const bool reload : {false, true}) {
+        for (const auto mode : {AdaptToGenAI::InputMode::IDS_TO_LOGITS, AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}) {
+            auto model = reload ? ov_gguf_test::reload_ir_model(native.model) : native.model->clone();
+            EXPECT_EQ(ov::frontend::gguf::read_model_contract(model).sequence_outputs, contract.sequence_outputs);
+            AdaptToGenAI adapter(mode);
+            ASSERT_TRUE(adapter.run_on_model(model));
+            EXPECT_EQ(model->output("decoder_features").get_partial_shape().rank(), 3);
+            EXPECT_EQ(model->output(0).get_any_name(), "logits");
+            EXPECT_EQ(model->output("features_alias"), model->output("decoder_features"));
+            EXPECT_EQ(model->output("extra_alias"), model->output("decoder_features"));
+            EXPECT_EQ(model->output("renamed_features"), model->output("decoder_features"));
+            auto request = ov::Core{}.compile_model(model, "CPU").create_infer_request();
+            for (const size_t batch : {1, 2}) {
+                for (const size_t length : {3, 1}) {
+                    ov::Tensor ids(ov::element::i64, {batch, length});
+                    ov::Tensor embeddings(ov::element::f32, {batch, length, 2});
+                    ov::Tensor positions(ov::element::i64, {batch, length});
+                    ov::Tensor mask(ov::element::i64, {batch, length});
+                    ov::Tensor beams(ov::element::i32, {batch});
+                    for (size_t i = 0; i < batch * length; ++i) {
+                        ids.data<int64_t>()[i] = int64_t(i % 4);
+                        positions.data<int64_t>()[i] = int64_t(i % length);
+                        mask.data<int64_t>()[i] = 1;
+                        for (size_t d = 0; d < 2; ++d)
+                            embeddings.data<float>()[i * 2 + d] = float((i % 4) * 2 + d);
+                    }
+                    std::fill_n(beams.data<int32_t>(), batch, 0);
+                    request.set_tensor(mode == AdaptToGenAI::InputMode::IDS_TO_LOGITS ? "input_ids" : "inputs_embeds",
+                                       mode == AdaptToGenAI::InputMode::IDS_TO_LOGITS ? ids : embeddings);
+                    request.set_tensor("position_ids", positions);
+                    request.set_tensor("attention_mask", mask);
+                    request.set_tensor("beam_idx", beams);
+                    request.infer();
+                    auto output = request.get_tensor("decoder_features");
+                    ASSERT_EQ(output.get_shape(), (ov::Shape{batch, length, 2}));
+                    for (size_t i = 0; i < output.get_size(); ++i)
+                        EXPECT_EQ(output.data<float>()[i], 2.f * embeddings.data<float>()[i]);
+                    auto secondary = request.get_tensor("decoder_summary");
+                    ASSERT_EQ(secondary.get_shape(), output.get_shape());
+                    for (size_t i = 0; i < secondary.get_size(); ++i)
+                        EXPECT_EQ(secondary.data<float>()[i], 3.f * embeddings.data<float>()[i]);
+                }
+            }
+        }
+    }
+}
+
+TEST(GGUFAdaptToGenAI, InvalidSequenceContractsRejectBeforeRewiring) {
+    for (const bool missing : {false, true}) {
+        auto model = build_minimal_gguf_model().model;
+        auto features = v0::Constant::create(ov::element::f32, {2, 2}, {1.f});
+        ov::frontend::gguf::name_output(features, "decoder_features");
+        model->add_results({std::make_shared<v0::Result>(features)});
+        ov::frontend::gguf::ModelContract contract;
+        contract.sequence_outputs = {missing ? "missing_features" : "decoder_features"};
+        ov::frontend::gguf::write_model_contract(model, contract);
+        const auto parameters = model->get_parameters();
+        const auto results = model->get_results();
+        EXPECT_THROW(AdaptToGenAI().run_on_model(model), ov::Exception);
+        EXPECT_EQ(model->get_parameters(), parameters);
+        EXPECT_EQ(model->get_results(), results);
+    }
+    auto model = build_minimal_gguf_model().model;
+    model->get_rt_info()["gguf_architecture"] = std::string("lfm3");
+    ov::frontend::gguf::write_model_contract(model, {});
+    EXPECT_TRUE(ov::frontend::gguf::read_model_contract(ov_gguf_test::reload_ir_model(model)).sequence_outputs.empty());
+    model->get_rt_info()["gguf_model_contract"].as<ov::AnyMap>()["sequence_outputs"] =
+        std::vector<std::string>{"duplicate", "duplicate"};
+    EXPECT_THROW(AdaptToGenAI().run_on_model(model), ov::Exception);
+}
+
+class DefaultContractModelDecoder : public SingleOpDecoder {
+public:
+    explicit DefaultContractModelDecoder(bool with_context)
+        : SingleOpDecoder("GGML_OP_NONE", {}, {}, {"supplied_logits", ov::element::f32, {1, 1, -1, 1}}, {}) {
+        auto native = build_minimal_gguf_model();
+        auto axes = v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3});
+        auto positions = std::make_shared<v0::Convert>(find_parameter(native.model, "inp_pos"), ov::element::f32);
+        auto position_sum = std::make_shared<v1::ReduceSum>(positions, axes, true);
+        auto allowed = std::make_shared<v1::Equal>(find_parameter(native.model, "self_kq_mask"),
+                                                   v0::Constant::create(ov::element::f32, {}, {0.f}));
+        auto mask_sum =
+            std::make_shared<v1::ReduceSum>(std::make_shared<v0::Convert>(allowed, ov::element::f32), axes, true);
+        auto dependency = std::make_shared<v1::Multiply>(std::make_shared<v1::Add>(position_sum, mask_sum),
+                                                         v0::Constant::create(ov::element::f32, {}, {0.f}));
+        auto beams = std::make_shared<v1::ReduceSum>(find_parameter(native.model, "beam_idx"),
+                                                     v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                     false);
+        auto beam_value = std::make_shared<v0::Convert>(beams, ov::element::f32);
+        std::shared_ptr<ov::Node> output = std::make_shared<v1::Add>(
+            std::make_shared<v1::Add>(native.model->get_results().front()->input_value(0), dependency),
+            beam_value);
+        if (with_context) {
+            auto context = ov::test::utils::make_param(ov::element::f32, {1, 1, 1, 1}, "dspark_ctx_feat");
+            native.model->add_parameters({context});
+            output = std::make_shared<v1::Add>(output, context);
+        }
+        for (const auto& parameter : native.model->get_parameters())
+            m_scope_inputs.emplace(parameter->get_friendly_name(), parameter);
+        m_scope_inputs.emplace("supplied_logits", output);
+    }
+    const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const override {
+        return m_scope_inputs;
+    }
+    void visit_subgraph(std::function<void(std::shared_ptr<ov::frontend::gguf::GgufDecoder>)>) const override {}
+
+protected:
+    void add_sequence_output(bool rank_three) {
+        std::shared_ptr<ov::Node> features =
+            std::make_shared<v1::Multiply>(m_scope_inputs.at("supplied_logits"),
+                                           v0::Constant::create(ov::element::f32, {}, {2.f}));
+        if (rank_three)
+            features = std::make_shared<v0::Squeeze>(features, v0::Constant::create(ov::element::i64, {1}, {0}));
+        m_scope_inputs.emplace("decoder_features", features);
+    }
+
+private:
+    std::map<std::string, std::shared_ptr<ov::Node>> m_scope_inputs;
+};
+
+class SequenceOutputModelDecoder : public DefaultContractModelDecoder {
+public:
+    explicit SequenceOutputModelDecoder(bool rank_three) : DefaultContractModelDecoder(false) {
+        add_sequence_output(rank_three);
+    }
+    std::vector<std::string> get_model_output_names() const override {
+        return {"supplied_logits", "decoder_features"};
+    }
+    ov::frontend::gguf::ModelContract get_model_contract() const override {
+        ov::frontend::gguf::ModelContract contract;
+        contract.sequence_outputs = {"decoder_features"};
+        return contract;
+    }
+};
+
+TEST(GGUFAdaptToGenAI, SuppliedDecoderSequenceOutputsSupportResultNamesAndIR) {
+    using namespace ov::frontend::gguf;
+    for (const bool rank_three : {false, true}) {
+        auto decoder = std::make_shared<SequenceOutputModelDecoder>(rank_three);
+        FrontEnd frontend;
+        auto converted = frontend.convert(frontend.load(std::shared_ptr<GgufDecoder>(decoder)));
+        ASSERT_EQ(converted->get_results().back()->get_friendly_name(), "decoder_features");
+        ASSERT_TRUE(converted->get_results().back()->input_value(0).get_names().empty());
+        const auto shape = converted->get_results().back()->input_value(0).get_partial_shape();
+        const auto width = static_cast<size_t>(shape[shape.rank().get_length() - 1].get_length());
+        for (const bool reload : {false, true}) {
+            for (const bool alias : {false, true}) {
+                SCOPED_TRACE("rank=" + std::to_string(rank_three ? 3 : 4) + " reload=" + std::to_string(reload) +
+                             " alias=" + std::to_string(alias));
+                auto model = reload ? ov_gguf_test::reload_ir_model(converted) : converted->clone();
+                if (alias)
+                    model->get_results().back()->output(0).set_names({"existing_alias"});
+                bool adapted = false;
+                ASSERT_NO_THROW(adapted = AdaptToGenAI().run_on_model(model));
+                ASSERT_TRUE(adapted);
+                EXPECT_EQ(model->output(0).get_any_name(), "logits");
+                EXPECT_EQ(model->output("decoder_features").get_partial_shape().rank(), 3);
+                if (alias) {
+                    EXPECT_EQ(model->output("existing_alias"), model->output("decoder_features"));
+                }
+                auto restored = ov_gguf_test::reload_ir_model(model);
+                auto request = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+                for (const size_t length : {3, 1}) {
+                    for (const auto& [name, tensor] : make_genai_inputs(length))
+                        request.set_tensor(name, tensor);
+                    request.infer();
+                    auto features = request.get_tensor("decoder_features");
+                    auto logits = request.get_tensor("logits");
+                    ASSERT_EQ(features.get_shape(), (ov::Shape{1, length, width}));
+                    ASSERT_EQ(features.get_shape(), logits.get_shape());
+                    for (size_t i = 0; i < features.get_size(); ++i) {
+                        ASSERT_TRUE(std::isfinite(logits.data<float>()[i]));
+                        EXPECT_EQ(features.data<float>()[i], 2.f * logits.data<float>()[i]);
+                    }
+                }
+            }
+        }
+        FrontEnd genai;
+        genai.add_extension(std::make_shared<GenAIExtension>());
+        auto adapted = genai.convert(genai.load(std::shared_ptr<GgufDecoder>(decoder)));
+        EXPECT_EQ(adapted->output("decoder_features").get_partial_shape().rank(), 3);
+    }
+}
+
+TEST(GGUFAdaptToGenAI, SuppliedDecoderDefaultCapabilityResolvesBeforeSerialization) {
+    for (const bool with_context : {false, true}) {
+        SCOPED_TRACE(with_context);
+        const std::shared_ptr<ov::frontend::gguf::GgufDecoder> decoder =
+            std::make_shared<DefaultContractModelDecoder>(with_context);
+        EXPECT_FALSE(decoder->get_model_contract().supports_genai_adaptation.has_value());
+        ov::frontend::gguf::FrontEnd frontend;
+        auto converted = frontend.convert(frontend.load(decoder));
+        EXPECT_EQ(converted->get_rt_info<std::string>({"gguf_model_contract", "supports_genai_adaptation"}),
+                  with_context ? "false" : "true");
+        if (with_context) {
+            ov::frontend::gguf::FrontEnd genai;
+            genai.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+            EXPECT_THROW(genai.convert(genai.load(decoder)), ov::Exception);
+        }
+        for (const auto& source : {converted, ov_gguf_test::reload_ir_model(converted)}) {
+            EXPECT_EQ(ov::frontend::gguf::read_model_contract(source).supports_genai_adaptation,
+                      std::optional<bool>{!with_context});
+            const auto parameters = source->get_parameters();
+            const auto results = source->get_results();
+            EXPECT_EQ(AdaptToGenAI().run_on_model(source), !with_context);
+            if (with_context) {
+                EXPECT_EQ(source->get_parameters(), parameters);
+                EXPECT_EQ(source->get_results(), results);
+                EXPECT_NE(find_parameter(source, "dspark_ctx_feat"), nullptr);
+            }
+        }
+        auto explicit_contract = ov::frontend::gguf::read_model_contract(converted);
+        explicit_contract.supports_genai_adaptation = true;
+        ov::frontend::gguf::write_model_contract(converted, explicit_contract);
+        EXPECT_EQ(
+            ov::frontend::gguf::read_model_contract(ov_gguf_test::reload_ir_model(converted)).supports_genai_adaptation,
+            std::optional<bool>{true});
+    }
+}
+
+TEST(GGUFAdaptToGenAI, UnsupportedAdaptationUsesDeclaredCapabilityBeforeAndAfterReload) {
+    auto model = build_minimal_gguf_model().model;
+    ov::frontend::gguf::ModelContract contract;
+    contract.supports_genai_adaptation = false;
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-unsupported-decoder");
+    ov::frontend::gguf::write_model_contract(model, contract);
+    for (const auto& source : {model, ov_gguf_test::reload_ir_model(model)}) {
+        const auto parameters = source->get_parameters();
+        const auto results = source->get_results();
+        EXPECT_FALSE(AdaptToGenAI().run_on_model(source));
+        EXPECT_EQ(source->get_parameters(), parameters);
+        EXPECT_EQ(source->get_results(), results);
+    }
+    auto legacy = build_minimal_gguf_model().model;
+    legacy->add_parameters({ov::test::utils::make_param(ov::element::f32, {1}, "dspark_ctx_feat")});
+    EXPECT_FALSE(AdaptToGenAI().run_on_model(ov_gguf_test::reload_ir_model(legacy)));
+
+    auto aliased = build_minimal_gguf_model().model;
+    auto context = ov::test::utils::make_param(ov::element::f32, {1}, "renamed_context");
+    context->output(0).set_names({"dspark_ctx_feat"});
+    aliased->add_parameters({context});
+    EXPECT_FALSE(ov::frontend::gguf::read_model_contract(aliased).supports_genai_adaptation.value());
+    EXPECT_FALSE(AdaptToGenAI().run_on_model(ov_gguf_test::reload_ir_model(aliased)));
+}
+
+TEST(GGUFAdaptToGenAI, ModelContractSurvivesIRReloadBeforeAdaptation) {
+    for (const auto batchable : std::vector<std::optional<bool>>{std::nullopt, false, true}) {
+        auto model = build_attention_gguf_model(8, 4);
+        ov::frontend::gguf::ModelContract contract;
+        contract.image_attention = ImageAttentionMode::SLIDING_ONLY;
+        contract.batchable_recurrent = batchable;
+        ov::frontend::gguf::write_model_contract(model, contract);
+        for (const auto& node : model->get_ops())
+            node->get_rt_info().clear();
+        std::stringstream xml, weights;
+        ov::pass::Serialize(xml, weights).run_on_model(model);
+        const auto bytes = weights.str();
+        ov::Tensor constants(ov::element::u8, {bytes.size()});
+        if (!bytes.empty())
+            std::memcpy(constants.data(), bytes.data(), bytes.size());
+        auto restored = ov::Core{}.read_model(xml.str(), constants);
+        const auto restored_contract = ov::frontend::gguf::read_model_contract(restored);
+        EXPECT_EQ(restored_contract.image_attention, ImageAttentionMode::SLIDING_ONLY);
+        EXPECT_EQ(restored_contract.batchable_recurrent, batchable);
+        ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::IDS_TO_LOGITS).run_on_model(restored));
+        EXPECT_NE(find_parameter(restored, "input_ids"), nullptr);
+    }
+}
+
+TEST(GGUFAdaptToGenAI, LegacyRecurrentContractSurvivesIRReloadBeforeAdaptation) {
+    for (const std::string architecture : {"lfm2", "lfm2moe", "qwen35", "custom-recurrent-decoder"}) {
+        SCOPED_TRACE(architecture);
+        auto model = build_minimal_gguf_model().model;
+        model->get_rt_info()["gguf_architecture"] = architecture;
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
+        auto restored = ov_gguf_test::reload_ir_model(model);
+        ASSERT_FALSE(restored->has_rt_info({"gguf_model_contract"}));
+        ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_architecture"}), architecture);
+        const bool batchable = architecture == "lfm2" || architecture == "lfm2moe";
+        EXPECT_EQ(ov::frontend::gguf::read_model_contract(restored).batchable_recurrent,
+                  batchable ? std::optional<bool>{true} : std::nullopt);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(restored));
+        EXPECT_EQ(restored->input("input_ids").get_partial_shape()[0],
+                  batchable ? ov::Dimension::dynamic() : ov::Dimension{1});
+    }
+}
+
+class GGUFAdaptToGenAILegacyImageContract
+    : public testing::TestWithParam<std::tuple<std::string, int64_t, ImageAttentionMode>> {};
+
+TEST_P(GGUFAdaptToGenAILegacyImageContract, ReloadsOldSchemaAndKeepsGlobalAndSlidingMasks) {
+    const auto& [architecture, hidden, mode] = GetParam();
+    auto m = build_minimal_gguf_model(4, hidden);
+    const auto lookup = m.embd->get_input_node_shared_ptr(0);
+    const auto table = lookup->get_input_node_shared_ptr(0);
+    table->set_friendly_name("token_embd.weight");
+    m.model->get_rt_info()["gguf_architecture"] = architecture;
+    m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{1};
+    auto global_mask = find_parameter(m.model, "self_kq_mask");
+    auto sliding_mask =
+        ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+    m.model->add_parameters({sliding_mask});
+    add_probe_result(m.model, global_mask, "test_probe_global_mask");
+    add_probe_result(m.model, sliding_mask, "test_probe_sliding_mask");
+    auto restored = ov_gguf_test::reload_ir_model(m.model);
+    ASSERT_FALSE(restored->has_rt_info({"gguf_model_contract"}));
+    ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_architecture"}), architecture);
+    for (const auto& node : restored->get_ops())
+        ASSERT_EQ(node->get_rt_info().count("gguf.token_embedding"), 0);
+    EXPECT_EQ(ov::frontend::gguf::read_model_contract(restored, hidden).image_attention, mode);
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(adapter.run_on_model(restored));
+    name_probe_outputs(restored);
+    ASSERT_NE(adapter.get_embedding_model(), nullptr);
+    ASSERT_EQ(find_parameter(restored, "input_ids"), nullptr);
+    EXPECT_EQ(restored->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1, hidden}));
+    EXPECT_EQ(find_parameter(restored, "token_type_ids") == nullptr, mode == ImageAttentionMode::CAUSAL);
+    auto inputs = make_genai_inputs(3);
+    inputs.erase("input_ids");
+    ov::Tensor embeddings(ov::element::f32, {1, 3, static_cast<size_t>(hidden)});
+    std::fill_n(embeddings.data<float>(), embeddings.get_size(), 0.f);
+    inputs.emplace("inputs_embeds", embeddings);
+    if (mode != ImageAttentionMode::CAUSAL) {
+        ov::Tensor token_types(ov::element::i64, {1, 3});
+        const std::vector<int64_t> types{1, 1, 0};
+        std::copy(types.begin(), types.end(), token_types.data<int64_t>());
+        inputs.emplace("token_type_ids", token_types);
+    }
+    ov::Core core;
+    auto request = core.compile_model(restored, "CPU").create_infer_request();
+    for (const auto& [name, tensor] : inputs)
+        request.set_tensor(name, tensor);
+    request.infer();
+    for (size_t layer = 0; layer < 2; ++layer) {
+        const auto mask = request.get_tensor(layer == 0 ? "test_probe_global_mask" : "test_probe_sliding_mask");
+        ASSERT_EQ(mask.get_shape(), (ov::Shape{1, 1, 3, 3}));
+        expect_mask(mask.data<const float>(), 3, 3, [&, mode = mode](size_t q, size_t k) {
+            const bool image_attention = mode == ImageAttentionMode::GLOBAL_AND_SLIDING ||
+                                         (layer == 1 && mode == ImageAttentionMode::SLIDING_ONLY);
+            return (k <= q && (layer == 0 || k + 1 > q)) || (image_attention && q < 2 && k < 2);
+        });
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ArchitectureAndWidth,
+    GGUFAdaptToGenAILegacyImageContract,
+    testing::Values(std::make_tuple(std::string{"gemma3"}, int64_t{32}, ImageAttentionMode::GLOBAL_AND_SLIDING),
+                    std::make_tuple(std::string{"gemma3"}, int64_t{1536}, ImageAttentionMode::GLOBAL_AND_SLIDING),
+                    std::make_tuple(std::string{"gemma3"}, int64_t{2560}, ImageAttentionMode::GLOBAL_AND_SLIDING),
+                    std::make_tuple(std::string{"gemma4"}, int64_t{32}, ImageAttentionMode::SLIDING_ONLY),
+                    std::make_tuple(std::string{"gemma4"}, int64_t{1536}, ImageAttentionMode::CAUSAL),
+                    std::make_tuple(std::string{"gemma4"}, int64_t{2560}, ImageAttentionMode::CAUSAL),
+                    std::make_tuple(std::string{"gemma4"}, int64_t{3072}, ImageAttentionMode::SLIDING_ONLY)));
+
+TEST(GGUFAdaptToGenAI, ExplicitPartialContractPreventsLegacyRecurrentFallbackAfterIRReload) {
+    const std::vector<ov::AnyMap> contracts{ov::AnyMap{},
+                                            ov::AnyMap{{"batchable_recurrent", std::string{"auto"}}},
+                                            ov::AnyMap{{"batchable_recurrent", std::string{"false"}}},
+                                            ov::AnyMap{{"image_attention", std::string{"global_and_sliding"}}}};
+    for (const std::string architecture : {"lfm2", "lfm2moe"}) {
+        for (const auto& contract : contracts) {
+            SCOPED_TRACE(architecture);
+            auto model = build_minimal_gguf_model().model;
+            model->get_rt_info()["gguf_architecture"] = architecture;
+            model->get_rt_info()["gguf_model_contract"] = contract;
+            model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
+            auto restored = ov_gguf_test::reload_ir_model(model);
+            ASSERT_TRUE(restored->has_rt_info({"gguf_model_contract"}));
+            EXPECT_NE(ov::frontend::gguf::read_model_contract(restored).batchable_recurrent, std::optional<bool>{true});
+            ASSERT_TRUE(AdaptToGenAI().run_on_model(restored));
+            EXPECT_EQ(restored->input("input_ids").get_partial_shape()[0], ov::Dimension{1});
+        }
+    }
+}
+
+TEST(GGUFAdaptToGenAI, ExplicitPartialContractPreventsLegacyImageFallbackAfterIRReload) {
+    const std::vector<ov::AnyMap> contracts{ov::AnyMap{},
+                                            ov::AnyMap{{"batchable_recurrent", std::string{"true"}}},
+                                            ov::AnyMap{{"image_attention", std::string{"causal"}}}};
+    for (const std::string architecture : {"gemma3", "gemma4"}) {
+        for (const auto& contract : contracts) {
+            SCOPED_TRACE(architecture);
+            auto m = build_minimal_gguf_model(4, 32);
+            const auto lookup = m.embd->get_input_node_shared_ptr(0);
+            const auto table = lookup->get_input_node_shared_ptr(0);
+            table->set_friendly_name("token_embd.weight");
+            m.model->get_rt_info()["gguf_architecture"] = architecture;
+            m.model->get_rt_info()["gguf_model_contract"] = contract;
+            auto restored = ov_gguf_test::reload_ir_model(m.model);
+            ASSERT_TRUE(restored->has_rt_info({"gguf_model_contract"}));
+            EXPECT_EQ(ov::frontend::gguf::read_model_contract(restored, 32).image_attention,
+                      ImageAttentionMode::CAUSAL);
+            ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(restored));
+            EXPECT_EQ(find_parameter(restored, "token_type_ids"), nullptr);
+        }
+    }
+}
+
+static MinimalGgufModel build_scaled_legacy_gguf_model(const std::string& architecture, bool per_layer) {
+    auto m = build_minimal_gguf_model(4, 4);
+    const auto squeeze_axes = v0::Constant::create(ov::element::i64, {2}, {0, 1});
+    const auto lookup = m.embd->get_input_node_shared_ptr(0);
+    const auto original_table = ov::as_type_ptr<v0::Constant>(lookup->get_input_node_shared_ptr(0));
+    const auto values = original_table->cast_vector<float>();
+    const auto table = v0::Constant::create(ov::element::f32, {1, 1, 4, 4}, values);
+    table->set_friendly_name("Constant_legacy_token_embd.weight");
+    const auto squeezed_table = std::make_shared<v0::Squeeze>(table, squeeze_axes);
+    lookup->input(0).replace_source_output(squeezed_table);
+    m.embd->set_friendly_name("Unsqueeze_legacy_lookup");
+    m.embd->get_rt_info().erase("gguf.token_embedding");
+    const auto converted = std::make_shared<v0::Convert>(m.embd, ov::element::f32);
+    converted->set_friendly_name("Convert_legacy_embd");
+    const auto scale = v0::Constant::create(ov::element::f32, {}, {2.f});
+    const auto scaled = std::make_shared<v1::Multiply>(converted, scale);
+    scaled->set_friendly_name("Multiply_legacy_embd_scaled");
+    scaled->get_rt_info()["gguf.token_embedding"] = true;
+    const auto logits = m.model->get_results().front()->get_input_node_shared_ptr(0);
+    logits->input(0).replace_source_output(scaled);
+    if (per_layer) {
+        std::vector<float> per_layer_values(24);
+        std::iota(per_layer_values.begin(), per_layer_values.end(), 100.f);
+        const auto pe_table = v0::Constant::create(ov::element::f32, {1, 1, 4, 6}, per_layer_values);
+        pe_table->set_friendly_name("Constant_legacy_per_layer_token_embd.weight");
+        const auto pe_table_squeezed = std::make_shared<v0::Squeeze>(pe_table, squeeze_axes);
+        const auto indices = std::make_shared<v0::Squeeze>(m.inp_tokens, squeeze_axes);
+        const auto axis0 = v0::Constant::create(ov::element::i64, {1}, {0});
+        const auto gathered = std::make_shared<v8::Gather>(pe_table_squeezed, indices, axis0);
+        m.pe_tok = std::make_shared<v0::Unsqueeze>(gathered, axis0);
+        m.pe_tok->set_friendly_name("Unsqueeze_legacy_pe_tok_lookup");
+        const auto pe_converted = std::make_shared<v0::Convert>(m.pe_tok, ov::element::f32);
+        pe_converted->set_friendly_name("Convert_legacy_pe_tok_flat");
+        const auto per_layer_scale = std::sqrt(2.f);
+        const auto pe_scale = v0::Constant::create(ov::element::f32, {}, {per_layer_scale});
+        const auto pe_scaled = std::make_shared<v1::Multiply>(pe_converted, pe_scale);
+        pe_scaled->set_friendly_name("Multiply_legacy_pe_tok_flat_scaled");
+        pe_scaled->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{3};
+        const auto split_shape = v0::Constant::create(ov::element::i64, {4}, {0, -1, 3, 2});
+        const auto split = std::make_shared<v1::Reshape>(pe_scaled, split_shape, true);
+        split->set_friendly_name("Reshape_legacy_pe_tok_split");
+        const auto transpose_axes = v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
+        const auto layer_major = std::make_shared<v1::Transpose>(split, transpose_axes);
+        layer_major->set_friendly_name("Transpose_legacy_pe_tok");
+        const auto reduce_axes = v0::Constant::create(ov::element::i64, {2}, {1, 3});
+        const auto pe_sum = std::make_shared<v1::ReduceSum>(layer_major, reduce_axes, true);
+        const auto combined = std::make_shared<v1::Add>(logits, pe_sum);
+        m.model->get_results().front()->input(0).replace_source_output(combined);
+    }
+    m.model->get_rt_info()["gguf_architecture"] = architecture;
+    m.model->validate_nodes_and_infer_types();
+    return m;
+}
+
+class GGUFAdaptToGenAILegacyScaledEmbedding : public testing::TestWithParam<std::pair<std::string, bool>> {};
+
+TEST_P(GGUFAdaptToGenAILegacyScaledEmbedding, ReloadPreservesTokenScalingAndInjectedMediaValues) {
+    const auto& [architecture, per_layer] = GetParam();
+    auto m = build_scaled_legacy_gguf_model(architecture, per_layer);
+    auto restored = ov_gguf_test::reload_ir_model(m.model);
+    ASSERT_FALSE(restored->has_rt_info({"gguf_model_contract"}));
+    for (const auto& node : restored->get_ops()) {
+        ASSERT_EQ(node->get_rt_info().count("gguf.token_embedding"), 0);
+        ASSERT_EQ(node->get_rt_info().count("gguf.per_layer_token_embedding"), 0);
+    }
+    auto inputs = make_genai_inputs(3);
+    const std::map<std::string, ov::Tensor> lookup_inputs{{"input_ids", inputs.at("input_ids")}};
+    for (const auto& model : {m.model, restored}) {
+        AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+        ASSERT_TRUE(adapter.run_on_model(model));
+        ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
+        const auto embedding_model = adapter.get_embedding_model();
+        ASSERT_NE(embedding_model, nullptr);
+        const auto embeddings = run_on_cpu(embedding_model, lookup_inputs);
+        ASSERT_EQ(embeddings.get_shape(), (ov::Shape{1, 3, 4}));
+        for (size_t i = 0; i < embeddings.get_size(); ++i)
+            EXPECT_FLOAT_EQ(embeddings.data<const float>()[i], 2.f * static_cast<float>(i));
+        if (per_layer) {
+            EXPECT_EQ(model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 3, 2}));
+            const auto per_layer_model = adapter.get_per_layer_embedding_model();
+            ASSERT_NE(per_layer_model, nullptr);
+            const auto per_layer_embeddings = run_on_cpu(per_layer_model, lookup_inputs);
+            ASSERT_EQ(per_layer_embeddings.get_shape(), (ov::Shape{1, 3, 3, 2}));
+            for (size_t i = 0; i < per_layer_embeddings.get_size(); ++i)
+                EXPECT_NEAR(per_layer_embeddings.data<const float>()[i],
+                            std::sqrt(2.f) * (100.f + static_cast<float>(i)),
+                            1e-4f);
+        }
+        auto decoder_inputs = inputs;
+        decoder_inputs.erase("input_ids");
+        ov::Tensor injected(ov::element::f32, {1, 3, 4});
+        std::fill_n(injected.data<float>(), injected.get_size(), 7.f);
+        decoder_inputs.emplace("inputs_embeds", injected);
+        ov::Tensor token_types(ov::element::i64, {1, 3});
+        std::fill_n(token_types.data<int64_t>(), token_types.get_size(), 1);
+        decoder_inputs.emplace("token_type_ids", token_types);
+        if (per_layer) {
+            ov::Tensor injected_per_layer(ov::element::f32, {1, 3, 3, 2});
+            std::fill_n(injected_per_layer.data<float>(), injected_per_layer.get_size(), 11.f);
+            decoder_inputs.emplace("per_layer_inputs", injected_per_layer);
+        }
+        const auto actual = run_on_cpu(model, decoder_inputs);
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 3, 1}));
+        for (size_t i = 0; i < actual.get_size(); ++i)
+            EXPECT_FLOAT_EQ(actual.data<const float>()[i], 28.f + (per_layer ? 66.f : 0.f));
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(NativeBoundary,
+                         GGUFAdaptToGenAILegacyScaledEmbedding,
+                         testing::Values(std::make_pair(std::string{"gemma3"}, false),
+                                         std::make_pair(std::string{"gemma4"}, true)));
+
+TEST(GGUFAdaptToGenAI, LegacyBoundaryFallbackKeepsExplicitMarkersAuthoritative) {
+    auto m = build_scaled_legacy_gguf_model("gemma4", true);
+    for (const auto& node : m.model->get_ops()) {
+        node->get_rt_info().erase("gguf.token_embedding");
+        node->get_rt_info().erase("gguf.per_layer_token_embedding");
+    }
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{3};
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(adapter.run_on_model(m.model));
+    const auto embedding_model = adapter.get_embedding_model();
+    auto inputs = make_genai_inputs(3);
+    const std::map<std::string, ov::Tensor> lookup_inputs{{"input_ids", inputs.at("input_ids")}};
+    const auto embeddings = run_on_cpu(embedding_model, lookup_inputs);
+    for (size_t i = 0; i < embeddings.get_size(); ++i)
+        EXPECT_FLOAT_EQ(embeddings.data<const float>()[i], static_cast<float>(i));
+    const auto per_layer_model = adapter.get_per_layer_embedding_model();
+    ASSERT_NE(per_layer_model, nullptr);
+    const auto per_layer_embeddings = run_on_cpu(per_layer_model, lookup_inputs);
+    for (size_t i = 0; i < per_layer_embeddings.get_size(); ++i)
+        EXPECT_FLOAT_EQ(per_layer_embeddings.data<const float>()[i], 100.f + static_cast<float>(i));
+}
+
+class GGUFAdaptToGenAILegacyHadamardEmbedding
+    : public testing::TestWithParam<std::tuple<bool, ov::element::Type, bool>> {};
+
+TEST_P(GGUFAdaptToGenAILegacyHadamardEmbedding, ReloadExtractsCompleteInverseGetRowsEndpoint) {
+    const auto& [signed_transform, weight_type, matrix_endpoint] = GetParam();
+    auto m = build_minimal_gguf_model(4, 4);
+    std::vector<float> latent_values(16);
+    std::iota(latent_values.begin(), latent_values.end(), 1.f);
+    const auto table = v0::Constant::create(weight_type, {1, 1, 4, 4}, latent_values);
+    table->set_friendly_name("Constant_native_token_embd.weight");
+    const std::vector<TensorDesc> input_descriptions{{"token_embd.weight", weight_type, {1, 1, 4, 4}},
+                                                     {"inp_tokens", ov::element::i32, {1, 1, 1, -1}}};
+    const std::vector<TensorDesc> extra_inputs;
+    const TensorDesc output_description{"embd", ov::element::f32, {1, 1, -1, 4}};
+    std::map<std::string, ov::Any> attributes{{"hadamard_block", int64_t{4}}, {"hadamard_inverse", true}};
+    if (signed_transform) {
+        ov::Tensor signs(ov::element::f32, {4});
+        const std::vector<float> sign_values{-1.f, 1.f, -1.f, 1.f};
+        std::copy(sign_values.begin(), sign_values.end(), signs.data<float>());
+        attributes.emplace("hadamard_signs", signs);
+    }
+    const auto decoder = std::make_shared<SingleOpDecoder>("GGML_OP_GET_ROWS",
+                                                           input_descriptions,
+                                                           extra_inputs,
+                                                           output_description,
+                                                           attributes);
+    auto tensor_map = std::make_shared<ov::frontend::gguf::TensorMap>();
+    (*tensor_map)["token_embd.weight"] = table;
+    (*tensor_map)["inp_tokens"] = m.inp_tokens;
+    const ov::frontend::gguf::NodeContext context(decoder, tensor_map);
+    const auto translated = ov::frontend::gguf::op::translate_get_rows(context);
+    ASSERT_EQ(translated.size(), 1);
+    auto endpoint = translated.front().get_node_shared_ptr();
+    if (matrix_endpoint) {
+        endpoint->set_friendly_name("inverse_embedding");
+        const auto identity =
+            v0::Constant::create(ov::element::f32, {4, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1});
+        const auto matrix = std::make_shared<v0::MatMul>(endpoint, identity, false, false);
+        matrix->set_friendly_name("embd");
+        endpoint = matrix;
+    }
+    endpoint->get_rt_info()["gguf.token_embedding"] = true;
+    const auto logits = m.model->get_results().front()->get_input_node_shared_ptr(0);
+    logits->input(0).replace_source_output(endpoint);
+    m.model->get_rt_info()["gguf_architecture"] = std::string{"qwen35"};
+    m.model->validate_nodes_and_infer_types();
+    const auto restored = ov_gguf_test::reload_ir_model(m.model);
+    for (const auto& node : restored->get_ops())
+        ASSERT_EQ(node->get_rt_info().count("gguf.token_embedding"), 0);
+    AdaptToGenAI direct_adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    AdaptToGenAI restored_adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(direct_adapter.run_on_model(m.model));
+    ASSERT_TRUE(restored_adapter.run_on_model(restored));
+    auto inputs = make_genai_inputs(3);
+    const std::map<std::string, ov::Tensor> lookup_inputs{{"input_ids", inputs.at("input_ids")}};
+    const auto direct_embedding_model = direct_adapter.get_embedding_model();
+    const auto restored_embedding_model = restored_adapter.get_embedding_model();
+    ASSERT_NE(direct_embedding_model, nullptr);
+    ASSERT_NE(restored_embedding_model, nullptr);
+    const auto direct_embeddings = run_on_cpu(direct_embedding_model, lookup_inputs);
+    const auto restored_embeddings = run_on_cpu(restored_embedding_model, lookup_inputs);
+    ASSERT_EQ(direct_embeddings.get_shape(), (ov::Shape{1, 3, 4}));
+    ASSERT_EQ(restored_embeddings.get_shape(), direct_embeddings.get_shape());
+    float latent_difference = 0.f;
+    for (size_t i = 0; i < direct_embeddings.get_size(); ++i) {
+        EXPECT_NEAR(restored_embeddings.data<const float>()[i], direct_embeddings.data<const float>()[i], 1e-4f);
+        latent_difference += std::abs(direct_embeddings.data<const float>()[i] - latent_values[i]);
+    }
+    EXPECT_GT(latent_difference, 1.f);
+    inputs.erase("input_ids");
+    ov::Tensor injected(ov::element::f32, {1, 3, 4});
+    const std::vector<float> injected_values{7.f, 11.f, 13.f, 17.f};
+    for (size_t i = 0; i < injected.get_size(); ++i)
+        injected.data<float>()[i] = injected_values[i % 4];
+    inputs.emplace("inputs_embeds", injected);
+    for (const auto& model : {m.model, restored}) {
+        EXPECT_EQ(find_parameter(model, "input_ids"), nullptr);
+        const auto actual = run_on_cpu(model, inputs);
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 3, 1}));
+        for (size_t i = 0; i < actual.get_size(); ++i)
+            EXPECT_FLOAT_EQ(actual.data<const float>()[i], 48.f);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(InverseSignsAndWeightType,
+                         GGUFAdaptToGenAILegacyHadamardEmbedding,
+                         testing::Combine(testing::Bool(),
+                                          testing::Values(ov::element::f32, ov::element::f16),
+                                          testing::Bool()));
+
+TEST(GGUFAdaptToGenAI, LegacyCompleteEmbeddingEndpointRejectsSeparateBranches) {
+    auto m = build_minimal_gguf_model();
+    const auto lookup = m.embd->get_input_node_shared_ptr(0);
+    const auto table = lookup->get_input_node_shared_ptr(0);
+    table->set_friendly_name("token_embd.weight");
+    const auto left = std::make_shared<v0::Convert>(m.embd, ov::element::f32);
+    const auto right = std::make_shared<v0::Convert>(m.embd, ov::element::f32);
+    left->set_friendly_name("Convert_left_embd");
+    right->set_friendly_name("Convert_right_embd");
+    const auto left_result = std::make_shared<v0::Result>(left);
+    const auto right_result = std::make_shared<v0::Result>(right);
+    m.model->add_results({left_result, right_result});
+    const auto restored = ov_gguf_test::reload_ir_model(m.model);
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    EXPECT_THROW(adapter.run_on_model(restored), ov::Exception);
+}
+
+TEST(GGUFAdaptToGenAI, LegacyCompleteEmbeddingEndpointIgnoresPerLayerSuffix) {
+    auto m = build_minimal_gguf_model();
+    const auto lookup = m.embd->get_input_node_shared_ptr(0);
+    const auto table = lookup->get_input_node_shared_ptr(0);
+    table->set_friendly_name("token_embd.weight");
+    const auto per_layer = std::make_shared<v0::Convert>(m.embd, ov::element::f32);
+    per_layer->set_friendly_name("Convert_native_per_layer_embd");
+    const auto result = std::make_shared<v0::Result>(per_layer);
+    m.model->add_results({result});
+    const auto restored = ov_gguf_test::reload_ir_model(m.model);
+    const auto legacy = ov::frontend::gguf::resolve_legacy_embedding_boundaries(restored, true, false);
+    ASSERT_NE(legacy.token, nullptr);
+    EXPECT_EQ(legacy.token->get_friendly_name(), m.embd->get_friendly_name());
+}
+
+TEST(GGUFAdaptToGenAI, RecurrentBatchingUsesDeclaredContract) {
+    for (const bool batchable : {false, true}) {
+        auto model = build_minimal_gguf_model().model;
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
+        model->get_rt_info()["gguf_architecture"] = std::string("custom-recurrent-decoder");
+        ov::frontend::gguf::ModelContract contract;
+        contract.batchable_recurrent = batchable;
+        ov::frontend::gguf::write_model_contract(model, contract);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+        EXPECT_EQ(model->input("input_ids").get_partial_shape()[0],
+                  batchable ? ov::Dimension::dynamic() : ov::Dimension{1});
+    }
+}
+
+TEST(GGUFAdaptToGenAI, ExplicitRecurrentContractOverridesGatedDeltaNetInference) {
+    for (const auto batchable : std::vector<std::optional<bool>>{std::nullopt, false, true}) {
+        auto model = build_minimal_gguf_model().model;
+        const auto data = v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {1.f});
+        const auto gate = v0::Constant::create(ov::element::f32, {1, 1, 1}, {1.f});
+        const auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(data, data, data, data, gate, gate);
+        const auto axes = v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3});
+        const auto sum = std::make_shared<v1::ReduceSum>(gdn->output(0), axes, false);
+        const auto result = model->get_results().front();
+        const auto combined = std::make_shared<v1::Add>(result->input_value(0), sum);
+        result->input(0).replace_source_output(combined);
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
+        ov::frontend::gguf::ModelContract contract;
+        contract.batchable_recurrent = batchable;
+        ov::frontend::gguf::write_model_contract(model, contract);
+        EXPECT_EQ(ov::frontend::gguf::read_model_contract(model).batchable_recurrent, batchable);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+        EXPECT_EQ(model->input("input_ids").get_partial_shape()[0],
+                  batchable.value_or(true) ? ov::Dimension::dynamic() : ov::Dimension{1});
+    }
+}
 
 class GGUFAdaptToGenAIEmbeddingMode : public ::testing::TestWithParam<bool> {};
 

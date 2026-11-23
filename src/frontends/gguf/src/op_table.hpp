@@ -55,6 +55,8 @@ GGUF_OP_CONVERTER(translate_add_id);
 GGUF_OP_CONVERTER(translate_argsort);
 GGUF_OP_CONVERTER(translate_top_k);
 GGUF_OP_CONVERTER(translate_sum_rows);
+GGUF_OP_CONVERTER(translate_conv_transpose_1d);
+GGUF_OP_CONVERTER(translate_unary_step);
 
 // Elementwise clamp and division.
 GGUF_OP_CONVERTER(translate_clamp);
