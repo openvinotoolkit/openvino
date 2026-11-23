@@ -887,12 +887,15 @@ void convert<float, float16>(const float* arg, float16* out, size_t count) {
 
 template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
-    convert_impl<NoClamp>(arg, out, count);
+    // The JIT kernel maps +-Inf to 0, so results would depend on JIT availability.
+    // Use the scalar path, which goes through the guarded detail::convert.
+    Converter<float, int8_t>::apply<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
-    convert_impl<NoClamp>(arg, out, count);
+    // See convert<float, int8_t> above.
+    Converter<float16, int8_t>::apply<NoClamp>(arg, out, count);
 }
 
 template <>
