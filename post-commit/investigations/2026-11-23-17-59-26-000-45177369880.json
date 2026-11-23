@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-17-59-26-000-45177369880",
+  "timestamp": "2026-11-23T17:59:26Z",
+  "run_id": "45177369880",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45177369880",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "dc9e2229dd4edb3120a556668de80467c1e2c925",
+  "pr_number": "39604",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39604",
+  "author": "hansdah345",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with MSBuild worker StackOverflowException during benchmark_app compilation",
+  "signature": "Windows CC build fails - an MSBuild worker process crashes with a .NET StackOverflowException during parallel compilation (benchmark_app / samples build), causing CMake Generator error: execution of make failed|Infrastructure",
+  "signature_hash": "761a41dcfadcfd72",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "Step 'Cmake build - CC ON' ran cmake --build ... --target benchmark_app with /m:15; all prior targets (including openvino_reference.lib) built cleanly, then the process logged a bare 'Unhandled Exception:' with no further detail and exited with code 1 (~17:46:17-17:49:39Z)."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check 'Check status of all jobs' exits 1 solely because the upstream Conditional Compilation job failed; no independent root cause."
+    }
+  ],
+  "key_errors": [
+    "2026-11-23T17:49:29.5671652Z   openvino_reference.vcxproj -> C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\bin\\intel64\\Release\\openvino_reference.lib",
+    "2026-11-23T17:49:39.2656706Z \n2026-11-23T17:49:39.2667562Z Unhandled Exception: \n2026-11-23T17:49:39.3463627Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "During the 'Cmake build - CC ON' step, cmake --build invokes MSBuild with /m:15 (CMAKE_BUILD_PARALLEL_LEVEL=15) targeting benchmark_app on the same CC-enabled Release tree; the log shows source compilation proceeding normally (reaching openvino_reference.lib) and then abruptly terminating with a bare, unattributed 'Unhandled Exception:' line and no compiler/linker diagnostic (no C1060, no LNK1102, no MSB error code) before exit code 1. This truncated, exception-only termination with no preceding compiler error closely matches the previously recorded pattern 761a41dcfadcfd72, where an MSBuild worker (node) process crashed with an unrecoverable .NET StackOverflowException under the same high-parallelism (/m:15) benchmark_app build on this Windows CC runner class, rather than a code-level compile/link error. The triggering commit (PR #39604) is a one-line Doxygen docstring typo fix in src/core/dev_api/.../node_util.hpp with no code or build-system changes, and is implausible as the cause of an MSBuild host-process crash. This is most consistent with recurring Windows CC runner resource exhaustion (native/managed stack or memory pressure on an MSBuild.exe worker node) under the configured parallelism, the same infrastructure constraint already tracked for the sibling out-of-heap-space pattern (signature_hash 80cfa127185fbf3e, 22 occurrences).",
+  "reproduction_steps": "Not reliably reproducible outside CI; depends on Windows CC runner resource pressure. Locally: build the SELECTIVE_BUILD=ON (CC) Release configuration and run cmake --build <dir> --parallel 15 --config Release --target benchmark_app -- /verbosity:minimal on a memory/CPU-constrained Windows machine while the rest of the tree compiles concurrently, to approximate the MSBuild worker crash conditions.",
+  "recommended_actions": [
+    "Reduce MSBuild/CMake build parallelism (CMAKE_BUILD_PARALLEL_LEVEL / --parallel, currently 15) for the Windows CC job's 'Cmake build - CC ON' step to lower concurrent MSBuild.exe worker memory/stack pressure.",
+    "Escalate to CI infra owners: this is now the 2nd occurrence of signature 761a41dcfadcfd72 (MSBuild worker StackOverflowException) and part of a broader family of Windows CC runner resource-exhaustion failures (alongside the 22x-recurring C1060/LNK1102 pattern 80cfa127185fbf3e); the aks Windows CC runner pool appears undersized for its configured parallelism.",
+    "If this recurs, capture a crash dump of the MSBuild.exe worker node (Windows Error Reporting / procdump) to pinpoint the task triggering the stack overflow.",
+    "Re-run the 'Conditional Compilation' job for this commit; since the triggering PR (#39604) only changes a header docstring, a clean retry would further confirm this is a transient infrastructure failure, not a code regression."
+  ],
+  "prevention_strategies": "Cap MSBuild node/thread parallelism on the Windows CC runner pool (or move to a larger runner SKU) so concurrent build/link jobs stay within available memory/stack budget. AI agent note: when a Windows 'Cmake build - CC ON' step ends with a bare 'Unhandled Exception:' line and exit code 1, with no preceding compiler/linker diagnostic, check pattern signature_hash 761a41dcfadcfd72 and its sibling 80cfa127185fbf3e before deep-diving into the triggering commit's diff - these almost always indicate Windows CC runner resource exhaustion (MSBuild worker crash or MSVC out-of-heap), not a code defect, especially when the commit touches only docs/comments or unrelated files.",
+  "historical_context": "This is the 2nd recorded occurrence of signature 761a41dcfadcfd72 ('Windows CC build fails - MSBuild worker StackOverflowException during benchmark_app compilation'), first seen 2026-11-23T13:56:54Z (run 45183032321, PR #39961, an unrelated Protobuf version revert) and now recurring ~4 hours later on an unrelated one-line docstring PR (#39604), reinforcing that this is a Windows CC runner infrastructure/resource-exhaustion issue independent of the triggering commit's content. It is closely related to the much more frequent out-of-heap-space pattern (80cfa127185fbf3e, 22 occurrences since 2026-11-03) affecting the same Windows CC build under high parallelism."
+}
