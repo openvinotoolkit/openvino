@@ -87,6 +87,11 @@ single list argument as `(list_of_tensors,)` and use distinct tensor objects for
 separate example inputs. Repeated tensor objects are rejected because
 `torch.export` can specialize their aliasing.
 
+Numeric input aliases are FX decoder node IDs, not flattened tensor positions.
+When dynamic shapes are requested using numeric aliases for a PyTorch module,
+conversion may export the model twice to resolve and verify the IDs. Use input
+names to avoid the extra export.
+
 ### Context-manager scopes in exported models
 
 OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,

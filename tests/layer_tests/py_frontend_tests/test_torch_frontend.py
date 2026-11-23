@@ -2760,6 +2760,141 @@ class TestConvertModelDynamo:
         result = compile_model(converted, "CPU", default_cfg)([sample.numpy()])[0]
         np.testing.assert_array_equal(result, Model()(sample).numpy())
 
+    @pytest.mark.parametrize("with_state", [False, True])
+    def test_numeric_input_alias_skips_specialized_inputs(self, with_state):
+        from openvino import compile_model, convert_model
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        from openvino.tools.ovc.error import Error
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                if with_state:
+                    self.register_buffer("offset", torch.ones(1))
+
+            def forward(self, a, scale, b):
+                result = a.sum() + scale * b
+                return result + self.offset if with_state else result
+
+        model = Model()
+        a, b = torch.ones(4, 3), torch.ones(9, 3)
+        example = (a, 2, b)
+        decoder = TorchFXPythonDecoder.from_exported_program(torch.export.export(model, example))
+        first_id, second_id = decoder.inputs()
+        assert second_id > first_id + 1
+
+        converted = convert_model(model, example_input=example, input={str(second_id): [-1, 3]}, dynamo=True)
+        assert converted.input("b").get_partial_shape() == PartialShape([-1, 3])
+        sample = torch.ones(12, 3)
+        actual = compile_model(converted, "CPU", default_cfg)([a.numpy(), sample.numpy()])[0]
+        np.testing.assert_array_equal(actual, model(a, 2, sample).numpy())
+
+        converted = convert_model(
+            model, example_input=example, input={str(first_id): [-1, 3], "b": [9, 3]}, dynamo=True)
+        assert converted.input("a").partial_shape == PartialShape([-1, 3])
+        assert converted.input("b").partial_shape == PartialShape([9, 3])
+        sample = torch.ones(6, 3)
+        actual = compile_model(converted, "CPU", default_cfg)([sample.numpy(), b.numpy()])[0]
+        np.testing.assert_array_equal(actual, model(sample, 2, b).numpy())
+
+        with pytest.raises(Error, match="Cannot match input"):
+            convert_model(model, example_input=example, input={str(first_id + 1): [-1, 3]}, dynamo=True)
+
+    def test_numeric_input_alias_with_nested_keyword_inputs(self):
+        from openvino import compile_model, convert_model
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        from openvino.tools.ovc.error import Error
+
+        class Model(torch.nn.Module):
+            def forward(self, values, scale, b):
+                return values["a"].sum() + values["other"].sum() + scale * b
+
+        model = Model()
+        a, other, b = torch.ones(4, 3), torch.ones(5, 3), torch.ones(9, 3)
+        ordered = {"values": {"a": a, "other": other}, "scale": 2, "b": b}
+        decoder = TorchFXPythonDecoder.from_exported_program(torch.export.export(model, (), kwargs=ordered))
+        alias = str(decoder.inputs()[-1])
+        example = {"b": b, "scale": 2, "values": ordered["values"]}
+        converted = convert_model(
+            model, example_input=example, input={"values_a": [-1, 3], alias: [-1, 3]}, dynamo=True)
+        assert converted.input("values_a").partial_shape == PartialShape([-1, 3])
+        assert converted.input("b").partial_shape == PartialShape([-1, 3])
+        sample_a, sample_b = torch.ones(6, 3), torch.ones(12, 3)
+        actual = compile_model(converted, "CPU", default_cfg)(
+            {"values_a": sample_a.numpy(), "values_other": other.numpy(), "b": sample_b.numpy()})[0]
+        np.testing.assert_array_equal(actual, model({"a": sample_a, "other": other}, 2, sample_b).numpy())
+
+        with pytest.raises(Error, match="specified more than once"):
+            convert_model(model, example_input=example, input={"b": [-1, 3], alias: [-1, 3]}, dynamo=True)
+
+    @pytest.mark.parametrize("input_shape,export_count", [
+        ({"0": [4, 3]}, 1),
+        ({"0": [-1, 3]}, 2),
+        ({"x": [-1, 3]}, 1),
+    ])
+    def test_numeric_input_alias_export_count(self, input_shape, export_count, monkeypatch):
+        from openvino import convert_model
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x.sin()
+
+        original_export = torch.export.export
+        exports = []
+
+        def count_exports(*args, **kwargs):
+            exports.append(1)
+            return original_export(*args, **kwargs)
+
+        monkeypatch.setattr(torch.export, "export", count_exports)
+        convert_model(Model(), example_input=torch.ones(4, 3), input=input_shape, dynamo=True)
+        assert len(exports) == export_count
+
+    def test_numeric_input_alias_rejects_changed_export_ids(self, monkeypatch):
+        from openvino import convert_model
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        from openvino.tools.ovc.error import Error
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x.sin()
+
+        original_export = TorchFXPythonDecoder.from_model.__func__
+
+        def change_dynamic_input_id(cls, *args, **kwargs):
+            decoder = original_export(cls, *args, **kwargs)
+            if kwargs.get("dynamic_shapes") is not None:
+                decoder._inputs[0] += 1
+            return decoder
+
+        monkeypatch.setattr(TorchFXPythonDecoder, "from_model", classmethod(change_dynamic_input_id))
+        with pytest.raises(Error, match="Numeric input aliases changed"):
+            convert_model(Model(), example_input=torch.ones(4, 3), input={"0": [-1, 3]}, dynamo=True)
+
+    def test_numeric_input_alias_with_module_extension(self):
+        from openvino import compile_model, convert_model
+        from openvino.frontend.pytorch import ConversionExtension, ModuleExtension
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.cos_module = CosModel()
+
+            def forward(self, x, y):
+                return self.cos_module(x) + y.sum()
+
+        def sin_op(context):
+            return ops.sin(context.get_input(0)).outputs()
+
+        model = Model()
+        x, y = torch.ones(4), torch.ones(5)
+        converted = convert_model(
+            model, example_input=(x, y), input={"1": [-1]}, dynamo=True,
+            extension=[ModuleExtension(CosModel, "AliasSinOp"), ConversionExtension("AliasSinOp", sin_op)])
+        sample = torch.arange(6, dtype=torch.float32)
+        result = compile_model(converted, "CPU", default_cfg)([x.numpy(), sample.numpy()])[0]
+        np.testing.assert_allclose(result, (x.sin() + sample.sum()).numpy(), atol=1e-6)
+
     @pytest.mark.parametrize("as_file", [False, True])
     def test_exported_program_partial_example_alias_is_validated_after_normalization(self, as_file, tmp_path):
         from openvino import Dimension, convert_model, compile_model
