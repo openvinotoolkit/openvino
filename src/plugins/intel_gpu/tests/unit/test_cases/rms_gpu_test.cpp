@@ -1165,7 +1165,7 @@ static void run_rms_typed(const std::string& kernel_name,
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
     cldnn::mem_lock<T> output_ref_ptr(output_ref, get_test_stream());
 
-    // BF16 has ~7 mantissa bits; relative tolerance accounts for native_rsqrt.
+    // Relative tolerance accounts for the output precision (BF16 has ~7 mantissa bits) and native_rsqrt.
     for (size_t i = 0; i < output_ref->count(); ++i) {
         float gpu_val = static_cast<float>(output_ptr[i]);
         float ref_val = static_cast<float>(output_ref_ptr[i]);
