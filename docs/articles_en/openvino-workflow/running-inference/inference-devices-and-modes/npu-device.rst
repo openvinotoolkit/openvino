@@ -130,7 +130,6 @@ The NPU device is currently supported by AUTO inference modes
 
          ov::device::id
          ov::log::level
-         ov::hint::enable_cpu_pinning
          ov::hint::inference_precision
          ov::hint::model_priority
          ov::hint::num_requests

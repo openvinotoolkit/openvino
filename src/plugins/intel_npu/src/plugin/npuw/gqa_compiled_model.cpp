@@ -24,6 +24,7 @@
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
 #include "npuw_transformations/drop_zp_subtract.hpp"
+#include "npuw_transformations/fold_scalar_dq.hpp"
 #include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -36,6 +37,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "orc.hpp"
+#include "orc/schema_npuw.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
@@ -308,6 +311,13 @@ std::string_view gqa_case_name(ov::npuw::GQACompiledModel::Case gqa_case) {
     return "Unknown";
 }
 
+std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {
+    if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
+        return it->second.as<ov::EncryptionCallbacks>().encrypt;
+    }
+    return {};
+}
+
 }  // namespace
 
 // Prints a "[GQA-TRACE]" line when OPENVINO_NPUW_GQA_LOG=1 is set; no-op otherwise.
@@ -342,6 +352,9 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     // multiple layers; NPUW's FOLD pass requires per-instance scalars.
     ov::npuw::UntangleDQScale untangle_dq_scale;
     untangle_dq_scale.run_on_model(model);
+    // Fold single-element all-Constant DQ chains into one Constant.
+    ov::npuw::FoldScalarDQ fold_scalar_dq;
+    fold_scalar_dq.run_on_model(model);
     // Drop all-zero zero-point Subtract nodes so ConvToMatMul sees a clean
     // Convert(Parameter) → Multiply(scale) weight chain.
     ov::npuw::DropZPSubtract drop_zp_subtract;
@@ -653,23 +666,24 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
 // Hand-rolled port serialization instead of ov::pass::Serialize: the IR writer recomputes
 // a Result's shape/type from its input node, which would collapse our dummy-placeholder
 // carcass Results down to the placeholder's shape.
-void ov::npuw::GQACompiledModel::write_port_list(std::ostream& stream,
+void ov::npuw::GQACompiledModel::write_port_list(ov::npuw::orc::Stream& stream,
                                                  const std::vector<ov::Output<const ov::Node>>& ports) {
-    using namespace ov::npuw::s11n;
-    write(stream, ports.size());
+    NPUW_ASSERT(stream.output());
+    uint64_t ports_size = static_cast<uint64_t>(ports.size());
+    stream & ports_size;
     for (const auto& port : ports) {
-        write(stream, port.get_node()->get_friendly_name());
-        write(stream, port.get_element_type().to_string());
-        write(stream, port.get_partial_shape().to_string());
+        stream & port.get_node()->get_friendly_name();
+        stream & port.get_element_type().to_string();
+        stream & port.get_partial_shape().to_string();
         // Preserve tensor names too: ORT/OVEP match ports by these, not friendly names.
-        write(stream, port.get_names());
+        stream & port.get_names();
     }
 }
 
-ov::ParameterVector ov::npuw::GQACompiledModel::read_input_port_list(std::istream& stream) {
-    using namespace ov::npuw::s11n;
-    size_t count = 0;
-    read(stream, count);
+ov::ParameterVector ov::npuw::GQACompiledModel::read_input_port_list(ov::npuw::orc::Stream& stream) {
+    NPUW_ASSERT(stream.input());
+    uint64_t count = 0;
+    stream & count;
     // Guard against a corrupted blob surfacing as an opaque bad_alloc instead of a clear error.
     OPENVINO_ASSERT(count <= 1024, "GQACompiledModel: implausible outer input port count (", count, ") on import");
     ov::ParameterVector params;
@@ -677,10 +691,10 @@ ov::ParameterVector ov::npuw::GQACompiledModel::read_input_port_list(std::istrea
     for (size_t i = 0; i < count; ++i) {
         std::string name, elem_type_str, shape_str;
         std::unordered_set<std::string> tensor_names;
-        read(stream, name);
-        read(stream, elem_type_str);
-        read(stream, shape_str);
-        read(stream, tensor_names);
+        stream & name;
+        stream & elem_type_str;
+        stream & shape_str;
+        stream & tensor_names;
         auto param =
             std::make_shared<ov::op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(shape_str));
         param->set_friendly_name(name);
@@ -690,20 +704,20 @@ ov::ParameterVector ov::npuw::GQACompiledModel::read_input_port_list(std::istrea
     return params;
 }
 
-ov::NodeVector ov::npuw::GQACompiledModel::read_output_port_list(std::istream& stream) {
-    using namespace ov::npuw::s11n;
-    size_t count = 0;
-    read(stream, count);
+ov::NodeVector ov::npuw::GQACompiledModel::read_output_port_list(ov::npuw::orc::Stream& stream) {
+    NPUW_ASSERT(stream.input());
+    uint64_t count = 0;
+    stream & count;
     OPENVINO_ASSERT(count <= 1024, "GQACompiledModel: implausible outer output port count (", count, ") on import");
     ov::NodeVector results;
     results.reserve(count);
     for (size_t i = 0; i < count; ++i) {
         std::string name, elem_type_str, shape_str;
         std::unordered_set<std::string> tensor_names;
-        read(stream, name);
-        read(stream, elem_type_str);
-        read(stream, shape_str);
-        read(stream, tensor_names);
+        stream & name;
+        stream & elem_type_str;
+        stream & shape_str;
+        stream & tensor_names;
         const auto elem_type = ov::element::Type(elem_type_str);
         // A dummy Constant source, purely so Result has something to wrap -- its own
         // reported type/shape is overridden right below via a fresh descriptor::Tensor,
@@ -721,6 +735,11 @@ ov::NodeVector ov::npuw::GQACompiledModel::read_output_port_list(std::istream& s
 void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     LOG_INFO("Exporting GQACompiledModel...");
     LOG_BLOCK();
+
+    auto npu_compiled_model = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_inner_compiled_model);
+    NPUW_ASSERT(npu_compiled_model &&
+                "GQACompiledModel: Currently, ov::npuw::CompiledModel is the only allowed inner compiled model type");
+
     GQA_TRACE("GQACompiledModel::export_model() begin, m_dynamic_kv_cache_axes has " << m_dynamic_kv_cache_axes.size()
                                                                                      << " entries:");
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -728,34 +747,40 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
         GQA_TRACE("    '" << name << "' -> axis " << axis);
     }
 #endif
-    using namespace ov::npuw::s11n;
-    write_header(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
 
     // Preserve the outer-facing ports and axis map so import_model() can rebuild an
     // equivalent GQACompiledModel, not just the bare inner CompiledModel.
     auto outer_inputs = inputs();
     auto outer_outputs = outputs();
-    GQACompiledModel::write_port_list(stream, outer_inputs);
-    GQACompiledModel::write_port_list(stream, outer_outputs);
-    write(stream, m_dynamic_kv_cache_axes);
-    write(stream, m_effective_max_context_len);
-    write(stream, m_effective_sliding_window_length);
-    write(stream, m_effective_sliding_window_headroom);
-    // Written here (from the real model, available at this point) rather than
-    // re-derived by import_model() from its dummy carcass outer_model, which has no
-    // actual GroupQueryAttention ops for the graph-walking find_*() helpers to find.
-    write(stream, m_total_seq_len_param_name);
-    write(stream, m_present_to_past_param_names);
-    GQA_TRACE("GQACompiledModel::export_model() -> wrote "
-              << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, "
-              << m_dynamic_kv_cache_axes.size()
-              << " dynamic-axis entries, effective_max_context_len=" << m_effective_max_context_len
-              << ", effective_sliding_window_length=" << m_effective_sliding_window_length
-              << ", effective_sliding_window_headroom=" << m_effective_sliding_window_headroom
-              << ", total_seq_len_param_name=" << m_total_seq_len_param_name.value_or("<none>")
-              << ", present_to_past_param_names has " << m_present_to_past_param_names.size() << " entries"
-              << "; delegating to inner m_inner_compiled_model->export_model()");
-    m_inner_compiled_model->export_model(stream);
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream, kOrcType, kOrcVersion, 0u, [&] {
+        ov::npuw::orc::with_leaf_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, [&] {
+            auto meta_stream = ov::npuw::orc::Stream::writer(stream);
+            GQACompiledModel::write_port_list(meta_stream, outer_inputs);
+            GQACompiledModel::write_port_list(meta_stream, outer_outputs);
+            meta_stream & m_dynamic_kv_cache_axes;
+            meta_stream & m_effective_max_context_len;
+            meta_stream & m_effective_sliding_window_length;
+            meta_stream & m_effective_sliding_window_headroom;
+            // Written here (from the real model, available at this point) rather than
+            // re-derived by import_model() from its dummy carcass outer_model, which has no
+            // actual GroupQueryAttention ops for the graph-walking find_*() helpers to find.
+            meta_stream & m_total_seq_len_param_name;
+            meta_stream & m_present_to_past_param_names;
+            GQA_TRACE("GQACompiledModel::export_model() -> wrote "
+                      << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, "
+                      << m_dynamic_kv_cache_axes.size()
+                      << " dynamic-axis entries, effective_max_context_len=" << m_effective_max_context_len
+                      << ", effective_sliding_window_length=" << m_effective_sliding_window_length
+                      << ", effective_sliding_window_headroom=" << m_effective_sliding_window_headroom
+                      << ", total_seq_len_param_name=" << m_total_seq_len_param_name.value_or("<none>")
+                      << ", present_to_past_param_names has " << m_present_to_past_param_names.size() << " entries"
+                      << "; delegating to inner m_inner_compiled_model->serialize_orc_container()");
+        });
+        npu_compiled_model->serialize_orc_container(stream,
+                                                    /* include_weights_bank = */ true,
+                                                    get_encrypt_callback(npu_compiled_model->non_npuw_props()));
+    });
     LOG_INFO("Done");
     GQA_TRACE("GQACompiledModel::export_model() done");
 }
@@ -768,9 +793,25 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     LOG_BLOCK();
     GQA_TRACE("GQACompiledModel::import_model() begin");
 
-    using namespace ov::npuw::s11n;
+    const auto header = orc::read_file_header(stream);
+    OPENVINO_ASSERT(header.schema_uuid == orc::schema_npuw::NPUW_ORC_GQA_SCHEMA,
+                    "Unsupported ORC schema for NPUW GQACompiledModel");
 
-    read_and_check_header(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR, "GQACompiledModel");
+    orc::ScopedReadSection root(stream);
+    OPENVINO_ASSERT(root.remaining() <= ov::npuw::orc::Stream::reader(stream).remaining(),
+                    "GQA root section claims ",
+                    root.remaining(),
+                    " which exceeds the stream size");
+    OPENVINO_ASSERT(root.header().type == kOrcType, "Not a GQA ORC blob");
+    OPENVINO_ASSERT(root.header().version <= kOrcVersion,
+                    "GQA blob was produced by a newer NPUW (section version ",
+                    root.header().version,
+                    "; this build supports up to ",
+                    kOrcVersion,
+                    ")");
+    OPENVINO_ASSERT(!orc::has_flag(root.header().flags, orc::SectionFlag::LEAF),
+                    "Unsupported ORC NPUW GQA root section");
+    OPENVINO_ASSERT(!root.done(), "Unexpected end of GQA section: empty GQA root section (missing META)");
 
     // Rebuild the outer-facing model (dynamic axes restored) exactly as before export.
     ov::ParameterVector outer_parameters;
@@ -781,14 +822,29 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     uint32_t effective_sliding_window_headroom = 0;
     std::optional<std::string> total_seq_len_param_name;
     std::unordered_map<std::string, std::string> present_to_past_param_names;
-    outer_parameters = GQACompiledModel::read_input_port_list(stream);
-    outer_results = GQACompiledModel::read_output_port_list(stream);
-    read(stream, dynamic_kv_cache_axes);
-    read(stream, effective_max_context_len);
-    read(stream, effective_sliding_window_length);
-    read(stream, effective_sliding_window_headroom);
-    read(stream, total_seq_len_param_name);
-    read(stream, present_to_past_param_names);
+
+    auto read_meta_fields = [&](const std::string& meta_blob) {
+        auto meta_stream = ov::npuw::orc::Stream::memory_reader(meta_blob.data(), meta_blob.size());
+        outer_parameters = GQACompiledModel::read_input_port_list(meta_stream);
+        outer_results = GQACompiledModel::read_output_port_list(meta_stream);
+        meta_stream & dynamic_kv_cache_axes;
+        meta_stream & effective_max_context_len;
+        meta_stream & effective_sliding_window_length;
+        meta_stream & effective_sliding_window_headroom;
+        meta_stream & total_seq_len_param_name;
+        meta_stream & present_to_past_param_names;
+        OPENVINO_ASSERT(meta_stream.remaining() == 0, "Unexpected remaining bytes of GQACompiledModel's META section");
+    };
+    ov::npuw::orc::ScopedReadSection meta(stream);
+    OPENVINO_ASSERT(meta.remaining() <= root.remaining(), "GQA META section exceeds GQA root section");
+    if (meta.header().type != ov::npuw::orc::META_SECTION_TYPE ||
+        !ov::npuw::orc::has_flag(meta.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
+        OPENVINO_THROW("Expected ORC NPUW metadata section, got type ", meta.header().type);
+    }
+    auto meta_blob = meta.read_remaining_blob();
+    read_meta_fields(meta_blob);
+    meta.expect_end();
+    OPENVINO_ASSERT(!root.done(), "Unexpected end of GQA section: missing inner CompiledModel section after META");
 
     GQA_TRACE("    read " << outer_parameters.size() << " outer parameters, " << outer_results.size()
                           << " outer results, " << dynamic_kv_cache_axes.size() << " dynamic-axis entries:");
@@ -801,9 +857,14 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     auto outer_model =
         std::make_shared<ov::Model>(ov::as_output_vector(outer_results), outer_parameters, "gqa_outer_model");
 
-    // The rest of the stream is the self-contained inner CompiledModel ORC blob.
-    auto inner_compiled_model = ov::npuw::CompiledModel::import_model(stream, plugin, properties);
-    NPUW_ASSERT(inner_compiled_model != nullptr);
+    // Next child of the GQA root: the inner CompiledModel ORC container section (no file header).
+    auto inner_compiled_model = ov::npuw::CompiledModel::deserialize_orc_container(stream,
+                                                                                   plugin,
+                                                                                   properties,
+                                                                                   /* require_weights_bank = */ true,
+                                                                                   /* decrypt = */ {});
+    root.expect_end();
+
     GQA_TRACE("    inner CompiledModel imported @ "
               << inner_compiled_model.get()
               << "; wrapping it back into a GQACompiledModel so dynamic KV-cache/attention-bias reshape "
@@ -933,7 +994,7 @@ void ov::npuw::GQAInferRequest::trace_attention_mask_stats_locked() const {
             ov::npuw::util::contains_ignore_case(name, "past_value")) {
             continue;  // KV-cache tensor, not the mask/bias -- already traced/handled elsewhere
         }
-        auto it = std::find_if(outer_inputs.begin(), outer_inputs.end(), [&name](const auto& input) {
+        auto it = std::find_if(outer_inputs.begin(), outer_inputs.end(), [&](const auto& input) {
             return input.get_node()->get_friendly_name() == name;
         });
         if (it == outer_inputs.end()) {
