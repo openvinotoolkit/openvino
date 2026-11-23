@@ -54,7 +54,7 @@ void ShapePredictor::add_shape(const std::string& id, const ov::Shape& shape) {
 }
 
 bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
-    const auto memory_threshold = 0.90f;
+    const auto memory_threshold = 0.90F;
     auto device_mem_usage = _engine->get_used_device_memory(cldnn::allocation_type::usm_device);
 
     if (desired_buffer_size > _engine->get_device_info().max_alloc_mem_size) {
@@ -166,7 +166,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
             auto new_shape = current_shape + preallocation_shape;
             return {true, new_shape};
         }
-        if (_settings.buffers_preallocation_ratio > 1.0f) {
+        if (_settings.buffers_preallocation_ratio > 1.0F) {
             if (format::is_blocked(layout.format)) {
                 return {false, {}};
             }

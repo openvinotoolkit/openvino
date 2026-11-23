@@ -74,6 +74,13 @@ static const char RUNTIME_PRECISION[] = "runtimePrecision";
 
 /**
  * @ingroup ov_dev_exec_model
+ * @brief Used to get the PagedAttention block size stored as a top-level rt_info entry
+ *        on the runtime model returned by compiled_model.get_runtime_model().
+ */
+static const char PAGED_ATTENTION_BLOCK_SIZE[] = "paged_attention_block_size";
+
+/**
+ * @ingroup ov_dev_exec_model
  * @brief The Execution node which is used to represent node in execution graph.
  *
  * It contains the following type of information in node runtime information:

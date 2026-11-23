@@ -33,4 +33,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                const std::shared_ptr<std::unordered_map<std::string, MemoryPtr>>& privateWeightCache,
                                const std::shared_ptr<ThreadPool>& threadPool,
                                bool needShiftSignedToUnsigned = false);
+
+bool isNonNegativeI8(const IMemory& mem);
 }  // namespace ov::intel_cpu::utils

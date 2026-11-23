@@ -6,16 +6,22 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
+#include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
 #include "moe_transformations/moe_topology.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -27,6 +33,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "serialization.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
@@ -35,6 +43,18 @@ using MoEHint = intel_npu::npuw::llm::MoEHint;
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+
+std::string make_llm_header(const std::size_t claimed_version_size, const std::string& version) {
+    std::ostringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, claimed_version_size);
+    stream.write(version.data(), static_cast<std::streamsize>(version.size()));
+    return stream.str();
+}
 
 bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::string_view attention_kind) {
     for (const auto& op : model->get_ops()) {
@@ -49,12 +69,16 @@ bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::s
 
 class ArchAwarePlugin final : public NullPlugin {
 public:
-    ArchAwarePlugin(std::string arch, int64_t max_tiles, int64_t compiler_version = 0)
+    ArchAwarePlugin(std::string arch,
+                    int64_t max_tiles,
+                    int64_t compiler_version = 0,
+                    std::map<std::string, int64_t> compiler_version_by_type = {})
         : m_arch(std::move(arch)),
           m_max_tiles(max_tiles),
-          m_compiler_version(compiler_version) {}
+          m_compiler_version(compiler_version),
+          m_compiler_version_by_type(std::move(compiler_version_by_type)) {}
 
-    ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
         if (name == ov::device::architecture.name()) {
             return m_arch;
         }
@@ -62,6 +86,13 @@ public:
             return m_max_tiles;
         }
         if (name == ov::intel_npu::compiler_version.name()) {
+            const auto type = arguments.find(ov::intel_npu::compiler_type.name());
+            if (type != arguments.end()) {
+                const auto version = m_compiler_version_by_type.find(type->second.as<std::string>());
+                if (version != m_compiler_version_by_type.end()) {
+                    return version->second;
+                }
+            }
             return m_compiler_version;
         }
         if (name == ov::supported_properties.name()) {
@@ -74,6 +105,7 @@ private:
     std::string m_arch;
     int64_t m_max_tiles;
     int64_t m_compiler_version;
+    std::map<std::string, int64_t> m_compiler_version_by_type;
 };
 
 std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
@@ -876,10 +908,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultS
 
     for (const auto* call : {&prefill, &generate, &head}) {
         expect_missing_prop(call->props, "NPU_TILES");
-        expect_prop(
-            call->props,
-            "NPU_COMPILATION_MODE_PARAMS",
-            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
@@ -1181,11 +1212,13 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionOptimizesSelfAndCrossAtt
     EXPECT_EQ(encoder_value_shape[3], whisper_config.get_encoder_seq_len());
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOptions) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperNonInt8PreservesFoldAndFuncallStageOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    auto model = build_whisper_decoder_model();
+    model->set_rt_info("int4", "nncf", "weight_compression", "mode");
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
                                                      {{"NPUW_WHISPER", "YES"},
                                                       {"NPUW_WHISPER_EOS_TOKEN", "42"},
                                                       {"NPUW_FOLD", "YES"},
@@ -1196,12 +1229,260 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOpt
 
     const auto& prefill = require_call(recorder, "_prefill");
     const auto& generate = require_call_containing(recorder, "_kv");
-    expect_missing_prop(prefill.props, "NPUW_FOLD");
-    expect_missing_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(prefill.props, "NPUW_FOLD", "YES");
+    expect_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(prefill.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
-    expect_missing_prop(generate.props, "NPUW_FOLD");
-    expect_missing_prop(generate.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(generate.props, "NPUW_FOLD", "YES");
+    expect_prop(generate.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(generate.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperInt8DisablesWsStageOptions) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    auto model = build_whisper_decoder_model();
+    model->set_rt_info("int8", "nncf", "weight_compression", "mode");
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_FOLD", "YES"},
+                                                      {"NPUW_FOLD_ONLY", "YES"},
+                                                      {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                                      {"NPUW_CWAI", "YES"},
+                                                      {"NPUW_WEIGHTS_BANK", "whisper-shared"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    for (const auto* call : {&prefill, &generate}) {
+        expect_missing_prop(call->props, "NPUW_FOLD");
+        expect_missing_prop(call->props, "NPUW_FOLD_ONLY");
+        expect_missing_prop(call->props, "NPUW_FUNCALL_FOR_ALL");
+        expect_missing_prop(call->props, "NPUW_CWAI");
+        expect_prop(call->props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+    }
+}
+
+// Makes the embedding and the LM head of a synthetic model read one u8 asymmetric vocabulary, as in
+// an INT4 model with tied weights. As in a real IR, each reader
+// has its own dequantization over the same constants.
+void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model,
+                              const std::string& embedding_weight_name,
+                              const std::string& head_name) {
+    std::shared_ptr<ov::Node> embedding_weight;
+    std::shared_ptr<ov::Node> head;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == embedding_weight_name) {
+            embedding_weight = node;
+        } else if (ov::is_type<ov::op::v0::MatMul>(node) && node->get_friendly_name() == head_name + "/MatMul") {
+            head = node;
+        }
+    }
+    ASSERT_NE(embedding_weight, nullptr);
+    ASSERT_NE(head, nullptr);
+    const auto vocab_shape = embedding_weight->get_output_shape(0);
+    ASSERT_EQ(head->get_input_shape(1), vocab_shape);
+
+    const ov::Shape channel_shape{vocab_shape[0], 1};
+    auto weight = ov::op::v0::Constant::create(ov::element::u8,
+                                               vocab_shape,
+                                               std::vector<uint8_t>(ov::shape_size(vocab_shape), 200));
+    auto zero_point =
+        ov::op::v0::Constant::create(ov::element::u8, channel_shape, std::vector<uint8_t>(vocab_shape[0], 128));
+    auto scale =
+        ov::op::v0::Constant::create(ov::element::f32, channel_shape, std::vector<float>(vocab_shape[0], 0.01f));
+    auto dequantize = [&]() -> ov::Output<ov::Node> {
+        auto weight_f32 = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+        auto zero_point_f32 = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32);
+        ov::mark_as_decompression(weight_f32);
+        ov::mark_as_decompression(zero_point_f32);
+        auto shifted = std::make_shared<ov::op::v1::Subtract>(weight_f32, zero_point_f32);
+        return std::make_shared<ov::op::v1::Multiply>(shifted, scale);
+    };
+    for (const auto& reader : embedding_weight->output(0).get_target_inputs()) {
+        reader.replace_source_output(dequantize());
+    }
+    head->input(1).replace_source_output(dequantize());
+}
+
+std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return op->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
+    });
+}
+
+struct Sub128Shifts {
+    std::size_t prefill = 0;
+    std::size_t generate = 0;
+    std::size_t lm_head = 0;
+};
+
+class LLMCompiledModelSharedVocabularyTest : public LLMCompiledModelFactoryOptionsTest {
+protected:
+    // Compiles the model with a shared u8 asymmetric vocabulary and counts the Sub128 shifts in each stage.
+    Sub128Shifts compile_with_shared_vocabulary(const std::shared_ptr<ov::Model>& model,
+                                                const std::string& embedding_weight_name,
+                                                const std::string& head_name,
+                                                ov::AnyMap props) {
+        share_u8_asym_vocabulary(model, embedding_weight_name, head_name);
+        bool shared = false;
+        ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
+        EXPECT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
+
+        RecordingFactory recorder;
+        std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+        EXPECT_NO_THROW(compiled = create_compiled_model(model, props, recorder));
+        EXPECT_NE(compiled, nullptr);
+        Sub128Shifts shifts;
+        for (const auto& call : recorder.calls()) {
+            const auto count = count_sub128_shifts(call.model);
+            const auto& name = call.model->get_friendly_name();
+            if (name.find("_prefill") != std::string::npos) {
+                shifts.prefill += count;
+            } else if (name.find("_kv") != std::string::npos) {
+                shifts.generate += count;
+            } else if (name.find("_lm_head") != std::string::npos) {
+                shifts.lm_head += count;
+            }
+        }
+        return shifts;
+    }
+
+    Sub128Shifts compile_whisper(const ov::AnyMap& extra_props) {
+        ov::AnyMap props = {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}};
+        props.insert(extra_props.begin(), extra_props.end());
+        return compile_with_shared_vocabulary(build_whisper_decoder_model(),
+                                              "model.decoder.embed_tokens.weight",
+                                              "proj_out",
+                                              props);
+    }
+
+    Sub128Shifts compile_llm(const ov::AnyMap& extra_props) {
+        ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "YES"}};
+        props.insert(extra_props.begin(), extra_props.end());
+        return compile_with_shared_vocabulary(build_llm_model(), "model.embed_tokens.weight", "lm_head", props);
+    }
+};
+
+// GenAI compiles Whisper on NPU this way by default: the vocabulary is not a closure.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutFunctions) {
+    const auto shifts = compile_whisper({{"NPUW_FOLD", "NO"}, {"NPUW_FUNCALL_FOR_ALL", "NO"}});
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+// Whisper has no separate LM head model, so the vocabulary is not shared even with functions.
+TEST_F(LLMCompiledModelSharedVocabularyTest, WhisperDoesNotUseSharedVocabularyWithFunctions) {
+    const auto shifts = compile_whisper({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+// With the default stage configs the vocabulary is a closure; only the separate LM head model is shifted.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsShiftedWithDefaultConfigs) {
+    const auto shifts = compile_llm({});
+    EXPECT_EQ(shifts.lm_head, 2u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+// NPUW_CWAI is used only without NPUW_FOLD and does not run Partitioner::optimize(), which resolves the shifts.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithCwaiInsteadOfFold) {
+    const auto shifts = compile_llm({{"NPUW_FOLD", "NO"}, {"NPUW_CWAI", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+// Without the separate LM head model the embedding and the LM head are in one model, where the quantized
+// host gather can skip ConvertDQVocab. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES does not change this.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutSharedHead) {
+    for (const auto* explicit_value : {"", "YES"}) {
+        ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "NO"}};
+        if (*explicit_value) {
+            props["NPUW_LLM_VOCAB_ASYM_SHARED"] = explicit_value;
+        }
+        const auto shifts =
+            compile_with_shared_vocabulary(build_llm_model(), "model.embed_tokens.weight", "lm_head", props);
+        EXPECT_EQ(shifts.lm_head, 0u);
+        EXPECT_EQ(shifts.prefill, 0u);
+        EXPECT_EQ(shifts.generate, 0u);
+    }
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedIfOneStageHasNoFunctions) {
+    const auto shifts = compile_llm({{"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutHostGather) {
+    const auto shifts = compile_llm({{"NPUW_HOST_GATHER", "NO"}});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithOldCompiler) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5020", 1, ONEAPI_MAKE_VERSION(8, 2));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWithNewCompiler) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5020", 1, ONEAPI_MAKE_VERSION(8, 5));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({});
+    EXPECT_EQ(shifts.lm_head, 2u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, ExplicitSharedVocabularyIsUsedWithOldCompiler) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5020", 1, ONEAPI_MAKE_VERSION(8, 2));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({{"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}});
+    EXPECT_EQ(shifts.lm_head, 2u);
+}
+
+// The compiler that matters is the one of the final LM head config, not the top-level one: the plugin
+// compiler is new (8.5), the driver compiler is old (8.2).
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedIfHeadOverridesCompilerWithOldOne) {
+    m_plugin = std::make_shared<ArchAwarePlugin>(
+        "5020",
+        1,
+        ONEAPI_MAKE_VERSION(8, 5),
+        std::map<std::string, int64_t>{{"PLUGIN", ONEAPI_MAKE_VERSION(8, 5)}, {"DRIVER", ONEAPI_MAKE_VERSION(8, 2)}});
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({{"NPU_COMPILER_TYPE", "PLUGIN"},
+                                     {"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPU_COMPILER_TYPE", "DRIVER"}}}});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedIfHeadOverridesCompilerWithNewOne) {
+    m_plugin = std::make_shared<ArchAwarePlugin>(
+        "5020",
+        1,
+        ONEAPI_MAKE_VERSION(8, 2),
+        std::map<std::string, int64_t>{{"PLUGIN", ONEAPI_MAKE_VERSION(8, 5)}, {"DRIVER", ONEAPI_MAKE_VERSION(8, 2)}});
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({{"NPU_COMPILER_TYPE", "DRIVER"},
+                                     {"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPU_COMPILER_TYPE", "PLUGIN"}}}});
+    EXPECT_EQ(shifts.lm_head, 2u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsNotShiftedIfHeadHasNoFunctions) {
+    const auto shifts = compile_llm({{"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
@@ -1390,6 +1671,24 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxP
     // The clamped length is what got compiled, so it has to be what the property reports. GenAI
     // reads this back to decide how long a prompt it may submit.
     EXPECT_EQ(compiled->get_property("NPUW_LLM_MAX_PROMPT_LEN").as<uint32_t>(), 512u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportRejectsExcessiveSerializationVersionLengthBeforeAllocation) {
+    const auto header = make_llm_header(std::numeric_limits<std::size_t>::max(), NPUW_SERIALIZATION_VERSION);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "the maximum is 64");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportReportsVersionMismatchForDifferentVersionLength) {
+    const auto header = make_llm_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "NPUW serialized by version 0.3");
 }
 
 }  // namespace

@@ -65,8 +65,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)"),
             // Issue 67214
             std::regex(R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)"),
-            // TODO: Implement RGBtoNV12/BGRtoNV12 in CPU plugin.
-            std::regex(R"(.*smoke_PostProcess.*convert_color_(rgb|bgr)_to_nv12.*)"),
             // Issue: 69086
             // need to add support convert BIN -> FP32
             // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
@@ -481,25 +479,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             // Target Static Shape is empty
             std::regex(R"(.*proposal_params/.*)"),
-            // Quantized models unsupported
-            std::regex(R"(.*Quantized.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
-            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
-            // Accuracy problem in dynamic MHA tests
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.12\.64\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D/MHA.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_2D/MHA2D.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.12\.64\].*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
@@ -614,6 +598,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // on platforms which do not support AMX, we are disabling I8 input tests
             patterns.emplace_back(std::regex(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)"));
         }
+        if (!ov::with_cpu_x86_avx512_core_amx_bf16()) {
+            // the AMX QK^T fast path of SparseSDPA requires AMX bf16
+            patterns.emplace_back(std::regex(R"(.*smoke_SparseSDPA_CPU_AMX.*)"));
+        }
         // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
         if (ov::with_cpu_x86_avx512_core() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
             patterns.emplace_back(std::regex(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|RNNCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)"));
@@ -636,17 +624,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
         // Xattention only verified on AMX platform
         if (!ov::with_cpu_x86_avx512_core_amx()) {
             patterns.emplace_back(std::regex(R"(.*EnableXattn=1.*)"));
-        }
-
-        if (!ov::with_cpu_x86_avx512_core_amx() && ov::with_cpu_x86_avx512_core_fp16() && ov::with_cpu_x86_bfloat16()) {
-            // AVX10.2-class machines can expose fp16+bf16 without AMX support being enabled in the current CPU mask;
-            // keep these known failing snippets skips limited to that path instead of matching broader AMX-disabled CPUs.
-            // Issue: 195918: TODO: filter out failing tests on NVL
-            patterns.emplace_back(std::regex(R"(smoke_Snippets_MatMult/TransposeMatMul\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[1\.49\.2\.23\]\)_IS\[1\]=\[\]_\(\[2\.2\.23\.39\]\)_Pos=0_T\[0\]=f16_T\[1\]=f16_MatMul_#N=1_#S=1_targetDevice=CPU)"));
-            patterns.emplace_back(std::regex(R"(smoke_Snippets_MatMult/TransposeMatMul\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[2\.1\.49\.13\]\)_IS\[1\]=\[\]_\(\[1\.13\.3\.39\]\)_Pos=1_T\[0\]=f16_T\[1\]=f16_MatMul_#N=1_#S=1_targetDevice=CPU)"));
-            patterns.emplace_back(std::regex(R"(smoke_Snippets_MHABF16_4D/MHA\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[2\.68\.6\.92\]\)_IS\[1\]=\[\]_\(\[2\.68\.6\.92\]\)_IS\[2\]=\[\]_\(\[1\.1\.68\.68\]\)_IS\[3\]=\[\]_\(\[2\.68\.6\.92\]\)_T\[0\]=bf16_T\[1\]=bf16_T\[2\]=bf16_T\[3\]=bf16_Mul=0_PRC=bf16_#N=3_#S=2_targetDevice=CPU_)"));
-            patterns.emplace_back(std::regex(R"(smoke_Snippets_MHABF16_4D/MHA\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[1\.58\.16\.34\]\)_IS\[1\]=\[\]_\(\[1\.58\.16\.34\]\)_IS\[2\]=\[\]_\(\[1\.1\.1\.58\]\)_IS\[3\]=\[\]_\(\[1\.58\.16\.34\]\)_T\[0\]=bf16_T\[1\]=bf16_T\[2\]=bf16_T\[3\]=bf16_Mul=0_PRC=bf16_#N=3_#S=2_targetDevice=CPU_)"));
-            patterns.emplace_back(std::regex(R"(smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest\.CompareWithRefs/netPRC=bf16_IS=\[\?\.\?\.\?\.\?\]_\[\?\.\?\.\?\.\?\]_\[\?\.\?\]_TS=\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(16\.48\)_\(16\.1\)_\(1\.48\)_is_causal=.*_has_attn=.*_has_scale=0_trgDev=CPU_primitive=ref_any)"));
         }
 
         if (ov::with_cpu_x86_avx512_core_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {

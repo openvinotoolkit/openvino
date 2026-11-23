@@ -17,6 +17,7 @@ using ov::pass::operator|;
         };\
         \
         auto compressed_type = type_matches_any({ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4,\
+                                                 ov::element::u3,\
                                                  ov::element::u2, ov::element::f8e4m3, ov::element::f8e5m2,\
                                                  ov::element::f4e2m1});\
         auto weights_const_m = wrap_type<ov::op::v0::Constant>(compressed_type);\
@@ -28,13 +29,37 @@ using ov::pass::operator|;
         auto weights_convert_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_convert_m, any_input()});\
         auto decompressed_weights_m = convert_m | weights_convert_reshape_m;\
 \
-        auto sub_const_m = wrap_type<ov::op::v0::Constant>();\
+        /* Per-tensor (1-element) parameter scale/zp is not supported. */\
+        auto non_scalar_static_param = [](const ov::Output<ov::Node>& output) {\
+            const auto& ps = output.get_partial_shape();\
+            return ps.is_static() && ov::shape_size(ps.to_shape()) > 1;\
+        };\
+        auto sub_value_const_m = wrap_type<ov::op::v0::Constant>();\
+        auto sub_value_param_m = wrap_type<ov::op::v0::Parameter>(non_scalar_static_param);\
+        auto sub_value_param_reshape_m =\
+            wrap_type<ov::op::v1::Reshape>({sub_value_param_m, any_input()}, ov::pass::pattern::has_static_shape());\
+        auto sub_value_param_convert_m = wrap_type<ov::op::v0::Convert>({sub_value_param_m});\
+        auto sub_value_param_convert_reshape_m =\
+            wrap_type<ov::op::v1::Reshape>({sub_value_param_convert_m, any_input()}, ov::pass::pattern::has_static_shape());\
+        auto sub_const_m = sub_value_const_m | sub_value_param_m | sub_value_param_reshape_m |\
+                           sub_value_param_convert_reshape_m;\
         auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});\
         auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_convert_const_m});\
         auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_const_m});\
         auto subtract_m = sub_with_convert_m | sub_no_convert_m;\
 \
-        auto mul_const_m = wrap_type<ov::op::v0::Constant>();\
+        auto mul_value_const_m = wrap_type<ov::op::v0::Constant>();\
+        auto mul_value_param_m = wrap_type<ov::op::v0::Parameter>(non_scalar_static_param);\
+        auto mul_value_param_reshape_m =\
+            wrap_type<ov::op::v1::Reshape>({mul_value_param_m, any_input()}, ov::pass::pattern::has_static_shape());\
+        auto mul_value_param_convert_m = wrap_type<ov::op::v0::Convert>({mul_value_param_m});\
+        auto mul_value_param_convert_reshape_m =\
+            wrap_type<ov::op::v1::Reshape>({mul_value_param_convert_m, any_input()}, ov::pass::pattern::has_static_shape());\
+        auto mul_value_param_reshape_convert_m =\
+             wrap_type<ov::op::v0::Convert>({mul_value_param_reshape_m});\
+        auto mul_const_m = mul_value_const_m | mul_value_param_m | mul_value_param_reshape_m |\
+                           mul_value_param_convert_m | mul_value_param_convert_reshape_m |\
+                           mul_value_param_reshape_convert_m;\
         auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});\
         auto mul_const_convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(mul_const_m);\
         auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({decompressed_weights_m, mul_const_convert_m});\
@@ -51,6 +76,12 @@ using ov::pass::operator|;
         /* Transpose after decompression, with an optional preceding Reshape. */\
         auto transpose_const_m = wrap_type<ov::op::v0::Constant>();\
         auto transpose_input_m = reshape_m | mul_m;\
-        auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input_m, transpose_const_m});\
+        auto transpose_after_reshape_m = wrap_type<ov::op::v1::Transpose>({transpose_input_m, transpose_const_m});\
+\
+        /* Transpose before the final Reshape. */\
+        auto transpose_before_reshape_input_m = wrap_type<ov::op::v1::Transpose>({mul_m, transpose_const_m});\
+        auto transpose_before_reshape_const_m = wrap_type<ov::op::v0::Constant>();\
+        auto transpose_before_reshape_m = wrap_type<ov::op::v1::Reshape>({transpose_before_reshape_input_m, transpose_before_reshape_const_m}, reshape_squeeze);\
+        auto transpose_m = transpose_after_reshape_m | transpose_before_reshape_m;\
 \
         auto compressed_weights_input_m = mul_m | convert_reshape_m | mul2_m | transpose_m;

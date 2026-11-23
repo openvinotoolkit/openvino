@@ -50,11 +50,13 @@ inline int32_t get_max_gqa_multi_tokens_per_subsequence() {
 inline std::optional<GQAMultiTokensKernel> get_forced_gqa_multi_tokens_kernel() {
     static const auto value = []() -> std::optional<GQAMultiTokensKernel> {
         const char* env = std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL");
-        if (!env)
+        if (!env) {
             return std::nullopt;
+        }
         const auto kernel = std::strtol(env, nullptr, 10);
-        if (kernel < 0 || kernel > static_cast<long>(GQAMultiTokensKernel::FALLBACK))
+        if (kernel < 0 || kernel > static_cast<long>(GQAMultiTokensKernel::FALLBACK)) {
             return std::nullopt;
+        }
         return static_cast<GQAMultiTokensKernel>(kernel);
     }();
     return value;
@@ -77,7 +79,7 @@ inline size_t get_element_size(ov::element::Type_t type) {
     return ov::element::Type(type).size();
 }
 
-static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
+size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
     if (is_kv_compressed) {
         const size_t optimal_scale_factor = 2;
         if (kernel_type == SDPAStage::SINGLE_TOKEN || kernel_type == SDPAStage::MULTI_TOKENS) {
@@ -89,7 +91,7 @@ static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head
     return 1;
 }
 
-static size_t get_heads_per_wi(const size_t kv_group_size) {
+size_t get_heads_per_wi(const size_t kv_group_size) {
     if (kv_group_size > 1) {
         std::vector<size_t> preferable_head_nums = {4, 3, 2};
         for (const auto& heads_num : preferable_head_nums) {
@@ -102,7 +104,7 @@ static size_t get_heads_per_wi(const size_t kv_group_size) {
     return 1;
 }
 
-static size_t get_num_k_head_size_partitions(bool is_key_by_channel, int64_t k_head_size) {
+size_t get_num_k_head_size_partitions(bool is_key_by_channel, int64_t k_head_size) {
     size_t head_size_partition = 1;
     if (is_key_by_channel) {
         if (k_head_size % subgroup_size == 0) {
@@ -160,6 +162,20 @@ inline size_t get_max_subsequence_len(const kernel_impl_params& params) {
     return max_len;
 }
 
+size_t get_max_context_len(const kernel_impl_params& params) {
+    const auto& input_mem = params.memory_deps;
+    const auto max_context_len = input_mem.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);
+    mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
+    const auto paged_attention_max_len = max_context_len_mem_lock[0];
+    return paged_attention_max_len;
+}
+
+// The fallback kernel reads the KV cache once per query token, pa_small_q_opt.cl once per partition at a higher fixed
+// cost. Measured on Xe2/Xe3 for 3..16 tokens, the two cross where tokens^2 x context ~= 64K.
+inline bool prefer_gqa_multi_tokens_fallback_kernel(size_t max_tokens, size_t max_context_len) {
+    return max_tokens * max_tokens * max_context_len <= 64 * 1024;
+}
+
 // GQA multi-token path of paged_attention_opt.cl; the sink and scores output code there assumes one head per work-item
 inline bool supports_gqa_multi_tokens_fallback_kernel(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<paged_attention>();
@@ -168,29 +184,36 @@ inline bool supports_gqa_multi_tokens_fallback_kernel(const kernel_impl_params& 
 }
 
 inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& params) {
-    if (!supports_gqa_multi_tokens_fallback_kernel(params))
+    if (!supports_gqa_multi_tokens_fallback_kernel(params)) {
         return false;
+    }
 
     const auto& info = params.get_device_info();
     // SIMD16 DPAS
-    if (!info.supports_immad || info.arch < gpu_arch::xe_hpc)
+    if (!info.supports_immad || info.arch < gpu_arch::xe_hpc) {
         return false;
+    }
 
     const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_token_type_ids)
+    if (desc->has_token_type_ids) {
         return false;
+    }
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    if (gqa_multi_tokens_rows_per_sg % kv_group_size != 0)
+    if (gqa_multi_tokens_rows_per_sg % kv_group_size != 0) {
         return false;
+    }
 
     const size_t head_size = desc->k_head_size;
-    if (head_size != desc->v_head_size || head_size % (u4_elems_per_byte * subgroup_size) != 0 || head_size > 256)
+    if (head_size != desc->v_head_size || head_size % (u4_elems_per_byte * subgroup_size) != 0 || head_size > 256) {
         return false;
+    }
 
-    if (params.get_input_layout(PagedAttentionInputIdx::QUERY).data_type != data_types::f16)
+    if (params.get_input_layout(PagedAttentionInputIdx::QUERY).data_type != data_types::f16) {
         return false;
-    if (!get_kv_compressed(params) && params.get_input_layout(PagedAttentionInputIdx::KEY_CACHE).data_type != data_types::f16)
+    }
+    if (!get_kv_compressed(params) && params.get_input_layout(PagedAttentionInputIdx::KEY_CACHE).data_type != data_types::f16) {
         return false;
+    }
 
     // Double-buffered f16 K and V tiles
     const size_t slm_size = 4 * paged_attention_block_size * head_size * sizeof(uint16_t);
@@ -199,27 +222,33 @@ inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& para
 
 // Speculative decoding validation step: MIXED stage where every subsequence has only a few new query tokens
 inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_params& params, const PagedAttentionStage& stage) {
-    if (stage != PagedAttentionStage::MIXED || !supports_gqa_multi_tokens_fallback_kernel(params))
+    if (stage != PagedAttentionStage::MIXED || !supports_gqa_multi_tokens_fallback_kernel(params)) {
         return GQAMultiTokensKernel::NONE;
+    }
 
     const auto max_tokens = get_max_gqa_multi_tokens_per_subsequence();
     const auto max_subsequence_len = get_max_subsequence_len(params);
-    if (max_tokens <= 0 || max_subsequence_len > static_cast<size_t>(max_tokens))
+    if (max_tokens <= 0 || max_subsequence_len > static_cast<size_t>(max_tokens)) {
         return GQAMultiTokensKernel::NONE;
+    }
 
     const auto forced = get_forced_gqa_multi_tokens_kernel();
-    if (forced == GQAMultiTokensKernel::NONE || forced == GQAMultiTokensKernel::FALLBACK)
+    if (forced == GQAMultiTokensKernel::NONE || forced == GQAMultiTokensKernel::FALLBACK) {
         return *forced;
+    }
 
-    if (!supports_gqa_multi_tokens_dpas_kernel(params))
+    if (!supports_gqa_multi_tokens_dpas_kernel(params)) {
         return GQAMultiTokensKernel::FALLBACK;
+    }
+
+    if (forced != GQAMultiTokensKernel::SMALL_Q && prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, get_max_context_len(params))) {
+        return GQAMultiTokensKernel::FALLBACK;
+    }
 
     const auto subgroups_num = ceil_div(max_subsequence_len, get_gqa_multi_tokens_per_sg(params));
-    if (subgroups_num * subgroup_size > params.get_device_info().max_work_group_size)
+    if (subgroups_num * subgroup_size > params.get_device_info().max_work_group_size) {
         return GQAMultiTokensKernel::NONE;
-
-    if (forced.has_value())
-        return *forced;
+    }
 
     return GQAMultiTokensKernel::SMALL_Q;
 }
@@ -244,7 +273,7 @@ inline size_t get_gqa_heads_num(size_t heads_num, size_t kv_heads_num) {
     return kv_heads_num * ceil_div(kv_group_size, get_heads_per_wi(kv_group_size));
 }
 
-static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size = 16) {
+int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size = 16) {
     // Since at prefill stage Q, K, V inputs may contain multiple sequences with arbitrary
     // target sequence lengths each (shape is [sequences_num * target_seq_len, num_heads * head_size]),
     // to apply blocking to the first dimension (target_seq_len of each sequence), we need to calculate aligned total
@@ -325,14 +354,6 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
     }
 
     return aligned_seq_len;
-}
-
-size_t get_max_context_len(const kernel_impl_params& params) {
-    const auto& input_mem = params.memory_deps;
-    const auto max_context_len = input_mem.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);
-    mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
-    const auto paged_attention_max_len = max_context_len_mem_lock[0];
-    return paged_attention_max_len;
 }
 
 size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
@@ -1475,11 +1496,12 @@ public:
             // softmax_results, subsequence_offsets, exp_sums, max_logits, tmp_out
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // softmax_results
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // subsequence_offsets
-            if (has_score_aggregation)
+            if (has_score_aggregation) {
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // cumulative_score_aggregation_sum
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // exp_sums
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // max_logits
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // tmp_out
+            }
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // exp_sums
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // max_logits
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // tmp_out
 
             // Scalar used for proper offset calculation of intermediate data buffers
             args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -1589,7 +1611,7 @@ public:
     Stage::Ptr kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
     Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
     Stage::Ptr pa_diversity_calc = make_stage<AdaptiveRKVDiversityGenerator>();
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
     Stage::Ptr pa_tt_bounds = make_stage<PagedAttentionGeneratorTTBounds>();
@@ -1602,7 +1624,7 @@ public:
         const bool has_rotated_blocks = desc->has_rotated_blocks;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         const bool use_micro_sdpa = supports_micro_sdpa(params);
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
@@ -1618,8 +1640,7 @@ public:
         if (supports_gqa_multi_tokens_dpas_kernel(params)) {
             add_stage(pa_small_q, params);
         }
-        if (supports_gqa_multi_tokens_fallback_kernel(params) &&
-            (!supports_gqa_multi_tokens_dpas_kernel(params) || get_forced_gqa_multi_tokens_kernel() == GQAMultiTokensKernel::FALLBACK)) {
+        if (supports_gqa_multi_tokens_fallback_kernel(params)) {
             add_stage(pa_gqa_multi_token_fallback, params);
         }
         add_stage(pa_multi_token_finalization, params);
@@ -1641,12 +1662,14 @@ public:
         }
     }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
-        if (stage == PagedAttentionStage::PREFILL)
+        if (stage == PagedAttentionStage::PREFILL) {
             return !pa_sdpa_micro->kd.micro_kernels.empty();
-        if (stage == PagedAttentionStage::MIXED)
+        }
+        if (stage == PagedAttentionStage::MIXED) {
             return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
+        }
         return false;
     }
 
@@ -1660,7 +1683,7 @@ public:
         return can_use_micro_sdpa;
     }
 
-    bool supports_micro_sdpa(const kernel_impl_params& params) const {
+    static bool supports_micro_sdpa(const kernel_impl_params& params) {
         auto& engine = params.get_program().get_engine();
         const auto desc = params.typed_desc<paged_attention>();
 
@@ -1722,10 +1745,12 @@ public:
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
-            if (stage == PagedAttentionStage::PREFILL)
+            if (stage == PagedAttentionStage::PREFILL) {
                 return get_micro_tile_qsize(pa_sdpa_micro->kd);
-            if (stage == PagedAttentionStage::MIXED)
+            }
+            if (stage == PagedAttentionStage::MIXED) {
                 return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
+            }
         }
         return default_block_size;
     }
@@ -1763,8 +1788,9 @@ public:
         }
         rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);
 
-        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
+        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
+        }
 
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
@@ -1782,7 +1808,7 @@ public:
             rt_params->paged_attention_snap_kv_tokens = 0;
         }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         rt_params->use_micro_sdpa = can_use_micro_sdpa_for(params, rt_params->stage);
 #else
         rt_params->use_micro_sdpa = false;
@@ -1846,7 +1872,7 @@ public:
         }
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
             if (rt_params->use_micro_sdpa) {
                 if (pa_micro_uses_tt_bounds(*desc)) {
                     res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
@@ -1865,7 +1891,7 @@ public:
                                            instance,
                                            multi_tokens_mode ? get_gqa_multi_token_stage(rt_params->gqa_multi_tokens_kernel) : pa_gqa_single_token)};
             } else {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
                     if (pa_micro_uses_tt_bounds(*desc)) {
                         res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
@@ -1983,7 +2009,7 @@ public:
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
         bool can_use_micro_sdpa = false;
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // Keep internal buffer layout decision aligned with execute() path.
         // If runtime params are already prepared, they are the source of truth.
         if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
@@ -2075,7 +2101,7 @@ public:
             internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable, not_shareable);  // 9
         }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         if (can_use_micro_sdpa) {
             const auto wg_tile_q = 8;  // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
@@ -2149,8 +2175,9 @@ public:
             return sequential_gws_subseq_mapping_idx;
         };
 
-        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa))
+        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa)) {
             return;
+        }
 
         auto& stream = instance.get_network().get_stream();
         const auto past_lens_mem = instance.past_lens_memory_ptr();

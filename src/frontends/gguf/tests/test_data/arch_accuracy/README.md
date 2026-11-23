@@ -7,7 +7,16 @@ Embedding fixtures contain `embeddings` instead of `logits`, and cover causal/bi
 per-token output plus mean, first-token and last-token pooling.
 OpenVINO does not participate in reference generation.
 
-The 40 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
+`eagle3-fc-q4_1` and `dflash-fc-q4_1` use packed Q4_1 FC weights with logical
+input width 96. Their integer zero points, binary-exact scales and Q8_0-representable
+hidden features isolate packed-weight geometry from requantization and reference
+activation rounding. Both use CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`
+and the unchanged `1e-5` gate; they do not establish arbitrary quantized-checkpoint parity.
+
+DFlash fixtures cover `dflash`, `dflash-mapped`, `dflash-fc-q4_1`, `dflash-post` and
+`dflash-shared`. Convolution, selector, LiLiCorr and Markov variants are deferred.
+
+The decoder and embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
 expert projections, and F16 Gated-DeltaNet gate/beta projections that disable the frontend's
 projection merges as mixed quantization does in real checkpoints), Gemma4 mixed-head MQA/MoE variants and an E2B/E4B-style Gemma4 with
 per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-ple`). Reference revisions are:
@@ -89,6 +98,8 @@ PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_dspark_accuracy.py --oracle ./dspark
 Gated-DeltaNet feature ordering. `dspark.npz` uses the DSpark API oracle for noncausal
 draft blocks with log-SNR conditioning; it also stores Markov and confidence projection
 weights for the head checks. The upstream oracle revision does not supply these Prism contracts.
+The `qwen3next-legacy-hadamard` case rotates the legacy fixture's fused weights and reuses its
+original logits; it always uses the committed fixture, even when `OV_GGUF_ACCURACY_DATA` is set.
 
 For an additional real-checkpoint check, create `<arch>.gguf` in a separate directory,
 then run `architecture_oracle <arch>.gguf <arch>.bin "The capital of France is"`.
@@ -108,3 +119,10 @@ and random seed 20261014. They cover four hybrid layers, four query/two KV heads
 three/four-tap convolution caches, a two-token attention window, dense leading layers,
 selection bias and normalized softmax/sigmoid expert weights. The sigmoid case includes
 expert-scale metadata that llama.cpp's LFM2 MoE loader ignores.
+
+`afmoe.npz` was extracted from OpenVINO donor `c4a023aeac0302c283295ba241ddee5af5ca4a0b`.
+It covers four layers (one dense, three routed/shared MoE), four query/two KV heads,
+pre/post RMS norms, QK norm, sigmoid attention gating and biased normalized sigmoid
+expert selection. The three cached batches cross a two-token sliding window; every
+fourth layer uses global attention without RoPE. The generator uses seed 20260907. Regeneration against the local CPU oracle built
+from llama.cpp `4b3951de9c87f66768e0fce4043756cc49efc20b` reproduced the NPZ byte for byte.

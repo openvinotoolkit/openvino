@@ -1076,7 +1076,12 @@ Once downloaded, these GGUF models can be used directly with OpenVINO GenAI (for
 Unlike standard Hugging Face models, GGUF models do not require conversion to OpenVINO Intermediate Representation (IR) using the `optimum-intel` tool.
 The `LLMPipeline` object can be instantiated directly from a GGUF file, enabling seamless inference without intermediate steps.
 
-This capability is currently available in preview mode and supports a limited set of topologies, including SmolLM, Qwen2.5.
+This capability currently supports a limited set of topologies, including SmolLM and Qwen2.5.
+There is also an experimental mode using the new GGUF frontend (``GGUF_READER="FRONTEND"``) that supports a wider range of architectures,
+including Qwen3/3.5 and LFM2/3, as well as additional GGUF precisions. Support for these architectures also enables models that are only available in the GGUF format,
+such as Bonsai and Bonsai 2.
+For more details on GGUF support, see the `GenAI documentation <https://openvinotoolkit.github.io/openvino.genai/docs/guides/gguf/>`__.
+
 For other models and architectures, we still recommend converting the model to the IR format,
 using the `optimum-intel` tool.
 See :doc:`Generative Model Preparation Using Optimum-intel <./genai-model-preparation>` for more details.

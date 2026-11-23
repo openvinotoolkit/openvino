@@ -13,7 +13,7 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 
-static std::string get_broadcast_input_str(const size_t input_rank, const int64_t axes, const int64_t val) {
+std::string get_broadcast_input_str(const size_t input_rank, const int64_t axes, const int64_t val) {
     std::vector<std::string> dims;
     if (input_rank == 1) {
         dims = {"x"};
@@ -132,7 +132,7 @@ int64_t SDPABase::get_effective_v_head_size(const kernel_impl_params& params) {
     return get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 }
 
-std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
+std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) {
     if (params.is_type<scaled_dot_product_attention>()) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
@@ -372,8 +372,9 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         jit.make("V_BATCH_NUM", v_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_v_transpose_order)));
 
         auto get_static_or_runtime_dim = [](int64_t dim, std::string runtime_dim, const char* dim_name) {
-            if (dim < 0)
+            if (dim < 0) {
                 return runtime_dim;
+            }
 
             return std::to_string(ensure_positive_dim(dim, dim_name, "SDPA: invalid non-positive ", " for JIT constants generation"));
         };
@@ -418,7 +419,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         jit.make("KV_NUM_HEADS", desc->kv_heads_num);
 
         if (desc->scale_val.has_value()) {
-            jit.make("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value());
+            jit.make("STATIC_SCALE_VALUE_INV", 1.0F / desc->scale_val.value());
             jit.make("STATIC_SCALE_VALUE", desc->scale_val.value());
         } else {
             jit.make("HAS_SCALE_INPUT", 1);

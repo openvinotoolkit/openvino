@@ -8315,6 +8315,32 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_uint32_y) {
     test_case.run();
 }
 
+/// @brief Testing ONNX BitShift with direction="LEFT" on uint8 inputs
+/// Verifies that overflowed values wrap around (modulo 2^8) as required by the ONNX
+/// specification instead of being saturated to the maximum value of the type.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_left_uint8) {
+    const auto model = convert_model("bitshift_left_uint8.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 16, 128, 255});
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 2, 3, 7});
+    test_case.add_expected_output<uint8_t>(Shape{5}, {0, 2, 64, 0, 128});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX BitShift with direction="RIGHT" on uint8 inputs
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_right_uint8) {
+    const auto model = convert_model("bitshift_right_uint8.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<uint8_t>(Shape{5}, {0, 2, 64, 128, 255});
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 2, 7, 4});
+    test_case.add_expected_output<uint8_t>(Shape{5}, {0, 1, 16, 1, 15});
+
+    test_case.run();
+}
+
 /// @brief Testing ONNX LayerNormalization with 2 inputs (no "bias" input provided)
 /// Verifies a fix for the "bias" input not treated as fully optional.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_unbiased) {
@@ -8375,6 +8401,132 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_rotary_embedding_identity) {
     const std::vector<float> input = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
     test_case.add_input<float>(Shape{1, 1, 2, 4}, input);
     test_case.add_expected_output<float>(Shape{1, 1, 2, 4}, input);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) functional KV-cache update, `linear` mode without
+// `write_indices`. The update is appended starting at position 0, so the first
+// `sequence_length` rows of the cache are overwritten and the rest kept.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_linear) {
+    const auto model = convert_model("tensor_scatter_linear.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 4, 2)
+    test_case.add_input<float>(Shape{1, 4, 2}, {10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f});
+    // update (1, 2, 2)
+    test_case.add_input<float>(Shape{1, 2, 2}, {100.f, 101.f, 200.f, 201.f});
+    // write_indices default to 0 -> positions 0 and 1 are overwritten.
+    test_case.add_expected_output<float>(Shape{1, 4, 2}, {100.f, 101.f, 200.f, 201.f, 14.f, 15.f, 16.f, 17.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) `linear` mode with per-batch `write_indices`.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_write_indices) {
+    const auto model = convert_model("tensor_scatter_write_indices.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (2, 4, 2)
+    test_case.add_input<float>(Shape{2, 4, 2},
+                               {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f});
+    // update (2, 2, 2)
+    test_case.add_input<float>(Shape{2, 2, 2}, {100.f, 101.f, 110.f, 111.f, 200.f, 201.f, 210.f, 211.f});
+    // write_indices (2,) -> batch 0 writes at [1,2], batch 1 writes at [2,3].
+    test_case.add_input<int64_t>(Shape{2}, {1, 2});
+    test_case.add_expected_output<float>(
+        Shape{2, 4, 2},
+        {0.f, 1.f, 100.f, 101.f, 110.f, 111.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 200.f, 201.f, 210.f, 211.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) `circular` mode: write positions wrap around
+// max_sequence_length. write_indices=[3], max_sequence_length=4, sequence_length=3
+// -> positions 3, 0, 1.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular) {
+    const auto model = convert_model("tensor_scatter_circular.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 4, 2)
+    test_case.add_input<float>(Shape{1, 4, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f});
+    // update (1, 3, 2)
+    test_case.add_input<float>(Shape{1, 3, 2}, {100.f, 101.f, 110.f, 111.f, 120.f, 121.f});
+    // write_indices (1,)
+    test_case.add_input<int64_t>(Shape{1}, {3});
+    // pos3 = update0, pos0 = update1, pos1 = update2, pos2 unchanged.
+    test_case.add_expected_output<float>(Shape{1, 4, 2}, {110.f, 111.f, 120.f, 121.f, 4.f, 5.f, 100.f, 101.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// A large circular write index must be reduced before adding sequence offsets,
+// otherwise the int64 addition can overflow and wrap to the wrong cache position.
+// INT64_MAX % 3 == 1 (a non-zero remainder), so the reduced start is position 1.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_large_write_index) {
+    if (s_device == "CPU") {
+        GTEST_SKIP() << "CPU FloorMod currently loses precision for large int64 operands";
+    }
+
+    const auto model = convert_model("tensor_scatter_circular_large_write_index.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // Cache length 3; INT64_MAX % 3 == 1, so updates land at positions 1, 2, 0.
+    test_case.add_input<float>(Shape{1, 3, 1}, {10.f, 20.f, 30.f});
+    test_case.add_input<float>(Shape{1, 3, 1}, {100.f, 200.f, 300.f});
+    test_case.add_input<int64_t>(Shape{1}, {9223372036854775807LL});
+    test_case.add_expected_output<float>(Shape{1, 3, 1}, {300.f, 100.f, 200.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) with axis=-2 on a rank-4 KV-cache
+// (batch, num_heads, max_sequence_length, head_size). The sequence dimension is not
+// adjacent to batch, exercising the internal Transpose path. The write index depends
+// only on the batch sample, so all heads are updated at the same sequence position.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_axis_transpose) {
+    const auto model = convert_model("tensor_scatter_axis_transpose.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 2, 3, 2)
+    test_case.add_input<float>(Shape{1, 2, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f});
+    // update (1, 2, 1, 2)
+    test_case.add_input<float>(Shape{1, 2, 1, 2}, {100.f, 101.f, 200.f, 201.f});
+    // write_indices (1,) -> sequence position 1 for every head.
+    test_case.add_input<int64_t>(Shape{1}, {1});
+    test_case.add_expected_output<float>(Shape{1, 2, 3, 2},
+                                         {0.f, 1.f, 100.f, 101.f, 4.f, 5.f, 6.f, 7.f, 200.f, 201.f, 10.f, 11.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) `circular` mode with an empty update and a zero-length cache
+// sequence dimension. The modulo normalization must not divide by zero; the scatter is a no-op
+// that returns the cache unchanged.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_empty) {
+    const auto model = convert_model("tensor_scatter_circular_empty.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 0, 2}, {});
+    test_case.add_input<float>(Shape{1, 0, 2}, {});
+    test_case.add_input<int64_t>(Shape{1}, {0});
+    test_case.add_expected_output<float>(Shape{1, 0, 2}, {});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) with inputs that carry no shape metadata, so their rank is
+// unknown at conversion time. The axis normalization and the transpose permutation are then
+// constructed at runtime. axis=2 on the rank-4 input requires an actual transpose.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_dynamic_rank) {
+    if (s_device == "CPU" || s_device == "GPU") {
+        GTEST_SKIP() << "CPU and GPU plug-ins do not support Parameter operations with dynamic rank";
+    }
+
+    const auto model = convert_model("tensor_scatter_dynamic_rank.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 2, 3, 2)
+    test_case.add_input<float>(Shape{1, 2, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f});
+    // update (1, 2, 1, 2)
+    test_case.add_input<float>(Shape{1, 2, 1, 2}, {100.f, 101.f, 200.f, 201.f});
+    // write_indices (1,) -> sequence position 1 for every head.
+    test_case.add_input<int64_t>(Shape{1}, {1});
+    test_case.add_expected_output<float>(Shape{1, 2, 3, 2},
+                                         {0.f, 1.f, 100.f, 101.f, 4.f, 5.f, 6.f, 7.f, 200.f, 201.f, 10.f, 11.f});
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
