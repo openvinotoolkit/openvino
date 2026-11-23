@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "ze_test_context.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
