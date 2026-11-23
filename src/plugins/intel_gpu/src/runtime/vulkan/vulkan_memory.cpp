@@ -69,6 +69,13 @@ void vulkan_buffer::validate_range(size_t offset, size_t size, const char* opera
     OPENVINO_ASSERT(offset <= _bytes_count && size <= _bytes_count - offset, "[GPU][Vulkan] ", operation, " range exceeds buffer size");
 }
 
+bool vulkan_buffer::can_access_mapping(size_t offset, size_t size) const {
+    const auto& allocation = get_allocation();
+    // Staging keeps host cache operations on partial atoms from touching other views.
+    const auto atom_size = allocation->non_coherent_atom_size;
+    return allocation->is_mapped() && (allocation->is_host_coherent() || ((get_offset() + offset) % atom_size == 0 && size % atom_size == 0));
+}
+
 void* vulkan_buffer::mapped_data() const {
     OPENVINO_ASSERT(get_allocation()->is_mapped(), "[GPU][Vulkan] Buffer memory is not mapped");
     return static_cast<unsigned char*>(get_allocation()->mapped_data) + get_offset();
@@ -103,8 +110,9 @@ void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
     const auto& vulkan_stream = validate_stream(stream);
     vulkan_stream.finish();
     std::lock_guard<std::mutex> lock(_lock_mutex);
+    const auto direct = can_access_mapping(0, _bytes_count);
     if (_lock_count == 0) {
-        if (get_allocation()->is_mapped()) {
+        if (direct) {
             if (type != mem_lock_type::write || !get_allocation()->is_host_coherent()) {
                 get_allocation()->invalidate(get_offset(), _bytes_count);
             }
@@ -121,8 +129,7 @@ void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
     }
     _write_access = _write_access || type != mem_lock_type::read;
     ++_lock_count;
-    return get_allocation()->is_mapped() ? mapped_data()
-                                         : static_cast<unsigned char*>(_lock_staging->mapped_data) + align_transfer_range(get_offset(), _bytes_count).prefix;
+    return direct ? mapped_data() : static_cast<unsigned char*>(_lock_staging->mapped_data) + align_transfer_range(get_offset(), _bytes_count).prefix;
 }
 
 void vulkan_buffer::unlock(const stream& stream) {
@@ -132,12 +139,12 @@ void vulkan_buffer::unlock(const stream& stream) {
     if (--_lock_count != 0 || !std::exchange(_write_access, false) || _bytes_count == 0) {
         return;
     }
-    if (get_allocation()->is_mapped()) {
+    if (can_access_mapping(0, _bytes_count)) {
         get_allocation()->flush(get_offset(), _bytes_count);
         return;
     }
 
-    OPENVINO_ASSERT(_lock_staging != nullptr, "[GPU][Vulkan] Locked device-local buffer has no staging memory");
+    OPENVINO_ASSERT(_lock_staging != nullptr, "[GPU][Vulkan] Locked buffer has no staging memory");
     const auto range = align_transfer_range(get_offset(), _bytes_count);
     if (range.size == _bytes_count) {
         _lock_staging->flush(0, range.size);
@@ -156,7 +163,7 @@ event::ptr vulkan_buffer::fill(stream& stream, unsigned char pattern, const std:
         stream.wait_for_events(dep_events);
         return stream.create_user_event(true);
     }
-    if (get_allocation()->is_mapped()) {
+    if (can_access_mapping(0, _bytes_count)) {
         stream.wait_for_events(dep_events);
         stream.finish();
         if (!get_allocation()->is_host_coherent()) {
@@ -199,7 +206,7 @@ event::ptr vulkan_buffer::copy_from(stream& stream, const void* source, size_t s
         return stream.create_user_event(true);
     }
     const auto* source_bytes = static_cast<const unsigned char*>(source) + source_offset;
-    if (get_allocation()->is_mapped()) {
+    if (can_access_mapping(destination_offset, size)) {
         stream.finish();
         if (!get_allocation()->is_host_coherent()) {
             get_allocation()->invalidate(get_offset() + destination_offset, size);
@@ -233,9 +240,9 @@ event::ptr vulkan_buffer::copy_from(stream& stream, const memory& source, size_t
     const auto ranges_overlap =
         same_allocation && (absolute_source_offset < absolute_destination_offset ? size > absolute_destination_offset - absolute_source_offset
                                                                                  : size > absolute_source_offset - absolute_destination_offset);
-    const auto both_mapped = source_buffer->get_allocation()->is_mapped() && get_allocation()->is_mapped();
+    const auto both_direct = source_buffer->can_access_mapping(source_offset, size) && can_access_mapping(destination_offset, size);
     const auto both_host_cached = source_buffer->get_allocation()->is_host_cached() && get_allocation()->is_host_cached();
-    if (both_mapped && both_host_cached) {
+    if (both_direct && both_host_cached) {
         stream.finish();
         source_buffer->get_allocation()->invalidate(absolute_source_offset, size);
         if (!get_allocation()->is_host_coherent()) {
@@ -270,7 +277,7 @@ event::ptr vulkan_buffer::copy_to(stream& stream, void* destination, size_t sour
     if (size > 0) {
         const unsigned char* source_bytes = nullptr;
         vulkan_buffer_allocation::ptr staging;
-        if (get_allocation()->is_mapped()) {
+        if (can_access_mapping(source_offset, size)) {
             get_allocation()->invalidate(get_offset() + source_offset, size);
             source_bytes = static_cast<const unsigned char*>(mapped_data()) + source_offset;
         } else {

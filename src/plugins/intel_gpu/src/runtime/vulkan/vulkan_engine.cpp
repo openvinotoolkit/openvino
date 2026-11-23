@@ -12,6 +12,7 @@
 #include "openvino/core/except.hpp"
 #include "vulkan_engine_factory.hpp"
 #include "vulkan_memory.hpp"
+#include "vulkan_memory_internal.hpp"
 #include "vulkan_stream.hpp"
 
 namespace cldnn {
@@ -38,7 +39,9 @@ vulkan_engine::vulkan_engine(const device::ptr& device, runtime_types runtime_ty
     if (preferred_block_size == 0) {
         preferred_block_size = std::min<uint64_t>(alignment, max_block_size);
     }
-    _memory_allocator = std::make_shared<vulkan_memory_allocator>(*this, alignment, preferred_block_size);
+    _memory_allocator = std::make_shared<vulkan_memory_allocator>(alignment, preferred_block_size, max_block_size, [this](size_t size) {
+        return detail::allocate_vulkan_buffer(*this, size, vulkan_buffer_memory_usage::device);
+    });
     _service_stream = std::make_unique<vulkan_stream>(*this);
 }
 

@@ -124,7 +124,9 @@ private:
 
 class vulkan_memory_allocator final : public std::enable_shared_from_this<vulkan_memory_allocator> {
 public:
-    vulkan_memory_allocator(vulkan_engine& engine, VkDeviceSize alignment, VkDeviceSize preferred_block_size);
+    using block_allocator = std::function<vulkan_buffer_allocation::ptr(size_t)>;
+
+    vulkan_memory_allocator(VkDeviceSize alignment, VkDeviceSize preferred_block_size, VkDeviceSize max_block_size, block_allocator allocate_block);
 
     vulkan_buffer_region::ptr allocate(size_t size);
 
@@ -146,9 +148,10 @@ private:
     void release(const vulkan_buffer_allocation::ptr& allocation, VkDeviceSize offset, VkDeviceSize size);
     VkDeviceSize align_size(VkDeviceSize size) const;
 
-    vulkan_engine* _engine = nullptr;
     VkDeviceSize _alignment = 1;
     VkDeviceSize _preferred_block_size = 1;
+    VkDeviceSize _max_block_size = 1;
+    block_allocator _allocate_block;
     mutable std::mutex _mutex;
     std::vector<block> _blocks;
 };
@@ -195,6 +198,7 @@ public:
 
 private:
     void validate_range(size_t offset, size_t size, const char* operation) const;
+    bool can_access_mapping(size_t offset, size_t size) const;
     void* mapped_data() const;
     vulkan_buffer_allocation::ptr allocate_staging(size_t size) const;
     event::ptr write_staged(const vulkan_stream& queue, size_t offset, size_t size, bool blocking, const std::function<void(unsigned char*)>& write);

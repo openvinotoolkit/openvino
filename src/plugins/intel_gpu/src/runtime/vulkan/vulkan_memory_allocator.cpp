@@ -249,10 +249,14 @@ vulkan_buffer_region::~vulkan_buffer_region() {
     }
 }
 
-vulkan_memory_allocator::vulkan_memory_allocator(vulkan_engine& engine, VkDeviceSize alignment, VkDeviceSize preferred_block_size)
-    : _engine(&engine),
-      _alignment(std::max<VkDeviceSize>(alignment, 1)),
-      _preferred_block_size(std::max<VkDeviceSize>(preferred_block_size, 1)) {}
+vulkan_memory_allocator::vulkan_memory_allocator(VkDeviceSize alignment,
+                                                 VkDeviceSize preferred_block_size,
+                                                 VkDeviceSize max_block_size,
+                                                 block_allocator allocate_block)
+    : _alignment(std::max<VkDeviceSize>(alignment, 1)),
+      _preferred_block_size(std::max<VkDeviceSize>(preferred_block_size, 1)),
+      _max_block_size(std::max<VkDeviceSize>(max_block_size, 1)),
+      _allocate_block(std::move(allocate_block)) {}
 
 VkDeviceSize vulkan_memory_allocator::align_size(VkDeviceSize size) const {
     const auto remainder = size % _alignment;
@@ -267,7 +271,7 @@ VkDeviceSize vulkan_memory_allocator::align_size(VkDeviceSize size) const {
 
 vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
     const auto requested_size = std::max<VkDeviceSize>(static_cast<VkDeviceSize>(size), 1);
-    auto reserved_size = align_size(requested_size);
+    const auto reserved_size = align_size(requested_size);
     std::lock_guard<std::mutex> lock(_mutex);
 
     size_t selected_block = _blocks.size();
@@ -302,28 +306,25 @@ vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
         return region;
     }
 
-    const auto max_block_size = std::max<VkDeviceSize>(_engine->get_device_info().max_alloc_mem_size, 1);
     auto block_size = reserved_size;
     if (reserved_size < _preferred_block_size) {
         const auto balanced_size =
             static_cast<VkDeviceSize>(std::sqrt(static_cast<long double>(reserved_size) * static_cast<long double>(_preferred_block_size)));
         block_size = std::min(_preferred_block_size, align_size(std::max(reserved_size, balanced_size)));
     }
-    if (block_size > max_block_size && requested_size <= max_block_size) {
-        block_size = requested_size;
-        reserved_size = requested_size;
+    if (block_size > _max_block_size) {
+        block_size = reserved_size;
     }
 
     vulkan_buffer_allocation::ptr allocation;
     try {
-        allocation = detail::allocate_vulkan_buffer(*_engine, static_cast<size_t>(block_size), vulkan_buffer_memory_usage::device);
+        allocation = _allocate_block(static_cast<size_t>(block_size));
     } catch (const std::bad_alloc&) {
-        if (block_size == requested_size) {
+        if (block_size == reserved_size) {
             throw;
         }
-        block_size = requested_size;
-        reserved_size = requested_size;
-        allocation = detail::allocate_vulkan_buffer(*_engine, size, vulkan_buffer_memory_usage::device);
+        block_size = reserved_size;
+        allocation = _allocate_block(static_cast<size_t>(block_size));
     }
 
     auto region = vulkan_buffer_region::ptr(new vulkan_buffer_region({}, allocation, 0, reserved_size));
