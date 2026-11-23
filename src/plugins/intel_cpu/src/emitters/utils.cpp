@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -83,10 +84,11 @@ std::pair<int32_t, int32_t> get_clamp_min_max(double alpha, double beta, const o
     case ov::element::i32: {
         // Clamp alpha/beta to the int32_t range in double space before casting:
         // casting an out-of-range double to an integral type is undefined behavior.
+        // For integral types the spec converts min with ceil and max with floor.
         constexpr auto i32_min = static_cast<double>(std::numeric_limits<int32_t>::min());
         constexpr auto i32_max = static_cast<double>(std::numeric_limits<int32_t>::max());
-        minimum = static_cast<int32_t>(std::clamp(alpha, i32_min, i32_max));
-        maximum = static_cast<int32_t>(std::clamp(beta, i32_min, i32_max));
+        minimum = static_cast<int32_t>(std::clamp(std::ceil(alpha), i32_min, i32_max));
+        maximum = static_cast<int32_t>(std::clamp(std::floor(beta), i32_min, i32_max));
         break;
     }
     case ov::element::f32:
