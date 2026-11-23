@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -43,9 +44,9 @@ bool broadcasts_over_tokens(const ov::PartialShape& shape) {
     return true;
 }
 
-// The highest dimension past 0 that is 1 in every given shape.
-std::optional<std::size_t> shared_singleton(const std::vector<ov::Shape>& shapes) {
-    for (std::size_t i = shapes.front().size(); i-- > 1;) {
+// The highest dimension in [1, end) that is 1 in every given shape.
+std::optional<std::size_t> shared_singleton(const std::vector<ov::Shape>& shapes, std::size_t end) {
+    for (std::size_t i = end; i-- > 1;) {
         const auto is_one = [i, &shapes](const ov::Shape& s) {
             return s.size() == shapes.front().size() && s[i] == 1;
         };
@@ -76,10 +77,13 @@ void rebatch(const std::shared_ptr<ov::Node>& op, const std::vector<std::size_t>
                 batch_one.push_back(shape[i]);
             }
         }
-        op->input(idx).replace_source_output(reshape_to(op->input_value(idx), batch_one));
+        const auto reshaped = reshape_to(op->input_value(idx), batch_one);
+        ov::copy_runtime_info(op, reshaped);
+        op->input(idx).replace_source_output(reshaped);
     }
     op->validate_and_infer_types();
     const auto restored = reshape_to(op, out_shape);
+    ov::copy_runtime_info(op, restored);
     for (auto consumer : consumers) {
         consumer.replace_source_output(restored);
     }
@@ -102,8 +106,9 @@ public:
                 matmul->get_input_partial_shape(1).rank().get_length() != 2) {
                 return false;
             }
-            // The output keeps the contraction dimension out of the choice.
-            const auto drop = shared_singleton({matmul->get_input_shape(0), matmul->get_output_shape(0)});
+            // The last dimension is the one the MatMul contracts, so it stays.
+            const auto& act_shape = matmul->get_input_shape(0);
+            const auto drop = shared_singleton({act_shape, matmul->get_output_shape(0)}, act_shape.size() - 1);
             if (!drop) {
                 return false;
             }
@@ -133,6 +138,7 @@ public:
             }
             auto product = std::make_shared<ov::op::v1::Multiply>(matmul->input_value(0), matmul->input_value(1));
             product->set_friendly_name(matmul->get_friendly_name());
+            ov::copy_runtime_info(matmul, product);
             ov::replace_node(matmul, product);
             register_new_node(product);  // for RebatchEltwise
             return true;
@@ -169,7 +175,7 @@ public:
             }
             // The dropped dimension must be 1 in the output too, not one an operand broadcasts into.
             token_shapes.push_back(op->get_output_shape(0));
-            const auto drop = shared_singleton(token_shapes);
+            const auto drop = shared_singleton(token_shapes, token_shapes.front().size());
             if (!drop) {
                 return false;
             }

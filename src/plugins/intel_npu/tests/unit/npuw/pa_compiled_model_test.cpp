@@ -466,6 +466,21 @@ TEST(PARelayoutTokenMajor, KeepsADimensionThatIsNotOneInTheOutput) {
     EXPECT_EQ(outer->get_input_shape(0), (ov::Shape{tokens, 4, 1}));
 }
 
+// A linear layer whose only dimension of 1 is the one the MatMul contracts
+// has no dimension to give up for the batch.
+TEST(PARelayoutTokenMajor, KeepsTheDimensionALinearContracts) {
+    constexpr std::size_t tokens = 8;
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{8, 4, 1});
+    auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0.5f});
+    auto linear = std::make_shared<ov::op::v0::MatMul>(x, weights, false, true);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{linear}, ov::ParameterVector{x});
+
+    const auto ops = model->get_ops().size();
+    ASSERT_NO_THROW(relayout_token_major(model, tokens));
+    EXPECT_EQ(model->get_ops().size(), ops);
+    EXPECT_EQ(model->output(0).get_shape(), (ov::Shape{8, 4, 1}));
+}
+
 TEST(PARelayoutTokenMajor, LeavesTheOneTokenVariantAlone) {
     auto model = make_token_major_model(1);
     const auto ops = model->get_ops().size();
