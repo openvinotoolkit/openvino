@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-19-05-05-000-45238404729",
+  "timestamp": "2026-11-23T19:05:05Z",
+  "run_id": "45238404729",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45238404729",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "993f33ef59c4b5e3776bcc30fc5c924d3f81c318",
+  "pr_number": "40199",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40199",
+  "author": "asukhobo",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with MSBuild worker StackOverflowException during benchmark_app compilation",
+  "signature": "Windows CC build fails - an MSBuild worker process crashes with a .NET StackOverflowException during parallel compilation (benchmark_app / samples build), causing CMake Generator error: execution of make failed|Infrastructure",
+  "signature_hash": "761a41dcfadcfd72",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "Step 'Cmake build - CC ON' built onednn/openvino_runtime objects normally, then logged 'Process is terminated due to StackOverflowException.' followed shortly by 'Access violation', then CMake reported 'Generator: execution of make failed' for the benchmark_app.vcxproj MSBuild invocation (/m:15), exiting with code 1."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check 'Check status of all jobs' fails solely because the upstream Conditional Compilation job failed; no independent root cause."
+    }
+  ],
+  "key_errors": [
+    "2026-11-23T18:57:50.6598368Z Process is terminated due to StackOverflowException.",
+    "2026-11-23T18:58:17.6146516Z Access violation",
+    "2026-11-23T18:58:18.5587467Z CMake Error: Generator: execution of make failed. Make command was: C:/BuildTools/MSBuild/Current/Bin/amd64/MSBuild.exe samples/cpp/benchmark_app/benchmark_app.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VisualStudioVersion=17.0 /m:15 /v:m /verbosity:minimal",
+    "2026-11-23T18:58:38.0256114Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "This is the 3rd observed occurrence of signature 761a41dcfadcfd72. During the 'Cmake build - CC ON' step, cmake --build invokes MSBuild with /m:15 targeting benchmark_app.vcxproj on the CC-enabled Release tree. The log shows normal compilation of onednn/openvino_runtime sources, immediately followed by an explicit 'Process is terminated due to StackOverflowException.' line and an 'Access violation', with no preceding compiler (C-series) or linker (LNK) error, before CMake surfaces a generic Generator/make failure and exit code 1. This matches the previously recorded MSBuild worker-node crash pattern seen on 2026-11-23T13:56:54Z and 2026-11-23T17:59:26Z, both on unrelated commits (a Protobuf version revert and a one-line docstring fix). The triggering commit here (PR #40199, an NPU driver-drop merge with no changes to the Windows CC/samples build system) is equally implausible as a code-level cause, reinforcing that this is a recurring Windows CC runner resource-exhaustion issue (native/managed stack or memory pressure on an MSBuild.exe worker node under /m:15 parallelism) rather than a regression introduced by any of the three commits.",
+  "reproduction_steps": "Not reliably reproducible outside CI; depends on Windows CC runner resource pressure. Locally: build the SELECTIVE_BUILD=ON (CC) Release configuration and run cmake --build <dir> --parallel 15 --config Release --target benchmark_app -- /verbosity:minimal on a memory/CPU-constrained Windows machine while the rest of the tree compiles concurrently, to approximate the MSBuild worker crash conditions.",
+  "recommended_actions": [
+    "Reduce MSBuild/CMake build parallelism (CMAKE_BUILD_PARALLEL_LEVEL / --parallel, currently 15) for the Windows CC job's 'Cmake build - CC ON' step to lower concurrent MSBuild.exe worker memory/stack pressure.",
+    "Escalate to CI infra owners: this is now the 3rd occurrence of signature 761a41dcfadcfd72 (MSBuild worker StackOverflowException) in under a day, and part of a broader family of Windows CC runner resource-exhaustion failures (alongside the much more frequent C1060/LNK1102 out-of-heap pattern 80cfa127185fbf3e); the Windows CC runner pool appears undersized for its configured parallelism.",
+    "If this recurs again, capture a crash dump of the MSBuild.exe worker node (Windows Error Reporting / procdump) to pinpoint the exact task triggering the stack overflow.",
+    "Re-run the 'Conditional Compilation' job for this commit; since PR #40199 only merges an NPU driver drop with no Windows CC build-system changes, a clean retry would further confirm this is transient infrastructure, not a code regression."
+  ],
+  "prevention_strategies": "Cap MSBuild node/thread parallelism on the Windows CC runner pool (or move to a larger runner SKU) so concurrent build/link jobs stay within available memory/stack budget. AI agent note: when a Windows 'Cmake build - CC ON' step logs 'Process is terminated due to StackOverflowException.' or an 'Access violation' followed by a generic CMake Generator/make failure and exit code 1, with no preceding compiler/linker diagnostic, check pattern signature_hash 761a41dcfadcfd72 and its sibling 80cfa127185fbf3e before deep-diving into the triggering commit's diff - these almost always indicate Windows CC runner resource exhaustion (MSBuild worker crash or MSVC out-of-heap), not a code defect, especially when the commit does not touch the Windows CC/samples build system.",
+  "historical_context": "3rd recorded occurrence of signature 761a41dcfadcfd72. First seen 2026-11-23T13:56:54Z (run 45183032321, PR #39961, Protobuf version revert); 2nd seen 2026-11-23T17:59:26Z (run 45177369880, PR #39604, a one-line docstring fix); now recurring ~1h later on run 45238404729 (PR #40199, an NPU driver-drop merge), each on an unrelated commit, confirming this is a Windows CC runner infrastructure/resource-exhaustion issue independent of commit content. It is closely related to the much more frequent out-of-heap-space pattern (80cfa127185fbf3e, 22+ occurrences since 2026-11-03) affecting the same Windows CC build under high parallelism."
+}

@@ -4,18 +4,21 @@
   "signature_hash": "761a41dcfadcfd72",
   "title": "Windows CC build fails with MSBuild worker StackOverflowException during benchmark_app compilation",
   "category": "Infrastructure",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-11-23T13:56:54Z",
-  "last_seen": "2026-11-23T17:59:26Z",
+  "last_seen": "2026-11-23T19:05:05Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45238404729",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45177369880",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45183032321"
   ],
   "affected_commits": [
+    "993f33ef59c4b5e3776bcc30fc5c924d3f81c318",
     "dc9e2229dd4edb3120a556668de80467c1e2c925",
     "d490fda7585cd8b437c93f5bea47926f9f008aa1"
   ],
   "recent_timestamps": [
+    "2026-11-23T19:05:05Z",
     "2026-11-23T17:59:26Z",
     "2026-11-23T13:56:54Z"
   ]
