@@ -164,6 +164,13 @@ void* ze_ocl_interop::get_ze_usm(cl_mem ocl_mem) const {
     return ze_mem;
 }
 
+ze_event_handle_t ze_ocl_interop::get_ze_event(cl_event event) const {
+    ze_event_handle_t ze_event = nullptr;
+    cl_int error = clGetEventInfo(event, CL_L0_EVENT_HANDLE, sizeof(ze_event), &ze_event, nullptr);
+    expect_success(error, ze_event, "[GPU] Attempt to extract ZE event from OCL event failed");
+    return ze_event;
+}
+
 ze_image_handle_t ze_ocl_interop::get_ze_image(cl_mem ocl_mem) const {
     auto images = get_ze_images(ocl_mem);
     OPENVINO_ASSERT(images.size() == 1, "[GPU] Expected exactly one ZE image for OCL image, got ", images.size());

@@ -75,6 +75,7 @@ public:
     ze_image_handle_t get_ze_image(cl_mem ocl_mem) const;
     std::vector<ze_image_handle_t> get_ze_images(cl_mem ocl_mem) const;
     ze_device_handle_t get_ze_device(cl_device_id device) const;
+    ze_event_handle_t get_ze_event(cl_event event) const;
 
     cl_context create_cl_context(ze_context_handle_t context, const ocl_context_args& args) const;
     cl_command_queue create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args) const;
