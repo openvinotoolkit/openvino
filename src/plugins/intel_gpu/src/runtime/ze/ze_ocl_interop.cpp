@@ -165,12 +165,22 @@ void* ze_ocl_interop::get_ze_usm(cl_mem ocl_mem) const {
 }
 
 ze_image_handle_t ze_ocl_interop::get_ze_image(cl_mem ocl_mem) const {
-    cl_mem mem = reinterpret_cast<cl_mem>(ocl_mem);
-    cl_int error;
-    ze_image_handle_t ze_image;
-    error = clGetMemObjectInfo(mem, CL_L0_MEM_OBJ_HANDLE, sizeof(ze_image_handle_t), &ze_image, nullptr);
-    expect_success(error, ze_image, "[GPU] Attempt to extract ZE image from OCL buffer failed");
-    return ze_image;
+    auto images = get_ze_images(ocl_mem);
+    OPENVINO_ASSERT(images.size() == 1, "[GPU] Expected exactly one ZE image for OCL image, got ", images.size());
+    return images.front();
+}
+
+std::vector<ze_image_handle_t> ze_ocl_interop::get_ze_images(cl_mem ocl_mem) const {
+    size_t size = 0;
+    cl_int error = clGetImageInfo(ocl_mem, CL_L0_IMAGE_HANDLE, 0, nullptr, &size);
+    OPENVINO_ASSERT(error == CL_SUCCESS && size > 0 && size % sizeof(ze_image_handle_t) == 0,
+                    "[GPU] Failed to query ZE image handles from OCL image (Error code: ", error, ", size: ", size, ")");
+    std::vector<ze_image_handle_t> images(size / sizeof(ze_image_handle_t), nullptr);
+    error = clGetImageInfo(ocl_mem, CL_L0_IMAGE_HANDLE, size, images.data(), nullptr);
+    for (auto image : images) {
+        expect_success(error, image, "[GPU] Attempt to extract ZE image from OCL image failed");
+    }
+    return images;
 }
 
 ze_device_handle_t ze_ocl_interop::get_ze_device(cl_device_id device) const {
