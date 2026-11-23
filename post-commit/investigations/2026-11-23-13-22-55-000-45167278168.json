@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-13-22-55-000-45167278168",
+  "timestamp": "2026-11-23T13:22:55Z",
+  "run_id": "45167278168",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45167278168",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "2636ccab3ecd869ceab8140f7bda3d1792dbe69c",
+  "pr_number": "38771",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38771",
+  "author": "t-jankowski",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "cl.exe fatal error C1060: compiler is out of heap space across multiple MSVC compile units (onednn, low_precision_transformations, frontends)"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status job reports failure because the Conditional Compilation build job failed"
+    }
+  ],
+  "key_errors": [
+    "c1xx : fatal  error C1060: compiler is out of heap space [...\\openvino_build\\src\\common\\low_precision_transformations\\openvino_lp_transformations_obj.vcxproj]",
+    "cl : command line  error D8027: cannot execute 'C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\bin\\HostX64\\x64\\c1xx.dll' [...\\openvino_lp_transformations_obj.vcxproj]",
+    "C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\type_traits(1817,106): error C1060: compiler is out of heap space [...\\onednn\\src\\common\\dnnl_common.vcxproj]",
+    "C:\\BuildTools\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(755,5): error MSB4018: The \"CL\" task failed unexpectedly. [...\\openvino_common_translators.vcxproj]"
+  ],
+  "root_cause": "The Windows Conditional Compilation build runs MSVC cl.exe with high parallelism (multiple .vcxproj compiling concurrently via MSBuild) on a Windows runner with constrained memory. Several heavy translation units (oneDNN, low_precision_transformations, core/op headers pulled into frontends common_translators) exhaust the compiler process's available heap space simultaneously, causing cl.exe to abort with C1060 across several concurrent projects, which then cascades into the overall build failure and the downstream status-aggregation job. This is the same recurring MSVC resource-exhaustion failure already tracked 20 times in the pattern database; it is not caused by the merged PR (#38771, an RTTI hash fix) touching build-heavy translation units.",
+  "reproduction_steps": "Not reliably reproducible outside CI; requires the same Windows runner memory/CPU configuration and build parallelism. Locally: build the CC (BUILD_SHARED_LIBS=OFF, SELECTIVE_BUILD=COLLECT -> ON) configuration with MSVC under constrained RAM (<=16GB) and high /MP or CMake parallel job count to approximate the heap exhaustion.",
+  "recommended_actions": [
+    "Reduce MSBuild/CMake parallelism (-j / /maxcpucount) for the Windows CC job, or split heavy projects (oneDNN, low_precision_transformations, frontends common_translators) into separate build stages.",
+    "Move the Windows CC runner to a larger-memory SKU, or set /Zm (increase compiler memory allocation) and disable PCH where not needed for the largest translation units.",
+    "Consider enabling ccache/sccache for Windows CC to reduce the number of cl.exe processes that must run concurrently from a cold cache.",
+    "Escalate to the CI infra team: this exact pattern (C1060 on Windows CC) has recurred 20 times since 2026-11-03; a permanent infra fix (runner sizing or parallelism cap) is overdue."
+  ],
+  "prevention_strategies": "Cap concurrent MSVC compile jobs on memory-constrained Windows runners, add a /Zm compiler flag bump, and consider a scheduled check that alerts if Windows CC heap-exhaustion failures recur within a rolling window, independent of which commit triggered the run.",
+  "historical_context": "Matches an existing pattern (signature_hash 80cfa127185fbf3e, 'Windows CC build fails with compiler/linker out-of-memory errors under high parallelism') first seen 2026-11-03 and now observed 20 times, most recently just before this run at https://github.com/openvinotoolkit/openvino/actions/runs/45167302131. This failure is unrelated to the code changes in the merging PR (#38771) across all prior occurrences, confirming it is an infrastructure/resource-sizing issue rather than a code regression."
+}
