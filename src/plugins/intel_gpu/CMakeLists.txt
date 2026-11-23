@@ -10,6 +10,14 @@ set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
+if(GPU_RT_TYPE STREQUAL "VULKAN")
+    if(NOT UNIX)
+        message(FATAL_ERROR "GPU_RT_TYPE=VULKAN currently requires a UNIX target")
+    endif()
+    option(OV_GPU_VULKAN_SMOKE_TESTS "Build the GPU Vulkan runtime smoke test" OFF)
+    find_package(Vulkan 1.3 REQUIRED)
+endif()
+
 # convert white-space separated string to list
 string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
 
@@ -18,7 +26,7 @@ if(GPU_VENDOR STREQUAL "NVIDIA")
     list(APPEND SYCL_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda)
 endif()
 
-if(OV_COMPILER_IS_INTEL_LLVM)
+if(OV_COMPILER_IS_INTEL_LLVM AND NOT GPU_RT_TYPE STREQUAL "VULKAN")
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
     if (WIN32)
         ov_add_compiler_flags(/WX-)
@@ -43,7 +51,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
-if(OV_COMPILER_IS_CLANG)
+if(OV_COMPILER_IS_CLANG AND NOT GPU_RT_TYPE STREQUAL "VULKAN")
     include(CMakePushCheckState)
     include(CheckCXXSourceCompiles)
 
@@ -241,6 +249,13 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     ov_set_threading_interface_for(${MODULE_NAME})
     ov_gpu_set_runtime_interface_for(${MODULE_NAME} RUNTIME ${RT_TYPE})
 
+    if(RT_TYPE STREQUAL "VULKAN" AND BUILD_SHARED_LIBS AND APPLE)
+        get_filename_component(vulkan_loader "${Vulkan_LIBRARY}" REALPATH)
+        install(FILES "${vulkan_loader}" DESTINATION "${OV_CPACK_PLUGINSDIR}"
+                RENAME libvulkan.1.dylib COMPONENT gpu)
+        set_property(TARGET ${MODULE_NAME} APPEND PROPERTY INSTALL_RPATH "@loader_path")
+    endif()
+
     set_target_properties(${MODULE_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
     # Workaround to avoid warnings during LTO build
@@ -261,8 +276,12 @@ else()
     ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})
 endif()
 
-if(ENABLE_TESTS)
+if(ENABLE_TESTS AND NOT GPU_RT_TYPE STREQUAL "VULKAN")
   add_subdirectory(tests)
+endif()
+
+if(GPU_RT_TYPE STREQUAL "VULKAN" AND (ENABLE_TESTS OR OV_GPU_VULKAN_SMOKE_TESTS))
+    add_subdirectory(tests/vulkan)
 endif()
 
 # Failed because of OpenCL

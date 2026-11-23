@@ -290,6 +290,9 @@ Plugin::Plugin() {
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
+#ifdef OV_GPU_WITH_VULKAN_RT
+    OPENVINO_THROW("[GPU][Vulkan] Model compilation is unavailable");
+#endif
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
     auto context = get_default_context(device_id);
@@ -321,6 +324,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& orig_config,
                                                           const ov::SoPtr<ov::IRemoteContext>& context) const {
+#ifdef OV_GPU_WITH_VULKAN_RT
+    OPENVINO_THROW("[GPU][Vulkan] Model compilation is unavailable");
+#endif
     auto context_impl = get_context_impl(context);
     context_impl->initialize();
 
@@ -433,6 +439,9 @@ void Plugin::set_property(const ov::AnyMap &config) {
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
+#ifdef OV_GPU_WITH_VULKAN_RT
+    return {};
+#endif
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::query_model");
     ov::SupportedOpsMap res;
     std::string device_id = get_device_id(orig_config);
@@ -476,6 +485,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, co
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& orig_config) const {
+#ifdef OV_GPU_WITH_VULKAN_RT
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+#endif
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
 
     auto context_impl = get_context_impl(context);
@@ -553,6 +565,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
+#ifdef OV_GPU_WITH_VULKAN_RT
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+#endif
     // Store tensor base in thread-local storage
     g_current_tensor_base = static_cast<const size_t*>(model.data());
     std::unique_ptr<std::streambuf> buf;

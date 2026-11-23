@@ -87,7 +87,10 @@ if (ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt${OV_GPU_SUFFIX})
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE OpenCL::OpenCL openvino::runtime::dev)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE openvino::runtime::dev)
+if(NOT OV_GPU_RT STREQUAL "VULKAN")
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+endif()
 ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -8,11 +8,12 @@
 # define NOMINMAX
 #endif
 
-
-#ifdef _WIN32
-# include <openvino/runtime/intel_gpu/ocl/dx.hpp>
-#else
-# include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#ifndef OV_GPU_WITH_VULKAN_RT
+#    ifdef _WIN32
+#        include <openvino/runtime/intel_gpu/ocl/dx.hpp>
+#    else
+#        include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#    endif
 #endif
 
 #include "openvino/runtime/iremote_tensor.hpp"

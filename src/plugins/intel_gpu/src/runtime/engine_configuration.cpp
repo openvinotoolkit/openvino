@@ -13,6 +13,8 @@ engine_types get_default_engine_type() {
     return engine_types::ocl;
 #elif defined(OV_GPU_WITH_SYCL_RT)
     return engine_types::sycl;
+#elif defined(OV_GPU_WITH_VULKAN_RT)
+    return engine_types::vulkan;
 #else
     #error "Expected OpenVINO GPU runtime macros to be defined"
 #endif
@@ -25,6 +27,8 @@ runtime_types get_default_runtime_type() {
     return runtime_types::ocl;
 #elif defined(OV_GPU_WITH_SYCL_RT)
     return runtime_types::sycl;
+#elif defined(OV_GPU_WITH_VULKAN_RT)
+    return runtime_types::vulkan;
 #else
     #error "Expected OpenVINO GPU runtime macros to be defined"
 #endif
@@ -36,6 +40,8 @@ std::string_view to_cache_tag(runtime_types type) {
     case runtime_types::ocl: return "OCL";
     case runtime_types::ze: return "ZE";
     case runtime_types::sycl: return "SYCL";
+    case runtime_types::vulkan:
+        return "VULKAN";
     default: return "UNKNOWN";
     }
 }

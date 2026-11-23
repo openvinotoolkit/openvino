@@ -160,6 +160,7 @@ void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src, co
 
 TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
     switch (t) {
+    case cldnn::allocation_type::device_buffer:
     case cldnn::allocation_type::cl_mem: return TensorType::BT_BUF_INTERNAL;
     case cldnn::allocation_type::usm_host: return TensorType::BT_USM_HOST_INTERNAL;
     case cldnn::allocation_type::usm_device: return TensorType::BT_USM_DEVICE_INTERNAL;
@@ -387,7 +388,9 @@ void RemoteTensorImpl::allocate() {
 
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL: {
-        if (engine.supports_allocation(cldnn::allocation_type::cl_mem)) {
+        if (engine.supports_allocation(cldnn::allocation_type::device_buffer)) {
+            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::device_buffer, reset);
+        } else if (engine.supports_allocation(cldnn::allocation_type::cl_mem)) {
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
         } else if (engine.supports_allocation(cldnn::allocation_type::sycl_buffer)) {
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::sycl_buffer, reset);
@@ -539,6 +542,9 @@ std::shared_ptr<RemoteContextImpl> RemoteTensorImpl::get_context() const {
 
 void RemoteTensorImpl::update_properties() {
     OPENVINO_ASSERT(is_allocated(), "[GPU] Can't initialize RemoteTensorImpl parameters as memory was not allocated");
+    if (m_context->get_engine().runtime_type() == cldnn::runtime_types::vulkan) {
+        return;
+    }
     const auto &ctx_props = m_context->get_property();
     const auto it = ctx_props.find(ov::intel_gpu::context_type.name());
     OPENVINO_ASSERT(it != ctx_props.end(), "[GPU] Could not find context type in RemoteContext properties");

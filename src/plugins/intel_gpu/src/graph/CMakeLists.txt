@@ -22,6 +22,12 @@ find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # Backend implementations under impls/; add new backend directory names here.
 set(AVAILABLE_IMPL_TYPES common cpu ocl ocl_v2 onednn cm sycl)
+if(OV_GPU_RT STREQUAL "VULKAN")
+    set(AVAILABLE_IMPL_TYPES common cpu)
+    list(APPEND GPU_GRAPH_SOURCES
+         impls/ocl/kernel_selector_helper.cpp
+         impls/ocl/kernels_cache.cpp)
+endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
@@ -41,8 +47,10 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
-                          OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
+if(NOT OV_GPU_RT STREQUAL "VULKAN")
+    list(APPEND COMMON_LINK_LIBRARIES OpenCL::OpenCL)
+endif()
 
 if(OV_GPU_RT STREQUAL "ZE")
     # Onednn needs ZE headers
