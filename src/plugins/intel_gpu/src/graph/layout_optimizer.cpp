@@ -155,7 +155,7 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    reorder_cache_key ckey{ input_id, reorder_params->get_output_layout()};
+    reorder_cache_key ckey{input_id, reorder_params->get_output_layout(), reorder_params->should_be_transposed()};
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
@@ -449,6 +449,28 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
+
+    const auto is_fp_to_int = [](data_types from, data_types to) {
+        return data_type_traits::is_floating_point(from) && !data_type_traits::is_floating_point(to);
+    };
+    // A Convert from floating point to an integral type (reorder in truncate mode) truncates toward zero and wraps
+    // out-of-range values. Except for select, whose kernel converts the same way, a previous node storing the
+    // integral type directly converts in its own way (e.g. saturates), so keep such a reorder.
+    if (node.get_primitive()->truncate && is_fp_to_int(prev.get_output_layout().data_type, node.get_output_layout().data_type) &&
+        !prev.is_type<select>()) {
+        return false;
+    }
+    // Once a node stores the truncated integral value of its floating-point result, another type conversion fused into
+    // it would make it store the floating-point result in the new type directly, dropping the truncation. The reorder
+    // chain shrinking keeps fp -> int -> fp reorders for the same reason.
+    const auto& prev_fused_prims = prev.get_fused_primitives();
+    const bool prev_truncates = std::any_of(prev_fused_prims.begin(), prev_fused_prims.end(), [&](const fused_primitive_desc& fd) {
+        return fd.is_type<reorder>() && fd.typed_desc<reorder>()->truncate &&
+               is_fp_to_int(fd.input_layout.data_type, fd.get_output_layout().data_type);
+    });
+    if (prev_truncates && prev.get_output_layout().data_type != node.get_output_layout().data_type) {
+        return false;
+    }
 
     // Do not fuse a rank-reducing reorder into a producer whose fused higher-rank
     // eltwise peer cannot be indexed correctly at the reduced rank (inner-spatial

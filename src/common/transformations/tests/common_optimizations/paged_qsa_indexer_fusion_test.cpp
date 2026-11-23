@@ -1,0 +1,1402 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/paged_attention/paged_qsa_indexer_fusion.hpp"
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
+#include "openvino/op/qsa_indexer.hpp"
+#include "openvino/op/qsa_prepare.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sparse_attention_indexer.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/utils/utils.hpp"
+
+namespace {
+
+using namespace ov;
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v6 = ov::op::v6;
+namespace v8 = ov::op::v8;
+namespace op_internal = ov::op::internal;
+using QSAIndexerInputIdx = op_internal::QSAIndexer::InputIdx;
+using QSAIndexerOutputIdx = op_internal::QSAIndexer::OutputIdx;
+using PagedQSAIndexerInputIdx = op_internal::PagedQSAIndexer::InputIdx;
+
+constexpr int64_t query_heads = 4;
+constexpr int64_t key_heads = 1;
+constexpr int64_t head_size = 16;
+constexpr int64_t rotary_dim = 8;
+constexpr int64_t key_block_size = 4;
+constexpr int64_t block_topk = 2;
+constexpr int64_t selection_heads = 1;
+constexpr float epsilon = 1e-6f;
+
+Output<Node> i64(const std::vector<int64_t>& values) {
+    return v0::Constant::create(element::i64, Shape{values.size()}, values);
+}
+
+std::shared_ptr<v0::Parameter> make_named_param(const std::string& name,
+                                                element::Type type,
+                                                const PartialShape& shape) {
+    const auto param = std::make_shared<v0::Parameter>(type, shape);
+    param->set_friendly_name(name);
+    param->get_output_tensor(0).set_names({name});
+    return param;
+}
+
+struct GraphOptions {
+    bool query_norm = true;
+    bool gathered_states = false;
+    bool variable_states = true;
+    bool query_rope = true;
+    int64_t rope_length = -1;
+    float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+    // FuseQSAIndexer padding: the block-key cache is grown by a Concat.
+    bool padding = true;
+};
+
+GraphOptions unpadded() {
+    GraphOptions o;
+    o.padding = false;
+    return o;
+}
+
+// The dense QSAIndexer as created by FuseQSAIndexer, with its states kept in variables.
+std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Type data_type = element::f32) {
+    ParameterVector params;
+    const auto param = [&params](element::Type type, const PartialShape& shape) {
+        params.push_back(std::make_shared<v0::Parameter>(type, shape));
+        return params.back();
+    };
+    const auto query = param(data_type, PartialShape{-1, -1, query_heads, head_size});
+    const auto raw_keys = param(data_type, PartialShape{-1, -1, key_heads, head_size});
+    const auto rope_cos = param(data_type, PartialShape{-1, o.rope_length, rotary_dim});
+    const auto rope_sin = param(data_type, PartialShape{-1, o.rope_length, rotary_dim});
+    const auto key_length = param(element::i32, PartialShape{-1});
+    const auto beam_idx = o.gathered_states ? param(element::i32, PartialShape{-1}) : nullptr;
+
+    SinkVector sinks;
+    std::vector<std::shared_ptr<op::util::Variable>> variables;
+    const auto read_state = [&](const std::string& id, const PartialShape& shape) -> Output<Node> {
+        if (!o.variable_states) {
+            return param(data_type, shape);
+        }
+        variables.push_back(std::make_shared<op::util::Variable>(op::util::VariableInfo{shape, data_type, id}));
+        Output<Node> state = std::make_shared<v6::ReadValue>(variables.back());
+        if (o.gathered_states) {
+            state = std::make_shared<v8::Gather>(state, beam_idx, v0::Constant::create(element::i64, Shape{}, {0}));
+        }
+        return state;
+    };
+    const auto past_block_keys = read_state("block_keys", PartialShape{-1, -1, head_size});
+    const auto incomplete_raw_keys = read_state("incomplete_raw_keys", PartialShape{-1, key_block_size - 1, head_size});
+    const auto incomplete_rope = read_state("incomplete_rope", PartialShape{-1, 2 * rotary_dim});
+    Output<Node> block_keys_cache = std::make_shared<v0::Unsqueeze>(past_block_keys, i64({1}));
+    if (o.padding) {
+        const auto cache_padding = param(data_type, PartialShape{-1, key_heads, -1, head_size});
+        block_keys_cache = std::make_shared<v0::Concat>(OutputVector{block_keys_cache, cache_padding}, 2);
+    }
+    const auto incomplete_raw_keys_with_head = std::make_shared<v0::Unsqueeze>(incomplete_raw_keys, i64({1}));
+    const auto q_norm_weight = v0::Constant::create(data_type, Shape{head_size}, {1.0f});
+    const auto k_norm_weight = v0::Constant::create(data_type, Shape{head_size}, {0.5f});
+
+    op_internal::QSAIndexer::Config config;
+    config.key_block_size = key_block_size;
+    config.block_topk = block_topk;
+    config.num_selection_heads = selection_heads;
+    config.indexer_rotary_dim = rotary_dim;
+    config.indexer_head_dim = head_size;
+    config.epsilon = epsilon;
+    config.scale = o.scale;
+    config.query_norm = o.query_norm;
+    config.query_rope = o.query_rope;
+
+    Output<Node> indices, count, block_keys_state, raw_keys_state, rope_state;
+    if (paged) {
+        const auto past_lens = make_named_param("past_lens", element::i32, PartialShape{-1});
+        const auto subsequence_begins = make_named_param("subsequence_begins", element::i32, PartialShape{-1});
+        const auto block_indices = make_named_param("block_indices", element::i32, PartialShape{-1});
+        const auto block_indices_begins = make_named_param("block_indices_begins", element::i32, PartialShape{-1});
+        const auto index_key_cache =
+            make_named_param("index_key_cache.0", data_type, PartialShape{-1, key_heads, -1, head_size});
+        const auto index_block_rope_cache =
+            make_named_param("index_block_rope_cache.0", data_type, PartialShape{-1, -1, 2 * rotary_dim});
+        const auto block_index_keys_cache =
+            make_named_param("block_index_keys_cache.0", data_type, PartialShape{-1, key_heads, -1, head_size});
+        params.insert(params.end(),
+                      {past_lens,
+                       subsequence_begins,
+                       block_indices,
+                       block_indices_begins,
+                       index_key_cache,
+                       index_block_rope_cache,
+                       block_index_keys_cache});
+
+        const auto flatten = [](const Output<Node>& data, int64_t width) {
+            return std::make_shared<v1::Reshape>(data, i64({-1, width}), false);
+        };
+        OutputVector inputs(PagedQSAIndexerInputIdx::COUNT);
+        inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] = flatten(query, query_heads * head_size);
+        inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] = flatten(raw_keys, key_heads * head_size);
+        inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten(rope_cos, rotary_dim);
+        inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten(rope_sin, rotary_dim);
+        inputs[PagedQSAIndexerInputIdx::Q_NORM_WEIGHT] = q_norm_weight;
+        inputs[PagedQSAIndexerInputIdx::K_NORM_WEIGHT] = k_norm_weight;
+        inputs[PagedQSAIndexerInputIdx::PAST_LENS] = past_lens;
+        inputs[PagedQSAIndexerInputIdx::SUBSEQUENCE_BEGINS] = subsequence_begins;
+        inputs[PagedQSAIndexerInputIdx::BLOCK_INDICES] = block_indices;
+        inputs[PagedQSAIndexerInputIdx::BLOCK_INDICES_BEGINS] = block_indices_begins;
+        inputs[PagedQSAIndexerInputIdx::INDEX_KEY_CACHE] = index_key_cache;
+        inputs[PagedQSAIndexerInputIdx::INDEX_BLOCK_ROPE_CACHE] = index_block_rope_cache;
+        inputs[PagedQSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = block_index_keys_cache;
+        op_internal::PagedQSAIndexer::Config paged_config;
+        paged_config.key_block_size = config.key_block_size;
+        paged_config.block_topk = config.block_topk;
+        paged_config.num_selection_heads = config.num_selection_heads;
+        paged_config.indexer_rotary_dim = config.indexer_rotary_dim;
+        paged_config.indexer_head_dim = config.indexer_head_dim;
+        paged_config.epsilon = config.epsilon;
+        paged_config.scale = o.scale == 0.0f ? 1.0f / std::sqrt(static_cast<float>(head_size)) : o.scale;
+        paged_config.query_norm = config.query_norm;
+        paged_config.query_rope = config.query_rope;
+        const auto paged_indexer = std::make_shared<op_internal::PagedQSAIndexer>(inputs, paged_config);
+
+        const auto batch_and_length = op::util::node_to_get_shape_value_of_indices_from_shape_source(query, {0, 1});
+        const auto restore = [&](size_t output, const std::vector<int64_t>& tail, const std::vector<int64_t>& order) {
+            const auto shape = std::make_shared<v0::Concat>(OutputVector{batch_and_length, i64(tail)}, 0);
+            const auto token_major = std::make_shared<v1::Reshape>(paged_indexer->output(output), shape, false);
+            return std::make_shared<v1::Transpose>(token_major, i64(order));
+        };
+        indices = restore(0, {selection_heads, block_topk}, {0, 2, 1, 3});
+        count = restore(1, {selection_heads}, {0, 2, 1});
+        block_keys_state = block_keys_cache;
+        raw_keys_state = incomplete_raw_keys_with_head;
+        rope_state = incomplete_rope;
+    } else {
+        OutputVector inputs(QSAIndexerInputIdx::COUNT);
+        inputs[QSAIndexerInputIdx::INDEX_QUERY] = query;
+        inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] = raw_keys;
+        inputs[QSAIndexerInputIdx::ROPE_COS] = rope_cos;
+        inputs[QSAIndexerInputIdx::ROPE_SIN] = rope_sin;
+        inputs[QSAIndexerInputIdx::KEY_LENGTH] = key_length;
+        inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = q_norm_weight;
+        inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = k_norm_weight;
+        inputs[QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = block_keys_cache;
+        inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K] = incomplete_raw_keys_with_head;
+        inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE] = incomplete_rope;
+        const auto indexer = std::make_shared<op_internal::QSAIndexer>(inputs, config);
+        indices = indexer->output(QSAIndexerOutputIdx::SELECTED_BLOCK_INDICES);
+        count = indexer->output(QSAIndexerOutputIdx::SELECTED_BLOCK_COUNT);
+        block_keys_state = indexer->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE);
+        raw_keys_state = indexer->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K);
+        rope_state = indexer->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_ROPE);
+    }
+
+    ResultVector results{std::make_shared<v0::Result>(indices), std::make_shared<v0::Result>(count)};
+    const OutputVector states{std::make_shared<v0::Squeeze>(block_keys_state, i64({1})),
+                              std::make_shared<v0::Squeeze>(raw_keys_state, i64({1})),
+                              rope_state};
+    for (size_t i = 0; i < states.size(); ++i) {
+        if (o.variable_states) {
+            sinks.push_back(std::make_shared<v6::Assign>(states[i], variables[i]));
+        } else {
+            results.push_back(std::make_shared<v0::Result>(states[i]));
+        }
+    }
+    return std::make_shared<Model>(results, sinks, params);
+}
+
+class QSAIndexerOperatorTest : public testing::Test, public testing::WithParamInterface<bool> {};
+
+TEST_P(QSAIndexerOperatorTest, SelectionShapesAndCloneSupportFusion) {
+    const auto model = make_model(GraphOptions{false, false, true, false}, GetParam());
+    const auto parameters = model->get_parameters();
+    parameters.at(0)->set_partial_shape({2, 3, query_heads, head_size});
+    parameters.at(1)->set_partial_shape({2, 3, key_heads, head_size});
+    model->validate_nodes_and_infer_types();
+
+    std::shared_ptr<Node> indexer;
+    for (const auto& node : model->get_ops()) {
+        if (GetParam() ? ov::is_type<op_internal::PagedQSAIndexer>(node) : ov::is_type<op_internal::QSAIndexer>(node)) {
+            indexer = node;
+            break;
+        }
+    }
+    ASSERT_NE(indexer, nullptr);
+    const auto expected_indices =
+        GetParam() ? PartialShape{6, selection_heads, block_topk} : PartialShape{2, selection_heads, 3, block_topk};
+    const auto expected_count = GetParam() ? PartialShape{6, selection_heads} : PartialShape{2, selection_heads, 3};
+    EXPECT_EQ(indexer->get_output_partial_shape(0), expected_indices);
+    EXPECT_EQ(indexer->get_output_partial_shape(1), expected_count);
+    EXPECT_EQ(indexer->get_output_element_type(0), element::i32);
+    EXPECT_EQ(indexer->get_output_element_type(1), element::i32);
+
+    const auto clone = indexer->clone_with_new_inputs(indexer->input_values());
+    EXPECT_EQ(clone->get_type_info(), indexer->get_type_info());
+    EXPECT_EQ(clone->get_output_partial_shape(0), expected_indices);
+    EXPECT_EQ(clone->get_output_partial_shape(1), expected_count);
+    if (GetParam()) {
+        const auto paged_clone = ov::as_type_ptr<op_internal::PagedQSAIndexer>(clone);
+        ASSERT_NE(paged_clone, nullptr);
+        EXPECT_FALSE(paged_clone->get_config().query_norm);
+        EXPECT_FALSE(paged_clone->get_config().query_rope);
+    } else {
+        const auto dense_clone = ov::as_type_ptr<op_internal::QSAIndexer>(clone);
+        ASSERT_NE(dense_clone, nullptr);
+        EXPECT_FALSE(dense_clone->get_config().query_norm);
+        EXPECT_FALSE(dense_clone->get_config().query_rope);
+        for (const auto& [output, input] :
+             {std::pair{QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE, QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE},
+              std::pair{QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K, QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K},
+              std::pair{QSAIndexerOutputIdx::PAST_INCOMPLETE_ROPE, QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE}}) {
+            EXPECT_EQ(clone->get_output_partial_shape(output), clone->get_input_partial_shape(input));
+            EXPECT_EQ(clone->get_output_element_type(output), clone->get_input_element_type(input));
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         QSAIndexerOperatorTest,
+                         testing::Values(false, true),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "Paged" : "Dense";
+                         });
+
+std::unordered_set<std::string> run_paged_qsa_indexer_fusion(const std::shared_ptr<Model>& model) {
+    pass::paged_attention::PaParams pa_params{model->get_parameters()};
+    std::unordered_set<std::string> var_ids_to_remove;
+    pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::PagedQSAIndexerFusion>(pa_params, var_ids_to_remove);
+    manager.run_passes(model);
+    model->add_parameters(pa_params.items());
+    model->validate_nodes_and_infer_types();
+    return var_ids_to_remove;
+}
+
+class PagedQSAIndexerFusionTest : public TransformationTestsF, public testing::WithParamInterface<GraphOptions> {};
+
+class PagedQSAIndexerFusionConvertedTest : public PagedQSAIndexerFusionTest {};
+
+TEST_P(PagedQSAIndexerFusionConvertedTest, ConvertsToPagedQSAIndexer) {
+    model = make_model(GetParam(), false);
+    model_ref = make_model(GetParam(), true);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+    const auto var_ids_to_remove = run_paged_qsa_indexer_fusion(model);
+    EXPECT_EQ(var_ids_to_remove,
+              (std::unordered_set<std::string>{"block_keys", "incomplete_raw_keys", "incomplete_rope"}));
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         PagedQSAIndexerFusionConvertedTest,
+                         testing::Values(GraphOptions{},
+                                         GraphOptions{true, true},
+                                         GraphOptions{false},
+                                         GraphOptions{true, false, true, false},
+                                         GraphOptions{false, false, true, false},
+                                         GraphOptions{true, false, true, true, -1, 0.0f},
+                                         GraphOptions{true, false, true, true, -1, 0.5f},
+                                         unpadded()),
+                         [](const testing::TestParamInfo<GraphOptions>& info) {
+                             const auto& o = info.param;
+                             std::string name = o.gathered_states ? "GatheredStates" : "DirectStates";
+                             name += o.query_norm ? "_QueryNorm" : "_NoQueryNorm";
+                             name += o.query_rope ? "_QueryRoPE" : "_NoQueryRoPE";
+                             if (o.scale == 0.0f) {
+                                 name += "_DefaultScale";
+                             } else if (o.scale == 0.5f) {
+                                 name += "_CustomScale";
+                             }
+                             if (!o.padding) {
+                                 name += "_NoPadding";
+                             }
+                             return name;
+                         });
+
+TEST_F(TransformationTestsF, PagedQSAIndexerFusionAcceptsDynamicFeatureDimensions) {
+    model = make_model(GraphOptions{}, false);
+    model_ref = make_model(GraphOptions{}, true);
+    const auto make_feature_dims_dynamic = [](const std::shared_ptr<Model>& m) {
+        const auto params = m->get_parameters();
+        params[0]->set_partial_shape({-1, -1, query_heads, -1});
+        params[1]->set_partial_shape({-1, -1, key_heads, -1});
+        params[2]->set_partial_shape({-1, -1, -1});
+        params[3]->set_partial_shape({-1, -1, -1});
+        m->validate_nodes_and_infer_types();
+    };
+    make_feature_dims_dynamic(model);
+    make_feature_dims_dynamic(model_ref);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+    EXPECT_EQ(run_paged_qsa_indexer_fusion(model),
+              (std::unordered_set<std::string>{"block_keys", "incomplete_raw_keys", "incomplete_rope"}));
+}
+
+TEST_F(TransformationTestsF, PagedQSAIndexerFusionDefersPrecisionSupportToPlugin) {
+    model = make_model(GraphOptions{}, false, element::f64);
+    model_ref = make_model(GraphOptions{}, true, element::f64);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+    EXPECT_EQ(run_paged_qsa_indexer_fusion(model),
+              (std::unordered_set<std::string>{"block_keys", "incomplete_raw_keys", "incomplete_rope"}));
+}
+
+class PagedQSAIndexerFusionNotConvertedTest : public PagedQSAIndexerFusionTest {};
+
+TEST_P(PagedQSAIndexerFusionNotConvertedTest, KeepsQSAIndexer) {
+    model = make_model(GetParam(), false);
+    model_ref = make_model(GetParam(), false);
+    EXPECT_TRUE(run_paged_qsa_indexer_fusion(model).empty());
+}
+
+// States not read from variables cannot be converted to paged caches.
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         PagedQSAIndexerFusionNotConvertedTest,
+                         testing::Values(GraphOptions{true, false, false}));
+
+TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionConvertsStatefulQSAPrepareAndIndexer) {
+    ParameterVector params{make_named_param("input_ids", element::i64, PartialShape{-1, -1}),
+                           make_named_param("beam_idx", element::i32, PartialShape{-1})};
+    const auto param = [&params](element::Type type, const PartialShape& shape) {
+        params.push_back(std::make_shared<v0::Parameter>(type, shape));
+        return params.back();
+    };
+    // SDPAToPagedAttention requires an SDPA in the model.
+    const auto sdpa_input = param(element::f32, PartialShape{-1, query_heads, -1, head_size});
+    const auto sdpa =
+        std::make_shared<ov::op::v13::ScaledDotProductAttention>(sdpa_input, sdpa_input, sdpa_input, false);
+
+    const auto query = param(element::f32, PartialShape{-1, query_heads, -1, head_size});
+    const auto raw_keys = param(element::f32, PartialShape{-1, -1, head_size});
+    const auto key_length = param(element::i32, PartialShape{-1});
+    const auto rope_cos = param(element::f32, PartialShape{-1, -1, rotary_dim});
+    const auto rope_sin = param(element::f32, PartialShape{-1, -1, rotary_dim});
+    const auto k_norm_weight = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+
+    std::vector<std::shared_ptr<op::util::Variable>> variables;
+    const auto read_state = [&](const std::string& id, const PartialShape& shape) {
+        variables.push_back(std::make_shared<op::util::Variable>(op::util::VariableInfo{shape, element::f32, id}));
+        return std::make_shared<v8::Gather>(std::make_shared<v6::ReadValue>(variables.back()),
+                                            params[1],
+                                            v0::Constant::create(element::i64, Shape{}, {0}));
+    };
+    const auto past_block_keys = read_state("block_keys", PartialShape{-1, -1, head_size});
+    const auto incomplete_raw_keys = read_state("incomplete_raw_keys", {-1, key_block_size - 1, head_size});
+    const auto incomplete_rope = read_state("incomplete_rope", {-1, 2 * rotary_dim});
+    const auto prepare = std::make_shared<ov::op::v17::QSAPrepare>(raw_keys,
+                                                                   past_block_keys,
+                                                                   key_length,
+                                                                   rope_cos,
+                                                                   rope_sin,
+                                                                   k_norm_weight,
+                                                                   incomplete_raw_keys,
+                                                                   incomplete_rope,
+                                                                   key_block_size,
+                                                                   epsilon);
+    const auto indexer = std::make_shared<ov::op::v17::SparseAttentionIndexer>(query,
+                                                                               prepare->output(0),
+                                                                               key_length,
+                                                                               key_block_size,
+                                                                               block_topk * key_block_size,
+                                                                               selection_heads);
+    SinkVector sinks;
+    for (size_t i = 0; i < variables.size(); ++i) {
+        sinks.push_back(std::make_shared<v6::Assign>(prepare->output(i), variables[i]));
+    }
+    const auto model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sdpa),
+                                                            std::make_shared<v0::Result>(indexer->output(0)),
+                                                            std::make_shared<v0::Result>(indexer->output(1))},
+                                               sinks,
+                                               params);
+
+    pass::Manager manager;
+    manager.register_pass<pass::SDPAToPagedAttention>();
+    manager.run_passes(model);
+
+    size_t paged_indexers = 0;
+    for (const auto& node : model->get_ops()) {
+        EXPECT_FALSE(
+            (ov::is_type_any_of<ov::op::v17::QSAPrepare, ov::op::v17::SparseAttentionIndexer, op_internal::QSAIndexer>(
+                node)))
+            << node;
+        paged_indexers += ov::is_type<op_internal::PagedQSAIndexer>(node);
+    }
+    EXPECT_EQ(paged_indexers, 1);
+    EXPECT_TRUE(model->get_sinks().empty());
+    const auto& model_params = model->get_parameters();
+    for (const auto& name : {"index_key_cache.0", "index_block_rope_cache.0", "block_index_keys_cache.0"}) {
+        EXPECT_TRUE(std::any_of(model_params.begin(), model_params.end(), [&name](const auto& p) {
+            return p->get_output_tensor(0).get_names().count(name) > 0;
+        })) << name;
+    }
+}
+
+std::shared_ptr<Model> make_model_with_modified_indexer(const std::string& name) {
+    const auto model = make_model(GraphOptions{}, false);
+    std::shared_ptr<op_internal::QSAIndexer> indexer;
+    for (const auto& node : model->get_ops()) {
+        indexer = ov::as_type_ptr<op_internal::QSAIndexer>(node);
+        if (indexer) {
+            break;
+        }
+    }
+    OPENVINO_ASSERT(indexer, "Expected a dense QSAIndexer in the test model");
+    auto inputs = indexer->input_values();
+    auto config = indexer->get_config();
+    if (name == "zero_block_size") {
+        config.key_block_size = 0;
+    } else if (name == "selection_heads") {
+        config.num_selection_heads = 2;
+    } else if (name == "nonfinite_scale") {
+        config.scale = std::numeric_limits<float>::infinity();
+    } else if (name == "head_dimension") {
+        config.indexer_head_dim = head_size / 2;
+    } else if (name == "head_count") {
+        inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] =
+            v0::Constant::create(element::f32, Shape{1, 1, 3, head_size}, {0.0f});
+    } else if (name == "dynamic_head_count") {
+        model->get_parameters()[0]->set_partial_shape({-1, -1, -1, head_size});
+        model->get_parameters()[1]->set_partial_shape({-1, -1, -1, head_size});
+    } else if (name == "zero_query_heads") {
+        model->get_parameters()[0]->set_partial_shape({-1, -1, 0, head_size});
+    } else if (name == "overflowing_query_width") {
+        const auto overflow_heads = std::numeric_limits<int64_t>::max() / head_size + 1;
+        model->get_parameters()[0]->set_partial_shape({-1, -1, overflow_heads, head_size});
+    } else if (name == "weight_shape") {
+        inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size - 1}, {1.0f});
+    } else if (name == "weight_type") {
+        inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(element::f16, Shape{head_size}, {1.0f});
+    } else if (name == "rotary_dimension") {
+        config.indexer_rotary_dim = rotary_dim - 1;
+    } else if (name == "zero_rotary_dimension") {
+        config.indexer_rotary_dim = 0;
+        for (const auto i : {2, 3}) {
+            const auto param = model->get_parameters()[i];
+            param->set_partial_shape({-1, -1, 0});
+            param->validate_and_infer_types();
+        }
+        const auto rope_state =
+            ov::as_type_ptr<v6::ReadValue>(inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE].get_node_shared_ptr());
+        OPENVINO_ASSERT(rope_state);
+        rope_state->get_variable()->update_data_shape(PartialShape{-1, 0});
+        rope_state->validate_and_infer_types();
+    } else if (name == "incompatible_key_rope_cos" || name == "incompatible_key_rope_sin") {
+        model->get_parameters()[0]->set_partial_shape({1, Dimension(1, 3), query_heads, head_size});
+        model->get_parameters()[1]->set_partial_shape({1, 1, key_heads, head_size});
+        const auto idx =
+            name == "incompatible_key_rope_cos" ? QSAIndexerInputIdx::ROPE_COS : QSAIndexerInputIdx::ROPE_SIN;
+        inputs[idx] = v0::Constant::create(element::f32, Shape{1, 3, rotary_dim}, {1.0f});
+    } else {
+        model->get_parameters()[0]->set_partial_shape({1, 3, query_heads, head_size});
+        model->get_parameters()[1]->set_partial_shape({1, 3, key_heads, head_size});
+        inputs[QSAIndexerInputIdx::ROPE_COS] = v0::Constant::create(element::f32, Shape{1, 5, rotary_dim}, {1.0f});
+    }
+    const auto replacement = std::make_shared<op_internal::QSAIndexer>(inputs, config);
+    ov::replace_node(indexer, replacement);
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+class PagedQSAIndexerDeferredShapeValidationTest : public testing::TestWithParam<std::string> {};
+
+TEST_P(PagedQSAIndexerDeferredShapeValidationTest, RejectsIncompatibleConcreteInputShapes) {
+    const auto model = make_model_with_modified_indexer(GetParam());
+    EXPECT_EQ(run_paged_qsa_indexer_fusion(model),
+              (std::unordered_set<std::string>{"block_keys", "incomplete_raw_keys", "incomplete_rope"}));
+    model->get_parameters()[0]->set_partial_shape({1, 1, query_heads, head_size});
+    const auto name = GetParam() == "incompatible_key_rope_cos" ? "rope_cos" : "rope_sin";
+    OV_EXPECT_THROW_HAS_SUBSTRING(model->validate_nodes_and_infer_types(),
+                                  ov::NodeValidationFailure,
+                                  std::string("PagedQSAIndexer expects ") + name);
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         PagedQSAIndexerDeferredShapeValidationTest,
+                         testing::Values("incompatible_key_rope_cos", "incompatible_key_rope_sin"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
+
+class QSAIndexerInvalidInputsTest : public testing::TestWithParam<std::string> {};
+
+TEST_P(QSAIndexerInvalidInputsTest, RejectsInvalidInputsAtConstruction) {
+    EXPECT_THROW(make_model_with_modified_indexer(GetParam()), ov::NodeValidationFailure);
+}
+
+INSTANTIATE_TEST_SUITE_P(QSAIndexer,
+                         QSAIndexerInvalidInputsTest,
+                         testing::Values("zero_block_size",
+                                         "selection_heads",
+                                         "nonfinite_scale",
+                                         "head_dimension",
+                                         "head_count",
+                                         "weight_shape",
+                                         "weight_type",
+                                         "rotary_dimension",
+                                         "rope_token_count"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
+
+class PagedQSAIndexerInvalidProductionInputsTest : public TransformationTestsF,
+                                                   public testing::WithParamInterface<std::string> {
+public:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        model = make_model_with_modified_indexer(GetParam());
+        pa_params = std::make_unique<pass::paged_attention::PaParams>(model->get_parameters());
+        manager.register_pass<pass::PagedQSAIndexerFusion>(*pa_params, removed_ids);
+    }
+
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        ASSERT_NE(pa_params, nullptr);
+        EXPECT_TRUE(removed_ids.empty());
+        EXPECT_TRUE(pa_params->items().empty());
+    }
+
+private:
+    std::unique_ptr<pass::paged_attention::PaParams> pa_params;
+    std::unordered_set<std::string> removed_ids;
+};
+
+TEST_P(PagedQSAIndexerInvalidProductionInputsTest, DoesNotFuseOrAddCaches) {}
+
+INSTANTIATE_TEST_SUITE_P(
+    PagedQSAIndexerFusion,
+    PagedQSAIndexerInvalidProductionInputsTest,
+    testing::Values("zero_rotary_dimension", "zero_query_heads", "dynamic_head_count", "overflowing_query_width"),
+    [](const testing::TestParamInfo<std::string>& info) {
+        return info.param;
+    });
+
+struct QueryOptions {
+    std::string name;
+    float norm_epsilon = epsilon;
+    int64_t norm_axis = -1;
+    bool affine = false;
+    bool changes_precision = false;
+    bool distinct_cos = false;
+    bool distinct_sin = false;
+    bool interleaved = false;
+    bool extra_consumers = false;
+    bool shared_query_reshape = false;
+    bool with_rope = true;
+    bool with_norm = true;
+    bool flat_norm = false;
+    bool non_unit_unused_weight = false;
+    bool rope_before_norm = false;
+    bool indexer_query_norm = false;
+    bool indexer_query_rope = false;
+    bool absorb_norm = true;
+    bool absorb_rope = true;
+    bool rope_rows_special_zero = false;
+    // A static single-token query whose head transposes around a head-first RoPE are Reshapes, as in SDPAToPA output.
+    bool single_token_head_first = false;
+    bool query_is_reshape = false;
+    int64_t rope_length = -1;
+    int64_t rope_axis = 1;
+    // Reshape target expressing the cos / sin head-axis Unsqueeze; empty keeps the Unsqueeze.
+    std::vector<int64_t> rope_rows_target;
+};
+
+template <class Indexer>
+struct QueryGraph {
+    std::shared_ptr<Model> model;
+    std::shared_ptr<Indexer> indexer;
+    OutputVector inputs;
+    Output<Node> raw_query;
+    Output<Node> norm;
+    Output<Node> rotated;
+    Output<Node> query;
+};
+
+template <class Indexer>
+QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
+    using In = typename Indexer::InputIdx;
+    constexpr bool paged = std::is_same<Indexer, op_internal::PagedQSAIndexer>::value;
+    QueryGraph<Indexer> graph;
+    graph.model = make_model(GraphOptions{false, false, paged, false, o.rope_length}, paged);
+    for (const auto& node : graph.model->get_ops()) {
+        graph.indexer = ov::as_type_ptr<Indexer>(node);
+        if (graph.indexer) {
+            break;
+        }
+    }
+    OPENVINO_ASSERT(graph.indexer, "Expected a query indexer in the test model");
+    graph.inputs = graph.indexer->input_values();
+    const auto unflatten = [](const Output<Node>& input) {
+        if constexpr (std::is_same_v<Indexer, op_internal::PagedQSAIndexer>) {
+            return input.get_node_shared_ptr()->input_value(0);
+        } else {
+            return input;
+        }
+    };
+    graph.raw_query = o.flat_norm ? graph.inputs[In::INDEX_QUERY] : unflatten(graph.inputs[In::INDEX_QUERY]);
+    if (o.single_token_head_first) {
+        const auto query = ov::as_type_ptr<v0::Parameter>(graph.raw_query.get_node_shared_ptr());
+        OPENVINO_ASSERT(query, "Expected the query Parameter");
+        query->set_partial_shape(PartialShape{-1, 1, query_heads, head_size});
+        graph.model->validate_nodes_and_infer_types();
+    }
+    if (o.query_is_reshape) {
+        graph.raw_query = std::make_shared<v1::Reshape>(graph.raw_query, i64({0, 0, 0, 0}), true);
+    }
+    const auto make_norm = [&](const Output<Node>& input) -> Output<Node> {
+        const auto norm_input =
+            o.changes_precision ? Output<Node>(std::make_shared<v0::Convert>(input, element::f16)) : input;
+        if (o.affine) {
+            return std::make_shared<op_internal::RMS>(norm_input,
+                                                      v0::Constant::create(element::f32, Shape{head_size}, {0.5f}),
+                                                      o.norm_epsilon,
+                                                      element::f32,
+                                                      o.norm_axis);
+        }
+        return std::make_shared<op_internal::RMS>(norm_input, o.norm_epsilon, element::f32, o.norm_axis);
+    };
+    const auto other_rows = [&](const Output<Node>& rows) -> Output<Node> {
+        const auto param = std::make_shared<v0::Parameter>(rows.get_element_type(), rows.get_partial_shape());
+        graph.model->add_parameters({param});
+        return param;
+    };
+    const auto cos = unflatten(graph.inputs[In::ROPE_COS]);
+    const auto sin = unflatten(graph.inputs[In::ROPE_SIN]);
+    std::shared_ptr<Node> rope;
+    const auto make_rope = [&](const Output<Node>& input) -> Output<Node> {
+        op_internal::RoPE::Config config;
+        config.rotary_ndims = rotary_dim;
+        config.input_trans0213 = !o.single_token_head_first;
+        config.is_interleaved = o.interleaved;
+        const auto with_head_axis = [&o](const Output<Node>& rows) -> Output<Node> {
+            if (o.rope_rows_target.empty()) {
+                return std::make_shared<v0::Unsqueeze>(rows, i64({o.rope_axis}));
+            }
+            return std::make_shared<v1::Reshape>(rows, i64(o.rope_rows_target), o.rope_rows_special_zero);
+        };
+        auto rope_input = input;
+        if (o.single_token_head_first) {
+            rope_input = std::make_shared<v1::Reshape>(input, i64({0, query_heads, 1, head_size}), true);
+        }
+        rope = std::make_shared<op_internal::RoPE>(OutputVector{rope_input,
+                                                                with_head_axis(o.distinct_cos ? other_rows(cos) : cos),
+                                                                with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
+                                                   config);
+        if (o.single_token_head_first) {
+            return rope;
+        }
+        return std::make_shared<v1::Transpose>(rope, i64({0, 2, 1, 3}));
+    };
+    graph.norm = graph.raw_query;
+    graph.query = graph.raw_query;
+    if (o.rope_before_norm) {
+        graph.rotated = make_rope(graph.raw_query);
+        if (o.with_norm) {
+            graph.query = graph.norm = make_norm(graph.rotated);
+        } else {
+            graph.query = graph.rotated;
+        }
+    } else {
+        if (o.with_norm) {
+            graph.query = graph.norm = make_norm(graph.raw_query);
+        }
+        if (o.with_rope) {
+            graph.query = graph.rotated = make_rope(graph.query);
+        }
+    }
+    if (o.extra_consumers) {
+        graph.model->add_results({std::make_shared<v0::Result>(rope), std::make_shared<v0::Result>(graph.norm)});
+    }
+    return graph;
+}
+
+template <class Indexer>
+void replace_query_indexer(QueryGraph<Indexer>& graph,
+                           const QueryOptions& o,
+                           const Output<Node>& query,
+                           const typename Indexer::Config& config) {
+    using In = typename Indexer::InputIdx;
+    if constexpr (std::is_same_v<Indexer, op_internal::PagedQSAIndexer>) {
+        const auto flatten = graph.inputs[In::INDEX_QUERY].get_node_shared_ptr();
+        graph.inputs[In::INDEX_QUERY] =
+            o.flat_norm ? query : Output<Node>(std::make_shared<v1::Reshape>(query, flatten->input_value(1), false));
+        if (o.shared_query_reshape) {
+            const auto shared_query =
+                query == graph.query
+                    ? graph.inputs[In::INDEX_QUERY]
+                    : Output<Node>(std::make_shared<v1::Reshape>(graph.query, flatten->input_value(1), false));
+            graph.model->add_results({std::make_shared<v0::Result>(shared_query)});
+        }
+    } else {
+        graph.inputs[In::INDEX_QUERY] = query;
+    }
+    ov::replace_node(graph.indexer, std::make_shared<Indexer>(graph.inputs, config));
+}
+
+template <class Indexer = op_internal::PagedQSAIndexer>
+std::shared_ptr<Model> getQueryModel(const QueryOptions& o) {
+    using In = typename Indexer::InputIdx;
+    auto graph = make_query_graph<Indexer>(o);
+    auto config = graph.indexer->get_config();
+    config.query_norm = o.indexer_query_norm;
+    config.query_rope = o.indexer_query_rope;
+    if (o.non_unit_unused_weight) {
+        graph.inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+    }
+    replace_query_indexer(graph, o, graph.query, config);
+    return graph.model;
+}
+
+template <class Indexer = op_internal::PagedQSAIndexer>
+std::shared_ptr<Model> getQueryModelRef(const QueryOptions& o) {
+    using In = typename Indexer::InputIdx;
+    auto graph = make_query_graph<Indexer>(o);
+    auto config = graph.indexer->get_config();
+    config.query_norm = o.indexer_query_norm || (o.with_norm && o.absorb_norm);
+    config.query_rope = o.indexer_query_rope || (o.with_rope && o.absorb_rope);
+    if (o.affine && o.with_norm && o.absorb_norm) {
+        graph.inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+    } else if (o.non_unit_unused_weight && !o.absorb_norm) {
+        graph.inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+    }
+    const bool norm_outside = o.with_norm && !o.absorb_norm;
+    const bool rope_outside = o.with_rope && !o.absorb_rope;
+    Output<Node> query = graph.query;
+    if (!norm_outside && !rope_outside) {
+        query = graph.raw_query;
+    } else if (!rope_outside) {
+        query = graph.norm;
+    } else if (!norm_outside) {
+        query = graph.rotated;
+    }
+    replace_query_indexer(graph, o, query, config);
+    return graph.model;
+}
+
+class FusePagedQSAIndexerQueryTest : public TransformationTestsF, public testing::WithParamInterface<QueryOptions> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        manager.register_pass<pass::FuseQSAIndexerQuery>();
+    }
+};
+
+TEST_P(FusePagedQSAIndexerQueryTest, AbsorbsOnlyCompatibleQuerySteps) {
+    model = getQueryModel(GetParam());
+    model_ref = getQueryModelRef(GetParam());
+}
+
+const std::vector<QueryOptions> query_cases = [] {
+    std::vector<QueryOptions> cases{QueryOptions{"partial_rotary"}};
+    auto shared = QueryOptions{"shared_query_reshape"};
+    shared.shared_query_reshape = true;
+    cases.push_back(shared);
+    shared.name = "shared_query_reshape_norm_only";
+    shared.with_rope = false;
+    shared.absorb_rope = false;
+    cases.push_back(shared);
+    shared = QueryOptions{"shared_query_reshape_rope_only"};
+    shared.shared_query_reshape = true;
+    shared.with_norm = false;
+    shared.absorb_norm = false;
+    cases.push_back(shared);
+    auto o = QueryOptions{"extra_consumers"};
+    o.extra_consumers = true;
+    cases.push_back(o);
+    o = QueryOptions{"unused_query_weight"};
+    o.non_unit_unused_weight = true;
+    cases.push_back(o);
+    o = QueryOptions{"without_rope"};
+    o.with_rope = false;
+    o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"wrong_rope_axis"};
+    o.rope_axis = 2;
+    o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"flat_norm"};
+    o.with_rope = false;
+    o.flat_norm = true;
+    o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    for (const auto& name : {"wrong_epsilon", "wrong_axis", "affine", "changes_precision"}) {
+        o = QueryOptions{name};
+        o.absorb_norm = false;
+        if (o.name == "wrong_epsilon")
+            o.norm_epsilon = 2 * epsilon;
+        else if (o.name == "wrong_axis")
+            o.norm_axis = -2;
+        else if (o.name == "affine") {
+            o.affine = true;
+            o.absorb_norm = true;
+        } else
+            o.changes_precision = true;
+        cases.push_back(o);
+    }
+    // The RMS stage runs after the RoPE stage, so a RoPE after the RMS stays outside.
+    o = QueryOptions{"rope_before_norm"};
+    o.rope_before_norm = true;
+    o.absorb_rope = false;
+    cases.push_back(o);
+    for (const auto& name : {"distinct_cos", "distinct_sin", "interleaved"}) {
+        o = QueryOptions{name};
+        o.absorb_norm = o.absorb_rope = false;
+        o.distinct_cos = o.name == "distinct_cos";
+        o.distinct_sin = o.name == "distinct_sin";
+        o.interleaved = o.name == "interleaved";
+        cases.push_back(o);
+    }
+    // NopElimination replaces the tiny model's head-axis Unsqueeze with this Reshape.
+    o = QueryOptions{"tiny_model_rope_rows"};
+    o.rope_length = 1;
+    o.rope_rows_target = {-1, 1, 1, rotary_dim};
+    cases.push_back(o);
+    o = QueryOptions{"copy_rope_rows_dimension"};
+    o.rope_length = 1;
+    o.rope_rows_target = {0, 1, 1, rotary_dim};
+    o.rope_rows_special_zero = true;
+    cases.push_back(o);
+    o = QueryOptions{"multiple_rope_rows_preserved"};
+    o.rope_length = 2;
+    o.rope_rows_target = {-1, 1, 2, rotary_dim};
+    cases.push_back(o);
+    o = QueryOptions{"multiple_rope_rows"};
+    o.rope_length = 2;
+    o.rope_rows_target = {-1, 1, 1, rotary_dim};
+    o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"single_token_head_first"};
+    o.rope_length = 1;
+    o.single_token_head_first = true;
+    cases.push_back(o);
+    o = QueryOptions{"single_token_head_first_without_norm"};
+    o.rope_length = 1;
+    o.single_token_head_first = true;
+    o.with_norm = false;
+    o.absorb_norm = false;
+    cases.push_back(o);
+    o = QueryOptions{"query_reshape_before_transposing_rope"};
+    o.with_norm = false;
+    o.absorb_norm = false;
+    o.query_is_reshape = true;
+    cases.push_back(o);
+    o = QueryOptions{"moved_rope_rows"};
+    o.rope_length = 1;
+    o.rope_rows_target = {1, -1, 1, rotary_dim};
+    o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    return cases;
+}();
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         FusePagedQSAIndexerQueryTest,
+                         testing::ValuesIn(query_cases),
+                         [](const testing::TestParamInfo<QueryOptions>& info) {
+                             return info.param.name;
+                         });
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryWithDynamicHeadFirstReshapeTarget) {
+    QueryOptions options;
+    options.rope_length = 1;
+    options.single_token_head_first = true;
+    model = getQueryModel(options);
+    model_ref = getQueryModelRef(options);
+    for (const auto& function : {model, model_ref}) {
+        function->get_parameters().front()->set_partial_shape(PartialShape{-1, 1, -1, head_size});
+        function->validate_nodes_and_infer_types();
+    }
+
+    size_t rope_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto rope = ov::as_type_ptr<op_internal::RoPE>(node);
+        if (!rope) {
+            continue;
+        }
+        ++rope_count;
+        const auto reshape = ov::as_type_ptr<v1::Reshape>(rope->get_input_node_shared_ptr(0));
+        ASSERT_NE(reshape, nullptr);
+        const auto shape = std::make_shared<v0::ShapeOf>(reshape->input_value(0));
+        const auto batch =
+            std::make_shared<v8::Gather>(shape, i64({0}), v0::Constant::create(element::i64, Shape{}, {0}));
+        const auto target = std::make_shared<v0::Concat>(OutputVector{batch, i64({query_heads, 1, head_size})}, 0);
+        reshape->input(1).replace_source_output(target);
+    }
+    ASSERT_EQ(rope_count, 1);
+    model->validate_nodes_and_infer_types();
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryAfterNopElimination) {
+    QueryOptions options;
+    options.rope_length = 1;
+    model = getQueryModel(options);
+    model_ref = getQueryModelRef(options);
+
+    pass::NopElimination nop_elimination;
+    ASSERT_TRUE(nop_elimination.run_on_model(model));
+    nop_elimination.run_on_model(model_ref);
+
+    size_t rope_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto rope = ov::as_type_ptr<op_internal::RoPE>(node);
+        if (!rope) {
+            continue;
+        }
+        ++rope_count;
+        for (const auto idx : {1, 2}) {
+            const auto reshape = ov::as_type_ptr<v1::Reshape>(rope->get_input_node_shared_ptr(idx));
+            ASSERT_NE(reshape, nullptr);
+            EXPECT_EQ(reshape->get_input_partial_shape(0), (PartialShape{-1, 1, rotary_dim}));
+            EXPECT_FALSE(reshape->get_special_zero());
+            const auto target = ov::as_type_ptr<v0::Constant>(reshape->get_input_node_shared_ptr(1));
+            ASSERT_NE(target, nullptr);
+            EXPECT_EQ(target->cast_vector<int64_t>(), (std::vector<int64_t>{-1, 1, 1, rotary_dim}));
+        }
+    }
+    ASSERT_EQ(rope_count, 1);
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryRejectsDynamicRoPERowsTarget) {
+    QueryOptions options;
+    options.rope_length = 1;
+    options.rope_rows_target = {-1, 1, 1, rotary_dim};
+    model = getQueryModel(options);
+
+    const auto other = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
+    const auto target =
+        std::make_shared<v0::Concat>(OutputVector{std::make_shared<v0::ShapeOf>(other), i64({1, 1, rotary_dim})}, 0);
+    model->add_parameters({other});
+    size_t rope_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto rope = ov::as_type_ptr<op_internal::RoPE>(node);
+        if (!rope) {
+            continue;
+        }
+        ++rope_count;
+        for (const auto idx : {1, 2}) {
+            const auto reshape = ov::as_type_ptr<v1::Reshape>(rope->get_input_node_shared_ptr(idx));
+            ASSERT_NE(reshape, nullptr);
+            reshape->input(1).replace_source_output(target);
+            reshape->validate_and_infer_types();
+            EXPECT_EQ(reshape->get_output_partial_shape(0), (PartialShape{-1, 1, 1, rotary_dim}));
+        }
+    }
+    ASSERT_EQ(rope_count, 1);
+    model->validate_nodes_and_infer_types();
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+std::shared_ptr<Model> combine_query_models(const std::shared_ptr<Model>& mixed, const std::shared_ptr<Model>& dense) {
+    mixed->add_parameters(dense->get_parameters());
+    mixed->add_results(dense->get_results());
+    return mixed;
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryHandlesMixedRoPERowsAdapters) {
+    QueryOptions options;
+    options.rope_length = 1;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
+
+    size_t rope_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto rope = ov::as_type_ptr<op_internal::RoPE>(node);
+        if (!rope) {
+            continue;
+        }
+        const auto idx = rope_count++ == 0 ? 1 : 2;
+        const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(rope->get_input_node_shared_ptr(idx));
+        ASSERT_NE(unsqueeze, nullptr);
+        rope->input(idx).replace_source_output(
+            std::make_shared<v1::Reshape>(unsqueeze->input_value(0), i64({-1, 1, 1, rotary_dim}), false));
+        rope->validate_and_infer_types();
+    }
+    ASSERT_EQ(rope_count, 2);
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryHandlesDenseAndPagedIndexersIdempotently) {
+    model = combine_query_models(getQueryModel(QueryOptions{}), getQueryModel<op_internal::QSAIndexer>(QueryOptions{}));
+    model_ref = combine_query_models(getQueryModelRef(QueryOptions{}),
+                                     getQueryModelRef<op_internal::QSAIndexer>(QueryOptions{}));
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryIgnoresInactiveNormWeights) {
+    QueryOptions options;
+    options.non_unit_unused_weight = true;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+class FuseQSAIndexerBroadcastGammaTest : public TransformationTestsF, public testing::WithParamInterface<bool> {};
+
+TEST_P(FuseQSAIndexerBroadcastGammaTest, FlattensDenseAndPagedNormWeights) {
+    QueryOptions options;
+    options.affine = true;
+    const auto prepare = [&](const std::shared_ptr<Model>& source, const std::shared_ptr<Model>& reference) {
+        Output<Node> gamma = v0::Constant::create(element::f32, Shape{1, 1, 1, head_size}, {0.5f});
+        if (GetParam()) {
+            const auto param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1, head_size});
+            source->add_parameters({param});
+            gamma = param;
+            const auto ref_param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1, head_size});
+            reference->add_parameters({ref_param});
+            const auto flat_gamma = std::make_shared<v1::Reshape>(ref_param, i64({head_size}), false);
+            for (const auto& node : reference->get_ops()) {
+                if (ov::is_type<op_internal::QSAIndexer>(node)) {
+                    node->input(op_internal::QSAIndexer::InputIdx::Q_NORM_WEIGHT).replace_source_output(flat_gamma);
+                } else if (ov::is_type<op_internal::PagedQSAIndexer>(node)) {
+                    node->input(op_internal::PagedQSAIndexer::InputIdx::Q_NORM_WEIGHT)
+                        .replace_source_output(flat_gamma);
+                }
+            }
+        }
+        for (const auto& node : source->get_ops()) {
+            if (const auto rms = ov::as_type_ptr<op_internal::RMS>(node)) {
+                rms->input(1).replace_source_output(gamma);
+            }
+        }
+    };
+    model = getQueryModel(options);
+    model_ref = getQueryModelRef(options);
+    prepare(model, model_ref);
+    const auto dense = getQueryModel<op_internal::QSAIndexer>(options);
+    const auto dense_ref = getQueryModelRef<op_internal::QSAIndexer>(options);
+    prepare(dense, dense_ref);
+    model = combine_query_models(model, dense);
+    model_ref = combine_query_models(model_ref, dense_ref);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerQuery,
+                         FuseQSAIndexerBroadcastGammaTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "parameter" : "constant";
+                         });
+
+class FuseQSAIndexerQueryGammaTest : public TransformationTestsF, public testing::WithParamInterface<std::string> {};
+
+TEST_P(FuseQSAIndexerQueryGammaTest, KeepsRMSWithUnsupportedGamma) {
+    const auto& param = GetParam();
+    QueryOptions options;
+    options.affine = param != "missing";
+    options.with_rope = false;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    const auto check_pattern = [&](bool expected) {
+        pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer> dense_matcher;
+        pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer> paged_matcher;
+        size_t indexer_count = 0;
+        for (const auto& node : model->get_ops()) {
+            if (ov::is_type<op_internal::QSAIndexer>(node)) {
+                EXPECT_EQ(dense_matcher.get_matcher()->match(node), expected);
+                ++indexer_count;
+            } else if (ov::is_type<op_internal::PagedQSAIndexer>(node)) {
+                EXPECT_EQ(paged_matcher.get_matcher()->match(node), expected);
+                ++indexer_count;
+            }
+        }
+        EXPECT_EQ(indexer_count, 2);
+    };
+    check_pattern(true);
+
+    size_t rms_count = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto rms = ov::as_type_ptr<op_internal::RMS>(node)) {
+            if (param == "missing" || param == "inactive") {
+                // Make elementwise_affine disagree with the number of RMS inputs.
+                rms->set_elementwise_affine(param == "missing");
+            } else {
+                const auto type = param == "mixed_precision" ? element::f16 : element::f32;
+                const auto shape = param == "dynamic_rank"      ? PartialShape::dynamic()
+                                   : param == "scalar"          ? PartialShape{}
+                                   : param == "wrong_last_dim"  ? PartialShape{1, 1, 1, head_size + 1}
+                                   : param == "non_singleton"   ? PartialShape{1, 1, query_heads, head_size}
+                                   : param == "dynamic_leading" ? PartialShape{1, 1, -1, head_size}
+                                                                : PartialShape{head_size};
+                const auto gamma = std::make_shared<v0::Parameter>(type, shape);
+                model->add_parameters({gamma});
+                rms->input(1).replace_source_output(gamma);
+            }
+            ++rms_count;
+        }
+    }
+    ASSERT_EQ(rms_count, 2);
+    check_pattern(false);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerQuery,
+                         FuseQSAIndexerQueryGammaTest,
+                         testing::Values("mixed_precision",
+                                         "missing",
+                                         "inactive",
+                                         "dynamic_rank",
+                                         "scalar",
+                                         "wrong_last_dim",
+                                         "non_singleton",
+                                         "dynamic_leading"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryNormIgnoresEnabledQueryRoPE) {
+    QueryOptions options;
+    options.with_rope = false;
+    options.absorb_rope = false;
+    options.indexer_query_rope = true;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEIgnoresEnabledQueryNorm) {
+    QueryOptions options;
+    options.with_norm = false;
+    options.absorb_norm = false;
+    options.indexer_query_norm = true;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+TEST(FuseQSAIndexerQuery, UsesTypedRootsAndOptionalLayoutAdapters) {
+    const auto verify = [](const std::shared_ptr<pass::MatcherPass>& matcher,
+                           const DiscreteTypeInfo& expected_type,
+                           const std::vector<size_t>& adapter_inputs) {
+        const auto root = ov::as_type_ptr<pass::pattern::op::WrapType>(
+            matcher->get_matcher()->get_pattern_value().get_node_shared_ptr());
+        ASSERT_NE(root, nullptr);
+        EXPECT_EQ(root->get_wrapped_types(), (std::vector<DiscreteTypeInfo>{expected_type}));
+        for (const auto input : adapter_inputs) {
+            const auto adapter =
+                ov::as_type_ptr<pass::pattern::op::Optional>(root->input_value(input).get_node_shared_ptr());
+            ASSERT_NE(adapter, nullptr);
+            EXPECT_EQ(adapter->get_optional_types(),
+                      (std::vector<DiscreteTypeInfo>{v1::Reshape::get_type_info_static()}));
+        }
+    };
+    const auto& dense_type = op_internal::QSAIndexer::get_type_info_static();
+    const auto& paged_type = op_internal::PagedQSAIndexer::get_type_info_static();
+    verify(std::make_shared<pass::FuseQSAIndexerQueryRoPE<op_internal::QSAIndexer>>(),
+           dense_type,
+           {QSAIndexerInputIdx::INDEX_QUERY, QSAIndexerInputIdx::ROPE_COS, QSAIndexerInputIdx::ROPE_SIN});
+    verify(std::make_shared<pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>>(),
+           dense_type,
+           {QSAIndexerInputIdx::INDEX_QUERY});
+    verify(
+        std::make_shared<pass::FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>>(),
+        paged_type,
+        {PagedQSAIndexerInputIdx::INDEX_QUERY, PagedQSAIndexerInputIdx::ROPE_COS, PagedQSAIndexerInputIdx::ROPE_SIN});
+    verify(std::make_shared<pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>>(),
+           paged_type,
+           {PagedQSAIndexerInputIdx::INDEX_QUERY});
+}
+
+TEST(FuseQSAIndexerQuery, SpecializationsSharePassConfigTypes) {
+    using DenseRoPE = pass::FuseQSAIndexerQueryRoPE<op_internal::QSAIndexer>;
+    using PagedRoPE = pass::FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>;
+    using DenseNorm = pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>;
+    using PagedNorm = pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>;
+    EXPECT_EQ(DenseRoPE::get_type_info_static(), PagedRoPE::get_type_info_static());
+    EXPECT_EQ(DenseNorm::get_type_info_static(), PagedNorm::get_type_info_static());
+}
+
+template <class Broadcast = op::v3::Broadcast>
+void broadcast_query_rope_rows(const std::shared_ptr<Model>& query_model, const std::vector<int64_t>& target_shape) {
+    query_model->get_parameters().at(0)->set_partial_shape({2, 2, query_heads, head_size});
+    std::shared_ptr<op_internal::PagedQSAIndexer> indexer;
+    for (const auto& node : query_model->get_ops()) {
+        indexer = ov::as_type_ptr<op_internal::PagedQSAIndexer>(node);
+        if (indexer) {
+            break;
+        }
+    }
+    ASSERT_NE(indexer, nullptr);
+    for (const auto idx : {PagedQSAIndexerInputIdx::ROPE_COS, PagedQSAIndexerInputIdx::ROPE_SIN}) {
+        const auto reshape = ov::as_type_ptr<v1::Reshape>(indexer->input_value(idx).get_node_shared_ptr());
+        ASSERT_NE(reshape, nullptr);
+        const auto rows = ov::as_type_ptr<v0::Parameter>(reshape->input_value(0).get_node_shared_ptr());
+        ASSERT_NE(rows, nullptr);
+        rows->set_partial_shape({2, 1, rotary_dim});
+        reshape->input(0).replace_source_output(std::make_shared<Broadcast>(rows, i64(target_shape)));
+    }
+    query_model->validate_nodes_and_infer_types();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEAcceptsBatchBroadcast) {
+    model = getQueryModel(QueryOptions{});
+    model_ref = getQueryModelRef(QueryOptions{});
+    broadcast_query_rope_rows(model, {2, 2, rotary_dim});
+    broadcast_query_rope_rows(model_ref, {2, 2, rotary_dim});
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+// ConvertBroadcast3 can run before the query fusion.
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEAcceptsOpset1BatchBroadcast) {
+    model = getQueryModel(QueryOptions{});
+    model_ref = getQueryModelRef(QueryOptions{});
+    broadcast_query_rope_rows<v1::Broadcast>(model, {2, 2, rotary_dim});
+    broadcast_query_rope_rows<v1::Broadcast>(model_ref, {2, 2, rotary_dim});
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+class FuseQSAIndexerQueryModeTest : public TransformationTestsF, public testing::WithParamInterface<bool> {};
+
+TEST_P(FuseQSAIndexerQueryModeTest, FusesOnlySelectedIndexerType) {
+    const QueryOptions options;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(GetParam() ? getQueryModelRef(options) : getQueryModel(options),
+                                     GetParam() ? getQueryModel<op_internal::QSAIndexer>(options)
+                                                : getQueryModelRef<op_internal::QSAIndexer>(options));
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    if (GetParam()) {
+        manager.register_pass<pass::FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>>();
+        manager.register_pass<pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>>();
+    } else {
+        manager.register_pass<pass::FuseQSAIndexerQueryRoPE<op_internal::QSAIndexer>>();
+        manager.register_pass<pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>>();
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(FuseQSAIndexer,
+                         FuseQSAIndexerQueryModeTest,
+                         testing::Values(false, true),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "Paged" : "Dense";
+                         });
+
+struct QueryPolicy {
+    std::string name;
+    bool paged;
+    bool norm;
+    bool callback;
+};
+
+class FuseQSAIndexerQueryPolicyTest : public TransformationTestsF, public testing::WithParamInterface<QueryPolicy> {};
+
+TEST_P(FuseQSAIndexerQueryPolicyTest, HonorsIndividualMatcherConfiguration) {
+    const auto& policy = GetParam();
+    QueryOptions options;
+    options.with_rope = !policy.norm;
+    options.affine = !policy.norm;
+    options.absorb_norm = policy.norm;
+    options.absorb_rope = !policy.norm;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref =
+        combine_query_models(policy.callback && !policy.paged ? getQueryModelRef(options) : getQueryModel(options),
+                             policy.callback && policy.paged ? getQueryModelRef<op_internal::QSAIndexer>(options)
+                                                             : getQueryModel<op_internal::QSAIndexer>(options));
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+    if (!policy.norm) {
+        manager.get_pass_config()->disable<pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>>();
+    }
+    const auto configure = [&](auto matcher) {
+        using Pass = decltype(matcher);
+        if (policy.callback) {
+            manager.get_pass_config()->set_callback<Pass>(
+                [paged = policy.paged](const std::shared_ptr<const Node>& node) {
+                    return paged == ov::is_type<op_internal::PagedQSAIndexer>(node);
+                });
+        } else {
+            manager.get_pass_config()->disable<Pass>();
+        }
+    };
+    if (policy.norm && policy.paged)
+        configure(pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>{});
+    else if (policy.norm)
+        configure(pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>{});
+    else if (policy.paged)
+        configure(pass::FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>{});
+    else
+        configure(pass::FuseQSAIndexerQueryRoPE<op_internal::QSAIndexer>{});
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         FuseQSAIndexerQueryPolicyTest,
+                         testing::Values(QueryPolicy{"DisableDenseRoPE", false, false, false},
+                                         QueryPolicy{"DisableDenseNorm", false, true, false},
+                                         QueryPolicy{"DisablePagedRoPE", true, false, false},
+                                         QueryPolicy{"DisablePagedNorm", true, true, false},
+                                         QueryPolicy{"DenseRoPECallback", false, false, true},
+                                         QueryPolicy{"DenseNormCallback", false, true, true},
+                                         QueryPolicy{"PagedRoPECallback", true, false, true},
+                                         QueryPolicy{"PagedNormCallback", true, true, true}),
+                         [](const testing::TestParamInfo<QueryPolicy>& info) {
+                             return info.param.name;
+                         });
+
+}  // namespace
