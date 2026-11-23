@@ -23,7 +23,7 @@ on:
         default: true
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && github.run_id || format('{0}-{1}', github.workflow, github.ref) }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions: read-all
@@ -49,7 +49,7 @@ env:
 jobs:
   Docker:
     name: Coverage Docker Images
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-cpu-tests || inputs.run-gpu-tests || inputs.run-npu-tests }}
+    if: ${{ github.event_name == 'schedule' || inputs.run-cpu-tests || inputs.run-gpu-tests || inputs.run-npu-tests }}
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -76,7 +76,7 @@ jobs:
   Build:
     name: Coverage Build Artifacts
     needs: Docker
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-cpu-tests || inputs.run-gpu-tests || inputs.run-npu-tests }}
+    if: ${{ github.event_name == 'schedule' || inputs.run-cpu-tests || inputs.run-gpu-tests || inputs.run-npu-tests }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -108,19 +108,19 @@ jobs:
         -DENABLE_OV_PYTORCH_FRONTEND=ON
         -DENABLE_OV_TF_FRONTEND=ON
         -DENABLE_OV_TF_LITE_FRONTEND=ON
-        ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-npu-tests) && '-DENABLE_INTEL_NPU=ON' || '-DENABLE_INTEL_NPU=OFF' }}
-        ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
-        ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || inputs.run-npu-tests) && '-DENABLE_INTEL_NPU=ON' || '-DENABLE_INTEL_NPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
 
   CoverageCpp:
     name: Coverage C++ (${{ matrix.profile }})
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-cpu-tests || inputs.run-npu-tests }}
+    if: ${{ github.event_name == 'schedule' || inputs.run-cpu-tests || inputs.run-npu-tests }}
     timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'pull_request' || (inputs.run-cpu-tests && inputs.run-npu-tests)) && '["cpu","npu"]' || inputs.run-cpu-tests && '["cpu"]' || '["npu"]') }}
+        profile: ${{ fromJSON((github.event_name == 'schedule' || (inputs.run-cpu-tests && inputs.run-npu-tests)) && '["cpu","npu"]' || inputs.run-cpu-tests && '["cpu"]' || '["npu"]') }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -238,7 +238,7 @@ jobs:
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -422,7 +422,7 @@ jobs:
   CoveragePython:
     name: Coverage Python (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -561,7 +561,7 @@ jobs:
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -754,7 +754,7 @@ jobs:
   CoverageJS:
     name: Coverage JS (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -940,7 +940,7 @@ jobs:
           RUN_NPU_TESTS: ${{ github.event.inputs.run-npu-tests || '' }}
         run: |
           selected_lanes='none'
-          if [[ "$EVENT_NAME" == 'schedule' || "$EVENT_NAME" == 'pull_request' ]]; then
+          if [[ "$EVENT_NAME" == 'schedule' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           elif [[ "$RUN_CPU_TESTS" == 'true' && "$RUN_GPU_TESTS" == 'true' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
@@ -949,7 +949,7 @@ jobs:
           elif [[ "$RUN_GPU_TESTS" == 'true' ]]; then
             selected_lanes='igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           fi
-          if [[ "$EVENT_NAME" == 'schedule' || "$EVENT_NAME" == 'pull_request' || "$RUN_NPU_TESTS" == 'true' ]]; then
+          if [[ "$EVENT_NAME" == 'schedule' || "$RUN_NPU_TESTS" == 'true' ]]; then
             if [[ "$selected_lanes" == 'none' ]]; then
               selected_lanes='npu'
             else
@@ -1037,7 +1037,6 @@ jobs:
           disable_search: true
           plugins: noop
           flags: ${{ matrix.upload.flag }}
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          override_commit: ${{ github.sha }}
           fail_ci_if_error: true
           verbose: true
