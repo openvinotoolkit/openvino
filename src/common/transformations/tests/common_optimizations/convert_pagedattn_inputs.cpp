@@ -759,86 +759,127 @@ TEST(ConvertPagedAttnInputsSparseTest, PagedSparseAttentionQuantizedCaches) {
     EXPECT_EQ(psa->get_output_partial_shape(0), (PartialShape{-1, num_heads * value_head_size}));
 }
 
-// Builds a PagedQSAIndexer whose floating-point data inputs have `data_precision` and whose caches are untyped, runs
-// ConvertPagedAttnInputs with `hint` as the inference precision and returns the indexer.
-std::shared_ptr<op::internal::PagedQSAIndexer> convert_qsa_indexer(const element::Type& data_precision,
-                                                                   const element::Type& hint,
-                                                                   std::shared_ptr<Model>& model) {
-    using InputIdx = op::internal::PagedQSAIndexer::InputIdx;
-    constexpr size_t head_dim = 16;
-    constexpr size_t rotary_dim = 8;
-    constexpr size_t page_size = 8;
-    auto data_param = [&](const PartialShape& shape) {
-        return std::make_shared<v0::Parameter>(data_precision, shape);
-    };
-    auto cache_param = [](const PartialShape& shape) {
-        return std::make_shared<v0::Parameter>(element::dynamic, shape);
-    };
-    auto i32_param = [] {
-        return std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
-    };
-    ParameterVector params(InputIdx::COUNT);
-    params[InputIdx::INDEX_QUERY] = data_param({-1, 2 * head_dim});
-    params[InputIdx::RAW_INDEX_KEYS] = data_param({-1, head_dim});
-    params[InputIdx::ROPE_COS] = data_param({-1, rotary_dim});
-    params[InputIdx::ROPE_SIN] = data_param({-1, rotary_dim});
-    params[InputIdx::Q_NORM_WEIGHT] = data_param({head_dim});
-    params[InputIdx::K_NORM_WEIGHT] = data_param({head_dim});
-    params[InputIdx::PAST_LENS] = i32_param();
-    params[InputIdx::SUBSEQUENCE_BEGINS] = i32_param();
-    params[InputIdx::BLOCK_INDICES] = i32_param();
-    params[InputIdx::BLOCK_INDICES_BEGINS] = i32_param();
-    params[InputIdx::INDEX_KEY_CACHE] = cache_param({-1, 1, page_size, head_dim});
-    params[InputIdx::INDEX_BLOCK_ROPE_CACHE] = cache_param({-1, page_size / 4, 2 * rotary_dim});
-    params[InputIdx::BLOCK_INDEX_KEYS_CACHE] = cache_param({-1, 1, page_size / 4, head_dim});
-
-    op::internal::PagedQSAIndexer::Config config;
-    config.key_block_size = 4;
-    config.block_topk = 4;
-    config.indexer_head_dim = head_dim;
-    config.indexer_rotary_dim = rotary_dim;
-    auto indexer = std::make_shared<op::internal::PagedQSAIndexer>(OutputVector(params.begin(), params.end()), config);
-    model = std::make_shared<Model>(indexer->outputs(), params);
-
-    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cache_config;
-    cache_config.inferencePrecision = hint;
-    auto no_shape_update = [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cache_config, no_shape_update);
-    manager.run_passes(model);
-    return indexer;
-}
-
 // The indexer appends to its caches in place and requires one floating-point type across all its inputs: the caches
 // follow the indexer data type, whatever the inference precision hint is (e.g. an f32 model with a bf16 hint on a CPU
-// with native bf16, where f32 data is not converted to bf16 at model level), and keep it.
-using QSAIndexerCachePrecisionParams = std::tuple<element::Type, element::Type>;  // data precision, hint
+// with native bf16, where f32 data is not converted to bf16 at model level). A dynamic data type leaves the hint.
+// The page of the caches is the block size of the KV cache, and holds page / key_block_size summary slots.
+using QSAIndexerCacheParams = std::tuple<element::Type,  // data precision
+                                         element::Type,  // inference precision hint
+                                         size_t,         // key_block_size
+                                         size_t>;        // KV cache block size
 
-class ConvertPagedAttnInputsQSAIndexerTest : public ::testing::TestWithParam<QSAIndexerCachePrecisionParams> {};
-
-TEST_P(ConvertPagedAttnInputsQSAIndexerTest, CachesFollowDataPrecision) {
-    using InputIdx = op::internal::PagedQSAIndexer::InputIdx;
-    const auto& [data_precision, hint] = GetParam();
-    std::shared_ptr<Model> model;
-    const auto indexer = convert_qsa_indexer(data_precision, hint, model);
-
-    for (const auto idx :
-         {InputIdx::INDEX_KEY_CACHE, InputIdx::INDEX_BLOCK_ROPE_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE}) {
-        EXPECT_TRUE(ov::is_type<v0::Parameter>(indexer->get_input_node_shared_ptr(idx))) << "cache input " << idx;
-        EXPECT_EQ(indexer->get_input_element_type(idx), data_precision) << "cache input " << idx;
+class ConvertPagedAttnInputsQSAIndexerTest : public TransformationTestsF,
+                                             public testing::WithParamInterface<QSAIndexerCacheParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<QSAIndexerCacheParams>& obj) {
+        const auto& [data_precision, hint, key_block_size, kv_block_size] = obj.param;
+        std::ostringstream result;
+        result << "Data=" << data_precision << "_Hint=" << hint << "_KeyBlockSize=" << key_block_size
+               << "_KVBlockSize=" << kv_block_size;
+        return result.str();
     }
-    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
-}
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& [data_precision, hint, key_block_size, kv_block_size] = GetParam();
+        ov::pass::ConvertPagedAttnInputs::KVCacheConfig cache_config;
+        cache_config.inferencePrecision = hint;
+        cache_config.keyCacheBlockSize = kv_block_size;
+        auto no_shape_update = [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+        manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cache_config, no_shape_update);
+
+        model = getModel(data_precision, key_block_size);
+        model_ref = getModelRef(data_precision,
+                                data_precision.is_static() ? data_precision : hint,
+                                key_block_size,
+                                kv_block_size);
+    }
+
+    // Caches of an unknown precision, with unknown pages.
+    static std::shared_ptr<Model> getModel(const element::Type& data_precision, size_t key_block_size) {
+        return buildModel(data_precision, element::dynamic, key_block_size, Dimension::dynamic(), Dimension::dynamic());
+    }
+
+    // The caches have the precision, the page of the KV cache block and the slots of the key blocks in it, and carry
+    // the keep-const-precision mark that keeps ConvertPrecision away from them.
+    static std::shared_ptr<Model> getModelRef(const element::Type& data_precision,
+                                              const element::Type& cache_precision,
+                                              size_t key_block_size,
+                                              size_t kv_block_size) {
+        using InputIdx = op::internal::PagedQSAIndexer::InputIdx;
+        auto ref = buildModel(data_precision,
+                              cache_precision,
+                              key_block_size,
+                              Dimension(static_cast<int64_t>(kv_block_size)),
+                              Dimension(static_cast<int64_t>(kv_block_size / key_block_size)));
+        for (const auto idx :
+             {InputIdx::INDEX_KEY_CACHE, InputIdx::INDEX_BLOCK_ROPE_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE}) {
+            enable_keep_const_precision(ref->get_parameters()[idx]);
+        }
+        return ref;
+    }
+
+    // Floating-point data inputs of `data_precision`; `page` is the page axis of the key cache, `slots` the one of the
+    // summary caches.
+    static std::shared_ptr<Model> buildModel(const element::Type& data_precision,
+                                             const element::Type& cache_precision,
+                                             size_t key_block_size,
+                                             const Dimension& page,
+                                             const Dimension& slots) {
+        using InputIdx = op::internal::PagedQSAIndexer::InputIdx;
+        constexpr size_t head_dim = 16;
+        constexpr size_t rotary_dim = 8;
+        auto data_param = [&](const PartialShape& shape) {
+            return std::make_shared<v0::Parameter>(data_precision, shape);
+        };
+        auto cache_param = [&](const PartialShape& shape) {
+            return std::make_shared<v0::Parameter>(cache_precision, shape);
+        };
+        auto i32_param = [] {
+            return std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+        };
+        ParameterVector params(InputIdx::COUNT);
+        params[InputIdx::INDEX_QUERY] = data_param({-1, 2 * head_dim});
+        params[InputIdx::RAW_INDEX_KEYS] = data_param({-1, head_dim});
+        params[InputIdx::ROPE_COS] = data_param({-1, rotary_dim});
+        params[InputIdx::ROPE_SIN] = data_param({-1, rotary_dim});
+        params[InputIdx::Q_NORM_WEIGHT] = data_param({head_dim});
+        params[InputIdx::K_NORM_WEIGHT] = data_param({head_dim});
+        params[InputIdx::PAST_LENS] = i32_param();
+        params[InputIdx::SUBSEQUENCE_BEGINS] = i32_param();
+        params[InputIdx::BLOCK_INDICES] = i32_param();
+        params[InputIdx::BLOCK_INDICES_BEGINS] = i32_param();
+        params[InputIdx::INDEX_KEY_CACHE] = cache_param({-1, 1, page, head_dim});
+        params[InputIdx::INDEX_BLOCK_ROPE_CACHE] = cache_param({-1, slots, 2 * rotary_dim});
+        params[InputIdx::BLOCK_INDEX_KEYS_CACHE] = cache_param({-1, 1, slots, head_dim});
+
+        op::internal::PagedQSAIndexer::Config config;
+        config.key_block_size = key_block_size;
+        config.block_topk = 4;
+        config.indexer_head_dim = head_dim;
+        config.indexer_rotary_dim = rotary_dim;
+        auto indexer =
+            std::make_shared<op::internal::PagedQSAIndexer>(OutputVector(params.begin(), params.end()), config);
+        return std::make_shared<Model>(indexer->outputs(), params);
+    }
+};
+
+TEST_P(ConvertPagedAttnInputsQSAIndexerTest, CachesFollowDataPrecision) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          ConvertPagedAttnInputsQSAIndexerTest,
-                         ::testing::Values(QSAIndexerCachePrecisionParams{element::f32, element::f32},
-                                           QSAIndexerCachePrecisionParams{element::f16, element::f16},
-                                           QSAIndexerCachePrecisionParams{element::bf16, element::bf16},
+                         ::testing::Values(QSAIndexerCacheParams{element::f32, element::f32, 4, 32},
+                                           QSAIndexerCacheParams{element::f16, element::f16, 4, 32},
+                                           QSAIndexerCacheParams{element::bf16, element::bf16, 4, 32},
                                            // data precision differs from the hint
-                                           QSAIndexerCachePrecisionParams{element::f32, element::bf16},
-                                           QSAIndexerCachePrecisionParams{element::f32, element::f16},
-                                           QSAIndexerCachePrecisionParams{element::bf16, element::f32}));
+                                           QSAIndexerCacheParams{element::f32, element::bf16, 4, 32},
+                                           QSAIndexerCacheParams{element::f32, element::f16, 4, 32},
+                                           QSAIndexerCacheParams{element::bf16, element::f32, 4, 32},
+                                           // unknown data precision: the hint
+                                           QSAIndexerCacheParams{element::dynamic, element::bf16, 4, 32},
+                                           // several slots per page of another size
+                                           QSAIndexerCacheParams{element::f32, element::f32, 8, 16}),
+                         ConvertPagedAttnInputsQSAIndexerTest::getTestCaseName);
 
 }  // namespace

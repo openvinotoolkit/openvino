@@ -207,10 +207,34 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                     m_update_precision_func(cache_precision);
                 }
             }
+            // The caches share the page table of the main KV cache, so the page size is its block size. The cache
+            // layouts (see PagedQSAIndexer::InputIdx) are
+            //   index_key_cache        [N_phys, H_ik, page_size,     D_idx]
+            //   index_block_rope_cache [N_phys,       page_size / r, 2 * rotary_dim]
+            //   block_index_keys_cache [N_phys, H_ik, page_size / r, D_idx]
+            const size_t page_size = m_config.keyCacheBlockSize;
+            const size_t key_block_size = paged_qsa->get_config().key_block_size;
+            OPENVINO_ASSERT(key_block_size != 0 && page_size % key_block_size == 0,
+                            "PagedQSAIndexer ",
+                            paged_qsa->get_friendly_name(),
+                            ": the KV cache block size ",
+                            page_size,
+                            " must be a multiple of the indexer key block size ",
+                            key_block_size);
+            const auto slots_per_page = static_cast<ov::Dimension::value_type>(page_size / key_block_size);
             bool changed = false;
             for (const auto idx :
                  {InputIdx::INDEX_KEY_CACHE, InputIdx::INDEX_BLOCK_ROPE_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE}) {
                 if (const auto cache = ov::as_type_ptr<v0::Parameter>(paged_qsa->get_input_node_shared_ptr(idx))) {
+                    auto cache_shape = cache->get_partial_shape();
+                    if (cache_shape.rank().is_static()) {
+                        // The page (slot) axis is the second from the end in all three layouts; the block-count
+                        // (first) dimension stays dynamic.
+                        cache_shape[cache_shape.size() - 2] = idx == InputIdx::INDEX_KEY_CACHE
+                                                                  ? static_cast<ov::Dimension::value_type>(page_size)
+                                                                  : slots_per_page;
+                        cache->set_partial_shape(cache_shape);
+                    }
                     cache->set_element_type(cache_precision);
                     enable_keep_const_precision(cache);
                     cache->validate_and_infer_types();

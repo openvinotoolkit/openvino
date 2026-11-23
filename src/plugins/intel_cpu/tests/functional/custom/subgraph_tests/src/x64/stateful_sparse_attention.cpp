@@ -447,6 +447,38 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
     }
 }
 
+// The cache group size follows ScaledDotProductAttention: it must divide the head size of a compressed cache. A plain
+// cache has no groups, and a TurboQuant request leaves the caches plain.
+TEST_P(StatefulSparseAttentionTest, GroupSizeThatDoesNotDivideTheHeadIsRejected) {
+    const auto& param = GetParam();
+    const auto prec = std::get<0>(param);
+    const auto cache_prec = std::get<1>(param);
+    const auto E = std::get<4>(param);
+    const auto Bk = std::get<5>(param);
+    const auto Hs = std::get<6>(param);
+    const auto turbo = std::get<7>(param);
+    if (!ov::intel_cpu::hasHardwareSupport(prec)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << prec << " data on this system.";
+    }
+    auto core = ov::test::utils::PluginCache::get().core();
+    // 48 divides neither 32 nor 64
+    ov::AnyMap config{{ov::hint::inference_precision.name(), prec},
+                      {ov::hint::kv_cache_precision.name(), cache_prec},
+                      {ov::key_cache_group_size.name(), static_cast<uint64_t>(48)},
+                      {ov::value_cache_group_size.name(), static_cast<uint64_t>(48)}};
+    if (turbo) {
+        config[ov::internal::key_cache_quant_alg.name()] = ov::internal::CacheQuantAlgorithm::TURBO;
+        config[ov::internal::value_cache_quant_alg.name()] = ov::internal::CacheQuantAlgorithm::TURBO;
+    }
+    const bool compressed_cache = !turbo && (cache_prec == ov::element::u8 || cache_prec == ov::element::u4);
+    const auto model = make_stateful_model(prec, E, Bk, Hs);
+    if (compressed_cache) {
+        EXPECT_ANY_THROW(core->compile_model(model, ov::test::utils::DEVICE_CPU, config));
+    } else {
+        EXPECT_NO_THROW(core->compile_model(model, ov::test::utils::DEVICE_CPU, config));
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention,
                          StatefulSparseAttentionTest,
                          ::testing::Combine(::testing::Values(ov::element::f32, ov::element::bf16),
