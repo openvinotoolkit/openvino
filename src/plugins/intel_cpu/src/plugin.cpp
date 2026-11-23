@@ -57,7 +57,6 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
-#include "openvino/util/ov_version.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
@@ -265,18 +264,6 @@ Plugin::~Plugin() {
     executor_manager()->clear("CPUStreamsExecutor");
     executor_manager()->clear("CPUMainStreamExecutor");
     executor_manager()->clear("CPUCallbackExecutor");
-}
-
-static bool is_ov_version_compatible(const std::string& blob_version, const std::string& runtime_version) {
-    if (blob_version == runtime_version) {
-        return true;
-    }
-    try {
-        return ov::util::is_version_compatible(ov::util::Version(blob_version), ov::util::Version(runtime_version));
-    } catch (const ov::Exception&) {
-        // non-standard build numbers can't be ordered
-        return false;
-    }
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
@@ -526,18 +513,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             ov::AnyMap input_map = it->second.as<ov::AnyMap>();
             for (const auto& item : m_compiled_model_runtime_properties) {
                 auto it = input_map.find(item.first);
-                if (it == input_map.end()) {
-                    res = false;
-                    break;
-                }
-                const auto blob_value = it->second.as<std::string>();
-                const auto runtime_value = item.second.as<std::string>();
-                if (item.first == "OV_VERSION") {
-                    if (!is_ov_version_compatible(blob_value, runtime_value)) {
-                        res = false;
-                        break;
-                    }
-                } else if (blob_value != runtime_value) {
+                if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                     res = false;
                     break;
                 }

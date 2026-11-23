@@ -308,13 +308,10 @@ public:
 TEST_F(RuntimeRequirementsCPU, DescriptorFormat) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     EXPECT_EQ(requirements.rfind("meta=2.0;", 0), 0u) << requirements;
-    const std::string version = std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) +
-                                "." + std::to_string(OPENVINO_VERSION_PATCH);
-    EXPECT_EQ(get_field(requirements, "ov"), version) << requirements;
+    EXPECT_EQ(get_field(requirements, "ov"), std::string(ov::get_openvino_version().buildNumber)) << requirements;
     EXPECT_FALSE(get_field(requirements, "arch").empty()) << requirements;
-    for (const auto* key : {"ops=", "caps="}) {
-        EXPECT_NE(requirements.find(key), std::string::npos) << requirements;
-    }
+    EXPECT_NE(requirements.find(";caps="), std::string::npos) << requirements;
+    EXPECT_EQ(requirements.find("ops="), std::string::npos) << requirements;
     EXPECT_LE(requirements.size(), 4096u);
 }
 
@@ -326,28 +323,26 @@ TEST_F(RuntimeRequirementsCPU, PlainModelHasNoCapabilityRequirements) {
     EXPECT_EQ(get_field(fp32_requirements, "caps"), "") << fp32_requirements;
 }
 
-TEST_F(RuntimeRequirementsCPU, OlderProducerVersionSupported) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    EXPECT_EQ(check_requirements(core, replace_field(requirements, "ov", "2026.0.0")),
-              ov::CompatibilityCheck::SUPPORTED);
+std::vector<std::string> other_versions(const std::string& version) {
+    return {"2026.0.0", std::to_string(OPENVINO_VERSION_MAJOR + 1) + ".0.0", version + "-other_build"};
 }
 
-TEST_F(RuntimeRequirementsCPU, NewerProducerVersionUnsupported) {
+TEST_F(RuntimeRequirementsCPU, OtherProducerVersionUnsupported) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const std::string newer = std::to_string(OPENVINO_VERSION_MAJOR + 1) + ".0.0";
-    EXPECT_EQ(check_requirements(core, replace_field(requirements, "ov", newer)), ov::CompatibilityCheck::UNSUPPORTED);
+    for (const auto& version : other_versions(get_field(requirements, "ov"))) {
+        EXPECT_EQ(check_requirements(core, replace_field(requirements, "ov", version)),
+                  ov::CompatibilityCheck::UNSUPPORTED)
+            << version;
+    }
 }
 
 TEST_F(RuntimeRequirementsCPU, MismatchesUnsupported) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const std::vector<std::string> incompatible = {
         replace_field(requirements, "arch", "unknown_arch"),
-        replace_field(requirements, "ops", "cpu_plugin_opset::UnknownOp"),
-        replace_field(requirements, "ops", "ie_internal_opset::FullyConnected@2"),
-        replace_field(requirements, "ops", "malformed"),
         replace_field(requirements, "caps", "unknown_capability"),
-        replace_field(requirements, "ov", "2026.x.0"),
         replace_field(requirements, "meta", "1.0"),
+        requirements + ";ops=ie_internal_opset::RMS",
         requirements.substr(0, requirements.find(";caps=")),
         "meta=1.0;ov=2026.4.0;isa=Intel AVX-512",
     };
@@ -356,34 +351,30 @@ TEST_F(RuntimeRequirementsCPU, MismatchesUnsupported) {
     }
 }
 
-TEST_F(RuntimeRequirementsCPU, KnownInternalOpSupported) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    EXPECT_EQ(check_requirements(core, replace_field(requirements, "ops", "ie_internal_opset::FullyConnected+RMS")),
-              ov::CompatibilityCheck::SUPPORTED);
-}
-
 TEST_F(RuntimeRequirementsCPU, ImportFollowsRequirements) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::stringstream blob_stream;
     compiled_model.export_model(blob_stream);
     const auto blob = blob_stream.str();
 
-    const auto older = replace_field(requirements, "ov", "2026.0.0");
-    std::stringstream older_blob(replace_blob_requirements(blob, older));
+    std::stringstream same_blob(blob);
     ov::CompiledModel imported;
-    OV_ASSERT_NO_THROW(imported = core.import_model(older_blob, ov::test::utils::DEVICE_CPU));
-    EXPECT_EQ(imported.get_property(ov::runtime_requirements), older);
+    OV_ASSERT_NO_THROW(imported = core.import_model(same_blob, ov::test::utils::DEVICE_CPU));
+    EXPECT_EQ(imported.get_property(ov::runtime_requirements), requirements);
 
-    const auto newer = replace_field(requirements, "ov", std::to_string(OPENVINO_VERSION_MAJOR + 1) + ".0.0");
-    std::stringstream newer_blob(replace_blob_requirements(blob, newer));
-    OV_EXPECT_THROW((void)core.import_model(newer_blob, ov::test::utils::DEVICE_CPU),
-                    ov::Exception,
-                    testing::HasSubstr("produced by a newer OpenVINO version"));
+    for (const auto& version : other_versions(get_field(requirements, "ov"))) {
+        const auto other_blob = replace_blob_requirements(blob, replace_field(requirements, "ov", version));
+        std::stringstream stream(other_blob);
+        OV_EXPECT_THROW((void)core.import_model(stream, ov::test::utils::DEVICE_CPU),
+                        ov::Exception,
+                        testing::HasSubstr("produced by OpenVINO"));
 
-    const auto blob_with_tensor = replace_blob_requirements(blob, older);
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blob_with_tensor.size()});
-    std::memcpy(tensor.data(), blob_with_tensor.data(), blob_with_tensor.size());
-    OV_ASSERT_NO_THROW((void)core.import_model(tensor, ov::test::utils::DEVICE_CPU));
+        ov::Tensor tensor(ov::element::u8, ov::Shape{other_blob.size()});
+        std::memcpy(tensor.data(), other_blob.data(), other_blob.size());
+        OV_EXPECT_THROW((void)core.import_model(tensor, ov::test::utils::DEVICE_CPU),
+                        ov::Exception,
+                        testing::HasSubstr("produced by OpenVINO"));
+    }
 }
 
 TEST_F(CompatibilityStringCPU, RMSRequiresAvx2) {
@@ -395,7 +386,6 @@ TEST_F(CompatibilityStringCPU, RMSRequiresAvx2) {
     ov::Core core;
     auto compiled_model = core.compile_model(make_rms_model(), ov::test::utils::DEVICE_CPU);
     const auto requirements = compiled_model.get_property(ov::runtime_requirements);
-    EXPECT_NE(get_field(requirements, "ops").find("RMS"), std::string::npos) << requirements;
     EXPECT_EQ(get_field(requirements, "caps"), "ov.avx2") << requirements;
     EXPECT_EQ(check_requirements(core, requirements), ov::CompatibilityCheck::SUPPORTED);
 #else

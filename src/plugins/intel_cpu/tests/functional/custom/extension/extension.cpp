@@ -199,7 +199,6 @@ TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
 
     auto cpu_model = core.compile_model(ov_model, "CPU");
     const auto requirements = cpu_model.get_property(ov::runtime_requirements);
-    EXPECT_EQ(requirements.find("Identity"), std::string::npos) << requirements;
     EXPECT_EQ(core.get_property("CPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}}),
               ov::CompatibilityCheck::SUPPORTED);
 

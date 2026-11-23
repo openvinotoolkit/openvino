@@ -20,15 +20,12 @@ static constexpr uint64_t runtime_requirements_max_size = 4096;
 /**
  * @brief Builds the runtime requirements descriptor of a compiled model.
  *
- * The descriptor lists only what the blob actually depends on, so that it can be reused across
- * OpenVINO versions and CPUs whenever possible:
- *   meta=2.0;ov=<producer version>;arch=<cpu architecture>;ops=<non-standard ops>;caps=<host capabilities>
+ * The descriptor lists what the blob depends on, so that it can be reused on other CPUs when possible:
+ *   meta=2.0;ov=<producer version>;arch=<cpu architecture>;caps=<host capabilities>
  *
- * - ov   - producer OpenVINO version. The blob can be imported by the same or a newer runtime.
+ * - ov   - full version of the OpenVINO that produced the blob. It must equal the version of the runtime, because the
+ *          internal operations in the blob and their semantics are not versioned.
  * - arch - CPU architecture of the producer. Must match.
- * - ops  - internal (non-standard opset) operations serialized into the blob, grouped by opset:
- *          <opset>::<op>[@<schema>]+<op>...,<opset>::...  Every op must be known by the consumer with the same
- *          schema version (see internal_op_schema_versions() in runtime_requirements.cpp).
  * - caps - host capabilities the graph needs, each op requires only what it really uses. "ov." capabilities are
  *          checked with the OpenVINO CPU feature detection, "dnnl." capabilities with oneDNN. Examples: ov.avx2 for
  *          RMS, ov.amx_bf16 for LLMMLP and QKVProjection, dnnl.avx2 for compressed matmuls. A snippets Subgraph
