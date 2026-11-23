@@ -4,9 +4,11 @@
 
 #include "sdpa.hpp"
 
+#include <algorithm>
 #include <regex>
 
 #include "../../logging.hpp"
+#include "../../npuw_transformations/detect_causal_mask.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/core/bound_evaluation_util.hpp"
@@ -837,7 +839,21 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
     ov::pass::GraphRewrite rewr2;
     rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
-    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
+    // ShapeOf(Concat) may feed a shape chain shared by every decoder layer. Folding it in
+    // ordinary static decode changes repeated-block boundaries. Keep the fold for attention
+    // isolation and for sliding-window models, where the Concat side consumer can block
+    // isolation even when generate attention uses the STATIC hint. The mask annotation is
+    // copied to decomposed SDPA nodes, so it remains available after OptimizeValueTensors.
+    bool fold_shapeof_concat = m_run_broadcast_pattern;
+    if (!fold_shapeof_concat) {
+        const auto ordered_ops = model->get_ordered_ops();
+        fold_shapeof_concat = std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const auto& node) {
+            return ov::npuw::has_sliding_window_mask_annotation(*node);
+        });
+    }
+    if (fold_shapeof_concat) {
+        rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
+    }
     model_changed |= rewr2.run_on_model(model);
 
     return model_changed;
