@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/preprocess/pre_post_processor.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset6.hpp"
 
