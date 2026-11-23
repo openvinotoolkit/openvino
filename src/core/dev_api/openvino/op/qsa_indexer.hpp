@@ -80,17 +80,6 @@ public:
     /// `scale`, or its 1 / sqrt(indexer_head_dim) default when unset (0).
     static float effective_scale(const Config& c);
 
-    /// Rows of the block_index_keys_cache output when the key_length values are known: the complete blocks of the
-    /// longest row, max(key_length) / r, as QSAPrepare defines. Shared by the op and the cldnn primitive.
-    static ov::Dimension exact_cache_blocks(int64_t longest_key_length, size_t key_block_size);
-
-    /// Rows of the block_index_keys_cache output when only shapes are known, as QSAPrepare infers them: [0, Bp + ceil(L
-    /// / r)] when that bound is static (the incomplete block holds at most r - 1 past tokens), else dynamic. Shared by
-    /// the op and the cldnn primitive.
-    static ov::Dimension bounded_cache_blocks(const ov::Dimension& past_blocks,
-                                              const ov::Dimension& new_tokens,
-                                              size_t key_block_size);
-
     /// H_iq, derived from index_query's static shape (last dim / indexer_head_dim). Never cached.
     size_t get_index_query_heads() const;
     /// H_ik, derived from raw_index_keys's static shape (last dim / indexer_head_dim). Never cached.

@@ -55,23 +55,6 @@ float QSAIndexer::effective_scale(const Config& c) {
     return c.scale > 0.0F ? c.scale : 1.0F / std::sqrt(static_cast<float>(c.indexer_head_dim));
 }
 
-ov::Dimension QSAIndexer::exact_cache_blocks(int64_t longest_key_length, size_t key_block_size) {
-    OPENVINO_ASSERT(key_block_size > 0, "QSAIndexer: key_block_size must be positive");
-    return ov::Dimension(std::max<int64_t>(longest_key_length, 0) / static_cast<int64_t>(key_block_size));
-}
-
-ov::Dimension QSAIndexer::bounded_cache_blocks(const ov::Dimension& past_blocks,
-                                               const ov::Dimension& new_tokens,
-                                               size_t key_block_size) {
-    OPENVINO_ASSERT(key_block_size > 0, "QSAIndexer: key_block_size must be positive");
-    // As QSAPrepare: only a static Bp + ceil(L / r) bounds the rows, anything else leaves them dynamic.
-    if (!past_blocks.is_static() || !new_tokens.is_static()) {
-        return ov::Dimension::dynamic();
-    }
-    const auto r = static_cast<int64_t>(key_block_size);
-    return ov::Dimension(0, past_blocks.get_length() + (new_tokens.get_length() + r - 1) / r);
-}
-
 size_t QSAIndexer::get_index_query_heads() const {
     const auto& ps = get_input_partial_shape(InputIdx::INDEX_QUERY);
     OPENVINO_ASSERT(ps.rank().is_static() && ps.size() == 4 && ps[2].is_static(),
@@ -238,9 +221,13 @@ void QSAIndexer::validate_and_infer_types() {
             if (const auto key_length = ov::util::get_constant_from_source(input_value(InputIdx::KEY_LENGTH))) {
                 const auto lengths = key_length->cast_vector<int64_t>();
                 const auto longest = lengths.empty() ? int64_t{0} : *std::max_element(lengths.begin(), lengths.end());
-                grown[2] = exact_cache_blocks(longest, m_config.key_block_size);
+                grown[2] = ov::Dimension(std::max<int64_t>(longest, 0) / static_cast<int64_t>(m_config.key_block_size));
+            } else if (cache_ps[2].is_static() && length.is_static()) {
+                // As QSAPrepare: only a static Bp + ceil(L / r) bounds the rows, else they stay dynamic.
+                const auto r = static_cast<int64_t>(m_config.key_block_size);
+                grown[2] = ov::Dimension(0, cache_ps[2].get_length() + (length.get_length() + r - 1) / r);
             } else {
-                grown[2] = bounded_cache_blocks(cache_ps[2], length, m_config.key_block_size);
+                grown[2] = ov::Dimension::dynamic();
             }
         }
         set_output_type(OutputIdx::BLOCK_INDEX_KEYS_CACHE,

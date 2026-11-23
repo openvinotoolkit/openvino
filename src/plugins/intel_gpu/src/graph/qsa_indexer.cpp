@@ -15,6 +15,28 @@
 
 namespace cldnn {
 
+namespace {
+
+/// Rows of the block_index_keys_cache output when the key_length values are known: the complete blocks of the
+/// longest row, max(key_length) / r, as QSAPrepare defines.
+ov::Dimension exact_cache_blocks(int64_t longest_key_length, size_t key_block_size) {
+    OPENVINO_ASSERT(key_block_size > 0, "[GPU] qsa_indexer: key_block_size must be positive");
+    return ov::Dimension(std::max<int64_t>(longest_key_length, 0) / static_cast<int64_t>(key_block_size));
+}
+
+/// Rows of the block_index_keys_cache output when only shapes are known, as QSAPrepare infers them: [0, Bp + ceil(L / r)]
+/// when that bound is static (the incomplete block holds at most r - 1 past tokens), else dynamic.
+ov::Dimension bounded_cache_blocks(const ov::Dimension& past_blocks, const ov::Dimension& new_tokens, size_t key_block_size) {
+    OPENVINO_ASSERT(key_block_size > 0, "[GPU] qsa_indexer: key_block_size must be positive");
+    if (!past_blocks.is_static() || !new_tokens.is_static()) {
+        return ov::Dimension::dynamic();
+    }
+    const auto r = static_cast<int64_t>(key_block_size);
+    return ov::Dimension(0, past_blocks.get_length() + (new_tokens.get_length() + r - 1) / r);
+}
+
+}  // namespace
+
 GPU_DEFINE_PRIMITIVE_TYPE_ID(qsa_indexer)
 
 layout qsa_indexer_inst::calc_output_layout(const qsa_indexer_node& node, const kernel_impl_params& impl_param) {
@@ -54,9 +76,9 @@ std::vector<layout> qsa_indexer_inst::calc_output_layouts(const qsa_indexer_node
                 for (size_t b = 0; b < key_length_mem->get_layout().count(); b++) {
                     longest = std::max<int64_t>(longest, key_length[b]);
                 }
-                shape[2] = ov::op::internal::QSAIndexer::exact_cache_blocks(longest, desc->key_block_size);
+                shape[2] = exact_cache_blocks(longest, desc->key_block_size);
             } else {
-                shape[2] = ov::op::internal::QSAIndexer::bounded_cache_blocks(shape[2], index_query_shape[1], desc->key_block_size);
+                shape[2] = bounded_cache_blocks(shape[2], index_query_shape[1], desc->key_block_size);
             }
         }
         layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));

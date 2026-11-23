@@ -89,7 +89,7 @@ int64_t I(size_t v) {
 }
 
 struct split_dims {
-    size_t Hiq = 2;  // index-query heads (H_ik == 1 fixed in v1)
+    size_t Hiq = 2;  // index-query heads (H_ik == 1 is fixed)
     size_t Di = 16;  // indexer head dim
     size_t rotary = 8;
     size_t r = 4;  // key_block_size
@@ -1751,7 +1751,7 @@ void unset_env_var(const char* name) {
 #endif
 }
 
-/// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
+/// Caps the decode BLOCK_SCORES scratch so the scoring chunk loop runs several times.
 struct scoped_score_budget {
     explicit scoped_score_budget(const char* bytes) {
         set_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES", bytes);
@@ -1768,7 +1768,7 @@ const route decode_scalar{IndexerPath::Decode, AttnPath::Scalar};
 const route decode_split{IndexerPath::Decode, AttnPath::Split};
 const route fused_scalar{IndexerPath::Fused, AttnPath::Scalar};
 
-// Decode batches: Q2 score_partition + top-k, Q3 GQA-DPAS (GQA dims).
+// Decode batches: score_partition + top-k indexer kernels, GQA-DPAS attention (GQA dims).
 TEST(qsa_ops_gpu_test, gqa_paged_batch_decode_matches_reference) {
     run_paged_batch_test(gqa_dims(), {{2051, 1}, {2100, 1}, {2300, 1}}, decode_gqa, 3e-3f);
 }
@@ -1791,8 +1791,8 @@ TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_partial_last_chunk_matches_referen
     run_dense_batch_test(gqa_dims(), 3, 2051, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
 
-// Mixed batches (decode + prefill sequences in one call): dpas Q2 with GQA dims, the
-// fused non-dpas Q2 with the toy dims (Di = 16 fails the dpas score gate).
+// Mixed batches (decode + prefill sequences in one call): DPAS scoring with GQA dims, the
+// fused non-DPAS scoring with the toy dims (Di = 16 fails the DPAS score gate).
 TEST(qsa_ops_gpu_test, gqa_paged_batch_mixed_matches_reference) {
     run_paged_batch_test(gqa_dims(), {{2100, 1}, {1990, 64}, {2060, 1}}, dpas_gqa, 3e-3f);
 }
@@ -1866,8 +1866,8 @@ TEST(qsa_ops_gpu_test, dense_batch_state_starts_without_blocks) {
     run_dense_state_chain_test(split_dims{}, {3, 2}, {1, 1, 4, 1, 6}, 2e-2f, 2e-3f, {CacheFeedback::Whole, true});
 }
 
-TEST(qsa_ops_gpu_test, qwen38_dense_batch_state_feeds_back_whole_output) {
-    run_dense_state_chain_test(qwen38_dims(), {2050, 1990}, {1, 1, 17, 1}, 3e-3f, 2e-3f, {CacheFeedback::Whole, true});
+TEST(qsa_ops_gpu_test, gqa_dense_batch_state_feeds_back_whole_output) {
+    run_dense_state_chain_test(gqa_dims(), {2050, 1990}, {1, 1, 17, 1}, 3e-3f, 2e-3f, {CacheFeedback::Whole, true});
 }
 
 // Bp == 0: the first prefill has no earlier blocks.
@@ -1893,7 +1893,7 @@ TEST(qsa_ops_gpu_test, dense_empty_past_cache_short_prefill_matches_reference) {
     run_dense_empty_cache_test(split_dims{}, {3, 2}, true, 2e-2f);
 }
 
-// Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar Q3 kernel.
+// Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar attention kernel.
 TEST(qsa_ops_gpu_test, paged_pair_mrope_positions_match_reference) {
     run_pair_test(true, split_dims{}, 22, 42, Positions::MRoPELike, fused_scalar, 2e-2f);
 }
@@ -2059,9 +2059,7 @@ TEST(qsa_ops_gpu_test, dense_pair_dominant_outlier_component_stays_accurate) {
     validate_and_run_pair(false, engine, ref, dpas_gqa, /*atol=*/4e-3f, /*rtol=*/5e-3f);
 }
 
-// Many more blocks than the prefill cases above: checks that per-block summary error and
-// online-softmax accumulation error do not grow with the number of terms summed.
-// More than 2048 complete blocks: the prefill top-k uses its widest work-group (16 subgroups), and
+// Many more blocks than the prefill cases above (more than 2048 complete blocks): the prefill top-k uses its widest work-group (16 subgroups), and
 // per-block summary / online-softmax accumulation error must not grow with the number of terms.
 TEST(qsa_ops_gpu_test, gqa_paged_long_context_accumulation_matches_reference) {
     run_pair_test(true, gqa_dims(), 8192, 17, Positions::Sequential, dpas_gqa, 3e-3f);
@@ -2920,7 +2918,7 @@ TEST(qsa_ops_gpu_test, sparse_sdpa_output_shape_and_optional_inputs) {
 }
 
 // ---------------------------------------------------------------------------
-// Plugin-level rejection of configurations outside the v1 GPU scope
+// Plugin-level rejection of configurations outside the supported GPU scope
 // (H_ik == 1, num_selection_heads == 1, f16 data). Goes through ov::Core so the ProgramBuilder
 // factories are exercised; no device support is needed since lowering fails first.
 // ---------------------------------------------------------------------------
@@ -3025,7 +3023,7 @@ struct perf_case {
     bool paged;
     size_t past_len;
     size_t q_len;
-    bool no_dpas_score = false;  // Di=16 fails the Q2 dpas gate, forcing the non-dpas Q2 path
+    bool no_dpas_score = false;  // Di=16 fails the DPAS score gate, forcing the non-DPAS scoring path
 };
 
 struct perf_timing {
@@ -3335,7 +3333,7 @@ void expect_finite_f16(const ov::Tensor& t, const std::string& what) {
     EXPECT_EQ(bad, 0u) << what << " has non-finite values";
 }
 
-// N1: the first call starts from an uninitialized ReadValue, so the block-key cache input has 0 rows (Bp == 0) and
+// Stateful, cache only: the first call starts from an uninitialized ReadValue, so the block-key cache input has 0 rows (Bp == 0) and
 // read_value has no buffer. copy_state must treat that input as empty instead of dereferencing a null memory.
 // Only the cache is stateful here and its Assign takes a Parameter, so the Assign wiring is not involved.
 TEST(qsa_ops_gpu_test, stateful_dense_indexer_starts_from_empty_cache) {
@@ -3367,17 +3365,16 @@ TEST(qsa_ops_gpu_test, stateful_dense_indexer_starts_from_empty_cache) {
     run_call(7, 12, 3, 3);
 }
 
-// N2: every state output of the indexer feeds an Assign. QSAIndexer outputs 2..4 are f16 while output 0 (selection) is
+// Stateful, all state outputs: every state output of the indexer feeds an Assign. QSAIndexer outputs 2..4 are f16 while output 0 (selection) is
 // i32, so a dtype-fixing reorder in front of each Assign must read the Assign's own port, not port 0.
-// The states are seeded so the first call has a non-empty cache (N1 is not involved).
+// The states are seeded so the first call has a non-empty cache (the empty-cache case above is not involved).
 //
 // Skipped for now: the failure is in the generic add_required_reorders pass (its Assign branch reads the dependency's
 // port 0 layout and builds the reorder without a port), not in the indexer, which is functional and knows nothing about
-// Assign. The GPU fusion that creates QSAIndexer from QSAPrepare + SparseAttentionIndexer lands in the transformation
-// PR; it is expected to own this Assign wiring. Remove the skip there.
+// Assign. Remove the skip once add_required_reorders handles the Assign port correctly.
 TEST(qsa_ops_gpu_test, stateful_dense_indexer_assigns_state_outputs) {
-    GTEST_SKIP() << "Blocked on the transformation PR: add_required_reorders builds the Assign dtype reorder from port 0 "
-                    "(i32 selection output) instead of the state port; the QSAIndexer fusion must own the Assign wiring";
+    GTEST_SKIP() << "add_required_reorders builds the Assign dtype reorder from port 0 (i32 selection output) instead of the "
+                    "state port";
     ov::Core core;
     if (!gpu_in_core(core)) {
         GTEST_SKIP() << "GPU plugin is not available in ov::Core";
