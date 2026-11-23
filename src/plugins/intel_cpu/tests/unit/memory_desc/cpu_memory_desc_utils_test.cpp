@@ -36,6 +36,16 @@ TEST(GenerateCpuBlockedMemoryDescTest, StridedTensorConvertsByteStridesToElement
     EXPECT_EQ(desc->getStrides(), VectorDims({4, 1}));
 }
 
+TEST(GenerateCpuBlockedMemoryDescTest, StridedTensorAvoidsOverflowConvertingLargeByteStrides) {
+    std::vector<float> buffer(2);
+    const ov::Strides huge_byte_strides{size_t{1} << 61, sizeof(float)};
+    ov::Tensor tensor(ov::element::f32, ov::Shape{2, 1}, buffer.data(), huge_byte_strides);
+
+    const auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(ov::get_tensor_impl(tensor));
+
+    EXPECT_EQ(desc->getStrides(), VectorDims({size_t{1} << 59, 1}));
+}
+
 TEST(GenerateCpuBlockedMemoryDescTest, NonUnitInnermostStrideIsPreservedForByteGranularType) {
     // Every other f16 element is used: innermost element stride is 2, not 1.
     std::vector<uint16_t> buffer(2 * 8);

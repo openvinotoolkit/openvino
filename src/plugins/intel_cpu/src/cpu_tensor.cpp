@@ -19,6 +19,7 @@
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
+#include "openvino/util/math_util.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -97,7 +98,10 @@ void Tensor::update_strides() const {
     const auto bitwidth = m_element_type.bitwidth();
     m_strides.resize(strides.size());
     std::ranges::transform(strides, m_strides.begin(), [bitwidth](const size_t stride) {
-        return stride * bitwidth / CHAR_BIT;
+        size_t bits = 0;
+        const bool is_overflow = ov::util::mul_overflow(stride, bitwidth, bits);
+        OPENVINO_ASSERT(!is_overflow, "Tensor::update_strides: stride to bits conversion overflow");
+        return bits / CHAR_BIT;
     });
     if (!m_strides.empty() && bitwidth < CHAR_BIT && strides.back() != 0) {
         // the innermost dimension's byte stride is a non-addressable placeholder for sub-byte

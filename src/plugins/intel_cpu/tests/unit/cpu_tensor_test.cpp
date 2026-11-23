@@ -226,6 +226,15 @@ TEST_F(CPUTensorTest, canAccessNonUnitInnermostStrideForByteGranularType) {
     ASSERT_EQ(ov::Strides({12, 4}), t->get_strides());
 }
 
+TEST_F(CPUTensorTest, throwsInsteadOfOverflowingWhenConvertingHugeElementStridesToByteStrides) {
+    Shape shape{2, 1};
+    auto strides = ov::Strides({size_t{1} << 60, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::f32, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    OV_EXPECT_THROW(t->get_strides(), ov::Exception, testing::HasSubstr("overflow"));
+}
+
 TEST_F(CPUTensorTest, isContinuousDoesNotThrowForDenseSubByteTensorWithUnalignedShape) {
     Shape shape{3, 5};
     auto strides = ov::row_major_strides(ov::Shape{3, 5});

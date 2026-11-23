@@ -97,14 +97,13 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
         const auto& byte_strides = tensor->get_strides();
         const auto bitwidth = element_type.bitwidth();
         blk_strides.resize(byte_strides.size());
-        std::ranges::transform(byte_strides, blk_strides.begin(), [bitwidth](size_t byte_stride) {
-            OPENVINO_ASSERT((byte_stride * CHAR_BIT) % bitwidth == 0,
+        std::ranges::transform(byte_strides, blk_strides.begin(), [&element_type](size_t byte_stride) {
+            OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
                             "Limitation: Stride in bytes ",
                             byte_stride,
-                            " must be divisible by element bitwidth ",
-                            bitwidth,
-                            " bits");
-            return byte_stride * CHAR_BIT / bitwidth;
+                            " must be divisible by size of element ",
+                            element_type.size());
+            return ov::util::get_elements_capacity(element_type, byte_stride);
         });
         // the innermost dimension always steps by exactly one element for sub-byte types, since
         // its byte stride is an unaddressable placeholder that cannot go through the formula above
