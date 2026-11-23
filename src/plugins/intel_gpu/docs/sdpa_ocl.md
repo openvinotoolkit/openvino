@@ -56,8 +56,7 @@ output, alibi, ...) the last column's kernel runs.
   reorders the beams (`need_indirect_load()`); a dynamic op's step without a reorder (one beam, as a stateful LLM's at
   batch 1) takes the kernels of the table. A plain int4 KV cache runs `sdpa_opt` everywhere. The
   per-channel row is the GQA decomposition's fused quantized cache (`per_channel_kv_supported()` in `sdpa_gen_ocl.cpp`):
-  the SG16 reads put one channel per lane of a 16-wide subgroup (`sdpa_ocl_per_channel_kv_ok()`), the SG8 ones dequantize
-  per element.
+  every arm of the lane reads it (SG16: one channel per lane of a 16-wide subgroup; SG8: dequantized per element).
 - A PA MIXED step with few new tokens per subsequence follows the small GQA rule (`select_gqa_multi_tokens_kernel()` in
   `paged_attention_opt.cpp`: `pa_small_q_opt.cl`, `paged_attention_opt.cl`'s GQA fallback, or `sdpa_ocl`). PA GENERATE,
   on either reader, adds `paged_attention_opt.cl`'s finalization when it splits the keys into partitions.

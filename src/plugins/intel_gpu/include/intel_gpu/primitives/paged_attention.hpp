@@ -79,11 +79,6 @@ struct paged_attention : public primitive_base<paged_attention> {
         return head_size >= 64 && head_size <= 256 && head_size % 16 == 0;
     }
 
-    // Per-channel compressed KV in sdpa_ocl: the SG16 arms (xe_hpc, Xe2+) only. On top of sdpa_ocl_selected().
-    static bool sdpa_ocl_per_channel_kv_ok(const device_info& info) {
-        return info.arch >= gpu_arch::xe_hpc;
-    }
-
     // Transposed V (SDPA value order {.., 3, 2}) in sdpa_ocl (v_tile_t): Xe2+, and xe_hpg, where its PREFILL kernel and the
     // opt single-token stage read it too (docs/sdpa_ocl.md, "Transposed V read in sdpa_ocl" and "Transposed V on xe_hpg").
     // On top of sdpa_ocl_selected().

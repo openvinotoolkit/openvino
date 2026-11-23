@@ -3040,9 +3040,7 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     // fallback to the opt kernels' per-token reads would be wrong.
     const bool per_channel = granularity == kv_quant_granularity::per_channel;
     const auto& dev_info = engine.get_device_info();
-    const bool per_channel_dpas =
-        per_channel && !is_bf16 && params.dt == data_types::f16 && tests::expected_dpas_backend(engine) == tests::dpas_backend::ocl &&
-        (cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(dev_info) || dev_info.arch == gpu_arch::xe_hpg);
+    const bool per_channel_dpas = per_channel && !is_bf16 && params.dt == data_types::f16 && tests::expected_dpas_backend(engine) == tests::dpas_backend::ocl;
 
     const int bit_width = params.bit_width;
     const bool asymmetric = params.asymmetric;

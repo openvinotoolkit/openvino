@@ -46,13 +46,6 @@ constexpr bool kOneDnn =
 #endif
 }  // namespace
 
-TEST(SdpaOclPredicates, PerChannelKvOkTruthTable) {
-    for (auto a : kArchs) {
-        SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a));
-        EXPECT_EQ(pa::sdpa_ocl_per_channel_kv_ok(make_info(a, true)), sg16_arch(a));
-    }
-}
-
 TEST(SdpaOclPredicates, SelectedTruthTable) {
     for (auto a : kArchs) {
         for (bool immad : kBools) {

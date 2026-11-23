@@ -1933,16 +1933,14 @@ size_t sdpa_ocl_max_wg_size(gpu_arch arch) {
 
 namespace {
 // Per-channel compressed K/V (the GQA decomposition's quantized cache): one scale, and with asymmetric quantization one
-// zero point, per head-dim channel of a KV head, as planar [B or 1, KV heads or 1, 1, head size] tensors. Read on xe_hpc and Xe2+
-// (paged_attention::sdpa_ocl_per_channel_kv_ok(): one channel per lane of a 16-wide subgroup) and xe_hpg (SG8: per element)
+// zero point, per head-dim channel of a KV head, as planar [B or 1, KV heads or 1, 1, head size] tensors. Read on every arm
+// of the lane (the callers check sdpa_ocl_selected() or xe_hpg): SG16 one channel per lane, SG8 (xe_hpg) per element,
 // for f16 queries, from an i8 cache or a 4-bit one (u4 or i4 nibbles, two per i8/u8 byte).
 // SDPAOpt::validate_impl() sends anything refused here to SDPARef, the only other reader.
 bool per_channel_kv_supported(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto& qa = desc->quantization_attributes;
-    const bool sg8 = params.get_device_info().arch == gpu_arch::xe_hpg;
-    if (!(paged_attention::sdpa_ocl_per_channel_kv_ok(params.get_device_info()) || sg8) || params.input_layouts[0].data_type != ov::element::f16 ||
-        qa.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
+    if (params.input_layouts[0].data_type != ov::element::f16 || qa.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         return false;
     }
     const auto k_dt = params.input_layouts[1].data_type;
