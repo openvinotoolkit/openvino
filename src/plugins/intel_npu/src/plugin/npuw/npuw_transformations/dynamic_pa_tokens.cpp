@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -20,7 +22,7 @@ bool ov::npuw::DynamicPATokens::run_on_model(const std::shared_ptr<ov::Model>& m
 
     bool relaxed = false;
     for (const auto& node : model->get_ordered_ops()) {
-        if (std::string(node->get_type_name()) != "PagedAttentionExtension") {
+        if (!ov::is_type<ov::op::PagedAttentionExtension>(node)) {
             continue;
         }
         // Inputs 0, 1 and 2 are the queries, keys and values, [tokens, heads * head_size].
@@ -55,6 +57,12 @@ bool ov::npuw::DynamicPATokens::run_on_model(const std::shared_ptr<ov::Model>& m
                                                    std::vector<int64_t>(dims.begin(), dims.end()));
         auto source = results[i]->input_value(0);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(source, target, false);
+        // The output keeps the names it is known by.
+        const auto producer = source.get_node_shared_ptr();
+        const auto name = producer->get_friendly_name();
+        ov::copy_runtime_info(producer, reshape);
+        producer->set_friendly_name(name + "/dynamic_tokens");
+        reshape->set_friendly_name(name);
         reshape->output(0).get_tensor().set_names(source.get_names());
         source.get_tensor().set_names({});
         results[i]->input(0).replace_source_output(reshape);

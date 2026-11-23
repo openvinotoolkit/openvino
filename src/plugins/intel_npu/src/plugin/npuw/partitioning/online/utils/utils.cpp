@@ -15,9 +15,8 @@ std::string ov::npuw::online::util::getMetaDesc(const std::shared_ptr<ov::Node>&
     std::stringstream ss;
     ss << ov_node->description() << ' ';
 
-    // PartialShape is stable metadata for both static and dynamic models.
-    // Using Shape here would reject a model before repeated-block discovery
-    // whenever any input or output dimension is dynamic.
+    // Partial shapes, as a model may keep dynamic ops next to its static
+    // repeated blocks. A static shape prints the same as before.
     for (const auto& input : ov_node->inputs()) {
         ss << input.get_element_type() << ' ' << input.get_partial_shape() << ' ';
     }

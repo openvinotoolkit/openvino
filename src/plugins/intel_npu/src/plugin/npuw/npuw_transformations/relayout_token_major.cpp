@@ -18,6 +18,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -84,6 +85,17 @@ void rebatch(const std::shared_ptr<ov::Node>& op, const std::vector<std::size_t>
     op->validate_and_infer_types();
     const auto restored = reshape_to(op, out_shape);
     ov::copy_runtime_info(op, restored);
+    const auto is_result = [](const ov::Input<ov::Node>& consumer) {
+        return ov::op::util::is_output(consumer.get_node());
+    };
+    if (std::any_of(consumers.begin(), consumers.end(), is_result)) {
+        // A model output keeps the names it is known by.
+        const auto name = op->get_friendly_name();
+        op->set_friendly_name(name + "/batch_1");
+        restored->set_friendly_name(name);
+        restored->output(0).get_tensor().set_names(op->output(0).get_names());
+        op->output(0).get_tensor().set_names({});
+    }
     for (auto consumer : consumers) {
         consumer.replace_source_output(restored);
     }
