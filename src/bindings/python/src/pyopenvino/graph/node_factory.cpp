@@ -40,9 +40,12 @@ public:
                                      const ov::OutputVector& arguments,
                                      const py::dict& attributes = py::dict()) {
         // Check for available extensions first, because they may override ops from main opset
-        auto ext_it = m_opset_so_extensions.find(op_type_name);
-        if (ext_it != m_opset_so_extensions.end()) {
-            auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_it->second->extension());
+        auto ext_it = m_opset_extensions.find(op_type_name);
+        if (ext_it != m_opset_extensions.end()) {
+            const auto& extension = ext_it->second;
+            auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension);
+            ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
+            auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted);
             OPENVINO_ASSERT(op_extension);  // guaranteed by add_extension method
             util::DictAttributeDeserializer visitor(attributes, m_variables);
             auto outputs = op_extension->create(arguments, visitor);
@@ -74,9 +77,9 @@ public:
 
     std::shared_ptr<ov::Node> create(const std::string op_type_name) {
         // Check for available extensions first, because they may override ops from main opset
-        auto ext_it = m_opset_so_extensions.find(op_type_name);
+        auto ext_it = m_opset_extensions.find(op_type_name);
         // No way to instantiate operation without inputs, so if extension operation is found report an error.
-        OPENVINO_ASSERT(ext_it == m_opset_so_extensions.end(),
+        OPENVINO_ASSERT(ext_it == m_opset_extensions.end(),
                         "Couldn't create operation of type ",
                         op_type_name,
                         " from an extension library as no inputs were provided. Currently NodeFactory doesn't support ",
@@ -99,14 +102,14 @@ public:
         ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
         if (auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
             auto op_type = op_extension->get_type_info().name;
-            // keep so extension instead of extension_extracted to hold loaded library
-            m_opset_so_extensions[op_type] = so_extension;
+            // Keep the original owner, including its library when it is an SOExtension.
+            m_opset_extensions[op_type] = extension;
         }
     }
 
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
         // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
-        // them in m_opset_so_extensions for future use in create methods.
+        // them in m_opset_extensions for future use in create methods.
         // NodeFactory provides a simplified API for node creation without involving version of operation.
         // It means all operations share the same name space and real operation versions (opsets) from extension
         // library are ignored.
@@ -115,15 +118,15 @@ public:
             ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
             if (auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
                 auto op_type = op_extension->get_type_info().name;
-                // keep so extension instead of extension_extracted to hold loaded library
-                m_opset_so_extensions[op_type] = so_extension;
+                // Keep the original owner, including its library when it is an SOExtension.
+                m_opset_extensions[op_type] = extension;
             }
         }
     }
 
     void add_extension(const std::filesystem::path& lib_path) {
         // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
-        // them in m_opset_so_extensions for future use in create methods.
+        // them in m_opset_extensions for future use in create methods.
         // NodeFactory provides a simplified API for node creation without involving version of operation.
         // It means all operations share the same name space and real operation versions (opsets) from extension
         // library are ignored.
@@ -133,8 +136,8 @@ public:
             ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
             if (auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
                 auto op_type = op_extension->get_type_info().name;
-                // keep so extension instead of extension_extracted to hold loaded library
-                m_opset_so_extensions[op_type] = so_extension;
+                // Keep the original owner, including its library when it is an SOExtension.
+                m_opset_extensions[op_type] = extension;
             }
         }
     }
@@ -154,7 +157,7 @@ private:
     }
 
     const ov::OpSet& m_opset = ov::get_opset13();
-    std::map<std::string, std::shared_ptr<ov::detail::SOExtension>> m_opset_so_extensions;
+    std::map<std::string, std::shared_ptr<ov::Extension>> m_opset_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 }  // namespace
