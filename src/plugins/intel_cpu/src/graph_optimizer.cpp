@@ -1496,27 +1496,6 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph& graph) {
         return false;
     };
 
-    auto isSuitableChildNode = [](const NodePtr& node) {
-        if (node->getType() != Type::FakeQuantize || node->getAlgorithm() == Algorithm::FQBinarization) {
-            return false;
-        }
-#if defined(OV_CPU_WITH_ACL)
-        // ACL int8 pooling takes a single destination scale and zero point. Fuse only FakeQuantize that maps to
-        // them exactly: per-tensor input scale and shift, unit output scale and an integral output shift.
-        const auto fq = std::dynamic_pointer_cast<FakeQuantize>(node);
-        if (!fq || fq->getInputScale().size() != 1 || fq->getInputShift().size() > 1) {
-            return false;
-        }
-        const auto& outputScale = fq->getOutputScale();
-        const auto& outputShift = fq->getOutputShift();
-        if (outputScale.size() != 1 || outputScale[0] != 1.0F || outputShift.size() > 1 ||
-            (!outputShift.empty() && outputShift[0] != std::trunc(outputShift[0]))) {
-            return false;
-        }
-#endif
-        return true;
-    };
-
     for (const auto& parent : graphNodes) {
         if (!isSuitableParentNode(parent)) {
             continue;
@@ -1525,7 +1504,7 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph& graph) {
         CPU_GRAPH_OPTIMIZER_SCOPE(FusePoolingAndFakeQuantize_ParentNode);
 
         auto child = parent->getChildEdgeAt(0)->getChild();
-        if (!isSuitableChildNode(child)) {
+        if (!parent->canFuse(child)) {
             continue;
         }
 
