@@ -29,7 +29,10 @@ void OtdPerfCounters::dump() const {
                    << ", created_onednn_kernels=" << created_onednn_kernels.load(std::memory_order_relaxed)
                    << ", les_prefetch_loads=" << les_prefetch_loads.load(std::memory_order_relaxed)
                    << ", les_prefetch_resident=" << les_prefetch_resident.load(std::memory_order_relaxed)
-                   << ", les_prefetch_used=" << les_prefetch_used.load(std::memory_order_relaxed) << std::endl;
+                   << ", les_prefetch_used=" << les_prefetch_used.load(std::memory_order_relaxed)
+                   << ", les_wait_ms=" << les_wait_ns.load(std::memory_order_relaxed) / 1000000
+                   << ", les_read_ms=" << les_read_ns.load(std::memory_order_relaxed) / 1000000
+                   << ", les_copy_ms=" << les_copy_ns.load(std::memory_order_relaxed) / 1000000 << std::endl;
 }
 
 OtdPerfCounters* get_perf_counters() {

@@ -4,6 +4,7 @@
 
 #include "expert_weight_providers.hpp"
 
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <mutex>
@@ -139,6 +140,7 @@ void OffloadExpertWeightProvider::reset_cache_if_slots_changed(const RoutedWeigh
         }
     }
     if (handles != _slot_handles) {
+        finish_all_pending(false);
         _slot_handles = std::move(handles);
         _cache = std::make_shared<LRUCache>(_capacity);
         _cache->set_initialized();
@@ -189,6 +191,7 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
             return std::nullopt;
         }
 
+        finish_pending(expert, true);
         const auto item = _cache->get_lru_item(expert);
         const auto slot = item.first;
 
@@ -200,9 +203,8 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
             if (perf) {
                 perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
             }
-            if (!consume_pending(expert, slot, inputs, slot_buffers, stream)) {
-                load(expert, slot, inputs, slot_buffers, stream);
-            }
+            finish_pending_in_slot(slot);
+            load(expert, slot, inputs, slot_buffers, stream);
             _cache->set_filled(slot);
         }
 
@@ -217,6 +219,7 @@ size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, const RoutedWei
     reset_cache_if_slots_changed(slots);
     auto* perf = moe_otd::get_perf_counters();
 
+    finish_pending(expert, true);
     const auto item = _cache->get_lru_item(expert);
     const auto slot = item.first;
 
@@ -228,75 +231,93 @@ size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, const RoutedWei
         if (perf) {
             perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
         }
-        if (!consume_pending(expert, slot, inputs, slots, stream)) {
-            load(expert, slot, inputs, slots, stream);
-        }
+        finish_pending_in_slot(slot);
+        load(expert, slot, inputs, slots, stream);
         _cache->set_filled(slot);
     }
 
     return slot;
 }
 
-bool OffloadExpertWeightProvider::consume_pending(uint32_t expert,
-                                                  size_t slot,
-                                                  const RoutedWeightViews& inputs,
-                                                  const RoutedWeightViews& slots,
-                                                  cldnn::stream& stream) {
+OffloadExpertWeightProvider::~OffloadExpertWeightProvider() {
+    // The background tasks write to the slots through this provider's copy stream
+    for (auto& [expert, pending] : _pending) {
+        for (auto& done : pending.done) {
+            done.wait();
+        }
+    }
+}
+
+void OffloadExpertWeightProvider::finish_pending(uint32_t expert, bool fill) {
     auto it = _pending.find(expert);
     if (it == _pending.end()) {
-        return false;
+        return;
     }
-    auto pending = it->second;
+    const size_t slot = it->second.slot;
+    auto done = std::move(it->second.done);
     _pending.erase(it);
-    for (auto& read : pending->reads) {
-        read.wait();
+    auto* perf = moe_otd::get_perf_counters();
+    const auto t0 = std::chrono::steady_clock::now();
+    for (auto& d : done) {
+        d.get();  // rethrows a failed read
     }
-    const bool blocking = stream.get_queue_type() != cldnn::QueueTypes::in_order;
-    const size_t num_expert = _config.num_expert;
-    for (size_t i = 0; i < 3; i++) {
-        if (slots.weight[i] && !pending->payloads[i].empty()) {
-            const size_t size = pending->payloads[i].size();
-            slots.weight[i]->copy_from(stream, pending->payloads[i].data(), 0, slot * size, size, blocking);
-        }
-        for (const auto& [slot_mem, source] : {std::pair{slots.scale[i], inputs.scale[i]}, std::pair{slots.zp[i], inputs.zp[i]}}) {
-            if (slot_mem) {
-                const size_t size = source->get_layout().bytes_count() / num_expert;
-                slot_mem->copy_from(stream, *source, expert * size, slot * size, size, blocking);
-            }
+    if (perf) {
+        perf->les_wait_ns.fetch_add(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count(),
+                                    std::memory_order_relaxed);
+    }
+    if (fill) {
+        _cache->set_filled(slot);
+        if (perf) {
+            perf->les_prefetch_used.fetch_add(1, std::memory_order_relaxed);
         }
     }
-    _inflight.push_back(std::move(pending));
-    if (auto* perf = moe_otd::get_perf_counters()) {
-        perf->les_prefetch_used.fetch_add(1, std::memory_order_relaxed);
+}
+
+void OffloadExpertWeightProvider::finish_pending_in_slot(size_t slot) {
+    for (auto& [expert, pending] : _pending) {
+        if (pending.slot == slot) {
+            finish_pending(expert, false);  // evicted before the router selected it
+            return;
+        }
     }
-    return true;
+}
+
+void OffloadExpertWeightProvider::finish_all_pending(bool fill) {
+    for (auto& [expert, pending] : _pending) {
+        for (auto& done : pending.done) {
+            done.get();
+        }
+        if (fill) {
+            _cache->set_filled(pending.slot);  // a wrong prediction for this token, but a loaded expert for the next ones
+        }
+    }
+    _pending.clear();
 }
 
 void OffloadExpertWeightProvider::prefetch(const std::vector<uint32_t>& experts,
-                                           const RoutedWeightViews& /*inputs*/,
+                                           const RoutedWeightViews& inputs,
                                            const RoutedWeightViews& slots,
                                            cldnn::stream& /*stream*/) {
     if (!_bound || !slots.weight[0] || !slots.weight[1] || !slots.weight[2]) {
         return;  // the slot buffers are allocated at the first execution of the layer
     }
-    auto* perf = moe_otd::get_perf_counters();
-    // Predictions of the previous token that were not used: their reads are done long ago
-    for (auto& [expert, pending] : _pending) {
-        for (auto& read : pending->reads) {
-            read.wait();
-        }
+    reset_cache_if_slots_changed(slots);
+    // Predictions of the previous token that the router did not select: done long ago
+    finish_all_pending(true);
+    if (!_copy_stream) {
+        _copy_stream = slots.weight[0]->get_engine()->create_stream(cldnn::ExecutionConfig{});
     }
-    _pending.clear();
-    // The device copies of the consumed prefetches are complete: every MoE layer synchronizes the stream
-    _inflight.clear();
 
-    // Only the file reads start here, on background threads: the layer copies an expert to a slot when the router
-    // selects it, so a wrong prediction costs neither a slot nor a device copy
+    // The slot is reserved now, on the network thread (the only user of the LRU); a background task reads the expert
+    // and copies it to the slot on the copy stream while the network stream runs the preceding layers. The layer waits
+    // for the task when the router selects the expert, or when the LRU evicts the slot before.
+    auto* perf = moe_otd::get_perf_counters();
     const size_t num_expert = _config.num_expert;
     const size_t file_size = _weight_reader.file_size();  // opens the file before the background reads
     const size_t max_loads = _capacity / 2;
+    size_t loads = 0;
     for (uint32_t expert : experts) {
-        if (expert >= num_expert || _pending.size() >= max_loads || _pending.count(expert)) {
+        if (expert >= num_expert || loads >= max_loads || _pending.count(expert)) {
             continue;
         }
         if (_cache->contains_filled(expert)) {
@@ -305,19 +326,49 @@ void OffloadExpertWeightProvider::prefetch(const std::vector<uint32_t>& experts,
             }
             continue;
         }
-        auto pending = std::make_shared<PendingExpert>();
-        pending->payloads.resize(3);
+        const auto item = _cache->get_lru_item(expert);
+        if (item.second) {
+            continue;
+        }
+        const size_t slot = item.first;
+        finish_pending_in_slot(slot);
+        std::vector<size_t> sizes(3), offsets(3);
         for (size_t i = 0; i < 3; i++) {
-            const size_t size = slots.weight[i]->get_layout().bytes_count() / num_expert;
-            const size_t offset = _weight_bin_offsets[i] + expert * size;
-            OPENVINO_ASSERT(offset + size <= file_size, "OTD prefetch: read range out of the weights file");
-            pending->payloads[i].resize(size);
-            char* dst = reinterpret_cast<char*>(pending->payloads[i].data());
-            pending->reads.push_back(ReadPool::get().submit([this, dst, size, offset] {
-                _weight_reader.read(dst, size, offset);
-            }));
+            sizes[i] = slots.weight[i]->get_layout().bytes_count() / num_expert;
+            offsets[i] = _weight_bin_offsets[i] + expert * sizes[i];
+            OPENVINO_ASSERT(offsets[i] + sizes[i] <= file_size, "OTD prefetch: read range out of the weights file");
+        }
+        // One task per weight tensor: the reads run in parallel, the copies one at a time
+        PendingExpert pending{slot, {}};
+        for (size_t i = 0; i < 3; i++) {
+            auto task = [this, i, expert, slot, size = sizes[i], offset = offsets[i], inputs, slots, num_expert, perf] {
+                const auto t0 = std::chrono::steady_clock::now();
+                // Per worker thread, reused: the copies complete before the task returns
+                thread_local std::vector<uint8_t> payload;
+                if (payload.size() < size) {
+                    payload.resize(size);
+                }
+                _weight_reader.read(reinterpret_cast<char*>(payload.data()), size, offset);
+                std::lock_guard<std::mutex> lock(_copy_mutex);
+                const auto t1 = std::chrono::steady_clock::now();
+                slots.weight[i]->copy_from(*_copy_stream, payload.data(), 0, slot * size, size, false);
+                for (const auto& [slot_mem, source] : {std::pair{slots.scale[i], inputs.scale[i]}, std::pair{slots.zp[i], inputs.zp[i]}}) {
+                    if (slot_mem) {
+                        const size_t sz = source->get_layout().bytes_count() / num_expert;
+                        slot_mem->copy_from(*_copy_stream, *source, expert * sz, slot * sz, sz, false);
+                    }
+                }
+                _copy_stream->finish();
+                if (perf) {
+                    const auto t2 = std::chrono::steady_clock::now();
+                    perf->les_read_ns.fetch_add(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(), std::memory_order_relaxed);
+                    perf->les_copy_ns.fetch_add(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count(), std::memory_order_relaxed);
+                }
+            };
+            pending.done.push_back(ReadPool::get().submit(std::move(task)));
         }
         _pending.emplace(expert, std::move(pending));
+        loads++;
         if (perf) {
             perf->les_prefetch_loads.fetch_add(1, std::memory_order_relaxed);
         }

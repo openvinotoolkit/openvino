@@ -34,6 +34,9 @@ struct OtdPerfCounters {
     std::atomic<uint64_t> les_prefetch_loads{0};
     std::atomic<uint64_t> les_prefetch_resident{0};
     std::atomic<uint64_t> les_prefetch_used{0};  // prefetched experts the router selected
+    std::atomic<uint64_t> les_wait_ns{0};        // network thread waiting for prefetch tasks
+    std::atomic<uint64_t> les_read_ns{0};        // background reads
+    std::atomic<uint64_t> les_copy_ns{0};        // background device copies (enqueue + finish)
 
     void dump() const;
 };

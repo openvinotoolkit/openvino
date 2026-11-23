@@ -895,7 +895,7 @@ public:
         _les_pending = std::move(unique);
     }
 
-    // Called once the kernels of this layer are enqueued: the reads from the weights file overlap with them
+    // Starts the background loads of the next layer's predicted experts (the predictor ran before this layer)
     void les_prefetch_next(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, cldnn::stream& stream) {
         if (_les_pending.empty()) {
             return;
@@ -1031,6 +1031,8 @@ public:
         }
         stream.finish();
         les_read_predictions(instance, stream);
+        // Background reads and copies of the next layer's predicted experts overlap with the misses of this layer
+        les_prefetch_next(instance, stream);
 
         std::vector<uint32_t> expert_ids(topk_count);
         scratch.topk_id->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
@@ -3225,9 +3227,7 @@ public:
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         const MoeGemmImpl impl = select_impl(token_num);
         if (impl == MoeGemmImpl::batched_gemv) {
-            auto event = exec_batched_gemv(events, instance, scratch, token_num);
-            les_prefetch_next(instance, stream);
-            return event;
+            return exec_batched_gemv(events, instance, scratch, token_num);
         }
         if (impl == MoeGemmImpl::int3_batched_gemv) {
             return exec_int3_batched_gemv(events, instance, scratch, token_num);

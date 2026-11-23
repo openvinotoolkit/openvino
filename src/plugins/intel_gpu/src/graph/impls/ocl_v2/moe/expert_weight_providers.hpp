@@ -10,6 +10,7 @@
 #include <future>
 #include <unordered_map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -103,16 +104,25 @@ private:
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;
     bool _bound = false;
-    // Lookahead expert scheduling: the weight slices of a predicted expert, read from the file by background threads
+    // Lookahead expert scheduling: a predicted expert owns a reserved slot (in the LRU, not filled yet) that a
+    // background task fills: it reads the weight slices from the file and copies them on _copy_stream
     struct PendingExpert {
-        std::vector<std::vector<uint8_t>> payloads;  // per weight tensor
-        std::vector<std::future<void>> reads;
+        size_t slot;
+        std::vector<std::future<void>> done;  // per weight tensor: read and device copies complete
     };
-    // Copies a prefetched expert into `slot` if it was predicted; false: not predicted
-    bool consume_pending(uint32_t expert, size_t slot, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream);
-    std::unordered_map<uint32_t, std::shared_ptr<PendingExpert>> _pending;
-    // Consumed prefetches whose host buffers may still be read by device copies
-    std::vector<std::shared_ptr<PendingExpert>> _inflight;
+    // Waits for the prefetch of `expert` if there is one; `fill`: the slot still belongs to the expert
+    void finish_pending(uint32_t expert, bool fill);
+    // Waits for a prefetch whose slot the LRU just evicted for another expert
+    void finish_pending_in_slot(size_t slot);
+    void finish_all_pending(bool fill);
+    std::unordered_map<uint32_t, PendingExpert> _pending;
+    cldnn::stream::ptr _copy_stream;  // a second queue: the copies overlap with the kernels of the network stream
+    std::mutex _copy_mutex;           // the background tasks enqueue on _copy_stream one at a time
+
+public:
+    ~OffloadExpertWeightProvider() override;
+
+private:
     // Handles of the slot buffers the LRU describes, compared only to detect a re-allocation
     std::vector<const void*> _slot_handles;
 };
