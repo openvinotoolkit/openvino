@@ -689,6 +689,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_post_mul_bias,
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
+std::vector<ov::AnyMap> filter_additional_config_per_ic() {
+    std::vector<ov::AnyMap> additional_config = filter_additional_config_basic();
+    if (ov::with_cpu_x86_bfloat16())
+        additional_config.push_back(
+            {{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::bf16)}});
+    return additional_config;
+}
+
+const std::vector<MatMulDecompressionShapeParams> input_shapes_per_ic = {
+    {{{}, {{1, 1, 64}}}, {64, 64}},
+    {{{}, {{1, 16, 64}}}, {64, 64}},
+    {{{}, {{1, 64, 768}}}, {768, 64}},
+};
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_per_ic,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_per_ic),
+                                            ::testing::Values(ov::element::u8, ov::element::u4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::ValuesIn(transpose_weights),
+                                            ::testing::Values(DecompressionType::per_ic),
+                                            ::testing::Values(DecompressionType::per_ic, DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_per_ic()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(false)),
+                         MatmulWeightsDecompression::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

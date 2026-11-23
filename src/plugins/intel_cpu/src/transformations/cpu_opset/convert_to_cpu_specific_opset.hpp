@@ -57,30 +57,36 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     // TransformMoeBlockToGatherMatmuls
     CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_X64(
-        manager,
-        ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
-        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
-        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
-        [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& gather_matmul,
-            size_t IC,
-            size_t OC,
-            size_t G) {
-            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
-        });
+    CPU_REGISTER_PASS_X64(manager,
+                          ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
+                          ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+                          ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+                          [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& gather_matmul,
+                              size_t IC,
+                              size_t OC,
+                              size_t group_size) {
+                              return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul,
+                                                                                                       IC,
+                                                                                                       OC,
+                                                                                                       group_size,
+                                                                                                       config);
+                          });
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_ARM64(
-        manager,
-        ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
-        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
-        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
-        [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& gather_matmul,
-            size_t IC,
-            size_t OC,
-            size_t G) {
-            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
-        });
+    CPU_REGISTER_PASS_ARM64(manager,
+                            ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
+                            ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+                            ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+                            [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& gather_matmul,
+                                size_t IC,
+                                size_t OC,
+                                size_t group_size) {
+                                return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul,
+                                                                                                         IC,
+                                                                                                         OC,
+                                                                                                         group_size,
+                                                                                                         config);
+                            });
 
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
@@ -90,8 +96,11 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         pass::ConvertFullyConnectedToFullyConnectedCompressed,
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
-        [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
-            return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, G, config);
+        [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc,
+                  size_t IC,
+                  size_t OC,
+                  size_t group_size) {
+            return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, group_size, config);
         });
 
     CPU_REGISTER_PASS_X64(manager,

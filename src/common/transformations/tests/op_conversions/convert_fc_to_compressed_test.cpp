@@ -233,19 +233,24 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedRank0ScaleZpWithTranspose) {
 }
 
 namespace {
-struct ConvertFCToCompressedGroupsNumParams {
+struct ConvertFCToCompressedGroupSizeParams {
     ov::Shape wei_shape;
     ov::Shape scale_shape;
     ov::Shape zp_shape;
     bool transposed;
-    size_t expected_G;
+    size_t expected_group_size;
 };
 
-int64_t get_ic(const ConvertFCToCompressedGroupsNumParams& p) {
-    return static_cast<int64_t>(p.transposed ? p.wei_shape[0] : ov::shape_size(p.wei_shape) / p.wei_shape[0]);
+// Weights are [OC, IC] or grouped [OC, n_groups, group_size]; transposed: [IC, OC] or [n_groups, group_size, OC]
+int64_t get_oc(const ConvertFCToCompressedGroupSizeParams& p) {
+    return static_cast<int64_t>(p.transposed ? p.wei_shape.back() : p.wei_shape.front());
 }
 
-std::shared_ptr<ov::Model> getModel(const ConvertFCToCompressedGroupsNumParams& p) {
+int64_t get_ic(const ConvertFCToCompressedGroupSizeParams& p) {
+    return static_cast<int64_t>(ov::shape_size(p.wei_shape)) / get_oc(p);
+}
+
+std::shared_ptr<ov::Model> getModel(const ConvertFCToCompressedGroupSizeParams& p) {
     const int64_t IC = get_ic(p);
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
     auto weights_const = ov::op::v0::Constant::create(ov::element::u8, p.wei_shape, {1});
@@ -258,9 +263,8 @@ std::shared_ptr<ov::Model> getModel(const ConvertFCToCompressedGroupsNumParams& 
     auto scale_const = ov::op::v0::Constant::create(ov::element::f32, p.scale_shape, {1});
     weights = std::make_shared<ov::op::v1::Multiply>(weights, scale_const);
     if (p.wei_shape.size() == 3) {
-        auto shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                  ov::Shape{2},
-                                                  std::vector<int64_t>{static_cast<int64_t>(p.wei_shape[0]), IC});
+        const auto target = p.transposed ? std::vector<int64_t>{IC, get_oc(p)} : std::vector<int64_t>{get_oc(p), IC};
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, target);
         weights = std::make_shared<ov::op::v1::Reshape>(weights, shape, false);
     }
     if (p.transposed) {
@@ -272,12 +276,12 @@ std::shared_ptr<ov::Model> getModel(const ConvertFCToCompressedGroupsNumParams& 
     return std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
 }
 
-std::shared_ptr<ov::Model> getModelRef(const ConvertFCToCompressedGroupsNumParams& p) {
+std::shared_ptr<ov::Model> getModelRef(const ConvertFCToCompressedGroupSizeParams& p) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, get_ic(p)});
     auto perm = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
     auto make_const = [&](ov::element::Type type, ov::Shape shape) -> std::shared_ptr<ov::Node> {
         if (shape.size() == 3) {
-            shape = ov::Shape{shape[0], shape[1] * shape[2]};
+            shape = p.transposed ? ov::Shape{shape[0] * shape[1], shape[2]} : ov::Shape{shape[0], shape[1] * shape[2]};
         }
         std::shared_ptr<ov::Node> node = ov::op::v0::Constant::create(type, shape, {1});
         if (p.transposed && ov::shape_size(shape) > 1) {
@@ -294,10 +298,10 @@ std::shared_ptr<ov::Model> getModelRef(const ConvertFCToCompressedGroupsNumParam
     return std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
 }
 
-class ConvertFCToCompressedGroupsNum : public testing::WithParamInterface<ConvertFCToCompressedGroupsNumParams>,
+class ConvertFCToCompressedGroupSize : public testing::WithParamInterface<ConvertFCToCompressedGroupSizeParams>,
                                        public TransformationTestsF {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ConvertFCToCompressedGroupsNumParams>& info) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertFCToCompressedGroupSizeParams>& info) {
         const auto shape_name = [](const ov::Shape& shape) {
             std::string name = shape.empty() ? "Scalar" : "";
             for (const auto dim : shape) {
@@ -311,7 +315,7 @@ public:
         const auto& p = info.param;
         return "Weights_" + shape_name(p.wei_shape) + "_Scale_" + shape_name(p.scale_shape) + "_ZP_" +
                (p.zp_shape.empty() ? "None" : shape_name(p.zp_shape)) + "_Transposed_" + std::to_string(p.transposed) +
-               "_Groups_" + std::to_string(p.expected_G);
+               "_GroupSize_" + std::to_string(p.expected_group_size);
     }
 
 protected:
@@ -323,40 +327,44 @@ protected:
         manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(
             std::vector<ov::element::Type>{ov::element::f32},
             std::vector<ov::element::Type>{ov::element::u8},
-            [this](const std::shared_ptr<ov::op::internal::FullyConnected>&, size_t, size_t, size_t G) {
-                received_G.push_back(G);
+            [this](const std::shared_ptr<ov::op::internal::FullyConnected>&, size_t, size_t, size_t group_size) {
+                received_group_size.push_back(group_size);
                 return true;
             });
     }
 
     void TearDown() override {
         TransformationTestsF::TearDown();
-        ASSERT_EQ(received_G.size(), 1u);
-        EXPECT_EQ(received_G[0], GetParam().expected_G);
+        ASSERT_EQ(received_group_size.size(), 1u);
+        EXPECT_EQ(received_group_size[0], GetParam().expected_group_size);
     }
 
-    std::vector<size_t> received_G;
+    std::vector<size_t> received_group_size;
 };
 
-TEST_P(ConvertFCToCompressedGroupsNum, PredicateReceivesICGroupsNum) {}
+TEST_P(ConvertFCToCompressedGroupSize, PredicateReceivesICGroupSize) {}
 
-const std::vector<ConvertFCToCompressedGroupsNumParams> groups_num_params = {
+const std::vector<ConvertFCToCompressedGroupSizeParams> group_size_params = {
     // per-tensor
-    {{64, 32}, {}, {}, false, 1},
+    {{64, 32}, {}, {}, false, 32},
     // per-OC
-    {{64, 32}, {64, 1}, {}, false, 1},
-    {{32, 64}, {1, 64}, {1, 64}, true, 1},
-    // grouped: G = 4
-    {{64, 4, 8}, {64, 4, 1}, {}, false, 4},
-    {{64, 4, 8}, {64, 4, 1}, {64, 4, 1}, false, 4},
-    // per-IC: G = IC
-    {{32, 64}, {32, 1}, {}, true, 32},
-    {{768, 2304}, {768, 1}, {}, true, 768},
-    {{32, 64}, {32, 1}, {32, 1}, true, 32},
+    {{64, 32}, {64, 1}, {}, false, 32},
+    {{32, 64}, {1, 64}, {1, 64}, true, 32},
+    // grouped: group size = IC / 4
+    {{64, 4, 8}, {64, 4, 1}, {}, false, 8},
+    {{64, 4, 8}, {64, 4, 1}, {64, 4, 1}, false, 8},
+    {{4, 8, 64}, {4, 1, 64}, {}, true, 8},
+    {{4, 8, 64}, {4, 1, 64}, {4, 1, 64}, true, 8},
+    // per-IC: group size = 1
+    {{64, 32}, {1, 32}, {}, false, 1},
+    {{64, 32}, {1, 32}, {1, 32}, false, 1},
+    {{32, 64}, {32, 1}, {}, true, 1},
+    {{768, 2304}, {768, 1}, {}, true, 1},
+    {{32, 64}, {32, 1}, {32, 1}, true, 1},
 };
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
-                         ConvertFCToCompressedGroupsNum,
-                         ::testing::ValuesIn(groups_num_params),
-                         ConvertFCToCompressedGroupsNum::getTestCaseName);
+                         ConvertFCToCompressedGroupSize,
+                         ::testing::ValuesIn(group_size_params),
+                         ConvertFCToCompressedGroupSize::getTestCaseName);

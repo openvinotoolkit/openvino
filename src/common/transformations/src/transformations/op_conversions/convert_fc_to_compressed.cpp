@@ -166,9 +166,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     return std::make_tuple(fc_input_b, fc_input_scale, fc_input_zp);
 }
 
-size_t ConvertFullyConnectedToFullyConnectedCompressed::get_ic_groups_num(const ov::Shape& processed_scale_shape) {
-    return processed_scale_shape.empty() || ov::shape_size(processed_scale_shape) <= 1 ? 1
-                                                                                       : processed_scale_shape.back();
+size_t ConvertFullyConnectedToFullyConnectedCompressed::get_ic_group_size(size_t ic,
+                                                                          const ov::Shape& processed_scale_shape) {
+    return ov::shape_size(processed_scale_shape) <= 1 ? ic : ic / processed_scale_shape.back();
 }
 
 ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
@@ -213,8 +213,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);
-        const auto& processed_scale_shape = fc_input_scale->get_output_shape(0);
-        const size_t G = get_ic_groups_num(processed_scale_shape);
+        const size_t group_size = get_ic_group_size(IC, fc_input_scale->get_output_shape(0));
         // The flags are not copyable and are needed by supports_config
         if (ov::is_conversion_disabled(fc, element::f16)) {
             ov::disable_conversion(new_fc, element::f16);
@@ -222,7 +221,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (ov::is_conversion_disabled(fc, element::f32, element::bf16)) {
             ov::disable_conversion(new_fc, element::f32, element::bf16);
         }
-        if (supports_config && !supports_config(new_fc, IC, OC, G))
+        if (supports_config && !supports_config(new_fc, IC, OC, group_size))
             return false;
 
         result_nodes.push_back(new_fc);

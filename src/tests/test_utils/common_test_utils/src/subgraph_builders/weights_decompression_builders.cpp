@@ -36,6 +36,9 @@ std::ostream& operator<<(std::ostream& os, DecompressionType type) {
     case DecompressionType::full:
         os << "full";
         break;
+    case DecompressionType::per_ic:
+        os << "per_ic";
+        break;
     default:
         OPENVINO_THROW("Not supported DecompressionType");
     }
@@ -127,9 +130,32 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
     if (reshape_on_decompression_constant)
         scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1),
                                      scaleshift_const_shape.end());
+
+    const bool per_ic_decompression = decompression_multiply_type == DecompressionType::per_ic ||
+                                      decompression_subtract_type == DecompressionType::per_ic;
+    OPENVINO_ASSERT(!per_ic_decompression || !group_decompression,
+                    "Per-IC decompression is not supported with group decompression.");
+    auto per_ic_target_shape = transpose_if_necessary(ov::Shape{IC, 1});
+    if (with_batch) {
+        per_ic_target_shape.insert(per_ic_target_shape.begin(), weights_shape[0]);
+    }
+    auto per_ic_const_shape = per_ic_target_shape;
+    if (reshape_on_decompression_constant)
+        per_ic_const_shape.erase(std::remove(per_ic_const_shape.begin(), per_ic_const_shape.end(), 1),
+                                 per_ic_const_shape.end());
+    auto get_const_shape = [&](DecompressionType type) {
+        return type == DecompressionType::full     ? scaleshift_const_shape
+               : type == DecompressionType::per_ic ? per_ic_const_shape
+                                                   : ov::Shape({});
+    };
+    auto get_target_shape = [&](DecompressionType type) {
+        return type == DecompressionType::full     ? scaleshift_target_shape
+               : type == DecompressionType::per_ic ? per_ic_target_shape
+                                                   : ov::Shape(scaleshift_const_shape.size(), 1);
+    };
+
     if (decompression_subtract_type != DecompressionType::empty) {
-        auto subtract_shape =
-            decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
+        auto subtract_shape = get_const_shape(decompression_subtract_type);
         // Per-weight zero points have the same shape as the weights; use different data to avoid an all-zero result.
         auto shift_const_tensor = ov::test::utils::create_and_fill_tensor(
             weights_precision,
@@ -140,9 +166,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
         std::shared_ptr<ov::Node> shift_convert =
             std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
         if (reshape_on_decompression_constant) {
-            auto subtract_target_shape = decompression_subtract_type == DecompressionType::full
-                                             ? scaleshift_target_shape
-                                             : ov::Shape(scaleshift_const_shape.size(), 1);
+            auto subtract_target_shape = get_target_shape(decompression_subtract_type);
             auto shift_reshape_const =
                 ov::opset10::Constant::create(ov::element::i32, {subtract_target_shape.size()}, subtract_target_shape);
             auto shift_reshape = std::make_shared<ov::opset10::Reshape>(shift_convert, shift_reshape_const, false);
@@ -155,8 +179,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
     std::shared_ptr<ov::Node> last_node = mul_parent;
     const auto& scale_prc = scale_precision == ov::element::dynamic ? decompression_precision : scale_precision;
     if (decompression_multiply_type != DecompressionType::empty) {
-        auto multiply_shape =
-            decompression_multiply_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
+        auto multiply_shape = get_const_shape(decompression_multiply_type);
         auto scale_const_tensor =
             ov::test::utils::create_and_fill_tensor_real_distribution(scale_prc, multiply_shape, 0.001f, 0.01f, seed);
         scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
@@ -168,9 +191,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
         }
 
         if (reshape_on_decompression_constant) {
-            auto multiply_target_shape = decompression_multiply_type == DecompressionType::full
-                                             ? scaleshift_target_shape
-                                             : ov::Shape(scaleshift_const_shape.size(), 1);
+            auto multiply_target_shape = get_target_shape(decompression_multiply_type);
             auto reshape_const =
                 ov::opset10::Constant::create(ov::element::i32, {multiply_target_shape.size()}, multiply_target_shape);
             auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, reshape_const, false);
@@ -224,6 +245,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     const bool reshape_on_decompression_constant,
     const std::optional<bool>& insert_transpose_node,
     const size_t seed) {
+    OPENVINO_ASSERT(decompression_multiply_type != DecompressionType::per_ic &&
+                        decompression_subtract_type != DecompressionType::per_ic,
+                    "Per-IC decompression is not supported by this builder.");
     // Validate that the precision is supported for real quantization
     OPENVINO_ASSERT(
         weights_precision == ov::element::u2 || weights_precision == ov::element::u3 ||
@@ -613,6 +637,9 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
                                                           const DecompressionType decompression_multiply_type,
                                                           const DecompressionType decompression_subtract_type,
                                                           const bool reshape_on_decompression_constant) {
+    OPENVINO_ASSERT(decompression_multiply_type != DecompressionType::per_ic &&
+                        decompression_subtract_type != DecompressionType::per_ic,
+                    "Per-IC decompression is not supported by this builder.");
     const bool group_decompression = group_size != -1;
     // Weights has shape [I, D], where
     // I - index

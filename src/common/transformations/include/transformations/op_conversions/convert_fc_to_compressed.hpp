@@ -27,6 +27,7 @@ class ov::pass::ConvertFullyConnectedToFullyConnectedCompressed : public ov::pas
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertFullyConnectedToFullyConnectedCompressed");
 
+    // Arguments: compressed op candidate, IC, OC, decompression group size along IC
     using SupportsPredicate =
         std::function<bool(const std::shared_ptr<ov::op::internal::FullyConnected>&, size_t, size_t, size_t)>;
 
@@ -58,9 +59,12 @@ public:
                                std::vector<std::shared_ptr<ov::Node>>& result_nodes);
 
     /**
-     * @brief Returns the number of decompression groups along IC of processed scales.
+     * @brief Returns the decompression group size along IC of processed scales,
+     * i.e. IC divided by the last scale dimension: IC for per-tensor and per-OC, IC / n_groups for grouped,
+     * 1 for per-IC.
      *
+     * @param ic Number of input channels
      * @param processed_scale_shape Shape of the decompression scale returned by process_compressed_weights
      */
-    static size_t get_ic_groups_num(const ov::Shape& processed_scale_shape);
+    static size_t get_ic_group_size(size_t ic, const ov::Shape& processed_scale_shape);
 };

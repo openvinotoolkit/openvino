@@ -41,7 +41,7 @@ public:
     static bool isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
                                                size_t IC,
                                                size_t OC,
-                                               size_t G,
+                                               size_t group_size,
                                                const Config& config) noexcept;
     static ov::element::TypeVector getSupportedCompressedWeightsTypes();
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
