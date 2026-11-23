@@ -105,18 +105,35 @@ bool SDPABase::transposed_v_reader_ok(const kernel_impl_params& params) {
     }
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto& v = params.get_input_layout(2);
-    // f16 (v_tile_t), or the per-channel i8 cache (v_t_i8_read, the SG16 arms only: xe_hpg has no per-channel reader); a
-    // packed 4-bit one would pack two keys per byte.
+    // f16 (v_tile_t), or the per-channel i8 cache (v_t_i8_read; on xe_hpg also the xe_hpg PREFILL kernel's and the opt
+    // single-token stage's reads); a packed 4-bit one would pack two keys per byte.
     const bool f16_v = !desc->is_kv_compressed && v.data_type == ov::element::f16;
-    const bool i8_per_channel_v = desc->is_kv_compressed && cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(params.get_device_info()) &&
+    const auto& info = params.get_device_info();
+    const bool i8_per_channel_v = desc->is_kv_compressed &&
+                                  (cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(info) || info.arch == cldnn::gpu_arch::xe_hpg) &&
                                   has_per_channel_compressed_kv(params) && !is_int4_kv_cache(params) && v.data_type == ov::element::i8;
     return cldnn::paged_attention::sdpa_ocl_transposed_v_ok(params.get_device_info()) && (f16_v || i8_per_channel_v) && v.get_partial_shape().size() == 4 &&
            format::is_simple_data_format(v.format);
 }
 
 bool SDPABase::opt_single_token_reads_transposed_v(const kernel_impl_params& params) {
-    return params.get_device_info().arch == cldnn::gpu_arch::xe_hpg && transposed_v_reader_ok(params) &&
-           !params.typed_desc<scaled_dot_product_attention>()->is_kv_compressed && params.get_input_layout(2).data_type == ov::element::f16;
+    const bool f16_v = !params.typed_desc<scaled_dot_product_attention>()->is_kv_compressed && params.get_input_layout(2).data_type == ov::element::f16;
+    return params.get_device_info().arch == cldnn::gpu_arch::xe_hpg && transposed_v_reader_ok(params) && (f16_v || opt_single_token_reads_per_channel(params));
+}
+
+bool SDPABase::opt_single_token_reads_per_channel(const kernel_impl_params& params) {
+    if (params.get_device_info().arch != cldnn::gpu_arch::xe_hpg || !has_per_channel_compressed_kv(params)) {
+        return false;
+    }
+    const auto& qa = params.typed_desc<scaled_dot_product_attention>()->quantization_attributes;
+    const auto k_dt = params.get_input_layout(1).data_type;
+    const auto v_dt = params.get_input_layout(2).data_type;
+    // An i8 cache, or a 4-bit one (two channels per i8 / u8 byte, IS_INT4_COMPRESSED) with V as [key][value].
+    const bool i8 = qa.quantization_dt == ov::element::i8 && k_dt == ov::element::i8 && v_dt == ov::element::i8;
+    const bool int4 = (qa.quantization_dt == ov::element::u4 || qa.quantization_dt == ov::element::i4) && data_type_traits::is_i8_u8(k_dt) &&
+                      data_type_traits::is_i8_u8(v_dt) && !has_transposed_v(params);
+    return qa.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar && params.get_input_layout(0).data_type == ov::element::f16 &&
+           (i8 || int4);
 }
 
 bool SDPABase::has_per_channel_compressed_kv(const kernel_impl_params& params) {

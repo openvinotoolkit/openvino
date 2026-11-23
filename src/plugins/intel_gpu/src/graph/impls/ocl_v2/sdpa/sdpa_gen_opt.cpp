@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
+#include "sdpa_ocl_utils.hpp"
 #include "sdpa_opt.hpp"
 
 namespace ov::intel_gpu::ocl {
@@ -205,6 +206,14 @@ JitConstants SDPAOptGeneratorSingleToken::get_jit_constants(const kernel_impl_pa
     // sdpa_ocl does, and the stage keeps its block read.
     if (opt_single_token_reads_transposed_v(params) && !m_indirect) {
         jit.make("V_TRANSPOSED_READ", 1);
+    }
+    // Per-channel compressed KV likewise (xe_hpg, SDPAOptImpl::execute()). SDPA_OCL_NEG_X5 (negative control, as for
+    // sdpa_ocl): 1 = K scale of the neighbouring channel, 2 = V scale / zp of the neighbouring column.
+    if (opt_single_token_reads_per_channel(params) && !m_indirect) {
+        jit.make("KV_COMP_PER_CHANNEL", 1);
+        if (const int neg = sdpa_ocl_utils::env_int("SDPA_OCL_NEG_X5", 0); neg != 0) {
+            jit.make("NEG_X5", neg);
+        }
     }
     return jit;
 }

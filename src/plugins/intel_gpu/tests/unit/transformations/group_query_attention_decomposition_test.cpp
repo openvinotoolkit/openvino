@@ -54,7 +54,6 @@ struct GQAConfig {
     bool static_past_cache = false;
     bool transpose_v = false;
     bool sdpa_support_immad = true;
-    bool fuse_compressed_kv = true;  // the pass's mode; the GPU pipeline sets it on the sdpa_ocl lane only
     bool fuse_transposed_v = false;  // the pass's mode; the GPU pipeline sets it where a transposed-V reader runs (Xe2+, xe_hpg)
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
@@ -177,7 +176,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
 std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     auto model = make_gqa_model(cfg);
     ov::pass::Manager manager;
-    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.sdpa_support_immad, cfg.fuse_compressed_kv, cfg.fuse_transposed_v);
+    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.sdpa_support_immad, cfg.fuse_transposed_v);
     manager.run_passes(model);
     return model;
 }
@@ -214,7 +213,7 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     const bool need_qk_output = cfg.qk_output != QKOutput::NONE;
     // An 8-bit cache only where it reaches SDPA compressed (per-channel, i8, fused), not dequantized or packed 4-bit.
     const bool compressed_i8 = cfg.kv_cache_bit_width == 8 && cfg.kv_quant == QuantType::PER_CHANNEL && cfg.out_quant == QuantType::PER_CHANNEL &&
-                               cfg.cache_type == ov::element::i8 && cfg.sdpa_support_immad && cfg.fuse_compressed_kv;
+                               cfg.cache_type == ov::element::i8 && cfg.sdpa_support_immad;
     const bool fused_transposed_v =
         cfg.transpose_v && cfg.fuse_transposed_v && !need_qk_output && cfg.softcap == 0.0f && (cfg.kv_cache_bit_width == 0 || compressed_i8);
     EXPECT_EQ(parameters[3]->get_partial_shape().is_static(), cfg.static_past_cache);
@@ -726,7 +725,8 @@ TEST(GQADecompositionTest, i8_per_channel_kv_with_transpose_v_fused_into_sdpa) {
     EXPECT_EQ(sdpa->get_input2_transpose_order(), transposed_order);
 }
 
-// The same cache dequantized before SDPA (no compressed-KV fusion): the dequantization expects the default layout.
+// The same cache dequantized before SDPA (no compressed-KV fusion without immad): the dequantization expects the default
+// layout.
 TEST(GQADecompositionTest, i8_per_channel_kv_dequantized_with_transpose_v_not_fused_into_sdpa) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
@@ -736,7 +736,7 @@ TEST(GQADecompositionTest, i8_per_channel_kv_dequantized_with_transpose_v_not_fu
     cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.transpose_v = true;
     cfg.fuse_transposed_v = true;
-    cfg.fuse_compressed_kv = false;
+    cfg.sdpa_support_immad = false;
 
     expect_stateless_kv_cache_connections(cfg);
 
@@ -849,27 +849,6 @@ TEST(GQADecompositionTest, per_channel_kv_without_immad_uses_decompressed_sdpa) 
     cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.sdpa_support_immad = false;
-
-    const auto sdpa = decompose_and_get_sdpa(cfg);
-
-    ASSERT_NE(sdpa, nullptr);
-    EXPECT_FALSE(sdpa->get_kv_compressed());
-    ASSERT_EQ(sdpa->get_input_size(), 3u) << "Q, dequantized K, dequantized V";
-    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::f32);
-    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
-}
-
-// The GPU pipeline's mode off the sdpa_ocl lane (sdpa_opt reads one scale per token): even with immad the K/V are
-// dequantized first.
-TEST(GQADecompositionTest, per_channel_kv_without_compressed_kv_fusion_uses_decompressed_sdpa) {
-    GQAConfig cfg;
-    cfg.kv_cache_bit_width = 8;
-    cfg.kv_quant = QuantType::PER_CHANNEL;
-    cfg.out_quant = QuantType::PER_CHANNEL;
-    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
-    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
-    cfg.sdpa_support_immad = true;
-    cfg.fuse_compressed_kv = false;
 
     const auto sdpa = decompose_and_get_sdpa(cfg);
 

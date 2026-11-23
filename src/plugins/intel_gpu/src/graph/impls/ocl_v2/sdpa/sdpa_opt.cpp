@@ -80,6 +80,17 @@ bool SDPAOpt::transposed_v_on_dpas_lane(const kernel_impl_params& params) {
 #endif
 }
 
+namespace {
+// unaligned_head_size() of the head sizes the kernels see: a packed 4-bit per-channel cache holds two channels per byte
+// (SDPABase::get_effective_k_head_size()). Every other op keeps the layouts' sizes.
+bool unaligned_kv_head(const RuntimeParams& params) {
+    if (!SDPABase::has_per_channel_compressed_kv(params) || !SDPABase::is_int4_kv_cache(params)) {
+        return unaligned_head_size(params);
+    }
+    return SDPABase::get_effective_k_head_size(params) % 16 != 0 || SDPABase::get_effective_v_head_size(params) % 16 != 0;
+}
+}  // namespace
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 namespace {
 // Knob (OV_GPU_ENABLE_SDPA_MICRO=0, a historical name): the DPAS SDPA kernel (sdpa_ocl) off, so the op runs the OCL
@@ -101,8 +112,10 @@ bool opt_stages_take_head(const RuntimeParams& params) {
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto& k_layout = params.get_input_layout(1);
     const auto& v_layout = params.get_input_layout(2);
-    const auto k_head_size = get_head_size(k_layout, desc->input_k_transpose_order);
-    const auto v_head_size = get_head_size(v_layout, desc->input_v_transpose_order);
+    // A packed 4-bit per-channel cache: the unpacked head sizes (unaligned_kv_head()).
+    const bool pc_int4 = SDPABase::has_per_channel_compressed_kv(params) && SDPABase::is_int4_kv_cache(params);
+    const auto k_head_size = pc_int4 ? SDPABase::get_effective_k_head_size(params) : get_head_size(k_layout, desc->input_k_transpose_order);
+    const auto v_head_size = pc_int4 ? SDPABase::get_effective_v_head_size(params) : get_head_size(v_layout, desc->input_v_transpose_order);
     const auto max_head = std::min<int64_t>(static_cast<int64_t>(params.get_device_info().max_work_group_size), 512);
     for (const auto head : {k_head_size, v_head_size}) {
         if (head < 64 || head > max_head || head % 2 != 0) {
@@ -110,7 +123,7 @@ bool opt_stages_take_head(const RuntimeParams& params) {
         }
     }
     const bool f16_kv = ov::element::Type(k_layout.data_type).size() >= 2 && ov::element::Type(v_layout.data_type).size() >= 2;
-    return f16_kv || !unaligned_head_size(params);
+    return f16_kv || !unaligned_kv_head(params);
 }
 }  // namespace
 #endif
@@ -165,8 +178,13 @@ public:
         // (opt_stages_take_head()), or one with a transposed V they cannot read (only the single-token stage reads it, and
         // not at a head that is not a multiple of 16: "Transposed V on xe_hpg"), which skips the ARL-H rule below too.
         const bool tv_needs_ocl_single_token = SDPABase::has_transposed_v(params) && (!SDPABase::opt_single_token_reads_transposed_v(params) ||
-                                                                                      !opt_stages_take_head(params) || unaligned_head_size(params));
-        const bool ocl_single_token_ok = params.get_device_info().arch != gpu_arch::xe_hpg || !opt_stages_take_head(params) || tv_needs_ocl_single_token;
+                                                                                      !opt_stages_take_head(params) || unaligned_kv_head(params));
+        // Per-channel compressed KV likewise: the opt stages read one scale per token, but for the single-token stage on
+        // xe_hpg (KV_COMP_PER_CHANNEL), at the heads it takes.
+        const bool pc_needs_ocl_single_token = SDPABase::has_per_channel_compressed_kv(params) && (!SDPABase::opt_single_token_reads_per_channel(params) ||
+                                                                                                   !opt_stages_take_head(params) || unaligned_kv_head(params));
+        const bool needs_ocl_single_token = tv_needs_ocl_single_token || pc_needs_ocl_single_token;
+        const bool ocl_single_token_ok = params.get_device_info().arch != gpu_arch::xe_hpg || !opt_stages_take_head(params) || needs_ocl_single_token;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";
         if (params.is_dynamic()) {
@@ -202,7 +220,7 @@ public:
 #else
             const bool ocl_single_token_unaligned = ocl_lane && !is_indirect;
 #endif
-            if (is_prefill || (unaligned_head_size(params) && !ocl_single_token_unaligned)) {
+            if (is_prefill || (unaligned_kv_head(params) && !ocl_single_token_unaligned)) {
                 if (is_indirect) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
                     add_stage(indirect_multi_tokens, params);
@@ -225,13 +243,13 @@ public:
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
                 const bool use_sdpa_ocl = ocl_single_token_ok && dpas_supported() &&
-                                          (cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) || tv_needs_ocl_single_token) &&
+                                          (cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) || needs_ocl_single_token) &&
                                           !is_indirect && single_query_row(params);
                 if (use_sdpa_ocl) {
                     add_stage(ocl_single_token, params);
                 }
 #endif
-                if (unaligned_head_size(params) && !has_stage(ocl_single_token)) {
+                if (unaligned_kv_head(params) && !has_stage(ocl_single_token)) {
                     // Unaligned decode on the sdpa_ocl lane whose sdpa_ocl stage was refused or could not be added:
                     // execute() runs regular_multi_tokens, the only opt kernel that handles unaligned heads.
                     GPU_DEBUG_TRACE_DETAIL << "no sdpa_ocl single-token stage for unaligned head size, add regular_multi_tokens \n";
@@ -262,25 +280,31 @@ public:
         const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
         const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
 
-        // Per-channel compressed KV is read by sdpa_ocl only (validate_impl() admits it where sdpa_ocl serves it): every opt
-        // stage below reads one scale per token, so a missing sdpa_ocl stage must fail here rather than give wrong output.
-        // A plain int4 cache otherwise stays on the opt kernels (sdpa_ocl unpacks the nibbles of the per-channel one only).
+        // Per-channel compressed KV is read by sdpa_ocl (validate_impl() admits it where sdpa_ocl serves it) and on xe_hpg by
+        // the opt single-token stage (KV_COMP_PER_CHANNEL), which the ctor leaves its one-query steps to where it takes the
+        // head; every other opt stage reads one scale per token, so a missing stage must fail here rather than give wrong
+        // output. A plain int4 cache otherwise stays on the opt kernels (sdpa_ocl unpacks the nibbles of the per-channel one only).
         const bool per_channel_kv = SDPABase::has_per_channel_compressed_kv(new_params);
         if (per_channel_kv) {
-            OPENVINO_ASSERT(!is_indirect && has_stage(multi_token_rows ? ocl_multi_tokens : ocl_single_token),
-                            "[GPU] SDPA with per-channel compressed KV needs the sdpa_ocl ",
-                            multi_token_rows ? "multi-token" : "single-token",
-                            " stage (indirect = ",
-                            is_indirect,
-                            ")");
-            return execute_stage(events, instance, multi_token_rows ? ocl_multi_tokens : ocl_single_token);
+            const bool opt_decode =
+                !multi_token_rows && !has_stage(ocl_single_token) && SDPABase::opt_single_token_reads_per_channel(new_params) && !unaligned_kv_head(new_params);
+            if (!opt_decode) {
+                OPENVINO_ASSERT(!is_indirect && has_stage(multi_token_rows ? ocl_multi_tokens : ocl_single_token),
+                                "[GPU] SDPA with per-channel compressed KV needs the sdpa_ocl ",
+                                multi_token_rows ? "multi-token" : "single-token",
+                                " stage (indirect = ",
+                                is_indirect,
+                                ")");
+                return execute_stage(events, instance, multi_token_rows ? ocl_multi_tokens : ocl_single_token);
+            }
+            OPENVINO_ASSERT(!is_indirect, "[GPU] SDPA with per-channel compressed KV has no beam-table reader");
         }
         // A transposed V likewise (validate_impl() admits it where sdpa_ocl serves it): the opt stages read V's head dim as
         // contiguous, but for the single-token stage on xe_hpg (V_TRANSPOSED_READ), which the ctor leaves its one-query steps
         // to where it takes the head; those go on to the opt single-token path below.
         if (SDPABase::has_transposed_v(new_params)) {
             const bool opt_decode =
-                !multi_token_rows && !has_stage(ocl_single_token) && SDPABase::opt_single_token_reads_transposed_v(new_params) && !unaligned_head_size(new_params);
+                !multi_token_rows && !has_stage(ocl_single_token) && SDPABase::opt_single_token_reads_transposed_v(new_params) && !unaligned_kv_head(new_params);
             if (!opt_decode) {
                 OPENVINO_ASSERT(!is_indirect && has_stage(multi_token_rows ? ocl_multi_tokens : ocl_single_token),
                                 "[GPU] SDPA with a transposed V needs the sdpa_ocl ",
@@ -304,7 +328,7 @@ public:
         // The sdpa_ocl single-token kernel does support unaligned head sizes (head < d / value < dv /
         // DKS_ACTIVE guards). When it is staged (sdpa_ocl lane, non-indirect decode) it is used instead;
         // when it is not, the ctor stages regular_multi_tokens for a static non-indirect unaligned decode.
-        if (multi_token_rows || (unaligned_head_size(new_params) && (is_indirect || !has_stage(ocl_single_token)))) {
+        if (multi_token_rows || (unaligned_kv_head(new_params) && (is_indirect || !has_stage(ocl_single_token)))) {
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }

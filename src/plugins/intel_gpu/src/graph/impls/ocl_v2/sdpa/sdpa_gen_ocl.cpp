@@ -1048,12 +1048,14 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t
 }
 
 const layout* runtime_scale_layout(const kernel_impl_params& params);  // with the scale jit below
+bool per_channel_kv_supported(const kernel_impl_params& params);       // with supported() below
 
 // The same kernel serves plain SDPA PREFILL (q > 1) at the hpg_plain_head_ok() heads, causal (either alignment) only
 // without a mask, and without a runtime scalar mask, a runtime scale, a sink, a sliding window or a compressed KV
-// cache, when Q, K, V and the output are rank-4 f16 tensors whose head dimension is innermost and unpadded (every row
-// starts at a multiple of the head size), or V transposed (value order {..,3,2}, transposed_v_reader_ok(): read by
-// value rows, whose start the kernel checks). A tensor mask must be f16, bfyx and unpadded (8 keys of a row per load, no
+// cache but the per-channel one (HPG_PC), when Q, K, V and the output are rank-4 tensors (f16; K / V of that cache i8,
+// or 4-bit in i8 / u8 bytes) whose head dimension is innermost and unpadded (every row starts at a multiple of the head
+// size), or V transposed (value order {..,3,2}, transposed_v_reader_ok(): read by value rows, whose start the kernel
+// checks). A tensor mask must be f16, bfyx and unpadded (8 keys of a row per load, no
 // padding offset). A finite static scalar mask is left out: it adds the same value to every score of a row, which the
 // softmax cancels. An indirect op is admitted: SDPAOptImpl::execute() dispatches the sdpa_ocl PREFILL only when no beam
 // reorder is needed (need_indirect_load()), so no sdpa_ocl kernel reads the beam table. SDPA_OCL_HPG_PLAIN_PREFILL=0
@@ -1069,9 +1071,12 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     // Causal with a mask is not taken: the kernel's mask row is the query's key position, which the lower-right
     // alignment shifts. Nor a sliding window: the plain window with that shift is not covered by the xe_hpg tests.
+    // A compressed K / V only per channel (HPG_PC, per_channel_kv_supported()): i8, transposed V included, or 4-bit.
     const bool causal_with_mask = desc->is_causal && (desc->attn_mask_val.has_value() || sdpa_has_runtime_attn_mask_input(params));
+    const bool pc = desc->is_kv_compressed && SDPABase::has_per_channel_compressed_kv(params) && per_channel_kv_supported(params) &&
+                    !(plain_kv_u4(params) && SDPABase::has_transposed_v(params));
     if (causal_with_mask || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) || has_scalar_runtime_attn_mask_input(params) ||
-        runtime_scale_layout(params) != nullptr || desc->has_sink_input || desc->is_kv_compressed || desc->sliding_window != 0) {
+        runtime_scale_layout(params) != nullptr || desc->has_sink_input || (desc->is_kv_compressed && !pc) || desc->sliding_window != 0) {
         return false;
     }
     if (sdpa_has_runtime_attn_mask_input(params)) {
@@ -1089,12 +1094,18 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
         return false;
     }
     // A transposed V's innermost axis is the keys': padding there (a cache's capacity) only moves the value row pitch.
-    const auto rows_ok = [](const layout& l, bool keys_innermost) {
-        return l.data_type == data_types::f16 && l.get_partial_shape().size() == 4 && format::is_simple_data_format(l.format) &&
+    // The per-channel K / V rows (their storage type: i8, or i8 / u8 bytes of 4-bit) are read by dwords: head % 4, 4-bit % 8.
+    const auto rows_ok = [](const layout& l, bool keys_innermost, data_types dt) {
+        return l.data_type == dt && l.get_partial_shape().size() == 4 && format::is_simple_data_format(l.format) &&
                (keys_innermost || axis_unpadded(l, ChannelName::X));
     };
-    return rows_ok(params.input_layouts[0], false) && rows_ok(params.input_layouts[1], false) && rows_ok(params.input_layouts[2], v_t) &&
-           rows_ok(params.output_layouts[0], false);
+    const auto k_dt = pc ? params.input_layouts[1].data_type : data_types::f16;
+    const auto v_dt = pc ? params.input_layouts[2].data_type : data_types::f16;
+    if (pc && k_head_size % (plain_kv_u4(params) ? 8 : 4) != 0) {
+        return false;
+    }
+    return rows_ok(params.input_layouts[0], false, data_types::f16) && rows_ok(params.input_layouts[1], false, k_dt) &&
+           rows_ok(params.input_layouts[2], v_t, v_dt) && rows_ok(params.output_layouts[0], false, data_types::f16);
 }
 
 // Its tiling, by rule from the head: a key subgroup per 16 value columns (the head rounded up to 16), 32-key x 16-query
@@ -1923,13 +1934,14 @@ size_t sdpa_ocl_max_wg_size(gpu_arch arch) {
 namespace {
 // Per-channel compressed K/V (the GQA decomposition's quantized cache): one scale, and with asymmetric quantization one
 // zero point, per head-dim channel of a KV head, as planar [B or 1, KV heads or 1, 1, head size] tensors. Read on xe_hpc and Xe2+
-// (paged_attention::sdpa_ocl_per_channel_kv_ok(): the per-channel reads put one channel per lane of a 16-wide subgroup;
-// SG8 has none) for f16 queries, from an i8 cache or a 4-bit one (u4 or i4 nibbles, two per i8/u8 byte).
+// (paged_attention::sdpa_ocl_per_channel_kv_ok(): one channel per lane of a 16-wide subgroup) and xe_hpg (SG8: per element)
+// for f16 queries, from an i8 cache or a 4-bit one (u4 or i4 nibbles, two per i8/u8 byte).
 // SDPAOpt::validate_impl() sends anything refused here to SDPARef, the only other reader.
 bool per_channel_kv_supported(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto& qa = desc->quantization_attributes;
-    if (!paged_attention::sdpa_ocl_per_channel_kv_ok(params.get_device_info()) || params.input_layouts[0].data_type != ov::element::f16 ||
+    const bool sg8 = params.get_device_info().arch == gpu_arch::xe_hpg;
+    if (!(paged_attention::sdpa_ocl_per_channel_kv_ok(params.get_device_info()) || sg8) || params.input_layouts[0].data_type != ov::element::f16 ||
         qa.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         return false;
     }

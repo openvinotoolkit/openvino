@@ -148,7 +148,8 @@
 #endif
 // The packed plain K takes the u4 page's permuted depth labelling (PA_K_U4_CHANNEL below): a byte-column read hands lane
 // L the channel pair (2L, 2L + 1) of its 32-channel window, the same as the page's.
-#define PA_K_PERMUTED (IS_PA_K_U4 || PLAIN_KV_U4)
+// (SG8 reads a byte per lane, the channel pair 2l, 2l + 1 in natural order: k_tile_dword_ch().)
+#define PA_K_PERMUTED (IS_PA_K_U4 || (PLAIN_KV_U4 && !SG8))
 #if PA_K_PERMUTED
 // The u4 depth permutation pairs tiles (2g, 2g+1) over one 32-channel window, so an odd active
 // count would leave the last pair half-formed. Round up; DKS is even (D_MAX is a power of two
@@ -173,10 +174,10 @@
 #  if !defined(KV_COMPRESSED) || IS_PAGED_ATTENTION
 #    error "sdpa_ocl.cl: KV_COMP_PER_CHANNEL is a plain-SDPA compressed-KV mode"
 #  endif
-// The per-channel reads hold one channel per lane of a 16-wide subgroup and dequantize in half (f16 queries); the host
-// admits nothing else (per_channel_kv_supported()).
-#  if SUBGROUP_SIZE != 16 || INPUT0_IS_BF16
-#    error "sdpa_ocl.cl: per-channel compressed KV is read on SG16 with f16 queries only"
+// The per-channel reads hold one channel per lane of a 16-wide subgroup and dequantize in half (f16 queries); SG8 dequantizes
+// K per element (k_tile_dword_ch()). The host admits nothing else (per_channel_kv_supported()).
+#  if !(SUBGROUP_SIZE == 16 || SG8) || INPUT0_IS_BF16
+#    error "sdpa_ocl.cl: per-channel compressed KV is read on SG16 or SG8 with f16 queries only"
 #  endif
 // Symmetric (no zero-point tensors) or asymmetric for both K and V.
 #  if (KEY_ZERO_POINTS + 0) != (VAL_ZERO_POINTS + 0)
@@ -432,7 +433,7 @@
 #endif
 // Head-dim channel of lane l in K depth tile db for the per-channel scale/zp: contiguous, or the permuted labelling of
 // the packed 4-bit K (PA_K_U4_CHANNEL).
-#if PLAIN_KV_U4
+#if PLAIN_KV_U4 && PA_K_PERMUTED
 #  define K_COMP_CHANNEL(db, l) PA_K_U4_CHANNEL(db, l)
 #else
 #  define K_COMP_CHANNEL(db, l) ((db) * DPAS_K + (int)(l))

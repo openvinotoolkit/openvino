@@ -54,10 +54,24 @@
 // A static scalar mask (plain SDPA only, finite: hpg_plain_prefill_ok()) adds the same value to every score of a row, which
 // the softmax ignores, so the kernel leaves it out. Plain causal SDPA comes without a mask (its row would be the shifted
 // query) and without a window.
+// Plain SDPA with a per-channel compressed K / V (HPG_PC, the GQA decomposition's fused cache: i8, or 4-bit with
+// PLAIN_KV_U4, two channels per byte, the even one in the low nibble): each K element is code - zp of its channel in half,
+// the K scale folded into Q; each V element is its code in half, the V scale and zp applied to the output column,
+// vscale * (acc / l - vzp) (exact: l is the sum of P; as sdpa_micro). The channels' scales and zps are staged once per
+// workgroup (K zp in SLM, V in registers).
+// i8 with a [key][value] V (HPG_PC_XOR) widens K and V by the 0x6480 XOR alone (half 1152 + code, as sdpa_micro's copy):
+// the K offset and zp shift every logit of a query alike (softmax-invariant, no sink here), the V offset leaves the
+// accumulator once per key tile (pc_v_off), the V zp in the epilogue. A transposed i8 V keeps the code - zp / code reads
+// (docs/sdpa_ocl.md "Per-channel compressed KV on xe_hpg").
+#define HPG_PC (KV_COMP_PER_CHANNEL && !IS_PAGED_ATTENTION)
+#define HPG_PC_XOR (HPG_PC && !PLAIN_KV_U4 && !V_TRANSPOSED)
 #if defined(HAS_SCALAR_ATTN_MASK) || (defined(STATIC_SCALAR_ATTN_MASK_VALUE) && IS_PAGED_ATTENTION) || WITH_SCALE || \
-    defined(KV_COMPRESSED) || MICRO_MATH || INPUT0_IS_BF16 || (IS_PAGED_ATTENTION && !IS_CAUSAL) || \
+    (defined(KV_COMPRESSED) && !HPG_PC) || MICRO_MATH || INPUT0_IS_BF16 || (IS_PAGED_ATTENTION && !IS_CAUSAL) || \
     (!IS_PAGED_ATTENTION && (defined(HAS_SINK_INPUT) || (IS_CAUSAL && (WITH_ATTN_MASK || SLIDING_WINDOW_SIZE))))
 #  error "sdpa_ocl_hpg_pa_prefill.cl: an op the host gate (hpg_pa_prefill()) should have sent to the generic kernel"
+#endif
+#if HPG_PC && V_TRANSPOSED && PLAIN_KV_U4
+#  error "sdpa_ocl_hpg_pa_prefill.cl: a per-channel transposed V is i8 (a 4-bit one would pack two keys per byte)"
 #endif
 #if HPG_TAIL && IS_PAGED_ATTENTION
 #  error "sdpa_ocl_hpg_pa_prefill.cl: a head that is not a multiple of 16 is plain SDPA's (the K page reads have no tail)"
@@ -101,7 +115,13 @@
 // vt_mode, a literal of the caller: 0 checks each block against causal_k and the row alignment, 1 reads a tile wholly
 // below causal_k with every row on a dword without checks. With an even lead and key block count the ring takes two
 // blocks per read (hpg_vt_rows2(): a value row's 64 B line at once).
-#if V_TRANSPOSED
+// A per-channel i8 one (HPG_PC) reads one block at a time, and with vt_mode 2 a whole tile whose rows start off a dword by
+// aligned dwords.
+#if V_TRANSPOSED && HPG_PC
+#  define HPG_VT_ARG , const uint vt_par0, const int vt_mode
+#  define HPG_VT     , vt_par0, vt_mode
+#  define HPG_VT_PAIRS 0
+#elif V_TRANSPOSED
 #  define HPG_VT_ARG , const uint vt_par0, const int vt_mode
 #  define HPG_VT     , vt_par0, vt_mode
 #  define HPG_VT_PAIRS (HPG_PA_V_LEAD % 2 == 0 && sv_key_blocks % 2 == 0)
@@ -379,7 +399,54 @@ SDPA_OCL_INLINE void FUNC(hpg_v_scales)(__private half *v_sc, const __global INP
 SDPA_OCL_INLINE void FUNC(hpg_v_rows)(HPG_PAGES_ARG const __global half *V, const uint ldv, const int key0,
                                       const int causal_k, const uint col, const uint lane, __private HPG_V_T *even,
                                       __private HPG_V_T *odd HPG_VT_ARG) {
-#if V_TRANSPOSED
+#if V_TRANSPOSED && HPG_PC
+    // A per-channel i8 V by value rows (ldv in bytes): lane l of group g reads keys key0..key0 + 15 of value column
+    // col + 8 g + l, one 16 B load when the block is below causal_k and every row starts on a dword (vt_par0 0), five
+    // aligned dwords shifted down by the row's offset in a whole tile of rows off a dword (vt_mode 2: the fifth dword is
+    // inside the pitch, the caller's vt_whole_mis), else a byte per key clamped to causal_k - 1; the codes in half give
+    // hpg_sv() the f16 rows' dwords (dword i = keys 2i, 2i + 1; the zp is in the epilogue). A block past causal_k reads
+    // nothing (P is 0 there).
+    #pragma unroll
+    for (int g = 0; g < sv_sg_tile_values / SUBGROUP_SIZE; ++g) {
+        const __global char *row = (const __global char *)V + (size_t)(col + g * SUBGROUP_SIZE + lane) * ldv + key0;
+        half16 h = (half16)0.0h;
+        if (vt_mode == 2) {
+            const uint mis = (uint)as_long(row) & 3u;
+            const __global uint *base = (const __global uint *)(row - mis);
+            const uint4 lo = vload4(0, base);
+            const uint4 hi = (uint4)(lo.s123, base[4]);
+            const uint sh = 8u * mis;
+            // (x << 1) << (31 - sh) is x << (32 - sh), and 0 at sh 0 (one shift by 32 would shift by 0)
+            h = convert_half16(as_char16((lo >> sh) | ((hi << 1u) << (31u - sh))));
+        } else if (vt_mode == 1 || (key0 + DPAS_K <= causal_k && vt_par0 == 0)) {
+            h = convert_half16(as_char16(vload4(0, (const __global uint *)row)));
+        } else if (key0 < causal_k) {
+            #pragma unroll
+            for (int i = 0; i < DPAS_K; ++i)
+                h[i] = convert_half(row[min(key0 + i, causal_k - 1) - key0]);
+        }
+        #pragma unroll
+        for (int i = 0; i < 8; ++i) {
+            uint w = as_uint((half2)(h[2 * i], h[2 * i + 1]));
+    #if defined(NEG_SG8) && NEG_SG8 == 40
+            w = rotate(w, 16u);  // negative control: each dword's two keys swapped (transposed-V cases must fail)
+    #endif
+    #if defined(NEG_SG8) && NEG_SG8 == 45
+            if (vt_mode == 1)
+                w = rotate(w, 16u);  // negative control: the same in unchecked tiles only
+    #endif
+    #if defined(NEG_SG8) && NEG_SG8 == 52
+            if (vt_mode == 2)
+                w = rotate(w, 16u);  // negative control: the same in the aligned-dword tiles only
+    #endif
+            const int d = g * 8 + i;
+            if (d < sv_sg_tile_values / 2)
+                ((__private uint *)even)[d] = w;
+            else
+                ((__private uint *)odd)[d - sv_sg_tile_values / 2] = w;
+        }
+    }
+#elif V_TRANSPOSED
     // ldv is the pitch of a value row. Lane l of group g reads value column col + 8 g + l: keys key0..key0 + 15 of its
     // row as 8 dwords (dword i = keys 2i, 2i + 1), the B operand of hpg_sv(); a lane's dwords 8 g + i go to even (the
     // first sv_sg_tile_values / 2) and odd. A row starting 2 B off a dword reads from the dword below and takes its
@@ -460,7 +527,7 @@ SDPA_OCL_INLINE void FUNC(hpg_v_rows)(HPG_PAGES_ARG const __global half *V, cons
     *even = HPG_V_LOAD((const __global uint *)(V + (size_t)even_row * ldv + col));
     *odd = HPG_V_LOAD((const __global uint *)(V + (size_t)odd_row * ldv + col));
 #endif
-#endif  // V_TRANSPOSED
+#endif  // V_TRANSPOSED (&& HPG_PC)
 }
 
 #if HPG_VT_PAIRS
@@ -522,7 +589,7 @@ SDPA_OCL_INLINE void FUNC(hpg_vt_rows2)(const __global half *V, const uint ldv, 
 // The first HPG_PA_V_LEAD key blocks of the tile at k0 into the ring of hpg_sv().
 SDPA_OCL_INLINE void FUNC(hpg_vt_fill)(const __global half *V, const uint ldv, const int k0, const int causal_k,
                                        const uint col, const uint lane, __private HPG_V_T *ring_even,
-                                       __private HPG_V_T *ring_odd, const uint vt_par0, const int vt_mode) {
+                                       __private HPG_V_T *ring_odd HPG_VT_ARG) {
 #if HPG_VT_PAIRS
     #pragma unroll
     for (int pb = 0; pb < HPG_PA_V_LEAD; pb += 2)
@@ -531,8 +598,7 @@ SDPA_OCL_INLINE void FUNC(hpg_vt_fill)(const __global half *V, const uint ldv, c
 #else
     #pragma unroll
     for (int pb = 0; pb < HPG_PA_V_LEAD; ++pb)
-        FUNC_CALL(hpg_v_rows)(V, ldv, k0 + pb * DPAS_K, causal_k, col, lane, &ring_even[pb], &ring_odd[pb], vt_par0,
-                              vt_mode);
+        FUNC_CALL(hpg_v_rows)(V, ldv, k0 + pb * DPAS_K, causal_k, col, lane, &ring_even[pb], &ring_odd[pb] HPG_VT);
 #endif
 }
 #endif
@@ -637,6 +703,227 @@ SDPA_OCL_INLINE void FUNC(hpg_sv)(__private float8 (*acc)[sv_value_blocks], cons
     }
 }
 
+#if HPG_COMP || HPG_PC
+// A compressed row slice of this S*V subgroup: sv_sg_tile_values values, one byte each (i8 the value; u4 the byte of the
+// split row whose low or high nibble holds it, PA_V_U4_COL() / PA_V_U4_HI(): a slice never straddles the split, as
+// PA_V_ROW_ELEMS and col are multiples of the slice width: 32 and 8 at head 64); a plain 4-bit V (HPG_PC) two values per
+// byte, in order.
+#  if HPG_PC && PLAIN_KV_U4
+#    define HPG_VQ_BYTES (sv_sg_tile_values / 2)
+#  else
+#    define HPG_VQ_BYTES sv_sg_tile_values
+#  endif
+#  if HPG_VQ_BYTES == 4
+#    define HPG_VQ_T       uint
+#    define HPG_VQ_LOAD(p) (*(const __global uint *)(p))
+#  elif HPG_VQ_BYTES == 8
+#    define HPG_VQ_T       uint2
+#    define HPG_VQ_LOAD(p) vload2(0, (const __global uint *)(p))
+#  elif HPG_VQ_BYTES == 16
+#    define HPG_VQ_T       uint4
+#    define HPG_VQ_LOAD(p) vload4(0, (const __global uint *)(p))
+#  else
+#    define HPG_VQ_T       uint8
+#    define HPG_VQ_LOAD(p) vload8(0, (const __global uint *)(p))
+#  endif
+#endif
+
+#if HPG_PC
+// hpg_kq() of a per-channel K: each key's 16 channels of the depth tile (i8 16 bytes, 4-bit 8, byte j = channels 2j and
+// 2j + 1, i.e. dword j of the B operand), code - zp of the channel in half (k_zp in SLM, read only with zero points; the
+// scale is in Q); HPG_PC_XOR 1152 + code, dword 2j = channels 4j, 4j + 2 and dword 2j + 1 = 4j + 1, 4j + 3 (Q is staged
+// in that order). Rows of whole dwords (hpg_plain_prefill_ok()); head 72's last tile reads half, zero past it (Q is 0
+// there).
+// SDPA_OCL_NEG_SG8=48: each dword's two channels swapped (negative control: only the per-channel cases on this kernel must
+// fail).
+SDPA_OCL_INLINE void FUNC(hpg_kq_pc)(__private float8 (*scores)[kq_query_blocks], const __global KEY_DATA_T *K,
+                                     const uint ldk, const int key_base, const int causal_k, const __local uint *q_slm,
+                                     __local uint *transpose, const __local half *k_zp, const uint lane) {
+    if (key_base >= causal_k)
+        return;
+#ifdef HPG_PA_KQ_UNROLL
+    __attribute__((opencl_unroll_hint(HPG_PA_KQ_UNROLL)))
+#else
+    #pragma unroll
+#endif
+    for (int db = 0; db < DKS_ACTIVE; ++db) {
+    #if KEY_ZERO_POINTS && !HPG_PC_XOR
+        const half16 zp = vload16(0, k_zp + db * DPAS_K);
+    #endif
+        int8 k_b[kq_key_blocks];
+        #pragma unroll
+        for (int mb = 0; mb < kq_key_blocks; ++mb) {
+            const int row = min(key_base + mb * DPAS_ROWS + (int)lane, causal_k - 1);
+    #if PLAIN_KV_U4
+            const __global KEY_DATA_T *k_row = K + (size_t)row * ldk + db * (DPAS_K / 2);
+            uint2 kw;
+        #if HPG_TAIL
+            if (db == DKS_ACTIVE - 1)
+                kw = (uint2)(*(const __global uint *)k_row, 0u);
+            else
+        #endif
+                kw = vload2(0, (const __global uint *)k_row);
+            half16 kh;
+            #pragma unroll
+            for (int j = 0; j < DPAS_K / 2; ++j) {
+                kh[2 * j] = PLAIN_U4_TO_HALF(kw[j / 4], 8 * (j % 4));
+                kh[2 * j + 1] = PLAIN_U4_TO_HALF(kw[j / 4], 8 * (j % 4) + 4);
+            }
+    #else
+            const __global KEY_DATA_T *k_row = K + (size_t)row * ldk + db * DPAS_K;
+            char16 kb;
+        #if HPG_TAIL
+            if (db == DKS_ACTIVE - 1)
+                kb = (char16)(as_char8(vload2(0, (const __global uint *)k_row)), (char8)0);
+            else
+        #endif
+                kb = as_char16(vload4(0, (const __global uint *)k_row));
+        #if HPG_PC_XOR
+            const uint4 kw = as_uint4(kb);
+            uint8 kd;
+            #pragma unroll
+            for (int j = 0; j < 4; ++j) {
+                kd[2 * j] = (kw[j] & 0x00FF00FFu) ^ 0x64806480u;
+                kd[2 * j + 1] = ((kw[j] >> 8) & 0x00FF00FFu) ^ 0x64806480u;
+            }
+            #if defined(NEG_SG8) && NEG_SG8 == 48
+            kd = rotate(kd, (uint8)16u);
+            #endif
+            k_b[mb] = as_int8(kd);
+        #else
+            half16 kh = convert_half16(kb);
+        #endif
+    #endif
+    #if !HPG_PC_XOR
+        #if defined(NEG_SG8) && NEG_SG8 == 48
+            kh = kh.s1032547698badcfe;
+        #endif
+        #if KEY_ZERO_POINTS
+            k_b[mb] = as_int8(kh - zp);
+        #else
+            k_b[mb] = as_int8(kh);
+        #endif
+    #endif
+        }
+        #pragma unroll
+        for (int qb = 0; qb < kq_query_blocks; ++qb) {
+            const int8 q_a = as_int8(intel_sub_group_block_read_ul4((const __local ulong *)(q_slm + Q_SLM_OFF(db, qb))));
+            #pragma unroll
+            for (int mb = 0; mb < kq_key_blocks; ++mb)
+                scores[mb][qb] = DPAS_MAD_K16(q_a, k_b[mb], scores[mb][qb]);
+        }
+    }
+    // lane = key -> lane = query, as in hpg_kq().
+    #pragma unroll
+    for (int qb = 0; qb < kq_query_blocks; ++qb) {
+        #pragma unroll
+        for (int mb = 0; mb < kq_key_blocks; ++mb) {
+            intel_sub_group_block_write8(transpose, as_uint8(scores[mb][qb]));
+            sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+            scores[mb][qb] = as_float8(vload8(0, transpose + lane * 8));
+            sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+        }
+    }
+}
+
+// hpg_v_rows() of a per-channel V: the slices of keys key0 + 2 lane and key0 + 2 lane + 1 (clamped to causal_k - 1),
+// value columns col.., as bytes (4-bit: from byte col / 2).
+SDPA_OCL_INLINE void FUNC(hpg_vpc_rows)(const __global VAL_DATA_T *V, const uint ldv, const int key0, const int causal_k,
+                                        const uint col, const uint lane, __private HPG_VQ_T *even, __private HPG_VQ_T *odd) {
+    const int even_row = min(key0 + (int)lane * 2, causal_k - 1);
+    const int odd_row = min(even_row + 1, causal_k - 1);
+#if PLAIN_KV_U4
+    *even = HPG_VQ_LOAD(V + (size_t)even_row * ldv + col / 2);
+    *odd = HPG_VQ_LOAD(V + (size_t)odd_row * ldv + col / 2);
+#else
+    *even = HPG_VQ_LOAD(V + (size_t)even_row * ldv + col);
+    *odd = HPG_VQ_LOAD(V + (size_t)odd_row * ldv + col);
+#endif
+}
+
+#if HPG_PC_XOR
+// pc_v_off of the kernel: 1152 times this tile's sum of P of each accumulator row over the key subgroups (tsum, written
+// before the arrive, rewritten after the next tile's first barrier). SDPA_OCL_NEG_SG8=50: 0, the 1152 stays in (negative
+// control).
+SDPA_OCL_INLINE void FUNC(hpg_pc_v_off)(__private float *v_off, const __local float *tsum, const int q0, const uint lane) {
+    #pragma unroll
+    for (int r = 0; r < sv_score_blocks; ++r) {
+    #if defined(NEG_SG8) && NEG_SG8 == 50
+        v_off[r] = 0.0f;
+    #else
+        const int query = q0 + r * SUBGROUP_SIZE + (int)lane;
+        float tl = 0.0f;
+        #pragma unroll
+        for (int p = 0; p < kq_sg_per_wg_keys; ++p)
+            tl += tsum[query * kq_sg_per_wg_keys + p];
+        v_off[r] = 1152.0f * tl;
+    #endif
+    }
+}
+#endif
+
+// hpg_sv() of a per-channel V: the A operand is the two rows' codes of each value column in half; the column's zp and scale
+// apply to the output in the epilogue.
+SDPA_OCL_INLINE void FUNC(hpg_sv_pc)(__private float8 (*acc)[sv_value_blocks], const __local uint *p_slm,
+                                     const __global VAL_DATA_T *V, const uint ldv, const int k0, const int causal_k,
+                                     const uint col, const uint lane, __private HPG_VQ_T *ring_even,
+                                     __private HPG_VQ_T *ring_odd) {
+    int8 p_cur[sv_score_blocks];
+    #pragma unroll
+    for (int qb = 0; qb < sv_score_blocks; ++qb)
+        p_cur[qb] = as_int8(intel_sub_group_block_read8(p_slm + P_SLM_OFF(0, qb)));
+    #pragma unroll
+    for (int kb = 0; kb < sv_key_blocks; ++kb) {
+        int8 p_next[sv_score_blocks];
+        if (kb + 1 < sv_key_blocks) {
+            #pragma unroll
+            for (int qb = 0; qb < sv_score_blocks; ++qb)
+                p_next[qb] = as_int8(intel_sub_group_block_read8(p_slm + P_SLM_OFF(kb + 1, qb)));
+        }
+        const int slot = kb % HPG_PA_V_LEAD;
+        const HPG_VQ_T even = ring_even[slot];
+        const HPG_VQ_T odd = ring_odd[slot];
+        if (kb + HPG_PA_V_LEAD < sv_key_blocks)
+            FUNC_CALL(hpg_vpc_rows)(V, ldv, k0 + (kb + HPG_PA_V_LEAD) * DPAS_K, causal_k, col, lane, &ring_even[slot],
+                                    &ring_odd[slot]);
+        #pragma unroll
+        for (int vb = 0; vb < sv_value_blocks; ++vb) {
+            // Values vb * 8.. of the slice for the two keys, then interleaved halfword by halfword as hpg_sv() does.
+    #if PLAIN_KV_U4
+            const uint we = ((const __private uint *)&even)[vb];
+            const uint wo = ((const __private uint *)&odd)[vb];
+            half8 he;
+            half8 ho;
+            #pragma unroll
+            for (int m = 0; m < 8; ++m) {
+                he[m] = PLAIN_U4_TO_HALF(we, 4 * m);
+                ho[m] = PLAIN_U4_TO_HALF(wo, 4 * m);
+            }
+    #else
+            const uint2 we = (uint2)(even[2 * vb], even[2 * vb + 1]);
+            const uint2 wo = (uint2)(odd[2 * vb], odd[2 * vb + 1]);
+        #if HPG_PC_XOR
+            const half8 he = as_half8(convert_ushort8(as_uchar8(we)) ^ (ushort8)0x6480);  // 1152 + code
+            const half8 ho = as_half8(convert_ushort8(as_uchar8(wo)) ^ (ushort8)0x6480);
+        #else
+            const half8 he = convert_half8(as_char8(we));
+            const half8 ho = convert_half8(as_char8(wo));
+        #endif
+    #endif
+            const int8 v_a = as_int8(shuffle2(he, ho, (ushort16)(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15)));
+            #pragma unroll
+            for (int qb = 0; qb < sv_score_blocks; ++qb)
+                acc[qb][vb] = DPAS_MAD_K16(v_a, p_cur[qb], acc[qb][vb]);
+        }
+        if (kb + 1 < sv_key_blocks) {
+            #pragma unroll
+            for (int qb = 0; qb < sv_score_blocks; ++qb)
+                p_cur[qb] = p_next[qb];
+        }
+    }
+}
+#endif
+
 #if HPG_COMP
 // S*V of new keys (Vc rows row0.., n of them): the ring of the first blocks, the wait for P, hpg_sv().
 SDPA_OCL_INLINE void FUNC(hpg_sv_vc)(__private float8 (*acc)[sv_value_blocks], const __local uint *p_slm,
@@ -650,20 +937,6 @@ SDPA_OCL_INLINE void FUNC(hpg_sv_vc)(__private float8 (*acc)[sv_value_blocks], c
     intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
     FUNC_CALL(hpg_sv)(acc, p_slm, HPG_PAGES Vc, ldvc, row0, n, col, lane, v_even, v_odd);
 }
-
-// A compressed page row slice of this S*V subgroup: sv_sg_tile_values values, one byte each (i8 the value; u4 the byte of
-// the split row whose low or high nibble holds it, PA_V_U4_COL() / PA_V_U4_HI(): a slice never straddles the split, as
-// PA_V_ROW_ELEMS and col are multiples of the slice width: 32 and 8 at head 64).
-#  if sv_sg_tile_values == 8
-#    define HPG_VQ_T       uint2
-#    define HPG_VQ_LOAD(p) vload2(0, (const __global uint *)(p))
-#  elif sv_sg_tile_values == 16
-#    define HPG_VQ_T       uint4
-#    define HPG_VQ_LOAD(p) vload4(0, (const __global uint *)(p))
-#  else
-#    define HPG_VQ_T       uint8
-#    define HPG_VQ_LOAD(p) vload8(0, (const __global uint *)(p))
-#  endif
 
 // hpg_v_rows() of a tile of past keys: the page rows of keys key0 + 2 lane and key0 + 2 lane + 1 (clamped to lim - 1, in
 // the page of the last key when the block is past it), value columns col.., and the two keys' zps
@@ -794,10 +1067,22 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int token_type_ids_count,
 #endif
 #if IS_PAGED_ATTENTION
-        const __global int* blocked_indexes_start_and_gws_mapping)
+        const __global int* blocked_indexes_start_and_gws_mapping
 #else
-        const int d, const int k, const int q)
+        const int d, const int k, const int q
 #endif
+#if HPG_PC
+        // As sdpa_ocl.cl's (get_arguments_desc()): no zero points for a symmetric cache.
+        , const global KEY_ATTR_SCALES_DATA_T *K_scales
+    #if KEY_ZERO_POINTS
+        , const global KEY_ATTR_ZP_DATA_T *K_zp
+    #endif
+        , const global VAL_ATTR_SCALES_DATA_T *V_scales
+    #if VAL_ZERO_POINTS
+        , const global VAL_ATTR_ZP_DATA_T *V_zp
+    #endif
+#endif
+        )
 {
 #if IS_PAGED_ATTENTION
     const uint query_block_idx = get_group_id(0) << 1;
@@ -971,7 +1256,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #if WITH_ATTN_MASK
     const bool mask_dword_ok = (MSK_D2 == 1 || (MSK_S2 & 1) == 0) && ((as_long(msk) & 3) == 0);
     #endif
-    #if V_TRANSPOSED
+    #if V_TRANSPOSED && HPG_PC
+    const uint vt_par0 = (((uint)as_long(V) | ldv) & 3u) ? 2u : 0u;  // 2: some i8 value row starts off a dword
+    #elif V_TRANSPOSED
     const uint vt_par0 = ((uint)as_long(V) >> 1) & 1;
     #endif
 #endif
@@ -993,6 +1280,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // next tile's KQ starts.
     local uint transpose_slm[sg_per_wg * SUBGROUP_SIZE * SUBGROUP_SIZE];
     local float S_sum_slm[kq_wg_tile_queries * kq_sg_per_wg_keys];
+#if HPG_PC_XOR
+    local float S_tsum_slm[kq_wg_tile_queries * kq_sg_per_wg_keys];  // this tile's lsum, laid out as S_sum_slm
+#endif
     local float S_max_slm[kq_wg_tile_queries];
 
     for (int qi = sg_ij * SUBGROUP_SIZE + lane; qi < kq_wg_tile_queries; qi += sg_per_wg * SUBGROUP_SIZE)
@@ -1002,6 +1292,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         S_max_slm[qi] = -INFINITY;
 #endif
 
+#if HPG_PC
+    const uint k_ch_base = KEY_COMP_OFF((KEY_SCALE_BATCH_NUM == 1) ? 0 : b1_k, (KEY_SCALE_FEATURE_NUM == 1) ? 0 : b0_kv, 0, 0);
+    const uint v_ch_base = VAL_COMP_OFF((VAL_SCALE_BATCH_NUM == 1) ? 0 : b1_v, (VAL_SCALE_FEATURE_NUM == 1) ? 0 : b0_kv, 0, 0);
+#endif
     // Q staging, one (query block, depth-tile pair) per subgroup step: lane l reads 32 halves of query row
     // wg_j0 + 8 q_block + l (clamped to q - 1), and adjacent lanes trade halves so that the ulong4 block read in hpg_kq()
     // gives component = query, lane = depth pair. With an odd tile count the last pair is the last tile alone, of 16 or (head
@@ -1029,6 +1323,26 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             qq.lo = as_uint8(vload16(0, (const global ushort *)q_row));
             qq.hi = as_uint8(vload16(1, (const global ushort *)q_row));
         }
+#if HPG_PC
+        // Times the K scale of each channel (0 past the head), rounded to half once: the K reads take the code.
+        {
+            half16 q_lo = as_half16(qq.lo);
+            half16 q_hi = as_half16(qq.hi);
+            #pragma unroll
+            for (int e = 0; e < DPAS_K; ++e) {
+                const int c_lo = db * DPAS_K + e;
+                const int c_hi = c_lo + DPAS_K;
+                q_lo[e] *= (c_lo < K_HEAD_SIZE) ? K_COMP_SCALE_TO_HALF(K_scales[k_ch_base + K_COMP_CH_OFF(c_lo)]) : (half)0.0h;
+                q_hi[e] *= (c_hi < K_HEAD_SIZE) ? K_COMP_SCALE_TO_HALF(K_scales[k_ch_base + K_COMP_CH_OFF(c_hi)]) : (half)0.0h;
+            }
+    #if HPG_PC_XOR && !(defined(NEG_SG8) && NEG_SG8 == 51)
+            // The channel order of hpg_kq_pc()'s i8 dwords (SDPA_OCL_NEG_SG8=51: left out, negative control).
+            q_lo = q_lo.s021346578a9bcedf;
+            q_hi = q_hi.s021346578a9bcedf;
+    #endif
+            qq = (uint16)(as_uint8(q_lo), as_uint8(q_hi));
+        }
+#endif
         #pragma unroll
         for (int half_db = 0; half_db < 2; ++half_db) {
 #if DKS_ACTIVE % 2
@@ -1049,6 +1363,37 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             vstore8(out, 0, Q_slm + Q_SLM_OFF(db + half_db, q_block) + lane * 8);
         }
     }
+
+#if HPG_PC
+    // The per-channel K zp of this KV head in SLM (0 past the head; the K scale is in Q), and the V scale / zp of this
+    // subgroup's value columns (8 per value block) in registers, as half (an absent zp is 0). SDPA_OCL_NEG_X5 (negative
+    // controls, as sdpa_ocl.cl): 1 = the K scale / zp of the neighbouring channel (K_COMP_CH_OFF()), 2 = the V scale / zp of
+    // the neighbouring column.
+    local half pc_k_zp[DKS_ACTIVE * DPAS_K] __attribute__((aligned(16)));
+    #if KEY_ZERO_POINTS && !HPG_PC_XOR
+    for (int c = sg_ij * SUBGROUP_SIZE + lane; c < DKS_ACTIVE * DPAS_K; c += sg_per_wg * SUBGROUP_SIZE)
+        pc_k_zp[c] = (c < K_HEAD_SIZE) ? convert_half(K_zp[k_ch_base + K_COMP_CH_OFF(c)]) : (half)0.0h;
+    #endif
+    float8 pc_vsc[sv_value_blocks];
+    half8 pc_vzp[sv_value_blocks];
+    #pragma unroll
+    for (int vb = 0; vb < sv_value_blocks; ++vb) {
+        #pragma unroll
+        for (int m = 0; m < 8; ++m) {
+    #if NEG_X5 == 2
+            const uint off = v_ch_base + VAL_COMP_OFF(0, 0, 0, (sv_col + vb * 8 + m) ^ 1);
+    #else
+            const uint off = v_ch_base + VAL_COMP_OFF(0, 0, 0, sv_col + vb * 8 + m);
+    #endif
+            pc_vsc[vb][m] = V_COMP_SCALE_TO_FLOAT(V_scales[off]);
+    #if VAL_ZERO_POINTS
+            pc_vzp[vb][m] = convert_half(V_zp[off]);
+    #else
+            pc_vzp[vb][m] = (half)0.0h;
+    #endif
+        }
+    }
+#endif
 
     float S_max_tile[kq_query_blocks];
     float S_sum_tile[kq_query_blocks];
@@ -1074,6 +1419,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
         for (int cd = 0; cd < sv_value_blocks; ++cd)
             A_tile[r][cd] = (float8)0.0f;
+#if HPG_PC_XOR
+    // 1152 times the last tile's sum of P of each accumulator row (lane = query): hpg_sv_pc() added it, the next
+    // rescale or the epilogue takes it off, so the accumulator never holds 1152 l (whose f32 rounding grows with k).
+    float pc_v_off[sv_score_blocks];
+    #pragma unroll
+    for (int r = 0; r < sv_score_blocks; ++r)
+        pc_v_off[r] = 0.0f;
+#endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1178,9 +1531,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #else
         // A subgroup whose queries are all past q contributes nothing that is stored.
         if (wg_j0 + sg_j0_kq < q)
+    #if HPG_PC
+            FUNC_CALL(hpg_kq_pc)(S_tile, K, ldk, key_base, causal_k, Q_slm + Q_SLM_OFF(0, sg_j0_kq / SUBGROUP_SIZE),
+                                 transpose_slm + sg_ij * SUBGROUP_SIZE * SUBGROUP_SIZE, pc_k_zp, lane);
+    #else
             FUNC_CALL(hpg_kq)(S_tile, HPG_PAGES (const global half *)K, ldk, key_base, causal_k,
                               Q_slm + Q_SLM_OFF(0, sg_j0_kq / SUBGROUP_SIZE),
                               transpose_slm + sg_ij * SUBGROUP_SIZE * SUBGROUP_SIZE, lane);
+    #endif
 
         float k_mask[kq_sg_tile_keys / SUBGROUP_SIZE];
         #pragma unroll
@@ -1284,7 +1642,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 // SDPA_SOFTMAX_EXP (sdpa_ocl_config.cl): with a mask, exp2 saturated to [0, 1] (else a '-inf' mask over
                 // the first 128 or more keys of a row and logits near 100 give NaN); native_exp2 without one.
+#if HPG_PC_XOR
+                // l sums P as S * V reads it (half): the 1152 taken off per tile (pc_v_off) is the accumulator's.
+                const float8 e = ok ? SDPA_SOFTMAX_EXP(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
+                const float8 p = convert_float8(convert_half8(e));
+#else
                 const float8 p = ok ? SDPA_SOFTMAX_EXP(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
+#endif
                 lsum += p[0] + p[1] + p[2] + p[3] + p[4] + p[5] + p[6] + p[7];
 #if HPG_COMP
                 // Past keys: P times each key's V scale (rounded once); a key at/past lim has scale 0 and P 0.
@@ -1318,6 +1682,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #undef HPG_P_STORE
             }
             S_sum_tile[qb] = a * S_sum_tile[qb] + lsum;
+#if HPG_PC_XOR
+            S_tsum_slm[(sg_j0_kq + qb * SUBGROUP_SIZE + lane) * kq_sg_per_wg_keys + sg_i_kq] = lsum;
+#endif
         }
 
         if (last) {
@@ -1344,9 +1711,18 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #else
             #pragma unroll
             for (int r = 0; r < sv_score_blocks; ++r)
+    #if HPG_PC_XOR
+            {
+                const float c = pc_v_off[r] * alpha[r];
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; ++cd)
+                    A_tile[r][cd] = A_tile[r][cd] * alpha[r] - c;
+            }
+    #else
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd)
                     A_tile[r][cd] *= alpha[r];
+    #endif
 #endif
         }
 
@@ -1374,20 +1750,51 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // checks (vt_mode 1), branches that inside the S*V loop cost more than the reads; the others keep them (0).
         const bool vt_whole = k0 + kq_wg_tile_keys <= causal_k && vt_par0 < 2;
         const bool vt_mis = vt_par0 != 0 || (ldv & 1u) != 0;
+    #if HPG_PC
+        // A per-channel i8 V with rows off a dword: a whole tile by aligned dwords (vt_mode 2), its last block reading up
+        // to 4 bytes past its keys, inside the pitch (SDPA_OCL_NEG_SG8=4 keeps the checked reads).
+        #if defined(NEG_SG8) && NEG_SG8 == 4
+        const bool vt_whole_mis = false;
+        #else
+        const bool vt_whole_mis =
+            vt_par0 == 2 && k0 + kq_wg_tile_keys <= causal_k && k0 + kq_wg_tile_keys + 4 <= (int)ldv;
+        #endif
+    #endif
         const __global half *v_in = (const global half *)V;
         const __local uint *p_sv = S_slm + P_SLM_OFF(0, sg_i_sv * sv_score_blocks);
         HPG_V_T v_even[HPG_PA_V_LEAD];
         HPG_V_T v_odd[HPG_PA_V_LEAD];
         if (vt_whole && !vt_mis)
             FUNC_CALL(hpg_vt_fill)(v_in, ldv, k0, causal_k, sv_col, lane, v_even, v_odd, vt_par0, 1);
+    #if HPG_PC
+        else if (vt_whole_mis)
+            FUNC_CALL(hpg_vt_fill)(v_in, ldv, k0, causal_k, sv_col, lane, v_even, v_odd, vt_par0, 2);
+    #endif
         else
             FUNC_CALL(hpg_vt_fill)(v_in, ldv, k0, causal_k, sv_col, lane, v_even, v_odd, vt_par0, 0);
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
         if (vt_whole && !vt_mis)
             FUNC_CALL(hpg_sv)(A_tile, p_sv, v_in, ldv, k0, causal_k, sv_col, lane, v_even, v_odd, vt_par0, 1);
+    #if HPG_PC
+        else if (vt_whole_mis)
+            FUNC_CALL(hpg_sv)(A_tile, p_sv, v_in, ldv, k0, causal_k, sv_col, lane, v_even, v_odd, vt_par0, 2);
+    #endif
         else
             FUNC_CALL(hpg_sv)(A_tile, p_sv, v_in, ldv, k0, causal_k, sv_col, lane, v_even, v_odd, vt_par0, 0);
+#elif HPG_PC
+        HPG_VQ_T vq_even[HPG_PA_V_LEAD];
+        HPG_VQ_T vq_odd[HPG_PA_V_LEAD];
+        #pragma unroll
+        for (int pb = 0; pb < HPG_PA_V_LEAD; ++pb)
+            FUNC_CALL(hpg_vpc_rows)(V, ldv, k0 + pb * DPAS_K, causal_k, sv_col, lane, &vq_even[pb], &vq_odd[pb]);
+        intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+    #if HPG_PC_XOR
+        FUNC_CALL(hpg_pc_v_off)(pc_v_off, S_tsum_slm, sg_i0_sv, lane);
+    #endif
+
+        FUNC_CALL(hpg_sv_pc)(A_tile, S_slm + P_SLM_OFF(0, sg_i_sv * sv_score_blocks), V, ldv, k0, causal_k, sv_col, lane,
+                             vq_even, vq_odd);
 #else
         HPG_V_T v_even[HPG_PA_V_LEAD];
         HPG_V_T v_odd[HPG_PA_V_LEAD];
@@ -1428,7 +1835,27 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int row = wg_j0 + query;
         #pragma unroll
         for (int cd = 0; cd < sv_value_blocks; ++cd) {
+#if HPG_PC_XOR
+            // The last tile's 1152 and the zp leave before 1 / l (a row without keys, l 0, stays 0).
+    #if defined(NEG_SG8) && NEG_SG8 == 49
+            const float8 vz = (float8)0.0f;  // negative control: the V zp nowhere (asymmetric per-channel cases must fail)
+    #else
+            const float8 vz = convert_float8(pc_vzp[cd]);
+    #endif
+            const half8 o = convert_half8((A_tile[r][cd] - pc_v_off[r] - vz * l) * inv_l * pc_vsc[cd]);
+#elif HPG_PC && VAL_ZERO_POINTS
+            // A row without keys (l 0) stays 0.
+    #if defined(NEG_SG8) && NEG_SG8 == 49
+            const float8 vz = (float8)0.0f;  // negative control: the V zp nowhere (asymmetric per-channel cases must fail)
+    #else
+            const float8 vz = inv_l > 0.0f ? convert_float8(pc_vzp[cd]) : (float8)0.0f;
+    #endif
+            const half8 o = convert_half8((A_tile[r][cd] * inv_l - vz) * pc_vsc[cd]);  // component = value column
+#elif HPG_PC
+            const half8 o = convert_half8(A_tile[r][cd] * inv_l * pc_vsc[cd]);  // component = value column
+#else
             const half8 o = convert_half8(A_tile[r][cd] * inv_l);
+#endif
 #if HPG_TAIL && defined(NEG_SG8) && NEG_SG8 == 18
             // Negative control: the last value subgroup stores its block unshifted (smoke_sdpa_hpg_rows must fail every head-72
             // case).
@@ -1447,6 +1874,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
 #undef HPG_TAIL
 #undef HPG_COMP
+#undef HPG_PC
+#undef HPG_PC_XOR
 #undef HPG_VQ_T
 #undef HPG_VQ_LOAD
 #undef HPG_COMP_KQ_UNROLL

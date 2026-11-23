@@ -3034,13 +3034,15 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    // Per-channel compressed KV has two readers: sdpa_ocl on its lane (Xe2+ XMX, f16 queries, enable_sdpa_micro on;
-    // SDPAOpt::validate_impl() admits it only there) and sdpa_ref everywhere else. Both run here where they can, each with a check of the kernel
-    // that ran: a silent fallback to the opt kernels, which read one scale per token, would be wrong.
+    // Per-channel compressed KV has two readers: the DPAS lane (xe_hpc / Xe2+ / xe_hpg XMX, f16 queries, enable_sdpa_micro on;
+    // SDPAOpt::validate_impl() admits it only there: sdpa_ocl, and on xe_hpg also the opt single-token stage) and sdpa_ref
+    // everywhere else. Both run here where they can, each with a check of the kernel that ran: a silent
+    // fallback to the opt kernels' per-token reads would be wrong.
     const bool per_channel = granularity == kv_quant_granularity::per_channel;
+    const auto& dev_info = engine.get_device_info();
     const bool per_channel_dpas =
         per_channel && !is_bf16 && params.dt == data_types::f16 && tests::expected_dpas_backend(engine) == tests::dpas_backend::ocl &&
-        cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(engine.get_device_info());
+        (cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(dev_info) || dev_info.arch == gpu_arch::xe_hpg);
 
     const int bit_width = params.bit_width;
     const bool asymmetric = params.asymmetric;
@@ -3251,7 +3253,12 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         return;
     }
     if (per_channel_dpas) {
-        check_output(make_opt_output(true, seq_q > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), "sdpa_ocl");
+        // A one-query step on xe_hpg at the heads the opt stages take runs their single-token stage (KV_COMP_PER_CHANNEL).
+        std::string expected_kernel = "sdpa_ocl_prefill";
+        if (seq_q == 1) {
+            expected_kernel = tests::plain_decode_on_opt(dev_info, head_size, head_size, true) ? "sdpa_opt" : "sdpa_ocl_mixed";
+        }
+        check_output(make_opt_output(true, expected_kernel), "sdpa_ocl");
     }
     check_output(make_opt_output(false, "sdpa_ref"), "sdpa_ref");
 }
@@ -3339,7 +3346,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel,
                                            // i8 prefill on its own tiling at head 128 (64-key x 32-query workgroup tiles):
                                            // query and key tails, batch 2.
                                            sdpa_test_params{128, 32, 8, 100, 1000, 1, 8, true},
-                                           sdpa_test_params{128, 8, 2, 33, 77, 2, 8, false}),
+                                           sdpa_test_params{128, 8, 2, 33, 77, 2, 8, false},
+                                           // Heads outside 64-512 in steps of 16 (head 72: a half depth tile; head 32), which
+                                           // xe_hpg's opt single-token stage does not take: decode and prefill.
+                                           sdpa_test_params{72, 8, 2, 1, 300, 1, 8, false},
+                                           sdpa_test_params{72, 8, 2, 40, 300, 1, 8, true},
+                                           sdpa_test_params{32, 8, 2, 1, 200, 1, 8, false},
+                                           sdpa_test_params{32, 8, 2, 40, 200, 1, 8, false},
+                                           sdpa_test_params{72, 8, 2, 1, 300, 1, 4, true},
+                                           sdpa_test_params{72, 8, 2, 40, 300, 1, 4, false},
+                                           sdpa_test_params{32, 8, 2, 1, 200, 1, 4, false},
+                                           // 4-bit at heads 64 / 80 (packed rows of 32 / 40 bytes): xe_hpg's opt single-token stage.
+                                           sdpa_test_params{64, 8, 2, 1, 301, 1, 4, true},
+                                           sdpa_test_params{80, 8, 2, 1, 302, 1, 4, false}),
                          sdpa_gpu_compressed_kv_per_channel_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,
@@ -3410,7 +3429,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
                          sdpa_gpu_gqa_decomp_test::PrintToStringParamName);
 
 // Per-channel i8 V transposed (order {0,1,3,2}, sdpa_ocl's v_t_i8_read), step by step on one network (static: one step),
-// against the same op with the plain V layout (bit-exact on static: the same tiling and V bytes) and the host reference on
+// against the same op with the plain V layout (bit-exact on static: the same tiling and V bytes; xe_hpg's multi-query
+// steps within two half ULPs, see below) and the host reference on
 // the dequantized K/V. Symmetric (the GQA decomposition's cache) and asymmetric (a zp per column); rows starting at every
 // byte of a dword (value * pitch + key mod 4), key counts under one cp block or ending inside a cp block pair, V rows padded
 // past the keys (a windowed view: the pitch is not the key count). A pitch of a multiple of 16 B with whole dwords of keys
@@ -3425,8 +3445,9 @@ struct sdpa_tv_i8_case {
 
 static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || engine.get_device_info().arch < gpu_arch::xe2)
-        GTEST_SKIP() << "sdpa_ocl's transposed-V reader is Xe2+";
+    const auto arch = engine.get_device_info().arch;
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || (arch < gpu_arch::xe2 && arch != gpu_arch::xe_hpg))
+        GTEST_SKIP() << "the transposed-V readers are Xe2+ and xe_hpg";
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     const int B = c.batch, H = c.heads, KVH = c.kv_heads, D = c.head_size;
@@ -3527,7 +3548,9 @@ static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
             if (!sdpa_id.empty()) {
                 const auto inst = net->get_primitive(sdpa_id);
                 const auto entries = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
-                EXPECT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+                // xe_hpg's opt single-token stage takes a one-query step at its heads (KV_COMP_PER_CHANNEL, V_TRANSPOSED_READ).
+                const bool on_opt = seq_q == 1 && tests::plain_decode_on_opt(engine.get_device_info(), D, D, true);
+                EXPECT_NE(entries.find(on_opt ? "sdpa_opt" : "sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
             }
             return out;
         };
@@ -3553,12 +3576,24 @@ static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
         // As the per-channel compressed tests: the kernel folds the K scale into Q and the V scale into the output.
         ASSERT_LE(diff.max_abs_err, 1e-1f) << "vs the host reference: max abs error at index " << diff.max_abs_idx;
         // A dynamic network may run its shape-agnostic or (compiled in the background) static kernel at a step, so the
-        // bit-exact check is for the static cases.
+        // layout check is for the static cases: bit-exact, but on xe_hpg's multi-query steps within two half ULPs at 1 (the
+        // outputs are within the V range [-1, 1]; one ULP measured on the A770): its PREFILL kernel widens a [key][value]
+        // i8 V by the 0x6480 XOR and a transposed one by conversion, which round differently.
         if (!c.dynamic) {
+            const float plain_tv_tol = (arch == gpu_arch::xe_hpg && seq_q > 1) ? 1.0f / 512.0f : 0.0f;
             const auto plain = sdpa_to_float<ov::float16>(plain_out);
             ASSERT_EQ(plain.size(), tv.size());
-            for (size_t i = 0; i < tv.size(); ++i)
-                ASSERT_EQ(plain[i], tv[i]) << "transposed V differs from the plain layout at index " << i << " (value " << i % D << ")";
+            float max_d = 0.0f;
+            size_t at = 0;
+            for (size_t i = 0; i < tv.size(); ++i) {
+                const float d = std::fabs(plain[i] - tv[i]);
+                if (!(d <= max_d)) {
+                    max_d = d;
+                    at = i;
+                }
+            }
+            ASSERT_LE(max_d, plain_tv_tol) << "transposed V differs from the plain layout by " << max_d << " at index " << at
+                                           << " (value " << at % D << ": " << plain[at] << " vs " << tv[at] << ")";
         }
     }
 }
@@ -3589,6 +3624,13 @@ TEST(sdpa_gpu_transposed_v_i8, static_16q_4kv_1q_701kv_d256) {
 }
 TEST(sdpa_gpu_transposed_v_i8, static_16q_16kv_33q_333kv_d72) {
     run_sdpa_transposed_v_i8({1, 16, 16, 72, {{33, 333}}});
+}
+// One query at heads xe_hpg's opt single-token stage does not take (72: not a multiple of 16; 32): its sdpa_ocl single-token.
+TEST(sdpa_gpu_transposed_v_i8, static_16q_4kv_1q_333kv_d72) {
+    run_sdpa_transposed_v_i8({1, 16, 4, 72, {{1, 333}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_1q_101kv_d32_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 32, {{1, 101}}, false, true});
 }
 TEST(sdpa_gpu_transposed_v_i8, static_pad_8q_2kv_1q_19kv_d64) {
     run_sdpa_transposed_v_i8({1, 8, 2, 64, {{1, 19}}, false, false, 13});

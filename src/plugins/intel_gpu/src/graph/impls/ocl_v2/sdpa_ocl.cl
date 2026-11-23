@@ -425,7 +425,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #else
         FUNC_CALL(q_chunk)(&q_pack, Q, QD_w, QD_h, QD_p, ldq, q, d, query_base, db, lane);
 #endif
-#if KV_COMP_PER_CHANNEL
+#if KV_COMP_PER_CHANNEL && !SG8
         FUNC_CALL(q_fold_k_scale)(OPTIONAL_SHAPE_INFO_TENSOR &q_pack, K_scales, k_ch_base, d, db, (int)lane);
 #endif
 #if WIDE_Q_SLM
@@ -474,8 +474,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-#if KV_COMP_PER_CHANNEL
-    // Subtracted from every score of the query after the KQ DPAS (see KV_K_BIAS).
+#if KV_COMP_PER_CHANNEL && !SG8
+    // Subtracted from every score of the query after the KQ DPAS (see KV_K_BIAS). SG8 dequantizes K (k_tile_dword_ch()).
     float k_off[kq_query_blocks];
     FUNC_CALL(k_comp_query_offset)(OPTIONAL_SHAPE_INFO_TENSOR k_off, Q_slm,
     #if KEY_ZERO_POINTS
@@ -806,7 +806,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             FUNC_CALL(k_tile_b2d16)(k_raw, K_b2d, KD_w_b2d, KD_h, KD_p, KD_x0, db, key_base, 0);
     #endif
 #else
-    #if SG8 && defined(KV_COMPRESSED)
+    #if SG8 && KV_COMP_PER_CHANNEL
+            FUNC_CALL(k_tile_dword_ch)(OPTIONAL_SHAPE_INFO_TENSOR k_raw, K, ldk, K_scales,
+        #if KEY_ZERO_POINTS
+                                       K_zp,
+        #endif
+                                       k_ch_base, key_base, k, d, db, lane);
+    #elif SG8 && defined(KV_COMPRESSED)
             FUNC_CALL(k_tile_dword_i8)(k_raw, K, ldk, k_scale_lane, k_zpb_lane, key_base, k, d, db, lane);
     #elif SG8
             FUNC_CALL(k_tile_dword)(k_raw, (const __global ushort *)K, ldk, key_base, k, d, db, lane, k_dword_ok);
@@ -835,7 +841,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if CAUSAL_TILE_SKIP
         }
 #endif
-#if KV_COMP_PER_CHANNEL
+#if KV_COMP_PER_CHANNEL && !SG8
         // The folded K's per-query offset (S_tile lane = query of block qb, component = key).
         #pragma unroll
         for (int mb = 0; mb < kq_key_blocks; ++mb)

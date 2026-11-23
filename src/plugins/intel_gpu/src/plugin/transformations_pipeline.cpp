@@ -1288,22 +1288,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
         // After CommonOptimizations: ShapeOf consumers of static branches are folded and do not block batching
         manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-        // Fused compressed K/V (SDPA reads the quantized cache and its per-channel scales) only where sdpa_ocl has that
-        // reader: xe_hpc and Xe2+ XMX (sdpa_ocl_per_channel_kv_ok(): the per-channel reads are SG16; xe_hpg's SG8 arms have none)
-        // with the DPAS kernel on (not OV_GPU_ENABLE_SDPA_MICRO=0) and f16 queries (it runs after ConvertPrecision).
-        // sdpa_opt reads one scale per token, so everywhere else the quantized K/V are dequantized before SDPA. A fused op
-        // sdpa_ocl still refuses runs on sdpa_ref (SDPAOpt::validate_impl()), correct but slow; the pass keeps the ops it
-        // can tell apart unfused, and heads above 256.
-        const bool fuse_compressed_kv = cldnn::paged_attention::sdpa_ocl_selected(device_info) &&
-                                        cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(device_info) && config.get_enable_sdpa_micro() &&
-                                        infer_precision == ov::element::f16;
         // A [B, KV heads, head size, S] V cache goes to SDPA as value order {0,1,3,2} where the transposed-V readers run
         // (Xe2+ and xe_hpg: sdpa_ocl_transposed_v_ok(); the DPAS kernel on, f16); elsewhere the attention gets it through a
         // Transpose.
         const bool fuse_transposed_v = cldnn::paged_attention::sdpa_ocl_selected(device_info) &&
                                        cldnn::paged_attention::sdpa_ocl_transposed_v_ok(device_info) && config.get_enable_sdpa_micro() &&
                                        infer_precision == ov::element::f16;
-        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, fuse_compressed_kv, fuse_transposed_v);
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, fuse_transposed_v);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".

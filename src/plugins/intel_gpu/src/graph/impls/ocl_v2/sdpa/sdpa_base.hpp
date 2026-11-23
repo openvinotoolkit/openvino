@@ -82,9 +82,13 @@ struct SDPABase : public KernelGenerator {
     // has_transposed_v() with what sdpa_ocl's transposed-V readers take, on Xe2+ and xe_hpg: an f16 uncompressed V
     // (v_tile_t) or a per-channel compressed i8 one (v_t_i8_read).
     static bool transposed_v_reader_ok(const kernel_impl_params& params);
-    // xe_hpg: the opt single-token stage reads a transposed f16 V too (V_TRANSPOSED_READ), and SDPAOptImpl gives it the
-    // op's one-query steps at the heads it takes; elsewhere sdpa_ocl is the one reader.
+    // xe_hpg: the opt single-token stage reads a transposed V too (V_TRANSPOSED_READ: f16, or the per-channel i8 cache of
+    // opt_single_token_reads_per_channel()), and SDPAOptImpl gives it the op's one-query steps at the heads it takes;
+    // elsewhere sdpa_ocl is the one reader.
     static bool opt_single_token_reads_transposed_v(const kernel_impl_params& params);
+    // xe_hpg: the opt single-token stage reads per-channel compressed KV too (KV_COMP_PER_CHANNEL: a planar i8 or 4-bit
+    // cache, f16 queries), and SDPAOptImpl gives it the op's one-query steps at the heads it takes.
+    static bool opt_single_token_reads_per_channel(const kernel_impl_params& params);
 
     // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
     // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor

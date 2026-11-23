@@ -102,6 +102,10 @@ SDPA_OCL_INLINE void FUNC(q_chunk)(__private uint8 *q_pack, const __global QRY_D
 #  else
 #    define K_COMP_CH_OFF(ch) KEY_COMP_OFF(0, 0, 0, (ch))
 #  endif
+#endif
+
+#if KV_COMP_PER_CHANNEL && !SG8
+// The SG16 fold (SG8 dequantizes K instead, k_tile_dword_ch()).
 
 // Q chunk of depth tile db times the K scale of each channel, rounded to half once (the K/V dequantization before an
 // uncompressed SDPA rounds k * scale instead): the scale is per channel, i.e. per element of the contraction. Channels
@@ -148,7 +152,7 @@ SDPA_OCL_INLINE void FUNC(k_comp_query_offset)(OPTIONAL_SHAPE_INFO_ARG __private
         }
     }
 }
-#elif defined(KV_COMPRESSED)
+#elif defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL
 // Plain SDPA: per-token K scale and zp of the keys key_base + ii * SUBGROUP_SIZE + lane, one 16-wide
 // load each. Kept in half for the bias-trick dequant: zp absorbs the widen bias (+1152.0h), so a byte
 // dequants as (as_half(0x6480 ^ byte) - (zp + 1152)) * scale. Keys at/past k get scale 0.
@@ -753,10 +757,67 @@ SDPA_OCL_INLINE void FUNC(k_tile_dword_i8)(__private int8 *k_raw, const __global
 }
 #endif
 
+#if SG8 && KV_COMP_PER_CHANNEL
+// SG8 K input read of the per-channel cache (i8, or PLAIN_KV_U4: the lane's two channels are one byte's nibbles): the A
+// operand of k_tile_dword (component kk = key key_base + mb * DPAS_ROWS + kk, lane l = channels db * DPAS_K + 2l and + 1),
+// each element (code - zp) * scale of its channel in float, rounded once: the K the dequantization before an uncompressed
+// SDPA gives. Not folded into Q as on SG16 (q_fold_k_scale() takes one channel per lane of 16). A key at/past k or a
+// channel at/past d stays 0. Bytes one at a time, as k_tile_dword_i8.
+SDPA_OCL_INLINE void FUNC(k_tile_dword_ch)(OPTIONAL_SHAPE_INFO_ARG __private int8 *k_raw, const __global KEY_DATA_T *K,
+                                           const uint ldk, const __global KEY_ATTR_SCALES_DATA_T *K_scales,
+    #if KEY_ZERO_POINTS
+                                           const __global KEY_ATTR_ZP_DATA_T *K_zp,
+    #endif
+                                           const uint k_ch_base, const int key_base, const int k, const int d, const int db,
+                                           const size_t lane) {
+    const int head = db * DPAS_K + 2 * (int)lane;
+    const bool lo_ok = head < d;
+    const bool hi_ok = head + 1 < d;
+    const float sc_lo = lo_ok ? convert_float(K_COMP_SCALE_TO_HALF(K_scales[k_ch_base + K_COMP_CH_OFF(head)])) : 0.0f;
+    const float sc_hi = hi_ok ? convert_float(K_COMP_SCALE_TO_HALF(K_scales[k_ch_base + K_COMP_CH_OFF(head + 1)])) : 0.0f;
+    #if KEY_ZERO_POINTS
+    const float zp_lo = lo_ok ? convert_float(K_zp[k_ch_base + K_COMP_CH_OFF(head)]) : 0.0f;
+    const float zp_hi = hi_ok ? convert_float(K_zp[k_ch_base + K_COMP_CH_OFF(head + 1)]) : 0.0f;
+    #else
+    const float zp_lo = 0.0f;
+    const float zp_hi = 0.0f;
+    #endif
+    #pragma unroll
+    for (int mb = 0; mb < kq_key_blocks; ++mb) {
+        #pragma unroll
+        for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
+            const int key = key_base + mb * DPAS_ROWS + key_offset;
+            uint lo = 0, hi = 0;
+            if (key < k) {
+                const __global KEY_DATA_T *row = K + (size_t)key * ldk;
+    #if PLAIN_KV_U4
+                // The channel pair's byte (row byte head / 2): the even channel in the low nibble.
+                const uint byte = lo_ok ? ((const __global uchar *)row)[head / 2] : 0u;
+                const float c_lo = convert_float(PLAIN_U4_TO_HALF(byte, 0));
+                const float c_hi = convert_float(PLAIN_U4_TO_HALF(byte, 4));
+    #else
+                const float c_lo = lo_ok ? convert_float(row[head]) : 0.0f;
+                const float c_hi = hi_ok ? convert_float(row[head + 1]) : 0.0f;
+    #endif
+                if (lo_ok) {
+                    const float deq_lo = (c_lo - zp_lo) * sc_lo;
+                    lo = DT_BITS_FROM_F32(deq_lo);
+                }
+                if (hi_ok) {
+                    const float deq_hi = (c_hi - zp_hi) * sc_hi;
+                    hi = DT_BITS_FROM_F32(deq_hi);
+                }
+            }
+            k_raw[mb][key_offset] = as_int(lo | (hi << 16));
+        }
+    }
+}
+#endif
+
 // ---- Per-key scalar gathers: the fallbacks wherever no block read applies. One message per (key,
 // head); a key at/past k (or a head at/past d) leaves its element 0.
 
-#if KV_COMP_PER_CHANNEL && !USE_2D_BLOCK_IO_K_I8 && !USE_2D_BLOCK_IO_K_U4
+#if KV_COMP_PER_CHANNEL && !USE_2D_BLOCK_IO_K_I8 && !USE_2D_BLOCK_IO_K_U4 && !SG8
 // Per-channel K where no block read applies: one byte per (key, lane), lane l = channel K_COMP_CHANNEL(db, l) (for the
 // packed 4-bit cache byte PA_K_U4_WIN(db) / 2 + l, nibble PA_K_U4_PAR(db)), widened as k_tile_i8_b2d_ch. A key at/past k
 // or a channel at/past d leaves its element 0 (the key is masked, the channel's Q is 0).
