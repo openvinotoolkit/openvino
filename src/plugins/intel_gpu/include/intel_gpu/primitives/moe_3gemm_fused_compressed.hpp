@@ -36,16 +36,18 @@ struct moe_otd_descriptor {
     std::vector<size_t> weight_bin_offsets;
     std::filesystem::path weights_path;
     size_t lru_expert_num = 0;
+    std::vector<uint8_t> down_scale_payload;
 
     bool operator==(const moe_otd_descriptor& rhs) const {
         return weight_bin_offsets == rhs.weight_bin_offsets && weights_path == rhs.weights_path &&
-               lru_expert_num == rhs.lru_expert_num;
+               lru_expert_num == rhs.lru_expert_num && down_scale_payload == rhs.down_scale_payload;
     }
 
     void save(BinaryOutputBuffer& ob) const {
         ob << weight_bin_offsets;
         ob << weights_path.string();
         ob << lru_expert_num;
+        ob << down_scale_payload;
     }
 
     void load(BinaryInputBuffer& ib) {
@@ -54,6 +56,7 @@ struct moe_otd_descriptor {
         ib >> path_str;
         weights_path = path_str;
         ib >> lru_expert_num;
+        ib >> down_scale_payload;
     }
 };
 

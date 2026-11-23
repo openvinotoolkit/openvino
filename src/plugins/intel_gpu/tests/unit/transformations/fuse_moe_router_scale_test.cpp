@@ -13,6 +13,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "ov_ops/moe_compressed.hpp"
 
 using namespace testing;
@@ -107,7 +108,7 @@ TEST_F(TransformationTestsF, FuseMoEPerExpertScale) {
 
 TEST_F(TransformationTestsF, FuseMoEScalarScale) {
     const size_t num_experts = 4, hidden_size = 8, inter_size = 4, top_k = 2;
-    const float scale_val = 2.0f;
+    const float scale_val = 3.66f;
 
     {
         auto hidden   = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, hidden_size});
@@ -144,7 +145,7 @@ TEST_F(TransformationTestsF, FuseMoEScalarScale) {
     }
 }
 
-TEST_F(TransformationTestsF, PreserveMoEScalarScaleForOffload) {
+TEST_F(TransformationTestsF, FuseMoEScalarScaleForOffload) {
     const size_t num_experts = 4, hidden_size = 8, inter_size = 4, top_k = 2;
     auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, hidden_size});
     auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, top_k});
@@ -160,10 +161,19 @@ TEST_F(TransformationTestsF, PreserveMoEScalarScaleForOffload) {
     model = std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{hidden, routing, topk_idx});
     model_ref = model->clone();
     manager.register_pass<FuseMoERouterScale>();
+    manager.run_passes(model);
+    const auto fused = ov::as_type_ptr<MOECompressed>(model->get_results()[0]->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->input_value(1), routing->output(0));
+    const auto folded = ov::as_type_ptr<ov::op::v0::Constant>(fused->get_input_node_shared_ptr(10));
+    ASSERT_NE(folded, nullptr);
+    EXPECT_EQ(folded->get_rt_info().count("otd_folded_scale"), 1);
+    EXPECT_EQ(folded->cast_vector<ov::float16>(), std::vector<ov::float16>(num_experts * hidden_size, ov::float16(3.66f)));
+    model_ref = model->clone();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-TEST_F(TransformationTestsF, PreserveMoEPerExpertScaleForOffload) {
+TEST_F(TransformationTestsF, FuseMoEPerExpertScaleForOffload) {
     const size_t num_experts = 4, hidden_size = 8, inter_size = 4, top_k = 2;
     auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, hidden_size});
     auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, top_k});
@@ -181,6 +191,19 @@ TEST_F(TransformationTestsF, PreserveMoEPerExpertScaleForOffload) {
     model = std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{hidden, routing, topk_idx});
     model_ref = model->clone();
     manager.register_pass<FuseMoERouterScale>();
+    manager.run_passes(model);
+    const auto fused = ov::as_type_ptr<MOECompressed>(model->get_results()[0]->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->input_value(1), routing->output(0));
+    const auto folded = ov::as_type_ptr<ov::op::v0::Constant>(fused->get_input_node_shared_ptr(10));
+    ASSERT_NE(folded, nullptr);
+    EXPECT_EQ(folded->get_rt_info().count("otd_folded_scale"), 1);
+    std::vector<ov::float16> expected;
+    for (const auto factor : {1.0f, 2.0f, 1.0f, 0.5f}) {
+        expected.insert(expected.end(), hidden_size, ov::float16(factor));
+    }
+    EXPECT_EQ(folded->cast_vector<ov::float16>(), expected);
+    model_ref = model->clone();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 

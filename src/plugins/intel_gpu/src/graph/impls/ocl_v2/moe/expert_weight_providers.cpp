@@ -30,10 +30,12 @@ size_t ResidentExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream&
 OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
                                                          const cldnn::MOECompressed::Config& config,
                                                          std::vector<size_t> weight_bin_offsets,
-                                                         std::filesystem::path weights_path)
+                                                         std::filesystem::path weights_path,
+                                                         std::vector<uint8_t> down_scale_payload)
     : _capacity(capacity),
       _config(config),
       _weight_bin_offsets(std::move(weight_bin_offsets)),
+    _down_scale_payload(std::move(down_scale_payload)),
       _weights_path(std::move(weights_path)),
       _cache(std::make_shared<LRUCache>(capacity)),
       _weight_reader(_weights_path) {}
@@ -56,7 +58,7 @@ void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
 }
 
 std::shared_ptr<IExpertWeightProvider> OffloadExpertWeightProvider::clone() const {
-    return std::make_shared<OffloadExpertWeightProvider>(_capacity, _config, _weight_bin_offsets, _weights_path);
+    return std::make_shared<OffloadExpertWeightProvider>(_capacity, _config, _weight_bin_offsets, _weights_path, _down_scale_payload);
 }
 
 void OffloadExpertWeightProvider::set_les_context(cldnn::les_context* context, uint64_t epoch) {
@@ -153,7 +155,7 @@ std::optional<ExpertDemand> OffloadExpertWeightProvider::begin_les_demand(const 
                         perf->les_worker_tasks.fetch_add(1, std::memory_order_relaxed);
                     }
                     *events = moe_otd::fill_weights_memory_async(*transfer, _config, _weight_bin_offsets, _weight_reader,
-                                                               weights, missing, slots);
+                                                               weights, missing, slots, nullptr, nullptr, _down_scale_payload);
                 });
             _upload_completion = std::move(task.completion);
         }
@@ -313,7 +315,8 @@ void OffloadExpertWeightProvider::prefetch_les_demand(const std::vector<uint32_t
                  missing = _reservation->missing_experts, slots = _reservation->missing_slots]() mutable {
                     try {
                         *events = moe_otd::fill_weights_memory_async(*transfer, _config, _weight_bin_offsets, _weight_reader,
-                                                                     weights, missing, slots, &_prefetch_uploaded_bytes);
+                                                                     weights, missing, slots, &_prefetch_uploaded_bytes,
+                                                                     nullptr, _down_scale_payload);
                     } catch (...) {
                         _prefetch_error = std::current_exception();
                     }
@@ -408,7 +411,7 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
                 perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
             }
             OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound");
-            moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weight_reader, *_resident, {expert}, {slot});
+            moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weight_reader, *_resident, {expert}, {slot}, _down_scale_payload);
             _cache->set_filled(slot);
         }
 
@@ -439,7 +442,7 @@ size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& 
             perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
         }
         OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound");
-        moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weight_reader, *_resident, {expert}, {slot});
+        moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weight_reader, *_resident, {expert}, {slot}, _down_scale_payload);
         _cache->set_filled(slot);
     }
 

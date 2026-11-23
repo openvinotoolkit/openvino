@@ -67,7 +67,8 @@ public:
     OffloadExpertWeightProvider(size_t capacity,
                                 const cldnn::MOECompressed::Config& config,
                                 std::vector<size_t> weight_bin_offsets,
-                                std::filesystem::path weights_path);
+                                std::filesystem::path weights_path,
+                                std::vector<uint8_t> down_scale_payload = {});
     ~OffloadExpertWeightProvider() override;
 
     size_t resident_capacity() const override {
@@ -104,6 +105,7 @@ private:
     size_t _capacity = 0;
     cldnn::MOECompressed::Config _config{};
     std::vector<size_t> _weight_bin_offsets;
+    std::vector<uint8_t> _down_scale_payload;
     std::filesystem::path _weights_path;
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;

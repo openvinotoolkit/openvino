@@ -150,7 +150,12 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         prepare_moe_otd_params(p, op, weight_bin_offsets, weights_path, lru_expert_num);
 
         const std::string layerName = layer_type_name_ID(op);
-        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config, weight_bin_offsets, weights_path, lru_expert_num);
+        cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config, weight_bin_offsets, weights_path, lru_expert_num);
+        const auto down_scale = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(10));
+        if (lru_expert_num > 0 && down_scale && down_scale->get_rt_info().count("otd_folded_scale") != 0) {
+            const auto* data = static_cast<const uint8_t*>(down_scale->get_data_ptr());
+            moe._otd.down_scale_payload.assign(data, data + down_scale->get_byte_size());
+        }
         p.add_primitive(*op, moe);
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives

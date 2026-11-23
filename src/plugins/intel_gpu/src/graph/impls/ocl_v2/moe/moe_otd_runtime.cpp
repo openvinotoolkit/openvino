@@ -260,7 +260,8 @@ void fill_weights_memory(cldnn::stream& exec_stream,
                          ParallelWeightReader& weight_reader,
                          cldnn::moe_weights& wei_mem,
                          const std::vector<uint32_t>& experts_list,
-                         const std::vector<size_t>& lru_experts) {
+                         const std::vector<size_t>& lru_experts,
+                         const std::vector<uint8_t>& down_scale_payload) {
     struct tensor_fill_plan {
         size_t per_expert_size = 0;
         size_t src_offset = 0;
@@ -316,7 +317,10 @@ void fill_weights_memory(cldnn::stream& exec_stream,
 
             if (plan.per_expert_size != 0) {
                 payload.resize(plan.per_expert_size);
-                if (perf) {
+                if (offset_pos == 5 && !down_scale_payload.empty()) {
+                    OPENVINO_ASSERT(expert < num_expert && down_scale_payload.size() == plan.per_expert_size * num_expert);
+                    std::memcpy(payload.data(), down_scale_payload.data() + expert * plan.per_expert_size, plan.per_expert_size);
+                } else if (perf) {
                     auto t0 = std::chrono::steady_clock::now();
                     weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
                     auto t1 = std::chrono::steady_clock::now();
@@ -360,7 +364,8 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                                                       const std::vector<uint32_t>& experts,
                                                       const std::vector<size_t>& slots,
                                                       uint64_t* uploaded_bytes,
-                                                      LookaheadStagingPool* staging_pool) {
+                                                      LookaheadStagingPool* staging_pool,
+                                                      const std::vector<uint8_t>& down_scale_payload) {
     constexpr size_t chunk_bytes = LookaheadStagingPool::chunk_bytes;
     const std::array<cldnn::memory::ptr, 9> tensors{weights.gate_w, weights.up_w, weights.down_w,
                                                 weights.gate_s, weights.up_s, weights.down_s,
@@ -371,6 +376,7 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
         size_t source;
         size_t destination;
         size_t bytes;
+        uint32_t expert;
     };
     OPENVINO_ASSERT(weight_bin_offsets.size() == tensors.size() && experts.size() == slots.size(), "Invalid LES upload plan");
     const auto expert_count = static_cast<size_t>(config.num_expert);
@@ -396,7 +402,7 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
             OPENVINO_ASSERT(bytes <= file_size - source, "LES tensor read outside weight file");
             OPENVINO_ASSERT(slots[index] < memory->size() / bytes, "LES upload outside physical slot buffer");
             OPENVINO_ASSERT(component < 3 || bytes <= chunk_bytes, "LES transposed metadata exceeds 8 MiB per expert");
-            plans.push_back({memory, component, source, slots[index] * bytes, bytes});
+            plans.push_back({memory, component, source, slots[index] * bytes, bytes, experts[index]});
         }
     }
     LookaheadStagingPool local_pool;
@@ -422,7 +428,12 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                 }
                 cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> payload(buffer.memory, transfer_stream);
                 const auto read_start = les_trace_enabled() ? les_device_time(transfer_stream) : 0;
-                weight_reader.read(reinterpret_cast<char*>(payload.data()), bytes, plan.source + offset);
+                if (plan.component == 5 && !down_scale_payload.empty()) {
+                    OPENVINO_ASSERT(down_scale_payload.size() == plan.bytes * expert_count);
+                    std::memcpy(payload.data(), down_scale_payload.data() + plan.expert * plan.bytes + offset, bytes);
+                } else {
+                    weight_reader.read(reinterpret_cast<char*>(payload.data()), bytes, plan.source + offset);
+                }
                 if (les_trace_enabled()) {
                     les_trace_interval("read", read_start, les_device_time(transfer_stream));
                 }

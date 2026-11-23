@@ -8,6 +8,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -57,9 +58,6 @@ FuseMoERouterScale::FuseMoERouterScale() {
 
         const auto& pm = m.get_pattern_value_map();
         const auto& w2_scale = pm.at(w2_scale_m);
-        if (w2_scale.get_node_shared_ptr()->get_rt_info().count("otd_bin_offset") != 0) {
-            return false;
-        }
         auto apply_scale = [&](ov::Output<ov::Node> scale, bool need_unsqueeze) {
             if (scale.get_element_type() != w2_scale.get_element_type()) {
                 scale = std::make_shared<ov::op::v0::Convert>(scale, w2_scale.get_element_type());
@@ -99,6 +97,10 @@ FuseMoERouterScale::FuseMoERouterScale() {
             return false;
         }
         ov::copy_runtime_info(w2_scale.get_node_shared_ptr(), folded);
+        if (w2_scale.get_node_shared_ptr()->get_rt_info().count("otd_bin_offset") != 0) {
+            folded->get_rt_info().erase(ov::WeightlessCacheAttribute::get_type_info_static());
+            folded->get_rt_info()["otd_folded_scale"] = true;
+        }
 
         auto moe_compressed = pm.at(moe_compressed_m).get_node_shared_ptr();
         auto new_inputs = moe_compressed->input_values();

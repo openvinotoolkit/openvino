@@ -139,7 +139,8 @@ void fill_weights_memory(cldnn::stream& exec_stream,
                          ParallelWeightReader& weight_reader,
                          cldnn::moe_weights& wei_mem,
                          const std::vector<uint32_t>& experts_list,
-                         const std::vector<size_t>& lru_experts);
+                         const std::vector<size_t>& lru_experts,
+                         const std::vector<uint8_t>& down_scale_payload = {});
 
 struct LookaheadStagingPool {
     struct Chunk {
@@ -159,6 +160,7 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                                                       const std::vector<uint32_t>& experts,
                                                       const std::vector<size_t>& slots,
                                                       uint64_t* uploaded_bytes = nullptr,
-                                                      LookaheadStagingPool* staging_pool = nullptr);
+                                                      LookaheadStagingPool* staging_pool = nullptr,
+                                                      const std::vector<uint8_t>& down_scale_payload = {});
 
 }  // namespace ov::intel_gpu::ocl::moe_otd

@@ -85,6 +85,7 @@ struct ExpertPrefetcher::State {
         std::shared_ptr<LRUCache> cache;
         cldnn::MOECompressed::Config config;
         std::vector<size_t> offsets;
+        std::vector<uint8_t> down_scale_payload;
         cldnn::moe_weights weights;
         std::unique_ptr<moe_otd::ParallelWeightReader> reader;
     };
@@ -336,7 +337,7 @@ struct ExpertPrefetcher::State {
                         source.cache->start_load(selected->load);
                         moe_otd::fill_weights_memory_async(*dma, source.config, source.offsets, *source.reader,
                                                            source.weights, {selected->load.expert_id}, {selected->load.slot},
-                                                           nullptr, &staging);
+                                                           nullptr, &staging, source.down_scale_payload);
                         finish(*selected, CL_COMPLETE);
                     } catch (...) {
                         finish(*selected, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
@@ -440,6 +441,7 @@ void ExpertPrefetcher::bind(const std::shared_ptr<OffloadExpertWeightProvider>& 
         binding->cache = provider->_cache;
         binding->config = provider->_config;
         binding->offsets = provider->_weight_bin_offsets;
+        binding->down_scale_payload = provider->_down_scale_payload;
         binding->weights = *provider->_resident;
         binding->reader = std::make_unique<moe_otd::ParallelWeightReader>(provider->_weights_path);
         m_state->bindings.emplace(provider.get(), std::move(binding));

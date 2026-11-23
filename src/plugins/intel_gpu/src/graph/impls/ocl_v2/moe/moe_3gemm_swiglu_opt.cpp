@@ -1159,7 +1159,8 @@ public:
             _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
                                                                              cur_moe->_config,
                                                                              cur_moe->_otd.weight_bin_offsets,
-                                                                             cur_moe->_otd.weights_path);
+                                                                             cur_moe->_otd.weights_path,
+                                                                             cur_moe->_otd.down_scale_payload);
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
@@ -1459,7 +1460,8 @@ public:
             _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
                                                                              cur_moe->_config,
                                                                              cur_moe->_otd.weight_bin_offsets,
-                                                                             cur_moe->_otd.weights_path);
+                                                                             cur_moe->_otd.weights_path,
+                                                                             cur_moe->_otd.down_scale_payload);
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
@@ -2869,6 +2871,10 @@ public:
                                     num_actually_used_experts,
                                     events)) {
             if (_weight_provider->is_offloaded()) {
+                const auto weight_type = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type;
+                if (weight_type == data_types::u4 && !_has_shared_expert && token_num > batched_gemv_threshold) {
+                    return exec_grouped_prefill_waves(events, stream, instance, scratch);
+                }
                 // OTD: unique experts > capacity → explicit fallback to per-expert loop
                 return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
@@ -2918,13 +2924,90 @@ public:
         return exec_grouped_gemm_core(ret_event, stream, instance, scratch, max_tokens_per_expert);
     }
 
+    cldnn::event::ptr exec_grouped_prefill_waves(const std::vector<cldnn::event::ptr>& events,
+                                               cldnn::stream& stream,
+                                               typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                               scratch_buffers& scratch) {
+        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
+        auto hidden_layout = instance.input_memory_ptr(0)->get_layout();
+        const size_t token_num = get_seq_len(hidden_layout);
+        const size_t topk_count = token_num * config.top_k;
+        const size_t capacity = resident_slot_count();
+        OPENVINO_ASSERT(capacity > 0, "Grouped MoE waves require resident slots");
+        expert_mask_cpu masks;
+        get_expert_mask_from_gpu(config, scratch.topk_id, stream, masks, token_num);
+        std::vector<uint32_t> experts;
+        for (size_t expert = 0; expert < config.num_expert; ++expert) {
+            if (!masks.batch[expert].empty()) {
+                experts.push_back(static_cast<uint32_t>(expert));
+            }
+        }
+        const auto& buffers = instance.get_intermediates_memories();
+        auto& engine = instance.get_network().get_engine();
+        auto saved_layout = buffers[MOE_INTERNAL_BUFFER_DOWN_OUTPUT]->get_layout();
+        auto saved_down = engine.allocate_memory(saved_layout,
+                                                  buffers[MOE_INTERNAL_BUFFER_DOWN_OUTPUT]->get_allocation_type(), false);
+        std::vector<int32_t> row_lut(topk_count, -1);
+        const size_t row_bytes = config.hidden_size * cldnn::data_type_traits::size_of(saved_down->get_layout().data_type);
+        size_t saved_rows = 0;
+        cldnn::event::ptr completion = events.empty() ? nullptr : events[0];
+        for (size_t first = 0; first < experts.size(); first += capacity) {
+            const size_t last = std::min(first + capacity, experts.size());
+            std::vector<uint32_t> wave(experts.begin() + first, experts.begin() + last);
+            auto lease = _weight_provider->try_acquire_simultaneous(wave, stream);
+            OPENVINO_ASSERT(lease && lease->size() == wave.size(), "Cannot acquire bounded grouped MoE wave");
+            std::vector<std::vector<int32_t>> slot_tokens(capacity), slot_topk(capacity);
+            for (size_t index = 0; index < wave.size(); ++index) {
+                const size_t slot = static_cast<size_t>((*lease)[index]);
+                OPENVINO_ASSERT(slot < capacity, "Invalid grouped MoE wave slot");
+                slot_tokens[slot] = masks.batch[wave[index]];
+                slot_topk[slot] = masks.topk[wave[index]];
+            }
+            std::vector<int32_t> tokens, offsets(capacity, 0);
+            int maximum_rows = 0;
+            for (size_t slot = 0; slot < capacity; ++slot) {
+                maximum_rows = std::max(maximum_rows, static_cast<int>(slot_tokens[slot].size()));
+                for (size_t row = 0; row < slot_tokens[slot].size(); ++row) {
+                    const size_t pair = static_cast<size_t>(slot_topk[slot][row]);
+                    OPENVINO_ASSERT(pair < row_lut.size() && row_lut[pair] == -1, "Invalid grouped MoE wave row map");
+                    row_lut[pair] = static_cast<int32_t>(saved_rows + tokens.size());
+                    tokens.push_back(slot_tokens[slot][row]);
+                }
+                offsets[slot] = static_cast<int32_t>(tokens.size());
+            }
+            OPENVINO_ASSERT(!tokens.empty() && saved_rows + tokens.size() <= topk_count, "Invalid grouped MoE wave size");
+            buffers[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]->copy_from(stream, tokens.data(), 0, 0,
+                                                                          tokens.size() * sizeof(int32_t), true);
+            buffers[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]->copy_from(stream, offsets.data(), 0, 0,
+                                                                   offsets.size() * sizeof(int32_t), true);
+            set_otd_weight_pointers(instance, scratch);
+            completion = exec_grouped_gemm_core(completion, stream, instance, scratch, maximum_rows,
+                                                 static_cast<int>(tokens.size()), false);
+            saved_down->copy_from(stream, *scratch.y, 0, saved_rows * row_bytes, tokens.size() * row_bytes, true);
+            saved_rows += tokens.size();
+        }
+        OPENVINO_ASSERT(saved_rows == topk_count &&
+                        std::find(row_lut.begin(), row_lut.end(), -1) == row_lut.end(), "Incomplete grouped MoE wave output");
+        buffers[MOE_INTERNAL_BUFFER_ROW_LUT]->copy_from(stream, row_lut.data(), 0, 0, row_lut.size() * sizeof(int32_t), true);
+        auto [local_threads, batches_per_thread, unused] =
+            calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), 4, _hidden_size);
+        completion = execute_stage({completion}, instance, *prefill_scatter_reduce_row_lut,
+                                     {saved_down, scratch.topk_weights, buffers[MOE_INTERNAL_BUFFER_ROW_LUT]},
+                                     {instance.output_memory_ptr(0)}, {token_num * local_threads, 1, 1},
+                                     {local_threads, 1, 1}, true);
+        stream.finish();
+        return completion;
+    }
+
     // Steps 2-6 of the grouped GEMM path. Expects the gather token list, the grouped end-offsets and row_lut
     // in the internal buffers, written by the CPU (exec_grouped_gemm_cpu_mask_gen) or GPU (exec_grouped_gemm_gpu_mask_gen) mask gen.
     cldnn::event::ptr exec_grouped_gemm_core(cldnn::event::ptr ret_event,
                                              cldnn::stream& stream,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                              scratch_buffers& scratch,
-                                             int max_tokens_per_expert) {
+                                             int max_tokens_per_expert,
+                                             int wave_rows = 0,
+                                             bool reduce_output = true) {
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
         auto& dnn_stream = stream.get_onednn_stream();
 
@@ -2933,7 +3016,7 @@ public:
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto routing_mem_ptr = scratch.topk_weights;
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        int total_gathered_tokens = static_cast<int>(token_num) * static_cast<int>(config.top_k);
+        int total_gathered_tokens = wave_rows > 0 ? wave_rows : static_cast<int>(token_num) * static_cast<int>(config.top_k);
 
         // ----------------------------------------------------------------
         // Step 2: GPU gather – reorder input tokens sorted by expert
@@ -2961,7 +3044,7 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
-        auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
+        auto& gk = get_grouped_kernel(static_cast<int>(token_num) * static_cast<int>(config.top_k), instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
@@ -3027,6 +3110,9 @@ public:
 
         // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
         on_after_grouped_gemm(stream);
+        if (!reduce_output) {
+            return ret_event;
+        }
 
         // ----------------------------------------------------------------
         // Step 6: scatter_reduce – weighted accumulate into output
