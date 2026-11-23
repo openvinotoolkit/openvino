@@ -4,13 +4,18 @@
 
 #include "custom/single_layer_tests/classes/reduce.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <limits>
+#include <string>
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
@@ -68,6 +73,60 @@ INSTANTIATE_TEST_SUITE_P(
                         ReduceNaNCase{{33}, {0}, x},
                         ReduceNaNCase{{1, 3, 2, 3}, {3}, nchw},
                         ReduceNaNCase{{1, 19, 2, 17}, {1, 2, 3}, ov::with_cpu_x86_avx512_core() ? nChw16c : nChw8c})));
+
+struct ReduceMinNonFiniteCase {
+    ov::Shape shape;
+    std::vector<int> axes;
+    bool expectJit;
+};
+
+class ReduceMinNonFiniteCPUTest : public testing::TestWithParam<ReduceMinNonFiniteCase> {};
+
+TEST_P(ReduceMinNonFiniteCPUTest, ReturnsPositiveInfinity) {
+    const auto& [shape, axes, expectJit] = GetParam();
+    if (expectJit && !ov::with_cpu_x86_avx2()) {
+        GTEST_SKIP() << "Reduce JIT requires AVX2";
+    }
+
+    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    const auto axesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+    const auto reduce = ov::test::utils::make_reduce(parameter, axesNode, true, ov::test::utils::ReductionType::Min);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{parameter});
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       ov::test::utils::DEVICE_CPU,
+                                       {{ov::hint::inference_precision.name(), ov::element::f32}});
+
+    std::string implType;
+    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
+        const auto& info = node->get_rt_info();
+        const auto layerType = info.find(ov::exec_model_info::LAYER_TYPE);
+        if (layerType != info.end() && layerType->second.as<std::string>() == "Reduce") {
+            implType = info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+            break;
+        }
+    }
+    EXPECT_EQ(implType.find(expectJit ? "jit_" : "ref"), 0U) << implType;
+
+    auto request = compiled.create_infer_request();
+    auto input = request.get_input_tensor();
+    auto* data = input.data<float>();
+    constexpr float inf = std::numeric_limits<float>::infinity();
+    std::fill_n(data, input.get_size(), std::numeric_limits<float>::quiet_NaN());
+    // Only the second reduction group contains positive infinity.
+    data[input.get_size() - 1] = inf;
+
+    request.infer();
+    const auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.get_size(), 2U);
+    EXPECT_EQ(actual.data<const float>()[0], inf) << "All-NaN group";
+    EXPECT_EQ(actual.data<const float>()[1], inf) << "Mixed NaN and positive infinity group";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceMinNonFinite,
+                         ReduceMinNonFiniteCPUTest,
+                         testing::Values(ReduceMinNonFiniteCase{{2, 17}, {1}, true},
+                                         ReduceMinNonFiniteCase{{2, 2, 2, 1, 1, 1}, {0, 2}, false}));
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},

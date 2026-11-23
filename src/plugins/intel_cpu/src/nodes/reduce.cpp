@@ -1201,7 +1201,7 @@ private:
         broadcast_int(aux_vals.float_one);
         broadcast_int(aux_vals.float_abs);
         broadcast_int(aux_vals.float_min);
-        broadcast_int(aux_vals.float_max);
+        broadcast_int(aux_vals.float_inf);
         broadcast_int(aux_vals.int32_min);
         broadcast_int(aux_vals.int32_max);
         broadcast_int(aux_vals.int32_one);
@@ -1211,7 +1211,7 @@ private:
         int float_one = 0x3f800000;  // 1.0f
         int float_abs = 0x7fffffff;  // mask to make positive
         int float_min = 0xff7fffff;  // float minimum
-        int float_max = 0x7f7fffff;  // float maximum
+        int float_inf = 0x7f800000;  // positive infinity
         int int32_min = 0xcf000000;  // -2^31 presented in float
         int int32_max = 0x4effffff;  // 2^31-1 presented in float
         int int32_one = 0x00000001;  // integer 1
@@ -3281,7 +3281,7 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         if (output_prec == ov::element::f32) {
             auto* out_p = reinterpret_cast<float*>(out_ptr);
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<float>::max();
+                out_p[i] = std::numeric_limits<float>::infinity();
             });
         } else if (output_prec == ov::element::i32) {
             auto* out_p = reinterpret_cast<int32_t*>(out_ptr);
@@ -3291,12 +3291,12 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         } else if (output_prec == ov::element::bf16) {
             auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<bfloat16_t>::max();
+                out_p[i] = std::numeric_limits<bfloat16_t>::infinity();
             });
         } else if (output_prec == ov::element::f16) {
             auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<ov::float16>::max();
+                out_p[i] = std::numeric_limits<ov::float16>::infinity();
             });
         } else if (output_prec == ov::element::u8) {
             auto* out_p = out_ptr;
@@ -3527,7 +3527,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         });
         break;
     case Algorithm::ReduceMin:
-        reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::max(), [](float x, float y) -> float {
+        reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::infinity(), [](float x, float y) -> float {
             return std::min(x, y);
         });
         break;
