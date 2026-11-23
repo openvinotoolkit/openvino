@@ -2136,26 +2136,6 @@ KERNEL(sdpa_opt)(
                 SOFTMAX_ACCUMULATOR_TYPE max_val_prev = slm_max_val_prev[m];
                 qk_max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(sub_group_reduce_max(qk_max_cur), max_val_prev);
 
-                // softmax
-                SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
-                // slm_qk_vals holds each score minus the maximum of its key block (see softmax_scale). A key block is
-                // TARGET_SEQ_LEN_BLOCK_SIZE == SUBGROUP_SIZE keys wide, so iteration j covers exactly key block j.
-                unroll_for (uint c = 0; c < KEY_BLOCK_CHUNKS; c++) {
-                    for (uint l = 0; l < SUBGROUP_SIZE; l++) {
-                        const uint j = c * SUBGROUP_SIZE + l;
-                        if (j * SUBGROUP_SIZE >= partition_seq_len)
-                            break;
-                        const SOFTMAX_ACCUMULATOR_TYPE block_offset = sub_group_broadcast(block_max[c], l) - qk_max_new;
-                        const uint k = j * SUBGROUP_SIZE + sglid;
-                        if (k < partition_seq_len) {
-                            SOFTMAX_ACCUMULATOR_TYPE a = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][k]) + block_offset);
-                            slm_qk_vals[m][k] = TO_OUTPUT_COMPUTE_TYPE(a);
-                            exp_sum_new += a;
-                        }
-                    }
-                }
-                exp_sum_new = sub_group_reduce_add(exp_sum_new);
-
 #if PAGED_ATTENTION_SCORES_OUTPUT
                 {
                     const uint subsequence_idx = gws_seq_indexes_correspondence[target_seq_dim];
@@ -2178,23 +2158,35 @@ KERNEL(sdpa_opt)(
 #endif
                         if (save_row) {
                             const uint partition_idx = start_partition_idx / SEQ_LEN_PARTITION_SIZE;
+                            const uint output_offset = (scores_offset + local_row_idx) * NUM_HEADS * aligned_max_context_len +
+                                                       num_heads_dim * aligned_max_context_len +
+                                                       partition_idx * SEQ_LEN_PARTITION_SIZE;
 
-                            SOFTMAX_ACCUMULATOR_TYPE correction_factor = native_exp(qk_max_new - qk_max_cur);
+                            // The scores keep each partition relative to its own maximum qk_max_cur. The weights SoftMax
+                            // computes below are relative to the running maximum qk_max_new, and they all underflow to 0
+                            // when an earlier partition scored more than ~87 higher, which made the scores 0 / 0. So compute
+                            // the weights here from the block-relative scores, before SoftMax overwrites them.
+                            SOFTMAX_ACCUMULATOR_TYPE exp_sum_cur = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                            for (uint i = sglid; i < partition_seq_len; i += SUBGROUP_SIZE) {
+                                const SOFTMAX_ACCUMULATOR_TYPE block_offset = slm_qk_max_vals[m][i / SUBGROUP_SIZE] - qk_max_cur;
+                                const SOFTMAX_ACCUMULATOR_TYPE a = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][i]) + block_offset);
+                                softmax_results[output_offset + i] = a;
+                                exp_sum_cur += a;
+                            }
+                            exp_sum_cur = sub_group_reduce_add(exp_sum_cur);
 
                             if (sglid == 0) {
                                 const uint max_partitions_num = aligned_max_context_len / SEQ_LEN_PARTITION_SIZE;
                                 const uint exp_sums_output_offset = (scores_offset + local_row_idx) * NUM_HEADS * max_partitions_num +
                                                                     num_heads_dim * max_partitions_num +
                                                                     partition_idx;
-                                exp_sums[exp_sums_output_offset] = exp_sum_new * correction_factor;
+                                exp_sums[exp_sums_output_offset] = exp_sum_cur;
                                 max_logits[exp_sums_output_offset] = qk_max_cur;
                             }
 
-                            const uint output_offset = (scores_offset + local_row_idx) * NUM_HEADS * aligned_max_context_len +
-                                                       num_heads_dim * aligned_max_context_len +
-                                                       partition_idx * SEQ_LEN_PARTITION_SIZE;
+                            // Each work item normalizes the weights it wrote above
                             for (uint i = sglid; i < partition_seq_len; i += SUBGROUP_SIZE) {
-                                softmax_results[output_offset + i] = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][i]) / exp_sum_new;
+                                softmax_results[output_offset + i] /= exp_sum_cur;
                             }
 #if HAS_SCORE_AGGREGATION
                             const uint full_partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
@@ -2206,6 +2198,26 @@ KERNEL(sdpa_opt)(
                     }
                 }
 #endif /*end of PAGED_ATTENTION_SCORES_OUTPUT*/
+
+                // softmax
+                SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                // slm_qk_vals holds each score minus the maximum of its key block (see softmax_scale). A key block is
+                // TARGET_SEQ_LEN_BLOCK_SIZE == SUBGROUP_SIZE keys wide, so iteration j covers exactly key block j.
+                unroll_for (uint c = 0; c < KEY_BLOCK_CHUNKS; c++) {
+                    for (uint l = 0; l < SUBGROUP_SIZE; l++) {
+                        const uint j = c * SUBGROUP_SIZE + l;
+                        if (j * SUBGROUP_SIZE >= partition_seq_len)
+                            break;
+                        const SOFTMAX_ACCUMULATOR_TYPE block_offset = sub_group_broadcast(block_max[c], l) - qk_max_new;
+                        const uint k = j * SUBGROUP_SIZE + sglid;
+                        if (k < partition_seq_len) {
+                            SOFTMAX_ACCUMULATOR_TYPE a = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][k]) + block_offset);
+                            slm_qk_vals[m][k] = TO_OUTPUT_COMPUTE_TYPE(a);
+                            exp_sum_new += a;
+                        }
+                    }
+                }
+                exp_sum_new = sub_group_reduce_add(exp_sum_new);
 
                 // update
                 if (sglid == 0) {
