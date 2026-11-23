@@ -75,12 +75,14 @@ float16::float16(float value) {
         return;
     }
     int16_t biased_exp_16 = (biased_exp_field_32 >> 23) - 127 + 15;
-    // In the normalized_16 realm
-    if ((frac & rhalf_16) == rodd_16 || (frac & rnorm_16) != 0) {
-        frac += reven_16;
-        if (0 != (frac & emask_16)) {
-            frac &= emask_16;
-            biased_exp_16++;
+    // In the normalized_16 realm, only apply rounding when exponent is positive
+    if (biased_exp_16 > 0) {
+        if ((frac & rhalf_16) == rodd_16 || (frac & rnorm_16) != 0) {
+            frac += reven_16;
+            if (0 != (frac & emask_16)) {
+                frac &= emask_16;
+                biased_exp_16++;
+            }
         }
     }
     frac &= fmask_16;
