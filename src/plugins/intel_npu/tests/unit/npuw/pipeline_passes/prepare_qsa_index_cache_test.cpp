@@ -836,4 +836,56 @@ TEST_F(QSACompiledModelTest, ExplicitPartitionOptionsOverrideQsaDefaults) {
     }
 }
 
+TEST_F(QSACompiledModelTest, SharedHeadUsesQsaPartitionDefaults) {
+    const auto* path = std::getenv("NPUW_QSA_TEST_MODEL");
+    if (!path) {
+        GTEST_SKIP() << "Set NPUW_QSA_TEST_MODEL to the Qwen4 language-model XML";
+    }
+    Core core;
+    auto model = core.read_model(path);
+    ov::test::npuw::RecordingFactory recorder;
+    auto compiled = create_compiled_model(model,
+                                          {{"NPUW_LLM_MAX_PROMPT_LEN", "64"},
+                                           {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                                           {"NPUW_LLM_PREFILL_HINT", "STATIC"},
+                                           {"NPUW_LLM_PREFILL_ATTENTION_HINT", "STATIC"},
+                                           {"NPUW_LLM_GENERATE_ATTENTION_HINT", "STATIC"},
+                                           {"NPUW_LLM_SHARED_HEAD", "YES"}},
+                                          recorder);
+    ASSERT_NE(compiled, nullptr);
+    const auto& head = require_sub_model(recorder, "_lm_head");
+    EXPECT_EQ(head.props.at("NPUW_FOLD").as<std::string>(), "NO");
+    EXPECT_EQ(head.props.at("NPUW_FUNCALL_FOR_ALL").as<std::string>(), "NO");
+    EXPECT_EQ(head.props.at("NPUW_F16IC").as<std::string>(), "NO");
+    EXPECT_EQ(head.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
+}
+
+TEST_F(QSACompiledModelTest, SharedHeadHonorsExplicitPartitionOverrides) {
+    const auto* path = std::getenv("NPUW_QSA_TEST_MODEL");
+    if (!path) {
+        GTEST_SKIP() << "Set NPUW_QSA_TEST_MODEL to the Qwen4 language-model XML";
+    }
+    Core core;
+    auto model = core.read_model(path);
+    ov::test::npuw::RecordingFactory recorder;
+    auto compiled = create_compiled_model(
+        model,
+        {{"NPUW_LLM_MAX_PROMPT_LEN", "64"},
+         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+         {"NPUW_LLM_PREFILL_HINT", "STATIC"},
+         {"NPUW_LLM_PREFILL_ATTENTION_HINT", "STATIC"},
+         {"NPUW_LLM_GENERATE_ATTENTION_HINT", "STATIC"},
+         {"NPUW_LLM_SHARED_HEAD", "YES"},
+         {"NPUW_FOLD", "YES"},
+         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+         {"NPUW_F16IC", "YES"},
+         {"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPUW_FOLD", "NO"}, {"NPUW_F16IC", "NO"}}}},
+        recorder);
+    ASSERT_NE(compiled, nullptr);
+    const auto& head = require_sub_model(recorder, "_lm_head");
+    EXPECT_EQ(head.props.at("NPUW_FOLD").as<std::string>(), "NO");
+    EXPECT_EQ(head.props.at("NPUW_FUNCALL_FOR_ALL").as<std::string>(), "YES");
+    EXPECT_EQ(head.props.at("NPUW_F16IC").as<std::string>(), "NO");
+}
+
 }  // namespace
