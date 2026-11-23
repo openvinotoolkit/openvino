@@ -15,7 +15,7 @@ RUNNER = Path(__file__).resolve().parents[1] / "run_parallel.py"
 TESTS = {
     "Alpha": ("Keep", "SkipOne", "Has-Value", "Has--Value", "Has+Value", "Special-(case)"),
     "Beta": ("Keep", "SkipOne", "Other"),
-    "Gamma": ("Keep",),
+    "Gamma": ("Keep", "batch=-1", "batch=1", "batch=-31", "fmt=bfyx; value", "fmt=bfyx, value"),
 }
 
 
@@ -56,7 +56,7 @@ def fake_gtest():
             name = f"{suite}.{test}"
             if "--fake-gtest-drop-one" in sys.argv and name == "Alpha.Keep":
                 continue
-            if "--fake-gtest-drop-once" in sys.argv and name == "Alpha.Has+Value":
+            if "--fake-gtest-drop-once" in sys.argv and name in ("Alpha.Has+Value", "Gamma.batch=-1"):
                 marker = Path(os.environ["PARALLEL_FILTER_TEST_MARKER"])
                 if not marker.exists():
                     marker.touch()
@@ -130,7 +130,21 @@ class ParallelFilterTests(unittest.TestCase):
     def test_negative_only_and_multiple_positive_and_negative_patterns(self):
         self.assert_selected(
             "-*.Skip*",
-            ("Alpha.Keep", "Alpha.Has-Value", "Alpha.Has--Value", "Alpha.Has+Value", "Alpha.Special-(case)", "Beta.Keep", "Beta.Other", "Gamma.Keep"),
+            (
+                "Alpha.Keep",
+                "Alpha.Has-Value",
+                "Alpha.Has--Value",
+                "Alpha.Has+Value",
+                "Alpha.Special-(case)",
+                "Beta.Keep",
+                "Beta.Other",
+                "Gamma.Keep",
+                "Gamma.batch=-1",
+                "Gamma.batch=1",
+                "Gamma.batch=-31",
+                "Gamma.fmt=bfyx; value",
+                "Gamma.fmt=bfyx, value",
+            ),
         )
         self.assert_selected(
             "Alpha.*:Beta.*-*.Skip*:*.Other",
@@ -140,7 +154,20 @@ class ParallelFilterTests(unittest.TestCase):
     def test_negative_filter_with_shell_characters_and_hyphens(self):
         self.assert_selected(
             "*:-*.Skip*:*.Special-(case)",
-            ("Alpha.Keep", "Alpha.Has-Value", "Alpha.Has--Value", "Alpha.Has+Value", "Beta.Keep", "Beta.Other", "Gamma.Keep"),
+            (
+                "Alpha.Keep",
+                "Alpha.Has-Value",
+                "Alpha.Has--Value",
+                "Alpha.Has+Value",
+                "Beta.Keep",
+                "Beta.Other",
+                "Gamma.Keep",
+                "Gamma.batch=-1",
+                "Gamma.batch=1",
+                "Gamma.batch=-31",
+                "Gamma.fmt=bfyx; value",
+                "Gamma.fmt=bfyx, value",
+            ),
         )
         self.assert_selected("Alpha.Keep-*--input_folders*", ("Alpha.Keep",))
 
@@ -184,6 +211,14 @@ class ParallelFilterTests(unittest.TestCase):
         self.assert_selected("Alpha.Has+Value-*.Skip*", ("Alpha.Has+Value",), "test")
         self.assert_selected("Alpha.Has?Value-*.Has+Value", ("Alpha.Has-Value",), "test")
 
+    def test_partial_filter_distinguishes_negative_batch(self):
+        for split_unit in ("suite", "test"):
+            with self.subTest(split_unit=split_unit):
+                self.assert_selected("Gamma.batch=?1", ("Gamma.batch=-1",), split_unit)
+
+    def test_partial_filter_preserves_shell_punctuation(self):
+        self.assert_selected("Gamma.fmt=bfyx; value", ("Gamma.fmt=bfyx; value",))
+
     def test_device_text_in_filter_does_not_change_worker_device(self):
         result, executed = self.run_runner("Alpha.Keep:Beta.Keep-*--device*", "test", workers=1)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -193,6 +228,12 @@ class ParallelFilterTests(unittest.TestCase):
         result, executed = self.run_runner("Alpha.Has*-*.Has-Value:*.Has--Value", "test", repeat_failed=1, drop_once=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(executed, {"Alpha.Has+Value"}, result.stdout + result.stderr)
+
+    def test_retry_distinguishes_negative_batch(self):
+        result, executed = self.run_runner("Gamma.batch=?1", repeat_failed=1, drop_once=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(executed, {"Gamma.batch=-1"}, result.stdout + result.stderr)
+        self.assertIn("Execute not runned 1 tests", result.stderr)
 
     def test_cached_suites_keep_positive_and_negative_filters(self):
         self.assert_selected(

@@ -182,6 +182,7 @@ The target is able to take the following command-line arguments:
 > ```
 > All arguments after `--` symbol is forwarding to `conformanceTests` target.
 > In a Google Test filter, `-` separates included patterns from excluded patterns, and `:` separates alternatives.
+> A `-` in a test name cannot be escaped in the positive pattern; `?` matches any single character in its place.
 > The `GTEST_FILTER` environment variable is also supported; `--gtest_filter` takes precedence.
 >
 >  If you use the `--report_unique_name` argument, run

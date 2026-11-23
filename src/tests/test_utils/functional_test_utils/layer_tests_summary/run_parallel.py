@@ -416,7 +416,7 @@ class TestParallelRunner:
 
     @staticmethod
     def __replace_restricted_symbols(input_string: str):
-        # Google Test has no escape syntax for metacharacters in test names.
+        # Google Test cannot escape filter metacharacters; '?' preserves their length.
         for symbol in "-:*":
             input_string = input_string.replace(symbol, "?")
         return input_string
@@ -1004,7 +1004,7 @@ class TestParallelRunner:
             not_run_tests_path_file.writelines(diff_list)
             not_run_tests_path_file.close()
             if diff_list:
-                logger.error(f"Not run test counter is: {len(diff_list)}")
+                logger.error(f"Not run test test counter is: {len(diff_list)}")
                 logger.info(f"Not run test list is saved to: {not_run_tests_path}")
 
         is_successfull_run = not diff_list
