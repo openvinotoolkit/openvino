@@ -14,6 +14,10 @@
 #include "intel_gpu/runtime/format.hpp"
 #include "permute_inst.h"
 #include "crop_inst.h"
+#include "reorder_inst.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
+#include <tuple>
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -134,6 +138,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 weights_reorder_node.recalc_output_layout(false);
 
                 if (!weights_reorder.second) {
+                    add_weights_rotation(p, weights_reorder_node);
                     set_implementation(weights_reorder_node);
                 }
             } else {
@@ -162,6 +167,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                     weights_reorder_node.get_output_layout(false);
 
                     if (!weights_reorder.second) {
+                        add_weights_rotation(p, weights_reorder_node);
                         set_implementation(weights_reorder_node);
                     }
                 }
@@ -178,6 +184,40 @@ void post_optimize_weights::select_implementation(program& p, program_node& node
         auto params = node.get_kernel_impl_params();
         p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
     }
+}
+
+// A transposed convolution (a stride-1 deconvolution replaced by pre_replace_deconv) needs its weights rotated by
+// 180 degrees. The oneDNN weights reorder only changes the layout, so propagate_constants rotates constant weights
+// with an extra OCL reorder in front of it. Runtime weights don't go through propagate_constants, so insert the same
+// rotation for them here.
+void post_optimize_weights::add_weights_rotation(program& p, program_node& weights_reorder_node) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (weights_reorder_node.is_constant()) {
+        return;
+    }
+
+    const auto& weights_params = weights_reorder_node.as<reorder>().get_primitive()->weights_reorder_params;
+    auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_params);
+    if (onednn_weights_params == nullptr || !onednn_weights_params->should_be_transposed()) {
+        return;
+    }
+
+    const auto weights_dep = weights_reorder_node.get_dependency_with_port(0);
+    auto grouped = weights_params->get_grouped();
+    auto layout = weights_params->get_input_layout().convert_to_weights_layout(grouped);
+    auto rotate_params = std::make_shared<WeightsReorderParams>(layout, layout, true, grouped);
+    auto rotate_prim = std::make_shared<reorder>(weights_reorder_node.id() + "_rotate",
+                                                 input_info(weights_dep.first->id(), weights_dep.second),
+                                                 rotate_params);
+    auto& rotate_node = p.get_or_create(rotate_prim);
+    p.add_intermediate(rotate_node, weights_reorder_node, 0);
+    rotate_node.recalc_output_layout(false);
+    select_implementation(p, rotate_node);
+    GPU_DEBUG_LOG << "Added " << rotate_node.id() << " for rotating runtime weights before " << weights_reorder_node.id() << std::endl;
+#else
+    std::ignore = p;
+    std::ignore = weights_reorder_node;
+#endif  // ENABLE_ONEDNN_FOR_GPU
 }
 
 void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id,
