@@ -6,6 +6,12 @@
 #include "moe_3gemm_gen_micro.hpp"
 #include "moe_3gemm_int3_gemv.hpp"
 #include "moe_otd_runtime.hpp"
+
+#include <algorithm>
+#include <cctype>
+#include <climits>
+#include <iostream>
+#include <regex>
 #include "moe_3gemm_swiglu_opt.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "lru_cache.hpp"
@@ -793,6 +799,117 @@ public:
     // so the buffer must outlive the per-call scratch_buffers.
     memory::ptr _expert_index_buffer;
 
+    // --- Lookahead expert scheduling (ov::intel_gpu::moe_les_predicted_experts) ---
+    // Name prefix of the model outputs with the predicted experts, empty: no prefetch
+    std::string _les_prefix;
+    bool _les_resolved = false;
+    // The network output with the experts predicted for the next MoE layer, and that layer
+    std::string _les_predicted_id;
+    std::string _les_next_moe_id;
+    // Predicted experts of the next layer, read in this execution and prefetched once the kernels are enqueued
+    std::vector<uint32_t> _les_pending;
+
+    static int les_layer_of(const std::string& id) {
+        static const std::regex layer(R"(layers\.(\d+)\.)");
+        std::smatch match;
+        return std::regex_search(id, match, layer) ? std::stoi(match[1].str()) : -1;
+    }
+
+    void les_resolve(typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        _les_resolved = true;
+        const int layer = les_layer_of(instance.id());
+        if (layer < 0) {
+            if (moe_otd::get_perf_counters()) {
+                std::cerr << "LES: no decoder layer index in the name of " << instance.id() << ", no prefetch" << std::endl;
+            }
+            return;
+        }
+        auto& net = instance.get_network();
+        int next_layer = INT_MAX;
+        for (const auto& id : net.get_all_primitive_ids()) {
+            // optimized out primitives are listed as "_optimized_"
+            if (les_layer_of(id) < 0 || !dynamic_cast<typed_primitive_inst<moe_3gemm_fused_compressed>*>(net.get_primitive(id).get())) {
+                continue;
+            }
+            const int l = les_layer_of(id);
+            if (l > layer && l < next_layer) {
+                next_layer = l;
+                _les_next_moe_id = id;
+            }
+        }
+        if (_les_next_moe_id.empty()) {
+            return;  // the last MoE layer
+        }
+        const std::string name = _les_prefix + std::to_string(next_layer);
+        for (const auto& id : net.get_output_ids()) {
+            if (id.size() >= name.size() && id.compare(id.size() - name.size(), name.size(), name) == 0) {
+                _les_predicted_id = id;
+            }
+        }
+        // The prediction is only ready if the predictor runs before this layer (see schedule_les_predictors)
+        const auto order = net.get_executed_primitive_ids();
+        const auto pos = [&](const std::string& id) {
+            return std::distance(order.begin(), std::find(order.begin(), order.end(), id));
+        };
+        if (moe_otd::get_perf_counters()) std::cerr << "LES: MoE layer " << layer << " (" << instance.id() << ") prefetches for layer " << next_layer << " ("
+                       << _les_next_moe_id << ") from " << (_les_predicted_id.empty() ? std::string("<no output>") : _les_predicted_id)
+                       << ", predictor before this layer: " << (pos(_les_predicted_id) < pos(instance.id()) ? "yes" : "no") << std::endl;
+    }
+
+    // Called after the stream is synchronized for the routing of this layer, so the prediction is complete
+    void les_read_predictions(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, cldnn::stream& stream) {
+        _les_pending.clear();
+        if (_les_prefix.empty()) {
+            return;
+        }
+        if (!_les_resolved) {
+            les_resolve(instance);
+        }
+        if (_les_predicted_id.empty()) {
+            return;
+        }
+        auto mem = instance.get_network().get_primitive(_les_predicted_id)->output_memory_ptr();
+        if (!mem || mem->get_layout().count() == 0) {
+            return;
+        }
+        const size_t count = mem->get_layout().count();
+        const auto type = mem->get_layout().data_type;
+        if (type == data_types::i32) {
+            std::vector<int32_t> values(count);
+            mem->copy_to(stream, values.data(), 0, 0, count * sizeof(int32_t), true);
+            _les_pending.assign(values.begin(), values.end());
+        } else if (type == data_types::i64) {
+            std::vector<int64_t> values(count);
+            mem->copy_to(stream, values.data(), 0, 0, count * sizeof(int64_t), true);
+            _les_pending.assign(values.begin(), values.end());
+        } else {
+            return;
+        }
+        // several tokens (e.g. several sequences): their union, in the order of the first appearance
+        std::vector<uint32_t> unique;
+        for (uint32_t e : _les_pending) {
+            if (std::find(unique.begin(), unique.end(), e) == unique.end()) {
+                unique.push_back(e);
+            }
+        }
+        _les_pending = std::move(unique);
+    }
+
+    // Called once the kernels of this layer are enqueued: the reads from the weights file overlap with them
+    void les_prefetch_next(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, cldnn::stream& stream) {
+        if (_les_pending.empty()) {
+            return;
+        }
+        auto next = instance.get_network().get_primitive(_les_next_moe_id);
+        auto* next_inst = dynamic_cast<typed_primitive_inst<moe_3gemm_fused_compressed>*>(next.get());
+        auto* next_impl = next_inst ? dynamic_cast<moe_3gemm_swiglu_opt_impl*>(next_inst->get_impl()) : nullptr;
+        if (next_impl && next_impl->_weight_provider && next_impl->_weight_provider->is_offloaded() && next_impl->_weight_provider->is_bound() &&
+            next_inst->get_intermediates_memories().size() >= MOE_INTERNAL_BUFFER_OTD_END) {
+            next_impl->_weight_provider->prefetch(_les_pending, get_routed_inputs(*next_inst), get_slot_views(*next_inst), stream);
+        }
+        _les_pending.clear();
+    }
+
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
     static RoutedWeightViews get_routed_inputs(const typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
@@ -913,6 +1030,7 @@ public:
             return;
         }
         stream.finish();
+        les_read_predictions(instance, stream);
 
         std::vector<uint32_t> expert_ids(topk_count);
         scratch.topk_id->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
@@ -1238,6 +1356,7 @@ public:
         // Weight provider: select based on OTD configuration.
         auto cur_moe = node.as<moe_3gemm_fused_compressed>().get_primitive();
         if (cur_moe->_otd.lru_expert_num > 0) {
+            _les_prefix = config.get_moe_les_predicted_experts();
             _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
                                                                              cur_moe->_config,
                                                                              cur_moe->_otd.weight_bin_offsets,
@@ -1573,6 +1692,7 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
+        cur_moe->_les_prefix = _les_prefix;  // the links to the next layer are resolved per network
         cur_moe->force_gpu_mask_gen_prefill = force_gpu_mask_gen_prefill;
         cur_moe->prefill_impl = prefill_impl;
         cur_moe->decode_impl = decode_impl;
@@ -3105,7 +3225,9 @@ public:
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         const MoeGemmImpl impl = select_impl(token_num);
         if (impl == MoeGemmImpl::batched_gemv) {
-            return exec_batched_gemv(events, instance, scratch, token_num);
+            auto event = exec_batched_gemv(events, instance, scratch, token_num);
+            les_prefetch_next(instance, stream);
+            return event;
         }
         if (impl == MoeGemmImpl::int3_batched_gemv) {
             return exec_int3_batched_gemv(events, instance, scratch, token_num);

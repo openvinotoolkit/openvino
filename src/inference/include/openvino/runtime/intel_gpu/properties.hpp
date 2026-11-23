@@ -189,6 +189,17 @@ static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOC
 static constexpr Property<size_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};
 
 /**
+ * @brief Lookahead expert scheduling (LES) for MoE offloading (@ref ov::intel_gpu::offload_ratio): the name prefix of
+ * the model outputs that hold the experts predicted for MoE layers. The output `<prefix><L>` holds the indices of the
+ * routed experts predicted for decoder layer L (integer tensor, the last dimension is the number of predicted experts),
+ * computed from inputs available before MoE layer L-1, e.g. by an expert predictor that OpenVINO GenAI builds in the
+ * model. The plugin executes such a predictor before the previous MoE layer and prefetches the predicted experts of
+ * layer L while MoE layer L-1 runs. Empty (default): no prefetch.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> moe_les_predicted_experts{"MOE_LES_PREDICTED_EXPERTS"};
+
+/**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
 namespace memory_type {

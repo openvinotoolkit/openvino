@@ -76,6 +76,14 @@ public:
     // Acquires a single expert slot. Always succeeds (evicts LRU if needed).
     virtual size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) = 0;
 
+    // Lookahead expert scheduling: starts loading the experts predicted for the next execution of this layer into
+    // device-resident slots, without waiting for the copies. The predictions may be wrong: an expert that is not
+    // used later only costs a slot. No-op for fully resident weights.
+    virtual void prefetch(const std::vector<uint32_t>& /*experts*/,
+                          const RoutedWeightViews& /*inputs*/,
+                          const RoutedWeightViews& /*slots*/,
+                          cldnn::stream& /*stream*/) {}
+
     // Binds device-resident weight buffers. Called once on first execution.
     virtual void bind(cldnn::moe_weights& resident) = 0;
 

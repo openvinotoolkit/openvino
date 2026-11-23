@@ -19,6 +19,13 @@ public:
 
     void evict_one();
 
+    // The expert has a filled slot; does not change the LRU order
+    bool contains_filled(size_t expert) const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_map.find(Key{expert});
+        return it != m_map.end() && m_filled_list[it->second->lru_expert_no];
+    }
+
     size_t size() const {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_total_experts;

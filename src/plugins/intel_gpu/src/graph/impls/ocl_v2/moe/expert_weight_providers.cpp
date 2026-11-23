@@ -4,6 +4,11 @@
 
 #include "expert_weight_providers.hpp"
 
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 
@@ -14,6 +19,67 @@
 #include "moe_otd_runtime.hpp"
 
 namespace ov::intel_gpu::ocl::moe {
+
+namespace {
+// Background reads of prefetched experts from the weights file
+class ReadPool {
+public:
+    static ReadPool& get() {
+        static ReadPool pool(8);
+        return pool;
+    }
+    std::future<void> submit(std::function<void()> task) {
+        auto packaged = std::make_shared<std::packaged_task<void()>>(std::move(task));
+        auto future = packaged->get_future();
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            _tasks.push([packaged] {
+                (*packaged)();
+            });
+        }
+        _cv.notify_one();
+        return future;
+    }
+    ~ReadPool() {
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            _stop = true;
+        }
+        _cv.notify_all();
+        for (auto& t : _threads) {
+            t.join();
+        }
+    }
+
+private:
+    explicit ReadPool(size_t num_threads) {
+        for (size_t i = 0; i < num_threads; i++) {
+            _threads.emplace_back([this] {
+                for (;;) {
+                    std::function<void()> task;
+                    {
+                        std::unique_lock<std::mutex> lock(_mutex);
+                        _cv.wait(lock, [this] {
+                            return _stop || !_tasks.empty();
+                        });
+                        if (_stop && _tasks.empty()) {
+                            return;
+                        }
+                        task = std::move(_tasks.front());
+                        _tasks.pop();
+                    }
+                    task();
+                }
+            });
+        }
+    }
+    std::vector<std::thread> _threads;
+    std::queue<std::function<void()>> _tasks;
+    std::mutex _mutex;
+    std::condition_variable _cv;
+    bool _stop = false;
+};
+}  // namespace
 
 bool is_per_expert(const cldnn::layout& layout, size_t num_expert) {
     return layout.is_static() && layout.count() > 1 && !layout.get_shape().empty() && layout.get_shape()[0] == num_expert;
@@ -134,7 +200,9 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
             if (perf) {
                 perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
             }
-            load(expert, slot, inputs, slot_buffers, stream);
+            if (!consume_pending(expert, slot, inputs, slot_buffers, stream)) {
+                load(expert, slot, inputs, slot_buffers, stream);
+            }
             _cache->set_filled(slot);
         }
 
@@ -160,11 +228,100 @@ size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, const RoutedWei
         if (perf) {
             perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
         }
-        load(expert, slot, inputs, slots, stream);
+        if (!consume_pending(expert, slot, inputs, slots, stream)) {
+            load(expert, slot, inputs, slots, stream);
+        }
         _cache->set_filled(slot);
     }
 
     return slot;
+}
+
+bool OffloadExpertWeightProvider::consume_pending(uint32_t expert,
+                                                  size_t slot,
+                                                  const RoutedWeightViews& inputs,
+                                                  const RoutedWeightViews& slots,
+                                                  cldnn::stream& stream) {
+    auto it = _pending.find(expert);
+    if (it == _pending.end()) {
+        return false;
+    }
+    auto pending = it->second;
+    _pending.erase(it);
+    for (auto& read : pending->reads) {
+        read.wait();
+    }
+    const bool blocking = stream.get_queue_type() != cldnn::QueueTypes::in_order;
+    const size_t num_expert = _config.num_expert;
+    for (size_t i = 0; i < 3; i++) {
+        if (slots.weight[i] && !pending->payloads[i].empty()) {
+            const size_t size = pending->payloads[i].size();
+            slots.weight[i]->copy_from(stream, pending->payloads[i].data(), 0, slot * size, size, blocking);
+        }
+        for (const auto& [slot_mem, source] : {std::pair{slots.scale[i], inputs.scale[i]}, std::pair{slots.zp[i], inputs.zp[i]}}) {
+            if (slot_mem) {
+                const size_t size = source->get_layout().bytes_count() / num_expert;
+                slot_mem->copy_from(stream, *source, expert * size, slot * size, size, blocking);
+            }
+        }
+    }
+    _inflight.push_back(std::move(pending));
+    if (auto* perf = moe_otd::get_perf_counters()) {
+        perf->les_prefetch_used.fetch_add(1, std::memory_order_relaxed);
+    }
+    return true;
+}
+
+void OffloadExpertWeightProvider::prefetch(const std::vector<uint32_t>& experts,
+                                           const RoutedWeightViews& /*inputs*/,
+                                           const RoutedWeightViews& slots,
+                                           cldnn::stream& /*stream*/) {
+    if (!_bound || !slots.weight[0] || !slots.weight[1] || !slots.weight[2]) {
+        return;  // the slot buffers are allocated at the first execution of the layer
+    }
+    auto* perf = moe_otd::get_perf_counters();
+    // Predictions of the previous token that were not used: their reads are done long ago
+    for (auto& [expert, pending] : _pending) {
+        for (auto& read : pending->reads) {
+            read.wait();
+        }
+    }
+    _pending.clear();
+    // The device copies of the consumed prefetches are complete: every MoE layer synchronizes the stream
+    _inflight.clear();
+
+    // Only the file reads start here, on background threads: the layer copies an expert to a slot when the router
+    // selects it, so a wrong prediction costs neither a slot nor a device copy
+    const size_t num_expert = _config.num_expert;
+    const size_t file_size = _weight_reader.file_size();  // opens the file before the background reads
+    const size_t max_loads = _capacity / 2;
+    for (uint32_t expert : experts) {
+        if (expert >= num_expert || _pending.size() >= max_loads || _pending.count(expert)) {
+            continue;
+        }
+        if (_cache->contains_filled(expert)) {
+            if (perf) {
+                perf->les_prefetch_resident.fetch_add(1, std::memory_order_relaxed);
+            }
+            continue;
+        }
+        auto pending = std::make_shared<PendingExpert>();
+        pending->payloads.resize(3);
+        for (size_t i = 0; i < 3; i++) {
+            const size_t size = slots.weight[i]->get_layout().bytes_count() / num_expert;
+            const size_t offset = _weight_bin_offsets[i] + expert * size;
+            OPENVINO_ASSERT(offset + size <= file_size, "OTD prefetch: read range out of the weights file");
+            pending->payloads[i].resize(size);
+            char* dst = reinterpret_cast<char*>(pending->payloads[i].data());
+            pending->reads.push_back(ReadPool::get().submit([this, dst, size, offset] {
+                _weight_reader.read(dst, size, offset);
+            }));
+        }
+        _pending.emplace(expert, std::move(pending));
+        if (perf) {
+            perf->les_prefetch_loads.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
 }
 
 }  // namespace ov::intel_gpu::ocl::moe

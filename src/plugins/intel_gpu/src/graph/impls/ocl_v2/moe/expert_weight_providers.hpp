@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <future>
+#include <unordered_map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -76,6 +78,10 @@ public:
                                                             const RoutedWeightViews& slot_buffers,
                                                             cldnn::stream& stream) override;
     size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) override;
+    void prefetch(const std::vector<uint32_t>& experts,
+                  const RoutedWeightViews& inputs,
+                  const RoutedWeightViews& slots,
+                  cldnn::stream& stream) override;
 
     LRUCache& cache() {
         return *_cache;
@@ -97,6 +103,16 @@ private:
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;
     bool _bound = false;
+    // Lookahead expert scheduling: the weight slices of a predicted expert, read from the file by background threads
+    struct PendingExpert {
+        std::vector<std::vector<uint8_t>> payloads;  // per weight tensor
+        std::vector<std::future<void>> reads;
+    };
+    // Copies a prefetched expert into `slot` if it was predicted; false: not predicted
+    bool consume_pending(uint32_t expert, size_t slot, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream);
+    std::unordered_map<uint32_t, std::shared_ptr<PendingExpert>> _pending;
+    // Consumed prefetches whose host buffers may still be read by device copies
+    std::vector<std::shared_ptr<PendingExpert>> _inflight;
     // Handles of the slot buffers the LRU describes, compared only to detect a re-allocation
     std::vector<const void*> _slot_handles;
 };
