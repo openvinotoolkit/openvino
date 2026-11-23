@@ -53,7 +53,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
                          element_type_b_zero_point);
     }
 
-    if (common::is_input_valid(node, 4)) {
+    if (common::is_input_valid(node, 4) && !inputs[4].get_element_type().is_dynamic()) {
         // Constrain input bias to T1 type (float tensor)
         bias = inputs[4];
         auto element_type_bias = bias.get_element_type();
