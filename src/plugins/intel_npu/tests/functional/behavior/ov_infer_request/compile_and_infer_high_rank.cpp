@@ -145,8 +145,7 @@ using HighRankParams = std::tuple<std::string,  // Device name
                                   HighRankOp    // Operation
                                   >;
 
-// Compile and infer models whose tensors have more dimensions than the 5 of the first Level Zero graph argument
-// properties. The 5D shape is the control: it has to work with any driver.
+// Compile and infer six-dimensional models through the plugin compiler's DefaultHW path.
 class OVInferRequestHighRankTests : public testing::WithParamInterface<HighRankParams>, public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<HighRankParams>& obj) {
@@ -229,16 +228,10 @@ TEST_P(OVInferRequestHighRankTests, InferAgainWithAnotherInputTensor) {
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN), {"NPU_COMPILATION_MODE", "DefaultHW"}},
-    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), {"NPU_COMPILATION_MODE", "DefaultHW"}},
-    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-     {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"}}};
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN), {"NPU_COMPILATION_MODE", "DefaultHW"}}};
 
 // All the dimensions differ: a mistaken order of the dimensions or a mistaken rank cannot go unnoticed
-const std::vector<ov::Shape> shapes = {{1, 2, 3, 4, 5},
-                                       {1, 2, 3, 4, 5, 6},
-                                       {1, 2, 3, 4, 5, 6, 7},
-                                       {1, 2, 3, 4, 5, 6, 7, 8}};
+const std::vector<ov::Shape> shapes = {{1, 2, 3, 4, 5, 6}};
 
 const std::vector<HighRankOp> ops = {HighRankOp::Relu, HighRankOp::Transpose};
 

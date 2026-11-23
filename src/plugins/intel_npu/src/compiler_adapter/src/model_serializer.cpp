@@ -142,6 +142,8 @@ std::string rankToLegacyLayoutString(const size_t rank) {
         return "NCHW";
     case 5:
         return "NCDHW";
+    case 6:
+        return "NTDCHW";
     default:
         return "BLOCKED";
     }
