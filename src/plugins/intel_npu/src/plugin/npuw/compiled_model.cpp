@@ -18,6 +18,7 @@
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
+#include "npuw_transformations/dynamic_pa_tokens.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -2480,7 +2481,15 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
-    return core->compile_model(ov::npuw::util::with_dynamic_pa_tokens(submodel), device, device_config);
+    if (ov::npuw::util::starts_with(device, "GPU")) {
+        // The GPU cannot build a PA op with a static token count, see the pass.
+        // The submodel itself stays as it is for the other devices.
+        const auto relaxed = submodel->clone();
+        if (ov::npuw::DynamicPATokens().run_on_model(relaxed)) {
+            return core->compile_model(relaxed, device, device_config);
+        }
+    }
+    return core->compile_model(submodel, device, device_config);
 }
 
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
