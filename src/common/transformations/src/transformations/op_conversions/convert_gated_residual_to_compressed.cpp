@@ -12,7 +12,6 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/gated_residual.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -70,8 +69,14 @@ std::optional<CompressedWeight> prepare_compressed_weight(const std::shared_ptr<
             grouped,
             /*batched_weights=*/false,
             result_nodes);
-    // The combined groups are new constants: keep the link of the weights to their file for weightless caching.
-    ov::copy_weightless_cache_attr(weights.get_node_shared_ptr(), prepared_weights);
+    // The combined groups are new constants: they take part in the runtime info merge of the converted op.
+    for (const auto& [prepared, original] : {std::pair{prepared_weights, weights.get_node_shared_ptr()},
+                                             std::pair{prepared_scale, scale.get_node_shared_ptr()},
+                                             std::pair{prepared_zp, zp ? zp->get_node_shared_ptr() : nullptr}}) {
+        if (prepared && prepared != original) {
+            result_nodes.push_back(prepared);
+        }
+    }
     return CompressedWeight{prepared_weights, prepared_scale, zp ? prepared_zp : nullptr};
 }
 

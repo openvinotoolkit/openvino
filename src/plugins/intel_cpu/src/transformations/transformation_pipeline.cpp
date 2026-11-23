@@ -607,8 +607,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseQSAIndexer, false);
     CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
-    // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights.
-    CPU_REGISTER_PASS_X64(manager, ov::pass::GatedResidualFusion);
+    // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights. The WRITE pattern
+    // stays eltwise (its Add is moved next to the Multiply), so the CPU Eltwise fusion can take it.
+    CPU_REGISTER_PASS_X64(manager, ov::pass::GatedResidualFusion, false /* fuse_write */);
     CPU_SET_CALLBACK_X64(
         manager,
         [](const_node_ptr& node) -> bool {
@@ -616,7 +617,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return !node::GatedResidual::isSupportedOperation(node, errorMsg);
         },
         ov::pass::GatedResidualReadFusion);
-    CPU_DISABLE_PASS_X64(manager, ov::pass::GatedResidualWriteFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(

@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov::pass {
@@ -31,23 +29,17 @@ namespace ov::pass {
  * fused as the second output):
  *   mixed [, S] = GatedResidual(R, gain, W_down, W_up [, W_inject])   // 1/C of both scalings applied by the op
  *
- * The callback is asked about the fused op; returning true keeps the matched sub-graph (a READ with a rejected write
- * gate is retried without it). The weights are fed to the op as they are, a decompression subgraph of compressed ones
+ * The normalization is matched in one of its forms (fused RMS, gamma-less RMS, decomposed), each by a matcher of its own.
+ * The write gate is a branch outside the match, which the fused op replaces, so the pass is a ModelPass: the branches
+ * are recorded first, then the READ matchers run. The callback is asked about the fused op; returning true keeps the
+ * matched sub-graph (a READ with a rejected write gate is retried without it). The weights are fed to the op as they are, a decompression subgraph of compressed ones
  * included; a backend that runs them compressed converts the op afterwards (ConvertGatedResidualToCompressed). The
  * graph stays untouched unless the per-branch norm, the branch-axis reduction and both 1/C scalings are proven.
  */
 class TRANSFORMATIONS_API GatedResidualReadFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("GatedResidualReadFusion");
-    GatedResidualReadFusion();
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-
-private:
-    struct WriteGateBranches;  // the write-gate branches of the model, found by their own pattern (see the .cpp)
-
-    std::shared_ptr<ov::pass::pattern::Matcher> m_matcher;
-    std::shared_ptr<WriteGateBranches> m_gates;
-    ov::matcher_pass_callback m_fuse;
 };
 
 /**
@@ -57,7 +49,10 @@ private:
  * Canonical sub-graph:
  *   R'   = Reshape(Reshape(R, [T,C,D]) + Reshape(S,[T,C,1]) * Reshape(Y,[T,1,D]), [T, C*D])
  *
- * The gate S is an opaque [*, C] input; the `2 * Sigmoid(...)` that produces it stays outside.
+ * The gate S is an opaque [*, C] input; the `2 * Sigmoid(...)` that produces it stays outside. The residual, Y and the
+ * gate must have the same rows: equal static sizes or the same symbol, so the symbols have to be propagated through
+ * the model first (e.g. by SymbolicOptimizations); unrelated dynamic dimensions may broadcast at runtime and are not
+ * fused.
  */
 class TRANSFORMATIONS_API GatedResidualWriteFusion : public ov::pass::MatcherPass {
 public:
@@ -85,12 +80,22 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Runs GatedResidualReadFusion, GatedResidualWriteSinkReshape and GatedResidualWriteFusion.
+ * @brief Runs GatedResidualReadFusion, GatedResidualWriteSinkReshape and, optionally, GatedResidualWriteFusion.
+ *
+ * The WRITE pattern is either left to the backend as a plain eltwise chain with the Add next to the Multiply (the sink),
+ * or fused into the op: a backend picks one with `fuse_write`.
  */
 class TRANSFORMATIONS_API GatedResidualFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("GatedResidualFusion");
+
+    /// @param fuse_write Fuse the WRITE pattern into ov::op::internal::GatedResidual in Mode::WRITE; otherwise only move
+    /// its Add (GatedResidualWriteSinkReshape).
+    explicit GatedResidualFusion(bool fuse_write = true);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    bool m_fuse_write;
 };
 
 }  // namespace ov::pass

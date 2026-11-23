@@ -9,12 +9,14 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gated_residual.hpp"
@@ -53,6 +55,8 @@ struct ModelOptions {
     bool per_tensor_scale = false;  // a [1, 1] scale instead of one per channel (`groups` == 1 only)
     bool transposed = false;        // the weights are stored [K, N] and transposed back (`groups` == 1 only)
     bool with_gate = false;
+    std::optional<Zp> inject_zp;  // the zero point form of W_inject when it differs from the others
+    bool weightless = false;      // the stored weights are linked to their file for weightless caching
 };
 
 // A constant of `type` whose every byte is `byte`.
@@ -70,6 +74,14 @@ uint8_t weights_byte(const element::Type& type) {
     return type.bitwidth() == 4 ? 0x5A : 0x7B;
 }
 
+// The link of the stored weights to their file: the attribute that has to follow the weights to the op.
+void set_weightless_attr(const std::shared_ptr<Node>& weights, size_t n, size_t k, const ModelOptions& opt) {
+    if (opt.weightless) {
+        weights->get_rt_info()[WeightlessCacheAttribute::get_type_info_static()] =
+            WeightlessCacheAttribute(n * k, n, opt.weights_type);
+    }
+}
+
 // NNCF-style compressed weight [N, G, K/G] -> Convert [-> Subtract(zp)] -> Multiply(scale) [-> Reshape [N, K]]; per
 // channel (G = 1) the weights are [N, K] and there is no Reshape.
 Output<Node> compressed_weight(size_t n, size_t k, const ModelOptions& opt, Zp zp) {
@@ -85,9 +97,9 @@ Output<Node> compressed_weight(size_t n, size_t k, const ModelOptions& opt, Zp z
     } else if (opt.per_tensor_scale) {
         scale_shape = Shape{1, 1};
     }
-    Output<Node> value = std::make_shared<op::v0::Convert>(
-        bytes_constant(opt.weights_type, weights_shape, weights_byte(opt.weights_type)),
-        opt.data_type);
+    auto stored = bytes_constant(opt.weights_type, weights_shape, weights_byte(opt.weights_type));
+    set_weightless_attr(stored, n, k, opt);
+    Output<Node> value = std::make_shared<op::v0::Convert>(stored, opt.data_type);
     if (zp != Zp::None) {
         auto zp_const = zp == Zp::PerGroup ? bytes_constant(opt.weights_type, scale_shape, 0x33)
                                            : bytes_constant(opt.weights_type, Shape{1}, 0x33);
@@ -117,7 +129,7 @@ std::shared_ptr<Model> getModel(const ModelOptions& opt) {
     const auto up_zp = opt.different_forms ? opt.up_zp : opt.zp;
     OutputVector inputs{residual, gain, compressed_weight(L, CD, opt, opt.zp), compressed_weight(CD, L, opt, up_zp)};
     if (opt.with_gate) {
-        inputs.push_back(compressed_weight(C, CD, opt, opt.zp));
+        inputs.push_back(compressed_weight(C, CD, opt, opt.inject_zp.value_or(opt.zp)));
     }
     auto gr = std::make_shared<Gr>(inputs, Gr::Config{Gr::Mode::READ, C, D, L, EPS, false, opt.with_gate});
     ResultVector results{std::make_shared<op::v0::Result>(gr->output(0))};
@@ -143,6 +155,7 @@ std::shared_ptr<Model> getModelRef(const ModelOptions& opt) {
     const auto parts = [&](size_t n, size_t k) {
         Parts p;
         p.weights = bytes_constant(type, Shape{n, k}, byte);
+        set_weightless_attr(p.weights.get_node_shared_ptr(), n, k, opt);
         p.scale = float_constant(opt.data_type, Shape{n, opt.groups}, 0.02F);
         if (with_zp) {
             p.zp = bytes_constant(opt.weights_type, Shape{n, opt.groups}, 0x33);
@@ -224,6 +237,15 @@ INSTANTIATE_TEST_SUITE_P(ConvertGatedResidualToCompressed,
                                             ::testing::Bool()),
                          ConvertGatedResidualToCompressedParamTests::getTestCaseName);
 
+// The link of grouped weights to their file survives the regrouping: the weights of the op are new constants.
+TEST_F(ConvertGatedResidualToCompressedTests, WeightlessCacheAttributeFollowsTheWeights) {
+    ModelOptions opt;
+    opt.weightless = true;
+    opt.with_gate = true;
+    model = getModel(opt);
+    model_ref = getModelRef(opt);
+}
+
 // The element types of the activations, the gain and the scales follow the model.
 TEST_F(ConvertGatedResidualToCompressedTests, F16ActivationsKeepTheirType) {
     ModelOptions opt;
@@ -252,6 +274,14 @@ TEST_F(ConvertGatedResidualToCompressedTests, WeightsOfDifferentFormsAreNotConve
     ModelOptions opt;
     opt.different_forms = true;
     opt.up_zp = Zp::None;
+    model = getModel(opt);
+}
+
+// W_inject with other zero points than the rest: the form is shared by all weights of the op.
+TEST_F(ConvertGatedResidualToCompressedTests, WriteGateWeightsOfAnotherFormAreNotConverted) {
+    ModelOptions opt;
+    opt.with_gate = true;
+    opt.inject_zp = Zp::None;
     model = getModel(opt);
 }
 

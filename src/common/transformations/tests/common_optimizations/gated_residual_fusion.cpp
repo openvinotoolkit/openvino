@@ -40,7 +40,8 @@ using namespace ov;
 
 namespace {
 
-constexpr size_t C = 4;
+// Not a power of two: 1/C is not exact in any floating-point type.
+constexpr size_t C = 3;
 constexpr size_t D = 8;
 constexpr size_t L = 6;
 constexpr size_t CD = C * D;
@@ -61,6 +62,15 @@ PartialShape with_last(PartialShape rows, size_t last) {
     return rows;
 }
 
+// Dynamic rows that share their symbols: the residual, Y and the gate of one layer have the same number of rows.
+PartialShape symbolic_rows(size_t rank) {
+    PartialShape rows = PartialShape::dynamic(rank);
+    for (auto& dim : rows) {
+        dim.set_symbol(std::make_shared<Symbol>());
+    }
+    return rows;
+}
+
 // Reshape target that keeps `leading` dimensions and appends `tail`.
 std::vector<int64_t> keep_rows(size_t leading, const std::vector<int64_t>& tail) {
     std::vector<int64_t> target(leading, 0);
@@ -68,8 +78,13 @@ std::vector<int64_t> keep_rows(size_t leading, const std::vector<int64_t>& tail)
     return target;
 }
 
-std::shared_ptr<op::v0::Constant> scalar(float v) {
-    return op::v0::Constant::create(element::f32, Shape{}, {v});
+// A scalar of the compute type, stored as `type` and converted back when that is not f32.
+Output<Node> scalar(float v, const element::Type& type = element::f32) {
+    auto constant = op::v0::Constant::create(type, Shape{}, {v});
+    if (type == element::f32) {
+        return constant;
+    }
+    return std::make_shared<op::v0::Convert>(constant, element::f32);
 }
 
 std::shared_ptr<op::v0::Constant> filled_f32(const Shape& shape, float value) {
@@ -118,6 +133,8 @@ struct ReadOptions {
     float low_scale_factor = 1.0F;
     float gate_scale_factor = 1.0F;
     size_t gain_size = CD;  // elements of the norm gain; C*D is what the op takes
+    size_t inject_rows = C;  // rows of W_inject; the op takes C
+    element::Type scale_type = element::f32;  // the stored type of the 1/C scalars
     int64_t rms_axis = -1;  // axis of a fused RMS; the op normalizes the last one
 };
 
@@ -138,17 +155,17 @@ Output<Node> scaled_projection(const Output<Node>& x,
     case Scale::Folded: {
         // 1/C folded into the weights (plain weights only).
         return std::make_shared<op::v0::MatMul>(x,
-                                                std::make_shared<op::v1::Multiply>(w, scalar(factor / C)),
+                                                std::make_shared<op::v1::Multiply>(w, scalar(factor / C, opt.scale_type)),
                                                 false,
                                                 true);
     }
     case Scale::Divide:
         return std::make_shared<op::v1::Divide>(std::make_shared<op::v0::MatMul>(x, w, false, true),
-                                                scalar(static_cast<float>(C) / factor));
+                                                scalar(static_cast<float>(C) / factor, opt.scale_type));
     case Scale::Multiply:
     default:
         return std::make_shared<op::v1::Multiply>(std::make_shared<op::v0::MatMul>(x, w, false, true),
-                                                  scalar(factor / C));
+                                                  scalar(factor / C, opt.scale_type));
     }
 }
 
@@ -187,7 +204,7 @@ Output<Node> getNormalizedFlat(const ReadOptions& opt, const Output<Node>& resid
 // With `share_gate`, an extra Result of the Sigmoid is appended to `extra_results`.
 Output<Node> getWriteGate(const ReadOptions& opt, const Output<Node>& rbar_flat, ResultVector& extra_results) {
     auto gate = std::make_shared<op::v0::Sigmoid>(
-        scaled_projection(rbar_flat, C, CD, opt.gate_scale, opt.gate_scale_factor, opt));
+        scaled_projection(rbar_flat, opt.inject_rows, CD, opt.gate_scale, opt.gate_scale_factor, opt));
     if (opt.share_gate) {
         extra_results.push_back(std::make_shared<op::v0::Result>(gate));
     }
@@ -228,7 +245,7 @@ std::shared_ptr<Model> getReadModel(const ReadOptions& opt) {
                                                     op::v0::Constant::create(element::i64, Shape{1}, {opt.reduce_axis}),
                                                     false);
         if (opt.mix == Mix::SumScaled) {
-            mixed = std::make_shared<op::v1::Multiply>(mixed, scalar(1.0F / C));
+            mixed = std::make_shared<op::v1::Multiply>(mixed, scalar(1.0F / C, opt.scale_type));
         }
     }
 
@@ -322,14 +339,24 @@ std::shared_ptr<Model> getWriteSplitModel(const PartialShape& rows, const Partia
 }
 
 // The fused WRITE op.
-std::shared_ptr<Model> getWriteRef(const PartialShape& rows) {
+// With `shared`, the Multiply or its flattened form stays for the other model output that reads it.
+std::shared_ptr<Model> getWriteRef(const PartialShape& rows, Shared shared = Shared::None) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, CD));
     auto y = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, D));
     auto gate = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, C));
     auto gr =
         std::make_shared<Gr>(OutputVector{residual, y, gate}, Gr::Config{Gr::Mode::WRITE, C, D, 0, 0.0F, false, false});
-    return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(gr)},
-                                   ParameterVector{residual, y, gate});
+    ResultVector results{std::make_shared<op::v0::Result>(gr)};
+    if (shared != Shared::None) {
+        auto s3 = std::make_shared<op::v0::Unsqueeze>(gate, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+        auto y3 = std::make_shared<op::v0::Unsqueeze>(y, op::v0::Constant::create(element::i64, Shape{1}, {-2}));
+        Output<Node> scaled = std::make_shared<op::v1::Multiply>(s3, y3);
+        if (shared == Shared::ScaledFlat) {
+            scaled = reshape_to(scaled, keep_rows(rows.size(), {static_cast<int64_t>(CD)}));
+        }
+        results.push_back(std::make_shared<op::v0::Result>(scaled));
+    }
+    return std::make_shared<Model>(results, ParameterVector{residual, y, gate});
 }
 
 }  // namespace
@@ -342,18 +369,21 @@ public:
     }
 
 protected:
+    virtual bool fuse_write() const {
+        return true;
+    }
+
     void SetUp() override {
         TransformationTestsF::SetUp();
-        manager.register_pass<pass::GatedResidualFusion>();
+        manager.register_pass<pass::GatedResidualFusion>(fuse_write());
     }
 };
 
 // The CPU plugin's choice: the Add of the WRITE pattern is moved, not fused into the op.
 class GatedResidualWriteSinkReshapeTests : public GatedResidualFusionTests {
 protected:
-    void SetUp() override {
-        GatedResidualFusionTests::SetUp();
-        manager.get_pass_config()->disable<pass::GatedResidualWriteFusion>();
+    bool fuse_write() const override {
+        return false;
     }
 };
 
@@ -529,6 +559,31 @@ TEST_F(GatedResidualFusionTests, Read_GainOfWrongSizeIsNotFused) {
     model = getReadModel(opt);
 }
 
+// The scales are stored in a narrower type than the compute one, where 1/C is rounded.
+TEST_F(GatedResidualFusionTests, Read_ScalesStoredInBf16AreFused) {
+    ReadOptions opt;
+    opt.with_gate = true;
+    opt.scale_type = element::bf16;
+    model = getReadModel(opt);
+    model_ref = getReadModelRef(opt);
+}
+
+TEST_F(GatedResidualFusionTests, Read_ScalesStoredInBf16OfAnotherValueAreNotFused) {
+    ReadOptions opt;
+    opt.scale_type = element::bf16;
+    opt.low_scale_factor = 1.5F;
+    model = getReadModel(opt);
+}
+
+// W_inject must be [C, C*D]: the op produces one gate per branch.
+TEST_F(GatedResidualFusionTests, Read_WriteGateOfWrongWidthStaysDecomposed) {
+    ReadOptions opt;
+    opt.with_gate = true;
+    opt.inject_rows = C + 1;
+    model = getReadModel(opt);
+    model_ref = getReadModelRef(opt, /*keep_gate_branch=*/true);
+}
+
 // An RMS over another axis (RMSFusion's feature-axis form) is not the normalization over D.
 TEST_F(GatedResidualFusionTests, Read_FusedRmsOverAnotherAxisIsNotFused) {
     ReadOptions opt;
@@ -651,20 +706,53 @@ TEST_F(GatedResidualWriteSinkReshapeTests, Write_CallbackKeepsTheOriginalGraph) 
 }
 
 TEST_F(GatedResidualFusionTests, Write_ExporterFormIsFusedByDefault) {
-    model = getWriteModel(PartialShape::dynamic(2), PartialShape::dynamic(2));
-    model_ref = getWriteRef(PartialShape::dynamic(2));
+    const auto rows = symbolic_rows(2);
+    model = getWriteModel(rows, rows);
+    model_ref = getWriteRef(rows);
 }
 
 TEST_F(GatedResidualFusionTests, Write_SplitFormIsFusedByDefault) {
-    model = getWriteSplitModel(PartialShape::dynamic(2), PartialShape::dynamic(2));
-    model_ref = getWriteRef(PartialShape::dynamic(2));
+    const auto rows = symbolic_rows(2);
+    model = getWriteSplitModel(rows, rows);
+    model_ref = getWriteRef(rows);
+}
+
+// The sink leaves a Multiply that another output reads, but the op still replaces the Add: that Multiply stays for its
+// reader.
+TEST_F(GatedResidualFusionTests, Write_ScaledValueWithAnotherConsumerIsFusedWithoutTheSink) {
+    const auto rows = symbolic_rows(2);
+    model = getWriteModel(rows, rows, Shared::Scaled);
+    model_ref = getWriteRef(rows, Shared::Scaled);
+}
+
+TEST_F(GatedResidualFusionTests, Write_FlattenedValueWithAnotherConsumerIsFusedWithoutTheSink) {
+    const auto rows = symbolic_rows(2);
+    model = getWriteModel(rows, rows, Shared::ScaledFlat);
+    model_ref = getWriteRef(rows, Shared::ScaledFlat);
+}
+
+TEST_F(GatedResidualFusionTests, Write_CallbackKeepsTheSplitForm) {
+    const auto rows = symbolic_rows(2);
+    model = getWriteModel(rows, rows);
+    model_ref = getWriteSplitModel(rows, rows);
+    manager.get_pass_config()->set_callback<pass::GatedResidualWriteFusion>([](const std::shared_ptr<const Node>&) {
+        return true;
+    });
+}
+
+// Dynamic rows of the residual, Y and the gate without a known relation may broadcast at runtime, which the fused op
+// does not model; the sink still moves the Add.
+TEST_F(GatedResidualFusionTests, Write_DynamicRowsWithoutSharedSymbolsAreNotFused) {
+    model = getWriteModel(PartialShape::dynamic(2), PartialShape::dynamic(2));
+    model_ref = getWriteSplitModel(PartialShape::dynamic(2), PartialShape::dynamic(2));
 }
 
 TEST_F(GatedResidualFusionTests, Write_RowsThatMayBroadcastAreNotFused) {
     // The fused op indexes Y and the gate per residual row, so rows that may broadcast stay a plain graph; the sink
     // still moves the Add.
-    model = getWriteModel(PartialShape::dynamic(2), PartialShape{1, 1});
-    model_ref = getWriteSplitModel(PartialShape::dynamic(2), PartialShape{1, 1});
+    const auto rows = symbolic_rows(2);
+    model = getWriteModel(rows, PartialShape{1, 1});
+    model_ref = getWriteSplitModel(rows, PartialShape{1, 1});
 }
 
 // The gate and Y reach the Multiply through Reshapes that change their rank: [2, 3, C] -> [6, C, 1]. The op needs one
