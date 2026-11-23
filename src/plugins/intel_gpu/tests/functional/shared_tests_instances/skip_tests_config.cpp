@@ -39,6 +39,17 @@ bool is_xe2_or_newer() {
         return false;
     }
 }
+
+// Mirrors engine::can_use_host_usm_zero_copy(): integrated Xe2+ GPU with USM support.
+bool canUseHostUsmZeroCopy() {
+    ov::Core ie = ov::test::utils::create_core();
+    if (ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED)
+        return false;
+    auto caps = ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::USM_MEMORY) == caps.end())
+        return false;
+    return is_xe2_or_newer();
+}
 } // namespace
 
 const std::vector<std::regex>& disabled_test_patterns() {
@@ -173,6 +184,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow/GPU.1.*)"));
             patterns.push_back(std::regex(R"(.*nightly_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow/0.*)"));
             patterns.push_back(std::regex(R"(.*nightly_OVClassSeveralDevicesTest/OVClassSeveralDevicesTestCompileModel.CompileModelActualSeveralDevicesNoThrow/0.*)"));
+        }
+        if (!canUseHostUsmZeroCopy()) {
+            // The suite only exercises the USM host zero-copy cache-load path.
+            patterns.push_back(std::regex(R"(.*smoke_ZeroCopySingleFileCacheLoad_GPU/.*)"));
         }
         if (immadSupported()) {
             // Failure list
