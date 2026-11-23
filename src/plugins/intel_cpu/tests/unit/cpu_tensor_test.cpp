@@ -226,13 +226,34 @@ TEST_F(CPUTensorTest, canAccessNonUnitInnermostStrideForByteGranularType) {
     ASSERT_EQ(ov::Strides({12, 4}), t->get_strides());
 }
 
-TEST_F(CPUTensorTest, throwsInsteadOfOverflowingWhenConvertingHugeElementStridesToByteStrides) {
+TEST_F(CPUTensorTest, avoidsOverflowConvertingLargeElementStridesToByteStrides) {
     Shape shape{2, 1};
     auto strides = ov::Strides({size_t{1} << 60, 1});
 
     auto memptr = create_memory(create_memdesc(ov::element::f32, shape, strides));
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::f32, t->get_element_type());
+    ASSERT_EQ(ov::Strides({size_t{1} << 62, 4}), t->get_strides());
+}
+
+TEST_F(CPUTensorTest, throwsInsteadOfOverflowingWhenConvertingGenuinelyHugeElementStridesToByteStrides) {
+    Shape shape{2, 1};
+    auto strides = ov::Strides({size_t{1} << 62, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::f32, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
     OV_EXPECT_THROW(t->get_strides(), ov::Exception, testing::HasSubstr("overflow"));
+}
+
+TEST_F(CPUTensorTest, u1StridesAreNotBitPacked) {
+    Shape shape{2, 8};
+    auto strides = ov::Strides({8, 1});
+
+    auto memptr = create_memory(create_memdesc(ov::element::u1, shape, strides));
+    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
+    ASSERT_EQ(ov::element::u1, t->get_element_type());
+    ASSERT_EQ(ov::Strides({8, 1}), t->get_strides());
+    ASSERT_EQ(16U, t->get_byte_size());
 }
 
 TEST_F(CPUTensorTest, isContinuousDoesNotThrowForDenseSubByteTensorWithUnalignedShape) {
