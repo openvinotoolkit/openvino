@@ -24,7 +24,7 @@ The software was:
   ```
   - **x86_64** Select universal2 installer from [Python releases](https://www.python.org/downloads/macos/) download page and install `python-3.X.Y-macos11.pkg` image. This allows you to have universal python libraries of OpenVINO Python API (build x86_64).
 
-- Clang compiler and other command line tools from Xcode 10.1 or higher:
+- Clang compiler and other command line tools from Xcode 13.0 or higher:
   ```sh
   % xcode-select --install
   ```

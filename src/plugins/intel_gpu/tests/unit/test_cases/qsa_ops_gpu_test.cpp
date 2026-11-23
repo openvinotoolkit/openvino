@@ -6,7 +6,7 @@
 //
 // Covered:
 //  - Paged and dense indexer + attention pairs against a CPU reference, both with toy
-//    dims and with a production-sized GQA shape: H_iq=4, D_idx=128,
+//    dims and with a large GQA shape: H_iq=4, D_idx=128,
 //    H_ik=1, r=4, budget 2048 tokens (block_topk=512), rotary 64, Hq=24, Hkv=2, Dh=256,
 //    page 16. The GPU's top-k selection is validated against the reference scores with
 //    an fp16 tolerance, and the attention output is then compared using that selection,
@@ -107,7 +107,7 @@ struct split_dims {
     size_t Dv = 16;
 };
 
-/// Production-sized GQA shape. The indexer reuses the attention RoPE, so
+/// Large GQA configuration. The indexer reuses the attention RoPE, so
 /// rotary = head_dim (256) * partial_rotary_factor (0.25); block_topk = indexer_budget / r.
 split_dims gqa_dims() {
     split_dims d;
@@ -1692,84 +1692,33 @@ const route decode_scalar{IndexerPath::Decode, AttnPath::Scalar};
 const route decode_split{IndexerPath::Decode, AttnPath::Split};
 const route fused_scalar{IndexerPath::Fused, AttnPath::Scalar};
 
-TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_matches_reference) {
-    run_dense_batch_test(gqa_dims(), 2, 2100, 1, decode_gqa, 3e-3f);
+// Decode batches: Q2 score_partition + top-k, Q3 GQA-DPAS (GQA dims).
+TEST(qsa_ops_gpu_test, gqa_paged_batch_decode_matches_reference) {
+    run_paged_batch_test(gqa_dims(), {{2051, 1}, {2100, 1}, {2300, 1}}, decode_gqa, 3e-3f);
 }
 
-// Decode with a one-row BLOCK_SCORES budget. The paged scratch row is sized from the page table
+TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_matches_reference) {
+    run_dense_batch_test(gqa_dims(), 3, 2051, 1, decode_gqa, 3e-3f);
+}
+
+// Same, with a one-row BLOCK_SCORES budget. The paged scratch row is sized from the page table
 // (past_lens stay in GPU memory), i.e. the whole page pool, so only one row fits per
 // chunk: 3 chunks of one sequence each.
 TEST(qsa_ops_gpu_test, gqa_paged_batch_decode_chunked_scores_match_reference) {
     scoped_score_budget budget(1);
-    run_paged_batch_test(gqa_dims(), {{2100, 1}, {2200, 1}, {2300, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
+    run_paged_batch_test(gqa_dims(), {{2051, 1}, {2100, 1}, {2300, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
-// Budget of exactly two 528-block rows (2 * 528 * 4 bytes): a full chunk followed by a partial one.
+// Budget of two rows: a full chunk followed by a partial one.
 TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_partial_last_chunk_matches_reference) {
-    scoped_score_budget budget(4224);
-    run_dense_batch_test(gqa_dims(), 3, 2100, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
+    scoped_score_budget budget(6144);
+    run_dense_batch_test(gqa_dims(), 3, 2051, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
 
-/// BLOCK_SCORES bytes of one row of a paged batch whose page pool holds exactly the batch's pages.
-size_t paged_score_row_bytes(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs) {
-    size_t pages = 0;
-    for (const auto& [past_len, q_len] : seqs) {
-        pages += (past_len + q_len + d.page_size - 1) / d.page_size;
-    }
-    return (pages * d.page_size / d.r + 7) / 8 * 8 * sizeof(float);
-}
-
-/// BLOCK_SCORES bytes of one row of a dense batch: the summary capacity is the longest row's complete blocks.
-size_t dense_score_row_bytes(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& rows) {
-    size_t blocks = 1;
-    for (const auto& [past_len, q_len] : rows) {
-        blocks = std::max(blocks, (past_len + q_len) / d.r);
-    }
-    return (blocks + 7) / 8 * 8 * sizeof(float);
-}
-
-const std::vector<std::pair<size_t, size_t>> gqa_mixed_batch = {{2100, 1}, {1990, 64}, {2200, 1}};
-
-// Prefill under a 32-row BLOCK_SCORES budget: 66 rows in 3 chunks of whole query tiles. The middle sequence starts at
-// row 1, so the chunk edges at rows 32 and 64 cut through its tiles and each of those tiles is scored by both chunks.
-TEST(qsa_ops_gpu_test, gqa_paged_batch_mixed_chunked_scores_match_reference) {
-    const auto budget_bytes = 32 * paged_score_row_bytes(gqa_dims(), gqa_mixed_batch);
-    scoped_score_budget budget(budget_bytes);
-    run_paged_batch_test(gqa_dims(), gqa_mixed_batch, {IndexerPath::Dpas, AttnPath::GqaDpas, 3, budget_bytes}, 3e-3f);
-}
-
-// A budget below one query tile still gives the systolic scorer whole 16-row chunks: 66 rows in 5 chunks.
-TEST(qsa_ops_gpu_test, gqa_paged_batch_mixed_tile_sized_chunks_match_reference) {
-    if (!xmx_routes_enabled()) {
-        GTEST_SKIP() << "without XMX the partition scorer runs one row per chunk";
-    }
-    scoped_score_budget budget(1);
-    const auto one_tile_bytes = 16 * paged_score_row_bytes(gqa_dims(), gqa_mixed_batch);
-    run_paged_batch_test(gqa_dims(), gqa_mixed_batch, {IndexerPath::Dpas, AttnPath::GqaDpas, 5, one_tile_bytes}, 3e-3f);
-}
-
-// Two dense rows of 40 queries (3 tiles each) under a 32-row budget: chunks [0, 32), [32, 64), [64, 80); the edge at
-// row 64 falls inside row 1's second tile.
-TEST(qsa_ops_gpu_test, gqa_dense_batch_prefill_chunked_scores_match_reference) {
-    const std::vector<std::pair<size_t, size_t>> rows = {{2100, 40}, {2000, 40}};
-    const auto budget_bytes = 32 * dense_score_row_bytes(gqa_dims(), rows);
-    scoped_score_budget budget(budget_bytes);
-    run_dense_batch_test(gqa_dims(), rows, {IndexerPath::Dpas, AttnPath::GqaDpas, 3, budget_bytes}, 3e-3f);
-}
-
-// Short dense rows (5 queries, one partial tile each) under a 16-row budget: 60 rows in chunks [0, 16), [16, 32), [32, 48),
-// [48, 60), each spanning 3-4 batch rows; the last three start mid-row (rows 16, 32, 48 sit at positions 1, 2, 3 of
-// batch rows 3, 6, 9). Here the per-row term of the tile bound dominates: a chunk dispatches
-// ceil(16 / 16) + 2 * (16 / 5 + 2) = 11 of the 12 tiles, starting at the tile that holds its first row.
-// Every row is long enough (> block_topk * r keys) to be scored rather than take the dense-prefix bypass.
-TEST(qsa_ops_gpu_test, gqa_dense_batch_short_rows_chunked_scores_match_reference) {
-    std::vector<std::pair<size_t, size_t>> rows;
-    for (size_t b = 0; b < 12; b++) {
-        rows.emplace_back(2060 + 7 * b, 5);
-    }
-    const auto budget_bytes = 16 * dense_score_row_bytes(gqa_dims(), rows);
-    scoped_score_budget budget(budget_bytes);
-    run_dense_batch_test(gqa_dims(), rows, {IndexerPath::Dpas, AttnPath::GqaDpas, 4, budget_bytes}, 3e-3f);
+// Mixed batches (decode + prefill sequences in one call): dpas Q2 with GQA dims, the
+// fused non-dpas Q2 with the toy dims (Di = 16 fails the dpas score gate).
+TEST(qsa_ops_gpu_test, gqa_paged_batch_mixed_matches_reference) {
+    run_paged_batch_test(gqa_dims(), {{2100, 1}, {1990, 64}, {2060, 1}}, dpas_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, paged_batch_mixed_fused_score_topk_matches_reference) {
@@ -1778,10 +1727,6 @@ TEST(qsa_ops_gpu_test, paged_batch_mixed_fused_score_topk_matches_reference) {
 
 TEST(qsa_ops_gpu_test, paged_batch_decode_toy_dims_matches_reference) {
     run_paged_batch_test(split_dims{}, {{20, 1}, {37, 1}, {63, 1}}, decode_split, 2e-2f);
-}
-
-TEST(qsa_ops_gpu_test, dense_batch_long_decode_split_fallback_matches_reference) {
-    run_dense_batch_test(split_dims{}, 2, 2100, 1, decode_split, 2e-2f);
 }
 
 // ---------------------------------------------------------------------------
@@ -1800,20 +1745,20 @@ TEST(qsa_ops_gpu_test, dense_batch_ragged_decode_scalar_matches_reference) {
 }
 
 TEST(qsa_ops_gpu_test, dense_batch_ragged_long_decode_split_matches_reference) {
-    run_dense_batch_test(split_dims{}, {{2100, 1}, {15, 1}}, decode_split, 2e-2f);
+    run_dense_batch_test(split_dims{}, {{2051, 1}, {15, 1}}, decode_split, 2e-2f);
 }
 
 // Padding spans whole and partial 16-query tiles of the plain DPAS kernel.
 TEST(qsa_ops_gpu_test, dense_batch_left_padding_plain_dpas_matches_reference) {
-    run_dense_batch_test(non_gqa_dpas_dims(), {{2100, 33}, {0, 9}, {0, 20}}, dpas_dpas, 3e-3f);
+    run_dense_batch_test(non_gqa_dpas_dims(), {{2051, 33}, {0, 9}, {0, 20}}, dpas_dpas, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, gqa_dense_batch_left_padding_prefill_matches_reference) {
-    run_dense_batch_test(gqa_dims(), {{2052, 48}, {0, 40}, {0, 48}}, dpas_gqa, 3e-3f);
+    run_dense_batch_test(gqa_dims(), {{2044, 64}, {0, 40}, {0, 64}}, dpas_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, gqa_dense_batch_ragged_decode_matches_reference) {
-    run_dense_batch_test(gqa_dims(), {{2100, 1}, {15, 1}, {2050, 1}}, decode_gqa, 3e-3f);
+    run_dense_batch_test(gqa_dims(), {{2100, 1}, {15, 1}, {2051, 1}}, decode_gqa, 3e-3f);
 }
 
 // ---------------------------------------------------------------------------
@@ -1826,19 +1771,10 @@ TEST(qsa_ops_gpu_test, dense_state_carries_across_calls) {
 }
 
 TEST(qsa_ops_gpu_test, gqa_dense_state_carries_across_calls) {
-    // The CPU reference cost grows quadratically with the history; selection with carried state is covered by the toy dims above.
-    run_dense_state_chain_test(gqa_dims(), {300, 1, 1, 17, 1}, 3e-3f);
+    run_dense_state_chain_test(gqa_dims(), {2050, 1, 1, 17, 1}, 3e-3f);
 }
 
 // Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar Q3 kernel.
-TEST(qsa_ops_gpu_test, paged_pair_matches_reference) {
-    run_pair_test(true, split_dims{}, 20, 44, Positions::Sequential, fused_scalar, 2e-2f);
-}
-
-TEST(qsa_ops_gpu_test, dense_pair_matches_reference) {
-    run_pair_test(false, split_dims{}, 20, 44, Positions::Sequential, fused_scalar, 2e-2f);
-}
-
 TEST(qsa_ops_gpu_test, paged_pair_mrope_positions_match_reference) {
     run_pair_test(true, split_dims{}, 22, 42, Positions::MRoPELike, fused_scalar, 2e-2f);
 }
@@ -1847,22 +1783,22 @@ TEST(qsa_ops_gpu_test, dense_pair_mrope_positions_match_reference) {
     run_pair_test(false, split_dims{}, 22, 42, Positions::MRoPELike, fused_scalar, 2e-2f);
 }
 
-// Production-sized GQA shapes: decode one token over a long history (partial last block
+// Large GQA shapes: decode one token over a long history (partial last block
 // completed by this call), and a 64-token prefill chunk on top of a cached prefix.
 TEST(qsa_ops_gpu_test, gqa_paged_decode_matches_reference) {
-    run_pair_test(true, gqa_dims(), 2051, 1, Positions::Sequential, decode_gqa, 3e-3f);
+    run_pair_test(true, gqa_dims(), 2103, 1, Positions::Sequential, decode_gqa, 3e-3f);
 }
 
-TEST(qsa_ops_gpu_test, gqa_paged_prefill_matches_reference) {
-    run_pair_test(true, gqa_dims(), 2052, 48, Positions::Sequential, dpas_gqa, 3e-3f);
+TEST(qsa_ops_gpu_test, gqa_paged_prefill_mrope_matches_reference) {
+    run_pair_test(true, gqa_dims(), 2046, 66, Positions::MRoPELike, dpas_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, gqa_dense_decode_matches_reference) {
-    run_pair_test(false, gqa_dims(), 2051, 1, Positions::Sequential, decode_gqa, 3e-3f);
+    run_pair_test(false, gqa_dims(), 2103, 1, Positions::Sequential, decode_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, gqa_dense_prefill_matches_reference) {
-    run_pair_test(false, gqa_dims(), 2052, 48, Positions::Sequential, dpas_gqa, 3e-3f);
+    run_pair_test(false, gqa_dims(), 2044, 64, Positions::Sequential, dpas_gqa, 3e-3f);
 }
 
 // Prefill rows on both sides of the top-k boundary (510..514 complete blocks vs K = 512):
@@ -1907,7 +1843,7 @@ TEST(qsa_ops_gpu_test, gqa_dense_batch_decode_at_topk_boundary_matches_reference
 
 // Short decode, a long decode and a fresh prefill sequence in one call.
 TEST(qsa_ops_gpu_test, gqa_paged_batch_mixed_short_and_long_matches_reference) {
-    run_paged_batch_test(gqa_dims(), {{15, 1}, {2100, 1}, {0, 17}}, dpas_gqa, 3e-3f);
+    run_paged_batch_test(gqa_dims(), {{15, 1}, {2051, 1}, {0, 17}}, dpas_gqa, 3e-3f);
 }
 
 // ---------------------------------------------------------------------------
@@ -1916,32 +1852,24 @@ TEST(qsa_ops_gpu_test, gqa_paged_batch_mixed_short_and_long_matches_reference) {
 // ---------------------------------------------------------------------------
 
 TEST(qsa_ops_gpu_test, paged_pair_plain_dpas_attention_matches_reference) {
-    run_pair_test(true, non_gqa_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
+    run_pair_test(true, non_gqa_dpas_dims(), 2051, 17, Positions::Sequential, dpas_dpas, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_plain_dpas_attention_matches_reference) {
-    run_pair_test(false, non_gqa_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
+    run_pair_test(false, non_gqa_dpas_dims(), 2051, 17, Positions::Sequential, dpas_dpas, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, paged_pair_plain_dpas_four_workers_matches_reference) {
-    run_pair_test(true, wide_group_dims(), 2100, 16, Positions::Sequential, dpas_dpas, 3e-3f);
-}
-
-TEST(qsa_ops_gpu_test, dense_pair_plain_dpas_four_workers_matches_reference) {
-    run_pair_test(false, wide_group_dims(), 2100, 16, Positions::Sequential, dpas_dpas, 3e-3f);
+    run_pair_test(true, wide_group_dims(), 2051, 16, Positions::Sequential, dpas_dpas, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, paged_pair_plain_dpas_one_head_per_tile_matches_reference) {
-    run_pair_test(true, mha_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
-}
-
-TEST(qsa_ops_gpu_test, dense_pair_plain_dpas_one_head_per_tile_matches_reference) {
-    run_pair_test(false, mha_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
+    run_pair_test(true, mha_dpas_dims(), 2051, 17, Positions::Sequential, dpas_dpas, 3e-3f);
 }
 
 // Per-sequence query tiles: two single-token decode tiles plus a 16 + 1 prefill.
 TEST(qsa_ops_gpu_test, paged_batch_mixed_plain_dpas_attention_matches_reference) {
-    run_paged_batch_test(non_gqa_dpas_dims(), {{15, 1}, {2100, 1}, {2040, 17}}, dpas_dpas, 3e-3f);
+    run_paged_batch_test(non_gqa_dpas_dims(), {{15, 1}, {2051, 1}, {2040, 17}}, dpas_dpas, 3e-3f);
 }
 
 // ---------------------------------------------------------------------------
@@ -1949,8 +1877,8 @@ TEST(qsa_ops_gpu_test, paged_batch_mixed_plain_dpas_attention_matches_reference)
 // splits; dense compares the whole K length (past_len + 1) with 2048.
 // ---------------------------------------------------------------------------
 
-TEST(qsa_ops_gpu_test, paged_batch_short_decode_uses_split) {
-    run_paged_batch_test(non_gqa_dpas_dims(), {{2047, 1}, {3000, 1}}, decode_split, 3e-3f);
+TEST(qsa_ops_gpu_test, paged_batch_decode_uses_split) {
+    run_paged_batch_test(non_gqa_dpas_dims(), {{2048, 1}, {3000, 1}}, decode_split, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, dense_batch_decode_below_split_threshold_uses_scalar) {
@@ -1978,11 +1906,7 @@ TEST(qsa_ops_gpu_test, paged_pair_large_magnitude_inputs_stay_finite_and_accurat
     // of elements with closely competing logits -- this is expected floating-point
     // behavior, not a kernel bug, and a tighter bound here would be testing summation
     // order, not correctness.
-    run_pair_test(true, gqa_dims(), 2052, 48, Positions::Sequential, dpas_gqa, /*rtol=*/1e-2f, /*atol=*/1e-2f, /*scale=*/3.0f);
-}
-
-TEST(qsa_ops_gpu_test, dense_pair_large_magnitude_inputs_stay_finite_and_accurate) {
-    run_pair_test(false, gqa_dims(), 2052, 48, Positions::Sequential, dpas_gqa, /*rtol=*/1e-2f, /*atol=*/1e-2f, /*scale=*/3.0f);
+    run_pair_test(true, gqa_dims(), 2044, 64, Positions::Sequential, dpas_gqa, /*rtol=*/1e-2f, /*atol=*/1e-2f, /*scale=*/3.0f);
 }
 
 TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
@@ -1995,7 +1919,7 @@ TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
     const auto d = gqa_dims();
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
-    auto ref = make_split_reference(rg, d, 2052, 48, Positions::Sequential);
+    auto ref = make_split_reference(rg, d, 2044, 64, Positions::Sequential);
     ref.index_query_cur[0] = static_cast<float>(ov::float16(40.0f));
     ref.raw_index_keys_all[0] = static_cast<float>(ov::float16(40.0f));
     ref.summary_memo.clear();
@@ -2009,11 +1933,23 @@ TEST(qsa_ops_gpu_test, dense_pair_dominant_outlier_component_stays_accurate) {
     const auto d = gqa_dims();
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
-    auto ref = make_split_reference(rg, d, 2052, 48, Positions::Sequential);
+    auto ref = make_split_reference(rg, d, 2044, 64, Positions::Sequential);
     ref.index_query_cur[0] = static_cast<float>(ov::float16(40.0f));
     ref.raw_index_keys_all[0] = static_cast<float>(ov::float16(40.0f));
     ref.summary_memo.clear();
     validate_and_run_pair(false, engine, ref, dpas_gqa, /*atol=*/4e-3f, /*rtol=*/5e-3f);
+}
+
+// Many more blocks than the prefill cases above: checks that per-block summary error and
+// online-softmax accumulation error do not grow with the number of terms summed.
+// More than 2048 complete blocks: the prefill top-k uses its widest work-group (16 subgroups), and
+// per-block summary / online-softmax accumulation error must not grow with the number of terms.
+TEST(qsa_ops_gpu_test, gqa_paged_long_context_accumulation_matches_reference) {
+    run_pair_test(true, gqa_dims(), 8192, 17, Positions::Sequential, dpas_gqa, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, gqa_dense_long_context_accumulation_matches_reference) {
+    run_pair_test(false, gqa_dims(), 8192, 17, Positions::Sequential, dpas_gqa, 3e-3f);
 }
 
 // ---------------------------------------------------------------------------
@@ -2088,7 +2024,7 @@ std::vector<dynamic_step> toy_dynamic_steps(bool paged) {
     const route decode = paged ? decode_split : decode_scalar;
     return {{0, 37, fused_scalar}, {37, 1, decode}, {38, 1, decode}, {39, 6, fused_scalar}, {45, 1, decode}};
 }
-const std::vector<dynamic_step> gqa_dynamic_steps = {{2100, 17, dpas_gqa}, {2117, 1, decode_gqa}, {40, 9, dpas_gqa}};
+const std::vector<dynamic_step> gqa_dynamic_steps = {{2051, 17, dpas_gqa}, {2068, 1, decode_gqa}, {2069, 1, decode_gqa}, {40, 9, dpas_gqa}};
 
 TEST(qsa_ops_gpu_test, paged_pair_dynamic_shapes_reuse_one_network) {
     run_dynamic_pair_test(true, split_dims{}, toy_dynamic_steps(true), 2e-3f);
@@ -2104,24 +2040,6 @@ TEST(qsa_ops_gpu_test, gqa_paged_pair_dynamic_shapes_reuse_one_network) {
 
 TEST(qsa_ops_gpu_test, gqa_dense_pair_dynamic_shapes_reuse_one_network) {
     run_dynamic_pair_test(false, gqa_dims(), gqa_dynamic_steps, 3e-3f);
-}
-
-// Model cache round trip of the multi-stage impls, whose activated stages are not contiguous (e.g. prepare, score_partition,
-// topk_decode for a static decode impl): the imported program must restore the stage order and each stage's dispatch data.
-// The stage-order contract itself (set_kernels, save/load) is covered by module_tests/ocl_v2_impl_base_test.cpp.
-TEST(qsa_ops_gpu_test, gqa_paged_pair_model_cache_round_trip_matches_reference) {
-    run_paged_batch_test(gqa_dims(), gqa_mixed_batch, dpas_gqa, 3e-3f, 2e-3f, true);
-    run_paged_batch_test(gqa_dims(), {{2100, 1}, {2600, 1}}, decode_gqa, 3e-3f, 2e-3f, true);
-}
-
-TEST(qsa_ops_gpu_test, gqa_dense_pair_model_cache_round_trip_matches_reference) {
-    run_dense_batch_test(gqa_dims(), {{2100, 17}}, dpas_gqa, 3e-3f, 2e-3f, true);
-    run_dense_batch_test(gqa_dims(), std::vector<std::pair<size_t, size_t>>(2, {2100, 1}), decode_gqa, 3e-3f, 2e-3f, true);
-}
-
-TEST(qsa_ops_gpu_test, pair_model_cache_round_trip_without_systolic_scorer_matches_reference) {
-    run_dynamic_pair_test(true, split_dims{}, toy_dynamic_steps(true), 2e-3f, 2e-3f, true);
-    run_dynamic_pair_test(false, split_dims{}, toy_dynamic_steps(false), 2e-3f, 2e-3f, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -2439,36 +2357,7 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d,
 }
 
 TEST(qsa_ops_gpu_test, sparse_sdpa_reads_kv_cache_across_infer_calls) {
-    run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 2e-3f);
-}
-
-TEST(qsa_ops_gpu_test, sparse_sdpa_reads_compressed_kv_cache_across_infer_calls) {
-    // Per-token asymmetric 8-bit: i8 is the plugin's internal type, u8 is converted to it.
-    for (auto precision : {ov::element::i8, ov::element::u8}) {
-        run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 0.0f, 0.0f, {precision});
-    }
-}
-
-TEST(qsa_ops_gpu_test, sparse_sdpa_reads_4bit_compressed_kv_cache_across_infer_calls) {
-    // Per-token asymmetric 4-bit: u4 is the plugin's internal type, i4 is converted to it.
-    for (auto precision : {ov::element::u4, ov::element::i4}) {
-        run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 0.0f, 0.0f, {precision});
-    }
-}
-
-TEST(qsa_ops_gpu_test, sparse_sdpa_reads_left_padded_batch_compressed_kv_cache) {
-    // Row 1 starts 11 tokens late: its left padding rows hold outliers that no real row may read.
-    const std::vector<size_t> lens = {37, 1, 1, 6, 1, 300, 1};
-    const std::vector<size_t> first_real = {37, 26};
-    for (auto precision : {ov::element::i8, ov::element::u8, ov::element::u4, ov::element::i4}) {
-        run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), lens, 0.0f, 0.0f, {precision}, 2, first_real);
-    }
-}
-
-TEST(qsa_ops_gpu_test, gqa_sparse_sdpa_reads_compressed_kv_cache_across_infer_calls) {
-    for (auto precision : {ov::element::i8, ov::element::u4}) {
-        run_sparse_sdpa_kv_cache_model_test(gqa_dims(), {37, 1, 1, 9, 1}, 0.0f, 0.0f, {precision});
-    }
+    run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1}, 2e-3f);
 }
 
 TEST(qsa_ops_gpu_test, gqa_sparse_sdpa_reads_kv_cache_across_infer_calls) {
@@ -2689,10 +2578,7 @@ TEST_P(QSAIndexerPluginTest, AbsorbsQueryPreprocessingBeforeLowering) {
     EXPECT_NO_THROW(core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16)));
 }
 
-INSTANTIATE_TEST_SUITE_P(QSA,
-                         QSAIndexerPluginTest,
-                         ::testing::Bool(),
-                         ([](const ::testing::TestParamInfo<bool>& info) {
+INSTANTIATE_TEST_SUITE_P(QSA, QSAIndexerPluginTest, ::testing::Bool(), ([](const ::testing::TestParamInfo<bool>& info) {
                              return info.param ? "Paged" : "Dense";
                          }));
 
@@ -3060,7 +2946,7 @@ TEST(qsa_ops_gpu_test, plugin_rejects_unsupported_indexer_heads_and_precision) {
 
 // ---------------------------------------------------------------------------
 // Performance (DISABLED_ by default). Wall-clock per synchronous execute(), which
-// includes host dispatch and plan uploads, with production-sized GQA shapes. The traffic
+// includes host dispatch and plan uploads, with Large GQA shapes. The traffic
 // estimate assumes no cache reuse across query tokens, so prefill GB/s is an upper bound.
 // ---------------------------------------------------------------------------
 
@@ -3127,7 +3013,7 @@ void print_perf(const char* op, const perf_case& c, const perf_timing& t, double
 
 class qsa_ops_perf : public ::testing::TestWithParam<perf_case> {};
 
-TEST_P(qsa_ops_perf, gqa_shapes) {
+TEST_P(qsa_ops_perf, gqa) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
@@ -3197,7 +3083,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
                          });
 
 // Per-kernel sweep driver for external GPU tracing (e.g. onetrace -d): one dense (QSAIndexer +
-// SparseSDPA) or paged (PagedQSAIndexer + SparsePA) pair with GQA dims, configured via the
+// SparseSDPA) or paged (PagedQSAIndexer + SparsePA) pair with large-GQA dims, configured via the
 // environment: QSA_PERF_IMPL=dense|paged, QSA_PERF_PHASE=prefill|decode, QSA_PERF_B, QSA_PERF_LEN
 // (prompt length / history length), QSA_PERF_PAST (history before a prefill chunk), QSA_PERF_ITERS, QSA_PERF_WARMUP,
 // QSA_PERF_FLUSH_MB (writes

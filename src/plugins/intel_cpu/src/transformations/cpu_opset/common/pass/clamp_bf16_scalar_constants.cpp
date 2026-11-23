@@ -26,7 +26,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 
 namespace ov::intel_cpu {
 
@@ -55,7 +54,7 @@ ClampBF16ScalarConstants::ClampBF16ScalarConstants() {
         wrap_type<ov::op::v1::Multiply, ov::op::v1::Add, ov::op::v1::Subtract>({overflowing_const_m, any_input()});
     auto binary_m = const_second_m | const_first_m;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto constant =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(overflowing_const_m).get_node_shared_ptr());

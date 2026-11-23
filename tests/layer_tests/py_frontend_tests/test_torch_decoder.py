@@ -952,6 +952,45 @@ def test_pytorch_fx_frontend_keeps_first_input_named_self(model, example, names)
 
 
 @pytest.mark.precommit
+@pytest.mark.parametrize("module_stack,expected_prefix", [
+    (None, "relu"),
+    ({}, "relu"),
+    ({"root": ("", "Model")}, "relu"),
+    ({
+        "root": ("", "Model"),
+        "exporter_generated_key": ("encoder", "Block"),
+        "another_generated_key": ("encoder.activation", "ReLU"),
+    }, "encoder.activation/relu"),
+])
+def test_pytorch_fx_decoder_friendly_name(module_stack, expected_prefix):
+    import openvino.opset13 as ops
+    from openvino import Type
+    from openvino.frontend.pytorch.fx_decoder import IndexedNodes, TorchFXPythonDecoder
+
+    graph = torch.fx.Graph()
+    data = graph.placeholder("data")
+    relu = graph.call_function(torch.ops.aten.relu.default, (data,), name="relu")
+    graph.output(relu)
+    if module_stack is not None:
+        relu.meta["nn_module_stack"] = module_stack
+    graph_module = torch.fx.GraphModule(torch.nn.Module(), graph)
+    names_seen = []
+
+    def mark_node_callback(decoder, node):
+        names_seen.append(node.get_friendly_name())
+        node.set_friendly_name("callback/" + node.get_friendly_name())
+
+    decoder = TorchFXPythonDecoder(
+        relu, graph_module, IndexedNodes(graph.nodes), mark_node_callback=mark_node_callback)
+    node = ops.relu(ops.parameter([2, 4], Type.f32))
+
+    assert decoder.mark_node(node) is node
+    expected_name = expected_prefix + "/aten.relu.default/Relu"
+    assert names_seen == [expected_name]
+    assert node.get_friendly_name() == "callback/" + expected_name
+
+
+@pytest.mark.precommit
 @pytest.mark.parametrize("return_indices", [False, True])
 def test_pytorch_fx_pool_without_output_metadata(return_indices):
     import numpy as np
