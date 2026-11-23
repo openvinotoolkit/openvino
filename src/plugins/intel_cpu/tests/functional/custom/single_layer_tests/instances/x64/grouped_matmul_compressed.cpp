@@ -135,8 +135,14 @@ class GroupedMatMulMXFP4ScalesTest : public GroupedMatMulCompressedLayerTest {
 protected:
     std::shared_ptr<ov::Node> build_weights() override {
         auto weights = GroupedMatMulCompressedLayerTest::build_weights();
-        unmark_e8m0_scale_converts(weights);
+        if (clear_decompression_mark()) {
+            unmark_e8m0_scale_converts(weights);
+        }
         return weights;
+    }
+
+    virtual bool clear_decompression_mark() const {
+        return true;
     }
 
     void validate() override {
@@ -146,7 +152,18 @@ protected:
     }
 };
 
+// Same, with the decompression mark on the scale Convert kept (as the shared builders and FuseMOEExperts produce it).
+class GroupedMatMulMXFP4MarkedScalesTest : public GroupedMatMulMXFP4ScalesTest {
+    bool clear_decompression_mark() const override {
+        return false;
+    }
+};
+
 TEST_P(GroupedMatMulMXFP4ScalesTest, Inference) {
+    run();
+}
+
+TEST_P(GroupedMatMulMXFP4MarkedScalesTest, Inference) {
     run();
 }
 
@@ -165,6 +182,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_mxfp4_scales_e8m0,
                                             ::testing::Values("GatherMatmulCompressed"),
                                             ::testing::Values(ov::AnyMap{})),
                          GroupedMatMulMXFP4ScalesTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_mxfp4_marked_scales_e8m0,
+                         GroupedMatMulMXFP4MarkedScalesTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::f4e2m1),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f8e8m0),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::Values(32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmulCompressed"),
+                                            ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulMXFP4MarkedScalesTest::getTestCaseName);
 
 // FullyConnected (2D weights) is unchanged: its scales are still widened, no f8e8m0 tensor in the compiled model.
 TEST(smoke_FullyConnected_mxfp4_scales, WidenedForFullyConnected) {

@@ -46,6 +46,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -293,6 +294,28 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
+// Follows the decompressed weights from `node` through Reshape/Transpose/Convert and tells whether they feed expert
+// (batched) weights: GatherMatmul, GroupedMatMul or a MatMul with 3D weights. FullyConnected-bound (2D) weights don't.
+static bool feeds_expert_weights(const ov::Node* node) {
+    for (;;) {
+        const auto consumers = node->get_output_target_inputs(0);
+        if (consumers.size() != 1) {
+            return false;
+        }
+        const auto* next = consumers.begin()->get_node();
+        if (ov::is_type_any_of<ov::op::v1::Reshape, ov::op::v1::Transpose, ov::op::v0::Convert>(next)) {
+            node = next;
+            continue;
+        }
+        if (ov::is_type_any_of<ov::op::v17::GroupedMatMul, ov::op::internal::GatherMatmul>(next)) {
+            return true;
+        }
+        const auto* matmul = ov::as_type<const ov::op::v0::MatMul>(next);
+        return matmul && matmul->get_input_partial_shape(1).rank().is_static() &&
+               matmul->get_input_partial_shape(1).rank().get_length() == 3;
+    }
+}
+
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
         const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
@@ -536,26 +559,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 if (!is_decompression_multiply(node)) {
                     return true;
                 }
-                // Follow the decompressed weights through Reshape/Transpose/Convert to their consumer
-                const ov::Node* cur = node.get();
-                for (;;) {
-                    const auto consumers = cur->get_output_target_inputs(0);
-                    if (consumers.size() != 1) {
-                        return true;
-                    }
-                    const auto* next = consumers.begin()->get_node();
-                    if (ov::is_type_any_of<ov::op::v1::Reshape, ov::op::v1::Transpose, ov::op::v0::Convert>(next)) {
-                        cur = next;
-                        continue;
-                    }
-                    // expert (batched) weights consumers only; FullyConnected-bound MatMul weights are 2D
-                    if (ov::is_type_any_of<ov::op::v17::GroupedMatMul, ov::op::internal::GatherMatmul>(next)) {
-                        return false;
-                    }
-                    const auto* matmul = ov::as_type<const ov::op::v0::MatMul>(next);
-                    return !(matmul && matmul->get_input_partial_shape(1).rank().is_static() &&
-                             matmul->get_input_partial_shape(1).rank().get_length() == 3);
-                }
+                return !feeds_expert_weights(node.get());
             },
             ov::pass::MarkDequantization);
         e8m0_scales_manager.run_passes(model);
@@ -630,6 +634,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto consumers = node->get_output_target_inputs(0);
+            // MXFP4 expert scales: keep the f8e8m0 Convert unfolded when the scaled weights feed expert weights
+            if (node->get_input_element_type(0) == ov::element::f8e8m0 && consumers.size() == 1 &&
+                ov::is_type<ov::op::v1::Multiply>(consumers.begin()->get_node()) &&
+                feeds_expert_weights(consumers.begin()->get_node())) {
+                return false;
+            }
             return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
                 // @todo cover RNN type of ops as well
                 return !is_type_any_of<ov::op::v0::MatMul,
