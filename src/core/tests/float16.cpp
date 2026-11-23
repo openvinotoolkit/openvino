@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <climits>
+#include <cstdint>
+#include <cstring>
 #include <random>
 
 #include "common_test_utils/float_util.hpp"
@@ -108,5 +110,43 @@ TEST(float16, to_string) {
 TEST(float16, size) {
     const float16 f16{10.12f};
     EXPECT_EQ(sizeof(f16), 2);
+}
+
+static uint16_t float16_from_bitpattern(uint32_t bitpattern) {
+    float f;
+    std::memcpy(&f, &bitpattern, sizeof(float));
+    return static_cast<float16>(f).to_bits();
+}
+
+TEST(float16, subnormal_rounding_bug_38797) {
+    const uint32_t inputs[] = {0x337FFFFF, 0x33FFFFFF, 0x377FFFFF,
+                               0xB37FFFFF, 0xB3FFFFFF, 0xB77FFFFF,
+                               0x00000000, 0x80000000, 0x00800000, 0x00400000,
+                               0x007FFFFF, 0x00010000, 0x33800000,
+                               0x387FC000, 0x38800000};
+    const uint16_t expected[] = {0x0001, 0x0002, 0x0100,
+                                 0x8001, 0x8002, 0x8100,
+                                 0x0000, 0x8000, 0x0000, 0x0000,
+                                 0x0000, 0x0000, 0x0001,
+                                 0x03FF, 0x0400};
+
+    for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); ++i) {
+        EXPECT_EQ(float16_from_bitpattern(inputs[i]), expected[i]) << std::hex << inputs[i];
+    }
+}
+
+TEST(float16, subnormal_rounding_ties_to_even) {
+    // Midpoint between zero and 0x0001, then immediately above it.
+    EXPECT_EQ(float16_from_bitpattern(0x33000000), uint16_t(0x0000));
+    EXPECT_EQ(float16_from_bitpattern(0x33000001), uint16_t(0x0001));
+
+    // Midpoint between 0x0001 and 0x0002 rounds to the even value 0x0002.
+    EXPECT_EQ(float16_from_bitpattern(0x33C00000), uint16_t(0x0002));
+
+    // The midpoint between the largest subnormal and the smallest normal
+    // rounds to the even normal value 0x0400.
+    EXPECT_EQ(float16_from_bitpattern(0x387FE000), uint16_t(0x0400));
+    EXPECT_EQ(float16_from_bitpattern(0x387FDFFF), uint16_t(0x03FF));
+    EXPECT_EQ(float16_from_bitpattern(0x387FE001), uint16_t(0x0400));
 }
 }  // namespace ov::test
