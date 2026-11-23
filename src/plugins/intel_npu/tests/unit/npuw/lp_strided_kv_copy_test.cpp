@@ -22,12 +22,15 @@ namespace uu = ov::npuw::util;
 constexpr uint8_t k_untouched = 0xAA;
 
 // KV-cache like tensor [N, H, S, E] living in a buffer whose rows are padded to twice their packed size,
-// i.e. the same layout an ROI of a larger zero-copy allocation has.
+// i.e. the same layout an ROI of a larger zero-copy allocation has. With head_gap, heads are padded as well.
 struct PaddedTensor {
-    PaddedTensor(const ov::element::Type& type, const ov::Shape& shape, bool pattern)
+    PaddedTensor(const ov::element::Type& type, const ov::Shape& shape, bool pattern, bool head_gap = false)
         : shape(shape),
           row_bytes(ov::util::get_memory_size(type, shape.back())),
-          strides{shape[1] * shape[2] * 2 * row_bytes, shape[2] * 2 * row_bytes, 2 * row_bytes, type.size()} {
+          strides{shape[1] * shape[2] * 2 * row_bytes * (head_gap ? 2 : 1),
+                  shape[2] * 2 * row_bytes * (head_gap ? 2 : 1),
+                  2 * row_bytes,
+                  type.size()} {
         bytes.resize(shape[0] * strides[0]);
         for (size_t i = 0; i < bytes.size(); ++i) {
             bytes[i] = pattern ? static_cast<uint8_t>(i * 37 + 11) : k_untouched;
@@ -128,6 +131,51 @@ TEST_P(LpStridedKvCopyTest, PaddedSourceToDenseDestinationMatchesReference) {
     EXPECT_EQ(dst_bytes, expected);
 }
 
+TEST_P(LpStridedKvCopyTest, HeadStrideGapCopyMatchesReference) {
+    const auto type = GetParam();
+    constexpr size_t rows = 2;
+    PaddedTensor src(type, {1, H, rows, E}, true, true);
+
+    std::vector<uint8_t> dst_bytes(H * rows * src.row_bytes, k_untouched);
+    auto dst = ov::SoPtr<ov::ITensor>(ov::make_tensor(type, {1, H, rows, E}, dst_bytes.data()), {});
+
+    uu::copy_tensor_by_dim(src.tensor, dst, 3, 3);
+
+    std::vector<uint8_t> expected(dst_bytes.size(), k_untouched);
+    for (size_t h = 0; h < H; ++h) {
+        for (size_t r = 0; r < rows; ++r) {
+            std::copy_n(src.bytes.begin() + src.row_offset(h, r),
+                        src.row_bytes,
+                        expected.begin() + (h * rows + r) * src.row_bytes);
+        }
+    }
+    EXPECT_EQ(dst_bytes, expected);
+}
+
+// The batch stride is honored as well
+TEST_P(LpStridedKvCopyTest, BatchStrideCopyMatchesReference) {
+    const auto type = GetParam();
+    constexpr size_t batch = 2, rows = 2;
+    PaddedTensor src(type, {batch, H, rows, E}, true);
+
+    std::vector<uint8_t> dst_bytes(batch * H * rows * src.row_bytes, k_untouched);
+    auto dst = ov::SoPtr<ov::ITensor>(ov::make_tensor(type, {batch, H, rows, E}, dst_bytes.data()), {});
+
+    uu::copy_tensor_by_dim(src.tensor, dst, 3, 3);
+
+    std::vector<uint8_t> expected(dst_bytes.size(), k_untouched);
+    for (size_t n = 0; n < batch; ++n) {
+        for (size_t h = 0; h < H; ++h) {
+            for (size_t r = 0; r < rows; ++r) {
+                std::copy_n(src.bytes.begin() + n * src.strides[0] + src.row_offset(h, r),
+                            src.row_bytes,
+                            expected.begin() + ((n * H + h) * rows + r) * src.row_bytes);
+            }
+        }
+    }
+    EXPECT_EQ(dst_bytes, expected);
+}
+
 TEST_P(LpStridedKvCopyTest, ViewOffsetsFollowBitWidth) {
     const auto type = GetParam();
     PaddedTensor t(type, {1, H, E, S_MAX * 2}, true);
@@ -154,6 +202,39 @@ INSTANTIATE_TEST_SUITE_P(NpuwLpKv,
                          [](const testing::TestParamInfo<ov::element::Type>& info) {
                              return info.param.get_type_name();
                          });
+
+void expect_non_dense_innermost_copy(uint32_t kv_dim) {
+    const ov::Shape shape{1, 2, 2, 4};
+    const ov::Strides strides{64, 32, 16, 4};
+    std::vector<uint8_t> src_bytes(128);
+    for (size_t i = 0; i < src_bytes.size(); ++i) {
+        src_bytes[i] = static_cast<uint8_t>(i * 37 + 11);
+    }
+    std::vector<uint8_t> dst_bytes(src_bytes.size(), k_untouched);
+    auto src = ov::SoPtr<ov::ITensor>(ov::make_tensor(ov::element::f16, shape, src_bytes.data(), strides), {});
+    auto dst = ov::SoPtr<ov::ITensor>(ov::make_tensor(ov::element::f16, shape, dst_bytes.data(), strides), {});
+
+    uu::copy_tensor_by_dim(src, dst, kv_dim, kv_dim);
+
+    std::vector<uint8_t> expected(dst_bytes.size(), k_untouched);
+    for (size_t h = 0; h < 2; ++h) {
+        for (size_t r = 0; r < 2; ++r) {
+            for (size_t e = 0; e < 4; ++e) {
+                const size_t offset = h * 32 + r * 16 + e * 4;
+                std::copy_n(src_bytes.begin() + offset, 2, expected.begin() + offset);
+            }
+        }
+    }
+    EXPECT_EQ(dst_bytes, expected);
+}
+
+TEST(LpStridedKvCopyGuardsTest, CopyByPlanesKeepsElementsOfNonDenseInnermostStride) {
+    expect_non_dense_innermost_copy(2);
+}
+
+TEST(LpStridedKvCopyGuardsTest, CopyColumnsKeepsElementsOfNonDenseInnermostStride) {
+    expect_non_dense_innermost_copy(3);
+}
 
 TEST(LpStridedKvCopyGuardsTest, UnalignedSubByteInnermostViewThrows) {
     PaddedTensor t(ov::element::u4, {1, 2, 4, 16}, true);
