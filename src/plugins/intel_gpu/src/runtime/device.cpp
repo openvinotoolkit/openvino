@@ -35,7 +35,7 @@ struct DeviceOps {
     std::map<data_types, float> ops_dp4a;
 
     static bool is_zero(float value) {
-        return std::abs(value) <= 1e-6f;
+        return std::abs(value) <= 1e-6F;
     }
 
     bool match(device_info& info) const {
@@ -115,13 +115,13 @@ float device::get_gops(data_types dt) const {
     auto info = get_info();
     if (info.vendor_id != INTEL_VENDOR_ID) {
         // GOPS calculation is not supported for non Intel GPUs
-        return 0.0f;
+        return 0.0F;
     }
 
-    auto freqGHz = info.gpu_frequency / 1000.f;
+    auto freqGHz = info.gpu_frequency / 1000.F;
     const uint32_t WIDE_EU = 2; // WIDE-EU number is half of EU.
     auto numEUs = info.execution_units_count * (info.arch < gpu_arch::xe2 ? 1 : WIDE_EU);
-    auto opsPerEU = 0.f;
+    auto opsPerEU = 0.F;
 
     try {
         auto it = std::find_if(device_ops_table.begin(), device_ops_table.end(),
