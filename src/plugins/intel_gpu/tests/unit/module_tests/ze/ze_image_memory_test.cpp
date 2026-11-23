@@ -6,6 +6,8 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "ze/ze_memory.hpp"
+#include "ze/ze_engine.hpp"
+#include "ze/ze_ocl_interop.hpp"
 
 #include <numeric>
 #include <vector>
@@ -170,6 +172,44 @@ TEST_P(ze_image_memory_tests, can_lock_for_read_write) {
     OV_ASSERT_NO_THROW(mem->copy_to(*ctx.ze_test_stream, readback.data(), true));
 
     EXPECT_EQ(readback, expected);
+}
+
+TEST_P(ze_image_memory_tests, can_round_trip_ocl_image_handle) {
+    if (GetParam().name != "rgba_8x4" || !ctx.ze_test_engine->get_device_info().supports_leo) {
+        GTEST_SKIP() << "Level Zero - OpenCL image interoperability not supported";
+    }
+
+    auto engine = std::dynamic_pointer_cast<ze::ze_engine>(ctx.ze_test_engine);
+    ASSERT_NE(engine, nullptr);
+    auto& interop = ze::ze_ocl_interop::get_instance();
+    auto device = interop.find_ocl_device(engine->get_device().handle());
+    size_t extensions_size = 0;
+    ASSERT_EQ(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, nullptr, &extensions_size), CL_SUCCESS);
+    std::string extensions(extensions_size, '\0');
+    ASSERT_EQ(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, extensions.size(), &extensions[0], nullptr), CL_SUCCESS);
+    if (extensions.find("cl_intel_level_zero_interop") == std::string::npos) {
+        GTEST_SKIP() << "cl_intel_level_zero_interop not supported";
+    }
+
+    auto mem = ctx.ze_test_engine->allocate_memory(GetParam().image_layout, allocation_type::ze_image);
+    auto image = std::dynamic_pointer_cast<ze::gpu_image2d>(mem);
+    ASSERT_NE(image, nullptr);
+    auto ze_handle = image->get_resource().handle();
+    auto ocl_handle = static_cast<cl_mem>(image->get_internal_params(runtime_types::ocl).mem);
+    ASSERT_NE(ocl_handle, nullptr);
+    EXPECT_EQ(interop.get_ze_image(ocl_handle), ze_handle);
+    EXPECT_EQ(interop.get_ze_images(ocl_handle), std::vector<ze_image_handle_t>{ze_handle});
+    EXPECT_EQ(interop.find_ze_driver(device), engine->get_driver().handle());
+
+    size_t properties_size = 0;
+    ASSERT_EQ(clGetMemObjectInfo(ocl_handle, CL_MEM_PROPERTIES, 0, nullptr, &properties_size), CL_SUCCESS);
+    ASSERT_EQ(properties_size, 4 * sizeof(cl_mem_properties));
+    std::vector<cl_mem_properties> properties(properties_size / sizeof(cl_mem_properties));
+    ASSERT_EQ(clGetMemObjectInfo(ocl_handle, CL_MEM_PROPERTIES, properties_size, properties.data(), nullptr), CL_SUCCESS);
+    EXPECT_EQ(properties[0], 0x42B6);
+    EXPECT_EQ(properties[1], reinterpret_cast<cl_mem_properties>(ze_handle));
+    EXPECT_EQ(properties[2], 0);
+    EXPECT_EQ(properties[3], 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(gpu_ze_runtime,
