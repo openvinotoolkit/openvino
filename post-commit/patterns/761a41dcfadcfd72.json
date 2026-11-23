@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Windows CC build fails - an MSBuild worker process crashes with a .NET StackOverflowException during parallel compilation (benchmark_app / samples build), causing CMake Generator error: execution of make failed|Infrastructure",
+  "signature_hash": "761a41dcfadcfd72",
+  "title": "Windows CC build fails with MSBuild worker StackOverflowException during benchmark_app compilation",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-23T13:56:54Z",
+  "last_seen": "2026-11-23T13:56:54Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45183032321"
+  ],
+  "affected_commits": [
+    "d490fda7585cd8b437c93f5bea47926f9f008aa1"
+  ],
+  "recent_timestamps": [
+    "2026-11-23T13:56:54Z"
+  ]
+}
