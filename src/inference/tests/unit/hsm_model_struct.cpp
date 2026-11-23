@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -23,22 +24,26 @@ std::string collect(const hsm::ISectionEncoder& encoder) {
     return encoded;
 }
 
-class XmlSource final : public hsm::IModelStructSource {
-public:
-    explicit XmlSource(std::string xml = {}) : xml(std::move(xml)) {}
-
-    void write_structure(const hsm::SectionSink& sink) override {
-        sink({reinterpret_cast<const std::byte*>(xml.data()), xml.size()});
+std::shared_ptr<ov::AlignedBuffer> buffer_of(const std::string& bytes) {
+    if (bytes.empty()) {
+        return std::make_shared<ov::AlignedBuffer>();  // AlignedBuffer(0) would hold one byte
     }
+    auto buffer = std::make_shared<ov::AlignedBuffer>(bytes.size());
+    std::memcpy(buffer->get_ptr(), bytes.data(), bytes.size());
+    return buffer;
+}
 
-    std::string xml;
-};
+hsm::ModelStructEncoder::Producer write(std::string bytes) {
+    return [bytes = std::move(bytes)] {
+        return buffer_of(bytes);
+    };
+}
 
 }  // namespace
 
 TEST(HsmModelStructTest, round_trips_xml) {
     const std::string expected = "<?xml version=\"1.0\"?><net name=\"test\">\n<layers/>\n</net>";
-    const auto encoded = collect(hsm::ModelStructEncoder{std::make_shared<XmlSource>(expected)});
+    const auto encoded = collect(hsm::ModelStructEncoder{write(expected)});
     EXPECT_EQ(encoded, expected);
 
     hsm::ManifestEntry entry{};
@@ -49,7 +54,7 @@ TEST(HsmModelStructTest, round_trips_xml) {
 }
 
 TEST(HsmModelStructTest, round_trips_empty_xml) {
-    EXPECT_TRUE(collect(hsm::ModelStructEncoder{std::make_shared<XmlSource>()}).empty());
+    EXPECT_TRUE(collect(hsm::ModelStructEncoder{write({})}).empty());
 
     hsm::ManifestEntry entry{};
     entry.tag = hsm::model_tag;
@@ -57,13 +62,33 @@ TEST(HsmModelStructTest, round_trips_empty_xml) {
     EXPECT_EQ(hsm::decode_model_struct(section), std::string{});
 }
 
-TEST(HsmModelStructTest, encoder_reads_xml_at_encode_time) {
-    auto source = std::make_shared<XmlSource>();
-    hsm::ModelStructEncoder encoder{source};
-    source->xml = "<net name=\"deferred\"/>";
-    source.reset();
+TEST(HsmModelStructTest, encoder_generates_structure_at_encode_time) {
+    auto xml = std::make_shared<std::string>();
+    const hsm::ModelStructEncoder encoder{[xml] {
+        return buffer_of(*xml);
+    }};
+    *xml = "<net name=\"deferred\"/>";
 
     EXPECT_EQ(collect(encoder), "<net name=\"deferred\"/>");
+}
+
+TEST(HsmModelStructTest, encoder_writes_same_bytes_on_every_call) {
+    const std::string expected = "<net name=\"retry\"/>";
+    const hsm::ModelStructEncoder encoder{write(expected)};
+
+    EXPECT_EQ(collect(encoder), expected);
+    EXPECT_EQ(collect(encoder), expected);
+}
+
+TEST(HsmModelStructTest, encoder_rejects_empty_producer) {
+    EXPECT_THROW(hsm::ModelStructEncoder{nullptr}, ov::AssertFailure);
+}
+
+TEST(HsmModelStructTest, encoder_rejects_null_buffer) {
+    const hsm::ModelStructEncoder encoder{[] {
+        return std::shared_ptr<ov::AlignedBuffer>{};
+    }};
+    EXPECT_THROW(collect(encoder), ov::AssertFailure);
 }
 
 TEST(HsmModelStructTest, decodes_stream_section) {

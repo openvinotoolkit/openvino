@@ -15,11 +15,14 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/hsm_writer.hpp"
@@ -27,24 +30,25 @@
 namespace ov::runtime::hsm {
 inline namespace v1 {
 
-/** @brief Produces the same raw XML bytes on demand, possibly in multiple sink calls. */
-class IModelStructSource {
-public:
-    virtual ~IModelStructSource() = default;
-    virtual void write_structure(const SectionSink& sink) = 0;
-};
-
-/** @brief Produces XML directly into the section sink at IWriter::finalize() time. */
+/** @brief Generates the structure with the producer at IWriter::finalize() time and writes it to the section. */
 class ModelStructEncoder final : public ISectionEncoder {
 public:
-    explicit ModelStructEncoder(std::shared_ptr<IModelStructSource> source) : m_source{std::move(source)} {}
+    /** @brief Returns the whole structure; a retried finalize() calls it again, so it must return the same bytes.
+     * Return AlignedBuffer() for an empty structure - AlignedBuffer(0) holds one byte. */
+    using Producer = std::function<std::shared_ptr<ov::AlignedBuffer>()>;
+
+    explicit ModelStructEncoder(Producer producer) : m_producer{std::move(producer)} {
+        OPENVINO_ASSERT(m_producer, "HSM model struct encoder requires a producer");
+    }
 
     void encode(const SectionSink& sink) const override {
-        m_source->write_structure(sink);
+        const auto structure = m_producer();
+        OPENVINO_ASSERT(structure, "HSM model struct producer returned no buffer");
+        sink({structure->get_ptr<std::byte>(), structure->size()});
     }
 
 private:
-    std::shared_ptr<IModelStructSource> m_source;
+    Producer m_producer;
 };
 
 /** @brief Copies raw XML bytes into a string; returns nullopt for an invalid nonempty view. */
