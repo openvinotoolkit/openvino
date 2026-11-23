@@ -170,8 +170,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         if (inputDescriptor.isFatBlobTiles) {
             // Set once: the tile count of the device does not change for the lifetime of the request
-            static_cast<int32_t*>(get_level_zero_input(ioIndex)->data())[0] =
-                getDeviceTileCount(_initStructs->getDevice());
+            const int32_t tileCount = getDeviceTileCount(_initStructs->getDevice());
+            static_cast<int32_t*>(get_level_zero_input(ioIndex)->data())[0] = tileCount;
+            _logger.info("ZeroInferRequest - set FatBlob tile count to %d", tileCount);
         }
 
         if (inputDescriptor.isStateInput) {
