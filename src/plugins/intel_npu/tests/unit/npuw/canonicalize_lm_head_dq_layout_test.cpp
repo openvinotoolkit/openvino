@@ -122,8 +122,8 @@ std::shared_ptr<Model> getModelRef(size_t zerop_size = OC, size_t scale_size = O
     ResultVector results{std::make_shared<v0::Result>(matmul)};
     if (extra_weight_consumer) {
         // The untouched consumer keeps reading the original [OC,1,IC] Constant.
-        results.push_back(std::make_shared<v0::Result>(
-            std::make_shared<v0::Convert>(make_u8(Shape{OC, 1, IC}, 7, 3), element::f16)));
+        results.push_back(
+            std::make_shared<v0::Result>(std::make_shared<v0::Convert>(make_u8(Shape{OC, 1, IC}, 7, 3), element::f16)));
     }
     return std::make_shared<Model>(results, ParameterVector{act});
 }
@@ -142,38 +142,56 @@ protected:
     }
 };
 
-}  // namespace
+struct RewriteParam {
+    std::string name;
+    ChainOptions options;
+};
 
-TEST_F(CanonicalizeLMHeadDQLayoutTest, ZeroPointReshapedAfterConvert) {
-    comparator.enable(FunctionsComparator::ACCURACY);
-    model = getModel();
-    model_ref = getModelRef();
-}
-
-TEST_F(CanonicalizeLMHeadDQLayoutTest, ZeroPointReshapedBeforeConvert) {
-    comparator.enable(FunctionsComparator::ACCURACY);
+ChainOptions zero_point_reshaped_before_convert() {
     ChainOptions opt;
     opt.reshape_zerop_before_convert = true;
-    model = getModel(opt);
-    model_ref = getModelRef();
+    return opt;
 }
 
-// A per-tensor zero point / scale broadcasts against [OC,1,IC] the same way after the rewrite.
-TEST_F(CanonicalizeLMHeadDQLayoutTest, PerTensorZeroPoint) {
-    comparator.enable(FunctionsComparator::ACCURACY);
+ChainOptions per_tensor_zero_point() {
     ChainOptions opt;
     opt.zerop_size = 1;
-    model = getModel(opt);
-    model_ref = getModelRef(/*zerop_size=*/1, OC);
+    return opt;
 }
 
-TEST_F(CanonicalizeLMHeadDQLayoutTest, PerTensorScale) {
-    comparator.enable(FunctionsComparator::ACCURACY);
+ChainOptions per_tensor_scale() {
     ChainOptions opt;
     opt.scale_size = 1;
-    model = getModel(opt);
-    model_ref = getModelRef(OC, /*scale_size=*/1);
+    return opt;
 }
+
+class CanonicalizeLMHeadDQLayoutRewriteTest : public testing::WithParamInterface<RewriteParam>,
+                                              public CanonicalizeLMHeadDQLayoutTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<RewriteParam>& info) {
+        return info.param.name;
+    }
+};
+
+}  // namespace
+
+// The chain is rewritten to the canonical layout regardless of where the zero point is reshaped, and a
+// per-tensor zero point / scale broadcasts against [OC,1,IC] the same way after the rewrite.
+TEST_P(CanonicalizeLMHeadDQLayoutRewriteTest, Rewrite) {
+    comparator.enable(FunctionsComparator::ACCURACY);
+    const auto& opt = GetParam().options;
+    model = getModel(opt);
+    model_ref = getModelRef(opt.zerop_size, opt.scale_size);
+}
+
+INSTANTIATE_TEST_SUITE_P(CanonicalizeLMHeadDQLayout,
+                         CanonicalizeLMHeadDQLayoutRewriteTest,
+                         testing::Values(RewriteParam{"ZeroPointReshapedAfterConvert", ChainOptions{}},
+                                         RewriteParam{"ZeroPointReshapedBeforeConvert",
+                                                      zero_point_reshaped_before_convert()},
+                                         RewriteParam{"PerTensorZeroPoint", per_tensor_zero_point()},
+                                         RewriteParam{"PerTensorScale", per_tensor_scale()}),
+                         CanonicalizeLMHeadDQLayoutRewriteTest::getTestCaseName);
 
 // The source weight Constant may have other consumers (e.g. a tied embedding): they must keep reading
 // the original [OC,1,IC] weight, while the LM head gets the canonical view of the same data.
@@ -272,6 +290,37 @@ TEST(CanonicalizeLMHeadDQLayoutConstants, DataAndRuntimeInfoAreKept) {
         ++checked;
     }
     EXPECT_EQ(checked, 3u);
+}
+
+// The LM head may end with a tail after the MatMul (here Convert), so the MatMul doesn't feed a Result
+// directly and replace_output_update_name doesn't carry its friendly name over: the pass must do it.
+// A model_ref comparison doesn't check names by default, hence the explicit pass::Manager.
+TEST(CanonicalizeLMHeadDQLayoutNames, MatMulKeepsFriendlyNameBeforeConvertTail) {
+    constexpr const char* matmul_name = "lm_head_matmul";
+    auto model = getModel();
+
+    auto result = model->get_results().front();
+    auto matmul = result->input_value(0);
+    matmul.get_node()->set_friendly_name(matmul_name);
+    auto tail = std::make_shared<v0::Convert>(matmul, element::f32);
+    result->input(0).replace_source_output(tail);
+    model->validate_nodes_and_infer_types();
+
+    pass::Manager manager;
+    manager.register_pass<npuw::CanonicalizeLMHeadDQLayout>();
+    manager.run_passes(model);
+
+    auto new_tail = model->get_results().front()->input_value(0).get_node_shared_ptr();
+    auto new_matmul = ov::as_type_ptr<v0::MatMul>(new_tail->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(new_matmul, nullptr);
+    EXPECT_TRUE(new_matmul->get_transpose_b());  // the chain was rewritten
+    EXPECT_EQ(new_matmul->get_friendly_name(), matmul_name);
+
+    size_t named = 0;
+    for (const auto& op : model->get_ops()) {
+        named += op->get_friendly_name() == matmul_name ? 1 : 0;
+    }
+    EXPECT_EQ(named, 1u);  // the old MatMul is gone, the name is not duplicated
 }
 
 // The contract this pass exists for: the canonical layout is recognized by the tail-vocab matcher,

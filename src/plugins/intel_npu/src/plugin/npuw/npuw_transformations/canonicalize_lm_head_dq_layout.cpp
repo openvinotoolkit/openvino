@@ -52,8 +52,7 @@ CanonicalizeLMHeadDQLayout::CanonicalizeLMHeadDQLayout() {
     };
     auto weight_rs_m = wrap_type<v1::Reshape>({mul_m, wrap_const()}, ov::pass::pattern::op::Predicate(drops_unit_dim));
     auto transpose_m = wrap_type<v1::Transpose>({weight_rs_m, wrap_type<v0::Constant>(value_matches("1, 0"))});
-    auto matmul_m =
-        wrap_type<v0::MatMul>({any_input(), transpose_m}, {{"transpose_a", false}, {"transpose_b", false}});
+    auto matmul_m = wrap_type<v0::MatMul>({any_input(), transpose_m}, {{"transpose_a", false}, {"transpose_b", false}});
 
     auto callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -94,7 +93,9 @@ CanonicalizeLMHeadDQLayout::CanonicalizeLMHeadDQLayout() {
         auto new_matmul = std::make_shared<v0::MatMul>(matmul->input_value(0), new_mul, false, true);
 
         ov::copy_runtime_info(ov::NodeVector{sub, mul}, ov::NodeVector{new_cvt_w, new_cvt_z, new_sub, new_mul});
-        // Moves the tensor names and runtime info; also the friendly name when the MatMul feeds a Result.
+        // replace_output_update_name keeps the friendly name only when the MatMul feeds a Result; the LM
+        // head may also end with a Convert / Add / Transpose / softcap tail, so keep the name explicitly.
+        new_matmul->set_friendly_name(matmul->get_friendly_name());
         return ov::replace_output_update_name(matmul->output(0), new_matmul->output(0));
     };
 
