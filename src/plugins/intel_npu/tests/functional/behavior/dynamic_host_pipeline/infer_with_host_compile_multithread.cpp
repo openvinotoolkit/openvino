@@ -19,7 +19,7 @@
 
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common/utils.hpp"
-#include "espcn_x2_model.hpp"
+#include "custom_net_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -75,7 +75,7 @@ public:
     }
 
     static std::shared_ptr<ov::Model> createModelByName(const std::string& modelName) {
-        return createESPCNX2ModelByName(modelName);
+        return createCustomNetModelByName(modelName);
     }
 
     static void runConcurrently(size_t threadCount,
@@ -893,7 +893,7 @@ const std::vector<ov::AnyMap> mtConfigs = {
     },
 };
 
-const std::vector<std::string> mtModelNames = {"ESPCN_x2_DynHW_H1080xW960"};
+const std::vector<std::string> mtModelNames = {"CustomNet_DynHW"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileMultithreadTests,

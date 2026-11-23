@@ -17,7 +17,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
-#include "espcn_x2_model.hpp"
+#include "custom_net_model.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/op/constant.hpp"
@@ -213,7 +213,7 @@ void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov
 }
 
 std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const std::string& modelName) {
-    return createESPCNX2ModelByName(modelName);
+    return createCustomNetModelByName(modelName);
 }
 
 InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::prepareRuntimeCompareContext(
@@ -1549,8 +1549,8 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<std::string> modelNames = {
-    "ESPCN_x2_DynHW_H1080xW960",
-    "ESPCN_x2_DynNHW_H1080xW960",
+    "CustomNet_DynHW",
+    "CustomNet_DynNHW",
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -1572,8 +1572,7 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     },
 };
 
-const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H1080xW960_NCHW",
-                                                      "ESPCN_x2_DynNHW_H1080xW960_NCHW"};
+const std::vector<std::string> defaultHCModelNames = {"CustomNet_DynHW", "CustomNet_DynNHW"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithDefaultHostCompileTests,
                          ::testing::Combine(::testing::ValuesIn(devices),
