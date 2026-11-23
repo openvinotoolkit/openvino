@@ -119,8 +119,11 @@ struct TensorToAllocate {
 // PoC gate (HSD 22023555429): NPUW_WC_WEIGHTS=1 allocates NPU-only weights write-combined, i.e. not snooped by the NPU.
 static bool wc_weights_requested() {
     static const bool enabled = [] {
-        const char* v = std::getenv("NPUW_WC_WEIGHTS");
+        // TODO - for testing purposes it returns TRUE for now
+        return true;
+        /* const char* v = std::getenv("NPUW_WC_WEIGHTS");
         return v != nullptr && std::string(v) == "1";
+        */
     }();
     return enabled;
 }
