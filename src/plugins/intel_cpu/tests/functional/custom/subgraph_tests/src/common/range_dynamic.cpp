@@ -100,18 +100,18 @@ const std::vector<RangeCase> common_cases = {
     {0, 5, 1},
 };
 
-TEST(RangeDynamicCPUTest, StepSignF32) {
+TEST(smoke_RangeDynamicCPUTest, StepSignF32) {
     auto cases = common_cases;
     cases.push_back({1, 2, 0.3});
     cases.push_back({2, 1, 0.3});
     check_cases<float>(element::f32, cases);
 }
 
-TEST(RangeDynamicCPUTest, StepSignI32) {
+TEST(smoke_RangeDynamicCPUTest, StepSignI32) {
     check_cases<int32_t>(element::i32, common_cases);
 }
 
-TEST(RangeDynamicCPUTest, ZeroStepThrows) {
+TEST(smoke_RangeDynamicCPUTest, ZeroStepThrows) {
     auto f32_request = make_range_request(element::f32);
     EXPECT_THROW(run_range<float>(f32_request, element::f32, 0.0F, 5.0F, 0.0F), ov::Exception);
     auto i32_request = make_range_request(element::i32);
