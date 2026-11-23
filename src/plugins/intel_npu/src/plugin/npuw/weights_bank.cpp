@@ -54,7 +54,14 @@ Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& allo
     }
 }
 
-static void merge_tensor_params(std::optional<ov::AnyMap>& stored_params, ov::AnyMap new_params) {
+static void merge_tensor_params(std::optional<ov::AnyMap>& stored_params,
+                                ov::AnyMap new_params,
+                                const std::string& alloc_device) {
+    // TODO properties are NPU specific at the moment, consider generalizing if needed
+    if (!ov::npuw::util::starts_with(alloc_device, "NPU")) {
+        return;
+    }
+
     if (!stored_params) {
         // if stored_params doesn't exist yet, we simply store the incoming params
         stored_params = std::move(new_params);
@@ -94,16 +101,12 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device, ov
         auto& stored_tensor = device_bank.storage[uid];
         stored_tensor.lt = tensor;
 
-        // TODO properties are NPU specific at the moment, consider generalizing if needed
-        if (ov::npuw::util::starts_with(device_for_alloc, "NPU")) {
-            merge_tensor_params(stored_tensor.params, std::move(params));
-        }
+        merge_tensor_params(stored_tensor.params, std::move(params), device_for_alloc);
         return uid;
     } else {
-        // TODO properties are NPU specific at the moment, consider generalizing if needed
-        if (ov::npuw::util::starts_with(device_for_alloc, "NPU")) {
-            merge_tensor_params(device_bank.storage.at(iter_registered->second).params, std::move(params));
-        }
+        merge_tensor_params(device_bank.storage.at(iter_registered->second).params,
+                            std::move(params),
+                            device_for_alloc);
         // Already registered - can be safely detach the incoming tensor
         const_cast<LazyTensor&>(tensor).detach();
     }
