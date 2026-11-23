@@ -36,8 +36,11 @@ For more detailed information on how this sample works, check the dedicated [art
   Only in the edge case of the Level Zero plugin (`GPU_RT_TYPE=ZE` or `COMBINED`) running on
   a driver without LEO, the default context is already a Level Zero context
   (`ov::intel_gpu::ContextType::ZE`) and its handle is used directly.
-- OpenCL headers and the OpenCL ICD loader library to build the sample. They are used for a single
-  `clGetContextInfo` call (see above).
+- OpenCL headers and the OpenCL ICD loader library to build the sample, which links the loader for the
+  single `clGetContextInfo` call (see above). The loader is also required at run time, even when the
+  plugin provides a Level Zero context directly. On Ubuntu, install the development files with
+  `sudo apt install ocl-icd-opencl-dev`; the runtime loader is provided by `ocl-icd-libopencl1`,
+  and the Intel GPU OpenCL driver by `intel-opencl-icd`.
 - Level Zero headers and the Level Zero loader library (`ze_loader`) to build the sample, which links
   the loader. On Ubuntu, install the development files with `sudo apt install libze-dev`. At run time
   the loader is provided by the GPU driver (or the `libze1` package on Ubuntu).

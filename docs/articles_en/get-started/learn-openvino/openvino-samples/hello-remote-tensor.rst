@@ -24,6 +24,11 @@ context to its Level Zero context. Requirements:
   files (headers and the ICD loader library), to build the sample. On Ubuntu,
   install the Level Zero development files with ``sudo apt install libze-dev``.
   OpenCL is used for a single call, ``clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)``.
+  The OpenCL ICD loader is linked, so it is also required at run time, even when the
+  plugin provides a Level Zero context directly. On Ubuntu, install the OpenCL
+  development files with ``sudo apt install ocl-icd-opencl-dev``; the runtime loader
+  is provided by ``ocl-icd-libopencl1``, and the Intel GPU OpenCL driver by
+  ``intel-opencl-icd``.
   CMake skips this sample with a status message if any of them is missing,
   unless the sample was selected explicitly with ``BUILD_SAMPLE_NAME``, in which
   case the configuration fails with an error. At run time, the Level Zero
