@@ -154,6 +154,19 @@ jobs:
             Add-Content -Path $env:GITHUB_ENV -Value "$var=$bundle"
           }
 
+      # The NPU hosts are physical machines that outlive the job, so all pip installs go
+      # into a per-job venv rather than the Python from setup-python. RUNNER_TEMP is
+      # emptied by the runner after every job.
+      - name: Create Python virtual environment
+        run: |
+          $venv = Join-Path $env:RUNNER_TEMP 'venv'
+          python3 -m venv $venv
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # the steps call python3, which venv doesn't create on Windows
+          Copy-Item "$venv\Scripts\python.exe" "$venv\Scripts\python3.exe"
+          Add-Content -Path $env:GITHUB_PATH -Value "$venv\Scripts"
+          Add-Content -Path $env:GITHUB_ENV -Value "VIRTUAL_ENV=$venv"
+
       # Not the install_ov_wheels action: it runs in pwsh, which the NPU hosts don't have
       - name: Install OpenVINO Python wheel
         run: |
@@ -171,14 +184,29 @@ jobs:
 
       - name: Check NPU device
         if: ${{ inputs.mode == 'infer' }}
+        timeout-minutes: 5
+        env:
+          PYTHONUNBUFFERED: '1'
+          OV_NPU_LOG_LEVEL: 'LOG_INFO'
         run: |
+          # "Neural processors" (ComputeAccelerator) devices with their driver, and leftover
+          # Python processes that could still hold the NPU
+          Get-PnpDevice -PresentOnly -Class ComputeAccelerator -ErrorAction SilentlyContinue | Format-List Status, FriendlyName, InstanceId
+          Get-CimInstance Win32_PnPSignedDriver -Filter "DeviceClass = 'COMPUTEACCELERATOR'" | Format-List DeviceName, DriverVersion, DriverDate
+          Get-Process python* -ErrorAction SilentlyContinue | Format-Table -AutoSize Id, ProcessName, StartTime, Path
           @'
           import os
           import openvino as ov
+          print("OpenVINO", ov.get_version())
           core = ov.Core()
-          assert "NPU" in core.available_devices, f"no NPU among {core.available_devices}"
+          # NPU plugin only: core.available_devices would also initialize the GPU plugin
+          devices = core.get_property("NPU", "AVAILABLE_DEVICES")
+          print("NPU devices:", devices)
+          # without a device the plugin still compiles with its own compiler, but for an
+          # unknown platform; the reason is in the OV_NPU_LOG_LEVEL output above
+          assert devices, "NPU plugin sees no device: Level Zero backend failed to initialize"
           arch = core.get_property("NPU", "DEVICE_ARCHITECTURE")
-          print(core.get_property("NPU", "FULL_DEVICE_NAME"), arch)
+          print("NPU:", core.get_property("NPU", "FULL_DEVICE_NAME"), arch)
           assert os.environ["NPU_PLATFORM"] in arch, f"runner labels promise NPU {os.environ['NPU_PLATFORM']}, device is {arch}"
           '@ | python3 -
 
