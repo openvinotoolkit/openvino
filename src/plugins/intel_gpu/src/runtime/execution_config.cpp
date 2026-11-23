@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "intel_gpu/op/gated_residual.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
@@ -76,6 +77,11 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
+        return true;
+    }
+
+    // A READ with a write gate has two outputs, which the legacy shape inference cannot address by port.
+    if (ov::is_type<ov::intel_gpu::op::GatedResidual>(op)) {
         return true;
     }
 

@@ -82,7 +82,7 @@ By default, the Template plugin exports an HSM blob: a container of sections. Th
 seekable. The blob has these sections:
 
 * model id and runtime requirements
-* compiled options: the values of the properties listed by ``ov::internal::caching_properties`` and
+* compile options: the values of the properties listed by ``ov::internal::caching_properties`` and
   ``ov::weights_path``, if it is set
 * model structure (XML) and weights
 * blob info, which tells if the weights are stored in the blob

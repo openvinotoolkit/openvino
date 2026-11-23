@@ -617,6 +617,21 @@ TEST_P(ZeroTensorTestsCheckDataType, WrapNonContiguousUserTensorPreservesByteStr
     EXPECT_EQ(host_tensor->data(), zero_tensor->data());
 }
 
+TEST_P(ZeroTensorTestsCheckDataType, IsContinuousDoesNotCrashForDenseTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+
+    for (const auto& shape : {Shape{2, 16}, Shape{1, 2, 2, 2}, Shape{3, 5}}) {
+        auto host_tensor = std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, element_type, shape);
+        EXPECT_TRUE(host_tensor->is_continuous()) << shape;
+
+        auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element_type, shape, true);
+        EXPECT_TRUE(zero_tensor->is_continuous()) << shape;
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
