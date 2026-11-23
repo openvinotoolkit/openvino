@@ -1,7 +1,7 @@
 {
   "models": {
     "audio_embeddings": {
-      "graph_sha256": "e40769c42f528963004ad1f0b5b43ffa779cb3e9a4fe4058651afca6be6ef620",
+      "graph_sha256": "de4da8dd33bae046db3a5b2f800f00b90a1217183fc2b94e38cc72ab85021c53",
       "ops": [
         ["Add","opset1",294],
         ["AvgPool","opset1",1],

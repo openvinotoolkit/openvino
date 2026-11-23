@@ -1,7 +1,7 @@
 {
   "models": {
     "vision_embeddings": {
-      "graph_sha256": "9e47b3b4272886ccab9b740c63a4de3520f284aa4496efc9a6a793de751f6060",
+      "graph_sha256": "9817f233508ade9a2ade4a76b6879ace6021fc9ac25568e6835967cd5a6a2357",
       "ops": [
         ["Add","opset1",464],
         ["AvgPool","opset1",1],

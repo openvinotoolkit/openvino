@@ -50,6 +50,17 @@ TEST(GGUFGraphRegression, IgnoresDebugNamesButDetectsAttributes) {
     EXPECT_NE(reference.at("canonical"), ov_gguf_test::graph_snapshot(projection(true)).at("canonical"));
 }
 
+TEST(GGUFGraphRegression, CapturesDraftContextMarkerWithoutFriendlyName) {
+    auto model = projection();
+    auto node = model->get_results().front()->input_value(0).get_node_shared_ptr();
+    node->get_rt_info()["gguf.draft_context"] = std::string("first");
+    const auto reference = ov_gguf_test::graph_snapshot(model);
+    node->get_rt_info()["gguf.draft_context"] = std::string("renamed");
+    EXPECT_EQ(reference, ov_gguf_test::graph_snapshot(model));
+    node->get_rt_info().erase("gguf.draft_context");
+    EXPECT_NE(reference.at("canonical"), ov_gguf_test::graph_snapshot(model).at("canonical"));
+}
+
 TEST(GGUFGraphRegression, CatalogCoversEveryNativeHandler) {
     const auto catalog = regression_catalog();
     std::set<std::string> covered;
@@ -64,8 +75,7 @@ TEST(GGUFGraphRegression, CatalogCoversEveryNativeHandler) {
 TEST(GGUFGraphRegression, CatalogClassifiesEveryProjector) {
     const auto catalog = regression_catalog();
     std::set<std::string> covered;
-    // LFM3 generation is a composite mmproj branch, not a registry entry.
-    std::set<std::string> registered{"audio_generation.lfm3a_gen"};
+    std::set<std::string> registered{"audio_generation.lfm3a_gen", "gen_audio.qwen3tts_gen", "audio.gemma3na"};
     for (const auto& entry : catalog.at("cases")) {
         if (entry.contains("projectors")) {
             for (const auto& projector : entry.at("projectors"))

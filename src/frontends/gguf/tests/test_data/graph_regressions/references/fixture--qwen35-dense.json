@@ -1,15 +1,14 @@
 {
   "models": {
     "ids/language": {
-      "graph_sha256": "7b72a934a94a68625cafa123b29e9b297f31eadf62795408268c46e44f6ae2f9",
+      "graph_sha256": "1d57e882c9f14451954ad04e61adf6522aa4ccecbfe732b512097fdd3237a620",
       "ops": [
         ["Add","opset1",17],
         ["Assign","opset6",4],
         ["Broadcast","opset3",2],
-        ["Clamp","opset1",1],
-        ["Concat","opset1",21],
-        ["Constant","opset1",161],
-        ["Convert","opset1",18],
+        ["Concat","opset1",20],
+        ["Constant","opset1",156],
+        ["Convert","opset1",17],
         ["Cos","opset1",2],
         ["CumSum","opset3",1],
         ["GGUFPlannedWeight","gguf",26],
@@ -19,13 +18,12 @@
         ["LessEqual","opset1",1],
         ["LogicalAnd","opset1",1],
         ["MatMul","opset1",16],
-        ["Multiply","opset1",37],
+        ["Multiply","opset1",36],
         ["NotEqual","opset1",1],
         ["Parameter","opset1",4],
-        ["Power","opset1",17],
+        ["Power","opset1",16],
         ["Range","opset4",1],
         ["ReadValue","opset6",4],
-        ["ReduceL2","opset4",1],
         ["ReduceMean","opset1",8],
         ["Reshape","opset1",46],
         ["Result","opset1",1],
@@ -36,15 +34,13 @@
         ["Slice","opset8",3],
         ["SoftPlus","opset4",1],
         ["Softmax","opset8",1],
-        ["Split","opset1",1],
         ["Sqrt","opset1",8],
-        ["Squeeze","opset1",9],
+        ["Squeeze","opset1",11],
         ["Subtract","opset1",3],
         ["Swish","opset4",4],
         ["Tanh","opset1",2],
-        ["Tile","opset1",1],
         ["Transpose","opset1",19],
-        ["Unsqueeze","opset1",14],
+        ["Unsqueeze","opset1",15],
         ["VariadicSplit","opset1",5]
       ],
       "projections": [
@@ -53,12 +49,12 @@
         ["MatMul","4","f32","ggml:0/group:1/weight:f32",10]
       ],
       "totals": {
-        "edges": 585,
+        "edges": 579,
         "inputs": 4,
-        "nodes": 491,
+        "nodes": 481,
         "outputs": 1,
         "states": 4,
-        "top_level_nodes": 491
+        "top_level_nodes": 481
       }
     }
   },

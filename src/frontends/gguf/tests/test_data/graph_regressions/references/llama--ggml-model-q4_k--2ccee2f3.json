@@ -1,7 +1,7 @@
 {
   "models": {
     "embeds/language": {
-      "graph_sha256": "5ded2eb8621f3edc30c644069e6b728e5383176988c716de50de4d09deedc21e",
+      "graph_sha256": "f39405f4dd1341f4af71145d9c5db24f1dbccb1ae335469c2faf792bd8178fcc",
       "ops": [
         ["Add","opset1",194],
         ["Assign","opset6",64],
@@ -31,11 +31,11 @@
         ["Sin","opset1",1],
         ["Split","opset1",64],
         ["Sqrt","opset1",65],
-        ["Squeeze","opset1",64],
+        ["Squeeze","opset1",65],
         ["Subtract","opset1",2],
         ["Swish","opset4",32],
         ["Transpose","opset1",129],
-        ["Unsqueeze","opset1",196]
+        ["Unsqueeze","opset1",197]
       ],
       "projections": [
         ["MatMul","3","f32","ggml:12/group:32/weight:u32",64],
@@ -44,16 +44,16 @@
         ["MatMul","4","f32","ggml:14/group:16/weight:i8",32]
       ],
       "totals": {
-        "edges": 5759,
+        "edges": 5763,
         "inputs": 4,
-        "nodes": 4848,
+        "nodes": 4850,
         "outputs": 1,
         "states": 64,
-        "top_level_nodes": 4848
+        "top_level_nodes": 4850
       }
     },
     "embeds/text_embeddings": {
-      "graph_sha256": "315a0230791293dc4937eb142b3933a905d64f00c2de61b2c3cadfbb32653f83",
+      "graph_sha256": "009e450f50485fdb34c5c5c30e1ed15fc3999ca09cd89cee330b03b4fd681e72",
       "ops": [
         ["Constant","opset1",5],
         ["Convert","opset1",1],
@@ -75,7 +75,7 @@
       }
     },
     "ids/language": {
-      "graph_sha256": "5464634b38a1f40a513a7a5d5656be897cdd1d2aa43d0c7bd24bdd52188afccb",
+      "graph_sha256": "83ec9fc2f78a760893c3cb6b5275bd3c86a60de7c9bc4fe5286f7d9d5ff05c08",
       "ops": [
         ["Add","opset1",194],
         ["Assign","opset6",64],
@@ -105,11 +105,11 @@
         ["Sin","opset1",1],
         ["Split","opset1",64],
         ["Sqrt","opset1",65],
-        ["Squeeze","opset1",65],
+        ["Squeeze","opset1",66],
         ["Subtract","opset1",2],
         ["Swish","opset4",32],
         ["Transpose","opset1",129],
-        ["Unsqueeze","opset1",196]
+        ["Unsqueeze","opset1",197]
       ],
       "projections": [
         ["MatMul","3","f32","ggml:12/group:32/weight:u32",64],
@@ -118,12 +118,12 @@
         ["MatMul","4","f32","ggml:14/group:16/weight:i8",32]
       ],
       "totals": {
-        "edges": 5766,
+        "edges": 5770,
         "inputs": 4,
-        "nodes": 4853,
+        "nodes": 4855,
         "outputs": 1,
         "states": 64,
-        "top_level_nodes": 4853
+        "top_level_nodes": 4855
       }
     }
   },

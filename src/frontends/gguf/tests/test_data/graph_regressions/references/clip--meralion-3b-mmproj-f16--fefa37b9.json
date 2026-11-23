@@ -1,7 +1,7 @@
 {
   "models": {
     "audio_embeddings": {
-      "graph_sha256": "26ff125092f0e564707185f072a13236bfb519bf77fed70ecf88c491ca58f3ac",
+      "graph_sha256": "d0e7bf37c6b81f7e903548097c60e7838d072a611410c0287168f38511aa5725",
       "ops": [
         ["Add","opset1",297],
         ["Concat","opset1",1],

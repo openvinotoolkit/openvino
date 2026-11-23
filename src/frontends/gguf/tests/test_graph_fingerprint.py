@@ -101,6 +101,17 @@ def test_catalog_rejects_missing_or_inapplicable_input_modes(tmp_path, changes):
         graph.run_cases(args)
 
 
+def test_catalog_rejects_unlisted_equivalent_source_models(tmp_path):
+    source = {"filename": "test.gguf", "header_sha256": "0" * 64}
+    case = {"id": "test", "architecture": "llama", "input_modes": ["ids"], "models": ["test"],
+            "recipe": "recipe.json", "reference": "reference.json", "source": source,
+            "equivalent_sources": [{"models": ["unlisted"], "source": source}]}
+    (tmp_path / "catalog.json").write_text(json.dumps({"version": 1, "cases": [case]}))
+    args = Namespace(data=tmp_path, cases=None, runner="unused", report=tmp_path / "report.json", update=False)
+    with pytest.raises(ValueError, match="equivalent source models"):
+        graph.run_cases(args)
+
+
 def test_decoder_capture_uses_selected_input_modes():
     cases = graph.load_json(graph.DATA / "catalog.json")["cases"]
     case = next(case for case in cases if case["id"] == "fixture--llama-dense")
@@ -122,6 +133,17 @@ def test_decoder_capture_uses_selected_input_modes():
     value["input_modes"] = ["embeds"]
     with pytest.raises(ValueError, match="Invalid decoder input modes"):
         graph.capture(value, runner)
+
+
+def test_draft_vocabulary_map_requires_i64_storage():
+    cases = graph.load_json(graph.DATA / "catalog.json")["cases"]
+    case = next(case for case in cases if case["architecture"] == "eagle3")
+    value = graph.load_recipe(graph.DATA / case["recipe"])
+    value["input_modes"] = case["input_modes"]
+    mapping = next(tensor for tensor in value["tensors"] if tensor["name"] == "d2t")
+    mapping["storage_type"] = "f32"
+    with pytest.raises(ValueError, match="Invalid synthetic draft vocabulary map descriptor"):
+        graph.capture(value, graph.runner_path(None))
 
 
 def test_detects_rewiring_with_unchanged_operation_counts(capsys):
@@ -183,10 +205,11 @@ def test_import_omits_scores_and_preserves_typed_nonfinite_metadata(tmp_path):
     def string(value):
         data = value.encode()
         return struct.pack("<Q", len(data)) + data
-    header = (b"GGUF" + struct.pack("<IQQ", 3, 1, 3) +
+    header = (b"GGUF" + struct.pack("<IQQ", 3, 1, 4) +
               string("general.architecture") + struct.pack("<I", 8) + string("llama") +
               string("tokenizer.ggml.scores") + struct.pack("<IIQf", 9, 6, 1, float("-inf")) +
               string("gate_lower_bound") + struct.pack("<If", 6, float("-inf")) +
+              string("general.tags") + struct.pack("<IIQ", 9, 8, 1) + string("automatic-speech-recognition") +
               string("weight") + struct.pack("<IQIQ", 1, 1, 0, 0))
     path = tmp_path / "header.gguf"
     path.write_bytes(header + bytes((-len(header)) % 32) + struct.pack("<f", 1))
@@ -194,7 +217,8 @@ def test_import_omits_scores_and_preserves_typed_nonfinite_metadata(tmp_path):
     assert imported["omitted_metadata"] == ["tokenizer.ggml.scores"]
     assert imported["tensors"][0]["storage_shape"] == [1]
     assert len(graph.import_header_with_digest(path)[1]) == 64
-    assert imported["metadata"][-1]["value"] == {"nonfinite": "-inf"}
+    assert imported["metadata"][-2]["value"] == {"nonfinite": "-inf"}
+    assert imported["metadata"][-1]["value"] == ["automatic-speech-recognition"]
     path.write_bytes(header)
     assert graph.import_header(path)["tensors"] == imported["tensors"]
     path.write_bytes(path.read_bytes()[:20])

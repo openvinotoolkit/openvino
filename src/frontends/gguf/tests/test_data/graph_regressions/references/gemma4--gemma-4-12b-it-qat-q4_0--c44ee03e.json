@@ -1,7 +1,7 @@
 {
   "models": {
     "embeds/language": {
-      "graph_sha256": "ff375317a29e964274815c5b4f56a71c0a977e496b89917fab9757458992ca2c",
+      "graph_sha256": "6c96596357d5d3261aeabdcc607204b235e573fab2f23ef4364d6ac8050c2011",
       "ops": [
         ["Add","opset1",627],
         ["Assign","opset6",96],
@@ -37,7 +37,7 @@
         ["Sin","opset1",96],
         ["Slice","opset8",1],
         ["Sqrt","opset1",337],
-        ["Squeeze","opset1",96],
+        ["Squeeze","opset1",97],
         ["Subtract","opset1",3],
         ["Tanh","opset1",1],
         ["Transpose","opset1",672],
@@ -50,16 +50,16 @@
         ["MatMul","4","f32","ggml:2/group:32/weight:i4",240]
       ],
       "totals": {
-        "edges": 13845,
+        "edges": 13847,
         "inputs": 5,
-        "nodes": 11500,
+        "nodes": 11501,
         "outputs": 1,
         "states": 96,
-        "top_level_nodes": 11500
+        "top_level_nodes": 11501
       }
     },
     "embeds/text_embeddings": {
-      "graph_sha256": "d5aee096264d23995c04a4b06e7f0d024a9cdbbc5d7c1c50698eeb15ec4b15c2",
+      "graph_sha256": "1a3ec36f418e5413da4a56e1cd9eeff07dea461cd8666f001cef1b479153587a",
       "ops": [
         ["Constant","opset1",6],
         ["Convert","opset1",1],
@@ -82,7 +82,7 @@
       }
     },
     "ids/language": {
-      "graph_sha256": "291d969ea2efc1764ebb0c7f3c6ff648925728061fb69c584ebb89c8544219ae",
+      "graph_sha256": "60c2175127c88523bd3dc956940873bacbd2cd31a2870e0e23fbd4f5f3836545",
       "ops": [
         ["Add","opset1",627],
         ["Assign","opset6",96],
@@ -115,7 +115,7 @@
         ["ShapeOf","opset3",51],
         ["Sin","opset1",96],
         ["Sqrt","opset1",337],
-        ["Squeeze","opset1",97],
+        ["Squeeze","opset1",98],
         ["Subtract","opset1",2],
         ["Tanh","opset1",1],
         ["Transpose","opset1",672],
@@ -128,12 +128,12 @@
         ["MatMul","4","f32","ggml:2/group:32/weight:i4",240]
       ],
       "totals": {
-        "edges": 13807,
+        "edges": 13809,
         "inputs": 4,
-        "nodes": 11480,
+        "nodes": 11481,
         "outputs": 1,
         "states": 96,
-        "top_level_nodes": 11480
+        "top_level_nodes": 11481
       }
     }
   },

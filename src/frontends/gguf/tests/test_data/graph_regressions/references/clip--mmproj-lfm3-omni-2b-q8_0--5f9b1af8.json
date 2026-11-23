@@ -1,7 +1,7 @@
 {
   "models": {
     "audio_embeddings": {
-      "graph_sha256": "e962cb870d99cc1f830d8b02bc389e06893e7b4e4ec84fc4ef2c3dfd4a605b43",
+      "graph_sha256": "03cfc11bbfae275dd7d5aa02a865811877123e8a295d42f6e2277b9e6693c7c0",
       "ops": [
         ["Add","opset1",132],
         ["Broadcast","opset3",14],
@@ -162,7 +162,7 @@
       }
     },
     "vision_embeddings": {
-      "graph_sha256": "39b6524b1799d5e5709ad49f7a468c1f3745777c55878a0c2268c6d47fa1c948",
+      "graph_sha256": "0fe54834a5264a03953430f4f70885877c443ddc50e2c28d31d0e8b1d42e0a59",
       "ops": [
         ["Add","opset1",97],
         ["Broadcast","opset3",13],

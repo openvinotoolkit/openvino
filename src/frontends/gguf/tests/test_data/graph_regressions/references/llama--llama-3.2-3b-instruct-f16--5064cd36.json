@@ -1,7 +1,7 @@
 {
   "models": {
     "ids/language": {
-      "graph_sha256": "f7184d93b7451256852a3620a69e5e9ae48d02ce200740ca38114297342d4d85",
+      "graph_sha256": "9ee67d84fe405613cd1fb857bb6214ae8f8df9e8d6f4464798a3262529bd690c",
       "ops": [
         ["Add","opset1",170],
         ["Assign","opset6",56],
@@ -31,23 +31,23 @@
         ["Sin","opset1",1],
         ["Split","opset1",56],
         ["Sqrt","opset1",57],
-        ["Squeeze","opset1",57],
+        ["Squeeze","opset1",58],
         ["Subtract","opset1",2],
         ["Swish","opset4",28],
         ["Transpose","opset1",113],
-        ["Unsqueeze","opset1",228]
+        ["Unsqueeze","opset1",229]
       ],
       "projections": [
         ["MatMul","3","f32","ggml:1/group:1/weight:f16",57],
         ["MatMul","4","f32","ggml:1/group:1/weight:f16",140]
       ],
       "totals": {
-        "edges": 5398,
+        "edges": 5402,
         "inputs": 4,
-        "nodes": 4596,
+        "nodes": 4598,
         "outputs": 1,
         "states": 56,
-        "top_level_nodes": 4596
+        "top_level_nodes": 4598
       }
     }
   },

@@ -1,0 +1,122 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "ceedb1eabb2cc55b505f5052639a8d0e7ee8cd311c48166d1a172ec34f3de6c6",
+      "ops": [
+        ["Add","opset1",327],
+        ["Constant","opset1",368],
+        ["Convolution","opset1",3],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",526],
+        ["Gelu","opset7",36],
+        ["MVN","opset6",65],
+        ["MatMul","opset1",195],
+        ["Multiply","opset1",97],
+        ["Parameter","opset1",1],
+        ["Reshape","opset1",136],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",32],
+        ["ShapeOf","opset3",2],
+        ["Slice","opset8",1],
+        ["Squeeze","opset1",1],
+        ["Tile","opset1",1],
+        ["Transpose","opset1",130]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",1],
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",194]
+      ],
+      "totals": {
+        "edges": 2052,
+        "inputs": 1,
+        "nodes": 1923,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 1923
+      }
+    },
+    "vision_embeddings": {
+      "graph_sha256": "20935a27f221833baba27ce4b992003014a3c590a26f0006726354887bcf65e6",
+      "ops": [
+        ["Add","opset1",1],
+        ["Concat","opset1",1],
+        ["Constant","opset1",3],
+        ["GGUFPlannedWeight","gguf",3],
+        ["MatMul","opset1",1],
+        ["Parameter","opset1",1],
+        ["Reshape","opset1",1],
+        ["Result","opset1",1],
+        ["Unsqueeze","opset1",2]
+      ],
+      "projections": [
+        ["MatMul","2","f32","computed",1]
+      ],
+      "totals": {
+        "edges": 13,
+        "inputs": 1,
+        "nodes": 14,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 14
+      }
+    },
+    "vision_embeddings_merger": {
+      "graph_sha256": "d981421fce82a1af2a13d2a03338566209f82dd212483540b449f26027c4ac59",
+      "ops": [
+        ["Add","opset1",327],
+        ["Concat","opset1",55],
+        ["Constant","opset1",901],
+        ["Convert","opset1",55],
+        ["Cos","opset1",54],
+        ["GGUFPlannedWeight","gguf",330],
+        ["Gather","opset8",56],
+        ["Gelu","opset7",28],
+        ["MVN","opset6",55],
+        ["MatMul","opset1",110],
+        ["Multiply","opset1",514],
+        ["Parameter","opset1",3],
+        ["Reshape","opset1",164],
+        ["Result","opset1",1],
+        ["Round","opset5",1],
+        ["ScaledDotProductAttention","opset13",27],
+        ["Sin","opset1",54],
+        ["Squeeze","opset1",2],
+        ["Transpose","opset1",162],
+        ["Unsqueeze","opset1",110],
+        ["VariadicSplit","opset1",81]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",110]
+      ],
+      "totals": {
+        "edges": 3712,
+        "inputs": 3,
+        "nodes": 3090,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 3090
+      }
+    },
+    "vision_embeddings_pos": {
+      "graph_sha256": "83065b100f8283a70e623be9147c858a7b04dd7693f9ca3e4edd5b28113feb21",
+      "ops": [
+        ["Constant","opset1",1],
+        ["GGUFPlannedWeight","gguf",1],
+        ["Gather","opset8",1],
+        ["Parameter","opset1",1],
+        ["Result","opset1",1]
+      ],
+      "projections": [],
+      "totals": {
+        "edges": 4,
+        "inputs": 1,
+        "nodes": 5,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 5
+      }
+    }
+  },
+  "projectors": ["audio.qwen3a","vision.qwen3vl_merger"],
+  "version": 3
+}

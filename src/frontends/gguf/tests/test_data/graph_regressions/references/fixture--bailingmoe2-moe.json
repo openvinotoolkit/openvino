@@ -1,17 +1,17 @@
 {
   "models": {
     "ids/language": {
-      "graph_sha256": "d694e98277f3d671d55411b38dca6228a1c11e8c71a49af87e21457f84bb7705",
+      "graph_sha256": "4c3e03bbb77e30c4481d9853c54acfb9067921fc811300260c97015d408e92e8",
       "ops": [
         ["Add","opset1",26],
         ["Assign","opset6",4],
-        ["Concat","opset1",21],
+        ["Concat","opset1",19],
         ["Constant","opset1",176],
         ["Convert","opset1",22],
         ["Cos","opset1",1],
         ["CumSum","opset3",1],
         ["GGUFPlannedWeight","gguf",31],
-        ["Gather","opset8",19],
+        ["Gather","opset8",20],
         ["GatherElements","opset6",1],
         ["GatherMatmul","extension",3],
         ["LessEqual","opset1",1],
@@ -25,7 +25,7 @@
         ["ReadValue","opset6",4],
         ["ReduceMean","opset1",9],
         ["ReduceSum","opset1",1],
-        ["Reshape","opset1",52],
+        ["Reshape","opset1",51],
         ["Result","opset1",1],
         ["Select","opset1",1],
         ["ShapeOf","opset3",8],
@@ -33,7 +33,7 @@
         ["Sin","opset1",1],
         ["Softmax","opset8",2],
         ["Sqrt","opset1",9],
-        ["Squeeze","opset1",6],
+        ["Squeeze","opset1",8],
         ["Subtract","opset1",2],
         ["Swish","opset4",3],
         ["Tanh","opset1",3],
@@ -48,7 +48,7 @@
         ["MatMul","4","f32","ggml:0/group:1/weight:f32",12]
       ],
       "totals": {
-        "edges": 667,
+        "edges": 668,
         "inputs": 4,
         "nodes": 557,
         "outputs": 1,

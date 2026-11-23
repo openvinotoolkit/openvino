@@ -8,6 +8,7 @@
 #include <fstream>
 #include <limits>
 #include <map>
+#include <numeric>
 #include <set>
 #include <sstream>
 #include <tuple>
@@ -208,10 +209,18 @@ std::shared_ptr<ov::Model> convert_recipe(const Json& recipe) {
         source.shape = recipe_shape(entry.at("shape"), source.source_name);
         source.qtype = static_cast<GgufTensorType>(entry.at("ggml_type").get<int>());
         const auto type = ov::element::Type(entry.at("storage_type").get<std::string>());
-        source.data = ov::make_tensor(ov::SoPtr<ov::ITensor>{
-            std::make_shared<DescriptorTensor>(type,
-                                               recipe_shape(entry.at("storage_shape"), source.source_name),
-                                               source.source_name)});
+        const auto storage_shape = recipe_shape(entry.at("storage_shape"), source.source_name);
+        if (source.source_name == "d2t") {
+            OPENVINO_ASSERT(source.qtype == GGUF_TYPE_I64 && type == ov::element::i64 &&
+                                storage_shape == source.shape && source.shape.size() == 1 && source.shape[0] <= 1000000,
+                            "Invalid synthetic draft vocabulary map descriptor");
+            source.data = ov::Tensor(type, storage_shape);
+            auto* values = source.data.data<int64_t>();
+            std::iota(values, values + source.shape[0], int64_t{0});
+        } else {
+            source.data = ov::make_tensor(
+                ov::SoPtr<ov::ITensor>{std::make_shared<DescriptorTensor>(type, storage_shape, source.source_name)});
+        }
         OPENVINO_ASSERT(weights.emplace(source.source_name, source).second, "Duplicate tensor: ", source.source_name);
     }
     const auto translators = get_supported_ops();
@@ -506,6 +515,8 @@ std::string marker_name(const std::string& key) {
 Json runtime_keys(const ov::RTMap& info, bool node = false) {
     static const std::set<std::string> semantic{"gguf.token_embedding",
                                                 "gguf.per_layer_token_embedding",
+                                                "gguf.draft_context",
+                                                "gguf_kv_cache_write",
                                                 "gguf_u2_zero_point_shape",
                                                 "gguf_hadamard_block",
                                                 "gguf_hadamard_input_sign",
@@ -530,7 +541,12 @@ Json runtime_keys(const ov::RTMap& info, bool node = false) {
             name == "gguf_tokenizer_metadata")
             continue;
         OPENVINO_ASSERT(semantic.count(name), "Unclassified GGUF runtime key: ", name);
-        result[name] = runtime_value(value);
+        if (name == "gguf.draft_context") {
+            OPENVINO_ASSERT(value.is<std::string>(), "Invalid draft context marker");
+            result[name] = true;
+        } else {
+            result[name] = runtime_value(value);
+        }
     }
     return result;
 }

@@ -1,0 +1,139 @@
+{
+  "models": {
+    "audio_embeddings": {
+      "graph_sha256": "619a12dd3caf1206724df5a6e1e7e8a417a2db78954f3c5239a15f5ed11c3b31",
+      "ops": [
+        ["Add","opset1",61],
+        ["Broadcast","opset3",5],
+        ["Concat","opset1",26],
+        ["Constant","opset1",188],
+        ["Convolution","opset1",38],
+        ["Divide","opset1",7],
+        ["GGUFPlannedWeight","gguf",76],
+        ["Multiply","opset1",10],
+        ["Pad","opset1",22],
+        ["Parameter","opset1",1],
+        ["ReduceSum","opset1",12],
+        ["Relu","opset1",33],
+        ["Reshape","opset1",115],
+        ["Result","opset1",1],
+        ["ShapeOf","opset3",9],
+        ["Sigmoid","opset1",3],
+        ["Softmax","opset8",1],
+        ["Sqrt","opset1",2],
+        ["Squeeze","opset1",1],
+        ["Subtract","opset1",2],
+        ["Tanh","opset1",1],
+        ["Tile","opset1",2],
+        ["VariadicSplit","opset1",3]
+      ],
+      "projections": [],
+      "totals": {
+        "edges": 705,
+        "inputs": 1,
+        "nodes": 619,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 619
+      }
+    },
+    "audio_generation_codec": {
+      "graph_sha256": "847a573872957aa5532b5639b7fb71345a75758203e12145073fd856e6098765",
+      "ops": [
+        ["Add","opset1",174],
+        ["Clamp","opset1",1],
+        ["Concat","opset1",53],
+        ["Constant","opset1",792],
+        ["Convert","opset1",126],
+        ["Convolution","opset1",27],
+        ["ConvolutionBackpropData","opset1",6],
+        ["Cos","opset1",16],
+        ["GGUFPlannedWeight","gguf",239],
+        ["Gather","opset8",24],
+        ["Gelu","opset7",2],
+        ["Greater","opset1",1],
+        ["GroupConvolution","opset1",2],
+        ["Log","opset1",1],
+        ["MVN","opset6",2],
+        ["MatMul","opset1",64],
+        ["Multiply","opset1",296],
+        ["Parameter","opset1",39],
+        ["Power","opset1",34],
+        ["ReduceMean","opset1",17],
+        ["Reshape","opset1",252],
+        ["Result","opset1",39],
+        ["ScaledDotProductAttention","opset13",8],
+        ["ShapeOf","opset3",8],
+        ["Sin","opset1",45],
+        ["Slice","opset8",45],
+        ["Sqrt","opset1",17],
+        ["Squeeze","opset1",37],
+        ["Swish","opset4",8],
+        ["Transpose","opset1",119],
+        ["Unsqueeze","opset1",30],
+        ["VariadicSplit","opset1",22]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",64]
+      ],
+      "totals": {
+        "edges": 2894,
+        "inputs": 39,
+        "nodes": 2546,
+        "outputs": 39,
+        "states": 0,
+        "top_level_nodes": 2546
+      }
+    },
+    "audio_generation_predictor": {
+      "graph_sha256": "1843aa93fd18c9d322e6d4cccd8ff80182538e4240a6a913bcade28ee2ada499",
+      "ops": [
+        ["Add","opset1",855],
+        ["Broadcast","opset3",158],
+        ["Concat","opset1",354],
+        ["Constant","opset1",4888],
+        ["Convert","opset1",205],
+        ["Cos","opset1",159],
+        ["CumSum","opset3",15],
+        ["Divide","opset1",15],
+        ["GGUFPlannedWeight","gguf",61],
+        ["Gather","opset8",60],
+        ["Greater","opset1",15],
+        ["MatMul","opset1",586],
+        ["Multiply","opset1",2285],
+        ["Parameter","opset1",17],
+        ["Power","opset1",666],
+        ["ReduceMean","opset1",333],
+        ["ReduceSum","opset1",15],
+        ["Reshape","opset1",831],
+        ["Result","opset1",17],
+        ["ScaledDotProductAttention","opset13",79],
+        ["Sin","opset1",159],
+        ["Slice","opset8",44],
+        ["Softmax","opset8",15],
+        ["Sqrt","opset1",333],
+        ["Squeeze","opset1",119],
+        ["Subtract","opset1",15],
+        ["Swish","opset4",79],
+        ["Tile","opset1",15],
+        ["TopK","opset11",15],
+        ["Transpose","opset1",1111],
+        ["Unsqueeze","opset1",218],
+        ["VariadicSplit","opset1",175]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",586]
+      ],
+      "totals": {
+        "edges": 17371,
+        "inputs": 17,
+        "nodes": 13912,
+        "outputs": 17,
+        "states": 0,
+        "top_level_nodes": 13912
+      }
+    }
+  },
+  "projectors": ["audio.qwen3tts_spkenc","gen_audio.qwen3tts_gen"],
+  "version": 3
+}

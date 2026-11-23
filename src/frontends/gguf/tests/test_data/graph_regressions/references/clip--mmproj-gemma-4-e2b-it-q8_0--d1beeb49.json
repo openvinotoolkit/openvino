@@ -1,7 +1,7 @@
 {
   "models": {
     "audio_embeddings": {
-      "graph_sha256": "6929540c1267333f98e4b533c212179ec983758393f758ab73988009ae560863",
+      "graph_sha256": "abc87583b1c231dbfa30eaee8ba9dba1a0cbd1999a43cebb845bf4838d9ddddd",
       "ops": [
         ["Add","opset1",187],
         ["Broadcast","opset3",13],
@@ -56,7 +56,7 @@
       }
     },
     "vision_embeddings": {
-      "graph_sha256": "88c7075dd316829954881e4eb7fbbc30d954a780b65e37d82ff79b6d2704a7a4",
+      "graph_sha256": "c7821ab3fe7285ce14373014a3ea5a6459ca89ff27b79ad1c17c294b7b1e0c94",
       "ops": [
         ["Add","opset1",277],
         ["AvgPool","opset1",1],

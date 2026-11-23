@@ -57,7 +57,7 @@ OMIT_METADATA = {
     "tokenizer.ggml.tokens", "tokenizer.ggml.scores", "tokenizer.ggml.token_type",
     "tokenizer.ggml.merges", "tokenizer.chat_template",
     "general.name", "general.description", "general.author", "general.license",
-    "general.url", "general.tags",
+    "general.url",
 }
 
 
@@ -768,6 +768,9 @@ def _run_cases(args, report):
         decoder = case["architecture"] != "clip" and "native_only" not in case
         if decoder != ("input_modes" in case):
             raise ValueError(f"{case['id']}: input_modes must be set only for adapted decoders")
+        for alternate in case.get("equivalent_sources", []):
+            if not set(alternate["models"]).issubset(case["models"]):
+                raise ValueError(f"{case['id']}: equivalent source models must be listed in models")
     declared_recipes = {contained_path(root, case["recipe"]) for case in catalog["cases"]}
     declared_references = {contained_path(root, case["reference"]) for case in catalog["cases"]}
     if len(declared_references) != len(catalog["cases"]):

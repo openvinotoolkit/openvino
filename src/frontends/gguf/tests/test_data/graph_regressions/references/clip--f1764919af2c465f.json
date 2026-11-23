@@ -1,7 +1,7 @@
 {
   "models": {
     "vision_embeddings": {
-      "graph_sha256": "d263120e948b2ad4756a24a8df5898069a5f9f6529653643924c2dc1d47e169b",
+      "graph_sha256": "df01c464269e71053d8c54c9bd8d8681cdca9da9199f75e48d5286988e1710d9",
       "ops": [
         ["Add","opset1",245],
         ["Constant","opset1",268],

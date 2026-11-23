@@ -37,16 +37,32 @@
     {
       "id": "exaone4--exaone-4.0-1.2b-gguf-q4_k_m--743d0b64",
       "architecture": "exaone4",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "EXAONE-4.0-1.2B-GGUF-Q4_K_M.gguf"
+        "EXAONE-4.0-1.2B-GGUF-Q4_K_M.gguf",
+        "LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF/EXAONE-4.0-1.2B-Q4_K_M.gguf"
       ],
       "recipe": "recipes/exaone4--exaone-4.0-1.2b-gguf-q4_k_m--743d0b64.json",
       "reference": "references/exaone4--exaone-4.0-1.2b-gguf-q4_k_m--743d0b64.json",
       "source": {
         "filename": "EXAONE-4.0-1.2B-GGUF-Q4_K_M.gguf",
         "header_sha256": "743fb2e25645d3faa6aa536c2162d4165a4a7cd5b3a80ef854de864d1540c2bf"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF/EXAONE-4.0-1.2B-Q4_K_M.gguf"
+          ],
+          "source": {
+            "repository": "LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF",
+            "revision": "162446400ea4596377a3ce1d3ddffa32971af0a6",
+            "filename": "EXAONE-4.0-1.2B-Q4_K_M.gguf",
+            "header_sha256": "e8c9e460bc04076aa3f0b8687a2233c3b2a062bf9d8fd61c1222da7a69b48ec9"
+          }
+        }
+      ]
     },
     {
       "id": "llama--llama-3.2-1b-instruct-q4_0--8bdbfa04",
@@ -65,9 +81,12 @@
     {
       "id": "maincoder--maincoder-1b-q4_k_m--e14d444a",
       "architecture": "maincoder",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "Maincoder-1B-Q4_K_M.gguf"
+        "Maincoder-1B-Q4_K_M.gguf",
+        "mradermacher/Maincoder-1B-GGUF/Maincoder-1B.Q4_K_M.gguf"
       ],
       "recipe": "recipes/maincoder--maincoder-1b-q4_k_m--e14d444a.json",
       "reference": "references/maincoder--maincoder-1b-q4_k_m--e14d444a.json",
@@ -75,7 +94,20 @@
         "filename": "Maincoder-1B-Q4_K_M.gguf",
         "header_sha256": "223c138a750f857427b22d84eb34352cd5b6fd1573301b63341eee68877316d9",
         "repository": "https://huggingface.co/Maincode/Maincoder-1B"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "mradermacher/Maincoder-1B-GGUF/Maincoder-1B.Q4_K_M.gguf"
+          ],
+          "source": {
+            "repository": "mradermacher/Maincoder-1B-GGUF",
+            "revision": "1c963c98dfb478ea3b4719299bd85fbb5cf30899",
+            "filename": "Maincoder-1B.Q4_K_M.gguf",
+            "header_sha256": "3872917cba54eecbcba0d9654d504a8bb8db3ddc24b5b2816f3b401c76bf04b8"
+          }
+        }
+      ]
     },
     {
       "id": "mellum--mellum2-12b-a2.5b-instruct-q4_0--f6045155",
@@ -236,9 +268,12 @@
     {
       "id": "smollm3--smollm3-3b-q4_k_m--449485fc",
       "architecture": "smollm3",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "SmolLM3-3B-Q4_K_M.gguf"
+        "SmolLM3-3B-Q4_K_M.gguf",
+        "bartowski/HuggingFaceTB_SmolLM3-3B-GGUF/HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf"
       ],
       "recipe": "recipes/smollm3--smollm3-3b-q4_k_m--449485fc.json",
       "reference": "references/smollm3--smollm3-3b-q4_k_m--449485fc.json",
@@ -246,7 +281,20 @@
         "filename": "SmolLM3-3B-Q4_K_M.gguf",
         "header_sha256": "c14a6f637cb0890120ca41690e296585f7174085c92d90d953fee8566d8881fc",
         "repository": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "bartowski/HuggingFaceTB_SmolLM3-3B-GGUF/HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf"
+          ],
+          "source": {
+            "repository": "bartowski/HuggingFaceTB_SmolLM3-3B-GGUF",
+            "revision": "86b3536ed1ca0dcb4716745642db4e6804bf3d32",
+            "filename": "HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf",
+            "header_sha256": "1b8b7c2f16f100dece9e354644885879609416367078abb657dbc7b3a45d6990"
+          }
+        }
+      ]
     },
     {
       "id": "qwen35--ternary-bonsai-2-27b-pq2_0--729ece64",
@@ -366,10 +414,14 @@
     {
       "id": "qwen35--ternary-bonsai-27b-pq2_0--9d2b5504",
       "architecture": "qwen35",
-      "input_modes": ["ids", "embeds"],
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
       "models": [
         "Ternary-Bonsai-27B-PQ2_0.gguf",
-        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-PQ2_0.gguf"
+        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-PQ2_0.gguf",
+        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-Q2_0.gguf"
       ],
       "recipe": "recipes/qwen35--ternary-bonsai-27b-pq2_0--9d2b5504.json",
       "reference": "references/qwen35--ternary-bonsai-27b-pq2_0--9d2b5504.json",
@@ -378,7 +430,20 @@
         "header_sha256": "c0929b5ba344f1a11f07d616e6e73949b0334d01c2e52d3ed45e2d4d82a1008a",
         "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
         "repository": "prism-ml/Ternary-Bonsai-27B-gguf"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-Q2_0.gguf"
+          ],
+          "source": {
+            "repository": "prism-ml/Ternary-Bonsai-27B-gguf",
+            "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
+            "filename": "Ternary-Bonsai-27B-Q2_0.gguf",
+            "header_sha256": "84e5eeb026703f176b8b8923509b9f8e86b4f05e9a7eebd609514afcd07a47ec"
+          }
+        }
+      ]
     },
     {
       "id": "afmoe--trinity-nano-preview-bf16--bf9931a5",
@@ -459,16 +524,32 @@
     {
       "id": "jais2--q4_k_m--105ad4cc",
       "architecture": "jais2",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "Q4_K_M.gguf"
+        "Q4_K_M.gguf",
+        "mradermacher/JAIS2-IT-0.3-GGUF/JAIS2-IT-0.3.Q4_K_M.gguf"
       ],
       "recipe": "recipes/jais2--q4_k_m--105ad4cc.json",
       "reference": "references/jais2--q4_k_m--105ad4cc.json",
       "source": {
         "filename": "Q4_K_M.gguf",
         "header_sha256": "bc370fe5d472119b3ced3cf39a8a0804c06fdfab69440181580f28a454600e27"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "mradermacher/JAIS2-IT-0.3-GGUF/JAIS2-IT-0.3.Q4_K_M.gguf"
+          ],
+          "source": {
+            "repository": "mradermacher/JAIS2-IT-0.3-GGUF",
+            "revision": "45c2c47c230552f75b59581c33363e973c52ced5",
+            "filename": "JAIS2-IT-0.3.Q4_K_M.gguf",
+            "header_sha256": "61e5ba82caa4f3a1b21404ceb6f8367d82b69fb8003439babcac5b2c7afec0c4"
+          }
+        }
+      ]
     },
     {
       "id": "minimax-m2--minimax-m2.1-reap-50.i1-q2_k--638cbe86",
@@ -506,9 +587,13 @@
     {
       "id": "deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d",
       "architecture": "deepseek2-ocr",
-      "input_modes": ["ids", "embeds"],
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
       "models": [
-        "deepseek-ocr-2-Q4_K_M.gguf"
+        "deepseek-ocr-2-Q4_K_M.gguf",
+        "aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf/DeepSeek-OCR-2-Q4_K_M.gguf"
       ],
       "recipe": "recipes/deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d.json",
       "reference": "references/deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d.json",
@@ -516,7 +601,20 @@
         "filename": "deepseek-ocr-2-Q4_K_M.gguf",
         "header_sha256": "40b43de71955ecde619d8c8cb53471926733cc045de1aa7d3373077098ae603e"
       },
-      "projectors": []
+      "projectors": [],
+      "equivalent_sources": [
+        {
+          "models": [
+            "aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf/DeepSeek-OCR-2-Q4_K_M.gguf"
+          ],
+          "source": {
+            "repository": "aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf",
+            "revision": "2251244fc8a542514f50f7f1bda3d1ea2a1a2d2a",
+            "filename": "DeepSeek-OCR-2-Q4_K_M.gguf",
+            "header_sha256": "707bcc65dac2bcbb81f578c352063e9890a576b1a6129f1fe5220794b7c8b64b"
+          }
+        }
+      ]
     },
     {
       "id": "mistral3--devstral-small-2-24b-instruct-2512-q4_k_m--d09200fa",
@@ -743,45 +841,42 @@
     {
       "id": "lfm3--lfm3-audio-2b-q4_0--07f0bced",
       "architecture": "lfm3",
-      "input_modes": ["ids", "embeds"],
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
       "models": [
-        "LFM3-Audio-2B-Q4_0.gguf"
+        "LFM3-Audio-2B-Q4_0.gguf",
+        "LFM3-Omni-2B-Q4_0.gguf",
+        "LFM3-VL-2B-QAD-Q4_0.gguf"
       ],
       "recipe": "recipes/lfm3--lfm3-audio-2b-q4_0--07f0bced.json",
       "reference": "references/lfm3--lfm3-audio-2b-q4_0--07f0bced.json",
       "source": {
         "filename": "LFM3-Audio-2B-Q4_0.gguf",
         "header_sha256": "ccea77a7fb48415451c0cbe2b352c4c18af465522b6877c53651d18c1a6f70a6"
-      }
-    },
-    {
-      "id": "lfm3--lfm3-omni-2b-q4_0--77b864bb",
-      "architecture": "lfm3",
-      "input_modes": ["ids", "embeds"],
-      "models": [
-        "LFM3-Omni-2B-Q4_0.gguf"
-      ],
-      "recipe": "recipes/lfm3--lfm3-omni-2b-q4_0--77b864bb.json",
-      "reference": "references/lfm3--lfm3-omni-2b-q4_0--77b864bb.json",
-      "source": {
-        "filename": "LFM3-Omni-2B-Q4_0.gguf",
-        "header_sha256": "28eada5871c34c86d26af3a793340b6ad0fc017e7375b340ef93b97fa34ee014"
-      }
-    },
-    {
-      "id": "lfm3--lfm3-vl-2b-qad-q4_0--a1b72b32",
-      "architecture": "lfm3",
-      "input_modes": ["ids", "embeds"],
-      "models": [
-        "LFM3-VL-2B-QAD-Q4_0.gguf"
-      ],
-      "recipe": "recipes/lfm3--lfm3-vl-2b-qad-q4_0--a1b72b32.json",
-      "reference": "references/lfm3--lfm3-vl-2b-qad-q4_0--a1b72b32.json",
-      "source": {
-        "filename": "LFM3-VL-2B-QAD-Q4_0.gguf",
-        "header_sha256": "c71e16c480e14e71a446cd5dfbb7f80fbeb95e09de467417cafdb35e52908f99",
-        "repository": "https://huggingface.co/LiquidAI/LFM3-1.7B-Base"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "LFM3-Omni-2B-Q4_0.gguf"
+          ],
+          "source": {
+            "filename": "LFM3-Omni-2B-Q4_0.gguf",
+            "header_sha256": "28eada5871c34c86d26af3a793340b6ad0fc017e7375b340ef93b97fa34ee014"
+          }
+        },
+        {
+          "models": [
+            "LFM3-VL-2B-QAD-Q4_0.gguf"
+          ],
+          "source": {
+            "filename": "LFM3-VL-2B-QAD-Q4_0.gguf",
+            "header_sha256": "c71e16c480e14e71a446cd5dfbb7f80fbeb95e09de467417cafdb35e52908f99",
+            "repository": "https://huggingface.co/LiquidAI/LFM3-1.7B-Base"
+          }
+        }
+      ]
     },
     {
       "id": "clip--mmproj-lfm3-audio-2b-q8_0--4505250e",
@@ -841,7 +936,8 @@
       "architecture": "llama-embed",
       "models": [
         "llama-nemotron-embed-1b-v2.Q4_K_M.gguf",
-        "mradermacher/llama-nemotron-embed-1b-v2-GGUF/llama-nemotron-embed-1b-v2.Q4_K_M.gguf"
+        "mradermacher/llama-nemotron-embed-1b-v2-GGUF/llama-nemotron-embed-1b-v2.Q4_K_M.gguf",
+        "sabafallah/llama-nemotron-embed-1b-v2-GGUF/llama-nemotron-embed-1b-v2-Q4_K_M.gguf"
       ],
       "recipe": "recipes/llama-embed--llama-nemotron-embed-1b-v2.q4_k_m--10bb9b61.json",
       "reference": "references/llama-embed--llama-nemotron-embed-1b-v2.q4_k_m--10bb9b61.json",
@@ -849,7 +945,20 @@
         "filename": "llama-nemotron-embed-1b-v2.Q4_K_M.gguf",
         "header_sha256": "a9a0e914bb22436f0276f9f6e7d6a1a5a33e4dd75ea2b67e30f31427364925cb",
         "repository": "https://huggingface.co/nvidia/llama-nemotron-embed-1b-v2"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "sabafallah/llama-nemotron-embed-1b-v2-GGUF/llama-nemotron-embed-1b-v2-Q4_K_M.gguf"
+          ],
+          "source": {
+            "repository": "sabafallah/llama-nemotron-embed-1b-v2-GGUF",
+            "revision": "458a2fe8b58e3fd7386b720fae4c326a8967f4db",
+            "filename": "llama-nemotron-embed-1b-v2-Q4_K_M.gguf",
+            "header_sha256": "696c50403d5188e4bdfd0c1ea8c40e7f04257dc1bbb3c92067e7f847c41ed7b7"
+          }
+        }
+      ]
     },
     {
       "id": "llama--mistral-7b-instruct-v0.1.q4_k_m--f99051cb",
@@ -1754,9 +1863,12 @@
     {
       "id": "olmoe--olmoe-1b-7b-0924-instruct-q4_0--024ec20e",
       "architecture": "olmoe",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "OLMoE-1b-7b-0924-Instruct-Q4_0.gguf"
+        "OLMoE-1b-7b-0924-Instruct-Q4_0.gguf",
+        "allenai/OLMoE-1B-7B-0924-Instruct-GGUF/olmoe-1b-7b-0924-instruct-q4_0.gguf"
       ],
       "recipe": "recipes/olmoe--olmoe-1b-7b-0924-instruct-q4_0--024ec20e.json",
       "reference": "references/olmoe--olmoe-1b-7b-0924-instruct-q4_0--024ec20e.json",
@@ -1764,7 +1876,20 @@
         "filename": "OLMoE-1b-7b-0924-Instruct-Q4_0.gguf",
         "header_sha256": "107d8b073d275c7aced99285735b26ad04e548351f8e2c3468ce3362f2b92c00",
         "repository": "https://huggingface.co/allenai/OLMoE-1B-7B-0924-SFT"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "allenai/OLMoE-1B-7B-0924-Instruct-GGUF/olmoe-1b-7b-0924-instruct-q4_0.gguf"
+          ],
+          "source": {
+            "repository": "allenai/OLMoE-1B-7B-0924-Instruct-GGUF",
+            "revision": "02ab6ea6894a8418eb14f6d8ee1bfb08bd298080",
+            "filename": "olmoe-1b-7b-0924-instruct-q4_0.gguf",
+            "header_sha256": "4aaa2be7f2f9a829934ec583ccef013235c644ca40f0ace0ef55802ba7b360f2"
+          }
+        }
+      ]
     },
     {
       "id": "qwen2--qwen2.5-0.5b-instruct-q4_0--67f27271",
@@ -2791,7 +2916,9 @@
       "id": "clip--77928e894e4f8c35",
       "architecture": "clip",
       "models": [
-        "unsloth/gemma-4-12B-it-qat-GGUF/mmproj-BF16.gguf"
+        "unsloth/gemma-4-12B-it-qat-GGUF/mmproj-BF16.gguf",
+        "unsloth/gemma-4-12b-it-GGUF/mmproj-BF16.gguf",
+        "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF/gemma-4-12b-heretic-mmproj-f16.gguf"
       ],
       "recipe": "recipes/clip--77928e894e4f8c35.json",
       "reference": "references/clip--77928e894e4f8c35.json",
@@ -2804,13 +2931,38 @@
         "revision": "980b060c40a8539ac159e0501a3e0f66a6365af3",
         "filename": "mmproj-BF16.gguf",
         "header_sha256": "0f849fe829e08360eff40a3e7572fbc8a3ea78c6745a5a80b43fdba07bf748b2"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "unsloth/gemma-4-12b-it-GGUF/mmproj-BF16.gguf"
+          ],
+          "source": {
+            "repository": "unsloth/gemma-4-12b-it-GGUF",
+            "revision": "fc034cfff751157913579611efad8462ac1be606",
+            "filename": "mmproj-BF16.gguf",
+            "header_sha256": "0f849fe829e08360eff40a3e7572fbc8a3ea78c6745a5a80b43fdba07bf748b2"
+          }
+        },
+        {
+          "models": [
+            "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF/gemma-4-12b-heretic-mmproj-f16.gguf"
+          ],
+          "source": {
+            "repository": "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF",
+            "revision": "ca1e60be3a69f79a699ff85c9c3f97a1614e5617",
+            "filename": "gemma-4-12b-heretic-mmproj-f16.gguf",
+            "header_sha256": "0f849fe829e08360eff40a3e7572fbc8a3ea78c6745a5a80b43fdba07bf748b2"
+          }
+        }
+      ]
     },
     {
       "id": "clip--e78cf9816beaefa9",
       "architecture": "clip",
       "models": [
-        "unsloth/gemma-4-12B-it-qat-GGUF/mmproj-F16.gguf"
+        "unsloth/gemma-4-12B-it-qat-GGUF/mmproj-F16.gguf",
+        "unsloth/gemma-4-12b-it-GGUF/mmproj-F16.gguf"
       ],
       "recipe": "recipes/clip--e78cf9816beaefa9.json",
       "reference": "references/clip--e78cf9816beaefa9.json",
@@ -2823,70 +2975,28 @@
         "revision": "980b060c40a8539ac159e0501a3e0f66a6365af3",
         "filename": "mmproj-F16.gguf",
         "header_sha256": "7f60a1bd2164efe9ce6e46fe3635e317126922e15c82d24eddacce6b85d8886c"
-      }
-    },
-    {
-      "id": "clip--3e4c4e8a5ec60e8d",
-      "architecture": "clip",
-      "models": [
-        "unsloth/gemma-4-12b-it-GGUF/mmproj-BF16.gguf"
-      ],
-      "recipe": "recipes/clip--3e4c4e8a5ec60e8d.json",
-      "reference": "references/clip--3e4c4e8a5ec60e8d.json",
-      "projectors": [
-        "audio.gemma4ua",
-        "vision.gemma4uv"
-      ],
-      "source": {
-        "repository": "unsloth/gemma-4-12b-it-GGUF",
-        "revision": "fc034cfff751157913579611efad8462ac1be606",
-        "filename": "mmproj-BF16.gguf",
-        "header_sha256": "0f849fe829e08360eff40a3e7572fbc8a3ea78c6745a5a80b43fdba07bf748b2"
-      }
-    },
-    {
-      "id": "clip--b52dc912e37cf635",
-      "architecture": "clip",
-      "models": [
-        "unsloth/gemma-4-12b-it-GGUF/mmproj-F16.gguf"
-      ],
-      "recipe": "recipes/clip--b52dc912e37cf635.json",
-      "reference": "references/clip--b52dc912e37cf635.json",
-      "projectors": [
-        "audio.gemma4ua",
-        "vision.gemma4uv"
-      ],
-      "source": {
-        "repository": "unsloth/gemma-4-12b-it-GGUF",
-        "revision": "fc034cfff751157913579611efad8462ac1be606",
-        "filename": "mmproj-F16.gguf",
-        "header_sha256": "7f60a1bd2164efe9ce6e46fe3635e317126922e15c82d24eddacce6b85d8886c"
-      }
-    },
-    {
-      "id": "clip--ec9a84aedaa0ff61",
-      "architecture": "clip",
-      "models": [
-        "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF/gemma-4-12b-heretic-mmproj-f16.gguf"
-      ],
-      "recipe": "recipes/clip--ec9a84aedaa0ff61.json",
-      "reference": "references/clip--ec9a84aedaa0ff61.json",
-      "projectors": [
-        "audio.gemma4ua",
-        "vision.gemma4uv"
-      ],
-      "source": {
-        "repository": "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF",
-        "revision": "ca1e60be3a69f79a699ff85c9c3f97a1614e5617",
-        "filename": "gemma-4-12b-heretic-mmproj-f16.gguf",
-        "header_sha256": "0f849fe829e08360eff40a3e7572fbc8a3ea78c6745a5a80b43fdba07bf748b2"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "unsloth/gemma-4-12b-it-GGUF/mmproj-F16.gguf"
+          ],
+          "source": {
+            "repository": "unsloth/gemma-4-12b-it-GGUF",
+            "revision": "fc034cfff751157913579611efad8462ac1be606",
+            "filename": "mmproj-F16.gguf",
+            "header_sha256": "7f60a1bd2164efe9ce6e46fe3635e317126922e15c82d24eddacce6b85d8886c"
+          }
+        }
+      ]
     },
     {
       "id": "clip--467224439bb6a003",
       "architecture": "clip",
       "models": [
-        "unsloth/gemma-4-31B-it-GGUF/mmproj-BF16.gguf"
+        "unsloth/gemma-4-31B-it-GGUF/mmproj-BF16.gguf",
+        "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat-GGUF/mmproj/mmproj-Gemma-4-31B-Humanlike-Chat-BF16.gguf",
+        "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF/mmproj-gemma-4-31B-scotoma-2-BF16.gguf"
       ],
       "recipe": "recipes/clip--467224439bb6a003.json",
       "reference": "references/clip--467224439bb6a003.json",
@@ -2898,13 +3008,38 @@
         "revision": "c1ac76e99d5513b141e8adde7288b85c3f9c32ec",
         "filename": "mmproj-BF16.gguf",
         "header_sha256": "a724da8cfc6772fb7dd7625074062118ab2b42f2b80286100f3719df2476ce82"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat-GGUF/mmproj/mmproj-Gemma-4-31B-Humanlike-Chat-BF16.gguf"
+          ],
+          "source": {
+            "repository": "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat-GGUF",
+            "revision": "7f10ac8555fea1c006e396c6e8b94491a0fac187",
+            "filename": "mmproj/mmproj-Gemma-4-31B-Humanlike-Chat-BF16.gguf",
+            "header_sha256": "2d04b05444b1df091d1092fdf5678f16ffd84519482173a7f6010c8e0d7b4ac3"
+          }
+        },
+        {
+          "models": [
+            "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF/mmproj-gemma-4-31B-scotoma-2-BF16.gguf"
+          ],
+          "source": {
+            "repository": "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF",
+            "revision": "825f37ecd28612cd7a7280877bb059998a04d20a",
+            "filename": "mmproj-gemma-4-31B-scotoma-2-BF16.gguf",
+            "header_sha256": "ce694b18c18d24ba0f6dc4d50389345d9e704f3986ed57bae72350e4b5f1f2b9"
+          }
+        }
+      ]
     },
     {
       "id": "clip--a2271c46855352e7",
       "architecture": "clip",
       "models": [
-        "unsloth/gemma-4-31B-it-GGUF/mmproj-F16.gguf"
+        "unsloth/gemma-4-31B-it-GGUF/mmproj-F16.gguf",
+        "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF/mmproj-gemma-4-31B-scotoma-2-F16.gguf"
       ],
       "recipe": "recipes/clip--a2271c46855352e7.json",
       "reference": "references/clip--a2271c46855352e7.json",
@@ -2916,67 +3051,27 @@
         "revision": "c1ac76e99d5513b141e8adde7288b85c3f9c32ec",
         "filename": "mmproj-F16.gguf",
         "header_sha256": "8a3a9f883f0e5de8fbc52cfedf8b4c49f3706893d238398afbeb6091fdbeed11"
-      }
-    },
-    {
-      "id": "clip--d99fcc5bd45be2b2",
-      "architecture": "clip",
-      "models": [
-        "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat-GGUF/mmproj/mmproj-Gemma-4-31B-Humanlike-Chat-BF16.gguf"
-      ],
-      "recipe": "recipes/clip--d99fcc5bd45be2b2.json",
-      "reference": "references/clip--d99fcc5bd45be2b2.json",
-      "projectors": [
-        "vision.gemma4v"
-      ],
-      "source": {
-        "repository": "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat-GGUF",
-        "revision": "7f10ac8555fea1c006e396c6e8b94491a0fac187",
-        "filename": "mmproj/mmproj-Gemma-4-31B-Humanlike-Chat-BF16.gguf",
-        "header_sha256": "2d04b05444b1df091d1092fdf5678f16ffd84519482173a7f6010c8e0d7b4ac3"
-      }
-    },
-    {
-      "id": "clip--15184d36a76132b2",
-      "architecture": "clip",
-      "models": [
-        "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF/mmproj-gemma-4-31B-scotoma-2-BF16.gguf"
-      ],
-      "recipe": "recipes/clip--15184d36a76132b2.json",
-      "reference": "references/clip--15184d36a76132b2.json",
-      "projectors": [
-        "vision.gemma4v"
-      ],
-      "source": {
-        "repository": "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF",
-        "revision": "825f37ecd28612cd7a7280877bb059998a04d20a",
-        "filename": "mmproj-gemma-4-31B-scotoma-2-BF16.gguf",
-        "header_sha256": "ce694b18c18d24ba0f6dc4d50389345d9e704f3986ed57bae72350e4b5f1f2b9"
-      }
-    },
-    {
-      "id": "clip--42f70b1a62481c4c",
-      "architecture": "clip",
-      "models": [
-        "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF/mmproj-gemma-4-31B-scotoma-2-F16.gguf"
-      ],
-      "recipe": "recipes/clip--42f70b1a62481c4c.json",
-      "reference": "references/clip--42f70b1a62481c4c.json",
-      "projectors": [
-        "vision.gemma4v"
-      ],
-      "source": {
-        "repository": "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF",
-        "revision": "825f37ecd28612cd7a7280877bb059998a04d20a",
-        "filename": "mmproj-gemma-4-31B-scotoma-2-F16.gguf",
-        "header_sha256": "29408fbdf6ade2544a3251b47cc4eded6abf2bb0f304e449691038598bcaa55e"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF/mmproj-gemma-4-31B-scotoma-2-F16.gguf"
+          ],
+          "source": {
+            "repository": "ReadyArt/gemma-4-31B-it-scotoma-2-GGUF",
+            "revision": "825f37ecd28612cd7a7280877bb059998a04d20a",
+            "filename": "mmproj-gemma-4-31B-scotoma-2-F16.gguf",
+            "header_sha256": "29408fbdf6ade2544a3251b47cc4eded6abf2bb0f304e449691038598bcaa55e"
+          }
+        }
+      ]
     },
     {
       "id": "clip--40a826fa6ecf005e",
       "architecture": "clip",
       "models": [
-        "LiquidAI/LFM2.5-Audio-1.5B-GGUF/mmproj-LFM2.5-Audio-1.5B-F16.gguf"
+        "LiquidAI/LFM2.5-Audio-1.5B-GGUF/mmproj-LFM2.5-Audio-1.5B-F16.gguf",
+        "LiquidAI/LFM2.5-Audio-1.5B-GGUF-LEAP/mmproj-LFM2.5-Audio-1.5B-F16.gguf"
       ],
       "recipe": "recipes/clip--40a826fa6ecf005e.json",
       "reference": "references/clip--40a826fa6ecf005e.json",
@@ -2988,7 +3083,20 @@
         "revision": "7d525f883a077e20afb782f2ff618edcae0e39e4",
         "filename": "mmproj-LFM2.5-Audio-1.5B-F16.gguf",
         "header_sha256": "328975bcea2017994dff1b8cc3854bb15958cf482f49163b64bb15dfc3b15424"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "LiquidAI/LFM2.5-Audio-1.5B-GGUF-LEAP/mmproj-LFM2.5-Audio-1.5B-F16.gguf"
+          ],
+          "source": {
+            "repository": "LiquidAI/LFM2.5-Audio-1.5B-GGUF-LEAP",
+            "revision": "d78ca1db4adae8be7a7dbab003d128abdb5b94c6",
+            "filename": "mmproj-LFM2.5-Audio-1.5B-F16.gguf",
+            "header_sha256": "328975bcea2017994dff1b8cc3854bb15958cf482f49163b64bb15dfc3b15424"
+          }
+        }
+      ]
     },
     {
       "id": "clip--9cfde47c89eb5bca",
@@ -3006,24 +3114,6 @@
         "revision": "7d525f883a077e20afb782f2ff618edcae0e39e4",
         "filename": "mmproj-LFM2.5-Audio-1.5B-Q8_0.gguf",
         "header_sha256": "03c6a3720216e7f3aacab733ea07f0c430c04682ae251aa7623c668f73d5a91c"
-      }
-    },
-    {
-      "id": "clip--e99a7f4f291de635",
-      "architecture": "clip",
-      "models": [
-        "LiquidAI/LFM2.5-Audio-1.5B-GGUF-LEAP/mmproj-LFM2.5-Audio-1.5B-F16.gguf"
-      ],
-      "recipe": "recipes/clip--e99a7f4f291de635.json",
-      "reference": "references/clip--e99a7f4f291de635.json",
-      "projectors": [
-        "audio.lfm2a"
-      ],
-      "source": {
-        "repository": "LiquidAI/LFM2.5-Audio-1.5B-GGUF-LEAP",
-        "revision": "d78ca1db4adae8be7a7dbab003d128abdb5b94c6",
-        "filename": "mmproj-LFM2.5-Audio-1.5B-F16.gguf",
-        "header_sha256": "328975bcea2017994dff1b8cc3854bb15958cf482f49163b64bb15dfc3b15424"
       }
     },
     {
@@ -3902,70 +3992,6 @@
       }
     },
     {
-      "id": "llama-embed--llama-nemotron-embed-1b-v2-q4_k_m--696c5040",
-      "native_only": "Embedding-only output is not supported by adapt_to_genai.",
-      "architecture": "llama-embed",
-      "models": [
-        "sabafallah/llama-nemotron-embed-1b-v2-GGUF/llama-nemotron-embed-1b-v2-Q4_K_M.gguf"
-      ],
-      "recipe": "recipes/llama-embed--llama-nemotron-embed-1b-v2-q4_k_m--696c5040.json",
-      "reference": "references/llama-embed--llama-nemotron-embed-1b-v2-q4_k_m--696c5040.json",
-      "source": {
-        "repository": "sabafallah/llama-nemotron-embed-1b-v2-GGUF",
-        "revision": "458a2fe8b58e3fd7386b720fae4c326a8967f4db",
-        "filename": "llama-nemotron-embed-1b-v2-Q4_K_M.gguf",
-        "header_sha256": "696c50403d5188e4bdfd0c1ea8c40e7f04257dc1bbb3c92067e7f847c41ed7b7"
-      }
-    },
-    {
-      "id": "exaone4--exaone-4.0-1.2b-q4_k_m--e8c9e460",
-      "architecture": "exaone4",
-      "input_modes": ["ids"],
-      "models": [
-        "LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF/EXAONE-4.0-1.2B-Q4_K_M.gguf"
-      ],
-      "recipe": "recipes/exaone4--exaone-4.0-1.2b-q4_k_m--e8c9e460.json",
-      "reference": "references/exaone4--exaone-4.0-1.2b-q4_k_m--e8c9e460.json",
-      "source": {
-        "repository": "LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF",
-        "revision": "162446400ea4596377a3ce1d3ddffa32971af0a6",
-        "filename": "EXAONE-4.0-1.2B-Q4_K_M.gguf",
-        "header_sha256": "e8c9e460bc04076aa3f0b8687a2233c3b2a062bf9d8fd61c1222da7a69b48ec9"
-      }
-    },
-    {
-      "id": "smollm3--huggingfacetb_smollm3-3b-q4_k_m--1b8b7c2f",
-      "architecture": "smollm3",
-      "input_modes": ["ids"],
-      "models": [
-        "bartowski/HuggingFaceTB_SmolLM3-3B-GGUF/HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf"
-      ],
-      "recipe": "recipes/smollm3--huggingfacetb_smollm3-3b-q4_k_m--1b8b7c2f.json",
-      "reference": "references/smollm3--huggingfacetb_smollm3-3b-q4_k_m--1b8b7c2f.json",
-      "source": {
-        "repository": "bartowski/HuggingFaceTB_SmolLM3-3B-GGUF",
-        "revision": "86b3536ed1ca0dcb4716745642db4e6804bf3d32",
-        "filename": "HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf",
-        "header_sha256": "1b8b7c2f16f100dece9e354644885879609416367078abb657dbc7b3a45d6990"
-      }
-    },
-    {
-      "id": "maincoder--maincoder-1b.q4_k_m--3872917c",
-      "architecture": "maincoder",
-      "input_modes": ["ids"],
-      "models": [
-        "mradermacher/Maincoder-1B-GGUF/Maincoder-1B.Q4_K_M.gguf"
-      ],
-      "recipe": "recipes/maincoder--maincoder-1b.q4_k_m--3872917c.json",
-      "reference": "references/maincoder--maincoder-1b.q4_k_m--3872917c.json",
-      "source": {
-        "repository": "mradermacher/Maincoder-1B-GGUF",
-        "revision": "1c963c98dfb478ea3b4719299bd85fbb5cf30899",
-        "filename": "Maincoder-1B.Q4_K_M.gguf",
-        "header_sha256": "3872917cba54eecbcba0d9654d504a8bb8db3ddc24b5b2816f3b401c76bf04b8"
-      }
-    },
-    {
       "id": "llama--ministral-3b-instruct.q4_k_m--c7b704b5",
       "architecture": "llama",
       "input_modes": ["ids"],
@@ -4027,22 +4053,6 @@
         "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
         "filename": "Ternary-Bonsai-27B-Q2_g64.gguf",
         "header_sha256": "81ccab64871296ea446744dc6aca6aa5a80a3736dee41c8a41e24cdfc9daea82"
-      }
-    },
-    {
-      "id": "jais2--jais2-it-0.3.q4_k_m--61e5ba82",
-      "architecture": "jais2",
-      "input_modes": ["ids"],
-      "models": [
-        "mradermacher/JAIS2-IT-0.3-GGUF/JAIS2-IT-0.3.Q4_K_M.gguf"
-      ],
-      "recipe": "recipes/jais2--jais2-it-0.3.q4_k_m--61e5ba82.json",
-      "reference": "references/jais2--jais2-it-0.3.q4_k_m--61e5ba82.json",
-      "source": {
-        "repository": "mradermacher/JAIS2-IT-0.3-GGUF",
-        "revision": "45c2c47c230552f75b59581c33363e973c52ced5",
-        "filename": "JAIS2-IT-0.3.Q4_K_M.gguf",
-        "header_sha256": "61e5ba82caa4f3a1b21404ceb6f8367d82b69fb8003439babcac5b2c7afec0c4"
       }
     },
     {
@@ -4134,7 +4144,8 @@
       "architecture": "clip",
       "models": [
         "prism-ml/Bonsai-27B-gguf/Bonsai-27B-mmproj-BF16.gguf",
-        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-mmproj-BF16.gguf"
+        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-mmproj-BF16.gguf",
+        "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-mmproj-BF16.gguf"
       ],
       "recipe": "recipes/clip--bonsai-27b-mmproj-bf16--ebd3917d.json",
       "reference": "references/clip--bonsai-27b-mmproj-bf16--ebd3917d.json",
@@ -4146,6 +4157,19 @@
       },
       "projectors": [
         "vision.qwen3vl_merger"
+      ],
+      "equivalent_sources": [
+        {
+          "models": [
+            "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-mmproj-BF16.gguf"
+          ],
+          "source": {
+            "repository": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+            "revision": "839bd57023c1558945afea70a74fa83c054f35f9",
+            "filename": "Ternary-Bonsai-2-27B-mmproj-BF16.gguf",
+            "header_sha256": "a179eb414c4fdbea8e742b9fc431309a2ec913db0ebc34d46cb91608478000ca"
+          }
+        }
       ]
     },
     {
@@ -4153,7 +4177,8 @@
       "architecture": "clip",
       "models": [
         "prism-ml/Bonsai-27B-gguf/Bonsai-27B-mmproj-Q8_0.gguf",
-        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-mmproj-Q8_0.gguf"
+        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-mmproj-Q8_0.gguf",
+        "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf"
       ],
       "recipe": "recipes/clip--bonsai-27b-mmproj-q8_0--f8c11d1c.json",
       "reference": "references/clip--bonsai-27b-mmproj-q8_0--f8c11d1c.json",
@@ -4165,42 +4190,19 @@
       },
       "projectors": [
         "vision.qwen3vl_merger"
-      ]
-    },
-    {
-      "id": "clip--ternary-bonsai-2-27b-mmproj-bf16--a179eb41",
-      "architecture": "clip",
-      "models": [
-        "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-mmproj-BF16.gguf"
       ],
-      "recipe": "recipes/clip--ternary-bonsai-2-27b-mmproj-bf16--a179eb41.json",
-      "reference": "references/clip--ternary-bonsai-2-27b-mmproj-bf16--a179eb41.json",
-      "source": {
-        "repository": "prism-ml/Ternary-Bonsai-2-27B-gguf",
-        "revision": "839bd57023c1558945afea70a74fa83c054f35f9",
-        "filename": "Ternary-Bonsai-2-27B-mmproj-BF16.gguf",
-        "header_sha256": "a179eb414c4fdbea8e742b9fc431309a2ec913db0ebc34d46cb91608478000ca"
-      },
-      "projectors": [
-        "vision.qwen3vl_merger"
-      ]
-    },
-    {
-      "id": "clip--ternary-bonsai-2-27b-mmproj-q8_0--a4e751c9",
-      "architecture": "clip",
-      "models": [
-        "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf"
-      ],
-      "recipe": "recipes/clip--ternary-bonsai-2-27b-mmproj-q8_0--a4e751c9.json",
-      "reference": "references/clip--ternary-bonsai-2-27b-mmproj-q8_0--a4e751c9.json",
-      "source": {
-        "repository": "prism-ml/Ternary-Bonsai-2-27B-gguf",
-        "revision": "839bd57023c1558945afea70a74fa83c054f35f9",
-        "filename": "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf",
-        "header_sha256": "a4e751c9fd8c98ad1c06294362121841d58a94db8adb38ae7be7638e7464fc74"
-      },
-      "projectors": [
-        "vision.qwen3vl_merger"
+      "equivalent_sources": [
+        {
+          "models": [
+            "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf"
+          ],
+          "source": {
+            "repository": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+            "revision": "839bd57023c1558945afea70a74fa83c054f35f9",
+            "filename": "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf",
+            "header_sha256": "a4e751c9fd8c98ad1c06294362121841d58a94db8adb38ae7be7638e7464fc74"
+          }
+        }
       ]
     },
     {
@@ -4254,22 +4256,6 @@
       }
     },
     {
-      "id": "qwen35--ternary-bonsai-27b-q2_0--84e5eeb0",
-      "architecture": "qwen35",
-      "input_modes": ["ids", "embeds"],
-      "models": [
-        "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-Q2_0.gguf"
-      ],
-      "recipe": "recipes/qwen35--ternary-bonsai-27b-q2_0--84e5eeb0.json",
-      "reference": "references/qwen35--ternary-bonsai-27b-q2_0--84e5eeb0.json",
-      "source": {
-        "repository": "prism-ml/Ternary-Bonsai-27B-gguf",
-        "revision": "86e89f34c93201c3dfd5e5880fedb0022fc7e34d",
-        "filename": "Ternary-Bonsai-27B-Q2_0.gguf",
-        "header_sha256": "84e5eeb026703f176b8b8923509b9f8e86b4f05e9a7eebd609514afcd07a47ec"
-      }
-    },
-    {
       "id": "dspark--ternary-bonsai-27b-dspark-q4_1--09f06a2d",
       "native_only": "DFlash draft contract explicitly disables GenAI adaptation.",
       "architecture": "dspark",
@@ -4304,9 +4290,12 @@
     {
       "id": "qwen3--ternary-bonsai-8b-pq2_0--7e177a0b",
       "architecture": "qwen3",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-PQ2_0.gguf"
+        "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-PQ2_0.gguf",
+        "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-Q2_0.gguf"
       ],
       "recipe": "recipes/qwen3--ternary-bonsai-8b-pq2_0--7e177a0b.json",
       "reference": "references/qwen3--ternary-bonsai-8b-pq2_0--7e177a0b.json",
@@ -4315,7 +4304,20 @@
         "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
         "filename": "Ternary-Bonsai-8B-PQ2_0.gguf",
         "header_sha256": "7e177a0b87d998b5c3e8a804a149fb0b140324e4d93ead6146493177bbcc5061"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-Q2_0.gguf"
+          ],
+          "source": {
+            "repository": "prism-ml/Ternary-Bonsai-8B-gguf",
+            "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
+            "filename": "Ternary-Bonsai-8B-Q2_0.gguf",
+            "header_sha256": "68936d330bd47dd7df93931b1d8a7424b1e2f6f4a384ec85507676c296dc318b"
+          }
+        }
+      ]
     },
     {
       "id": "qwen3--bonsai-1.7b-q1_0--e5af3bc5",
@@ -4353,9 +4355,12 @@
     {
       "id": "qwen3--ternary-bonsai-1.7b-pq2_0--4abee613",
       "architecture": "qwen3",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-PQ2_0.gguf"
+        "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-PQ2_0.gguf",
+        "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-Q2_0.gguf"
       ],
       "recipe": "recipes/qwen3--ternary-bonsai-1.7b-pq2_0--4abee613.json",
       "reference": "references/qwen3--ternary-bonsai-1.7b-pq2_0--4abee613.json",
@@ -4364,7 +4369,20 @@
         "revision": "40e40ecfe50bdfab51628042b1f8f4e97f08acd0",
         "filename": "Ternary-Bonsai-1.7B-PQ2_0.gguf",
         "header_sha256": "4abee613502d9f6d625ce1988023c231d23acd2ddc939d7fd73e4cbd6a4a66f4"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-Q2_0.gguf"
+          ],
+          "source": {
+            "repository": "prism-ml/Ternary-Bonsai-1.7B-gguf",
+            "revision": "40e40ecfe50bdfab51628042b1f8f4e97f08acd0",
+            "filename": "Ternary-Bonsai-1.7B-Q2_0.gguf",
+            "header_sha256": "2d6a561346cb47a1feff020ee08160766a15b589c1b170449e84c50a34acf823"
+          }
+        }
+      ]
     },
     {
       "id": "qwen3--ternary-bonsai-4b-f16--a6a87ab6",
@@ -4385,9 +4403,12 @@
     {
       "id": "qwen3--ternary-bonsai-4b-pq2_0--3500d0aa",
       "architecture": "qwen3",
-      "input_modes": ["ids"],
+      "input_modes": [
+        "ids"
+      ],
       "models": [
-        "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-PQ2_0.gguf"
+        "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-PQ2_0.gguf",
+        "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-Q2_0.gguf"
       ],
       "recipe": "recipes/qwen3--ternary-bonsai-4b-pq2_0--3500d0aa.json",
       "reference": "references/qwen3--ternary-bonsai-4b-pq2_0--3500d0aa.json",
@@ -4396,7 +4417,20 @@
         "revision": "a3eb42bafe873f9686bc97486c43b72ef7d75ec8",
         "filename": "Ternary-Bonsai-4B-PQ2_0.gguf",
         "header_sha256": "3500d0aab8ee153af7af902e2c55d053204f24511fabd4a2ab00bae5f73061b6"
-      }
+      },
+      "equivalent_sources": [
+        {
+          "models": [
+            "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-Q2_0.gguf"
+          ],
+          "source": {
+            "repository": "prism-ml/Ternary-Bonsai-4B-gguf",
+            "revision": "a3eb42bafe873f9686bc97486c43b72ef7d75ec8",
+            "filename": "Ternary-Bonsai-4B-Q2_0.gguf",
+            "header_sha256": "574994c57a1fe3576e6977b1ac7995500af6acbb6ef4b5c99fe9548b6e468577"
+          }
+        }
+      ]
     },
     {
       "id": "qwen3--bonsai-4b-q1_0--8b659c37",
@@ -4416,22 +4450,6 @@
       }
     },
     {
-      "id": "qwen3--ternary-bonsai-8b-q2_0--68936d33",
-      "architecture": "qwen3",
-      "input_modes": ["ids"],
-      "models": [
-        "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-Q2_0.gguf"
-      ],
-      "recipe": "recipes/qwen3--ternary-bonsai-8b-q2_0--68936d33.json",
-      "reference": "references/qwen3--ternary-bonsai-8b-q2_0--68936d33.json",
-      "source": {
-        "repository": "prism-ml/Ternary-Bonsai-8B-gguf",
-        "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
-        "filename": "Ternary-Bonsai-8B-Q2_0.gguf",
-        "header_sha256": "68936d330bd47dd7df93931b1d8a7424b1e2f6f4a384ec85507676c296dc318b"
-      }
-    },
-    {
       "id": "qwen3--ternary-bonsai-8b-q2_0_g64--8a087353",
       "architecture": "qwen3",
       "input_modes": ["ids"],
@@ -4448,22 +4466,6 @@
       }
     },
     {
-      "id": "qwen3--ternary-bonsai-1.7b-q2_0--2d6a5613",
-      "architecture": "qwen3",
-      "input_modes": ["ids"],
-      "models": [
-        "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-Q2_0.gguf"
-      ],
-      "recipe": "recipes/qwen3--ternary-bonsai-1.7b-q2_0--2d6a5613.json",
-      "reference": "references/qwen3--ternary-bonsai-1.7b-q2_0--2d6a5613.json",
-      "source": {
-        "repository": "prism-ml/Ternary-Bonsai-1.7B-gguf",
-        "revision": "40e40ecfe50bdfab51628042b1f8f4e97f08acd0",
-        "filename": "Ternary-Bonsai-1.7B-Q2_0.gguf",
-        "header_sha256": "2d6a561346cb47a1feff020ee08160766a15b589c1b170449e84c50a34acf823"
-      }
-    },
-    {
       "id": "qwen3--ternary-bonsai-1.7b-q2_0_g64--c847b21f",
       "architecture": "qwen3",
       "input_modes": ["ids"],
@@ -4477,22 +4479,6 @@
         "revision": "40e40ecfe50bdfab51628042b1f8f4e97f08acd0",
         "filename": "Ternary-Bonsai-1.7B-Q2_0_g64.gguf",
         "header_sha256": "c847b21fd2b44440becec3b0c5e1ce25b0fd9e434ca310f8a66a5b400b1c5bfa"
-      }
-    },
-    {
-      "id": "qwen3--ternary-bonsai-4b-q2_0--574994c5",
-      "architecture": "qwen3",
-      "input_modes": ["ids"],
-      "models": [
-        "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-Q2_0.gguf"
-      ],
-      "recipe": "recipes/qwen3--ternary-bonsai-4b-q2_0--574994c5.json",
-      "reference": "references/qwen3--ternary-bonsai-4b-q2_0--574994c5.json",
-      "source": {
-        "repository": "prism-ml/Ternary-Bonsai-4B-gguf",
-        "revision": "a3eb42bafe873f9686bc97486c43b72ef7d75ec8",
-        "filename": "Ternary-Bonsai-4B-Q2_0.gguf",
-        "header_sha256": "574994c57a1fe3576e6977b1ac7995500af6acbb6ef4b5c99fe9548b6e468577"
       }
     },
     {
@@ -4621,38 +4607,6 @@
       ]
     },
     {
-      "id": "deepseek2-ocr--deepseek-ocr-2-q4_k_m--707bcc65",
-      "architecture": "deepseek2-ocr",
-      "input_modes": ["ids", "embeds"],
-      "models": [
-        "aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf/DeepSeek-OCR-2-Q4_K_M.gguf"
-      ],
-      "recipe": "recipes/deepseek2-ocr--deepseek-ocr-2-q4_k_m--707bcc65.json",
-      "reference": "references/deepseek2-ocr--deepseek-ocr-2-q4_k_m--707bcc65.json",
-      "source": {
-        "repository": "aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf",
-        "revision": "2251244fc8a542514f50f7f1bda3d1ea2a1a2d2a",
-        "filename": "DeepSeek-OCR-2-Q4_K_M.gguf",
-        "header_sha256": "707bcc65dac2bcbb81f578c352063e9890a576b1a6129f1fe5220794b7c8b64b"
-      }
-    },
-    {
-      "id": "olmoe--olmoe-1b-7b-0924-instruct-q4_0--4aaa2be7",
-      "architecture": "olmoe",
-      "input_modes": ["ids"],
-      "models": [
-        "allenai/OLMoE-1B-7B-0924-Instruct-GGUF/olmoe-1b-7b-0924-instruct-q4_0.gguf"
-      ],
-      "recipe": "recipes/olmoe--olmoe-1b-7b-0924-instruct-q4_0--4aaa2be7.json",
-      "reference": "references/olmoe--olmoe-1b-7b-0924-instruct-q4_0--4aaa2be7.json",
-      "source": {
-        "repository": "allenai/OLMoE-1B-7B-0924-Instruct-GGUF",
-        "revision": "02ab6ea6894a8418eb14f6d8ee1bfb08bd298080",
-        "filename": "olmoe-1b-7b-0924-instruct-q4_0.gguf",
-        "header_sha256": "4aaa2be7f2f9a829934ec583ccef013235c644ca40f0ace0ef55802ba7b360f2"
-      }
-    },
-    {
       "id": "qwen35--qwen3.5-0.8b-q4_0--2010fccc",
       "architecture": "qwen35",
       "input_modes": ["ids", "embeds"],
@@ -4667,8 +4621,246 @@
         "filename": "Qwen3.5-0.8B-Q4_0.gguf",
         "header_sha256": "2010fccc0eb791715e8e02f49e44dd2f251ed6cc5e3a2a4a5a36c65f82d35517"
       }
+    },
+    {
+      "id": "cohere2--c4ai-command-r7b-12-2024-q4_0--694283a2",
+      "architecture": "cohere2",
+      "input_modes": [
+        "ids"
+      ],
+      "models": [
+        "bartowski/c4ai-command-r7b-12-2024-GGUF/c4ai-command-r7b-12-2024-Q4_0.gguf"
+      ],
+      "recipe": "recipes/cohere2--c4ai-command-r7b-12-2024-q4_0--694283a2.json",
+      "reference": "references/cohere2--c4ai-command-r7b-12-2024-q4_0--694283a2.json",
+      "source": {
+        "filename": "c4ai-command-r7b-12-2024-Q4_0.gguf",
+        "header_sha256": "694283a2924c1635cee80bf94abb4cc12a06c092c54e41dcbfdef3ceba5f5e7d",
+        "revision": "bfc7a934c45cb839d84c8ca01d87f1cfa51aaa3f",
+        "repository": "bartowski/c4ai-command-r7b-12-2024-GGUF"
+      }
+    },
+    {
+      "id": "dflash--qwen36-35b-a3b-dflash-bf16--1102b960",
+      "architecture": "dflash",
+      "native_only": "DFlash noncausal sliding-window attention has no GenAI adaptation",
+      "models": [
+        "Anbeeld/Qwen3.6-35B-A3B-DFlash-GGUF/qwen36-35b-a3b-dflash-bf16.gguf"
+      ],
+      "recipe": "recipes/dflash--qwen36-35b-a3b-dflash-bf16--1102b960.json",
+      "reference": "references/dflash--qwen36-35b-a3b-dflash-bf16--1102b960.json",
+      "source": {
+        "filename": "qwen36-35b-a3b-dflash-bf16.gguf",
+        "header_sha256": "1102b960e82c1030bab907a96bda521e7e7bf8ac6d8af8b4b259a728bb00e749",
+        "revision": "176b07a39a3de56f359a4a086064fe285165fed7",
+        "repository": "Anbeeld/Qwen3.6-35B-A3B-DFlash-GGUF"
+      }
+    },
+    {
+      "id": "eagle3--qwen3-8b-speculator.eagle3-f16--5a0d49e7",
+      "architecture": "eagle3",
+      "input_modes": [
+        "ids"
+      ],
+      "models": [
+        "williamliao/Qwen3-8B-EAGLE3-Speculator-GGUF/Qwen3-8B-speculator.eagle3-F16.gguf"
+      ],
+      "recipe": "recipes/eagle3--qwen3-8b-speculator.eagle3-f16--5a0d49e7.json",
+      "reference": "references/eagle3--qwen3-8b-speculator.eagle3-f16--5a0d49e7.json",
+      "source": {
+        "filename": "Qwen3-8B-speculator.eagle3-F16.gguf",
+        "header_sha256": "5a0d49e7f32f806cf18ddcbd96c86d27a1e28a74f52febfe7702aff46260fd8f",
+        "revision": "44480ff4ea6330788818f7f5fc9a69b326dc4c06",
+        "repository": "williamliao/Qwen3-8B-EAGLE3-Speculator-GGUF"
+      }
+    },
+    {
+      "id": "gemma3n--gemma-3n-e2b-it-q4_0--a12fa77a",
+      "architecture": "gemma3n",
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
+      "models": [
+        "unsloth/gemma-3n-E2B-it-GGUF/gemma-3n-E2B-it-Q4_0.gguf"
+      ],
+      "recipe": "recipes/gemma3n--gemma-3n-e2b-it-q4_0--a12fa77a.json",
+      "reference": "references/gemma3n--gemma-3n-e2b-it-q4_0--a12fa77a.json",
+      "source": {
+        "filename": "gemma-3n-E2B-it-Q4_0.gguf",
+        "header_sha256": "a12fa77a3d2aebc386a2f289625acb9876ccb4ff2607e8ca88c9e6cd46f2576b",
+        "revision": "d7bd20d510eff26f3f95260c50f032fee8931a35",
+        "repository": "unsloth/gemma-3n-E2B-it-GGUF"
+      }
+    },
+    {
+      "id": "gemma3n--gemma-3n-mmproj--c6c6f994",
+      "architecture": "clip",
+      "projectors": [
+        "audio.gemma3na",
+        "vision.gemma3nv"
+      ],
+      "models": [
+        "Anthonyg5005/gemma-3n-e4b-mmproj-gguf/gemma-3n-mmproj.gguf"
+      ],
+      "recipe": "recipes/gemma3n--gemma-3n-mmproj--c6c6f994.json",
+      "reference": "references/gemma3n--gemma-3n-mmproj--c6c6f994.json",
+      "source": {
+        "filename": "gemma-3n-mmproj.gguf",
+        "header_sha256": "c6c6f994c91e7dbabb5f5cb2b0feae52b9ec6efdd3e766be4ce4e74d5001f3f2",
+        "revision": "0f9947517b54ab73db110da2664d8f929c256330",
+        "repository": "Anthonyg5005/gemma-3n-e4b-mmproj-gguf"
+      }
+    },
+    {
+      "id": "qwen3asr--qwen3-asr-0.6b-bf16--f6641dba",
+      "architecture": "qwen3vl",
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
+      "models": [
+        "ggml-org/Qwen3-ASR-0.6B-GGUF/Qwen3-ASR-0.6B-bf16.gguf"
+      ],
+      "recipe": "recipes/qwen3asr--qwen3-asr-0.6b-bf16--f6641dba.json",
+      "reference": "references/qwen3asr--qwen3-asr-0.6b-bf16--f6641dba.json",
+      "source": {
+        "filename": "Qwen3-ASR-0.6B-bf16.gguf",
+        "header_sha256": "f6641dbad745a9fb9f1240c48406d2831276f4d941d9407623ff17e4e21970ab",
+        "revision": "928ab958557df9aa2ef1c93e0e83c7ad0933fae2",
+        "repository": "ggml-org/Qwen3-ASR-0.6B-GGUF"
+      }
+    },
+    {
+      "id": "qwen3asr--mmproj-qwen3-asr-0.6b-bf16--52ca8b98",
+      "architecture": "clip",
+      "projectors": [
+        "audio.qwen3a"
+      ],
+      "models": [
+        "ggml-org/Qwen3-ASR-0.6B-GGUF/mmproj-Qwen3-ASR-0.6B-bf16.gguf"
+      ],
+      "recipe": "recipes/qwen3asr--mmproj-qwen3-asr-0.6b-bf16--52ca8b98.json",
+      "reference": "references/qwen3asr--mmproj-qwen3-asr-0.6b-bf16--52ca8b98.json",
+      "source": {
+        "filename": "mmproj-Qwen3-ASR-0.6B-bf16.gguf",
+        "header_sha256": "52ca8b98921a04c1068bf07025e165e0e2622acfb7d6298e4beed21a303c329e",
+        "revision": "928ab958557df9aa2ef1c93e0e83c7ad0933fae2",
+        "repository": "ggml-org/Qwen3-ASR-0.6B-GGUF"
+      }
+    },
+    {
+      "id": "qwen3omni--qwen3-omni-30b-a3b-instruct-q4_k_m--6ad5bfcf",
+      "architecture": "qwen3vlmoe",
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
+      "models": [
+        "ggml-org/Qwen3-Omni-30B-A3B-Instruct-GGUF/Qwen3-Omni-30B-A3B-Instruct-Q4_K_M.gguf"
+      ],
+      "recipe": "recipes/qwen3omni--qwen3-omni-30b-a3b-instruct-q4_k_m--6ad5bfcf.json",
+      "reference": "references/qwen3omni--qwen3-omni-30b-a3b-instruct-q4_k_m--6ad5bfcf.json",
+      "source": {
+        "filename": "Qwen3-Omni-30B-A3B-Instruct-Q4_K_M.gguf",
+        "header_sha256": "6ad5bfcf1efd0d5609e04dba85fc79d22c9da5f5eabdb763d73dcbb16ff4f3aa",
+        "revision": "6e35a28f4a19b18730f8949b0c579c6429649ab8",
+        "repository": "ggml-org/Qwen3-Omni-30B-A3B-Instruct-GGUF"
+      }
+    },
+    {
+      "id": "qwen3omni--mmproj-qwen3-omni-30b-a3b-instruct-bf16--07a0b90e",
+      "architecture": "clip",
+      "projectors": [
+        "audio.qwen3a",
+        "vision.qwen3vl_merger"
+      ],
+      "models": [
+        "ggml-org/Qwen3-Omni-30B-A3B-Instruct-GGUF/mmproj-Qwen3-Omni-30B-A3B-Instruct-bf16.gguf"
+      ],
+      "recipe": "recipes/qwen3omni--mmproj-qwen3-omni-30b-a3b-instruct-bf16--07a0b90e.json",
+      "reference": "references/qwen3omni--mmproj-qwen3-omni-30b-a3b-instruct-bf16--07a0b90e.json",
+      "source": {
+        "filename": "mmproj-Qwen3-Omni-30B-A3B-Instruct-bf16.gguf",
+        "header_sha256": "07a0b90e81cd1720c5eae67715eb57287c878ec11f8cb7cb77817143d837c0ff",
+        "revision": "6e35a28f4a19b18730f8949b0c579c6429649ab8",
+        "repository": "ggml-org/Qwen3-Omni-30B-A3B-Instruct-GGUF"
+      }
+    },
+    {
+      "id": "qwen3tts--qwen3-tts-12hz-1.7b-base-bf16--d91528f9",
+      "architecture": "qwen3tts",
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
+      "models": [
+        "ggml-org/Qwen3-TTS-12Hz-1.7B-Base-GGUF/Qwen3-TTS-12Hz-1.7B-Base-bf16.gguf"
+      ],
+      "recipe": "recipes/qwen3tts--qwen3-tts-12hz-1.7b-base-bf16--d91528f9.json",
+      "reference": "references/qwen3tts--qwen3-tts-12hz-1.7b-base-bf16--d91528f9.json",
+      "source": {
+        "filename": "Qwen3-TTS-12Hz-1.7B-Base-bf16.gguf",
+        "header_sha256": "d91528f9ee608a566a3c672c30d4587fbd4fb25519d05c5169f6c5aa5e705549",
+        "revision": "ca27d74bc954b73dadab5b71ca265d87fc861a7c",
+        "repository": "ggml-org/Qwen3-TTS-12Hz-1.7B-Base-GGUF"
+      }
+    },
+    {
+      "id": "qwen3tts--mmproj-qwen3-tts-12hz-1.7b-base-bf16--cd7416c1",
+      "architecture": "clip",
+      "projectors": [
+        "audio.qwen3tts_spkenc",
+        "gen_audio.qwen3tts_gen"
+      ],
+      "models": [
+        "ggml-org/Qwen3-TTS-12Hz-1.7B-Base-GGUF/mmproj-Qwen3-TTS-12Hz-1.7B-Base-bf16.gguf"
+      ],
+      "recipe": "recipes/qwen3tts--mmproj-qwen3-tts-12hz-1.7b-base-bf16--cd7416c1.json",
+      "reference": "references/qwen3tts--mmproj-qwen3-tts-12hz-1.7b-base-bf16--cd7416c1.json",
+      "source": {
+        "filename": "mmproj-Qwen3-TTS-12Hz-1.7B-Base-bf16.gguf",
+        "header_sha256": "cd7416c18271d22e93975a1da5bdfca3ab57515367225180d0ac2d11b2e2ab29",
+        "revision": "ca27d74bc954b73dadab5b71ca265d87fc861a7c",
+        "repository": "ggml-org/Qwen3-TTS-12Hz-1.7B-Base-GGUF"
+      }
+    },
+    {
+      "id": "qwen3vl--qwen3-vl-2b-instruct-q4_0--502ec78c",
+      "architecture": "qwen3vl",
+      "input_modes": [
+        "ids",
+        "embeds"
+      ],
+      "models": [
+        "unsloth/Qwen3-VL-2B-Instruct-GGUF/Qwen3-VL-2B-Instruct-Q4_0.gguf"
+      ],
+      "recipe": "recipes/qwen3vl--qwen3-vl-2b-instruct-q4_0--502ec78c.json",
+      "reference": "references/qwen3vl--qwen3-vl-2b-instruct-q4_0--502ec78c.json",
+      "source": {
+        "filename": "Qwen3-VL-2B-Instruct-Q4_0.gguf",
+        "header_sha256": "502ec78ca6eb166f630b042f677868b6558bec227871ea97540f7fa3be39c973",
+        "revision": "8dcb98e52a1d1d02dce9249e5ab15bae8121c666",
+        "repository": "unsloth/Qwen3-VL-2B-Instruct-GGUF"
+      }
+    },
+    {
+      "id": "qwen3vl--mmproj-f16--bea70f3b",
+      "architecture": "clip",
+      "projectors": [
+        "vision.qwen3vl_merger"
+      ],
+      "models": [
+        "unsloth/Qwen3-VL-2B-Instruct-GGUF/mmproj-F16.gguf"
+      ],
+      "recipe": "recipes/qwen3vl--mmproj-f16--bea70f3b.json",
+      "reference": "references/qwen3vl--mmproj-f16--bea70f3b.json",
+      "source": {
+        "filename": "mmproj-F16.gguf",
+        "header_sha256": "bea70f3be9a15303580fdef4849b9fc9ee1ed27fefef592fd411c7e0d5392b8a",
+        "revision": "8dcb98e52a1d1d02dce9249e5ab15bae8121c666",
+        "repository": "unsloth/Qwen3-VL-2B-Instruct-GGUF"
+      }
     }
-  ],
-  "source_policy": "Original checkpoint headers. Publisher files are listed as repository/filename with an immutable Hugging Face revision; other revisions are header checksums.",
-  "native_scope": "Positive original-dimensional profiles for every documented checkpoint and projector."
+  ]
 }

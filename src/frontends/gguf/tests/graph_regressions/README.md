@@ -8,19 +8,26 @@ weights are allocated.
 
 ## Coverage status
 
-The catalog contains original-dimensional profiles for all 40 native architecture
-handlers, including the separate LFM2.5 vocoder, and all 31 projector contracts.
+The catalog contains original-dimensional profiles for all 47 native architecture
+handlers, including the separate LFM2.5 vocoder, and all 35 supported projector contracts.
+It also records the unsupported Gemma3n audio identity in the combined vision checkpoint.
 Tiny numerical fixtures do not substitute for original-dimensional profiles.
 `GGUFGraphRegression.CatalogCoversEveryNativeHandler` and
 `CatalogClassifiesEveryProjector` fail when a registered handler or projector
-(plus the composite LFM3 audio-generation branch) has no positive case.
+(plus the composite speech-generation branches) has no positive case.
 
 Every checkpoint in the model hub lists (`tests/model_hub_tests/gguf/gguf_{models,mmproj}_*`
 and `bonsai_models.json`) appears in a case's `models` as `<repository>/<filename>`.
-That entry is added only after the publisher's header, read at an immutable revision,
-matches the case's `header_sha256`; filenames alone are never trusted.
+Each checkpoint's header and provenance are recorded in `source` or `equivalent_sources`;
+filenames alone are never trusted.
 `test_catalog_maps_every_documented_checkpoint` enforces the mapping.
 Cross-architecture determinism remains an acceptance requirement.
+
+Cases are consolidated only when their captured named graphs, tensor descriptors and
+conversion-relevant metadata match. Different headers and publisher provenance remain
+in `equivalent_sources`. A consolidated checkpoint is represented by the selected recipe,
+not independently recaptured on later runs; split it into a separate case if a future
+builder starts using metadata that previously differed only for informational purposes.
 
 ## Artifacts
 
@@ -28,13 +35,15 @@ All paths below are under `tests/test_data/graph_regressions`, in ordinary Git t
 not LFS:
 
 - `catalog.json`: case/checkpoint identities, provenance and projector contracts.
+  `equivalent_sources` preserves each consolidated checkpoint's aliases and original
+  header hash and provenance.
   Adapted decoder cases require `input_modes`: `["ids"]` for text-only checkpoints
   and synthetic text-only fixtures, or `["ids", "embeds"]` for vision or audio
   checkpoints. Classify each checkpoint rather than assuming an entire architecture
   has the same modalities. If its modalities are unknown, retain both modes until
   verified. Projectors and `native_only` cases omit `input_modes`.
   `native_only` records the reason when a case has no GenAI adaptation: embedding-only
-  encoders, DFlash drafts and the standalone LFM2.5 vocoder. These cases keep a native
+  encoders, noncausal sliding-window DFlash drafts and the standalone LFM2.5 vocoder. These cases keep a native
   stateful snapshot; adaptation errors in all other cases fail, never silently fall back.
   Remove the exemption when `adapt_to_genai` gains support for that contract.
 - `schema.json`: shared versioned catalog, recipe and reference definitions.
@@ -55,7 +64,9 @@ not LFS:
 
 The runner converts the recipe with the production frontend and builders. Weights are
 descriptors that throw on payload access, so builder selection and weight layout planning
-run without allocating checkpoint-sized weights. After conversion, the runner calls the
+run without allocating checkpoint-sized weights. The exception is a bounded synthetic
+identity `d2t` vocabulary map for draft models: its type and shape match the descriptor,
+but its values are not the checkpoint's mapping. After conversion, the runner calls the
 production `adapt_to_genai` entry point, which makes decoders stateful and adapts their IO.
 Every returned model is checked, not just the language model:
 
@@ -86,11 +97,11 @@ and masks that select graph behavior.
 | Connectivity: source node and output port of each input, in input order; control dependencies | Floating-point Constant values (type and shape are kept) |
 | Every output's element type and partial shape, with dynamic dimensions and bounds | Large Constants narrower than 32 bits (type and shape are kept) |
 | All `visit_attributes` values: axes, modes, flags, target shapes, body port maps | Weight payloads, quantization scales and zero points |
-| Integral Constant values with at most 64 elements or at least 32-bit integers, and boolean Constants | Shape symbols |
+| Integral Constant values with at most 64 elements or at least 32-bit integers, and boolean Constants (including the synthetic `d2t` map) | Shape symbols and original `d2t` values |
 | Parameters, Results and Sinks in model order, with their tensor names | Tokenizer metadata and `fused_names`, `original_precision`, `WeightlessCacheAttribute` |
 | ReadValue/Assign variable IDs, types and shapes | |
 | GGUF weight descriptors: source tensor, GGML type, storage type/shape, group size, unpacked weight/scale/zero-point layouts and row/column plans | |
-| GGUF runtime keys (`gguf*`) on nodes and the model | |
+| GGUF runtime keys (`gguf*`) on nodes and the model; `gguf.draft_context` is recorded as presence only | Draft-context friendly-name strings |
 | Node markers that steer plugins: `decompression`, `dequantization_node`, `keep_const_precision`, `precise`, `DisableConstantFolding`, `DisablePrecisionConversion`, `primitives_priority`, `shape_subgraph` | |
 
 Node IDs are assigned by a depth-first walk from the Results in input-port order, so
@@ -109,6 +120,8 @@ all references in the same PR.
 
 Header import preserves typed scalar/array and IEEE nonfinite metadata. Tokenizer
 tables/scores/merges/templates and informational labels are explicitly listed as omissions.
+`general.tags` is retained for subtype selection; older recipes that list it in
+`omitted_metadata` must be re-imported if their tag-dependent conversion becomes relevant.
 Record a publisher repository, immutable revision and filename whenever available.
 When a publisher commit is unavailable, `revision` is omitted and the case's
 `header_sha256` alone pins the header, **not the original weight payload**.

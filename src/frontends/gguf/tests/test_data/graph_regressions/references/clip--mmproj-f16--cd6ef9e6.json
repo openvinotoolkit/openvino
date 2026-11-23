@@ -26,7 +26,7 @@
       }
     },
     "vision_embeddings_merger": {
-      "graph_sha256": "fc7e0283c3a875a837f7dfab4c1600655b5b37ecd17e193660f51e862364ea19",
+      "graph_sha256": "214594da549eb01f1b5f48ca04385d727a22520180eca4a4996b4a1e20a79f52",
       "ops": [
         ["Add","opset1",327],
         ["Concat","opset1",55],

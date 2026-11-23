@@ -1,7 +1,7 @@
 {
   "models": {
     "embeds/language": {
-      "graph_sha256": "bb6a60790caf4243efad5ecb9cf9fe1c5deaa8f9ae849d2b3fbcb59ae4324f77",
+      "graph_sha256": "b064ba2a7c40ba7d145c4c08c8a77eee8661db17830873ddc70ec87c0ee7e6cf",
       "ops": [
         ["Add","opset1",310],
         ["Assign","opset6",56],
@@ -30,11 +30,11 @@
         ["ShapeOf","opset3",31],
         ["Sin","opset1",1],
         ["Sqrt","opset1",57],
-        ["Squeeze","opset1",56],
+        ["Squeeze","opset1",57],
         ["Subtract","opset1",2],
         ["Swish","opset4",28],
         ["Transpose","opset1",337],
-        ["Unsqueeze","opset1",116],
+        ["Unsqueeze","opset1",117],
         ["VariadicSplit","opset1",56]
       ],
       "projections": [
@@ -43,16 +43,16 @@
         ["MatMul","4","f32","ggml:2/group:32/weight:i4",140]
       ],
       "totals": {
-        "edges": 5615,
+        "edges": 5619,
         "inputs": 4,
-        "nodes": 4536,
+        "nodes": 4538,
         "outputs": 1,
         "states": 56,
-        "top_level_nodes": 4536
+        "top_level_nodes": 4538
       }
     },
     "embeds/text_embeddings": {
-      "graph_sha256": "98f7d3063545f031dc5d85f21ce771c23a04f097569d9e6d488b28f04c001ca8",
+      "graph_sha256": "2be287b1d916638d3b728905a4188674e7164922468791f4d561644a4f2d0caa",
       "ops": [
         ["Constant","opset1",5],
         ["Convert","opset1",1],
@@ -74,7 +74,7 @@
       }
     },
     "ids/language": {
-      "graph_sha256": "56543777782bf186bb7edc01700f03f322f11230a6be6d5a97efb7f2edb4817b",
+      "graph_sha256": "c1f6113b14d89acc5465ee2dacd1e93e6ad139bd2b8ddabe4b040f0cb40b0739",
       "ops": [
         ["Add","opset1",310],
         ["Assign","opset6",56],
@@ -103,11 +103,11 @@
         ["ShapeOf","opset3",31],
         ["Sin","opset1",1],
         ["Sqrt","opset1",57],
-        ["Squeeze","opset1",57],
+        ["Squeeze","opset1",58],
         ["Subtract","opset1",2],
         ["Swish","opset4",28],
         ["Transpose","opset1",337],
-        ["Unsqueeze","opset1",116],
+        ["Unsqueeze","opset1",117],
         ["VariadicSplit","opset1",56]
       ],
       "projections": [
@@ -116,12 +116,12 @@
         ["MatMul","4","f32","ggml:2/group:32/weight:i4",140]
       ],
       "totals": {
-        "edges": 5622,
+        "edges": 5626,
         "inputs": 4,
-        "nodes": 4541,
+        "nodes": 4543,
         "outputs": 1,
         "states": 56,
-        "top_level_nodes": 4541
+        "top_level_nodes": 4543
       }
     }
   },
