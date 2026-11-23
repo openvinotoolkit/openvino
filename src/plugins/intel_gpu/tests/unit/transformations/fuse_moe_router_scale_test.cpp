@@ -144,4 +144,44 @@ TEST_F(TransformationTestsF, FuseMoEScalarScale) {
     }
 }
 
+TEST_F(TransformationTestsF, PreserveMoEScalarScaleForOffload) {
+    const size_t num_experts = 4, hidden_size = 8, inter_size = 4, top_k = 2;
+    auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, hidden_size});
+    auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, top_k});
+    auto topk_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, top_k});
+    auto scalar = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {3.66f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(routing, scalar);
+    auto weights = gemm3_weights(num_experts, hidden_size, inter_size);
+    weights[7].get_node_shared_ptr()->get_rt_info()["otd_bin_offset"] = int64_t{1234};
+    auto moe = std::make_shared<MOECompressed>(
+        ov::OutputVector{hidden, scaled, topk_idx, weights[0], weights[1], weights[2], weights[3], weights[4],
+                         weights[5], weights[6], weights[7], weights[8]},
+        gemm3_config(num_experts, hidden_size, inter_size, top_k));
+    model = std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{hidden, routing, topk_idx});
+    model_ref = model->clone();
+    manager.register_pass<FuseMoERouterScale>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, PreserveMoEPerExpertScaleForOffload) {
+    const size_t num_experts = 4, hidden_size = 8, inter_size = 4, top_k = 2;
+    auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, hidden_size});
+    auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, top_k});
+    auto topk_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, top_k});
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, {num_experts}, {1.0f, 2.0f, 1.0f, 0.5f});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gathered = std::make_shared<ov::op::v8::Gather>(scale, topk_idx, axis);
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(routing, gathered);
+    auto weights = gemm3_weights(num_experts, hidden_size, inter_size);
+    weights[7].get_node_shared_ptr()->get_rt_info()["otd_bin_offset"] = int64_t{1234};
+    auto moe = std::make_shared<MOECompressed>(
+        ov::OutputVector{hidden, scaled, topk_idx, weights[0], weights[1], weights[2], weights[3], weights[4],
+                         weights[5], weights[6], weights[7], weights[8]},
+        gemm3_config(num_experts, hidden_size, inter_size, top_k));
+    model = std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{hidden, routing, topk_idx});
+    model_ref = model->clone();
+    manager.register_pass<FuseMoERouterScale>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
 }  // namespace ov::test::intel_gpu

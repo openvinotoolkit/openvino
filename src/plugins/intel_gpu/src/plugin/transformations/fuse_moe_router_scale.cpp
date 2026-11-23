@@ -57,6 +57,9 @@ FuseMoERouterScale::FuseMoERouterScale() {
 
         const auto& pm = m.get_pattern_value_map();
         const auto& w2_scale = pm.at(w2_scale_m);
+        if (w2_scale.get_node_shared_ptr()->get_rt_info().count("otd_bin_offset") != 0) {
+            return false;
+        }
         auto apply_scale = [&](ov::Output<ov::Node> scale, bool need_unsqueeze) {
             if (scale.get_element_type() != w2_scale.get_element_type()) {
                 scale = std::make_shared<ov::op::v0::Convert>(scale, w2_scale.get_element_type());
