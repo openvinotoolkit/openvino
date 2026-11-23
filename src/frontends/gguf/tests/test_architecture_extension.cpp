@@ -14,12 +14,15 @@
 #include <vector>
 
 #include "builder/api/metadata_store.hpp"
+#include "builder/arch_registry.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
+#include "op_test_utils.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -111,6 +114,16 @@ std::string write_decoder_gguf(const std::string& dir,
     return writer.write(path) ? path : std::string{};
 }
 
+std::string write_qwen3vl_gguf(const std::string& dir, const std::vector<std::string>& tags) {
+    const auto path = ov::util::path_join({dir, "qwen3vl.gguf"}).string();
+    GgufWriter writer;
+    writer.kv_str("general.architecture", "qwen3vl");
+    writer.kv_str_array("general.tags", tags);
+    writer.kv_u32("qwen3vl.n_deepstack_layers", 0);
+    writer.filled_tensor("token_embd.weight", {8, 16});
+    return writer.write(path) ? path : std::string{};
+}
+
 constexpr const char* kUnknownArch = "my-qwen3";
 
 std::shared_ptr<ov::Model> convert_with(const std::string& path,
@@ -140,6 +153,70 @@ TEST(GGUFArchitectureExtension, UnknownArchitectureIsRejectedWithoutAnExtension)
                     ov::Exception,
                     testing::AllOf(testing::HasSubstr("does not support architecture"),
                                    testing::HasSubstr("ArchitectureExtension")));
+}
+
+TEST(GGUFArchitectureExtension, DeferredArchitecturesAreRejectedWithoutAnExtension) {
+    for (const auto* architecture : {"qwen3next"}) {
+        SCOPED_TRACE(architecture);
+        ScratchDir scratch;
+        const auto path = write_decoder_gguf(scratch.path(), architecture);
+        ASSERT_FALSE(path.empty());
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.load(path),
+                        ov::Exception,
+                        testing::AllOf(testing::HasSubstr("native GGUF builder does not support architecture"),
+                                       testing::HasSubstr(architecture)));
+        frontend.add_extension(std::make_shared<ArchitectureExtension>(architecture, RopeMode::Neox));
+        EXPECT_NO_THROW(frontend.load(path));
+    }
+}
+
+TEST(GGUFArchitectureExtension, BuiltInDecodersAcceptSupportedTensorTypes) {
+    using namespace ov::frontend::gguf;
+    ov::Core core;
+    for (const auto* architecture : {"afmoe", "qwen3tts", "qwen3vlmoe"}) {
+        SCOPED_TRACE(architecture);
+        const auto arrays = cnpy::npz_load(test_data_dir() + "/arch_accuracy/" + architecture + ".npz");
+        const TemporaryGguf fixture(npz_array(arrays, "model"));
+        for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q8_0}) {
+            SCOPED_TRACE(type);
+            auto loaded = get_gguf_data(fixture.path);
+            auto& weights = std::get<1>(loaded);
+            quantize_weight(weights, "token_embd.weight", type);
+            const detail::MetadataStore meta_store{std::get<0>(loaded)};
+            const GgufMetadata meta(meta_store);
+            const auto definition = ArchRegistry{}.find(meta);
+            ASSERT_TRUE(definition);
+            detail::WeightStore store{weights};
+            const auto builder = definition->factory(BuildContext{meta, architecture, &store});
+            std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(builder->build());
+            FrontEnd frontend;
+            frontend.add_extension(std::make_shared<GenAIExtension>(GenAIExtension::InputMode::IDS_TO_LOGITS));
+            const auto model = frontend.convert(frontend.load(decoder));
+            EXPECT_NO_THROW(core.compile_model(model,
+                                               "CPU",
+                                               ov::hint::inference_precision(ov::element::f32),
+                                               ov::hint::dynamic_quantization_group_size(0)));
+        }
+    }
+}
+
+TEST(GGUFArchitectureExtension, Qwen3ASRTaskTagRemainsRegistered) {
+    ScratchDir scratch;
+    const auto path = write_qwen3vl_gguf(scratch.path(), {"automatic-speech-recognition"});
+    ASSERT_FALSE(path.empty());
+    ov::frontend::gguf::FrontEnd frontend;
+    EXPECT_NO_THROW(frontend.load(path));
+}
+
+TEST(GGUFArchitectureExtension, Qwen3VLDenseWithoutDeepStackRemainsRegistered) {
+    for (const auto& tags : {std::vector<std::string>{}, std::vector<std::string>{"image-text-to-text"}}) {
+        ScratchDir scratch;
+        const auto path = write_qwen3vl_gguf(scratch.path(), tags);
+        ASSERT_FALSE(path.empty());
+        ov::frontend::gguf::FrontEnd frontend;
+        EXPECT_NO_THROW(frontend.load(path));
+    }
 }
 
 TEST(GGUFArchitectureExtension, UnsupportedDiagnosticIncludesRegisteredArchitectures) {

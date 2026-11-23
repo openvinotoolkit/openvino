@@ -276,6 +276,25 @@ TEST_P(CheckWeightlessCacheAccuracy, TiWithLstmCell) {
     OV_ASSERT_NO_THROW(run());
 }
 
+TEST_P(CheckWeightlessCacheAccuracy, ConvWithPaddedWeightsReorder) {
+    // Channel counts not divisible by the blocked weights format pad the reorder destination beyond the source
+    // constant, and the constant is the last one in the BIN file.
+    auto param = std::make_shared<ov::op::v0::Parameter>(model_dtype, ov::Shape({1, 3, 8, 8}));
+    auto conv = ov::test::utils::make_convolution(param,
+                                                  model_dtype,
+                                                  {3, 3},
+                                                  {1, 1},
+                                                  {1, 1},
+                                                  {1, 1},
+                                                  {1, 1},
+                                                  ov::op::PadType::EXPLICIT,
+                                                  5);
+    auto result = std::make_shared<ov::op::v0::Result>(conv);
+    model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    model->set_friendly_name("ConvWithPaddedWeightsReorder");
+    OV_ASSERT_NO_THROW(run());
+}
+
 class CheckWeightlessCacheAccuracyLowPrecision : public CheckWeightlessCacheAccuracy {};
 
 class CheckModelCacheOnednnConvAZP : public ::testing::Test {
