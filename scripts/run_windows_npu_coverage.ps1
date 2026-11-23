@@ -145,13 +145,12 @@ try {
                 $result = Invoke-TestTool $ToolPath @(
                     '--verbose', '--continue_after_cpp_exception', '--no_aggregate_by_file',
                     '--modules', $exe, '--modules', $modules[1].FullName,
-                    '--sources', 'src\plugins\intel_npu\', '--sources', 'src/plugins/intel_npu/',
-                    '--excluded_sources', '\tests\', '--excluded_sources', '/tests/',
-                    '--excluded_sources', '\thirdparty\', '--excluded_sources', '/thirdparty/',
+                    '--sources', 'src\plugins\intel_npu\',
+                    '--excluded_sources', '\tests\', '--excluded_sources', '\thirdparty\',
                     '--substitute_pdb_source_path', "src\?$sourceRoot\src\",
                     '--working_dir', $modules[0].DirectoryName,
-                    '--export_type', "cobertura:$ResultsDir/coverage.cobertura.xml",
-                    '--export_type', "html:$ResultsDir/html",
+                    '--export_type', "cobertura:$(Join-Path $ResultsDir 'coverage.cobertura.xml')",
+                    '--export_type', "html:$(Join-Path $ResultsDir 'html')",
                     '--', $exe, '--gtest_filter=*', "--gtest_output=xml:$testXml"
                 ) "$ResultsDir/run.log"
             } finally {
@@ -192,8 +191,12 @@ try {
     }
     "Exit code: $result" | Tee-Object "$ResultsDir/exit-code.txt"
     Write-Host "Results and diagnostics: $ResultsDir"
+    if ($Mode -eq 'VSTest') { $testXml = Join-Path $ResultsDir 'tests.trx' }
+    if (!(Test-Path -LiteralPath $testXml -PathType Leaf)) {
+        throw "No test results were produced. Test/collector exit code: $result. Inspect $ResultsDir/run.log."
+    }
     if ($Mode -eq 'VSTest') {
-        [xml]$tests = Get-Content "$ResultsDir/tests.trx" -Raw
+        [xml]$tests = Get-Content $testXml -Raw
         if ([int]$tests.TestRun.ResultSummary.Counters.executed -le 0) {
             throw 'VSTest did not execute any tests; check adapter discovery and vstest.log.'
         }

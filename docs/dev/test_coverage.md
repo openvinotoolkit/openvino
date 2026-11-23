@@ -202,7 +202,7 @@ The default destination is `C:\Program Files\OpenCppCoverage` (override with
 `-InstallDir`, and use that same location in `-ToolPath` below).
 The helper works with Windows PowerShell 5.1; no NuGet or `pwsh` is needed.
 Keep its installed dependencies alongside the executable. The project is archived;
-compatibility with this MSVC build must be established by the experiment.
+the validation below applies to this tested setup, not arbitrary newer toolchains.
 
 Use the existing package and matching PDBs first, without rebuilding. From the
 repository root, in Windows PowerShell 5.1 or PowerShell 7:
@@ -220,6 +220,8 @@ Microsoft collector modes, not OpenCppCoverage instrumentation.
 
 The script collects both the EXE and NPU plugin DLL, excludes test/third-party
 sources, and lets expected C++ exceptions reach the test program's handlers.
+OpenCppCoverage source filters use Windows `\` separators only: version 0.9.9.0
+rejects `/` in filter arguments rather than treating it as an alternative separator.
 It keeps module coverage separate (`--no_aggregate_by_file`) so the shared
 validator can require hits from both modules before merging source lines.
 It does not enable `--optimized_build`: upstream documents that heuristic as
@@ -233,6 +235,13 @@ current checkout for source display. Keep that checkout at the build revision.
 HTML and XML are raw collector reports; the deduplicated production-only console
 summary can differ from their totals. This mode does not upload to Codecov or
 normalize the XML for upload.
+
+OpenCppCoverage 0.9.9.0 x64 was verified with the existing MSVC 14.42 Release
+package and Windows PowerShell 5.1: all 3090 tests passed, both modules contributed
+hits, and HTML/Cobertura export succeeded. The run took about 19.5 minutes and
+reported 24015/37438 unique production NPU lines in 300 files. This differs from
+Microsoft dynamic coverage in both covered lines and the denominator; do not
+interpret the higher percentage alone as proof of a more accurate measurement.
 
 Every invocation writes to a new directory under `build-windows-npu-coverage/results`
 (override with `-ResultsDir`). It retains console logs, generated settings, test

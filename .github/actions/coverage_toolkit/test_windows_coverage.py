@@ -595,8 +595,15 @@ function Invoke-TestTool {
     if (($values['--modules'] -join '|') -ne (($modules.FullName) -join '|')) {
         throw 'Must include EXE and DLL'
     }
+    foreach ($pattern in @($values['--sources']) + @($values['--excluded_sources'])) {
+        if ($pattern.Contains('/')) { throw "OpenCppCoverage rejects forward slashes: $pattern" }
+    }
+    if ('src\plugins\intel_npu\' -notin $values['--sources'] -or
+        '\tests\' -notin $values['--excluded_sources'] -or
+        '\thirdparty\' -notin $values['--excluded_sources']) { throw 'Missing source filters' }
     if ($values['--working_dir'][0] -ne $modules[0].DirectoryName) { throw 'Wrong test cwd' }
-    foreach ($export in @("cobertura:$ResultsDir/coverage.cobertura.xml", "html:$ResultsDir/html")) {
+    foreach ($export in @("cobertura:$(Join-Path $ResultsDir 'coverage.cobertura.xml')",
+                         "html:$(Join-Path $ResultsDir 'html')")) {
         if ($export -notin $values['--export_type']) { throw "Missing export: $export" }
     }
     $tail = $Arguments[($Arguments.IndexOf('--') + 1)..($Arguments.Count - 1)]
@@ -616,6 +623,18 @@ try { . ([scriptblock]::Create($switch.Extent.Text)) } catch {
     $rejected = $true
 }
 if (!$rejected -or $PWD.Path -ne $cwd) { throw 'Failure swallowed or working directory changed' }
+$missingResultsCheck = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.IfStatementAst] -and
+        $node.Extent.Text.StartsWith('if (!(Test-Path -LiteralPath $testXml')
+}, $true)
+$result = -1618178468
+$rejected = $false
+try { . ([scriptblock]::Create($missingResultsCheck.Extent.Text)) } catch {
+    if ($_.Exception.Message -notlike 'No test results were produced.*-1618178468*run.log*') { throw }
+    $rejected = $true
+}
+if (!$rejected) { throw 'Missing results hid collector failure' }
 """
         result = subprocess.run(
             ["pwsh", "-NoProfile", "-NonInteractive", "-Command", command],
