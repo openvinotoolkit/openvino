@@ -64,6 +64,8 @@ std::optional<vulkan_memory_type_selection> find_memory_type(const VkPhysicalDev
 
 vulkan_buffer_allocation::ptr detail::allocate_vulkan_buffer(vulkan_engine& engine, size_t requested_size, vulkan_buffer_memory_usage usage) {
     const VkDeviceSize buffer_size = std::max<VkDeviceSize>(requested_size, 1);
+    auto allocation = std::make_shared<vulkan_buffer_allocation>(engine.get_vulkan_device_object(), buffer_size);
+    const auto device = allocation->device;
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -75,10 +77,11 @@ vulkan_buffer_allocation::ptr detail::allocate_vulkan_buffer(vulkan_engine& engi
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VkBuffer buffer = VK_NULL_HANDLE;
-    check_vulkan_memory_result(vkCreateBuffer(engine.get_device_handle(), &buffer_info, nullptr, &buffer), "vkCreateBuffer");
+    check_vulkan_memory_result(vkCreateBuffer(device, &buffer_info, nullptr, &buffer), "vkCreateBuffer");
+    allocation->buffer = buffer;
 
     VkMemoryRequirements requirements{};
-    vkGetBufferMemoryRequirements(engine.get_device_handle(), buffer, &requirements);
+    vkGetBufferMemoryRequirements(device, buffer, &requirements);
     VkPhysicalDeviceMemoryProperties memory_properties{};
     vkGetPhysicalDeviceMemoryProperties(engine.get_physical_device(), &memory_properties);
     const auto prefer_unified_memory = engine.get_device_info().dev_type != device_type::discrete_gpu;
@@ -90,38 +93,20 @@ vulkan_buffer_allocation::ptr detail::allocate_vulkan_buffer(vulkan_engine& engi
     allocation_info.memoryTypeIndex = memory_type.index;
 
     VkDeviceMemory device_memory = VK_NULL_HANDLE;
-    const auto allocation_result = vkAllocateMemory(engine.get_device_handle(), &allocation_info, nullptr, &device_memory);
-    if (allocation_result != VK_SUCCESS) {
-        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
-        check_vulkan_memory_result(allocation_result, "vkAllocateMemory");
+    check_vulkan_memory_result(vkAllocateMemory(device, &allocation_info, nullptr, &device_memory), "vkAllocateMemory");
+    allocation->memory = device_memory;
+    allocation->memory_size = allocation_info.allocationSize;
+    allocation->memory_flags = memory_type.flags;
+
+    check_vulkan_memory_result(vkBindBufferMemory(device, buffer, device_memory, 0), "vkBindBufferMemory");
+
+    if (allocation->is_host_visible()) {
+        void* mapped_data = nullptr;
+        check_vulkan_memory_result(vkMapMemory(device, device_memory, 0, VK_WHOLE_SIZE, 0, &mapped_data), "vkMapMemory");
+        allocation->mapped_data = mapped_data;
     }
 
-    const auto bind_result = vkBindBufferMemory(engine.get_device_handle(), buffer, device_memory, 0);
-    if (bind_result != VK_SUCCESS) {
-        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
-        vkFreeMemory(engine.get_device_handle(), device_memory, nullptr);
-        check_vulkan_memory_result(bind_result, "vkBindBufferMemory");
-    }
-
-    void* mapped_data = nullptr;
-    if ((memory_type.flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0) {
-        const auto map_result = vkMapMemory(engine.get_device_handle(), device_memory, 0, VK_WHOLE_SIZE, 0, &mapped_data);
-        if (map_result != VK_SUCCESS) {
-            vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
-            vkFreeMemory(engine.get_device_handle(), device_memory, nullptr);
-            check_vulkan_memory_result(map_result, "vkMapMemory");
-        }
-    }
-
-    return std::make_shared<vulkan_buffer_allocation>(engine.get_vulkan_device_object(),
-                                                      engine.get_device_handle(),
-                                                      buffer,
-                                                      device_memory,
-                                                      mapped_data,
-                                                      buffer_size,
-                                                      allocation_info.allocationSize,
-                                                      memory_type.flags,
-                                                      engine.get_non_coherent_atom_size());
+    return allocation;
 }
 
 vulkan_memory_type_selection select_vulkan_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
@@ -191,23 +176,10 @@ vulkan_non_coherent_range align_vulkan_non_coherent_range(VkDeviceSize offset, V
     return {aligned_offset, aligned_end - aligned_offset};
 }
 
-vulkan_buffer_allocation::vulkan_buffer_allocation(std::shared_ptr<vulkan_device> device_owner,
-                                                   VkDevice device,
-                                                   VkBuffer buffer,
-                                                   VkDeviceMemory memory,
-                                                   void* mapped_data,
-                                                   VkDeviceSize size,
-                                                   VkDeviceSize memory_size,
-                                                   VkMemoryPropertyFlags memory_flags,
-                                                   VkDeviceSize non_coherent_atom_size)
-    : device(device),
-      buffer(buffer),
-      memory(memory),
-      mapped_data(mapped_data),
+vulkan_buffer_allocation::vulkan_buffer_allocation(std::shared_ptr<vulkan_device> device_owner, VkDeviceSize size)
+    : device(device_owner->get_device()),
       size(size),
-      memory_size(memory_size),
-      memory_flags(memory_flags),
-      non_coherent_atom_size(non_coherent_atom_size),
+      non_coherent_atom_size(device_owner->get_non_coherent_atom_size()),
       _device_owner(std::move(device_owner)) {}
 
 vulkan_buffer_allocation::~vulkan_buffer_allocation() {
@@ -223,7 +195,7 @@ vulkan_buffer_allocation::~vulkan_buffer_allocation() {
 }
 
 void vulkan_buffer_allocation::flush(VkDeviceSize offset, VkDeviceSize range_size) const {
-    OPENVINO_ASSERT(is_host_visible(), "[GPU][Vulkan] Cannot flush non-host-visible memory");
+    OPENVINO_ASSERT(is_mapped(), "[GPU][Vulkan] Cannot flush unmapped memory");
     OPENVINO_ASSERT(offset <= size, "[GPU][Vulkan] Flush offset exceeds buffer size");
     const auto normalized_size = range_size == VK_WHOLE_SIZE ? size - offset : range_size;
     OPENVINO_ASSERT(normalized_size <= size - offset, "[GPU][Vulkan] Flush range exceeds buffer size");
@@ -241,7 +213,7 @@ void vulkan_buffer_allocation::flush(VkDeviceSize offset, VkDeviceSize range_siz
 }
 
 void vulkan_buffer_allocation::invalidate(VkDeviceSize offset, VkDeviceSize range_size) const {
-    OPENVINO_ASSERT(is_host_visible(), "[GPU][Vulkan] Cannot invalidate non-host-visible memory");
+    OPENVINO_ASSERT(is_mapped(), "[GPU][Vulkan] Cannot invalidate unmapped memory");
     OPENVINO_ASSERT(offset <= size, "[GPU][Vulkan] Invalidate offset exceeds buffer size");
     const auto normalized_size = range_size == VK_WHOLE_SIZE ? size - offset : range_size;
     OPENVINO_ASSERT(normalized_size <= size - offset, "[GPU][Vulkan] Invalidate range exceeds buffer size");

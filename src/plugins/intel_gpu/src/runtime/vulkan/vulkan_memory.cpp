@@ -23,6 +23,22 @@ bool is_transfer_aligned(VkDeviceSize offset, VkDeviceSize size) {
     return offset % buffer_transfer_alignment == 0 && size % buffer_transfer_alignment == 0;
 }
 
+struct transfer_range {
+    VkDeviceSize offset;
+    VkDeviceSize size;
+    VkDeviceSize prefix;
+};
+
+transfer_range align_transfer_range(VkDeviceSize offset, VkDeviceSize size) {
+    if (size == 0) {
+        return {offset, 0, 0};
+    }
+    // Buffer regions are padded to the transfer alignment, so rounding stays inside the region.
+    const auto prefix = offset % buffer_transfer_alignment;
+    const auto padding = (buffer_transfer_alignment - (prefix + size) % buffer_transfer_alignment) % buffer_transfer_alignment;
+    return {offset - prefix, prefix + size + padding, prefix};
+}
+
 uint32_t make_fill_pattern(unsigned char pattern) {
     uint32_t result = 0;
     std::memset(&result, pattern, sizeof(result));
@@ -54,8 +70,7 @@ void vulkan_buffer::validate_range(size_t offset, size_t size, const char* opera
 }
 
 void* vulkan_buffer::mapped_data() const {
-    OPENVINO_ASSERT(get_allocation()->is_host_visible() && get_allocation()->mapped_data != nullptr,
-                    "[GPU][Vulkan] Buffer memory is not directly host visible");
+    OPENVINO_ASSERT(get_allocation()->is_mapped(), "[GPU][Vulkan] Buffer memory is not mapped");
     return static_cast<unsigned char*>(get_allocation()->mapped_data) + get_offset();
 }
 
@@ -65,46 +80,73 @@ vulkan_buffer_allocation::ptr vulkan_buffer::allocate_staging(size_t size) const
     return detail::allocate_vulkan_buffer(*engine, size, vulkan_buffer_memory_usage::host_staging);
 }
 
+event::ptr vulkan_buffer::write_staged(const vulkan_stream& queue,
+                                       size_t offset,
+                                       size_t size,
+                                       bool blocking,
+                                       const std::function<void(unsigned char*)>& write) {
+    const auto range = align_transfer_range(get_offset() + offset, size);
+    auto staging = allocate_staging(static_cast<size_t>(range.size));
+    std::unique_lock<std::mutex> lock(_region->_staging_write_mutex, std::defer_lock);
+    if (range.size != size) {
+        // Disjoint views can share an aligned word. Preserve its current bytes under the same lock as the upload.
+        lock.lock();
+        queue.enqueue_buffer_copy(get_allocation(), range.offset, staging, 0, range.size, true, {_region});
+        staging->invalidate(0, range.size);
+    }
+    write(static_cast<unsigned char*>(staging->mapped_data) + range.prefix);
+    staging->flush(0, range.size);
+    return queue.enqueue_buffer_copy(staging, 0, get_allocation(), range.offset, range.size, blocking, {_region});
+}
+
 void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
     const auto& vulkan_stream = validate_stream(stream);
     vulkan_stream.finish();
     std::lock_guard<std::mutex> lock(_lock_mutex);
     if (_lock_count == 0) {
-        if (get_allocation()->is_host_visible()) {
+        if (get_allocation()->is_mapped()) {
             if (type != mem_lock_type::write || !get_allocation()->is_host_coherent()) {
                 get_allocation()->invalidate(get_offset(), _bytes_count);
             }
         } else {
-            const auto region_size = _region->get_size();
-            if (_lock_staging == nullptr || _lock_staging->size < region_size) {
-                _lock_staging = allocate_staging(static_cast<size_t>(region_size));
+            const auto range = align_transfer_range(get_offset(), _bytes_count);
+            if (_lock_staging == nullptr || _lock_staging->size < range.size) {
+                _lock_staging = allocate_staging(static_cast<size_t>(range.size));
             }
-            const auto covers_region = _view_offset == 0 && _bytes_count == region_size;
-            if ((!covers_region || type != mem_lock_type::write) && region_size > 0) {
-                vulkan_stream.enqueue_buffer_copy(get_allocation(), _region->get_offset(), _lock_staging, 0, region_size, true, {_region});
-                _lock_staging->invalidate(0, region_size);
+            if (type != mem_lock_type::write && range.size > 0) {
+                vulkan_stream.enqueue_buffer_copy(get_allocation(), range.offset, _lock_staging, 0, range.size, true, {_region});
+                _lock_staging->invalidate(0, range.size);
             }
         }
     }
     _write_access = _write_access || type != mem_lock_type::read;
     ++_lock_count;
-    return get_allocation()->is_host_visible() ? mapped_data() : static_cast<unsigned char*>(_lock_staging->mapped_data) + _view_offset;
+    return get_allocation()->is_mapped() ? mapped_data()
+                                         : static_cast<unsigned char*>(_lock_staging->mapped_data) + align_transfer_range(get_offset(), _bytes_count).prefix;
 }
 
 void vulkan_buffer::unlock(const stream& stream) {
     const auto& vulkan_stream = validate_stream(stream);
     std::lock_guard<std::mutex> lock(_lock_mutex);
     OPENVINO_ASSERT(_lock_count > 0, "[GPU][Vulkan] Attempt to unlock a buffer that is not locked");
-    --_lock_count;
-    if (_lock_count == 0 && _write_access) {
-        if (get_allocation()->is_host_visible()) {
-            get_allocation()->flush(get_offset(), _bytes_count);
-        } else if (_bytes_count > 0) {
-            OPENVINO_ASSERT(_lock_staging != nullptr, "[GPU][Vulkan] Locked device-local buffer has no staging memory");
-            _lock_staging->flush(0, _region->get_size());
-            vulkan_stream.enqueue_buffer_copy(_lock_staging, 0, get_allocation(), _region->get_offset(), _region->get_size(), true, {_region});
-        }
-        _write_access = false;
+    if (--_lock_count != 0 || !std::exchange(_write_access, false) || _bytes_count == 0) {
+        return;
+    }
+    if (get_allocation()->is_mapped()) {
+        get_allocation()->flush(get_offset(), _bytes_count);
+        return;
+    }
+
+    OPENVINO_ASSERT(_lock_staging != nullptr, "[GPU][Vulkan] Locked device-local buffer has no staging memory");
+    const auto range = align_transfer_range(get_offset(), _bytes_count);
+    if (range.size == _bytes_count) {
+        _lock_staging->flush(0, range.size);
+        vulkan_stream.enqueue_buffer_copy(_lock_staging, 0, get_allocation(), range.offset, range.size, true, {_region});
+    } else {
+        const auto* modified = static_cast<const unsigned char*>(_lock_staging->mapped_data) + range.prefix;
+        write_staged(vulkan_stream, 0, _bytes_count, true, [&](unsigned char* destination) {
+            std::memcpy(destination, modified, _bytes_count);
+        });
     }
 }
 
@@ -114,7 +156,7 @@ event::ptr vulkan_buffer::fill(stream& stream, unsigned char pattern, const std:
         stream.wait_for_events(dep_events);
         return stream.create_user_event(true);
     }
-    if (get_allocation()->is_host_visible()) {
+    if (get_allocation()->is_mapped()) {
         stream.wait_for_events(dep_events);
         stream.finish();
         if (!get_allocation()->is_host_coherent()) {
@@ -130,13 +172,9 @@ event::ptr vulkan_buffer::fill(stream& stream, unsigned char pattern, const std:
 
     stream.wait_for_events(dep_events);
     stream.finish();
-    const auto region_size = _region->get_size();
-    auto staging = allocate_staging(static_cast<size_t>(region_size));
-    vulkan_stream.enqueue_buffer_copy(get_allocation(), _region->get_offset(), staging, 0, region_size, true, {_region});
-    staging->invalidate(0, region_size);
-    std::memset(static_cast<unsigned char*>(staging->mapped_data) + _view_offset, pattern, _bytes_count);
-    staging->flush(0, region_size);
-    return vulkan_stream.enqueue_buffer_copy(staging, 0, get_allocation(), _region->get_offset(), region_size, blocking, {_region});
+    return write_staged(vulkan_stream, 0, _bytes_count, blocking, [&](unsigned char* destination) {
+        std::memset(destination, pattern, _bytes_count);
+    });
 }
 
 shared_mem_params vulkan_buffer::get_internal_params(runtime_types runtime_type) const {
@@ -161,7 +199,7 @@ event::ptr vulkan_buffer::copy_from(stream& stream, const void* source, size_t s
         return stream.create_user_event(true);
     }
     const auto* source_bytes = static_cast<const unsigned char*>(source) + source_offset;
-    if (get_allocation()->is_host_visible()) {
+    if (get_allocation()->is_mapped()) {
         stream.finish();
         if (!get_allocation()->is_host_coherent()) {
             get_allocation()->invalidate(get_offset() + destination_offset, size);
@@ -172,17 +210,9 @@ event::ptr vulkan_buffer::copy_from(stream& stream, const void* source, size_t s
         return stream.create_user_event(true);
     }
 
-    const auto region_size = _region->get_size();
-    auto staging = allocate_staging(static_cast<size_t>(region_size));
-    const auto staging_offset = _view_offset + destination_offset;
-    const auto replaces_region = staging_offset == 0 && size == region_size;
-    if (!replaces_region) {
-        vulkan_stream.enqueue_buffer_copy(get_allocation(), _region->get_offset(), staging, 0, region_size, true, {_region});
-        staging->invalidate(0, region_size);
-    }
-    std::memcpy(static_cast<unsigned char*>(staging->mapped_data) + staging_offset, source_bytes, size);
-    staging->flush(0, region_size);
-    return vulkan_stream.enqueue_buffer_copy(staging, 0, get_allocation(), _region->get_offset(), region_size, blocking, {_region});
+    return write_staged(vulkan_stream, destination_offset, size, blocking, [&](unsigned char* destination) {
+        std::memcpy(destination, source_bytes, size);
+    });
 }
 
 event::ptr vulkan_buffer::copy_from(stream& stream, const memory& source, size_t source_offset, size_t destination_offset, size_t size, bool blocking) {
@@ -203,9 +233,9 @@ event::ptr vulkan_buffer::copy_from(stream& stream, const memory& source, size_t
     const auto ranges_overlap =
         same_allocation && (absolute_source_offset < absolute_destination_offset ? size > absolute_destination_offset - absolute_source_offset
                                                                                  : size > absolute_source_offset - absolute_destination_offset);
-    const auto both_host_visible = source_buffer->get_allocation()->is_host_visible() && get_allocation()->is_host_visible();
+    const auto both_mapped = source_buffer->get_allocation()->is_mapped() && get_allocation()->is_mapped();
     const auto both_host_cached = source_buffer->get_allocation()->is_host_cached() && get_allocation()->is_host_cached();
-    if (both_host_visible && both_host_cached) {
+    if (both_mapped && both_host_cached) {
         stream.finish();
         source_buffer->get_allocation()->invalidate(absolute_source_offset, size);
         if (!get_allocation()->is_host_coherent()) {
@@ -240,15 +270,15 @@ event::ptr vulkan_buffer::copy_to(stream& stream, void* destination, size_t sour
     if (size > 0) {
         const unsigned char* source_bytes = nullptr;
         vulkan_buffer_allocation::ptr staging;
-        if (get_allocation()->is_host_visible()) {
+        if (get_allocation()->is_mapped()) {
             get_allocation()->invalidate(get_offset() + source_offset, size);
             source_bytes = static_cast<const unsigned char*>(mapped_data()) + source_offset;
         } else {
-            const auto region_size = _region->get_size();
-            staging = allocate_staging(static_cast<size_t>(region_size));
-            vulkan_stream.enqueue_buffer_copy(get_allocation(), _region->get_offset(), staging, 0, region_size, true, {_region});
-            staging->invalidate(0, region_size);
-            source_bytes = static_cast<const unsigned char*>(staging->mapped_data) + _view_offset + source_offset;
+            const auto range = align_transfer_range(get_offset() + source_offset, size);
+            staging = allocate_staging(static_cast<size_t>(range.size));
+            vulkan_stream.enqueue_buffer_copy(get_allocation(), range.offset, staging, 0, range.size, true, {_region});
+            staging->invalidate(0, range.size);
+            source_bytes = static_cast<const unsigned char*>(staging->mapped_data) + range.prefix;
         }
         auto* destination_bytes = static_cast<unsigned char*>(destination) + destination_offset;
         std::memcpy(destination_bytes, source_bytes, size);

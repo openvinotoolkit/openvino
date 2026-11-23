@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -19,6 +20,7 @@ namespace vulkan {
 class vulkan_engine;
 class vulkan_device;
 class vulkan_memory_allocator;
+class vulkan_stream;
 
 enum class vulkan_buffer_memory_usage {
     device,
@@ -46,15 +48,7 @@ class vulkan_buffer_allocation {
 public:
     using ptr = std::shared_ptr<vulkan_buffer_allocation>;
 
-    vulkan_buffer_allocation(std::shared_ptr<vulkan_device> device_owner,
-                             VkDevice device,
-                             VkBuffer buffer,
-                             VkDeviceMemory memory,
-                             void* mapped_data,
-                             VkDeviceSize size,
-                             VkDeviceSize memory_size,
-                             VkMemoryPropertyFlags memory_flags,
-                             VkDeviceSize non_coherent_atom_size);
+    vulkan_buffer_allocation(std::shared_ptr<vulkan_device> device_owner, VkDeviceSize size);
     ~vulkan_buffer_allocation();
 
     vulkan_buffer_allocation(const vulkan_buffer_allocation&) = delete;
@@ -65,6 +59,10 @@ public:
 
     bool is_host_visible() const {
         return (memory_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+    }
+
+    bool is_mapped() const {
+        return mapped_data != nullptr;
     }
 
     bool is_device_local() const {
@@ -113,6 +111,7 @@ public:
 
 private:
     friend class vulkan_memory_allocator;
+    friend class vulkan_buffer;
 
     vulkan_buffer_region(std::weak_ptr<vulkan_memory_allocator> owner, vulkan_buffer_allocation::ptr allocation, VkDeviceSize offset, VkDeviceSize size);
 
@@ -120,6 +119,7 @@ private:
     vulkan_buffer_allocation::ptr _allocation;
     VkDeviceSize _offset = 0;
     VkDeviceSize _size = 0;
+    std::mutex _staging_write_mutex;
 };
 
 class vulkan_memory_allocator final : public std::enable_shared_from_this<vulkan_memory_allocator> {
@@ -197,6 +197,7 @@ private:
     void validate_range(size_t offset, size_t size, const char* operation) const;
     void* mapped_data() const;
     vulkan_buffer_allocation::ptr allocate_staging(size_t size) const;
+    event::ptr write_staged(const vulkan_stream& queue, size_t offset, size_t size, bool blocking, const std::function<void(unsigned char*)>& write);
 
     vulkan_buffer_region::ptr _region;
     VkDeviceSize _view_offset = 0;
