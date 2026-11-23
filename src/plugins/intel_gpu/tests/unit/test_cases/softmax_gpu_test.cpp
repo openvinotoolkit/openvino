@@ -1549,3 +1549,15 @@ TEST(log_softmax_gpu_f16, softmax_and_log_softmax_same_input_dynamic) {
         ASSERT_NEAR(softmax_ptr[i], expected_softmax[i], 1e-3f) << "i=" << i;
     }
 }
+
+// The log_softmax flag has to take part in both the hash and the comparison: a Softmax and a
+// LogSoftmax over the same input and axis are different operations. Checking them separately pins
+// each half, since a hash difference alone hides a missing comparison and vice versa.
+TEST(softmax_gpu_hash, log_softmax_flag_is_part_of_hash_and_comparison) {
+    const cldnn::softmax sm("id", input_info("input"), 1);
+    const cldnn::softmax lsm("id", input_info("input"), 1, true);
+    EXPECT_NE(sm.hash(), lsm.hash());
+    EXPECT_FALSE(sm == lsm);
+    EXPECT_TRUE(sm == cldnn::softmax("id", input_info("input"), 1));
+    EXPECT_TRUE(lsm == cldnn::softmax("id", input_info("input"), 1, true));
+}
