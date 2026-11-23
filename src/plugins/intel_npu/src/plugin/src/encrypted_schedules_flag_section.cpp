@@ -4,8 +4,6 @@
 
 #include "hsm_format/encrypted_schedules_flag_section.hpp"
 
-#include "intel_npu/common/itt.hpp"
-
 namespace intel_npu {
 
 EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_encryption)

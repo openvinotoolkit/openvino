@@ -4,11 +4,9 @@
 
 #pragma once
 
-#include <cinttypes>
 #include <iostream>
 #include <optional>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "intel_npu/common/hsm_format/cre_token.hpp"
@@ -17,7 +15,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/hsm_writer.hpp"
-#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace intel_npu {

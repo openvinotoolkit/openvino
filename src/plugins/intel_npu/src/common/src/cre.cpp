@@ -6,6 +6,8 @@
 
 #include <functional>
 
+#include "intel_npu/common/hsm_format/isection.hpp"
+
 #define CRE_ASSERT(...) OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
 
 namespace {

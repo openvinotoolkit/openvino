@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <functional>
-
 #include "intel_npu/common/hsm_format/isection.hpp"
 #include "openvino/core/layout.hpp"
 

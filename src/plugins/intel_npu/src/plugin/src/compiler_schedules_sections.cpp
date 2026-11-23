@@ -5,7 +5,6 @@
 #include "hsm_format/compiler_schedules_sections.hpp"
 
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/tensor_decryption.hpp"
 #include "intel_npu/utils/utils.hpp"
 

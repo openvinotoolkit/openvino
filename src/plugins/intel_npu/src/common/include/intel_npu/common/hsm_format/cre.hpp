@@ -7,7 +7,6 @@
 #include <unordered_set>
 
 #include "intel_npu/common/hsm_format/cre_token.hpp"
-#include "intel_npu/common/hsm_format/isection.hpp"
 #include "intel_npu/common/hsm_format/isection_type_evaluator.hpp"
 #include "intel_npu/common/hsm_format/section_id.hpp"
 #include "intel_npu/common/hsm_format/section_type.hpp"

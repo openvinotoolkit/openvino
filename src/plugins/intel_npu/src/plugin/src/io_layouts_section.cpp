@@ -4,8 +4,6 @@
 
 #include "hsm_format/io_layouts_section.hpp"
 
-#include "intel_npu/common/itt.hpp"
-
 namespace {
 
 // The size of the number of input + output layouts, assuming these values are "0"

@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "intel_npu/common/hsm_format/isection.hpp"
+#include <string_view>
+
 #include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {

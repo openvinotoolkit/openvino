@@ -4,8 +4,6 @@
 
 #include "hsm_format/compiler_version_section.hpp"
 
-#include "intel_npu/common/itt.hpp"
-
 namespace intel_npu {
 
 CompilerVersionSection::CompilerVersionSection(const int32_t version)

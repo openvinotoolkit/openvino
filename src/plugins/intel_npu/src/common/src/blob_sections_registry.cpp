@@ -4,8 +4,6 @@
 
 #include "intel_npu/common/hsm_format/blob_sections_registry.hpp"
 
-#include "intel_npu/common/itt.hpp"
-
 namespace {
 
 constexpr uint16_t FIRST_AVAILABLE_SECTION_ID = 0;

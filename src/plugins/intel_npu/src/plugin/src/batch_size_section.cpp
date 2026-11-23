@@ -4,8 +4,6 @@
 
 #include "hsm_format/batch_size_section.hpp"
 
-#include "intel_npu/common/itt.hpp"
-
 namespace intel_npu {
 
 BatchSizeSection::BatchSizeSection(const int64_t batch_size)

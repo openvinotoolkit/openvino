@@ -8,7 +8,6 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 
 #include "intel_npu/common/hsm_format/cre_token.hpp"
 #include "openvino/runtime/hsm_format.hpp"
