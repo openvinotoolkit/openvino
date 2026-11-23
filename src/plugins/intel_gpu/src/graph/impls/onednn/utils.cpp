@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <numeric>
 
+#include "fully_connected_inst.h"
+
 namespace cldnn {
 namespace onednn {
 
@@ -1003,18 +1005,37 @@ size_t get_post_ops_count(const program_node& node) {
     return onednn_post_ops_count;
 }
 
+bool is_supported_prelu_slope(const program_node& node, const layout& slope_layout) {
+    if (slope_layout.is_dynamic()) {
+        return false;
+    }
+    const size_t count = slope_layout.count();
+    if (count == 1) {
+        return true;
+    }
+    // get_prelu_mask_from_layouts() describes a non-scalar slope as per output channel: dim 1, or dim 2 for 3D FC
+    const bool is_3d_fc = node.is_type<fully_connected>() && node.as<fully_connected>().get_primitive()->input_size > 2;
+    const size_t channel_axis = is_3d_fc ? 2 : 1;
+    const auto slope_shape = slope_layout.get_shape();
+    return slope_shape.size() > channel_axis && slope_shape[channel_axis] == count;
+}
+
 bool is_supported_post_ops(const program_node& node) {
     if (get_post_ops_count(node) > 32) {
         return false;
     }
 
     const auto& fused_primitives = node.get_fused_primitives();
-    return std::all_of(fused_primitives.begin(), fused_primitives.end(), [](const auto& fo) {
+    return std::all_of(fused_primitives.begin(), fused_primitives.end(), [&node](const auto& fo) {
         if (fo.template is_type<activation>()) {
             // Some activations aren't implemented in oneDNN
             auto activation_prim = fo.template typed_desc<activation>();
             if (activation_prim->activation_function == activation_func::negative || activation_prim->activation_function == activation_func::negation ||
                 activation_prim->activation_function == activation_func::sign) {
+                return false;
+            }
+            if (activation_prim->activation_function == activation_func::relu_negative_slope && activation_prim->additional_params_input.is_valid() &&
+                fo.has_outer_dep() && !is_supported_prelu_slope(node, node.get_dependency(fo.outer_dep_start_idx).get_output_layout())) {
                 return false;
             }
         }
