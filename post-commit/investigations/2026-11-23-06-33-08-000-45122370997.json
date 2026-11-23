@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-06-33-08-000-45122370997",
+  "timestamp": "2026-11-23T06:33:08Z",
+  "run_id": "45122370997",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45122370997",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "9429e1518841b1c3c93cf81e99b08737046abec1",
+  "pr_number": "40003",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40003",
+  "author": "andrew-k-park",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with linker out-of-memory error LNK1102 under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Ninja/MSVC link step for ov_subgraphs_dumper_tests.exe and ov_ir_frontend_tests.exe failed with LNK1102 fatal error: out of memory"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Downstream status-check gate job failed solely because Build_And_Run_Collect_Mode failed; not an independent failure"
+    }
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_subgraphs_dumper_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_ir_frontend_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "ninja: build stopped: subcommand failed.\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Conditional Compilation (Collect Mode) build uses CMAKE_BUILD_PARALLEL_LEVEL: 31, launching many parallel MSVC link.exe processes concurrently on the Windows runner. Under this level of parallelism, the linker for ov_subgraphs_dumper_tests.exe and ov_ir_frontend_tests.exe exhausts available memory and fails with LNK1102, aborting the ninja build. This is the 18th recorded occurrence of this exact signature on this workflow since 2026-11-03, indicating a persistent, known capacity/parallelism issue with the Windows CC runner rather than a defect introduced by the triggering commit/PR (#40003, a GPU-plugin GroupedMatMul fix unrelated to Windows linking).",
+  "reproduction_steps": "Not directly reproducible outside CI without a similarly memory-constrained Windows runner. Locally: configure with CMAKE_BUILD_PARALLEL_LEVEL=31 (or similarly high) and CMAKE_BUILD_TYPE=Release on a machine with limited RAM, then run `ninja` to build the collect-mode target set; link-time OOM (LNK1102) reproduces when too many link.exe processes run concurrently.",
+  "recommended_actions": [
+    "Reduce CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC Collect Mode job, or split link-heavy test targets into separate batches to lower peak concurrent linker memory usage.",
+    "Consider adding /INCREMENTAL:NO already present, but also enable linker throttling (e.g., limit parallel link jobs via Ninja pool definitions) so compile and link phases do not compete unbounded for memory.",
+    "Evaluate moving this job to a Windows runner with more RAM, given 18 recurrences of the same OOM signature in 3 weeks.",
+    "File a tracking issue referencing this recurring pattern (signature_hash 80cfa127185fbf3e) so CI infra owners can prioritize a durable fix rather than relying on reruns."
+  ],
+  "prevention_strategies": "Cap Ninja's link-job concurrency independently from compile-job concurrency (Ninja `pool` with depth limit) on memory-constrained Windows runners, and monitor peak memory during CC builds to catch regressions in parallelism settings before they cause OOM linker failures.",
+  "historical_context": "This exact signature (Windows Release build linker/compiler OOM, LNK1102/C1060) has recurred 18 times between 2026-11-03 and this run (2026-11-23), consistently on this same Windows Conditional Compilation workflow, unrelated to the specific commit/PR that happened to trigger each run. It is a known, unresolved infrastructure capacity issue."
+}
