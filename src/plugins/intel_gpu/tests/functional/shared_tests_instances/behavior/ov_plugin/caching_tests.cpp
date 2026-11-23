@@ -179,6 +179,7 @@ public:
         core->set_property(ov::cache_dir(m_cacheFilePath));
         compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
         EXPECT_EQ(false, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+        const auto expected_output = infer(compiledModel);
 
         std::stringstream strm;
         compiledModel.export_model(strm);
@@ -190,9 +191,31 @@ public:
 
         compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
         EXPECT_EQ(true, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+
+        const auto actual_output = infer(compiledModel);
+        ASSERT_EQ(expected_output.size(), actual_output.size());
+        for (size_t i = 0; i < expected_output.size(); ++i) {
+            EXPECT_NEAR(expected_output[i], actual_output[i], 1e-4f) << "Output mismatch at index " << i;
+        }
     }
 
 private:
+    static std::vector<float> infer(ov::CompiledModel& model) {
+        auto request = model.create_infer_request();
+        auto input = request.get_input_tensor();
+        for (size_t i = 0; i < input.get_size(); ++i) {
+            input.data<float>()[i] = static_cast<float>(static_cast<int>(i % 17) - 8) * 0.01f;
+        }
+        request.infer();
+
+        auto output = request.get_output_tensor();
+        std::vector<float> values(output.get_size());
+        for (size_t i = 0; i < output.get_size(); ++i) {
+            values[i] = output.data<const float>()[i];
+        }
+        return values;
+    }
+
     size_t m_minBlobSize = 0;
     std::string m_modelName;
     std::string m_weightsName;
