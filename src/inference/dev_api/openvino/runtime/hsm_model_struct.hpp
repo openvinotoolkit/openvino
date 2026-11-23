@@ -9,16 +9,14 @@
  * The payload is exactly the IR XML bytes, in their original order. Its length is the section size in the
  * manifest; there is no length prefix, trailing NUL, or other framing. Weights belong in a separate section.
  * This payload contract applies to plugins that store IR XML under #model_tag (such as Template); other
- * devices may use the same tag for their own serialized model format. The decoder returns the XML bytes
- * as a string without parsing or validating them.
+ * devices may use the same tag for their own serialized model format. The decoder returns the payload bytes
+ * as a buffer without parsing or validating them.
  */
 
 #pragma once
 
 #include <functional>
 #include <memory>
-#include <optional>
-#include <string>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -51,11 +49,11 @@ private:
     Producer m_producer;
 };
 
-/** @brief Copies raw XML bytes into a string; returns nullopt for an invalid nonempty view. */
-OPENVINO_RUNTIME_API std::optional<std::string> decode_model_struct(ov::util::MemoryView payload);
-
-/** @brief Decodes a buffer- or stream-backed section; returns nullopt if it cannot be read. */
-OPENVINO_RUNTIME_API std::optional<std::string> decode_model_struct(const Section& section) noexcept;
+/** @brief Returns the section as a buffer: zero-copy when it is addressable and @p owner keeps its bytes alive,
+ * otherwise an owned copy; an empty buffer for an empty section, nullptr if it cannot be read. */
+OPENVINO_RUNTIME_API std::shared_ptr<ov::AlignedBuffer> decode_model_struct(
+    const Section& section,
+    std::shared_ptr<ov::AlignedBuffer> owner = {});
 
 }  // namespace v1
 }  // namespace ov::runtime::hsm

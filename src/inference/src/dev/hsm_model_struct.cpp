@@ -4,27 +4,23 @@
 
 #include "openvino/runtime/hsm_model_struct.hpp"
 
+#include "openvino/runtime/shared_buffer.hpp"
+
 namespace ov::runtime::hsm {
 inline namespace v1 {
-std::optional<std::string> decode_model_struct(ov::util::MemoryView payload) {
-    if (payload.size() && payload.empty()) {
-        return std::nullopt;
-    }
-    return payload.size() ? std::optional<std::string>{{reinterpret_cast<const char*>(payload.data()), payload.size()}}
-                          : std::optional<std::string>{std::string{}};
-}
-
-std::optional<std::string> decode_model_struct(const Section& section) noexcept try {
+std::shared_ptr<ov::AlignedBuffer> decode_model_struct(const Section& section, std::shared_ptr<ov::AlignedBuffer> owner) {
+    // Section::read() would fail for a section without a source and memcpy from null for an empty MemoryView.
     if (section.size() == 0) {
-        return std::string{};
+        return std::make_shared<ov::AlignedBuffer>();  // AlignedBuffer(0) would hold one byte
     }
-    if (const auto view = section.view(); !view.empty()) {
-        return decode_model_struct(view);
+    if (const auto view = section.view(); owner && !view.empty()) {
+        // Read-only wrap; the buffer is never written through.
+        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(const_cast<std::byte*>(view.data()),
+                                                                                    view.size(),
+                                                                                    std::move(owner));
     }
-    std::string xml(section.size(), '\0');
-    return section.read(xml.data()) ? std::optional{std::move(xml)} : std::nullopt;
-} catch (...) {
-    return std::nullopt;
+    auto buffer = std::make_shared<ov::AlignedBuffer>(section.size());
+    return section.read(buffer->get_ptr()) ? buffer : nullptr;
 }
 
 }  // namespace v1
