@@ -143,7 +143,7 @@ JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling
     return jit;
 }
 
-bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::IsGlobalPooling(const pooling_params& params) const {
+bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::IsGlobalPooling(const pooling_params& params) {
     return params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && params.outputs[0].Z().v == 1;
 }
 

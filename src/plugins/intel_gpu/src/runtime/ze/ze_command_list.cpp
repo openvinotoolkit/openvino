@@ -15,8 +15,8 @@ ze_command_list::ze_command_list(ze_stream& ze_stream, QueueTypes queue_type)
     ,_queue_type(queue_type) {
     const auto& engine = ze_stream.get_engine();
     const auto& info = engine.get_device_info();
-    auto ctx_handle = engine.get_context().handle();
-    auto device_handle = engine.get_device().handle();
+    auto* ctx_handle = engine.get_context().handle();
+    auto* device_handle = engine.get_device().handle();
 
     ze_command_list_flags_t flags = queue_type == QueueTypes::out_of_order ? 0 : ZE_COMMAND_LIST_FLAG_IN_ORDER;
     ze_command_list_desc_t command_list_desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
@@ -76,7 +76,7 @@ void ze_command_list::enqueue_impl() {
     ze_command_list_handle_t imm_cmd_list = ze_stream.get_immediate_command_list().handle();
     ze_command_list_handle_t enqueued_cmd_list = _cmd_list.handle();
     auto event = std::static_pointer_cast<ze_base_event>(ze_stream.create_base_event());
-    auto event_handle = event->get_handle();
+    auto* event_handle = event->get_handle();
     OV_ZE_EXPECT(zeCommandListImmediateAppendCommandListsWithParameters(imm_cmd_list, 1, &enqueued_cmd_list, nullptr, event_handle, 0, nullptr));
     _event = event;
 }

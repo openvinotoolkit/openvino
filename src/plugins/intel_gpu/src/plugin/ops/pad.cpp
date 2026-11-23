@@ -38,7 +38,7 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
         non_constant_input_mask |= cldnn::border::PAD_NON_CONST_INPUT::END;
     }
 
-    float pad_value = 0.f;
+    float pad_value = 0.F;
     bool is_value_const = false;
     if (op->get_pad_mode() == ov::op::PadMode::CONSTANT && op->get_input_size() == 4) {
         auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
