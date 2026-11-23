@@ -19,6 +19,8 @@ static constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
 static constexpr cl_uint CL_L0_PLATFORM_DRIVER_HANDLE = 0x42B5;
 static constexpr cl_uint CL_L0_IMAGE_HANDLE = 0x42B6;
 
+static constexpr cl_mem_properties CL_L0_IMAGE_LIST_END_HANDLE = 0;
+
 inline void expect_success(cl_int error, void *handle, const std::string& message) {
     if (error != CL_SUCCESS || handle == nullptr) {
         OPENVINO_THROW(message,
@@ -231,6 +233,23 @@ cl_mem ze_ocl_interop::create_cl_image(ze_image_handle_t image, const ocl_image_
     expect_success(error, converted_mem, "[GPU] Attempt to create CL image from ZE image failed");
     return converted_mem;
 }
+
+cl_mem ze_ocl_interop::create_cl_image(const std::vector<ze_image_handle_t>& images, const ocl_image_args &args) const {
+    // creating CL image from multiple ZE images
+    OPENVINO_ASSERT(!images.empty(), "[GPU] At least one ZE image is required to create an OCL image");
+    std::vector<cl_mem_properties> properties{CL_L0_IMAGE_HANDLE};
+    for (auto image : images) {
+        OPENVINO_ASSERT(image != nullptr, "[GPU] Cannot create an OCL image from a null ZE image");
+        properties.push_back(reinterpret_cast<cl_mem_properties>(image));
+    }
+    properties.push_back(CL_L0_IMAGE_LIST_END_HANDLE);
+    properties.push_back(0);
+    cl_int error;
+    cl_mem converted_mem = clCreateImageWithProperties(args.context, properties.data(), args.flags, &args.format, &args.desc, nullptr, &error);
+    expect_success(error, converted_mem, "[GPU] Attempt to create CL image from ZE image failed");
+    return converted_mem;
+}
+
 
 }  // namespace ze
 }  // namespace cldnn

@@ -80,7 +80,8 @@ public:
     cl_context create_cl_context(ze_context_handle_t context, const ocl_context_args& args) const;
     cl_command_queue create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args) const;
     cl_mem create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args) const;
-    cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args) const;
+    cl_mem create_cl_image(ze_image_handle_t image, const ocl_image_args& args) const;  // from 1 ZE image
+    cl_mem create_cl_image(const std::vector<ze_image_handle_t>& images, const ocl_image_args& args) const; // from multiple ZE images
 protected:
     ze_ocl_interop() = default;
     /// @brief Initialize OpenCL and L0 drivers and fill device_map
