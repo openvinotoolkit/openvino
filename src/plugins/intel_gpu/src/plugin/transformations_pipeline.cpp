@@ -91,6 +91,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_gated_residual_scale_layout.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
@@ -113,6 +114,7 @@
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/fuse_rms_rope.hpp"
+#include "plugin/transformations/gated_residual_fusion.hpp"
 #include "plugin/transformations/group_query_attention_decomposition.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
@@ -127,6 +129,7 @@
 #include "plugin/transformations/stateless_kv_fusion.hpp"
 #include "plugin/transformations/swoosh_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
@@ -681,6 +684,36 @@ bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>
     }
     return false;
 }
+
+// 2Dx3D GroupedMatMul runs on oneDNN grouped_gemm, which supports only f16 activations, so it is decomposed into MatMuls for
+// other activation types. With dynamic inference precision the activation type is kept as is, so it is checked per node.
+// 3Dx3D GroupedMatMul is lowered to a batched FullyConnected and stays as is. Without immad or oneDNN, every GroupedMatMul
+// is decomposed.
+void register_grouped_matmul_decomposition(ov::pass::Manager& manager,
+                                           const cldnn::device_info& device_info,
+                                           const ExecutionConfig& config,
+                                           ov::element::Type infer_precision) {
+    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+        return;
+    }
+    if (!device_info.supports_immad || !config.get_use_onednn()) {
+        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+        return;
+    }
+    if (infer_precision == ov::element::f16) {
+        return;
+    }
+    auto needs_decomposition = [infer_precision](const std::shared_ptr<const ov::Node>& node) {
+        return node->get_input_partial_shape(0).rank() == 2 && (infer_precision != ov::element::dynamic || node->get_input_element_type(0) != ov::element::f16);
+    };
+    auto pass_config = manager.get_pass_config();
+    // ConvertGroupedMatMulToGroupedMatMulCompressed is registered before: keep the GroupedMatMul to be decomposed uncompressed.
+    pass_config->set_callback<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(needs_decomposition);
+    pass_config->set_callback<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>([needs_decomposition](const std::shared_ptr<const ov::Node>& node) {
+        return !needs_decomposition(node);
+    });
+    manager.register_pass<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>();
+}
 }  // namespace
 
 bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -928,6 +961,16 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
     manager.register_pass<ov::intel_gpu::SwooshFusion>();
     manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+
+    // GatedResidual kernel (scalar included) needs the OpenCL subgroup extensions, else a fused node has no implementation.
+    // The fusion also hides the Add / MatMul ops that the activation scaling has to rescale, so it is skipped then.
+    const bool fp16_activation_scaling = config.get_activations_scale_factor() > 0.F && infer_precision == ov::element::f16;
+    if (cldnn::gated_residual_caps::is_device_supported(device_info) && !fp16_activation_scaling) {
+        manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::uses_dpas_kernels(device_info, config));
+        // The fusion keeps the scales / zero points in the operation layout [N, G]; the kernels read [G, N].
+        manager.register_pass<ov::intel_gpu::ConvertGatedResidualScaleLayout>();
+    }
+
     // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
     manager.register_pass<ov::pass::Validate>();
 
@@ -1138,9 +1181,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        if ((!device_info.supports_immad || !config.get_use_onednn()) && !GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
-            manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
-        }
+        register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
 
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -2023,9 +2064,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2;
 
+            // Read outside the lambda: config is a member, and capturing this is unused in release builds
+            [[maybe_unused]] const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+            [[maybe_unused]] const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
-                const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
-                const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
                 GPU_DEBUG_IF(dyn_quan_bisect != std::numeric_limits<int64_t>::max() ||
                                 dyn_quan_single >= 0) {
                     static int64_t fc_count = 0;
