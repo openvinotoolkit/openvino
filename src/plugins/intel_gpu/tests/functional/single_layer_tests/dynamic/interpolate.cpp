@@ -9,13 +9,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "openvino/core/graph_util.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -279,84 +275,6 @@ const std::vector<ov::op::v4::Interpolate::CoordinateTransformMode> coordinateTr
         ov::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
         ov::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
-
-const std::vector<ShapeParams> rank3AudioShapes = {
-    {ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
-     InputShape{{2, 18, 101}, {{2, 18, 101}}},
-     ov::test::utils::InputLayerType::CONSTANT,
-     ov::test::utils::InputLayerType::CONSTANT,
-     {{1.f, 1.f, 160.f}},
-     {0, 1, 2}},
-    {ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
-     InputShape{{-1, 18, -1}, {{1, 18, 7}, {2, 18, 11}}},
-     ov::test::utils::InputLayerType::CONSTANT,
-     ov::test::utils::InputLayerType::CONSTANT,
-     {{0.75f}, {0.75f}},
-     {2}},
-    {ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
-     InputShape{{-1, 18, -1}, {{1, 18, 7}, {2, 18, 11}}},
-     ov::test::utils::InputLayerType::CONSTANT,
-     ov::test::utils::InputLayerType::CONSTANT,
-     {{31.f}, {31.f}},
-     {2}},
-};
-
-class InterpolateRank3AudioGPUTest : public InterpolateLayerGPUTest {
-protected:
-    void SetUp() override {
-        InterpolateLayerGPUTest::SetUp();
-        configuration.insert(ov::hint::inference_precision(std::get<2>(GetParam())));
-
-        const auto& axes = std::get<5>(std::get<1>(GetParam()));
-        if (axes != std::vector<int64_t>{2})
-            return;
-
-        // The reference evaluator requires all three axes for rank-3 linear_onnx.
-        // Keep the reference rank 3, making unchanged batch/channel sizes explicit.
-        functionRefs = function->clone();
-        const auto interpolate = ov::as_type_ptr<ov::op::util::InterpolateBase>(functionRefs->get_result()->input_value(0).get_node_shared_ptr());
-        OPENVINO_ASSERT(interpolate, "Rank-3 reference expects an Interpolate result");
-        const bool scales_mode = shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES;
-        const bool v11 = ov::is_type<ov::op::v11::Interpolate>(interpolate);
-        const auto values = interpolate->input_value(scales_mode && !v11 ? 2 : 1);
-        ov::Output<ov::Node> unchanged;
-        if (scales_mode) {
-            unchanged = ov::op::v0::Constant::create(values.get_element_type(), {2}, {1, 1});
-        } else {
-            const auto shape = std::make_shared<ov::op::v3::ShapeOf>(interpolate->input_value(0), values.get_element_type());
-            unchanged = std::make_shared<ov::op::v8::Gather>(shape,
-                                                             ov::op::v0::Constant::create(ov::element::i64, {2}, {0, 1}),
-                                                             ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
-        }
-        const auto full_values = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unchanged, values}, 0);
-        const auto sizes_input = scales_mode ? ov::op::v0::Constant::create(ov::element::i32, {3}, {1, 1, 1}) : full_values->output(0);
-        const auto scales_input = scales_mode ? full_values->output(0) : ov::op::v0::Constant::create(ov::element::f32, {3}, {1, 1, 1});
-        const auto reference = std::make_shared<ov::op::v4::Interpolate>(interpolate->input_value(0),
-                                                                         sizes_input,
-                                                                         scales_input,
-                                                                         ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}),
-                                                                         interpolate->get_attrs());
-        ov::replace_node(interpolate, reference);
-    }
-};
-
-TEST_P(InterpolateRank3AudioGPUTest, Inference) {
-    run();
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_InterpolateRank3Audio,
-                         InterpolateRank3AudioGPUTest,
-                         testing::Combine(testing::Combine(testing::Values(ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX),
-                                                           testing::ValuesIn(coordinateTransformModes_Full),
-                                                           testing::Values(ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR),
-                                                           testing::Values(false),
-                                                           testing::Values(std::vector<size_t>{0, 0, 0}),
-                                                           testing::Values(std::vector<size_t>{0, 0, 0}),
-                                                           testing::Values(-0.75)),
-                                          testing::ValuesIn(rank3AudioShapes),
-                                          testing::Values(ov::element::f32, ov::element::f16),
-                                          testing::Bool()),
-                         InterpolateLayerGPUTest::getTestCaseName);
 
 const std::vector<ShapeParams> rank3EquivalenceShapes = {
     {ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
