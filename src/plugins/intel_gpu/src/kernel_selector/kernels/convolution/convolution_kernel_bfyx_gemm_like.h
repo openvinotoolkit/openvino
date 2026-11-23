@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*params*/) const override;
     std::string GetKernelName(const convolution_params& params) const override;
     bool NeedPaddedInput() const override { return true; }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;

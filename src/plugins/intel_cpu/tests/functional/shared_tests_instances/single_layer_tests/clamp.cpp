@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <vector>
@@ -35,6 +36,13 @@ const std::vector<std::pair<double, double>> intervals_unsigned = {
     {10.6, 20.6}
 };
 
+// Fractional bounds within the generated input range [0, 15]: integral types round min up and max down
+const std::vector<std::pair<double, double>> intervals_8bit = {
+    {2.5, 10.5},
+    {0.4, 7.6},
+    {3.0, 12.0}
+};
+
 const std::vector<ov::element::Type> model_type = {
     ov::element::f32,
     ov::element::f16,
@@ -64,9 +72,17 @@ const auto test_Clamp_i64 = ::testing::Combine(
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
+const auto test_Clamp_8bit = ::testing::Combine(
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+    ::testing::ValuesIn(intervals_8bit),
+    ::testing::Values(ov::element::i8, ov::element::u8),
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
+);
+
 INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_signed, ClampLayerTest, test_Clamp_signed, ClampLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_unsigned, ClampLayerTest, test_Clamp_unsigned, ClampLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_i64, ClampLayerTest, test_Clamp_i64, ClampLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_8bit, ClampLayerTest, test_Clamp_8bit, ClampLayerTest::getTestCaseName);
 
 TEST(smoke_Clamp, Int32MaxMinusOneBoundIsPreserved) {
     const auto maximum = std::numeric_limits<int32_t>::max();
@@ -87,5 +103,24 @@ TEST(smoke_Clamp, Int32MaxMinusOneBoundIsPreserved) {
     const auto output = inferRequest.get_output_tensor();
     ASSERT_EQ(output.data<const int32_t>()[0], bound);
     ASSERT_EQ(output.data<const int32_t>()[1], bound);
+}
+
+TEST(smoke_Clamp, Int8NegativeFractionalBoundsAreRounded) {
+    const std::vector<int8_t> values = {-6, -5, -4, -2, -1, 0, 3};
+    const std::vector<int8_t> expected = {-4, -4, -4, -2, -2, -2, -2};  // min = ceil(-4.5), max = floor(-1.5)
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{values.size()});
+    const auto clamp = std::make_shared<ov::op::v0::Clamp>(input, -4.5, -1.5);
+    const auto model = std::make_shared<ov::Model>(clamp, ov::ParameterVector{input});
+
+    ov::Core core;
+    auto compiledModel = core.compile_model(model, ov::test::utils::DEVICE_CPU);
+    auto inferRequest = compiledModel.create_infer_request();
+    ov::Tensor inputTensor(ov::element::i8, ov::Shape{values.size()});
+    std::copy(values.begin(), values.end(), inputTensor.data<int8_t>());
+    inferRequest.set_input_tensor(inputTensor);
+    inferRequest.infer();
+
+    const auto output = inferRequest.get_output_tensor();
+    ASSERT_EQ(std::vector<int8_t>(output.data<const int8_t>(), output.data<const int8_t>() + values.size()), expected);
 }
 } // namespace

@@ -128,6 +128,7 @@ enum class Type : uint8_t {
     RandomUniform,
     Unique,
     Ngram,
+    NgramHash,
     ScaledDotProductAttention,
     PagedAttention,
     PaKVReorder,
@@ -138,13 +139,18 @@ enum class Type : uint8_t {
     RMS,
     SearchSorted,
     SegmentMax,
+    Histc,
     LoRA,
     GatherMatmul,
     GatedDeltaNet,
     PagedGatedDeltaNet,
     SelectiveSSM,
     PagedSelectiveSSM,
-    PagedCausalConv1D
+    PagedCausalConv1D,
+    QSAIndexer,
+    SparseSDPA,
+    PagedQSAIndexer,
+    SparsePA,
 };
 
 enum class Algorithm : uint8_t {
@@ -298,6 +304,8 @@ enum class Algorithm : uint8_t {
     ColorConvertNV12toBGR,
     ColorConvertI420toRGB,
     ColorConvertI420toBGR,
+    ColorConvertRGBtoNV12,
+    ColorConvertBGRtoNV12,
 };
 
 extern const ov::intel_cpu::caseless_unordered_map<std::string, Type> type_to_name_tbl;

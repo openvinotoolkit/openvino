@@ -28,9 +28,9 @@ else()
     message(STATUS "The download of Intel NPU Compiler library is skipped!")
 endif()
 
-# to allow overriding CMAKE_CXX_STANDARD from the command line (e.g. the C++20 opt-in CI jobs)
+# fallback in case this directory is ever processed before the top-level default is set
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
 endif()
 
 if(ENABLE_NPU_DEBUG_CAPS)
@@ -89,8 +89,10 @@ endif()
 
 add_subdirectory(src)
 
-if(ENABLE_TESTS)
+if(ENABLE_TESTS AND ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(tests)
+elseif(ENABLE_TESTS)
+    message(WARNING "NPU plugin tests are skipped because ENABLE_NPU_PLUGIN_ENGINE is OFF.")
 endif()
 
 if(ENABLE_INTEL_NPU_INTERNAL)

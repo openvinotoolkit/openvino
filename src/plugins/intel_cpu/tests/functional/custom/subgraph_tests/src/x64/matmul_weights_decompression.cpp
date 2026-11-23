@@ -93,6 +93,12 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_fp8_grouped = {
     {{{}, {{1, 16, 512}}}, {512, 128}, 128UL},
 };
 
+// oneDNN has no blocked fp8 B layout for ndims > 3, so activations of rank > 3 must fall back to folded weights.
+const std::vector<MatMulDecompressionShapeParams> input_shapes_fp8_rank4 = {
+    {{{}, {{1, 8, 16, 256}}}, {256, 64}},
+    {{{-1, -1, -1, 256}, {{1, 8, 16, 256}, {1, 2, 4, 256}}}, {256, 64}},
+};
+
 const std::vector<MatMulDecompressionShapeParams> input_shapes_amx = {
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
     {{{}, {{1, 4, 32}}}, {32, 256}},
@@ -212,6 +218,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_accuracy_mode_not_
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_grouped_not_supported,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_fp8_grouped),
+                                            ::testing::ValuesIn(weights_precisions_fp8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(get_additional_config_fp8_wd()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(false)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_rank4_not_supported,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_fp8_rank4),
                                             ::testing::ValuesIn(weights_precisions_fp8),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::dynamic),

@@ -13,8 +13,19 @@
 
 namespace ov::frontend::gguf {
 
-// Recipes use resolved vision.patch_size/window_size/merge and clip.* dimensions in config.
-enum class ProjectorLayout { Unsupported, Image, PaddedPatches, WindowedPatches, SplitMerger, PackedPatches };
+// Recipes use resolved vision.patch_size/temporal_patch_size/window_size/merge and clip.* dimensions in config.
+enum class ProjectorLayout {
+    Unsupported,
+    Image,
+    PaddedPatches,
+    WindowedPatches,
+    SplitMerger,
+    PackedPatches,
+    TemporalPackedPatches,
+    BatchedImage
+};
+
+enum class AudioLayout { Unsupported, Gemma4, UnifiedGemma4 };
 
 struct GGUF_FRONTEND_API ProjectorResult {
     GgufValue output;
@@ -23,6 +34,7 @@ struct GGUF_FRONTEND_API ProjectorResult {
     std::optional<ProjectorLayout> genai_layout;
     // Overrides the definition; an explicit empty callback selects the serializable recipe.
     std::optional<ModelAdapterFn> genai_adapter;
+    std::optional<AudioLayout> audio_layout;
 };
 
 struct GGUF_FRONTEND_API ProjectorDefinition {
@@ -36,6 +48,7 @@ struct GGUF_FRONTEND_API ProjectorDefinition {
     ArchitectureDefinition::MatchFn match;
     std::optional<ProjectorLayout> genai_layout;
     ModelAdapterFn genai_adapter;
+    std::optional<AudioLayout> audio_layout;
 };
 
 class GGUF_FRONTEND_API ProjectorExtension : public ArchitectureExtension {

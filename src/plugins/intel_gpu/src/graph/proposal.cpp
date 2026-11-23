@@ -159,8 +159,8 @@ static void generate_anchors(unsigned int base_size,
                              bool shift_anchors,
                              bool round_ratios) {
     const float base_area = static_cast<float>(base_size * base_size);
-    const float half_base_size = base_size * 0.5f;
-    const float center = 0.5f * (base_size - coordinates_offset);
+    const float half_base_size = base_size * 0.5F;
+    const float center = 0.5F * (base_size - coordinates_offset);
 
     anchors.clear();
     // enumerate all transformed boxes
@@ -179,8 +179,8 @@ static void generate_anchors(unsigned int base_size,
         for (size_t scale = 0; scale < scales.size(); ++scale) {
             proposal_inst::anchor anchor;
             // transformed width & height for given scale factors
-            const float scale_w = 0.5f * (ratio_w * scales[scale] - coordinates_offset);
-            const float scale_h = 0.5f * (ratio_h * scales[scale] - coordinates_offset);
+            const float scale_w = 0.5F * (ratio_w * scales[scale] - coordinates_offset);
+            const float scale_h = 0.5F * (ratio_h * scales[scale] - coordinates_offset);
 
             // (x1, y1, x2, y2) for transformed box
             anchor.start_x = center - scale_w;

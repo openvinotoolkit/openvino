@@ -788,7 +788,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     }
     const auto prec = config.precision;
 
-    auto attention_mask = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "attention_mask");
+    auto attention_mask = parameter(config.attention_mask_type, config.attention_mask_shape, "attention_mask");
+    const bool mask_is_2d =
+        config.attention_mask_shape.rank().is_static() && config.attention_mask_shape.rank().get_length() == 2;
+    OPENVINO_ASSERT(mask_is_2d || (config.sliding_window_size == 0 && !config.use_token_type_ids),
+                    "A ready attention_mask cannot be combined with sliding_window_size or use_token_type_ids");
+    OPENVINO_ASSERT(mask_is_2d || !config.force_gqa_broadcast,
+                    "A ready attention_mask cannot be combined with force_gqa_broadcast");
 
     ov::Output<ov::Node> hidden_states;
     ov::Output<ov::Node> seq_source;
@@ -825,7 +831,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     ov::Output<ov::Node> full_mask;
     ov::Output<ov::Node> sliding_mask;
 
-    if (has_full_layers) {
+    if (!mask_is_2d) {
+        full_mask = attention_mask->output(0);
+        if (full_mask.get_element_type().is_real() && full_mask.get_element_type() != prec) {
+            full_mask = std::make_shared<ov::opset11::Convert>(full_mask, prec);
+        }
+    }
+    if (mask_is_2d && has_full_layers) {
         full_mask = config.boolean_causal_mask ? make_causal_mask_boolean(seq_source, attention_mask->output(0), prec)
                                                : make_causal_mask(seq_source, attention_mask->output(0), prec);
     }
@@ -846,7 +858,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
 
     // Shared GQA broadcast shape (embedding models only)
     ov::Output<ov::Node> shared_broadcast;
-    if ((!config.use_kv_cache && !config.lm_head_weight) || config.force_gqa_broadcast) {
+    if (mask_is_2d && ((!config.use_kv_cache && !config.lm_head_weight) || config.force_gqa_broadcast)) {
+        // The shared broadcast reads the batch and the key length from dims 0 and 1 of a 2D mask.
         shared_broadcast = make_shared_gqa_broadcast(attention_mask->output(0),
                                                      config.get_kv_heads(),
                                                      config.num_heads,

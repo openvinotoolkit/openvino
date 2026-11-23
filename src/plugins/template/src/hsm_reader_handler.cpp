@@ -40,8 +40,8 @@ std::shared_ptr<ov::AlignedBuffer> decode_buffer(const HsmReaderHandler& handler
     }
 }
 
-// Inverse of encode_compiled_options() in hsm_writer_handler.cpp - one `key=value` per line, split on the first '='.
-ov::AnyMap decode_compiled_options(std::string_view encoded) {
+// Inverse of encode_compile_options() in hsm_writer_handler.cpp - one `key=value` per line, split on the first '='.
+ov::AnyMap decode_compile_options(std::string_view encoded) {
     ov::AnyMap options;
     while (!encoded.empty()) {
         const auto line_end = std::min(encoded.find('\n'), encoded.size());
@@ -72,8 +72,8 @@ void set_weights(HsmReaderHandler& handler, const runtime::hsm::Section& section
     handler.m_weights = section.size() == 0 ? nullptr : decode_buffer(handler, section);
 }
 
-void set_compiled_options(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.m_compiled_options = decode_compiled_options(decode_string(section).value_or(""));
+void set_compile_options(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
+    handler.m_compile_options = decode_compile_options(decode_string(section).value_or(""));
 }
 
 void set_blob_info(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
@@ -90,7 +90,7 @@ const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders
     {hsm::section_key(hsm::runtime_requirements), set_runtime_requirements},
     {hsm::section_key(hsm::model_struct), set_model},
     {hsm::section_key(hsm::weights), set_weights},
-    {hsm::section_key(hsm::compiled_options), set_compiled_options},
+    {hsm::section_key(hsm::compile_options), set_compile_options},
     {hsm::section_key(hsm::blob_info), set_blob_info},
 };
 

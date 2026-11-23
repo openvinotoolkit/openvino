@@ -21,14 +21,15 @@ enum class prior_box_code_type : int32_t {
 struct detection_output : public primitive_base<detection_output> {
     CLDNN_DECLARE_PRIMITIVE(detection_output)
 
-    detection_output() : primitive_base("", {}),
+    detection_output()
+        : primitive_base("", {}),
           num_classes(0),
           keep_top_k(0),
           share_location(true),
           background_label_id(0),
-          nms_threshold(0.3f),
+          nms_threshold(0.3F),
           top_k(-1),
-          eta(1.f),
+          eta(1.F),
           code_type(prior_box_code_type::corner),
           variance_encoded_in_target(false),
           confidence_threshold(-std::numeric_limits<float>::max()),
@@ -40,7 +41,7 @@ struct detection_output : public primitive_base<detection_output> {
           decrease_label_id(false),
           clip_before_nms(false),
           clip_after_nms(false),
-          objectness_score(0.0f) {}
+          objectness_score(0.0F) {}
 
     /// @brief Constructs detection output primitive.
     /// @param id This primitive id.
@@ -61,9 +62,9 @@ struct detection_output : public primitive_base<detection_output> {
                      const uint32_t keep_top_k,
                      const bool share_location = true,
                      const int background_label_id = 0,
-                     const float nms_threshold = 0.3f,
+                     const float nms_threshold = 0.3F,
                      const int top_k = -1,
-                     const float eta = 1.f,
+                     const float eta = 1.F,
                      const prior_box_code_type code_type = prior_box_code_type::corner,
                      const bool variance_encoded_in_target = false,
                      const float confidence_threshold = -std::numeric_limits<float>::max(),
@@ -75,7 +76,7 @@ struct detection_output : public primitive_base<detection_output> {
                      const bool decrease_label_id = false,
                      const bool clip_before_nms = false,
                      const bool clip_after_nms = false,
-                     const float objectness_score = 0.0f)
+                     const float objectness_score = 0.0F)
         : primitive_base(id, inputs),
           num_classes(num_classes),
           keep_top_k(keep_top_k),
