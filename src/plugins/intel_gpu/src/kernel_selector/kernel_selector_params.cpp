@@ -496,10 +496,7 @@ void ParamsKey::EnableQuantization(QuantizationType q) {
     }
 }
 
-bool ParamsKey::Support(const ParamsKey& k) const {
-    if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw)) {  // check if this kernel supports this params
-        return false;
-    }
+bool ParamsKey::SupportDataTypes(const ParamsKey& k) const {
     if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw)) {
         return false;
     }
@@ -510,6 +507,16 @@ bool ParamsKey::Support(const ParamsKey& k) const {
         return false;
     }
     if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw)) {
+        return false;
+    }
+    return true;
+}
+
+bool ParamsKey::Support(const ParamsKey& k) const {
+    if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw)) {  // check if this kernel supports this params
+        return false;
+    }
+    if (!SupportDataTypes(k)) {
         return false;
     }
     if ((key.inputLayout & k.key.inputLayout) == 0 && key.inputLayout != k.key.inputLayout) {

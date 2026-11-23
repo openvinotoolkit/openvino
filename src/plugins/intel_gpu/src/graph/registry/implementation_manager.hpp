@@ -39,6 +39,32 @@ struct implementation_key {
     }
 
 using ValidateFunc = std::function<bool(const program_node& node)>;
+enum class implementation_data_type_support { supported, unsupported, unknown };
+
+template <typename primitive_kind>
+struct implementation_factory {
+    using create_function = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&,
+                                                                        const kernel_impl_params&)>;
+    using query_function = std::function<implementation_data_type_support(const kernel_impl_params&)>;
+
+    template <typename Factory>
+    implementation_factory(Factory factory) : create_function_impl(std::move(factory)) {}
+    implementation_factory(create_function factory, query_function query)
+        : create_function_impl(std::move(factory)), query_function_impl(std::move(query)) {}
+
+    explicit operator bool() const { return static_cast<bool>(create_function_impl); }
+    std::unique_ptr<primitive_impl> operator()(const typed_program_node<primitive_kind>& node,
+                                              const kernel_impl_params& params) const {
+        return create_function_impl(node, params);
+    }
+    implementation_data_type_support query(const kernel_impl_params& params) const {
+        return query_function_impl ? query_function_impl(params) : implementation_data_type_support::unknown;
+    }
+
+    create_function create_function_impl;
+    query_function query_function_impl;
+};
+
 struct ImplementationManager {
 public:
     std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const;
@@ -59,6 +85,9 @@ public:
     virtual std::unique_ptr<primitive_impl> create_impl(const kernel_impl_params& params) const { OPENVINO_NOT_IMPLEMENTED; }
     virtual bool validate_impl(const program_node& node) const { return true; }
     virtual bool support_shapes(const kernel_impl_params& param) const { return true; }
+    virtual implementation_data_type_support query_data_types(const kernel_impl_params&) const {
+        return implementation_data_type_support::unknown;
+    }
     virtual in_out_fmts_t query_formats(const program_node& node) const { OPENVINO_NOT_IMPLEMENTED; }
 
     ImplementationManager(impl_types impl_type, shape_types shape_type, ValidateFunc vf = nullptr)
@@ -101,11 +130,15 @@ struct ImplementationManagerLegacy : public ImplementationManager {
         return true;
     }
 
+    implementation_data_type_support query_data_types(const kernel_impl_params& params) const override {
+        return m_impl_type == impl_types::ocl ? m_factory.query(params) : implementation_data_type_support::unknown;
+    }
+
     in_out_fmts_t query_formats(const program_node& node) const override {
         return {};
     }
 
-    using simple_factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
+    using simple_factory_type = implementation_factory<primitive_kind>;
     ImplementationManagerLegacy(simple_factory_type factory, impl_types impl_type, shape_types shape_type, std::set<key_type> keys)
         : ImplementationManager(impl_type, shape_type, nullptr)
         , m_factory(factory)
@@ -123,7 +156,7 @@ struct ImplementationManagerLegacy : public ImplementationManager {
     ImplementationManagerLegacy() = default;
 
 private:
-    simple_factory_type m_factory;
+    simple_factory_type m_factory{nullptr};
     std::set<key_type> m_keys;
 
     void add_keys_with_any_layout() {

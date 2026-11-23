@@ -16,6 +16,9 @@ class KernelBaseOpenCL : public KernelBase {
 public:
     using KernelBase::KernelBase;
     ~KernelBaseOpenCL() override = default;
+    bool IsSupported(const Params& params) const override {
+        return Validate(params);
+    }
 
 protected:
     virtual bool Validate(const Params& /*unused*/) const {

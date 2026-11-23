@@ -33,7 +33,7 @@ public:
 template <typename primitive_kind>
 class implementation_map {
 public:
-    using simple_factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
+    using simple_factory_type = implementation_factory<primitive_kind>;
     using key_type = cldnn::key_type;
     using list_type = singleton_list<std::tuple<impl_types, shape_types, std::shared_ptr<ImplementationManager>>, primitive_kind>;
 

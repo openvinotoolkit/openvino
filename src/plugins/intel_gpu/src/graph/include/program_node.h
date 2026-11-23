@@ -55,6 +55,7 @@ struct program_node {
     friend struct program;                  // to be removed when possible
     friend class compile_graph;             // to be removed when possible
     friend class graph_initializations;     // to be removed when possible
+    friend class add_required_reorders;
     friend class pre_replace_deconv;        // to be removed when possible
     friend class prepare_primitive_fusing;  // to be removed when possible
     friend class prepare_quantization;      // to be removed when possible

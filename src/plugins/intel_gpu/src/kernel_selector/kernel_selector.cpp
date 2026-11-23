@@ -155,6 +155,25 @@ std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string&
     return nullptr;
 }
 
+DataTypeSupport kernel_selector_base::GetDataTypeSupport(const Params& params) const {
+    const auto required_key = params.GetParamsKey();
+    const auto device_features = params.engineInfo.get_supported_device_features_key();
+    bool candidate_found = false;
+    for (const auto& implementation : implementations) {
+        if (!params.forceImplementation.empty() && params.forceImplementation != implementation->GetName()) {
+            continue;
+        }
+        if (!device_features.supports(implementation->get_required_device_features_key(params))) {
+            continue;
+        }
+        candidate_found = true;
+        if (implementation->GetSupportedKey().SupportDataTypes(required_key) && implementation->IsSupported(params)) {
+            return DataTypeSupport::SUPPORTED;
+        }
+    }
+    return candidate_found ? DataTypeSupport::UNSUPPORTED : DataTypeSupport::UNKNOWN;
+}
+
 KernelList kernel_selector_base::GetAllImplementations(const Params& params, KernelType kType) const {
     using PriorityPair = std::pair<KernelsPriority, std::shared_ptr<KernelBase>>;
     auto comparePriority = [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {

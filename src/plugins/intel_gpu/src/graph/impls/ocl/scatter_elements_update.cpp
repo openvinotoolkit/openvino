@@ -104,6 +104,10 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
     }
 };
 
+implementation_data_type_support ScatterElementsUpdateImplementationManager::query_data_types(const kernel_impl_params& params) const {
+    return typed_primitive_impl_ocl<scatter_elements_update>::query_data_types<scatter_elements_update_impl>(params);
+}
+
 std::unique_ptr<primitive_impl> ScatterElementsUpdateImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<scatter_elements_update>());
     return typed_primitive_impl_ocl<scatter_elements_update>::create<scatter_elements_update_impl>(
