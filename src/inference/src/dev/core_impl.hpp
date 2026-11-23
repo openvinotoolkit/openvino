@@ -54,6 +54,8 @@ public:
 
     bool get_enable_mmap() const;
 
+    ov::WeightlessConstants get_weightless_constants() const;
+
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
 
@@ -65,6 +67,7 @@ private:
     CacheConfig m_cache_config{};
     std::map<std::string, CacheConfig> m_devices_cache_config{};
     bool m_flag_enable_mmap{true};
+    ov::WeightlessConstants m_weightless_constants{ov::WeightlessConstants::EXTERNAL};
 };
 
 struct Parsed {

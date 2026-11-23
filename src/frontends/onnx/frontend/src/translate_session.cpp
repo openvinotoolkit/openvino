@@ -14,6 +14,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "ops_bridge.hpp"
 #include "place.hpp"
+#include "utils/weightless_constants.hpp"
 
 using namespace ov::frontend::onnx;
 
@@ -144,7 +145,18 @@ std::shared_ptr<ov::Node> TranslateSession::create_const_or_param(
     // STRING initializers carry data in get_data_any() with get_data()==nullptr; treat as Constants.
     if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr ||
         !input_tensor->get_data_any().empty()) {
-        node = Tensor(input_tensor).get_ov_constant();
+        const Tensor tensor(input_tensor);
+        const auto constant = tensor.get_ov_constant();
+        // Record where the source model holds the initializer, so weightless compilation only references
+        // initializers the source model provides.
+        const auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(m_input_model);
+        const auto* provider = unify_model ? unify_model->get_tensor_origin_provider() : nullptr;
+        const auto location = provider ? provider->get_source_model_location(name) : SourceModelLocation::UNKNOWN;
+        const auto declared = provider && location == SourceModelLocation::EXTERNAL
+                                  ? provider->get_source_model_external_data(name)
+                                  : std::nullopt;
+        weightless::mark_initializer(constant, name, location, declared, tensor.has_in_memory_address_marker());
+        node = constant;
     } else if (!is_model_input && is_empty_shape) {  // empty constant
         node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
                                             input_tensor->get_partial_shape().to_shape(),

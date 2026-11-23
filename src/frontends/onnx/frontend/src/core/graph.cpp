@@ -23,6 +23,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/common.hpp"
+#include "utils/weightless_constants.hpp"
 
 using namespace ov;
 using namespace ::ONNX_NAMESPACE;
@@ -125,6 +126,11 @@ Graph::Graph(const std::filesystem::path& model_dir,
                 ov_constant = ov::frontend::onnx::common::make_failsafe_constant(tensor.get_ov_type());
             }
 
+            weightless::mark_initializer(ov_constant,
+                                         initializer_tensor.name(),
+                                         SourceModelLocation::UNKNOWN,
+                                         std::nullopt,
+                                         tensor.has_in_memory_address_marker());
             initializers.emplace(initializer_tensor.name(), tensor);
             ov_constant->get_output_tensor(0).set_names({initializer_tensor.name()});
             m_cache->emplace_node(initializer_tensor.name(), std::move(ov_constant));

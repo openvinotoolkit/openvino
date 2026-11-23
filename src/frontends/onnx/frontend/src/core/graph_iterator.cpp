@@ -7,3 +7,5 @@
 using namespace ov::frontend::onnx;
 
 GraphIterator::~GraphIterator() = default;
+
+TensorOriginProvider::~TensorOriginProvider() = default;

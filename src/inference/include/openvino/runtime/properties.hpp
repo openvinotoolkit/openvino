@@ -913,6 +913,51 @@ struct EncryptionCallbacks {
 static constexpr Property<bool, PropertyMutability::RW> enable_weightless{"ENABLE_WEIGHTLESS"};
 
 /**
+ * @brief Selects which constants a frontend gives weightless identifiers when it reads a model.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class WeightlessConstants {
+    EXTERNAL = 0,  //!< Only constants backed by an external data file (default)
+    ALL = 1,       //!< Also initializers stored inside the source model
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const WeightlessConstants& value) {
+    switch (value) {
+    case WeightlessConstants::EXTERNAL:
+        return os << "EXTERNAL";
+    case WeightlessConstants::ALL:
+        return os << "ALL";
+    default:
+        OPENVINO_THROW("Unsupported weightless constants value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, WeightlessConstants& value) {
+    std::string str;
+    is >> str;
+    if (str == "EXTERNAL") {
+        value = WeightlessConstants::EXTERNAL;
+    } else if (str == "ALL") {
+        value = WeightlessConstants::ALL;
+    } else {
+        OPENVINO_THROW("Unsupported weightless constants value: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-write property to select which constants get weightless identifiers when a model is read.
+ * With WeightlessConstants::ALL, a frontend that supports it (ONNX) also gives the initializers stored inside the model
+ * a stable identifier in their WeightlessCacheAttribute, so plugins can leave them out of weightless compiled blobs and
+ * resolve them from the source model at import. It is a core property used by Core::read_model, and frontends accept
+ * it in their load parameters as an ov::AnyMap entry.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<WeightlessConstants, PropertyMutability::RW> weightless_constants{"WEIGHTLESS_CONSTANTS"};
+
+/**
  * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
  * If cache_encryption_callbacks is set, the model topology will be encrypted when saving to the cache and decrypted
  * when loading from the cache. This property is set in core.compile_model only.

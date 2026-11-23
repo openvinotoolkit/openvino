@@ -307,10 +307,21 @@ static const auto core_properties_names = ov::util::make_array(ov::cache_dir.nam
                                                                ov::cache_model_path.name(),
                                                                ov::cache_blob_id.name(),
                                                                ov::enable_mmap.name(),
-                                                               ov::force_tbb_terminate.name());
+                                                               ov::force_tbb_terminate.name(),
+                                                               ov::weightless_constants.name());
 
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
+
+// Core properties that change how Core reads a model are not passed to plugins, so they are not in the compile config.
+// The model is read inside Core for compile_model(model_path / model_str), so they must be part of the cache key.
+ov::AnyMap add_read_properties_to_hash_config(ov::AnyMap compile_config, const ov::CoreConfig& core_config) {
+    if (const auto weightless_constants = core_config.get_weightless_constants();
+        weightless_constants != ov::WeightlessConstants::EXTERNAL) {
+        compile_config[ov::weightless_constants.name()] = weightless_constants;
+    }
+    return compile_config;
+}
 
 std::filesystem::path extract_weight_path(const std::string& compiled_properties) {
     if (auto start = compiled_properties.find(ov::weights_path.name()); start != std::string::npos) {
@@ -1261,14 +1272,28 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
                                                           cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             const auto model_hash_lock = m_cache_guard.get_hash_lock(util::path_to_string(model_path));
-            return ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
+            return ModelCache::compute_hash(
+                cache_content.m_model_path,
+                add_read_properties_to_hash_config(create_compile_config(plugin, parsed.m_config),
+                                                   parsed.m_core_config));
         });
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
-            const auto model =
-                util::read_model(model_path, "", get_extensions_copy(), parsed.m_core_config.get_enable_mmap());
+            const auto model = util::read_model(model_path,
+                                                "",
+                                                get_extensions_copy(),
+                                                parsed.m_core_config.get_enable_mmap(),
+                                                parsed.m_core_config.get_weightless_constants());
             return compile_model_and_cache(plugin, model, parsed.m_config, {}, cache_content);
         });
+    } else if (parsed.m_core_config.get_weightless_constants() != ov::WeightlessConstants::EXTERNAL) {
+        // The plugin would read the model without the core properties, so read it here.
+        const auto model = util::read_model(model_path,
+                                            "",
+                                            get_extensions_copy(),
+                                            parsed.m_core_config.get_enable_mmap(),
+                                            parsed.m_core_config.get_weightless_constants());
+        compiled_model = plugin.compile_model(model, parsed.m_config);
     } else {
         compiled_model = plugin.compile_model(model_path, parsed.m_config);
     }
@@ -1293,15 +1318,27 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
-            return ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed.m_config));
+            return ModelCache::compute_hash(
+                model_str,
+                weights,
+                add_read_properties_to_hash_config(create_compile_config(plugin, parsed.m_config),
+                                                   parsed.m_core_config));
         });
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
-            const auto model = read_model(model_str, weights);
+            const auto model = util::read_model(model_str,
+                                                weights,
+                                                get_extensions_copy(),
+                                                false,
+                                                parsed.m_core_config.get_weightless_constants());
             return compile_model_and_cache(plugin, model, parsed.m_config, {}, cache_content);
         });
     } else {
-        const auto model = read_model(model_str, weights);
+        const auto model = util::read_model(model_str,
+                                            weights,
+                                            get_extensions_copy(),
+                                            false,
+                                            parsed.m_core_config.get_weightless_constants());
         compiled_model = plugin.compile_model(model, parsed.m_config);
     }
     return compiled_model;
@@ -1626,6 +1663,8 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
     } else if (name == ov::enable_mmap.name()) {
         const auto flag = m_core_config.get_enable_mmap();
         return decltype(ov::enable_mmap)::value_type(flag);
+    } else if (name == ov::weightless_constants.name()) {
+        return decltype(ov::weightless_constants)::value_type(m_core_config.get_weightless_constants());
     }
 
     OPENVINO_THROW("Exception is thrown while trying to call get_property with unsupported property: '", name, "'");
@@ -2162,6 +2201,7 @@ ov::CoreConfig::CoreConfig(const CoreConfig& other) {
         m_devices_cache_config = other.m_devices_cache_config;
     }
     m_flag_enable_mmap = other.m_flag_enable_mmap;
+    m_weightless_constants = other.m_weightless_constants;
 }
 
 void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
@@ -2185,6 +2225,10 @@ void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_nam
     if (const auto cfg_entry = config.find(ov::enable_mmap.name()); cfg_entry != config.end()) {
         m_flag_enable_mmap = cfg_entry->second.as<bool>();
     }
+
+    if (const auto cfg_entry = config.find(ov::weightless_constants.name()); cfg_entry != config.end()) {
+        m_weightless_constants = cfg_entry->second.as<ov::WeightlessConstants>();
+    }
 }
 
 void ov::CoreConfig::set_and_update(ov::AnyMap& config, const std::string& device_name) {
@@ -2205,6 +2249,10 @@ std::filesystem::path ov::CoreConfig::get_cache_dir() const {
 
 bool ov::CoreConfig::get_enable_mmap() const {
     return m_flag_enable_mmap;
+}
+
+ov::WeightlessConstants ov::CoreConfig::get_weightless_constants() const {
+    return m_weightless_constants;
 }
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin) const {
@@ -2243,20 +2291,28 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::filesystem::path&
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = m_core_config;
     local_core_config.set(properties, {});
-    return ov::util::read_model(model_path, bin_path, get_extensions_copy(), local_core_config.get_enable_mmap());
+    return ov::util::read_model(model_path,
+                                bin_path,
+                                get_extensions_copy(),
+                                local_core_config.get_enable_mmap(),
+                                local_core_config.get_weightless_constants());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     const ov::Tensor& weights,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, get_extensions_copy(), frontendMode);
+    return ov::util::read_model(model,
+                                weights,
+                                get_extensions_copy(),
+                                frontendMode,
+                                m_core_config.get_weightless_constants());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<AlignedBuffer>& model,
                                                     const std::shared_ptr<AlignedBuffer>& weights) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, get_extensions_copy());
+    return ov::util::read_model(model, weights, get_extensions_copy(), m_core_config.get_weightless_constants());
 }
 
 std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string& device_name) const {
