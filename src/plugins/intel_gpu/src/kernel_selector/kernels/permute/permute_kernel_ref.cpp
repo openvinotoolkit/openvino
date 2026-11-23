@@ -5,6 +5,7 @@
 #include "permute_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -59,6 +60,11 @@ size_t GetInnerVecSize(const permute_params& params) {
     // A fused following reorder may change the (planar) output rank: the output is then
     // addressed by the linear offset of the permuted shape.
     if (in.LogicalSize() != out.LogicalSize() || in.PitchesDifferFromLogicalDims() || out.PitchesDifferFromLogicalDims()) {
+        return 0;
+    }
+    // The linear output offset is computed in 32-bit uint arithmetic (size_t measured ~4% slower
+    // on Xe2), so larger tensors keep the scalar path.
+    if (out.LogicalSize() > std::numeric_limits<uint32_t>::max()) {
         return 0;
     }
     const auto& order = params.order;

@@ -2971,18 +2971,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_ref_inner_vec,
                          }));
 
 // A following reorder to a lower planar rank is fused into the permute, which then writes
-// through the linear offset of the permuted shape.
+// through the linear offset of the permuted shape. The reorder is followed by another permute
+// so that it is not a network output and is fused like in a real graph.
 TEST(permute_ref_inner_vec_fused_reorder, rank_6d_to_4d) {
     auto& engine = get_test_engine();
     const std::vector<ov::Dimension::value_type> shape = {1, 4, 8, 4, 8, 16};
     const std::vector<uint16_t> order = {0, 1, 3, 2, 4, 5};
+    const std::vector<uint16_t> next_order = {0, 1, 3, 2};
     auto input = engine.allocate_memory(layout{ov::PartialShape(shape), data_types::f16, format::bfwzyx});
     const auto data = make_inner_vec_values<ov::float16>(input->count());
     set_values(input, data);
 
     topology topo(input_layout("input", input->get_layout()),
                   permute("permute", input_info("input"), order),
-                  reorder("output", input_info("permute"), format::bfyx, data_types::f16));
+                  reorder("reorder", input_info("permute"), format::bfyx, data_types::f16),
+                  permute("output", input_info("reorder"), next_order));
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(
@@ -2990,9 +2993,17 @@ TEST(permute_ref_inner_vec_fused_reorder, rank_6d_to_4d) {
     auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
     net->set_input_data("input", input);
     auto outputs = net->execute();
-    // The reorder must have been fused: only input_layout and the permute execute.
-    EXPECT_EQ(net->get_executed_primitives().size(), 2u);
-    expect_equal(outputs.begin()->second.get_memory(), permute_host_ref(data, shape, order));
+
+    // The reorder is fused: the permute itself writes the 4D bfyx output.
+    EXPECT_NE(net->get_primitive_info("permute").find("permute_ref"), std::string::npos);
+    const auto fused_layout = net->get_primitive("permute")->get_output_layout();
+    ASSERT_EQ(fused_layout.format, format::bfyx);
+    EXPECT_EQ(net->get_executed_primitives().size(), 3u);  // input_layout, permute, output
+
+    const auto shape_4d = fused_layout.get_shape();
+    const std::vector<ov::Dimension::value_type> dims_4d(shape_4d.begin(), shape_4d.end());
+    const auto expected = permute_host_ref(permute_host_ref(data, shape, order), dims_4d, next_order);
+    expect_equal(outputs.at("output").get_memory(), expected);
 }
 
 // Shape-agnostic kernels keep the scalar path, also when the dispatch is updated for a static shape.
