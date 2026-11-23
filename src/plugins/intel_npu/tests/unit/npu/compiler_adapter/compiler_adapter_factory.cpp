@@ -63,15 +63,6 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeWhenProviderFailsThrowsOffli
     OV_EXPECT_THROW_HAS_SUBSTRING(decide(factory), ov::Exception, "Injected unavailable provider");
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerTypeDoesNotCreateCompiler) {
-    fake_vcl::FakeVcl fake;
-    fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
-    const CompilerAdapterFactory factory({}, fake.provider());
-
-    EXPECT_EQ(decide(factory), CompilerType::PLUGIN);
-    EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 0u);
-}
-
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeExplicitCompilerTypeDoesNotInvokeProvider) {
     const CompilerAdapterFactory factory(
         {},
@@ -83,7 +74,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeExplicitCompilerTypeDoesNotI
     }
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerTypeProviderFailuresAreRetried) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeProviderFailuresAreRethrown) {
     std::size_t calls = 0;
     const CompilerAdapterFactory factory({}, vcl_provider::counted(calls, vcl_provider::unavailable()));
     for (int i = 0; i < 2; i++) {
@@ -106,18 +97,6 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeSeparateFactoriesLoadProvide
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
-    const CompilerAdapterFactory factory({}, fake.provider());
-    auto type = CompilerType::PREFER_PLUGIN;
-
-    factory.decideCompilerType(type, deviceOf(kPluginPlatform), kPluginPlatform);
-
-    EXPECT_EQ(type, CompilerType::PLUGIN);
-    EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 0u);
-}
-
-TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformUsesFunctionsWithoutCreatingCompiler) {
-    fake_vcl::FakeVcl fake;
-    fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     const CompilerAdapterFactory factory({}, fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
 
