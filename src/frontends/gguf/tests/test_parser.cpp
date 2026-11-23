@@ -102,7 +102,7 @@ protected:
         ov::test::utils::removeFile(m_path);
         ov::test::utils::removeFile(m_path + ".xml");
         ov::test::utils::removeFile(m_path + ".bin");
-        std::filesystem::remove(ov::util::make_path(m_path + u8"_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf"));
+        std::filesystem::remove(ov::util::make_path(m_path + "_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf"));
         ov::test::utils::removeFile(m_path + ".unicode.xml");
         ov::test::utils::removeFile(m_path + ".unicode.bin");
     }
@@ -942,7 +942,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                           format.type == GGUF_TYPE_IQ2_S, format.type == GGUF_TYPE_IQ3_XXS,
                           format.type == GGUF_TYPE_IQ3_S};
         if (format.type == GGUF_TYPE_Q4_K) {
-            const auto unicode_path = ov::util::make_path(m_path + u8"_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf");
+            const auto unicode_path = ov::util::make_path(m_path + "_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf");
             ASSERT_TRUE(std::filesystem::copy_file(m_path, unicode_path));
             auto unicode_data = get_gguf_data(unicode_path, options);
             const auto unicode_raw = make_weight_node(std::get<1>(unicode_data).at("projection.weight"));
