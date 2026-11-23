@@ -153,6 +153,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_all_experts_rounding_steps,
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphSmallInputsTest::getTestCaseName);
 
+// MXFP4 experts (f4e2m1 weights, one f8e8m0 scale per 32 weights): the scales must reach the compiled
+// GatherMatmul as f8e8m0 instead of a widened copy.
+class MoEMXFP4ScalesSubgraphTest : public MoECompressedWeightsSubgraphTest {};
+
+TEST_P(MoEMXFP4ScalesSubgraphTest, ScalesStayE8M0) {
+    run();
+    check_results();
+    for (const auto& node :
+         MoESubgraphTest::get_gather_mm_nodes(compiledModel.get_runtime_model(), std::get<1>(GetParam()))) {
+        bool has_e8m0_scales = false;
+        for (size_t i = 0; i < node->get_input_size(); i++) {
+            has_e8m0_scales |= node->get_input_element_type(i) == ov::element::f8e8m0;
+        }
+        EXPECT_TRUE(has_e8m0_scales) << "MXFP4 expert scales were widened instead of staying f8e8m0";
+    }
+}
+
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::i8,
@@ -171,6 +188,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(false),  // reshape on decompression
                                             ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_mxfp4_scales_e8m0,
+                         MoEMXFP4ScalesSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(ov::element::f4e2m1),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f8e8m0),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(32),     // decompression group size
                                             ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);

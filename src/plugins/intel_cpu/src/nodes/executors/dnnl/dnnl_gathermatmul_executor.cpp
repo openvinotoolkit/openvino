@@ -57,6 +57,7 @@ struct InnerProductKey {
     VectorDims zp_shape;
     dnnl::memory::data_type zp_dt = dnnl::memory::data_type::f32;
     size_t src_dyn_quant_group_size = 0;
+    dnnl::memory::data_type scale_dt = dnnl::memory::data_type::f32;
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
@@ -70,13 +71,14 @@ struct InnerProductKey {
         seed = get_vector_hash(seed, zp_shape);
         seed = hash_combine(seed, static_cast<size_t>(zp_dt));
         seed = hash_combine(seed, src_dyn_quant_group_size);
+        seed = hash_combine(seed, static_cast<size_t>(scale_dt));
         return seed;
     }
 
     bool operator==(const InnerProductKey& rhs) const {
         return src_md == rhs.src_md && weights_md == rhs.weights_md && bias_md == rhs.bias_md &&
                scale_shape == rhs.scale_shape && zp_shape == rhs.zp_shape && zp_dt == rhs.zp_dt &&
-               src_dyn_quant_group_size == rhs.src_dyn_quant_group_size;
+               src_dyn_quant_group_size == rhs.src_dyn_quant_group_size && scale_dt == rhs.scale_dt;
     }
 };
 
@@ -154,7 +156,7 @@ public:
             OPENVINO_ASSERT(scale_shape.size() == 2, "Unsupported scale shape ", vec2str(scale_shape));
             const auto K_groups = scale_shape.back();
             OPENVINO_ASSERT((K % K_groups) == 0, "Incompatible number of groups ", K_groups, " for K ", K);
-            init_w_scales(scale_shape);
+            init_w_scales(scale_shape, key.scale_dt);
             if (!zp_shape.empty()) {
                 if (all_of(1U, zp_shape.size(), zp_shape[0])) {
                     zp_shape.push_back(1);
@@ -234,8 +236,7 @@ public:
     }
 
 private:
-    void init_w_scales(const VectorDims& scale_shape) {
-        constexpr auto data_type = dnnl::memory::data_type::f32;
+    void init_w_scales(const VectorDims& scale_shape, dnnl::memory::data_type data_type) {
         const auto scale_dims = DnnlExtensionUtils::convertToDnnlDims(scale_shape);
         m_attr.set_scales_dims(DNNL_ARG_WEIGHTS, scale_dims, data_type);
         m_scale_md = dnnl::memory::desc(scale_dims, data_type, dnnl::memory::format_tag::ba);
@@ -321,7 +322,13 @@ bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfi
     // For compressed (int) weights, require AVX2
     if ((config.descs.count(ARG_WEI) != 0U) && !config.descs.at(ARG_WEI)->empty()) {
         const auto wei_prc = config.descs.at(ARG_WEI)->getPrecision();
-        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3)) {
+        if (any_of(wei_prc,
+                   ov::element::u8,
+                   ov::element::i8,
+                   ov::element::u4,
+                   ov::element::i4,
+                   ov::element::u3,
+                   ov::element::f4e2m1)) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
                 return false;
             }
@@ -404,6 +411,12 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
                         zp_shape,
                         zp_dt,
                         src_dyn_quant_group_size};
+    // MXFP4: f4e2m1 weights keep their per-32 f8e8m0 scales as e8m0 (4.25 bits/weight, decoded in the brgemm
+    // kernel) instead of a widened f32 copy.
+    if (scalesMem && !scalesMem->getDesc().empty() && weights_precision == ov::element::f4e2m1 &&
+        scalesMem->getDesc().getPrecision() == ov::element::f8e8m0 && src_dyn_quant_group_size == 0) {
+        key.scale_dt = dnnl::memory::data_type::e8m0;
+    }
 
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
@@ -459,6 +472,19 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
             addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), scDims[0]);
         if (expectedScaleMemDesc->isCompatible(scalesMem->getDesc())) {
             m_scalesMemory = std::const_pointer_cast<IMemory>(scalesMem);
+        } else if (scalesMem->getPrecision() == ov::element::f8e8m0 && scDims.size() == 3) {
+            // There is no oneDNN reorder for e8m0, so transpose the one-byte scales [E, N, G] -> [E, G, N] directly.
+            m_scalesMemory = std::make_shared<Memory>(eng, expectedScaleMemDesc);
+            const auto* src = static_cast<const uint8_t*>(scalesMem->getData());
+            auto* dst = static_cast<uint8_t*>(m_scalesMemory->getData());
+            const size_t E = scDims[0], N = scDims[1], G = scDims[2];
+            for (size_t e = 0; e < E; e++) {
+                for (size_t n = 0; n < N; n++) {
+                    for (size_t g = 0; g < G; g++) {
+                        dst[(e * G + g) * N + n] = src[(e * N + n) * G + g];
+                    }
+                }
+            }
         } else {
             m_scalesMemory = std::make_shared<Memory>(eng, expectedScaleMemDesc);
             m_scalesMemory->load(*scalesMem, false, false);
