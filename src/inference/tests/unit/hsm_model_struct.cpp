@@ -39,6 +39,10 @@ hsm::ModelStructEncoder::Producer write(std::string bytes) {
     };
 }
 
+std::string text_of(const ov::AlignedBuffer& buffer) {
+    return buffer.size() ? std::string{buffer.get_ptr<char>(), buffer.size()} : std::string{};
+}
+
 }  // namespace
 
 TEST(HsmModelStructTest, round_trips_xml) {
@@ -50,7 +54,9 @@ TEST(HsmModelStructTest, round_trips_xml) {
     entry.tag = hsm::model_tag;
     entry.size = encoded.size();
     const hsm::Section section{entry, {reinterpret_cast<const std::byte*>(encoded.data()), encoded.size()}};
-    EXPECT_EQ(hsm::decode_model_struct(section), expected);
+    const auto decoded = hsm::decode_model_struct(section);
+    ASSERT_TRUE(decoded);
+    EXPECT_EQ(text_of(*decoded), expected);
 }
 
 TEST(HsmModelStructTest, round_trips_empty_xml) {
@@ -59,7 +65,9 @@ TEST(HsmModelStructTest, round_trips_empty_xml) {
     hsm::ManifestEntry entry{};
     entry.tag = hsm::model_tag;
     const hsm::Section section{entry, ov::util::MemoryView{}};
-    EXPECT_EQ(hsm::decode_model_struct(section), std::string{});
+    const auto decoded = hsm::decode_model_struct(section);
+    ASSERT_TRUE(decoded);
+    EXPECT_EQ(decoded->size(), 0u);
 }
 
 TEST(HsmModelStructTest, encoder_generates_structure_at_encode_time) {
@@ -99,7 +107,9 @@ TEST(HsmModelStructTest, decodes_stream_section) {
     entry.size = expected.size();
     const hsm::Section section{entry, stream, std::streampos{0}};
 
-    EXPECT_EQ(hsm::decode_model_struct(section), expected);
+    const auto decoded = hsm::decode_model_struct(section);
+    ASSERT_TRUE(decoded);
+    EXPECT_EQ(text_of(*decoded), expected);
 }
 
 }  // namespace ov::test
