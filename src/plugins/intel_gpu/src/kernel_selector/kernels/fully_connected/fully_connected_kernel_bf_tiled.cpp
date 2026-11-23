@@ -469,12 +469,16 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     }
 
     // Reject tile sizes that are guaranteed to spill out of registers.
-    // Both FP (FC_ACC_TYPE = float) and quantized (INT32) paths use 4-byte accumulators.
+    // Both FP (FC_ACC_TYPE = float) and quantized (INT32) paths use 4-byte accumulators
+    // plus tile-local ACCUMULATOR_VEC_TYPE partial sums (acc_tmp).
     unsigned acc_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(Datatype::F32);
+    unsigned acc_tmp_elem_bytes = (params.quantization != QuantizationType::NONE) ? BytesPerElement(Datatype::INT32)
+                                                                                  : BytesPerElement(params.inputs[0].GetDType());
+    unsigned acc_tmp_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * acc_tmp_elem_bytes;
     unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
     unsigned wei_register_bytes = tparams.tile_ofm * tparams.tile_k * simd * BytesPerElement(params.weights.GetDType());
 
-    unsigned total_register_bytes = acc_register_bytes + in_register_bytes + wei_register_bytes;
+    unsigned total_register_bytes = acc_register_bytes + acc_tmp_register_bytes + in_register_bytes + wei_register_bytes;
     unsigned max_register_bytes = 128 * 32;
 
     return total_register_bytes <= max_register_bytes;
@@ -587,13 +591,15 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
     } else {
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
+            // Keep tile_b <= 8 with 4-byte FP32 running accumulators (FC_ACC_TYPE) + tile-local acc_tmp
+            // to stay within 128-GRF occupancy headroom on non-XMX GPUs.
             selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 8, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 8, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 2, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 2, 1, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
         } else if (dtype == Datatype::F32) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
