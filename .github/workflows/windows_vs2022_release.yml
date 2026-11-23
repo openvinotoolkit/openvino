@@ -695,6 +695,11 @@ jobs:
       NEO_CACHE_DIR: 'C:\neo_cache'
       NEO_CACHE_MAX_SIZE: 10737418240 # 10GB
     steps:
+      - name: Display all environment variables
+        run: |
+          echo "NEO_CACHE_DIR: $env:NEO_CACHE_DIR"
+          echo "NEO_CACHE_MAX_SIZE: $env:NEO_CACHE_MAX_SIZE"
+            
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
