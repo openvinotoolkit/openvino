@@ -6,6 +6,8 @@
 
 #include <chrono>
 
+#include "cache_manager.hpp"
+
 namespace ov {
 namespace auto_plugin {
 
@@ -33,6 +35,14 @@ SoCompiledModel CompileService::compile(const std::shared_ptr<const ov::Model>& 
         loaded_from_cache = compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>();
     } catch (const ov::Exception&) {
     }
+    std::optional<std::string> blob_id;
+    try {
+        if (CacheManager::is_reloadable(*m_core, device, config)) {
+            blob_id = CacheManager::get_blob_id(*m_core, device, config, m_model_path.empty() ? model : nullptr, m_model_path);
+        }
+    } catch (const std::exception& ex) {
+        LOG_DEBUG_TAG("Device: [%s]: cache blob ID is unknown: %s", device.c_str(), ex.what());
+    }
     LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms, loaded from cache: %s",
                  device.c_str(),
                  compile_ms,
@@ -41,6 +51,7 @@ SoCompiledModel CompileService::compile(const std::shared_ptr<const ov::Model>& 
     auto& stats = m_stats[device];
     stats.last_compile_ms = compile_ms;
     stats.last_loaded_from_cache = loaded_from_cache;
+    stats.last_blob_id = std::move(blob_id);
     stats.compile_count++;
     return compiled_model;
 }

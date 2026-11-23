@@ -62,7 +62,7 @@ private:
      * released while the active one is loaded. A device that could not be released is tried again at the next dispatch.
      */
     void release_inactive_devices(const DeviceName& active_device);
-    // whether the device can be recompiled from its cache blob; only used on the dynamic dispatch thread
+    // whether the device has a cache blob to be recompiled from; only used on the dynamic dispatch thread
     bool is_reloadable(const DeviceName& device_name);
     // the candidates the failure policy lets the dynamic selection try now; the caller holds m_fallback_mutex
     std::vector<DeviceInformation> available_candidates() const;

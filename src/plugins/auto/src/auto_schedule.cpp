@@ -884,20 +884,35 @@ void AutoSchedule::release_inactive_devices(const DeviceName& active_device) {
 }
 
 bool AutoSchedule::is_reloadable(const DeviceName& device_name) {
-    const auto cached = m_reloadable_devices.find(device_name);
-    if (cached != m_reloadable_devices.end()) {
-        return cached->second;
-    }
-    bool reloadable = false;
     const auto& candidates = m_context->m_device_priorities_initial;
     const auto device = std::find_if(candidates.begin(), candidates.end(), [&](const DeviceInformation& info) {
         return info.device_name == device_name;
     });
-    if (device != candidates.end()) {
-        reloadable = CacheManager::is_reloadable(*m_context->m_ov_core, device_name, device->config);
+    if (device == candidates.end()) {
+        return false;
     }
-    m_reloadable_devices.emplace(device_name, reloadable);
-    return reloadable;
+    auto cacheable = m_reloadable_devices.find(device_name);
+    if (cacheable == m_reloadable_devices.end()) {
+        cacheable = m_reloadable_devices
+                        .emplace(device_name,
+                                 CacheManager::is_reloadable(*m_context->m_ov_core, device_name, device->config))
+                        .first;
+    }
+    if (!cacheable->second) {
+        return false;
+    }
+    // the export may have failed and the device reports nothing about it, so look for the blob itself
+    const auto stats = m_compile_service->stats(device_name);
+    if (!stats || !stats->last_blob_id) {
+        return false;
+    }
+    try {
+        const auto cache_location = CacheManager::get_cache_location(*m_context->m_ov_core, device->config, device_name);
+        return CacheManager::is_blob_cached(cache_location, *stats->last_blob_id);
+    } catch (const std::exception& ex) {
+        LOG_DEBUG_TAG("cache blob probe failed for %s: %s", device_name.c_str(), ex.what());
+        return false;
+    }
 }
 
 std::vector<DeviceInformation> AutoSchedule::available_candidates() const {

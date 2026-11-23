@@ -91,8 +91,9 @@ public:
     size_t idle_count() const;
     size_t leased_count() const;
     bool has_queued_tasks() const;
+    // only for binding a request to the worker with the given index
     WorkerInferRequest& worker(size_t index);
-    const std::vector<WorkerInferRequest>& workers() const;
+    void for_each_worker(const std::function<void(const WorkerInferRequest&)>& visit) const;
     // waits for the inference of every worker, a failed one is reported to on_error
     void wait_all(const std::function<void(const ov::Exception&)>& on_error);
 

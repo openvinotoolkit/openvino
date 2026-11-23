@@ -753,6 +753,15 @@ TEST_F(AutoDynamicDeviceSelectionTest, optimal_number_of_infer_requests_is_one) 
     EXPECT_EQ(compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>(), 1u);
 }
 
+TEST_F(AutoDynamicDeviceSelectionTest, device_without_optimal_number_of_infer_requests_is_usable) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
+        .WillByDefault(ov::Throw("unsupported property"));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(run_inferences(compiled_model, 1));
+}
+
 // The only worker of a device must be given back when its request cannot be started, otherwise the execution
 // gate stays closed and every following inference is queued forever.
 TEST_F(AutoDynamicDeviceSelectionTest, failure_to_start_a_request_does_not_block_following_inferences) {
@@ -1420,12 +1429,13 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_without_a_non_cpu_p
     EXPECT_EQ(m_cpu_compile_count.load(), 2);
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_even_when_cache_blob_was_not_written) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_kept_when_cache_blob_was_not_written) {
     m_write_cpu_cache_blob = false;
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     switch_between_devices(true, &compiled_model);
-    // a missing blob does not keep the device, compiling it again writes the blob
-    EXPECT_EQ(m_cpu_compile_count.load(), 2);
+    // without a blob there is nothing to reload the device from
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_FALSE(m_cpu_model.expired());
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {
@@ -1612,10 +1622,10 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_ne
     EXPECT_FALSE(m_cpu_model.expired());
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_released_without_cache_blob) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_kept_without_cache_blob) {
     switch_between_devices(true);
-    // released when the requests moved to CPU, compiled again when GPU.0 was selected again
-    EXPECT_EQ(m_gpu0_compile_count.load(), 2);
+    // nothing to reload GPU.0 from, so it stays compiled when the requests move to CPU
+    EXPECT_EQ(m_gpu0_compile_count.load(), 1);
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_released_when_it_has_cache_blob) {

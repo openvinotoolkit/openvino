@@ -140,23 +140,24 @@ void Schedule::mark_compile_failure(const CompileRequest& request, const std::st
 }
 void Schedule::generate_workers(const ModelInstanceKey& key, const SoCompiledModel& compiled_model) {
     auto it_numrequests = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(key.device, m_context->m_device_priorities, true);
-    unsigned int optimal_num = 0;
-    try {
-        optimal_num = compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>();
-    } catch (const ov::Exception& iie) {
-        OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
-                    iie.what());
-    }
-    auto num_requests =
-        (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
-            ? optimal_num
-            : it_numrequests->num_requests_per_devices;
+    size_t num_requests = 0;
     if (m_context->m_dynamic_device_selection) {
         // inference is serialized per compiled model in this mode, so a single worker per device is enough and it
         // guarantees the device carries no other inference when the next target device is re-selected
         num_requests = 1;
         LOG_DEBUG_TAG("device:%s, worker infer request number:%d", key.to_string().c_str(), static_cast<int>(num_requests));
     } else {
+        unsigned int optimal_num = 0;
+        try {
+            optimal_num = compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>();
+        } catch (const ov::Exception& iie) {
+            OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
+                        iie.what());
+        }
+        num_requests =
+            (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
+                ? optimal_num
+                : it_numrequests->num_requests_per_devices;
         num_requests = (num_requests == 1) ? 2 : num_requests;
     }
     if (m_model_only) {

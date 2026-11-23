@@ -24,6 +24,8 @@ struct CompileStats {
     // empty if the device does not report ov::loaded_from_cache
     std::optional<bool> last_loaded_from_cache;
     size_t compile_count = 0;
+    // the cache blob ID of the last compilation; empty if the device does not cache its models
+    std::optional<std::string> last_blob_id;
 };
 
 /**

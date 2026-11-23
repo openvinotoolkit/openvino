@@ -955,6 +955,42 @@ TEST_F(AutoCachePrecompileTest, compileServiceRecordsTheCostOfEachCompilation) {
     EXPECT_GE(stats->last_compile_ms, 0.0);
 }
 
+TEST_F(AutoCachePrecompileTest, compileServiceRecordsNoBlobIdWithoutCaching) {
+    auto compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        return {compiled_model, {}};
+    });
+    on_compile("GPU.1", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        return {compiled_model, {}};
+    });
+    ON_CALL(*core, device_supports_model_caching(StrEq("GPU.1"))).WillByDefault(Return(false));
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_compile_service_no_blob_id_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    ov::auto_plugin::CompileService service(core, {}, "test");
+    EXPECT_TRUE(service.compile(model, "GPU.0", {ov::cache_dir(std::string{}), ov::cache_blob_id(746352)}));
+    EXPECT_TRUE(service.compile(model, "GPU.1", {ov::cache_dir(cache_dir.string()), ov::cache_blob_id(746352)}));
+    std::filesystem::remove_all(cache_dir);
+    EXPECT_EQ(service.stats("GPU.0")->last_blob_id, std::nullopt);
+    EXPECT_EQ(service.stats("GPU.1")->last_blob_id, std::nullopt);
+}
+
+TEST_F(AutoCachePrecompileTest, compileServiceRecordsTheBlobIdOfACachedCompilation) {
+    auto compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        return {compiled_model, {}};
+    });
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_compile_service_blob_id_kept_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    ov::auto_plugin::CompileService service(core, {}, "test");
+    EXPECT_TRUE(service.compile(model, "GPU.0", {ov::cache_dir(cache_dir.string()), ov::cache_blob_id(746352)}));
+    EXPECT_EQ(service.stats("GPU.0")->last_blob_id, std::optional<std::string>("746352"));
+    std::filesystem::remove_all(cache_dir);
+}
+
 TEST_F(AutoCachePrecompileTest, compileServiceKeepsAnOnDemandDeviceOutOfTheBackgroundLane) {
     set_global_cache("test_cache_dir");
     std::atomic<int> gpu_count{0};

@@ -167,8 +167,10 @@ WorkerInferRequest& WorkerPool::worker(size_t index) {
     return m_workers.at(index);
 }
 
-const std::vector<WorkerInferRequest>& WorkerPool::workers() const {
-    return m_workers;
+void WorkerPool::for_each_worker(const std::function<void(const WorkerInferRequest&)>& visit) const {
+    for (const auto& worker : m_workers) {
+        visit(worker);
+    }
 }
 
 void WorkerPool::wait_all(const std::function<void(const ov::Exception&)>& on_error) {
@@ -287,12 +289,12 @@ void DeviceExecutionContext::log_summary(const std::string& log_tag,
     };
     std::list<Time> req_all_start_times = m_released_start_times;
     std::list<Time> req_all_end_times = m_released_end_times;
-    for (const auto& request : m_pool.workers()) {
+    m_pool.for_each_worker([&](const WorkerInferRequest& request) {
         req_all_start_times.insert(req_all_start_times.end(),
                                    request.m_start_times.begin(),
                                    request.m_start_times.end());
         req_all_end_times.insert(req_all_end_times.end(), request.m_end_times.begin(), request.m_end_times.end());
-    }
+    });
     size_t count = req_all_start_times.size();
     OPENVINO_ASSERT(count == req_all_end_times.size());
     std::chrono::duration<double, std::milli> first_infer_duration =
