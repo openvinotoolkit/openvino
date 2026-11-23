@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cpu_tensor.h"
+
 #include <algorithm>
 #include <climits>
 #include <cstddef>
@@ -10,7 +12,6 @@
 #include <utility>
 
 #include "cpu_memory.h"
-#include "cpu_tensor.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/except.hpp"

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "memory_desc/cpu_blocked_memory_desc.h"
@@ -37,13 +38,14 @@ TEST(GenerateCpuBlockedMemoryDescTest, StridedTensorConvertsByteStridesToElement
 }
 
 TEST(GenerateCpuBlockedMemoryDescTest, StridedTensorAvoidsOverflowConvertingLargeByteStrides) {
+    constexpr auto shift = std::numeric_limits<size_t>::digits - 3;
     std::vector<float> buffer(2);
-    const ov::Strides huge_byte_strides{size_t{1} << 61, sizeof(float)};
+    const ov::Strides huge_byte_strides{size_t{1} << shift, sizeof(float)};
     ov::Tensor tensor(ov::element::f32, ov::Shape{2, 1}, buffer.data(), huge_byte_strides);
 
     const auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(ov::get_tensor_impl(tensor));
 
-    EXPECT_EQ(desc->getStrides(), VectorDims({size_t{1} << 59, 1}));
+    EXPECT_EQ(desc->getStrides(), VectorDims({size_t{1} << (shift - 2), 1}));
 }
 
 TEST(GenerateCpuBlockedMemoryDescTest, NonUnitInnermostStrideIsPreservedForByteGranularType) {

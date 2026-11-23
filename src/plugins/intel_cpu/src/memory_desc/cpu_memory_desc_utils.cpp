@@ -84,7 +84,9 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
     std::iota(blk_order.begin(), blk_order.end(), 0);
 
     auto element_type = tensor->get_element_type();
-    const auto can_compute_byte_strides = ov::util::can_compute_byte_strides(element_type, tensor->get_shape());
+    // u1 strides are never bit-packed in CpuBlockedMemoryDesc (see getCurrentMemSizeImp()).
+    const auto can_compute_byte_strides =
+        element_type != ov::element::u1 && ov::util::can_compute_byte_strides(element_type, tensor->get_shape());
 
     VectorDims blk_strides;
 
