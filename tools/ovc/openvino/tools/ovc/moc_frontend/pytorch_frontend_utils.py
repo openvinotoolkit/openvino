@@ -23,7 +23,7 @@ def extract_module_extensions(args):
     return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
-def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
+def _build_dynamic_shapes(inputs, input_specs=None, input_names=None, input_aliases=None):
     """Build dynamic_shapes for torch.export.export.
 
     If input_specs (list of _InputCutInfo from the 'input' parameter) is provided
@@ -148,29 +148,27 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
         [canonical_name(path) for path, _ in flat_paths], [len(path) > 1 for path, _ in flat_paths])
     assigned = [None] * len(flat_leaves)
     remaining = set(range(len(input_specs)))
+    for j in sorted(remaining):
+        spec = input_specs[j]
+        if spec is None or spec.name is None or not spec.name.isdecimal():
+            continue
+        leaf_idx = (input_aliases or {}).get(spec.name)
+        if leaf_idx is None:
+            raise Error(f"Cannot match input '{spec.name}' to an exported PyTorch input.")
+        assigned[leaf_idx] = j
+        remaining.remove(j)
     for candidate_names in (canonical_names, names):
         counts = Counter(name for name, leaf in zip(candidate_names, flat_leaves)
                          if name is not None and isinstance(leaf, torch.Tensor))
         for i, name in enumerate(candidate_names):
-            if (assigned[i] is not None or name is None or counts[name] != 1
-                    or not isinstance(flat_leaves[i], torch.Tensor)):
+            if name is None or counts[name] != 1 or not isinstance(flat_leaves[i], torch.Tensor):
                 continue
             matches = [j for j in remaining if input_specs[j] is not None and input_specs[j].name == name]
             if len(matches) == 1:
+                if assigned[i] is not None:
+                    raise Error(f"Input '{name}' is specified more than once.")
                 assigned[i] = matches[0]
                 remaining.remove(matches[0])
-        tensor_leaf_indices = [i for i, leaf in enumerate(flat_leaves) if isinstance(leaf, torch.Tensor)]
-        for j in sorted(remaining):
-            spec = input_specs[j]
-            if spec is None or spec.name is None or not spec.name.isdecimal():
-                continue
-            input_idx = int(spec.name)
-            if input_idx >= len(tensor_leaf_indices):
-                continue
-            leaf_idx = tensor_leaf_indices[input_idx]
-            if assigned[leaf_idx] is None:
-                assigned[leaf_idx] = j
-                remaining.remove(j)
     for i, leaf in enumerate(flat_leaves):
         if assigned[i] is not None or not isinstance(leaf, torch.Tensor):
             continue
@@ -269,15 +267,46 @@ def get_pytorch_decoder(model, example_inputs, args):
                     bound = signature.bind(*positional_inputs)
                     shape_inputs = tuple(bound.arguments.values())
                     input_names = list(bound.arguments)
-            dynamic_shapes = _build_dynamic_shapes(shape_inputs, input_specs=input_specs, input_names=input_names)
+            module_extensions = extract_module_extensions(args)
+            shared_memory = args.get("share_weights", True)
+            numeric_names = [spec.name for spec in input_specs or []
+                             if spec.name is not None and spec.name.isdecimal()]
+
+            def exported_aliases(export_decoder):
+                if len(leaves) != len(export_decoder._flat_input_is_constant):
+                    raise Error("The number of example inputs does not match the exported PyTorch model inputs.")
+                leaf_indices = [i for i, is_constant in enumerate(export_decoder._flat_input_is_constant)
+                                if not is_constant]
+                input_ids = export_decoder.inputs()
+                if len(leaf_indices) != len(input_ids):
+                    raise Error("The exported PyTorch input IDs do not match its input metadata.")
+                return {str(tensor_id): index for tensor_id, index in zip(input_ids, leaf_indices)}
+
+            preview = None
+            input_aliases = None
+            if numeric_names:
+                # Numeric aliases are FX node IDs, including state and specialized placeholders.
+                preview = TorchFXPythonDecoder.from_model(
+                    model, example_inputs=inputs, module_extensions=module_extensions, shared_memory=shared_memory)
+                input_aliases = exported_aliases(preview)
+            dynamic_shapes = _build_dynamic_shapes(
+                shape_inputs, input_specs=input_specs, input_names=input_names, input_aliases=input_aliases)
             if dynamic_shapes is not None and not any(dim is not None for dim in tree_flatten(dynamic_shapes)[0]):
                 dynamic_shapes = None
-            decoder = TorchFXPythonDecoder.from_model(
-                model,
-                example_inputs=inputs,
-                dynamic_shapes=dynamic_shapes,
-                module_extensions=extract_module_extensions(args),
-                shared_memory=args.get("share_weights", True))
+            if preview is not None and dynamic_shapes is None:
+                decoder = preview
+            else:
+                preview = None
+                decoder = TorchFXPythonDecoder.from_model(
+                    model,
+                    example_inputs=inputs,
+                    dynamic_shapes=dynamic_shapes,
+                    module_extensions=module_extensions,
+                    shared_memory=shared_memory)
+                if input_aliases is not None:
+                    final_aliases = exported_aliases(decoder)
+                    if any(final_aliases.get(name) != input_aliases[name] for name in numeric_names):
+                        raise Error("Numeric input aliases changed during torch.export. Use input names instead.")
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
