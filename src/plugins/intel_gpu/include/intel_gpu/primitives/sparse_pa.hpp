@@ -15,7 +15,7 @@ namespace cldnn {
 
 /// @brief Paged-cache sparse attention consumer primitive: Q0 (K/V cache write) + Q3
 /// (selected-block attention with automatically-derived causal tail). Lowered from
-/// ov::intel_gpu::op::SparsePA.
+/// ov::op::internal::PagedSparseAttention by CreatePagedSparseAttentionOp; see ov::intel_gpu::op::SparsePA.
 struct sparse_pa : public primitive_base<sparse_pa> {
     CLDNN_DECLARE_PRIMITIVE(sparse_pa)
 

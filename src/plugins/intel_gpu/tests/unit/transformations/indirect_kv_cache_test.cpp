@@ -15,6 +15,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -245,4 +246,93 @@ TEST_F(TransformationTestsF, IndirectKVCache5) {
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{key_data, parameter_value, beam_idx, sdpa_q, attn_mask, scale});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
+}
+
+namespace {
+
+// ReadValue -> Gather(beam_idx) -> KVCache for the key and value of a SparseAttention, as KVCacheFusion leaves them.
+struct SparseAttentionCaches {
+    std::shared_ptr<ov::op::v0::Parameter> query, key, value, beam_idx, indices, count, key_length;
+    std::shared_ptr<ov::op::util::Variable> key_variable, value_variable;
+};
+
+SparseAttentionCaches make_sparse_attention_caches() {
+    SparseAttentionCaches c;
+    const auto f16 = ov::element::f16;
+    c.query = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{-1, 4, -1, 32});
+    c.key = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{-1, 2, -1, 32});
+    c.value = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{-1, 2, -1, 32});
+    c.beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    c.indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 1, -1, 8});
+    c.count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 1, -1});
+    c.key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    c.key_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 2, -1, 32}, f16, "k"});
+    c.value_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 2, -1, 32}, f16, "v"});
+    return c;
+}
+
+ov::ParameterVector parameters(const SparseAttentionCaches& c) {
+    return {c.query, c.key, c.value, c.beam_idx, c.indices, c.count, c.key_length};
+}
+
+std::shared_ptr<ov::intel_gpu::op::KVCache> gathered_kv_cache(const SparseAttentionCaches& c,
+                                                              const std::shared_ptr<ov::op::v0::Parameter>& new_token,
+                                                              const std::shared_ptr<ov::op::util::Variable>& variable) {
+    auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
+    auto gather = std::make_shared<ov::op::v8::Gather>(past, c.beam_idx, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    return std::make_shared<ov::intel_gpu::op::KVCache>(gather, new_token, variable, 2, ov::element::f16);
+}
+
+std::shared_ptr<ov::op::v17::SparseAttention> sparse_attention(const SparseAttentionCaches& c,
+                                                               const ov::Output<ov::Node>& key,
+                                                               const ov::Output<ov::Node>& value) {
+    return std::make_shared<ov::op::v17::SparseAttention>(c.query, key, value, c.indices, c.count, c.key_length, 4);
+}
+
+}  // namespace
+
+// The SparseAttention caches become indirect, as the SDPA ones; the sparse kernels do not read the beam table, so the
+// caches are marked for the identity beam_idx check of the infer request.
+TEST_F(TransformationTestsF, IndirectKVCacheSparseAttention) {
+    {
+        const auto c = make_sparse_attention_caches();
+        const auto attention = sparse_attention(c, gathered_kv_cache(c, c.key, c.key_variable), gathered_kv_cache(c, c.value, c.value_variable));
+        model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention)}, parameters(c));
+        manager.register_pass<IndirectKVCache>();
+    }
+    {
+        const auto c = make_sparse_attention_caches();
+        const auto indirect = [&c](const std::shared_ptr<ov::op::v0::Parameter>& new_token, const std::shared_ptr<ov::op::util::Variable>& variable) {
+            auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
+            return std::make_shared<ov::intel_gpu::op::KVCache>(past, new_token, c.beam_idx, variable, 2, 0, ov::element::f16);
+        };
+        const auto attention = sparse_attention(c, indirect(c.key, c.key_variable)->output(0), indirect(c.value, c.value_variable)->output(0));
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention)}, parameters(c));
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+TEST(IndirectKVCacheSparseAttentionTest, MarksCachesForIdentityBeamIdx) {
+    const auto c = make_sparse_attention_caches();
+    const auto attention = sparse_attention(c, gathered_kv_cache(c, c.key, c.key_variable), gathered_kv_cache(c, c.value, c.value_variable));
+    const auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention)}, parameters(c));
+    ov::pass::Manager manager;
+    manager.register_pass<IndirectKVCache>();
+    manager.run_passes(model);
+    for (size_t idx : {size_t{1}, size_t{2}}) {
+        const auto kv_cache = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(attention->get_input_node_shared_ptr(idx));
+        ASSERT_NE(kv_cache, nullptr);
+        EXPECT_TRUE(kv_cache->get_indirect());
+        EXPECT_EQ(kv_cache->get_rt_info().count(ov::intel_gpu::op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX), 1u);
+    }
+}
+
+// A cache also read by another node keeps its beam_idx Gather: that reader expects the reordered rows.
+TEST_F(TransformationTestsF, IndirectKVCacheSparseAttentionSharedCache) {
+    const auto c = make_sparse_attention_caches();
+    const auto key_cache = gathered_kv_cache(c, c.key, c.key_variable);
+    const auto attention = sparse_attention(c, key_cache, gathered_kv_cache(c, c.value, c.value_variable));
+    model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention), std::make_shared<ov::op::v0::Result>(key_cache)},
+                                        parameters(c));
+    manager.register_pass<IndirectKVCache>();
 }

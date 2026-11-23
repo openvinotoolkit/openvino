@@ -12,6 +12,7 @@
 
 #include <string>
 #include <map>
+#include <unordered_set>
 #include <vector>
 #include <memory>
 #include <atomic>
@@ -145,6 +146,8 @@ private:
 
     std::map<cldnn::primitive_id, cldnn::network_output> m_internal_outputs;
     VariablesMap m_variables;
+    /// beam_idx inputs that must be the identity (KV caches read without their beam table), checked on enqueue
+    std::unordered_set<cldnn::primitive_id> m_identity_beam_idx_inputs;
 
     std::shared_ptr<Graph> m_graph;
     RemoteContextImpl::Ptr m_context = nullptr;

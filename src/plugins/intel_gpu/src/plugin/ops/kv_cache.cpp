@@ -35,6 +35,7 @@ void CreateKVCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
                                 op->get_trim(),
                                 op->get_update_kv());
 
+    prim.requires_identity_beam_idx = op->get_rt_info().count(ov::intel_gpu::op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX) > 0;
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
 
@@ -59,6 +60,7 @@ void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     prim.compressed = true;
     prim.quantization_attributes = op->get_quantization_attrs();
 
+    prim.requires_identity_beam_idx = op->get_rt_info().count(ov::intel_gpu::op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX) > 0;
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
 

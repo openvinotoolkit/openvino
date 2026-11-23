@@ -11,6 +11,10 @@
 
 namespace ov::intel_gpu::op {
 
+/// Runtime info key of an indirect KVCache whose consumers do not read its beam table (the QSA sparse attention reads
+/// the cache as it is): such a cache is only valid while beam_idx is the identity, which the infer request checks.
+inline constexpr const char* KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX = "kv_cache_requires_identity_beam_idx";
+
 /// \brief Operator that implements Key-Values cache subgraph for large language models.
 /// This operation updates data of the corresponding Variable
 class KVCache : public ov::op::Op, public ov::op::util::VariableExtension {

@@ -8,19 +8,17 @@
 #include <string>
 
 #include "intel_gpu/op/sparse_kv_quant.hpp"
-#include "openvino/op/paged_sparse_attention.hpp"
 
 namespace ov::intel_gpu::op {
 
-/// \brief GPU-internal paged sparse attention consumer: the public ov::op::internal::PagedSparseAttention
-/// plus the head geometry the kernels are specialized for (derived from the input shapes by the
-/// conversion pass). Lowered to cldnn::sparse_pa.
-class SparsePA : public ov::op::internal::PagedSparseAttention {
-public:
-    OPENVINO_OP("SparsePA", "gpu_opset", ov::op::internal::PagedSparseAttention);
-
-    using Base = ov::op::internal::PagedSparseAttention;
-
+/// \brief Head geometry and cache layout of the GPU paged sparse attention (cldnn::sparse_pa).
+///
+/// ov::op::internal::PagedSparseAttention is lowered to cldnn::sparse_pa directly by CreatePagedSparseAttentionOp, as
+/// PagedAttentionExtension is lowered to cldnn::paged_attention: the head geometry comes from the `num_k_heads` /
+/// `k_head_size` / `num_v_heads` / `v_head_size` runtime info (or the input shapes), the cache quantization from the
+/// cache element type and the KV cache options. The caches are laid out by ConvertPagedSparseAttnInputs.
+/// This is not an op: it only groups the configuration shared by the lowering and the primitive.
+struct SparsePA {
     /// @brief Positional inputs, identical to PagedSparseAttention.
     struct InputIdx {
         static constexpr size_t QUERY = 0;                   ///< [tokens, num_heads*k_head_size]
@@ -58,24 +56,7 @@ public:
         }
     };
 
-    SparsePA() = default;
-    SparsePA(const ov::OutputVector& args, const Config& config);
-
-    bool visit_attributes(ov::AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
-    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-
-    const Config& get_config() const {
-        return m_config;
-    }
-
-    /// True unless the sinks input is a statically empty tensor.
-    bool has_sinks() const;
-
     static bool validate_config(const Config& c, std::string& reason);
-
-private:
-    Config m_config{};
 };
 
 }  // namespace ov::intel_gpu::op
