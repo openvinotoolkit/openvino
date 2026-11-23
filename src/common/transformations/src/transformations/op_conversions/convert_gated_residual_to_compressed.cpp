@@ -103,7 +103,7 @@ ConvertGatedResidualToCompressed::ConvertGatedResidualToCompressed(
         wrap_type<ov::op::internal::GatedResidual>({residual, gain, w_down, w_up, w_inject});
     auto root_pattern = gated_residual | gated_residual_with_gate;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         const auto gr = ov::as_type_ptr<ov::op::internal::GatedResidual>(m.get_match_root());
         OPENVINO_ASSERT(gr, "ConvertGatedResidualToCompressed: matched node is expected to be GatedResidual");

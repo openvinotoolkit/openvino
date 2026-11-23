@@ -80,9 +80,9 @@ bool same_dimension(const ov::Dimension& lhs, const ov::Dimension& rhs) {
 }
 
 /// Rows of the two inputs of a node are one row count, with the same rank: equal when static, the same symbol when
-/// dynamic. Two unrelated dynamic dimensions are never assumed equal: one of them may be 1 at runtime, which the eltwise
-/// would broadcast but the row-wise WRITE does not model. This requires symbols propagated through the model (e.g.
-/// SymbolicOptimizations). `tail` is the number of trailing non-row dimensions.
+/// dynamic. Two unrelated dynamic dimensions are never assumed equal: one of them may be 1 at runtime, which the
+/// eltwise would broadcast but the row-wise WRITE does not model. This requires symbols propagated through the model
+/// (e.g. SymbolicOptimizations). `tail` is the number of trailing non-row dimensions.
 auto same_rows(size_t tail) {
     return [tail](const ov::Output<ov::Node>& out) {
         const auto& lhs = out.get_node()->get_input_partial_shape(0);
@@ -131,8 +131,8 @@ const auto merges_last_two = [](const ov::Output<ov::Node>& out) {
     return true;
 };
 
-/// The write-gate branch S = 2 * Sigmoid(MatMul(Rbar, W_inject, transpose_b) / C) of a model, found by the Rbar it reads.
-/// The 1/C scale is a Multiply(1/C) or Divide(C) after the MatMul, or folded into W_inject.
+/// The write-gate branch S = 2 * Sigmoid(MatMul(Rbar, W_inject, transpose_b) / C) of a model, found by the Rbar it
+/// reads. The 1/C scale is a Multiply(1/C) or Divide(C) after the MatMul, or folded into W_inject.
 struct WriteGateBranch {
     ov::Output<ov::Node> w_inject;  // [C, C*D], 1/C taken out of the weights
     ov::Output<ov::Node> gate;      // S, [.., C]
@@ -163,7 +163,6 @@ const WriteGateBranch* find_write_gate(const WriteGateBranches& branches,
 /// the branches from the Rbar they read.
 class WriteGateCollector : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("WriteGateCollector");
     explicit WriteGateCollector(std::shared_ptr<WriteGateBranches> branches) {
         MATCHER_SCOPE(WriteGateCollector);
         using namespace ov::pass::pattern;
@@ -188,7 +187,7 @@ public:
         auto sigmoid = wrap_type<ov::op::v0::Sigmoid>({inject | multiplied | divide}, consumers_count(1));
         auto gate = wrap_type<ov::op::v1::Multiply>({sigmoid, two});
 
-        ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        ov::matcher_pass_callback callback = [=](Matcher& m) {
             const auto& pm = m.get_pattern_value_map();
             const bool is_divided = pm.count(divide) != 0;
             const bool folded = pm.count(w_folded) != 0;
@@ -238,8 +237,8 @@ const char* norm_form_name(NormForm form) {
 /// The READ sub-graph of one normalization form and the labels its callback reads.
 struct ReadPattern {
     std::shared_ptr<ov::Node> root;
-    std::shared_ptr<ov::Node> residual, residual_3d, w_down_inner, w_down_folded, w_up, low, low_multiplied, low_divided,
-        low_scale_const, folded_scale_const, mixed, mix_scale_const;
+    std::shared_ptr<ov::Node> residual, residual_3d, w_down_inner, w_down_folded, w_up, low, low_multiplied,
+        low_divided, low_scale_const, folded_scale_const, mixed, mix_scale_const;
     std::function<NormParams(const ov::pass::pattern::PatternValueMap&)> read_norm;
 };
 
@@ -263,14 +262,15 @@ ReadPattern make_read_pattern(NormForm form) {
     // Static dimensions are named: equal names are equal sizes. The residual is [..., CD] and splits into [..., C, D];
     // W_down is [L, CD] and W_up [CD, L]; the gain is the expanded [CD] or the split [C, D], with leading ones allowed.
     p.residual = any_input(shape_matches("[..., CD]") && rank_more_than(1) && is_real_type);
-    p.residual_3d = wrap_type<ov::op::v1::Reshape>({p.residual, any_input()},
-                                                   shape_matches("[..., C, D]") && last_dims_static(2) && adds_dimension);
+    p.residual_3d =
+        wrap_type<ov::op::v1::Reshape>({p.residual, any_input()},
+                                       shape_matches("[..., C, D]") && last_dims_static(2) && adds_dimension);
     p.w_down_inner = any_input(shape_matches("[L, CD]") && has_static_shape());
     // The 1/C scale may be folded into W_down.
     p.w_down_folded = wrap_type<ov::op::v1::Multiply>({p.w_down_inner, folded_scale});
     p.w_up = any_input(shape_matches("[CD, L]") && has_static_shape());
-    const auto gain_shape = shape_matches("[CD]") || shape_matches("[C, D]") || shape_matches("[1, CD]") ||
-                            shape_matches("[1, C, D]");
+    const auto gain_shape =
+        shape_matches("[CD]") || shape_matches("[C, D]") || shape_matches("[1, CD]") || shape_matches("[1, C, D]");
 
     // The flattened, normalized activations Rbar.
     std::shared_ptr<ov::Node> rbar;
@@ -308,7 +308,8 @@ ReadPattern make_read_pattern(NormForm form) {
         auto biased = wrap_type<ov::op::v1::Add>({mean, epsilon});
         auto rms_val = wrap_type<ov::op::v0::Sqrt>({biased});
         // 1 / sqrt: Divide(1, sqrt), or Power(sqrt, -1) once Divide is converted.
-        auto inv_rms = wrap_type<ov::op::v1::Divide>({one, rms_val}) | wrap_type<ov::op::v1::Power>({rms_val, minus_one});
+        auto inv_rms =
+            wrap_type<ov::op::v1::Divide>({one, rms_val}) | wrap_type<ov::op::v1::Power>({rms_val, minus_one});
         auto normalized = wrap_type<ov::op::v1::Multiply>({p.residual_3d, inv_rms});
         auto flat = wrap_type<ov::op::v1::Reshape>({normalized, any_input()});
         // The gain multiplies the flattened normalization: a `1 + w` Add or a folded Constant.
@@ -335,11 +336,13 @@ ReadPattern make_read_pattern(NormForm form) {
     // Branch reduction over the C axis: ReduceSum + a 1/C Multiply, or a ReduceMean that folds the 1/C. The ReduceMean
     // form splits both operands to [*, C, D] first.
     auto branch_axis = wrap_type<ov::op::v0::Constant>(value_matches("-2"));
-    auto weighted_3d = wrap_type<ov::op::v1::Reshape>({wrap_type<ov::op::v1::Multiply>({read_gate, rbar}), any_input()});
-    p.mixed = wrap_type<ov::op::v1::Multiply>({wrap_type<ov::op::v1::ReduceSum>({weighted_3d, branch_axis}), mix_scale});
+    auto weighted_3d =
+        wrap_type<ov::op::v1::Reshape>({wrap_type<ov::op::v1::Multiply>({read_gate, rbar}), any_input()});
+    p.mixed =
+        wrap_type<ov::op::v1::Multiply>({wrap_type<ov::op::v1::ReduceSum>({weighted_3d, branch_axis}), mix_scale});
 
-    auto weighted_split = wrap_type<ov::op::v1::Multiply>(
-        {wrap_type<ov::op::v1::Reshape>({read_gate, any_input()}), wrap_type<ov::op::v1::Reshape>({rbar, any_input()})});
+    auto weighted_split = wrap_type<ov::op::v1::Multiply>({wrap_type<ov::op::v1::Reshape>({read_gate, any_input()}),
+                                                           wrap_type<ov::op::v1::Reshape>({rbar, any_input()})});
     auto reduced_mean = wrap_type<ov::op::v1::ReduceMean>({weighted_split, branch_axis});
 
     p.root = p.mixed | reduced_mean;
@@ -369,9 +372,9 @@ bool fuse_read(ov::pass::pattern::Matcher& m,
         return false;
     }
 
-    // Both 1/C scalings are model semantics: the one of the down projection is a Multiply or folded into W_down, the one
-    // of the mix a Multiply (ReduceSum form) or implicit in a ReduceMean. The op applies them itself, so it needs the
-    // unscaled W_down. The scales are compared with C, which the pattern only learns from shapes.
+    // Both 1/C scalings are model semantics: the one of the down projection is a Multiply or folded into W_down, the
+    // one of the mix a Multiply (ReduceSum form) or implicit in a ReduceMean. The op applies them itself, so it needs
+    // the unscaled W_down. The scales are compared with C, which the pattern only learns from shapes.
     const float inv_c = 1.0F / static_cast<float>(C);
     const bool low_is_divided = pm.count(p.low_divided) != 0;
     const bool explicit_low_scale = pm.count(p.low_multiplied) != 0 || low_is_divided;
@@ -489,18 +492,17 @@ bool fuse_read(ov::pass::pattern::Matcher& m,
 /// outside the match.
 class ReadFusionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("GatedResidualReadFusionMatcher");
     ReadFusionMatcher(NormForm form,
                       std::shared_ptr<const WriteGateBranches> gates,
                       ov::pass::param_callback is_rejected) {
         MATCHER_SCOPE(ReadFusionMatcher);
         const auto pattern = std::make_shared<const ReadPattern>(make_read_pattern(form));
-        ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             return fuse_read(m, *pattern, *gates, is_rejected);
         };
-        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pattern->root,
-                                                                      matcher_name + "/" + norm_form_name(form)),
-                         callback);
+        register_matcher(
+            std::make_shared<ov::pass::pattern::Matcher>(pattern->root, matcher_name + "/" + norm_form_name(form)),
+            callback);
     }
 };
 
@@ -669,8 +671,9 @@ GatedResidualFusion::GatedResidualFusion(bool fuse_write) : m_fuse_write(fuse_wr
 
 bool GatedResidualFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedResidualFusion);
-    // The named dimensions of the patterns are static, so the passes need no symbolic propagation; only the WRITE fusion
-    // compares dynamic rows, by symbol. The sink runs first: it moves the Add to the form the WRITE fusion matches.
+    // The named dimensions of the patterns are static, so the passes need no symbolic propagation; only the WRITE
+    // fusion compares dynamic rows, by symbol. The sink runs first: it moves the Add to the form the WRITE fusion
+    // matches.
     ov::pass::Manager manager(get_pass_config(), "GatedResidualFusion");
     manager.register_pass<GatedResidualReadFusion>();
     manager.register_pass<GatedResidualWriteSinkReshape>();

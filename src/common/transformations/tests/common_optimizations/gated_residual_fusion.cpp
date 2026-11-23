@@ -132,10 +132,10 @@ struct ReadOptions {
     // Errors of the 1/C scalings: the effective scale is `factor / C`.
     float low_scale_factor = 1.0F;
     float gate_scale_factor = 1.0F;
-    size_t gain_size = CD;  // elements of the norm gain; C*D is what the op takes
-    size_t inject_rows = C;  // rows of W_inject; the op takes C
+    size_t gain_size = CD;                    // elements of the norm gain; C*D is what the op takes
+    size_t inject_rows = C;                   // rows of W_inject; the op takes C
     element::Type scale_type = element::f32;  // the stored type of the 1/C scalars
-    int64_t rms_axis = -1;  // axis of a fused RMS; the op normalizes the last one
+    int64_t rms_axis = -1;                    // axis of a fused RMS; the op normalizes the last one
 };
 
 // The projection weight of a GEMM: [N, K] stored with transpose_b.
@@ -154,10 +154,11 @@ Output<Node> scaled_projection(const Output<Node>& x,
     switch (scale) {
     case Scale::Folded: {
         // 1/C folded into the weights (plain weights only).
-        return std::make_shared<op::v0::MatMul>(x,
-                                                std::make_shared<op::v1::Multiply>(w, scalar(factor / C, opt.scale_type)),
-                                                false,
-                                                true);
+        return std::make_shared<op::v0::MatMul>(
+            x,
+            std::make_shared<op::v1::Multiply>(w, scalar(factor / C, opt.scale_type)),
+            false,
+            true);
     }
     case Scale::Divide:
         return std::make_shared<op::v1::Divide>(std::make_shared<op::v0::MatMul>(x, w, false, true),
