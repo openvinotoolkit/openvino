@@ -260,7 +260,27 @@ For dynamic shapes, `ov::symbol::util::dims_are_equal` compares dimensions that 
 
 ### Pattern blocks
 
-Recurring subgraph shapes (compressed weights, dequantization chains, MLP blocks) are described once as a `pattern::op::Block` and reused. See [pattern_blocks/](../include/transformations/pattern_blocks/) — e.g. `CompressedWeightsBlock`. Add a new block instead of re-describing the same subgraph in a third pass.
+Recurring subgraph shapes (compressed weights, dequantization chains, MLP blocks) should be described once and reused. See [pattern_blocks/](../include/transformations/pattern_blocks/).
+
+For a pattern that must compose with other patterns, a struct holding its root and named pattern-node handles can be used directly with the enclosing `Matcher`. For example, `GPTNeoXRoPEPattern` accepts an input pattern and exposes its root and handles; access matched values through the matcher's pattern map. Each instance has its own handles, but shared inputs and symbols use the enclosing matcher's state: instances using the same symbol name constrain it to the same value. Pass distinct half-dimension symbol names when separate RoPE instances can have different dimensions. Its cosine-input relationship must still be checked by the caller.
+
+```cpp
+auto input = pattern::any_input(pattern::rank_equals(3));
+pattern::GPTNeoXRoPEPattern rope(input, 3, "query_half_ndims");
+auto matcher = std::make_shared<pattern::Matcher>(rope.root, "QueryRoPE");
+
+// After a successful match:
+const auto& matches = matcher->get_pattern_value_map();
+auto matched_input = matches.at(rope.input);
+auto matched_sin = matches.at(rope.sin);
+```
+
+For generic inspection, `rope.anchors()` returns named `PatternAnchor` entries. These are ordinary C++ declarations,
+not macro registrations; names are maintained explicitly and are a runtime contract for generic consumers. Check
+whether a name is listed separately from whether its node is present in the match map: an optional node may be
+registered but unmatched. The returned array is a snapshot, so request it again if a handle is changed.
+
+Existing patterns such as `CompressedWeightsBlock` use `pattern::op::Block` and named anchors. Add a reusable pattern instead of re-describing the same subgraph in a third pass.
 
 ## Writing the callback
 
