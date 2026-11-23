@@ -27,9 +27,12 @@ class primitive_inst;
 struct reorder_cache_key {
     primitive_id data_source;
     layout expected_layout;
+    // Weights reorder that rotates the weights by 180 degrees (WeightsReorderParams::should_be_transposed()). It must
+    // not be shared with a consumer of the same weights that needs them as they are.
+    bool transposed = false;
 
     friend bool operator==(const reorder_cache_key& lhs, const reorder_cache_key& rhs) {
-        bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+        bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout && lhs.transposed == rhs.transposed;
 
         if (ret && lhs.expected_layout.format == cldnn::format::custom) {
             ret &= (lhs.expected_layout.format.traits().block_sizes == rhs.expected_layout.format.traits().block_sizes);
@@ -47,6 +50,9 @@ struct reorder_cache_key {
         }
         if (lhs.expected_layout != rhs.expected_layout) {
             return (lhs.expected_layout < rhs.expected_layout);
+        }
+        if (lhs.transposed != rhs.transposed) {
+            return rhs.transposed;
         }
         return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
     }
