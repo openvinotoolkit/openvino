@@ -2,239 +2,194 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// #include "common_test_utils/test_constants.hpp"
-// #include "elf_schedules.hpp"
+#include <gtest/gtest.h>
 
-// // Copyright (C) 2018-2026 Intel Corporation
-// // SPDX-License-Identifier: Apache-2.0
-// //
+#include <memory>
+#include <sstream>
+#include <string>
+#include <unordered_map>
 
-// #include <gtest/gtest.h>
+#include "common/functions.hpp"
+#include "common/npu_test_env_cfg.hpp"
+#include "hsm_sections/compiler_schedules.hpp"
+#include "intel_npu/utils/utils.hpp"
+#include "openvino/core/model_util.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/util/codec_xor.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
-// #include <memory>
-// #include <sstream>
-// #include <string>
-// #include <unordered_map>
+namespace {
 
-// #include "common/functions.hpp"
-// #include "common/npu_test_env_cfg.hpp"
-// #include "hsm_sections/compiler_schedules.hpp"
-// #include "intel_npu/common/blob_reader.hpp"
-// #include "intel_npu/common/cre.hpp"
-// #include "intel_npu/common/supported_section_type_evaluator.hpp"
-// #include "intel_npu/utils/utils.hpp"
-// #include "openvino/core/model_util.hpp"
-// #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-// #include "openvino/core/shape.hpp"
-// #include "openvino/core/type/element_type.hpp"
-// #include "openvino/op/add.hpp"
-// #include "openvino/op/parameter.hpp"
-// #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+// duplicate from tests/functional/behavior/weights_separation.hpp
+// should we move it to common/utils?
+std::shared_ptr<ov::Model> createTestModelWithWCA() {
+    using namespace ov;
 
-// namespace {
+    constexpr auto precision = element::f32;
+    const float weightsValue = 1.0f;
+    auto weights = std::make_shared<op::v0::Constant>(precision, Shape{5}, std::vector<float>{weightsValue});
+    auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
+    auto add = std::make_shared<op::v1::Add>(input, weights);
 
-// // duplicate from tests/functional/behavior/weights_separation.hpp
-// // should we move it to common/utils?
-// std::shared_ptr<ov::Model> createTestModelWithWCA() {
-//     using namespace ov;
+    weights->set_friendly_name("weights");
+    input->set_friendly_name("input");
+    add->set_friendly_name("add");
 
-//     constexpr auto precision = element::f32;
-//     const float weightsValue = 1.0f;
-//     auto weights = std::make_shared<op::v0::Constant>(precision, Shape{5}, std::vector<float>{weightsValue});
-//     auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
-//     auto add = std::make_shared<op::v1::Add>(input, weights);
+    weights->get_rt_info()[WeightlessCacheAttribute::get_type_info_static()] =
+        WeightlessCacheAttribute(weights->get_byte_size(), 0, weights->get_element_type());
 
-//     weights->set_friendly_name("weights");
-//     input->set_friendly_name("input");
-//     add->set_friendly_name("add");
+    auto model = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input}, "Simple with WCA");
+    ov::util::set_tensors_names(AUTO, *model, {}, {{0, {"add"}}});
+    return model;
+}
 
-//     weights->get_rt_info()[WeightlessCacheAttribute::get_type_info_static()] =
-//         WeightlessCacheAttribute(weights->get_byte_size(), 0, weights->get_element_type());
+}  // namespace
 
-//     auto model = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input}, "Simple with weights");
-//     ov::util::set_tensors_names(AUTO, *model, {}, {{0, {"add"}}});
-//     return model;
-// }
+namespace ov::test::behavior {
+using namespace ::intel_npu;
 
-// }  // namespace
+class CompilerSchedulesSectionsTest : public OVPluginTestBase,
+                                      public testing::WithParamInterface<std::tuple<std::string, ov::AnyMap, bool>> {
+public:
+    // maybe we can use SetUpTestSuite() for the compilation part
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::pair<uint32_t, uint32_t> graphExtMutableCommandListExtPair;
+        std::string target_device;
+        ov::AnyMap configuration;
+        std::tie(target_device, configuration, is_dynamic) = this->GetParam();
+        zeGraphNpuExtVersion = graphExtMutableCommandListExtPair.first;
+        zeMutableCommandListExtVersion = graphExtMutableCommandListExtPair.second;
 
-// namespace ov::test::behavior {
-// using namespace ::intel_npu;
+        auto options = std::make_shared<::intel_npu::OptionsDesc>();
+        options->add<::intel_npu::PLATFORM>();
+        options->add<::intel_npu::COMPILER_TYPE>();
+        options->add<::intel_npu::BATCH_MODE>();
+        options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
+        npu_config = std::make_unique<::intel_npu::Config>(options);
+        for (const auto& [propertyName, propertyValue] : configuration) {
+            npu_config->update(propertyName, propertyValue.as<std::string>());
+        }
 
-// class CompilerSchedulesSectionsTest : public OVPluginTestBase,
-//                                       public testing::WithParamInterface<std::tuple<std::string, ov::AnyMap>> {
-// public:
-//     // maybe we can use SetUpTestSuite() for the compilation part
-//     void SetUp() override {
-//         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-//         std::pair<uint32_t, uint32_t> graphExtMutableCommandListExtPair;
-//         std::tie(target_device, configuration) = this->GetParam();
-//         zeGraphNpuExtVersion = graphExtMutableCommandListExtPair.first;
-//         zeMutableCommandListExtVersion = graphExtMutableCommandListExtPair.second;
+        if (is_dynamic) {
+            npu_config->update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
+        }
 
-//         auto options = std::make_shared<::intel_npu::OptionsDesc>();
-//         options->add<::intel_npu::PLATFORM>();
-//         options->add<::intel_npu::COMPILER_TYPE>();
-//         options->add<::intel_npu::BATCH_MODE>();
-//         options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
-//         npu_config = std::make_unique<::intel_npu::Config>(options);
-//         for (const auto& [propertyName, propertyValue] : configuration) {
-//             npu_config->update(propertyName, propertyValue.as<std::string>());
-//         }
+        auto zeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>(
+            ::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+            intel_npu::test_constants::TARGET_ZE_GRAPH_NPU_EXT_VERSION,
+            ::intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION,
+            ::intel_npu::test_constants::TARGET_ZE_PROFILING_NPU_EXT_VERSION,
+            ::intel_npu::test_constants::TARGET_ZE_CONTEXT_NPU_EXT_VERSION,
+            intel_npu::test_constants::TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION);
+        zeroInitStruct = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zeroInitMock);
 
-//         auto zeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>(
-//             ::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
-//             intel_npu::test_constants::TARGET_ZE_GRAPH_NPU_EXT_VERSION,
-//             ::intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION,
-//             ::intel_npu::test_constants::TARGET_ZE_PROFILING_NPU_EXT_VERSION,
-//             ::intel_npu::test_constants::TARGET_ZE_CONTEXT_NPU_EXT_VERSION,
-//             intel_npu::test_constants::TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION);
-//         zeroInitStruct = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zeroInitMock);
+        std::shared_ptr<ICompilerAdapter> compiler;
+        try {
+            compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
+                           ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                                 std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
+                           : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                                 std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct,
+                                                                                      ::intel_npu::makeVCLCompiler()));
+        } catch (...) {
+            GTEST_SKIP() << "Couldn't load compiler library";
+        }
 
-//         try {
-//             compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
-//                            ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-//                                  std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
-//                            : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-//                                  std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct,
-//                                                                                       ::intel_npu::makeVCLCompiler()));
-//         } catch (...) {
-//             GTEST_SKIP() << "Couldn't load compiler library";
-//         }
+        graph = compiler->compile(createTestModelWithWCA(), *npu_config, ::intel_npu::AdapterDescriptor{});
 
-//         OVPluginTestBase::SetUp();
-//     }
+        OVPluginTestBase::SetUp();
+    }
 
-//     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, ov::AnyMap>>& obj) {
-//         std::string targetDevice;
-//         ov::AnyMap configuration;
-//         std::tie(targetDevice, configuration) = obj.param;
-//         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-//         std::ostringstream result;
-//         result << "targetDevice=" << targetDevice << "_";
-//         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
-//         if (!configuration.empty()) {
-//             for (auto& configItem : configuration) {
-//                 result << "configItem=" << configItem.first << "_";
-//                 configItem.second.print(result);
-//             }
-//         }
-//         return result.str();
-//     }
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, ov::AnyMap, bool>>& obj) {
+        std::string targetDevice;
+        ov::AnyMap configuration;
+        bool is_dynamic;
+        std::tie(targetDevice, configuration, is_dynamic) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
+            }
+        }
+        result << "_isDynamic=" << is_dynamic;
+        return result.str();
+    }
 
-// protected:
-//     std::shared_ptr<::intel_npu::ICompilerAdapter> compiler;
-// };
+protected:
+    std::shared_ptr<IGraph> graph;
+    bool is_dynamic;
+};
 
-// using MainScheduleSectionTest = CompilerSchedulesSectionsTest;
-// using InitSchedulesSectionTest = CompilerSchedulesSectionsTest;
+using ELFMainScheduleSectionTest = CompilerSchedulesSectionsTest;
 
-// TEST_P(CompilerSchedulesSectionsTest, MainScheduleSectionNonEmpty) {
-//     auto section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
-//     ASSERT_NE(section, nullptr);
-//     EXPECT_GT(section->get_schedule().get_byte_size(), 0);
-// }
+TEST_P(ELFMainScheduleSectionTest, DecryptThrowsIfSectionHasGraph) {
+    const auto section = std::make_shared<ELFMainScheduleSection>(graph);
+    OV_EXPECT_THROW(section->decrypt(ov::util::codec_xor), ov::Exception, _);
+}
 
-// TEST_P(CompilerSchedulesSectionsTest, MainScheduleDataPageAligned) {
-//     auto section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
-//     ASSERT_NE(section, nullptr);
+TEST_P(ELFMainScheduleSectionTest, GetScheduleThrowsIfSectionHasGraph) {
+    const auto section = std::make_shared<ELFMainScheduleSection>(graph);
+    OV_EXPECT_THROW(section->get_schedule(), ov::Exception, _);
+}
 
-//     auto* blob_begin = static_cast<const uint8_t*>(blob.data());
-//     auto* schedule_ptr = static_cast<const uint8_t*>(section->get_schedule().data());
-//     auto offset_within_blob = static_cast<size_t>(schedule_ptr - blob_begin);
-//     EXPECT_EQ(offset_within_blob % ::intel_npu::utils::STANDARD_PAGE_SIZE, 0);
-// }
+TEST_P(ELFMainScheduleSectionTest, GetIndividualRuntimeRequirements) {
+    const auto section = std::make_shared<ELFMainScheduleSection>(graph);
+    std::optional<std::string> requirements;
+    OV_ASSERT_NO_THROW(requirements = section->get_individual_runtime_requirements());
+    ASSERT_TRUE(requirements.has_value());
+    ASSERT_TRUE(requirements->size() >= 2);
+    ASSERT_EQ(requirements->front(), '[');
+    ASSERT_EQ(requirements->back(), ']');
+}
 
-// using ELFSchedulesWeightsSeparation = CompilerSchedulesSectionsTest;
+TEST_P(ELFMainScheduleSectionTest, GetIndividualRuntimeRequirementsInvalidState) {
+    const auto section = std::make_shared<ELFMainScheduleSection>(ov::Tensor());
+    OV_EXPECT_THROW(section->get_individual_runtime_requirements(), ov::Exception, _);
+}
 
-// TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesSectionNonEmpty) {
-//     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
-//     ASSERT_NE(section, nullptr);
+TEST_P(ELFMainScheduleSectionTest, SetGraph) {
+    const auto section = std::make_shared<ELFMainScheduleSection>(graph);
+    OV_ASSERT_NO_THROW(section->set_graph(graph));
+    std::optional<std::string> requirements;
+    OV_ASSERT_NO_THROW(requirements = section->get_individual_runtime_requirements());
+    ASSERT_TRUE(requirements.has_value());
+}
 
-//     auto schedules = section->get_schedules();
-//     ASSERT_GT(schedules.size(), 0);
-//     for (const auto& schedule : schedules) {
-//         EXPECT_GT(schedule.get_byte_size(), 0);
-//     }
-// }
+TEST_P(ELFMainScheduleSectionTest, SetGraphFailures) {
+    const auto section = std::make_shared<ELFMainScheduleSection>(graph);
+    OV_EXPECT_THROW(section->set_graph(graph), ov::Exception, _);
+    OV_EXPECT_THROW(section->set_graph(nullptr), ov::Exception, _);
+}
 
-// TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesDataPageAligned) {
-//     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
-//     ASSERT_NE(section, nullptr);
-//     auto schedules = section->get_schedules();
-//     ASSERT_GT(schedules.size(), 0);
+using InitSchedulesSectionTest = CompilerSchedulesSectionsTest;
 
-//     auto* blob_begin = static_cast<const uint8_t*>(blob.data());
+}  // namespace ov::test::behavior
 
-//     for (const ov::Tensor& schedule : schedules) {
-//         const auto* schedule_ptr = static_cast<const uint8_t*>(schedule.data());
-//         auto offset_within_blob = static_cast<size_t>(schedule_ptr - blob_begin);
-//         EXPECT_EQ(offset_within_blob % ::intel_npu::utils::STANDARD_PAGE_SIZE, 0);
-//     }
-// }
+using namespace ov::test::behavior;
 
-// TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesContainedInsideBlob) {
-//     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
-//     ASSERT_NE(section, nullptr);
+// TODO do we need these configs?
 
-//     auto* blob_begin = static_cast<const uint8_t*>(blob.data());
-//     auto* blob_end = blob_begin + blob.get_byte_size();
-//     for (const auto& schedule : section->get_schedules()) {
-//         auto* data = static_cast<const uint8_t*>(schedule.data());
-//         EXPECT_GE(data, blob_begin);
-//         EXPECT_LT(data, blob_end);
-//     }
-// }
+const std::vector<ov::AnyMap> emptyConfig = {{}};
 
-// using ELFSchedulesNoInits = CompilerSchedulesSectionsTest;
+const std::vector<ov::AnyMap> weightsSeparationConfig = {
+    {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN}, {ov::enable_weightless.name(), true}}};
 
-// TEST_P(ELFSchedulesNoInits, InitSchedulesSectionAbsent) {
-//     auto section = reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
-//     EXPECT_EQ(section, nullptr);
-// }
+const std::vector<ov::AnyMap> nonWeightsSeparationConfig = {
+    {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN},
+     {ov::enable_weightless.name(), false}}};
 
-// }  // namespace ov::test::behavior
-
-// using namespace ov::test::behavior;
-
-// const std::vector<ov::AnyMap> emptyConfig = {{}};
-
-// const std::vector<ov::AnyMap> weightsSeparationConfig = {
-//     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN}, {ov::enable_weightless.name(),
-//     true}}};
-
-// const std::vector<ov::AnyMap> nonWeightsSeparationConfig = {
-//     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::PLUGIN},
-//      {ov::enable_weightless.name(), false}}};
-
-// INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-//                          CompilerSchedulesSectionsTest,
-//                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-//                                             ::testing::ValuesIn(emptyConfig)),
-//                          CompilerSchedulesSectionsTest::getTestCaseName);
-
-// INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTestWeightsSeparation,
-//                          CompilerSchedulesSectionsTest,
-//                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-//                                             ::testing::ValuesIn(weightsSeparationConfig)),
-//                          CompilerSchedulesSectionsTest::getTestCaseName);
-
-// INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-//                          ELFSchedulesWeightsSeparation,
-//                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-//                                             ::testing::ValuesIn(weightsSeparationConfig)),
-//                          CompilerSchedulesSectionsTest::getTestCaseName);
-
-// const std::vector<ov::AnyMap> driverConfig = {
-//     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::DRIVER}}};
-
-// INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-//                          ELFSchedulesNoInits,
-//                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-//                                             ::testing::ValuesIn(nonWeightsSeparationConfig)),
-//                          CompilerSchedulesSectionsTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         CompilerSchedulesSectionsTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(emptyConfig),
+                                            ::testing::ValuesIn(std::vector<bool>{true, false})),
+                         CompilerSchedulesSectionsTest::getTestCaseName);
