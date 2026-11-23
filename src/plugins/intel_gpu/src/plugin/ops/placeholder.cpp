@@ -16,7 +16,7 @@ using Placeholder = ov::intel_gpu::op::Placeholder;
 
 namespace ov::intel_gpu {
 
-static void CreatePlaceholderOp(ProgramBuilder&, const std::shared_ptr<ov::intel_gpu::op::Placeholder>&) { }
+static void CreatePlaceholderOp(ProgramBuilder& /*unused*/, const std::shared_ptr<ov::intel_gpu::op::Placeholder>& /*unused*/) {}
 
 REGISTER_FACTORY_IMPL(internal, Placeholder);
 

@@ -41,7 +41,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    virtual JitConstants GetJitConstants(const region_yolo_params& params) const;
+    virtual JitConstants GetJitConstants(const region_yolo_params& ry) const;
     bool Validate(const Params& p) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::REORDER };

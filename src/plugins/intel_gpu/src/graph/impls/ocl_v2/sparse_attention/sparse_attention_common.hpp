@@ -228,7 +228,15 @@ protected:
                 args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
             }
         }
-        const uint32_t scalars = m_kind == AttKind::Reduce ? (m_slots.paged ? 1 : 2) : (m_slots.paged ? 4 : (dense_compressed(params) ? 7 : 5));
+        const uint32_t scalars = [this, &params]() {
+            if (m_kind == AttKind::Reduce) {
+                return m_slots.paged ? 1U : 2U;
+            }
+            if (m_slots.paged) {
+                return 4U;
+            }
+            return dense_compressed(params) ? 7U : 5U;
+        }();
         for (uint32_t i = 0; i < scalars; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
