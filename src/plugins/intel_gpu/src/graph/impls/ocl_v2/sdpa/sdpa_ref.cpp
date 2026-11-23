@@ -22,8 +22,9 @@ namespace {
 ov::element::Type get_accumulator_type(const kernel_impl_params& params) {
     auto input_dt = params.get_input_layout(0).data_type;
     // Use f32 accumulator for bf16 inputs to maintain precision
-    if (input_dt == ov::element::bf16)
+    if (input_dt == ov::element::bf16) {
         return ov::element::f32;
+    }
     return input_dt;
 }
 
