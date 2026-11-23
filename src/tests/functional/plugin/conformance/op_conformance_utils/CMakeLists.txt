@@ -4,6 +4,8 @@
 
 set(TARGET_NAME op_conformance_utils)
 
+include(sources.cmake)
+
 list(APPEND LIBRARIES
         openvino::runtime
         openvino::pugixml
@@ -14,7 +16,7 @@ list(APPEND LIBRARIES
 ov_add_target(
         NAME "${TARGET_NAME}"
         TYPE STATIC
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        SOURCES ${OP_CONFORMANCE_UTILS_SOURCES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"

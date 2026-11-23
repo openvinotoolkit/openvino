@@ -95,7 +95,7 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
     return {kd};
 }
 
-CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForMulti(const cum_sum_params& params) const {
+CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForMulti(const cum_sum_params& params) {
     MultiDispatchData dispatchData;
     std::vector<size_t> dims = {params.outputs[0].Batch().v,
                                 params.outputs[0].Feature().v,

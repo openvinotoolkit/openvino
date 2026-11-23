@@ -106,7 +106,7 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    void set_tensors_impl(ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
@@ -169,9 +169,11 @@ private:
                                                 const ov::PartialShape& pshape,
                                                 ov::element::Type element_type,
                                                 bool need_lockable_mem) const;
-    std::shared_ptr<ov::ITensor> reinterpret_device_tensor(std::shared_ptr<RemoteTensorImpl> tensor, const ov::Shape new_shape) const;
+    std::shared_ptr<ov::ITensor> reinterpret_device_tensor(std::shared_ptr<RemoteTensorImpl> tensor, ov::Shape new_shape) const;
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const;
-    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::PartialShape& pshape, ov::element::Type element_type, bool need_lockable_memory = false) const;
+    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::PartialShape& port_shape,
+                                                      ov::element::Type element_type,
+                                                      bool need_lockable_memory = false) const;
 
     void allocate_inputs();
     void allocate_outputs();

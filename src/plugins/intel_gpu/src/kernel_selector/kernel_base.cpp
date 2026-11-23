@@ -1,9 +1,10 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "kernel_base.h"
 
+#include <algorithm>
 #include <sstream>
 
 namespace kernel_selector {
@@ -131,7 +132,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IsSIMDSizeSupported
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) const {
+bool KernelBase::IsSIMDSizeSupported(const EngineInfo& info, size_t simd_size) {
     auto supported_sizes = info.supportedSimdSizes;
     return std::find(supported_sizes.begin(), supported_sizes.end(), simd_size) != supported_sizes.end();
 }
@@ -257,20 +258,17 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
 }
 
 bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const {
-    for (auto& supported_op : GetSupportedFusedOps()) {
-        if (fused_op.GetType() == supported_op) {
-            return true;
-        }
-    }
-
-    return false;
+    const auto& supported_ops = GetSupportedFusedOps();
+    return std::any_of(supported_ops.begin(), supported_ops.end(), [&fused_op](auto& supported_op) {
+        return fused_op.GetType() == supported_op;
+    });
 }
 
 std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
     return {};
 }
 
-DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params) const {
+DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params) {
     DeviceFeaturesKey k;
 
     bool requires_blocked_read_write_char = false;

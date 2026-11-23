@@ -22,6 +22,7 @@ TEST(attributes, constant_op) {
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
     EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    EXPECT_EQ(k->get_byte_size(), g_k->get_byte_size());
     vector<float> g_data = g_k->get_vector<float>();
     EXPECT_EQ(data, g_data);
 }

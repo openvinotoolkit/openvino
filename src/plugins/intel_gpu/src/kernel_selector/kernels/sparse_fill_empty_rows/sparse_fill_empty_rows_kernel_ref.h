@@ -20,11 +20,11 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
 
 protected:
     JitConstants GetJitConstants(const sparse_fill_empty_rows_params& params) const;
-    bool SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id = 0) const;
+    static bool SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id = 0);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
