@@ -134,6 +134,12 @@ jobs:
       - name: Setup Python ${{ env.PYTHON_VERSION }} (NPU hosts)
         if: ${{ !contains(inputs.runner, 'aks') }}
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        # its install script upgrades pip from PyPI through proxy-dmz; the CA bundle step
+        # below needs Python, so trust the proxy CA alone here, as GPU_Unit_Tests does
+        env:
+          SSL_CERT_FILE: ${{ env.PROXY_CA }}
+          REQUESTS_CA_BUNDLE: ${{ env.PROXY_CA }}
+          CURL_CA_BUNDLE: ${{ env.PROXY_CA }}
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
