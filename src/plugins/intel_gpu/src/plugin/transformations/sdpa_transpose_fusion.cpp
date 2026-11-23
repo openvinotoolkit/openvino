@@ -11,6 +11,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
@@ -28,8 +29,9 @@ static std::vector<int64_t> compose_orders(const std::vector<int64_t>& inner,
                                            const std::vector<int64_t>& outer) {
     OPENVINO_ASSERT(inner.size() == outer.size());
     std::vector<int64_t> result(inner.size());
-    for (size_t i = 0; i < inner.size(); ++i)
+    for (size_t i = 0; i < inner.size(); ++i) {
         result[i] = inner[outer[i]];
+    }
     return result;
 }
 
@@ -38,12 +40,14 @@ static std::vector<int64_t> compose_orders(const std::vector<int64_t>& inner,
 static std::vector<int64_t> match_heads_seq_swap(const std::shared_ptr<ov::op::v1::Transpose>& transpose) {
     auto order_node =
         ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
-    if (!order_node)
+    if (!order_node) {
         return {};
+    }
 
     auto order = order_node->cast_vector<int64_t>();
-    if (order != std::vector<int64_t>{0, 2, 1, 3})
+    if (order != std::vector<int64_t>{0, 2, 1, 3}) {
         return {};
+    }
 
     return order;
 }
@@ -80,16 +84,18 @@ SDPATransposeFusion::SDPATransposeFusion() {
     auto any_sdpa_m = std::make_shared<Or>(OutputVector{sdpa_m, sdpa_v13_m});
     auto transpose_m = wrap_type<v1::Transpose>({any_sdpa_m, any_input()});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto transpose = ov::as_type_ptr<v1::Transpose>(
             pattern_map.at(transpose_m).get_node_shared_ptr());
-        if (!transpose)
+        if (!transpose) {
             return false;
+        }
 
         auto order = match_heads_seq_swap(transpose);
-        if (order.empty())
+        if (order.empty()) {
             return false;
+        }
 
         std::shared_ptr<ov::Node> sdpa_node;
         std::shared_ptr<ov::intel_gpu::op::SDPA> new_sdpa;
@@ -97,12 +103,14 @@ SDPATransposeFusion::SDPATransposeFusion() {
         if (pattern_map.count(sdpa_m) > 0) {
             auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(
                 pattern_map.at(sdpa_m).get_node_shared_ptr());
-            if (!sdpa || transformation_callback(sdpa))
+            if (!sdpa || transformation_callback(sdpa)) {
                 return false;
+            }
 
             // Only match rank-4 output.
-            if (!is_rank_4(sdpa->get_output_partial_shape(0)))
+            if (!is_rank_4(sdpa->get_output_partial_shape(0))) {
                 return false;
+            }
 
             // Absorb the trailing Transpose into the SDPA's output_transpose_order,
             // but only when that order is still identity. output_transpose_order is set
@@ -114,8 +122,9 @@ SDPATransposeFusion::SDPATransposeFusion() {
             // output_transpose_order
             auto cur_out_order = sdpa->get_output_transpose_order();
             for (size_t i = 0; i < cur_out_order.size(); ++i) {
-                if (cur_out_order[i] != static_cast<int64_t>(i))
+                if (cur_out_order[i] != static_cast<int64_t>(i)) {
                     return false;
+                }
             }
             auto new_out_order = compose_orders(cur_out_order, order);
 
@@ -130,7 +139,8 @@ SDPATransposeFusion::SDPATransposeFusion() {
                     new_out_order,
                     sdpa->get_quantization_attrs(),
                         sdpa->get_output_type(),
-                        sdpa->get_causal_mask_alignment());
+                        sdpa->get_causal_mask_alignment(),
+                        sdpa->get_sliding_window_size());
             } else {
                 new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
                     sdpa->input_values(),
@@ -140,21 +150,25 @@ SDPATransposeFusion::SDPATransposeFusion() {
                     sdpa->get_input2_transpose_order(),
                     new_out_order,
                         sdpa->get_output_type(),
-                        sdpa->get_causal_mask_alignment());
+                        sdpa->get_causal_mask_alignment(),
+                        sdpa->get_sliding_window_size());
             }
             sdpa_node = sdpa;
         } else {
             auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(
                 pattern_map.at(sdpa_v13_m).get_node_shared_ptr());
-            if (!sdpa || transformation_callback(sdpa))
+            if (!sdpa || transformation_callback(sdpa)) {
                 return false;
+            }
 
             // Only match rank-4 inputs/output.
-            if (!is_rank_4(sdpa->get_output_partial_shape(0)))
+            if (!is_rank_4(sdpa->get_output_partial_shape(0))) {
                 return false;
+            }
             for (size_t i = 0; i < 3; ++i) {
-                if (!is_rank_4(sdpa->get_input_partial_shape(i)))
+                if (!is_rank_4(sdpa->get_input_partial_shape(i))) {
                     return false;
+                }
             }
 
             // Keep identity input orders and only absorb the output Transpose.

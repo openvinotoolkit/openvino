@@ -26,6 +26,7 @@
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_reg_spill_emitters.hpp"
+#include "emitters/snippets/aarch64/utils.hpp"
 #include "emitters/snippets/common/emitter_factory.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "jit_snippets_emitters.hpp"
@@ -36,6 +37,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/divide.hpp"
@@ -117,8 +122,6 @@
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/common/op/store_convert.hpp"
-#include "utils/general_utils.h"
-
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
 #    include "transformations/tpp/common/op/brgemm.hpp"
@@ -261,6 +264,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
 
     // binary
     jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
+    jitters[op::v13::BitwiseAnd::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_and_emitter>();
+    jitters[op::v13::BitwiseOr::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_or_emitter>();
+    jitters[op::v13::BitwiseXor::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_xor_emitter>();
     jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_node<jit_divide_emitter>();
     jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
     jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
@@ -289,6 +295,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
 
     // unary
     jitters[ov::op::v0::Abs::get_type_info_static()] = emitter_factory.from_node<jit_abs_emitter>();
+    jitters[op::v13::BitwiseNot::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_not_emitter>();
     jitters[ov::op::v0::Ceiling::get_type_info_static()] = emitter_factory.from_node<jit_ceiling_emitter>();
     jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_node<jit_clamp_emitter>();
     jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_node<jit_elu_emitter>();
@@ -402,12 +409,10 @@ std::vector<snippets::Reg> CPUTargetMachine::get_abi_arg_regs() const {
 }
 
 std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
-    using Xbyak_aarch64::Operand;
     const auto num_gp_regs = 32;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
-        // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
-        if (none_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
+        if (!utils::is_reserved_gpr(i)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }

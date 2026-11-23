@@ -192,7 +192,7 @@ using namespace ov::npuw::patterns::opt;
 TEST(HostGatherIdClamp, HostGather_NoClamp_Matches) {
     auto model = make_host_gather_model(Clamp::None);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGather>(model, std::ref(ctx));
 
     EXPECT_TRUE(ctx.params_to_gather.has_value());
@@ -202,7 +202,7 @@ TEST(HostGatherIdClamp, HostGather_NoClamp_Matches) {
 TEST(HostGatherIdClamp, HostGather_ExactClamp_Matches) {
     auto model = make_host_gather_model(Clamp::Exact);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGather>(model, std::ref(ctx));
 
     EXPECT_TRUE(ctx.params_to_gather.has_value());
@@ -212,7 +212,7 @@ TEST(HostGatherIdClamp, HostGather_ExactClamp_Matches) {
 TEST(HostGatherIdClamp, HostGather_MaximumOnlyClamp_Matches) {
     auto model = make_host_gather_model(Clamp::MaxOnly);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGather>(model, std::ref(ctx));
 
     EXPECT_TRUE(ctx.params_to_gather.has_value());
@@ -222,7 +222,7 @@ TEST(HostGatherIdClamp, HostGather_MaximumOnlyClamp_Matches) {
 TEST(HostGatherIdClamp, HostGather_WrongBoundClamp_DoesNotMatch) {
     auto model = make_host_gather_model(Clamp::WrongBound);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGather>(model, std::ref(ctx));
 
     EXPECT_FALSE(ctx.params_to_gather.has_value());
@@ -235,7 +235,7 @@ TEST(HostGatherIdClamp, HostGather_WrongBoundClamp_DoesNotMatch) {
 TEST(HostGatherIdClamp, HostGatherDQ_NoClamp_Matches) {
     auto model = make_host_gather_dq_model(Clamp::None);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherDQ>(model, std::ref(ctx));
 
     EXPECT_TRUE(ctx.params_to_gather.has_value());
@@ -245,7 +245,7 @@ TEST(HostGatherIdClamp, HostGatherDQ_NoClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherDQ_ExactClamp_Matches) {
     auto model = make_host_gather_dq_model(Clamp::Exact);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherDQ>(model, std::ref(ctx));
 
     EXPECT_TRUE(ctx.params_to_gather.has_value());
@@ -255,7 +255,7 @@ TEST(HostGatherIdClamp, HostGatherDQ_ExactClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherDQ_WrongBoundClamp_DoesNotMatch) {
     auto model = make_host_gather_dq_model(Clamp::WrongBound);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherDQ>(model, std::ref(ctx));
 
     EXPECT_FALSE(ctx.params_to_gather.has_value());
@@ -268,7 +268,7 @@ TEST(HostGatherIdClamp, HostGatherDQ_WrongBoundClamp_DoesNotMatch) {
 TEST(HostGatherIdClamp, HostGatherQuantAsymm_NoClamp_Matches) {
     auto model = make_host_gather_quant_asymm_model(Clamp::None);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherQuantAsymm<op::v0::Parameter>>(model, std::ref(ctx), false);
 
     ASSERT_TRUE(ctx.params_to_quant_gather_unpack.has_value());
@@ -278,7 +278,7 @@ TEST(HostGatherIdClamp, HostGatherQuantAsymm_NoClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherQuantAsymm_ExactClamp_Matches) {
     auto model = make_host_gather_quant_asymm_model(Clamp::Exact);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherQuantAsymm<op::v0::Parameter>>(model, std::ref(ctx), false);
 
     ASSERT_TRUE(ctx.params_to_quant_gather_unpack.has_value());
@@ -288,7 +288,7 @@ TEST(HostGatherIdClamp, HostGatherQuantAsymm_ExactClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherQuantAsymm_WrongBoundClamp_DoesNotMatch) {
     auto model = make_host_gather_quant_asymm_model(Clamp::WrongBound);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherQuantAsymm<op::v0::Parameter>>(model, std::ref(ctx), false);
 
     EXPECT_FALSE(ctx.params_to_quant_gather_unpack.has_value());
@@ -300,7 +300,7 @@ TEST(HostGatherIdClamp, HostGatherQuantAsymm_WrongBoundClamp_DoesNotMatch) {
 TEST(HostGatherIdClamp, HostGatherQuantSymm_NoClamp_Matches) {
     auto model = make_host_gather_quant_symm_model(Clamp::None);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherQuantSymm<op::v0::Parameter>>(model, std::ref(ctx), false);
 
     ASSERT_TRUE(ctx.params_to_quant_gather_unpack.has_value());
@@ -310,7 +310,7 @@ TEST(HostGatherIdClamp, HostGatherQuantSymm_NoClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherQuantSymm_ExactClamp_Matches) {
     auto model = make_host_gather_quant_symm_model(Clamp::Exact);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherQuantSymm<op::v0::Parameter>>(model, std::ref(ctx), false);
 
     ASSERT_TRUE(ctx.params_to_quant_gather_unpack.has_value());
@@ -320,7 +320,7 @@ TEST(HostGatherIdClamp, HostGatherQuantSymm_ExactClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherQuantSymm_WrongBoundClamp_DoesNotMatch) {
     auto model = make_host_gather_quant_symm_model(Clamp::WrongBound);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherQuantSymm<op::v0::Parameter>>(model, std::ref(ctx), false);
 
     EXPECT_FALSE(ctx.params_to_quant_gather_unpack.has_value());
@@ -332,7 +332,7 @@ TEST(HostGatherIdClamp, HostGatherQuantSymm_WrongBoundClamp_DoesNotMatch) {
 TEST(HostGatherIdClamp, HostGatherCB4_NoClamp_Matches) {
     auto model = make_host_gather_cb4_model(Clamp::None);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherCB4>(model, std::ref(ctx));
 
     EXPECT_TRUE(ctx.params_to_gather.has_value());
@@ -342,7 +342,7 @@ TEST(HostGatherIdClamp, HostGatherCB4_NoClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherCB4_ExactClamp_Matches) {
     auto model = make_host_gather_cb4_model(Clamp::Exact);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherCB4>(model, std::ref(ctx));
 
     EXPECT_TRUE(ctx.params_to_gather.has_value());
@@ -352,7 +352,7 @@ TEST(HostGatherIdClamp, HostGatherCB4_ExactClamp_Matches) {
 TEST(HostGatherIdClamp, HostGatherCB4_WrongBoundClamp_DoesNotMatch) {
     auto model = make_host_gather_cb4_model(Clamp::WrongBound);
 
-    Context ctx;
+    Context ctx(model, 0);
     run_pass<HostGatherCB4>(model, std::ref(ctx));
 
     EXPECT_FALSE(ctx.params_to_gather.has_value());

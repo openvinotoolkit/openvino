@@ -23,9 +23,13 @@ frontend = FrontEndManager().load_by_framework("gguf")
 model = frontend.convert(frontend.load("model.gguf"))
 ```
 
+For split GGUF models, pass any standard shard filename to discover the remaining files in
+the same directory, or supply a complete list of paths. No merged GGUF copy is created.
+See [split-file loading](docs/runtime.md#split-gguf-files) for Python and C++ usage and validation.
+
 The result is a stateless graph with llama.cpp-style inputs and explicit cache inputs/outputs.
-In C++, register [`GenAIExtension`](include/openvino/frontend/gguf/extension/genai.hpp) to obtain a stateful model with the
-OpenVINO GenAI interface; this extension is not available from Python. Tokenizer metadata is attached
+In C++, pass the converted model to [`adapt_to_genai()`](include/openvino/frontend/gguf/adapt_to_genai.hpp) to obtain
+stateful models with the OpenVINO GenAI interface; this function is not available from Python. Tokenizer metadata is attached
 to the converted model's rt_info. See [running converted models](docs/runtime.md) for both contracts.
 Projector files convert to encoder models; see [multimodal conversion](docs/mmproj.md).
 
@@ -44,12 +48,12 @@ Projector files convert to encoder models; see [multimodal conversion](docs/mmpr
 
 ## Guides
 
-* [Run converted models: state, GenAI, tokenizer, internal operations](docs/runtime.md)
+* [Load split files and run converted models: state, GenAI, tokenizer, internal operations](docs/runtime.md)
 * [Supported models](docs/supported_models.md) and [multimodal projectors](docs/mmproj.md)
 * [Add or port an architecture](docs/architectures.md)
 * [Register extensions and build plugins](docs/extensions.md), with [runnable examples](examples/architecture_extension/README.md)
 * [Add an operation translator](docs/how_to_add_op.md)
-* [Weight formats and precision](docs/quantization.md)
+* [Weight formats, unpacking, memory costs and precision](docs/quantization.md)
 * [Debug accuracy differences](docs/debugging_accuracy.md)
 * [Build, test and regenerate references](docs/testing.md)
 

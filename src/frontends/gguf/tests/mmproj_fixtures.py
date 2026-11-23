@@ -102,8 +102,18 @@ def muse_glimmer_indices(height, width, window, merge=2):
 
 WHISPER_AUDIO = {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
 FIXED_VISION = {"gemma3", "idefics3", "internvl", "janus_pro", "mlp"}
-DYNAMIC_VISION = {"gemma4v", "gemma4uv", "pixtral", "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger",
+DYNAMIC_VISION = {"lfm2", "gemma4v", "gemma4uv", "pixtral", "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger",
                   "muse-glimmer"}
+
+
+def lfm2_audio_positions(frames, width):
+    tokens = (frames + 7) // 8
+    positions = tokens - 1 - np.arange(2 * tokens - 1)
+    frequency = np.exp(-np.log(10000.) * np.arange(0, width, 2) / width)
+    angle = (positions[:, None] * frequency).astype(np.float32)
+    result = np.empty((2 * tokens - 1, width), np.float32)
+    result[:, 0::2], result[:, 1::2] = np.sin(angle), np.cos(angle)
+    return result.reshape(1, 1, -1, width)
 
 
 def vision_patch(metadata):
@@ -117,7 +127,7 @@ def vision_patch(metadata):
 def grid_unit(metadata, modality):
     """Image side granularity (pixels) or audio frame granularity a checkpoint accepts."""
     if modality == "audio":
-        return 1 if metadata["audio.projector"] in {"gemma4a", "gemma4ua"} else 32
+        return 1 if metadata["audio.projector"] in {"gemma4a", "gemma4ua", "lfm2a"} else 32
     return vision_patch(metadata) * int(metadata.get("vision.merge", 1))
 
 
@@ -135,6 +145,9 @@ def checkpoint_inputs(metadata, modality, width, height=None, seed=42):
             return {"audio.waveform_frames": raw.T.reshape(1, 1, width, 640)}, raw, width, 640
         mel = int(metadata["clip.audio.num_mel_bins"])
         raw = rng.normal(0, .4, (mel, width)).astype(np.float32)
+        if projector == "lfm2a":
+            return {"audio.features": raw.reshape(1, 1, mel, width),
+                    "audio.pos_emb": lfm2_audio_positions(width, 512)}, raw, width, mel
         if projector == "gemma4a":
             return {"audio.features": raw.reshape(1, 1, mel, width)}, raw, width, mel
         if projector not in WHISPER_AUDIO:
@@ -153,7 +166,9 @@ def checkpoint_inputs(metadata, modality, width, height=None, seed=42):
     patch = vision_patch(metadata)
     gh, gw = height // patch, width // patch
     index = lambda values: np.asarray(values, np.int32).reshape(1, 1, 1, -1)
-    if projector in {"gemma4v", "gemma4uv", "pixtral"}:
+    if projector == "lfm2":
+        feeds["vision.merge_indices"] = index(merge_window_order(gh, gw, int(metadata["vision.merge"])))
+    elif projector in {"gemma4v", "gemma4uv", "pixtral"}:
         rows, cols = np.indices((gh, gw))
         feeds.update({"vision.position_x": index(cols), "vision.position_y": index(rows)})
     elif projector == "muse-glimmer":

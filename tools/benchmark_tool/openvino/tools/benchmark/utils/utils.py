@@ -290,6 +290,9 @@ def parse_devices(device_string):
     if device_string.find(":") != -1:
         hw_devices_str = device_string.partition(":")[-1]
         for hw_device in hw_devices_str.split(','):
+            hw_device = hw_device.strip()
+            if not hw_device:
+                continue
             if hw_device[0] == '-':
                 hw_device = hw_device[1:]
             result.append(hw_device)
@@ -467,15 +470,15 @@ def get_command_line_arguments(argv):
     arg_name = ''
     arg_value = ''
     for arg in argv[1:]:
-        if '=' in arg:
+        if arg.startswith('-') and '=' in arg:
             if arg_name != '':
                 parameters.append((arg_name, arg_value))
-            arg_name, arg_value = arg.split('=')
+            arg_name, arg_value = arg.split('=', 1)
             parameters.append((arg_name, arg_value))
             arg_name = ''
             arg_value = ''
         else:
-          if arg[0] == '-':
+          if arg.startswith('-'):
               if arg_name != '':
                 parameters.append((arg_name, arg_value))
                 arg_value = ''

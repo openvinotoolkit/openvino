@@ -79,6 +79,7 @@ static size_t get_match_vector_size(const dynamic_quantize_params& params) {
 ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F4E2M1);
