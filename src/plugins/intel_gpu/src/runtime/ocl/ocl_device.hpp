@@ -27,7 +27,7 @@ public:
      * Initializes device info and memory capabilities.
      * If @p initialize is true, performs full device initialization.
      */
-    ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize = true);
+    ocl_device(cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize = true);
 
     /**
      * @brief Constructs an ocl_device by copying properties from another ocl_device instance.
@@ -41,7 +41,7 @@ public:
      * Copies platform, device info, and memory capabilities.
      * If @p initialize is true, initializes context of new ocl_device instance accordingly.
      */
-    ocl_device(const ocl_device::ptr other, bool initialize = true);
+    ocl_device(ocl_device::ptr other, bool initialize = true);
 
     const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
@@ -52,7 +52,7 @@ public:
     const cl::Platform& get_platform() const { return _platform; }
     const cl::UsmHelper& get_usm_helper() const { return *_usm_helper; }
 
-    bool is_same(const device::ptr other) override;
+    bool is_same(device::ptr other) override;
 
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
     void set_sub_device_idx(uint32_t idx);

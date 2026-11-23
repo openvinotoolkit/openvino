@@ -26,7 +26,7 @@ bool PermuteKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants PermuteKernelBase::GetJitConstants(const permute_params& params, const CommonDispatchData&) const {
+JitConstants PermuteKernelBase::GetJitConstants(const permute_params& params, const CommonDispatchData& /*unused*/) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     return jit;
 }

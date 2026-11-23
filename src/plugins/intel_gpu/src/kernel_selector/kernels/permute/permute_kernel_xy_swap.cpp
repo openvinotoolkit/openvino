@@ -51,8 +51,9 @@ struct TilePlan {
 
 TilePlan PlanTile(const permute_params& params) {
     const size_t exact = PickTileSize(params);
-    if (exact != 0)
+    if (exact != 0) {
         return {exact, false};
+    }
     // Fall back to a WG_DIM-sized tile and guard the ragged edges. This keeps
     // coalesced loads/stores and SLM transposition for shapes whose X/Y are
     // not tile-aligned, which would otherwise drop to the scalar reference
