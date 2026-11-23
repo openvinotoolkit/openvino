@@ -4,21 +4,27 @@
 
 #pragma once
 
+#include <exception>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "backends_registry.hpp"
 #include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
 
 namespace intel_npu {
+
+class VCLLoader;
 
 class Plugin : public ov::IPlugin {
 public:
@@ -68,11 +74,26 @@ private:
 
     std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
+    /**
+     * @brief Returns a provider of the VCL entry points for the components that need them.
+     *
+     * The provider calls back into this plugin. The factory that stores it must not outlive the plugin.
+     */
+    VCLFunctionTableProvider vcl_functions_provider() const;
+
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
+
+    // Loading is deferred until a provider is invoked. Cache both success and failure for this plugin.
+    mutable std::mutex _vclLoaderMutex;
+    mutable std::shared_ptr<const VCLLoader> _vclLoader;
+    mutable std::exception_ptr _vclLoadFailure;
+
+    // The only factory of the plugin, so that all requests share one compiler option support cache.
+    std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;
