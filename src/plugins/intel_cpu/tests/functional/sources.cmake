@@ -211,6 +211,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/stateful_sdpa_bool_mask.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/stateful_sdpa_bool_mask.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/undefined_et.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/add_convert_to_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/align_matmul_input_ranks.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/any_layout.cpp
@@ -488,6 +489,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/convert_color_i420.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/convert_color_nv12.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/convert_color_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/single_layer_tests/ctc_greedy_decoder.cpp
@@ -755,6 +757,7 @@ set(TMP_LIST_OF_ARM_TEST_INSTANCES
 
 set(TMP_LIST_OF_ARM_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/concat_sdp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/concat_sdp_gqa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/conv_fq.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/convert_group_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/convert_group_conv1d.cpp
@@ -772,6 +775,7 @@ set(TMP_LIST_OF_ARM_SUBGRAPH_TESTS
 )
 
 set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/add_convert_to_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/align_matmul_input_ranks.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/any_layout.cpp

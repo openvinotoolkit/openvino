@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/program_builder.hpp"
+
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/loop.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/runtime/properties.hpp"
-
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "intel_gpu/op/placeholder.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 

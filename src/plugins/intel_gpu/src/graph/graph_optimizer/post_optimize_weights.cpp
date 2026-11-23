@@ -14,6 +14,10 @@
 #include "intel_gpu/runtime/format.hpp"
 #include "permute_inst.h"
 #include "crop_inst.h"
+#include "reorder_inst.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
+#include <tuple>
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -134,6 +138,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 weights_reorder_node.recalc_output_layout(false);
 
                 if (!weights_reorder.second) {
+                    add_weights_rotation(p, weights_reorder_node);
                     set_implementation(weights_reorder_node);
                 }
             } else {
@@ -162,6 +167,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                     weights_reorder_node.get_output_layout(false);
 
                     if (!weights_reorder.second) {
+                        add_weights_rotation(p, weights_reorder_node);
                         set_implementation(weights_reorder_node);
                     }
                 }
@@ -180,6 +186,40 @@ void post_optimize_weights::select_implementation(program& p, program_node& node
     }
 }
 
+// A transposed convolution (a stride-1 deconvolution replaced by pre_replace_deconv) needs its weights rotated by
+// 180 degrees. The oneDNN weights reorder only changes the layout, so propagate_constants rotates constant weights
+// with an extra OCL reorder in front of it. Runtime weights don't go through propagate_constants, so insert the same
+// rotation for them here.
+void post_optimize_weights::add_weights_rotation(program& p, program_node& weights_reorder_node) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (weights_reorder_node.is_constant()) {
+        return;
+    }
+
+    const auto& weights_params = weights_reorder_node.as<reorder>().get_primitive()->weights_reorder_params;
+    auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_params);
+    if (onednn_weights_params == nullptr || !onednn_weights_params->should_be_transposed()) {
+        return;
+    }
+
+    const auto weights_dep = weights_reorder_node.get_dependency_with_port(0);
+    auto grouped = weights_params->get_grouped();
+    auto layout = weights_params->get_input_layout().convert_to_weights_layout(grouped);
+    auto rotate_params = std::make_shared<WeightsReorderParams>(layout, layout, true, grouped);
+    auto rotate_prim = std::make_shared<reorder>(weights_reorder_node.id() + "_rotate",
+                                                 input_info(weights_dep.first->id(), weights_dep.second),
+                                                 rotate_params);
+    auto& rotate_node = p.get_or_create(rotate_prim);
+    p.add_intermediate(rotate_node, weights_reorder_node, 0);
+    rotate_node.recalc_output_layout(false);
+    select_implementation(p, rotate_node);
+    GPU_DEBUG_LOG << "Added " << rotate_node.id() << " for rotating runtime weights before " << weights_reorder_node.id() << std::endl;
+#else
+    std::ignore = p;
+    std::ignore = weights_reorder_node;
+#endif  // ENABLE_ONEDNN_FOR_GPU
+}
+
 void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id,
                                                     program& p,
                                                     cldnn::program_node& prev,
@@ -191,10 +231,10 @@ void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id,
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{input_id}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, prev, true);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
+    auto set_implementation_and_output = [&p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
-        p.mark_if_constant(node);
+        program::mark_if_constant(node);
         node.recalc_output_layout(false);
     };
     set_implementation_and_output(permute_node);
@@ -245,19 +285,19 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
     auto& con_node = p.get_or_create(con);
     p.add_intermediate(con_node, node, prev, true);
     p.add_intermediate(crop1_node, con_node, prev, true);
-    p.add_connection(prev, crop0_node, 0);
-    p.add_connection(prev, crop2_node, 0);
-    p.add_connection(crop0_node, con_node, 0);
-    p.add_connection(crop2_node, con_node, 0);
+    program::add_connection(prev, crop0_node, 0);
+    program::add_connection(prev, crop2_node, 0);
+    program::add_connection(crop0_node, con_node, 0);
+    program::add_connection(crop2_node, con_node, 0);
     std::string permute_id = input_id + "_perx";
     std::vector<uint16_t> ord{0, 2, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, con_node,  true);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
+    auto set_implementation_and_output = [&p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
-        p.mark_if_constant(node);
+        program::mark_if_constant(node);
         node.recalc_output_layout(false);
     };
     set_implementation_and_output(crop1_node);
@@ -304,14 +344,14 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
     auto& con_node = p.get_or_create(con);
     p.add_intermediate(con_node, node, prev, true);
     p.add_intermediate(crop1_node, con_node, prev, true);
-    p.add_connection(prev, crop0_node, 0);
-    p.add_connection(prev, crop2_node, 0);
-    p.add_connection(crop0_node, con_node, 0);
-    p.add_connection(crop2_node, con_node, 0);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
+    program::add_connection(prev, crop0_node, 0);
+    program::add_connection(prev, crop2_node, 0);
+    program::add_connection(crop0_node, con_node, 0);
+    program::add_connection(crop2_node, con_node, 0);
+    auto set_implementation_and_output = [&p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
-        p.mark_if_constant(node);
+        program::mark_if_constant(node);
         node.recalc_output_layout(false);
     };
     set_implementation_and_output(crop0_node);

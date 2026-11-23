@@ -33,6 +33,6 @@ protected:
 
     virtual JitConstants GetJitConstants(const embedding_bag_params& params) const;
     virtual CommonDispatchData SetDefault(const embedding_bag_params& params) const;
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
 };
 }  // namespace kernel_selector

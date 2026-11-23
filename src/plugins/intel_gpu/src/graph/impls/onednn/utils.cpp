@@ -752,7 +752,7 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
             for (size_t idx = 0; idx < candidate_trait.block_sizes.size(); idx++) {
                 auto block_idx = static_cast<dnnl_dim_t>(candidate_trait.block_sizes[idx].first);
                 auto block_size = static_cast<dnnl_dim_t>(candidate_trait.block_sizes[idx].second);
-                if (is_grouped && candidate_trait.is_group_char(candidate_trait.internal_order[block_idx])) {
+                if (is_grouped && format_traits::is_group_char(candidate_trait.internal_order[block_idx])) {
                     // inner_idx gets the index of group dimension in mem::desc when blocked axis is group
                     auto inner_idx = candidate_trait.order.find_first_of(candidate_trait.internal_order[block_idx]);
                     if (desc.get_inner_blks()[idx] != block_size || desc.get_inner_idxs()[idx] != static_cast<dnnl_dim_t>(inner_idx)) {
@@ -920,7 +920,12 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     const int group_num = is_grouped ? 1 : 0;
     const int spatial_size = std::max<int>(ndims - batch_num - feature_num - group_num, 0);
 
-    std::string internal_order = is_weights ? (is_grouped ? "oixyz???g" : "oixyz") : "bfxyzwuv";
+    std::string internal_order = [is_weights, is_grouped]() {
+        if (!is_weights) {
+            return "bfxyzwuv";
+        }
+        return is_grouped ? "oixyz???g" : "oixyz";
+    }();
 
     const size_t max_spatial = 2 + (is_weights ? 3 : 6);
     const size_t last_spatial_offset = 2 + spatial_size;
@@ -1026,18 +1031,18 @@ bool is_supported_post_ops(const program_node& node) {
         return false;
     }
 
-    for (const auto& fo : node.get_fused_primitives()) {
-        if (fo.is_type<activation>()) {
+    const auto& fused_primitives = node.get_fused_primitives();
+    return std::all_of(fused_primitives.begin(), fused_primitives.end(), [](const auto& fo) {
+        if (fo.template is_type<activation>()) {
             // Some activations aren't implemented in oneDNN
-            auto activation_prim = fo.typed_desc<activation>();
+            auto activation_prim = fo.template typed_desc<activation>();
             if (activation_prim->activation_function == activation_func::negative || activation_prim->activation_function == activation_func::negation ||
                 activation_prim->activation_function == activation_func::sign) {
                 return false;
             }
         }
-    }
-
-    return true;
+        return true;
+    });
 }
 
 bool is_supported_pad(const layout& layout) {
