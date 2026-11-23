@@ -447,13 +447,26 @@ TEST_P(GatedResidualLayerCPUTest, Inference) {
             }
         }
         const auto& compression = std::get<1>(GetParam()).compression;
+        // The projections do not run f16, nor bf16 weight decompression without native bf16: the node runs in f32.
+        const auto hint = configuration.find(ov::hint::inference_precision.name());
+        const auto inference_precision =
+            hint == configuration.end() ? ov::element::f32 : hint->second.as<ov::element::Type>();
+        if (inference_precision == ov::element::f16 ||
+            (compression.compressed && inference_precision == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())) {
+            for (const auto& node : runtime_model->get_ordered_ops()) {
+                if (node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "GatedResidual") {
+                    EXPECT_EQ(node->get_output_element_type(0), ov::element::f32);
+                }
+            }
+        }
         if (compression.compressed) {
-            // The weights keep their stored type up to the node: 4-bit ones are not widened to 8-bit by
-            // ConvertPrecision.
+            // The weights keep their stored width up to the node: 4-bit ones are not widened to 8-bit by
+            // ConvertPrecision. The sign may change (a symmetric u4 becomes i4), so compare widths.
             for (const auto& node : runtime_model->get_ordered_ops()) {
                 if (node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "GatedResidual") {
                     const size_t w_down = 2;
-                    EXPECT_EQ(node->get_input_element_type(w_down), compression.weights_precision);
+                    EXPECT_EQ(node->get_input_element_type(w_down).bitwidth(),
+                              compression.weights_precision.bitwidth());
                 }
             }
         }

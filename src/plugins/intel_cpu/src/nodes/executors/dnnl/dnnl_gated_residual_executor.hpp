@@ -84,19 +84,24 @@ private:
     struct Projection {
         ExecutorContext::CPtr context;  // private weight cache, scratchpad of the projections
         FCAttrs attrs;
-        MemoryArgs args;  // weights, bias and decompression parameters
+        MemoryArgs args;       // weights, bias, decompression parameters and the tile buffers of a full tile
+        MemoryArgs part_args;  // the same for the remainder tile
         size_t k = 0;
         size_t n = 0;
         ov::element::Type src_prc;
         ov::element::Type dst_prc;
         DnnlScratchPadPtr src_pad;  // tile buffers
         DnnlScratchPadPtr dst_pad;
-        ExecutorPtr executor;
-        size_t m = 0;  // rows the executor is bound to, 0 until the first bind
+        ExecutorPtr full;  // m_tile_rows rows
+        ExecutorPtr part;  // m_part_m rows, created once a remainder differs from a full tile
+        bool full_bound = false;
+        size_t part_m = 0;
     };
     Projection m_proj[3];
-    // Binds the projection's executor to `m` rows of the tile buffers; a no-op when it already is.
-    static void bindProjection(Projection& p, size_t m);
+    // Bind the projection's executors to the tile buffers, once per row count: an executor has no primitive until it is
+    // updated.
+    static void bindFull(Projection& p);
+    static void bindRemainder(Projection& p, size_t m);
 
     // Per-tile buffers: views of scratchpad blocks (Rbar the executor's own, one child each for the others), sized once
     // for a full tile. Other nodes may reallocate the executor's own block and contents do not survive calls, so read

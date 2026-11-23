@@ -265,10 +265,10 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
                 p.args[ARG_WEI | ARG_ATTR_ZERO_POINTS] = memory.at(gatedResidualSrcArg(spec.zero_points));
             }
         }
-        // Built for a full tile, which packs the weights; bindProjection() binds it to the rows it runs.
+        // The executor of a full tile; the one of the remainder is bound in update().
         p.args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, tile, p.k);
         p.args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, tile, p.n);
-        p.executor = CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{true, false}(p.attrs, p.args, p.context);
+        p.full = CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{true, false}(p.attrs, p.args, p.context);
     }
 }
 
@@ -281,20 +281,31 @@ MemoryPtr GatedResidualDnnlExecutor::tileMemory(const DnnlScratchPadPtr& pad,
     return pad->createScratchPadMem(desc);
 }
 
-void GatedResidualDnnlExecutor::bindProjection(Projection& p, size_t m) {
-    if (p.m == m) {
+void GatedResidualDnnlExecutor::bindFull(Projection& p) {
+    if (!p.full_bound) {
+        OPENVINO_ASSERT(p.full->update(p.args), "GatedResidual: projection executor update failed");
+        p.full_bound = true;
+    }
+}
+
+void GatedResidualDnnlExecutor::bindRemainder(Projection& p, size_t m) {
+    if (p.part_m == m) {
         return;
     }
-    p.args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, m, p.k);
-    p.args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, m, p.n);
-    OPENVINO_ASSERT(p.executor->update(p.args), "GatedResidual: projection executor update failed");
-    p.m = m;
+    p.part_args = p.args;
+    p.part_args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, m, p.k);
+    p.part_args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, m, p.n);
+    if (!p.part) {
+        p.part = CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{true, false}(p.attrs, p.part_args, p.context);
+    }
+    OPENVINO_ASSERT(p.part->update(p.part_args), "GatedResidual: projection executor update failed");
+    p.part_m = m;
 }
 
 impl_desc_type GatedResidualDnnlExecutor::implType() const {
     // The projections dominate: report the implementation chosen for the down GEMM.
-    if (m_proj[kDown].executor) {
-        return m_proj[kDown].executor->implType();
+    if (m_proj[kDown].full) {
+        return m_proj[kDown].full->implType();
     }
     return targetIsa() == dnnl::impl::cpu::x64::avx512_core ? impl_desc_type::jit_avx512 : impl_desc_type::jit_avx2;
 }
@@ -354,6 +365,19 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
 
     const size_t part_rows = m_rows % m_tile_rows;
     m_part_m = part_rows != 0 ? std::min(normalize_rows(part_rows), m_tile_rows) : 0;
+    // A remainder that pads to a full tile runs on the full tile's executor.
+    const bool part_is_full = m_part_m == m_tile_rows;
+    for (auto& p : m_proj) {
+        if (!p.full) {
+            continue;
+        }
+        if (m_rows >= m_tile_rows || part_is_full) {
+            bindFull(p);
+        }
+        if (m_part_m != 0 && !part_is_full) {
+            bindRemainder(p, m_part_m);
+        }
+    }
     return true;
 }
 
@@ -390,13 +414,18 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
 
     // Full tiles run tile_rows GEMM rows, the last m_part_m. `cur_rows` bounds the elementwise steps and stores;
     // `gemm_rows` may be larger (bucketed), with the extra source rows zeroed.
+    const bool part_is_full = m_part_m == tile_rows;
     for (size_t tile_start = 0; tile_start < rows; tile_start += tile_rows) {
         const size_t cur_rows = std::min(tile_rows, rows - tile_start);
         const bool full_tile = cur_rows == tile_rows;
         const size_t gemm_rows = full_tile ? tile_rows : m_part_m;
+        const bool on_full = full_tile || part_is_full;
         const auto run = [&](Projection& p) {
-            bindProjection(p, gemm_rows);
-            p.executor->execute(p.args);
+            if (on_full) {
+                p.full->execute(p.args);
+            } else {
+                p.part->execute(p.part_args);
+            }
         };
 
         // Step 1: per-row RMSNorm per branch: the f32 Rbar for the mix and a GEMM-precision copy for the GEMMs.

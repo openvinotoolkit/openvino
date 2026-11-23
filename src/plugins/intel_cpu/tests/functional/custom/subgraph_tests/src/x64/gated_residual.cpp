@@ -10,6 +10,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils/precision_support.h"
 
 namespace ov::test {
 
@@ -65,6 +66,25 @@ std::vector<ov::AnyMap> bf16_inference_configs() {
     return configs;
 }
 
+// f16 inference, where the hardware supports it: the projections do not run f16, so the node runs in f32.
+std::vector<ov::AnyMap> f16_inference_configs() {
+    std::vector<ov::AnyMap> configs;
+    if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+        configs.push_back({{ov::hint::inference_precision.name(), ov::element::f16}});
+    }
+    return configs;
+}
+
+// bf16 inference on hardware that runs bf16 but has no native bf16 instructions (plain AVX-512): oneDNN cannot
+// decompress weights at that precision, so the node runs in f32.
+std::vector<ov::AnyMap> bf16_without_native_configs() {
+    std::vector<ov::AnyMap> configs;
+    if (ov::intel_cpu::hasHardwareSupport(ov::element::bf16) && !ov::with_cpu_x86_bfloat16()) {
+        configs.push_back({{ov::hint::inference_precision.name(), ov::element::bf16}});
+    }
+    return configs;
+}
+
 // Uncompressed shapes: power-of-two and other C/D/L (SIMD-tail paths) for f32 and f16 IRs. D = 1 makes every branch one
 // element, which takes the RMS kernel's scalar-scale path.
 const std::vector<GatedResidualShapeParams> uncompressed_shapes{
@@ -90,6 +110,7 @@ const Compression u8_grouped_zp{true, ov::element::u8, true, 16, ov::element::f1
 const Compression u8_grouped_nozp{true, ov::element::u8, false, 16, ov::element::bf16};
 const Compression i8_grouped_nozp{true, ov::element::i8, false, 16, ov::element::f16};
 const Compression i4_per_channel{true, ov::element::i4, false, 0, ov::element::bf16};
+const Compression i4_per_channel_f16{true, ov::element::i4, false, 0, ov::element::f16};
 const Compression i4_grouped_zp{true, ov::element::i4, true, 16, ov::element::f32};
 const Compression i4_grouped_nozp{true, ov::element::i4, false, 16, ov::element::f16};  // symmetric i4 (no zero point)
 const Compression u4_grouped_zp{true, ov::element::u4, true, 16, ov::element::f16};     // asymmetric u4 (zero point)
@@ -143,6 +164,13 @@ const std::vector<GatedResidualShapeParams> gain_without_one_compressed_shapes{
 const std::vector<GatedResidualShapeParams> compressed_shapes_bf16{
     {4, 16, 64, ov::element::f16, u4_grouped_zp},
     {4, 8, 16, ov::element::f32, i4_per_channel},
+};
+
+// Compressed weights under the inference precisions that run in f32 behind reorders.
+const std::vector<GatedResidualShapeParams> compressed_shapes_f32_fallback{
+    {4, 16, 64, ov::element::f16, u4_grouped_zp},
+    {4, 16, 64, ov::element::f16, i8_grouped_nozp},
+    {4, 8, 16, ov::element::f16, i4_per_channel_f16},
 };
 
 }  // namespace
@@ -279,6 +307,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedBf16,
                                             ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynCompressedRows),
                                             ::testing::ValuesIn(bf16_inference_configs()),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         GatedResidualLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedF16,
+                         GatedResidualLayerCPUTest,
+                         ::testing::Combine(::testing::Values(Mode::READ),
+                                            ::testing::ValuesIn(compressed_shapes_f32_fallback),
+                                            ::testing::Values(true),  // produce_write_gate
+                                            ::testing::Values(true),  // norm_gain_plus_one
+                                            ::testing::Values(kDynCompressedRows),
+                                            ::testing::ValuesIn(f16_inference_configs()),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         GatedResidualLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedBf16WithoutNative,
+                         GatedResidualLayerCPUTest,
+                         ::testing::Combine(::testing::Values(Mode::READ),
+                                            ::testing::ValuesIn(compressed_shapes_f32_fallback),
+                                            ::testing::Values(true),  // produce_write_gate
+                                            ::testing::Values(true),  // norm_gain_plus_one
+                                            ::testing::Values(kDynCompressedRows),
+                                            ::testing::ValuesIn(bf16_without_native_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
