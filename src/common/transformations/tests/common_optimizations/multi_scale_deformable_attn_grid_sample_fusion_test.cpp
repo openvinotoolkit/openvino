@@ -294,6 +294,7 @@ class MultiScaleDeformableAttnGridSampleFusionFused : public MultiScaleDeformabl
 public:
     MultiScaleDeformableAttnGridSampleFusionFused() {
         comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<FusionParams>& info) {
@@ -329,6 +330,7 @@ INSTANTIATE_TEST_SUITE_P(MultiScaleDeformableAttnGridSampleFusion,
 TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, ConvertedOutput) {
     // f16 subgraph whose output the plugin keeps in f32.
     comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
     PatternParams p;
     p.data_type = element::f16;
     p.converted_output = true;
@@ -338,6 +340,7 @@ TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, ConvertedOutput) {
 
 TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, PooledSum) {
     comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
     PatternParams p;
     p.pooled_sum = true;
     model = getModel(p);
@@ -346,6 +349,7 @@ TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, PooledSum) {
 
 TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, PooledSumWithoutReshape) {
     comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
     PatternParams p;
     p.pooled_sum = true;
     p.pooled_sum_reshape = false;
@@ -451,6 +455,8 @@ struct SingleScaleParams {
     // GridSample coordinates scale * x + offset; MSDA needs 2 * x - 1, anything else is rescaled.
     float scale = 2.f;
     float offset = -1.f;
+    // The offset is an f32 Constant behind a Convert to the coordinate type.
+    bool converted_offset = false;
     // The form the GPU low-precision pipeline leaves: Transpose, then (x - 0.5) * 2 in f32, then Convert.
     bool int8_gpu_form = false;
     bool pooled_sum = false;
@@ -489,7 +495,11 @@ std::shared_ptr<ov::Model> getSingleScaleModel(const SingleScaleParams& p) {
         coords = std::make_shared<v0::Convert>(mul, p.data_type);
     } else {
         auto mul = std::make_shared<v1::Multiply>(locations, v0::Constant::create(loc_type, Shape{1}, {p.scale}));
-        auto norm = std::make_shared<v1::Add>(mul, v0::Constant::create(loc_type, Shape{1}, {p.offset}));
+        std::shared_ptr<ov::Node> offset =
+            v0::Constant::create(p.converted_offset ? element::f32 : loc_type, Shape{1}, {p.offset});
+        if (p.converted_offset)
+            offset = std::make_shared<v0::Convert>(offset, loc_type);
+        auto norm = std::make_shared<v1::Add>(mul, offset);
         // The level slice of a single level keeps every point.
         auto slice = std::make_shared<v8::Slice>(norm, i64_const({0}), i64_const({P}), i64_const({1}), i64_const({3}));
         std::shared_ptr<ov::Node> grid_src = slice;
@@ -545,7 +555,7 @@ std::shared_ptr<ov::Model> getSingleScaleModelRef(const SingleScaleParams& p) {
         loc = std::make_shared<v0::Convert>(loc, p.data_type);
     if (!p.int8_gpu_form && p.scale != 2.f)
         loc = std::make_shared<v1::Multiply>(loc, v0::Constant::create(p.data_type, Shape{}, {p.scale / 2.f}));
-    if (!p.int8_gpu_form && p.offset != -1.f)
+    if (!p.int8_gpu_form && p.offset != -1.f && !p.converted_offset)
         loc = std::make_shared<v1::Add>(loc, v0::Constant::create(p.data_type, Shape{}, {(p.offset + 1.f) / 2.f}));
 
     auto msda = std::make_shared<ov::op::internal::MSDA>(
@@ -566,6 +576,7 @@ protected:
         TransformationTestsF::SetUp();
         manager.register_pass<ov::pass::SingleScaleDeformableAttnGridSampleFusion>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 
     void expect_fused(const SingleScaleParams& p) {
@@ -574,29 +585,72 @@ protected:
     }
 };
 
-TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, Fused) {
-    expect_fused(SingleScaleParams{});
+class SingleScaleDeformableAttnGridSampleFusionFused : public SingleScaleDeformableAttnGridSampleFusionTest,
+                                                       public testing::WithParamInterface<SingleScaleParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<SingleScaleParams>& info) {
+        const auto& p = info.param;
+        std::ostringstream name;
+        name << "Type_" << p.data_type << "_Batch_" << p.batch << "_Heads_" << p.heads << "_Points_" << p.points
+             << "_Map_" << p.h << "x" << p.w << (p.int8_gpu_form ? "_Int8GpuForm" : "");
+        return name.str();
+    }
+};
+
+TEST_P(SingleScaleDeformableAttnGridSampleFusionFused, Fused) {
+    expect_fused(GetParam());
 }
 
-TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, FusedF16) {
-    SingleScaleParams p;
-    p.data_type = element::f16;
-    expect_fused(p);
-}
+INSTANTIATE_TEST_SUITE_P(SingleScaleConfigurations,
+                         SingleScaleDeformableAttnGridSampleFusionFused,
+                         testing::Values(
+                             SingleScaleParams{},
+                             [] {
+                                 SingleScaleParams p;
+                                 p.data_type = element::f16;
+                                 return p;
+                             }(),
+                             [] {
+                                 SingleScaleParams p;
+                                 p.batch = 2;
+                                 p.heads = 4;
+                                 p.points = 4;
+                                 return p;
+                             }(),
+                             // f32 locations normalized after the Transpose as (x - 0.5) * 2, then Convert.
+                             [] {
+                                 SingleScaleParams p;
+                                 p.data_type = element::f16;
+                                 p.int8_gpu_form = true;
+                                 return p;
+                             }(),
+                             // The widest map that accepts the narrowing coordinate Convert.
+                             [] {
+                                 SingleScaleParams p;
+                                 p.data_type = element::f16;
+                                 p.int8_gpu_form = true;
+                                 p.h = 1;
+                                 p.w = 1024;
+                                 return p;
+                             }()),
+                         SingleScaleDeformableAttnGridSampleFusionFused::getTestCaseName);
 
-TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, FusedBatchAndHeads) {
-    SingleScaleParams p;
-    p.batch = 2;
-    p.heads = 4;
-    p.points = 4;
-    expect_fused(p);
-}
-
-TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, Int8GpuForm) {
-    // f32 locations normalized after the Transpose as (x - 0.5) * 2 are converted to the value type.
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, Int8GpuFormTooWide) {
+    // At width 4096 x = 0.9998 rounds to f16 1.0 and samples half outside, while f16(2 * x - 1) stays inside.
     SingleScaleParams p;
     p.data_type = element::f16;
     p.int8_gpu_form = true;
+    p.h = 1;
+    p.w = 4096;
+    model = getSingleScaleModel(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, ConvertedOffsetFoldsToMinusOne) {
+    // Convert(f32 -0.9998) to f16 is exactly -1, so MSDA samples at x with no extra shift.
+    SingleScaleParams p;
+    p.data_type = element::f16;
+    p.offset = -0.9998f;
+    p.converted_offset = true;
     expect_fused(p);
 }
 

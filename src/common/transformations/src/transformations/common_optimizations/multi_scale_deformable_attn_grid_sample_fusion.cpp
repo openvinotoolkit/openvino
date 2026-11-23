@@ -174,8 +174,12 @@ bool all_equal(const std::vector<int64_t>& values, int64_t expected) {
 // The value of a constant whose elements are all equal, possibly behind a decompression Convert.
 std::optional<double> scalar_constant(const ov::Output<ov::Node>& output) {
     auto node = output.get_node_shared_ptr();
-    if (ov::is_type<v0::Convert>(node))
-        node = node->get_input_node_shared_ptr(0);
+    if (ov::is_type<v0::Convert>(node)) {
+        ov::OutputVector folded(1);
+        if (!node->constant_fold(folded, node->input_values()))
+            return std::nullopt;
+        node = folded[0].get_node_shared_ptr();
+    }
     const auto constant = ov::as_type_ptr<v0::Constant>(node);
     if (!constant)
         return std::nullopt;
@@ -224,6 +228,8 @@ struct GridCoords {
     ov::Output<ov::Node> source;
     double scale = 1.0;
     double shift = 0.0;
+    // Lowest-precision type a real Convert narrowed the coordinates to, if any.
+    ov::element::Type narrowed_to = ov::element::dynamic;
 };
 
 // Walks back from the GridSample coordinates through reshapes, real-typed Converts, a no-op Slice, the Transpose and
@@ -240,6 +246,9 @@ std::optional<GridCoords> grid_coords_source(ov::Output<ov::Node> output, ov::No
         const bool real_convert = ov::is_type<v0::Convert>(node) && node->get_input_element_type(0).is_real() &&
                                   node->get_output_element_type(0).is_real();
         if ((reshape && !transposed) || real_convert || is_identity_slice(node)) {
+            if (real_convert &&
+                node->get_output_element_type(0).bitwidth() < node->get_input_element_type(0).bitwidth())
+                coords.narrowed_to = node->get_output_element_type(0);
             visited.push_back(node);
             output = node->input_value(0);
             continue;
@@ -366,7 +375,8 @@ ov::pass::SingleScaleDeformableAttnGridSampleFusion::SingleScaleDeformableAttnGr
 
     // Same guard as the multi-scale pattern: converting the grid to the value type would change the sampling.
     auto grid_m = wrap_type<v9::GridSample>(
-        {any_input(), any_input()},
+        {any_input(has_static_shape() && shape_matches("BH, D, h, w")),
+         any_input(has_static_shape() && shape_matches("BH, Q, P, 2"))},
         attrs_match({{"align_corners", false}, {"mode", "bilinear"}, {"padding_mode", "zeros"}}) &&
             ov::pass::pattern::op::Predicate(
                 [](const ov::Output<ov::Node>& output) {
@@ -375,15 +385,18 @@ ov::pass::SingleScaleDeformableAttnGridSampleFusion::SingleScaleDeformableAttnGr
                 },
                 "same_data_and_grid_type"));
     auto weighted_m = wrap_type<v1::Multiply>({grid_m, any_input()});
-    auto reduce_m = wrap_type<v1::ReduceSum>({weighted_m, wrap_const()}, {{"keep_dims", false}});
+    auto reduce_m =
+        wrap_type<v1::ReduceSum>({weighted_m, wrap_type<v0::Constant>(value_matches("-1") || value_matches("3"))},
+                                 {{"keep_dims", false}});
     // Same ConvertReduceToPooling form as in MultiScaleDeformableAttnGridSampleFusion.
     auto pool_m = wrap_type<v1::AvgPool>({weighted_m},
                                          attrs_match({{"strides", std::vector<int64_t>{1, 1}},
                                                       {"pads_begin", std::vector<int64_t>{0, 0}},
-                                                      {"pads_end", std::vector<int64_t>{0, 0}}}));
+                                                      {"pads_end", std::vector<int64_t>{0, 0}}}) &&
+                                             shape_matches("BH, D, Q, 1"));
     auto pool_sum_m = wrap_type<v1::Multiply>({pool_m, wrap_const()});
     auto sum_m = reduce_m | ov::pass::pattern::optional<v1::Reshape>({pool_sum_m, any_input()});
-    auto output_m = wrap_type<v1::Reshape>({sum_m, any_input()});
+    auto output_m = wrap_type<v1::Reshape>({sum_m, any_input()}, has_static_shape() && shape_matches("B, HD, Q"));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -395,20 +408,14 @@ ov::pass::SingleScaleDeformableAttnGridSampleFusion::SingleScaleDeformableAttnGr
         ov::NodeVector fused = m.get_matched_nodes();
 
         // GridSample reads a [B*H, D, h, w] image at [B*H, Q, P, 2] coordinates.
-        const auto image_shape = static_shape(grid->input_value(0), 4);
-        const auto coords_shape = static_shape(grid->input_value(1), 4);
-        const auto output_shape = static_shape(output->output(0), 3);
-        if (!image_shape || !coords_shape || !output_shape || (*coords_shape)[3] != 2 ||
-            (*coords_shape)[0] != (*image_shape)[0])
-            return false;
-        const size_t BH = (*image_shape)[0], D = (*image_shape)[1], h = (*image_shape)[2], w = (*image_shape)[3];
-        const size_t Q = (*coords_shape)[1], P = (*coords_shape)[2];
+        const auto& symbols = m.get_symbols();
+        const auto dim = [&symbols](const char* name) {
+            return static_cast<size_t>(symbols.at(name).i());
+        };
+        const size_t BH = dim("BH"), D = dim("D"), h = dim("h"), w = dim("w");
+        const size_t Q = dim("Q"), P = dim("P");
 
-        if (pattern_map.count(reduce_m)) {
-            const auto axes = constant_values(pattern_map.at(reduce_m).get_node()->input_value(1));
-            if (axes.size() != 1 || (axes[0] != -1 && axes[0] != 3))
-                return false;
-        } else {
+        if (pattern_map.count(pool_m)) {
             const auto pool = ov::as_type_ptr<v1::AvgPool>(pattern_map.at(pool_m).get_node_shared_ptr());
             const auto pool_sum = pattern_map.at(pool_sum_m).get_node();
             if (!pool || pool->get_kernel() != ov::Shape{1, P} ||
@@ -426,12 +433,16 @@ ov::pass::SingleScaleDeformableAttnGridSampleFusion::SingleScaleDeformableAttnGr
         if (B == 0 || D == 0 || BH % B != 0)
             return false;
         const size_t H = BH / B;
-        if (S != h * w || HD != H * D || *output_shape != ov::Shape{B, HD, Q})
+        if (S != h * w || HD != H * D || dim("B") != B || dim("HD") != HD)
             return false;
 
         // locations [B, Q, H, P, 2] in [0, 1] reach GridSample as 2 * x - 1, transposed and reshaped to [B*H, Q, P, 2]
         const auto coords = grid_coords_source(grid->input_value(1), fused);
         if (!coords || static_shape(coords->source, 5) != ov::Shape{B, Q, H, P, 2} || coords->scale == 0.0)
+            return false;
+        // Narrowing [0, 1] locations instead of the normalized grid rounds them by up to size * 2^-12 pixels in f16.
+        if (coords->narrowed_to != ov::element::dynamic &&
+            (coords->narrowed_to != ov::element::f16 || std::max(h, w) > 1024))
             return false;
 
         // weights [B, Q, H, P] -> Transpose(0,2,1,3) -> [B*H, 1, Q, P]
