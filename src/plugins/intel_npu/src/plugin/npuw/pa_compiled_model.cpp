@@ -21,7 +21,7 @@
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/relayout_token_major.hpp"
-#include "npuw_transformations/untie_lm_head_weights.hpp"
+#include "npuw_transformations/untangle_weight_decompression.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -125,7 +125,9 @@ std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov:
     derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}},
                       {"position_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}}});
     ov::pass::Manager manager("PA variant");
-    manager.register_pass<ov::npuw::UntieLMHeadWeights>();
+    // Tied embeddings share one decompressed table between the embedding Gather
+    // and the LM head, which would make it a link between their subgraphs.
+    manager.register_pass<ov::npuw::UntangleWeightDecompression>();
     manager.register_pass<ov::npuw::RelayoutTokenMajor>(chunk_size);
     manager.run_passes(derived);
     derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(chunk_size));
