@@ -287,6 +287,41 @@ TEST_F(ReshapeToStaticPassTest, LinCacheInputsOnlyBatchIsReshaped) {
     EXPECT_EQ(*kv_value_shape, (ov::Shape{1, 4, 191, 64}));
 }
 
+// --- Test 7 -------------------------------------------------------------------------
+// The QSA states (renamed by ConvertSparseAttentionToDense) are batch-first [N, ...] with
+// the other dimensions already static: only the batch is set, nothing follows the KV axes.
+TEST_F(ReshapeToStaticPassTest, QSAStateInputsOnlyBatchIsReshaped) {
+    const ov::npuw::KVAxesPosition kv_axes_position{0u, 2u};
+
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    input_ids->output(0).set_names({"input_ids"});
+    ov::ParameterVector params{input_ids};
+    const std::vector<std::pair<std::string, ov::PartialShape>> states = {
+        {"cache_params.past.block_index_key.0", {-1, 48, 128}},
+        {"cache_params.past.incomplete_index_key.0", {-1, 3, 128}},
+        {"cache_params.past.incomplete_index_rope.0", {1, 64}},
+    };
+    for (const auto& [name, shape] : states) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        param->output(0).set_names({name});
+        params.push_back(param);
+    }
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                             params,
+                                             "qsa_state_reshape_model");
+
+    ASSERT_TRUE(ov::npuw::ReshapeToStatic(/*input_size=*/1,
+                                          /*kvcache_size=*/192,
+                                          kv_axes_position,
+                                          /*lora_rank=*/0)
+                    .run_on_model(model));
+
+    EXPECT_TRUE(all_inputs_static(model)) << "At least one input still has a dynamic dimension after ReshapeToStatic";
+    EXPECT_EQ(input_shape(model, "cache_params.past.block_index_key.0"), (ov::Shape{1, 48, 128}));
+    EXPECT_EQ(input_shape(model, "cache_params.past.incomplete_index_key.0"), (ov::Shape{1, 3, 128}));
+    EXPECT_EQ(input_shape(model, "cache_params.past.incomplete_index_rope.0"), (ov::Shape{1, 64}));
+}
+
 }  // namespace
 
 

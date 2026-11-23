@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "../logging.hpp"
+#include "../util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
@@ -66,10 +67,13 @@
 namespace {
 
 namespace op = ov::op;
+namespace util = ov::npuw::util;
 using Out = ov::Output<ov::Node>;
 
-constexpr const char* kBlockIndexKey = "block_index_key";
 constexpr int64_t kEnd = std::numeric_limits<int64_t>::max();
+
+// The QSA state whose block dimension is resized (one of util::get_qsa_state_kinds())
+constexpr const char* kBlockIndexKey = "block_index_key";
 
 // Graph building helpers. Every new node is collected to copy the runtime info of the replaced operation.
 class Builder {
@@ -163,9 +167,6 @@ public:
     const ov::NodeVector& nodes() const {
         return m_nodes;
     }
-    void reset() {
-        m_nodes.clear();
-    }
 
 private:
     ov::NodeVector m_nodes;
@@ -193,7 +194,9 @@ MaskInfo build_mask_info(Builder& b, const std::shared_ptr<op::v0::Parameter>& a
     return MaskInfo{valid, positions, b.dim(mask, 1)};
 }
 
-// [N, L] logical positions of the query tokens: the last L key slots
+// [N, L] logical positions of the query tokens: the last L key slots, since the valid keys of an
+// NPUW sequence are right-aligned. The positions themselves come from the mask and are
+// layout-independent; this last-L slice is one of the places to revisit if NPUW moves to right padding.
 Out query_positions(Builder& b, const MaskInfo& m, const Out& query_length) {
     return b.slice(m.positions, b.unsq(b.sub(m.length, query_length), 0), b.i64v({kEnd}), 1);
 }
@@ -203,6 +206,8 @@ using PaddedKeys = std::map<Out, Out>;
 
 // QSAPrepare, see its specification. The past/current split is counted from attention_mask, since a
 // partial NPUW prefill chunk is left-padded after the past tokens, and the number of blocks is static.
+// That right alignment is also what offset = M - current below relies on: the valid new tokens are the
+// last rows of raw. Like query_positions, it must be revisited if NPUW moves to right padding.
 ov::OutputVector decompose_qsa_prepare(Builder& b,
                                        const std::shared_ptr<op::v17::QSAPrepare>& node,
                                        const MaskInfo& m,
@@ -529,8 +534,9 @@ struct QSAState {
 // StatefulToStateless keeps the QSA variables unrecognized, as
 //     {input|output}_restored.cache_params.past.<kind>.N cache_params.present.<kind>.N
 std::optional<QSAState> qsa_state(const ov::descriptor::Tensor& tensor, const std::string& io) {
-    static const std::regex pattern(
-        R"(^(input|output)_restored\.cache_params\.past\.(block_index_key|incomplete_index_key|incomplete_index_rope)\.(\d+)cache_params\.present\.\2\.\3$)");
+    static const std::regex pattern("^(input|output)_restored\\.cache_params\\.past\\.(" +
+                                    util::qsa_state_kinds_alternation() +
+                                    ")\\.(\\d+)cache_params\\.present\\.\\2\\.\\3$");
     for (const auto& name : tensor.get_names()) {
         std::smatch match;
         if (std::regex_match(name, match, pattern) && match[1].str() == io) {

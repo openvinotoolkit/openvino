@@ -768,6 +768,12 @@ void ov::npuw::LLMInferRequest::init_past_name_lists() {
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
         for (const auto& name : all_names) {
+            if (ov::npuw::util::starts_with_past_qsa_state(name)) {
+                // QSA states are not linear-attention ones but are carried the same way:
+                // static shapes, full-tensor present -> past copy
+                m_lincache_past_names.push_back(name);
+                break;
+            }
             if (ov::npuw::util::starts_with_past_lincache(name)) {
                 m_lincache_past_names.push_back(name);
                 break;

@@ -1092,8 +1092,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
 
-    // QSA layers become dense SDPAs with an exact sparse mask; their states are handled as lincache.
-    ov::npuw::ConvertSparseAttentionToDense(max_prompt_len + min_response_len).run_on_model(kvcache_model);
+    // QSA layers reuse the lincache path; however, the prefix cache only stores and restores
+    // per-token KV blocks and never restores lincache states, so a prefix hit would leave the
+    // QSA states out of sync with the restored KV. Hence the conversion is skipped when prefix
+    // caching is enabled.
+    if (!m_enable_prefix_caching) {
+        ov::npuw::ConvertSparseAttentionToDense(max_prompt_len + min_response_len).run_on_model(kvcache_model);
+    }
 
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
@@ -2254,6 +2259,9 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
         // A port can carry several names, so every one of them must clear the
         // exclusions; get_any_name() could return one that hides a match.
         for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::starts_with_past_qsa_state(name)) {
+                return false;  // QSA state has no generate->prefill path
+            }
             if (ov::npuw::util::starts_with_past_lincache(name)) {
                 return false;  // linear/hybrid state has no generate->prefill path
             }

@@ -21,7 +21,9 @@ namespace npuw {
 //    every query. The result is the same as of the sparse computation for any KV length.
 // 3. The logical position of every key slot is rebuilt from attention_mask as CumSum(mask) - 1, which
 //    covers the NPUW [past][unused][current] KV layout and left-padded prefill chunks (the operations
-//    assume right-aligned valid keys).
+//    assume right-aligned valid keys). A migration to right padding must revisit query_positions and
+//    the QSAPrepare offset, which place the queries on the last L key slots and the valid new tokens
+//    on the last rows of the chunk.
 // 4. The number of key blocks, the only data-dependent dimension, becomes the constant max_kv_len / r,
 //    and the QSA states (block_index_key, incomplete_index_key, incomplete_index_rope) are renamed to
 //    cache_params.{past|present}.<kind>.N, so the pipeline handles them like the linear-attention
