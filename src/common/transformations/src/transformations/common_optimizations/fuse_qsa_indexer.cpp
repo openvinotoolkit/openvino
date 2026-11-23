@@ -5,14 +5,11 @@
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 
 #include <algorithm>
-#include <optional>
-#include <tuple>
 #include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -30,7 +27,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -256,74 +252,6 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
     register_matcher(std::make_shared<Matcher>(p_indexer, matcher_name), callback);
 }
 
-namespace {
-
-std::optional<std::vector<int64_t>> constant_values(const ov::Output<ov::Node>& output) {
-    if (const auto constant = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr())) {
-        return constant->cast_vector<int64_t>();
-    }
-    return std::nullopt;
-}
-
-bool is_last_axis(const ov::Output<ov::Node>& axis, int64_t rank) {
-    const auto values = constant_values(axis);
-    return values && values->size() == 1 && ((*values)[0] == rank - 1 || (*values)[0] == -1);
-}
-
-// The last-axis slice [start, stop) of `slice` with unit step, as {data, start, stop}.
-std::optional<std::tuple<ov::Output<ov::Node>, int64_t, int64_t>> last_axis_slice(const ov::Output<ov::Node>& output) {
-    const auto slice = ov::as_type_ptr<v8::Slice>(output.get_node_shared_ptr());
-    if (!slice || slice->get_input_size() != 5) {
-        return std::nullopt;
-    }
-    const auto start = constant_values(slice->input_value(1));
-    const auto stop = constant_values(slice->input_value(2));
-    const auto step = constant_values(slice->input_value(3));
-    const auto& data = slice->input_value(0);
-    if (!start || !stop || !step || start->size() != 1 || stop->size() != 1 || step->size() != 1 || (*step)[0] != 1 ||
-        data.get_partial_shape().rank().is_dynamic() ||
-        !is_last_axis(slice->input_value(4), data.get_partial_shape().rank().get_length())) {
-        return std::nullopt;
-    }
-    return std::make_tuple(data, (*start)[0], (*stop)[0]);
-}
-
-// The tensor split into its first `rotary` channels (`rotary_part`) and the remaining ones (`pass_part`) along the last
-// axis, as exported for a partial rotary embedding: one VariadicSplit {rotary, rest}, or two Slices.
-std::optional<ov::Output<ov::Node>> split_rotary_source(const ov::Output<ov::Node>& rotary_part,
-                                                        const ov::Output<ov::Node>& pass_part,
-                                                        int64_t rotary,
-                                                        int64_t head_size) {
-    if (const auto split = ov::as_type_ptr<v1::VariadicSplit>(rotary_part.get_node_shared_ptr())) {
-        if (pass_part.get_node() != split.get() || rotary_part.get_index() != 0 || pass_part.get_index() != 1 ||
-            split->get_output_size() != 2) {
-            return std::nullopt;
-        }
-        const auto& data = split->input_value(0);
-        const auto lengths = constant_values(split->input_value(2));
-        if (data.get_partial_shape().rank() != 4 || !is_last_axis(split->input_value(1), 4) || !lengths ||
-            lengths->size() != 2 || (*lengths)[0] != rotary ||
-            ((*lengths)[1] != head_size - rotary && (*lengths)[1] != -1)) {
-            return std::nullopt;
-        }
-        return data;
-    }
-    const auto rotary_slice = last_axis_slice(rotary_part);
-    const auto pass_slice = last_axis_slice(pass_part);
-    if (!rotary_slice || !pass_slice) {
-        return std::nullopt;
-    }
-    const auto& [data, rotary_start, rotary_stop] = *rotary_slice;
-    const auto& [pass_data, pass_start, pass_stop] = *pass_slice;
-    if (data != pass_data || data.get_partial_shape().rank() != 4 || rotary_start != 0 || rotary_stop != rotary ||
-        pass_start != rotary || pass_stop < head_size) {
-        return std::nullopt;
-    }
-    return data;
-}
-
-}  // namespace
-
 template <class Indexer>
 FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
     MATCHER_SCOPE(FuseQSAIndexerQueryRoPE);
@@ -338,34 +266,25 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         const auto unsqueeze = wrap_type<v0::Unsqueeze>({rows, wrap_type<v0::Constant>(value_matches("1"))});
         const auto reshape = wrap_type<v1::Reshape>({rows, wrap_const()}, [](const ov::Output<ov::Node>& output) {
             const auto& shape = output.get_node()->get_input_partial_shape(0);
-            return shape.rank() == 3 && (shape[1].is_dynamic() || shape[1].get_length() > 0) && shape[2].is_static() &&
+            return shape.rank() == 3 && shape[1].is_static() && shape[1].get_length() > 0 && shape[2].is_static() &&
                    shape[2].get_length() > 0 &&
                    output.get_partial_shape() == ov::PartialShape{shape[0], 1, shape[1], shape[2]};
         });
         return unsqueeze | reshape;
     };
     const auto p_head_first = optional<v1::Reshape>({p_query, any_input()});
-    const auto plain_rope = [](const ov::Output<ov::Node>& output) {
-        const auto rope = ov::as_type<op_internal::RoPE>(output.get_node());
-        auto config = rope->get_config();
-        config.input_trans0213 = false;
-        const auto& cos_shape = rope->get_input_partial_shape(1);
-        return op_internal::is_plain_rotate_half(config) && cos_shape.rank().is_static() &&
-               cos_shape[-1] == static_cast<int64_t>(config.rotary_ndims);
-    };
-    const auto p_rope =
-        wrap_type<op_internal::RoPE>({p_head_first, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
-                                     plain_rope,
-                                     {{"config.input_interleaved", false}, {"config.use_rope_cache", false}});
-    // Without RoPEFusionIOSlicing (the GPU plugin disables it) a partial rotary embedding stays a RoPE over the rotary
-    // slice followed by a Concat with the other channels, see the pass description.
-    const auto p_partial_rope = wrap_type<op_internal::RoPE>(
-        {any_input(), with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
-        plain_rope,
-        {{"config.input_interleaved", false}, {"config.use_rope_cache", false}, {"config.input_trans0213", false}});
-    const auto p_partial = wrap_type<v0::Concat>({p_partial_rope, any_input()}, rank_equals(4));
-    const auto p_token_major =
-        optional<v1::Transpose>({p_rope | p_partial, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
+    const auto p_rope = wrap_type<op_internal::RoPE>(
+        {p_head_first, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
+        [](const ov::Output<ov::Node>& output) {
+            const auto rope = ov::as_type<op_internal::RoPE>(output.get_node());
+            auto config = rope->get_config();
+            config.input_trans0213 = false;
+            const auto& cos_shape = rope->get_input_partial_shape(1);
+            return op_internal::is_plain_rotate_half(config) && cos_shape.rank().is_static() &&
+                   cos_shape[-1] == static_cast<int64_t>(config.rotary_ndims);
+        },
+        {{"config.input_interleaved", false}, {"config.use_rope_cache", false}});
+    const auto p_token_major = optional<v1::Transpose>({p_rope, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
     const auto p_query_reshape = optional<v1::Reshape>({p_token_major, any_input()}, rank_equals(2));
     // FuseQSAIndexer broadcasts the cos / sin rows with a v3 Broadcast, which ConvertBroadcast3 may turn into a
     // numpy v1 Broadcast before this pass.
@@ -392,49 +311,20 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         if (transformation_callback(indexer)) {
             return false;
         }
-        const bool partial = pattern_map.count(p_partial) != 0;
-        const auto rope =
-            ov::as_type_ptr<op_internal::RoPE>(pattern_map.at(partial ? p_partial_rope : p_rope).get_node_shared_ptr());
+        const auto rope = ov::as_type_ptr<op_internal::RoPE>(pattern_map.at(p_rope).get_node_shared_ptr());
         OPENVINO_ASSERT(rope, "FuseQSAIndexerQueryRoPE: expected RoPE");
         const bool head_first = pattern_map.count(p_head_first) != 0;
         const bool transposed = pattern_map.count(p_token_major) != 0;
-        auto config = indexer->get_config();
-        NodeRegistry rg;
-        NodeVector sources{rope};
-        ov::Output<ov::Node> query;
-        if (partial) {
-            const auto concat = ov::as_type_ptr<v0::Concat>(pattern_map.at(p_partial).get_node_shared_ptr());
-            OPENVINO_ASSERT(concat, "FuseQSAIndexerQueryRoPE: expected Concat");
-            const auto rotary = static_cast<int64_t>(rope->get_config().rotary_ndims);
-            const auto head_size = static_cast<int64_t>(config.indexer_head_dim);
-            // The indexer takes the [B, L, H, D] query, so the chain must be followed by the token-major Transpose.
-            if (!transposed || ov::util::normalize(concat->get_axis(), 4) != 3 ||
-                rotary != static_cast<int64_t>(config.indexer_rotary_dim) || rotary >= head_size) {
-                return false;
-            }
-            const auto data = split_rotary_source(rope->input_value(0), concat->input_value(1), rotary, head_size);
-            if (!data || data->get_partial_shape()[3] != head_size) {
-                return false;
-            }
-            sources.push_back(concat);
-            // Undo a head-first Transpose of the [B, L, H, D] query instead of transposing it back.
-            const auto head_first_transpose = ov::as_type_ptr<v1::Transpose>(data->get_node_shared_ptr());
-            const auto order = head_first_transpose ? constant_values(head_first_transpose->input_value(1))
-                                                    : std::optional<std::vector<int64_t>>{};
-            if (order && *order == std::vector<int64_t>{0, 2, 1, 3}) {
-                query = head_first_transpose->input_value(0);
-            } else {
-                query = rg.make<v1::Transpose>(*data, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
-            }
-        } else {
-            if (rope->get_config().input_trans0213 != transposed ||
-                (!transposed && (!head_first || !pattern_map.count(p_query_reshape)))) {
-                return false;
-            }
-            query = transposed ? rope->input_value(0) : pattern_map.at(p_query);
+        if (rope->get_config().input_trans0213 != transposed ||
+            (!transposed && (!head_first || !pattern_map.count(p_query_reshape)))) {
+            return false;
         }
+        const auto query = transposed ? rope->input_value(0) : pattern_map.at(p_query);
+        auto config = indexer->get_config();
         config.query_rope = true;
         auto inputs = indexer->input_values();
+        NodeRegistry rg;
+        NodeVector sources{rope};
         if (head_first && !transposed) {
             sources.push_back(pattern_map.at(p_head_first).get_node_shared_ptr());
         }
