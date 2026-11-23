@@ -2508,7 +2508,7 @@ size_t jit_mul_add_emitter::get_inputs_count() const {
 }
 
 size_t jit_mul_add_emitter::get_aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 void jit_mul_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -2525,6 +2525,19 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg dst = TReg(out_vec_idxs[0]);
+
+    if (exec_prc_ == ov::element::i32) {
+        const TReg src0(in_vec_idxs[0]);
+        const TReg src1(in_vec_idxs[1]);
+        const TReg src2(in_vec_idxs[2]);
+        if (dst.getIdx() == in_vec_idxs[2]) {
+            h->mla(dst.s, src0.s, src1.s);
+        } else {
+            h->mul(dst.s, src0.s, src1.s);
+            h->add(dst.s, dst.s, src2.s);
+        }
+        return;
+    }
 
     TReg mul0(in_vec_idxs[0]);
     if (dst.getIdx() == in_vec_idxs[0]) {
@@ -2547,12 +2560,8 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->mov(dst.b16, src2.b16);
     }
 
-    if (exec_prc_ == ov::element::i32) {
-        h->mla(dst.s, mul0.s, mul1.s);
-    } else {
-        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-        h->fmla(dst.s, mul0.s, mul1.s);
-    }
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+    h->fmla(dst.s, mul0.s, mul1.s);
 }
 
 std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(
