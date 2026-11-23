@@ -126,6 +126,7 @@ protected:
         _cmp_neq_uq = dnnl::impl::cpu::x64::jit_generator_t::_cmp_neq_uq,
         _cmp_lt_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_lt_os,
         _cmp_le_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_le_os,
+        _cmp_unord_q = 3u,
         _cmp_ge_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_nlt_us,
         _cmp_gt_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_nle_us,
     };

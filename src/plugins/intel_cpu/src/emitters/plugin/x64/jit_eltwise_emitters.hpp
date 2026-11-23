@@ -225,6 +225,7 @@ public:
                         const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
@@ -233,6 +234,7 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
 };
 
 class jit_minimum_emitter : public jit_emitter {
@@ -245,6 +247,7 @@ public:
                         const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
@@ -253,6 +256,7 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
 };
 
 class jit_squared_difference_emitter : public jit_emitter {
@@ -990,6 +994,7 @@ public:
                       const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
