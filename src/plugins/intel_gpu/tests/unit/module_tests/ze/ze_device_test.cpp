@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "runtime/ze/ze_device_detector.hpp"
 #include "runtime/ze/ze_device.hpp"
+#include "runtime/ze/ze_ocl_interop.hpp"
 
 #include <algorithm>
 #include <limits>
