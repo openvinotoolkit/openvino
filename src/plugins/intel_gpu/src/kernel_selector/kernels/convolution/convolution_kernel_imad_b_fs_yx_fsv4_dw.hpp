@@ -26,7 +26,7 @@ protected:
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return false; }
 
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override {
         return WeightsLayout::gs_oi_yxs_gsv4_yxsv4;
     }
 
@@ -49,7 +49,7 @@ protected:
 
     std::vector<AutoTuneParams> all_tune_params;
 
-    bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const;
+    static bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params);
     AutoTuneParams GetAutoTuneParams(const convolution_params& params, int index) const;
     KernelsData GetTunedKernelsDataByIndex(const Params& params,
                                            int autoTuneIndex = -1) const override;

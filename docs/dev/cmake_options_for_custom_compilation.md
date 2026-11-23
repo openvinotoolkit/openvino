@@ -156,6 +156,18 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 * `ENABLE_INTEGRITYCHECK` builds DLLs with [/INTEGRITYCHECK] flag:
     * `OFF` is default.
     * Available on MSVC compiler only.
+* `ENABLE_STATIC_LIBS_PDB` keeps debug information of developer package static libraries in
+  separate PDB files (`/Zi`) when `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`) is used:
+    * `OFF` is default.
+    * Available on MSVC compiler only.
+    * Embedded debug information (`/Z7`) is required by compiler caches such as ccache, which
+      cannot cache compilations writing to a shared PDB file (`/Zi`). With `/Z7`, every object
+      file carries its own copy of the debug information, so static libraries archiving these
+      objects grow considerably, while DLLs and executables are not affected because the linker
+      moves the debug information into their PDB files. With this option, the static libraries
+      installed to the developer package (and the object libraries archived into them) are built
+      with `/Zi` to keep their size, while all other targets, including DLLs, keep `/Z7` and stay
+      cacheable.
 * `ENABLE_QSPECTRE` builds with [/Qspectre] flag:
     * `OFF` is default.
     * Available on MSVC compiler only.

@@ -2,32 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/paged_qsa_indexer.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_qsa_indexer.hpp"
 
-namespace ov::op::internal {
-// The core ov::op::internal::PagedQSAIndexer already owns the plain name; like MLIR/MLIROp, the alias differs.
-using PagedQSAIndexerGPU = ov::intel_gpu::op::PagedQSAIndexer;
-}  // namespace ov::op::internal
-
 namespace ov::intel_gpu {
 
-static void CreatePagedQSAIndexerGPUOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexerGPU>& op) {
-    using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
+static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexer>& op) {
+    using In = ov::op::internal::PagedQSAIndexer::InputIdx;
     validate_inputs_count(op, {In::COUNT});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
 
     std::string reason;
-    OPENVINO_ASSERT(ov::intel_gpu::op::PagedQSAIndexer::validate_config(op->get_config(), reason),
+    OPENVINO_ASSERT(ov::op::internal::PagedQSAIndexer::validate_config(op->get_config(), reason),
                     "[GPU] Cannot lower PagedQSAIndexer op '",
                     layer_name,
                     "': ",
                     reason);
 
+    OPENVINO_ASSERT(op->get_config().query_norm && op->get_config().query_rope,
+                    "[GPU] PagedQSAIndexer '",
+                    layer_name,
+                    "': only query_norm == true and query_rope == true are supported");
     OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
                     "[GPU] PagedQSAIndexer '",
                     layer_name,
@@ -56,6 +55,6 @@ static void CreatePagedQSAIndexerGPUOp(ProgramBuilder& p, const std::shared_ptr<
     p.add_primitive(*op, prim);
 }
 
-REGISTER_FACTORY_IMPL(internal, PagedQSAIndexerGPU);
+REGISTER_FACTORY_IMPL(internal, PagedQSAIndexer);
 
 }  // namespace ov::intel_gpu

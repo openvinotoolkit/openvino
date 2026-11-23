@@ -8,9 +8,6 @@ if(NOT CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     return()
 endif()
 
-if(NOT DEFINED OV_CXX_STANDARD_FALLBACK)
-    set(OV_CXX_STANDARD_FALLBACK 17)
-endif()
 # OpenVINO has no C++20 named modules; this scanning only costs a version-matched
 # clang-scan-deps (CMP0155/CMake 3.28+) that may not exist in every toolchain/image.
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
@@ -18,7 +15,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT DEFINED CMAKE_CXX_SCAN_FOR_M
 endif()
 
 # CVS-190125: raise the GNU floor (currently 10) once OpenVINO drops the OSes that
-# ship it (e.g. RHEL 8) as part of the 2027.0 C++20 default switch.
+# ship it (e.g. RHEL 8).
 set(_ov_cxx20_floor_GNU 10)
 set(_ov_cxx20_floor_Clang 14)
 set(_ov_cxx20_floor_AppleClang 13)
@@ -67,14 +64,8 @@ if(NOT _ov_cxx20_error)
 endif()
 
 if(_ov_cxx20_error)
-    # only a defaulted standard may fall back, an explicit request must fail
-    if(OV_CXX_STANDARD_IS_DEFAULT)
-        message(STATUS "${_ov_cxx20_error}. Falling back to C++${OV_CXX_STANDARD_FALLBACK}")
-        set(CMAKE_CXX_STANDARD ${OV_CXX_STANDARD_FALLBACK})
-    else()
-        message(FATAL_ERROR
-            "${_ov_cxx20_error} (CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} was requested)")
-    endif()
+    message(FATAL_ERROR
+        "${_ov_cxx20_error} (CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD})")
 endif()
 
 unset(_ov_cxx20_error)
