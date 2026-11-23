@@ -22,6 +22,7 @@
 #endif
 
 // gamma may have a different data type than the input
+#define TO_GAMMA_ACC_TYPE(v) CAT(convert_, ACCUMULATOR_TYPE)(DECODE_INPUT1_COMPUTE_TYPE(v))
 #if SUBGROUP_BLOCK_SIZE == 1
 #define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
 #define GAMMA_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
@@ -33,7 +34,7 @@
 #else
 #define BLOCK_READ(ptr, offset) CAT(DT_INPUT_BLOCK_READ, SUBGROUP_BLOCK_SIZE)(ptr, offset)
 #define GAMMA_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, SUBGROUP_BLOCK_SIZE, ptr, offset)
-#define TO_GAMMA_ACC(x) TO_GAMMA_ACC_VECTOR_TYPE(x, SUBGROUP_BLOCK_SIZE)
+#define TO_GAMMA_ACC(x) CAT(convert_, ACC_TYPE)(DECODE_INPUT1_COMPUTE_VECTOR_TYPE(x, SUBGROUP_BLOCK_SIZE))
 #define BLOCK_WRITE(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, SUBGROUP_BLOCK_SIZE)(ptr, offset, val)
 #define ACC_TYPE MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, SUBGROUP_BLOCK_SIZE)
 #define TO_ACC_TYPE(x) TO_ACCUMULATOR_VECTOR_TYPE(x, SUBGROUP_BLOCK_SIZE)
@@ -397,6 +398,7 @@ KERNEL(rms_gpu_bfyx_opt)(
 #undef BLOCK_READ
 #undef GAMMA_BLOCK_READ
 #undef TO_GAMMA_ACC
+#undef TO_GAMMA_ACC_TYPE
 #undef BLOCK_WRITE
 #undef ACC_TYPE
 #undef TO_ACC_TYPE

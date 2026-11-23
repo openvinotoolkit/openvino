@@ -5,6 +5,9 @@
 #include "include/fetch_utils.cl"
 #include "include/batch_headers/bf16_utils.cl"
 
+// gamma may have a different data type than the input
+#define TO_GAMMA_ACC_TYPE(v) CAT(convert_, ACCUMULATOR_TYPE)(DECODE_INPUT1_COMPUTE_TYPE(v))
+
 #if NORMALIZE_BATCH
     #define NORM_SIZE INPUT0_BATCH_NUM
     #define NORM_INDEX b
@@ -84,3 +87,4 @@ KERNEL(rms_gpu_ref)(
 
 #undef NORM_SIZE
 #undef NORM_INDEX
+#undef TO_GAMMA_ACC_TYPE
