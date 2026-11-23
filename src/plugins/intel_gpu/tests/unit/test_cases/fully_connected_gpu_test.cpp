@@ -1412,6 +1412,54 @@ TEST(fully_connected_gpu, bf_tiled_fp16_large_k_accumulation_accuracy) {
     }
 }
 
+TEST(fully_connected_gpu, bf_tiled_fp32_tile_partial_sum_cancellation) {
+    auto& engine = get_test_engine();
+
+    // Preserving per-tile partial sums (acc_tmp) avoids FP32 cancellation when large and small tiles mix:
+    // tile 0 sums to +2^24 (where FP32 1 ULP = 2.0f, so element-by-element +1.0f would round away),
+    // tiles 1 and 2 each sum to +16.0f (exact when added to 2^24), and tile 3 cancels -2^24 -> 32.0f.
+    const int input_y = 64;
+    const int output_y = 32;
+
+    auto input_mem = engine.allocate_memory({{1, 1, input_y, 1}, data_types::f32, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{output_y, input_y}, data_types::f32, format::bfyx});
+
+    std::vector<float> input_data(input_y, 1.0f);
+    for (int k = 0; k < 16; ++k) {
+        input_data[k] = 1048576.0f;
+        input_data[48 + k] = -1048576.0f;
+    }
+    std::vector<float> weights_data(output_y * input_y, 1.0f);
+    set_values(input_mem, input_data);
+    set_values(weights_mem, weights_data);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    auto fc_inst = network.get_primitive("fc_prim");
+    ASSERT_NE(fc_inst, nullptr);
+    const auto kernels = fc_inst->get_impl()->get_kernels_dump_info(*fc_inst->get_impl_params()).get_entries();
+    ASSERT_NE(kernels.find("fully_connected_gpu_bf_tiled"), std::string::npos) << "Executed kernels: " << kernels;
+
+    auto output_mem = outputs.at("fc_prim").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_mem->count(), static_cast<size_t>(output_y));
+    for (int ofm = 0; ofm < output_y; ++ofm) {
+        ASSERT_FLOAT_EQ(32.0f, output_ptr[ofm]) << " ofm = " << ofm;
+    }
+}
+
 TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();

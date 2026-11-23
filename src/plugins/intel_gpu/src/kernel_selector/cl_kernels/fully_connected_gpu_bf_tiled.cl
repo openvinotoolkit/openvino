@@ -403,9 +403,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-        #if DECOMPRESSION_SCALE_POST_OP
-        FC_ACC_VEC_TYPE acc_tmp[TILE_B] = { };
-        #endif
+        ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             #if TILE_OFM != 2
@@ -602,15 +600,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #if DECOMPRESSION_SCALE_POST_OP
                     half weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #if TILE_OFM > 1
-                        ((FC_ACC_TYPE*)(&acc_tmp[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(weight);
+                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
                     #else
-                        acc_tmp[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(weight);
+                        acc_tmp[bi] += in_val * weight;
                     #endif
 #else
                     #if TILE_OFM > 1
-                        ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
+                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #else
-                        acc[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
+                        acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #endif
 #endif
                     }
@@ -635,10 +633,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #endif
                     #endif
                     #if TILE_OFM > 1
-                    ((FC_ACC_TYPE*)(&acc[bi]))[fi] += ((FC_ACC_TYPE*)(&acc_tmp[bi]))[fi] * TO_FC_ACC_TYPE(ds);
+                    ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi]) * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi][fi] = 0;
                     #else
-                    acc[bi] += acc_tmp[bi] * TO_FC_ACC_TYPE(ds);
+                    acc[bi] += TO_FC_ACC_TYPE(acc_tmp[bi]) * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi] = 0;
                     #endif
                 }
@@ -662,13 +660,18 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #endif
                 #endif
                 #if TILE_OFM > 1
-                ((FC_ACC_TYPE*)(&acc[bi]))[fi] += ((FC_ACC_TYPE*)(&acc_tmp[bi]))[fi] * TO_FC_ACC_TYPE(ds);
+                ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi]) * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi][fi] = 0;
                 #else
-                acc[bi] += acc_tmp[bi] * TO_FC_ACC_TYPE(ds);
+                acc[bi] += TO_FC_ACC_TYPE(acc_tmp[bi]) * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi] = 0;
                 #endif
             }
+        }
+#endif
+#if !DECOMPRESSION_SCALE_POST_OP
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
         }
 #endif
     }
