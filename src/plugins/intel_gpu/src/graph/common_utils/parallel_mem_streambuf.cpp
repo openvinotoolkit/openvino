@@ -171,7 +171,7 @@ ParallelMemStreamBuf::ParallelMemStreamBuf(const void* data, size_t size, size_t
                 std::streamoff file_size = 0;
                 ov::util::get_file_handle_and_size(file_path, file_off, m_file_handle, file_size);
                 if (static_cast<uint64_t>(file_size - file_off) >= size) {
-                    m_file_buf = std::make_unique<ov::util::NativeStreamBuf>(m_file_handle, file_off, static_cast<std::streamoff>(size));
+                    m_file_buf = std::make_unique<ov::util::NativeStreamBuf>(m_file_handle, file_off, static_cast<std::streamoff>(size), m_threshold);
                 }
             } catch (...) {
                 // File became inaccessible after mmap detection; fall through to memcpy path.
