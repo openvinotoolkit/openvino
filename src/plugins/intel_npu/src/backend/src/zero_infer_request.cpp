@@ -347,6 +347,12 @@ std::vector<ov::SoPtr<ov::IVariableState>> ZeroInferRequest::query_state() const
 
 void ZeroInferRequest::setup_pipeline() {
     _logger.debug("setup_pipeline - started");
+    // Checked before allocating any buffer
+    for (const IODescriptor& inputDescriptor : _metadata.inputs) {
+        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
+                        "This path should not be used for running inferences for the \"init\" model");
+    }
+
     std::optional<size_t> batchSize;
     if (_graph->get_kind() != GraphKind::Dynamic) {
         batchSize = _graph->get_batch_size();
@@ -1021,9 +1027,6 @@ void ZeroInferRequest::prepare_inputs() {
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {
         const IODescriptor& inputDescriptor = _metadata.inputs.at(inputIndex);
-
-        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
-                        "This path should not be used for running inferences for the \"init\" model");
 
         if (inputDescriptor.isMainInputWeights) {
             // These values were set while running the "WeightlessGraph::init" method

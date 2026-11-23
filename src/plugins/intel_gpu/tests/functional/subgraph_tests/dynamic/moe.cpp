@@ -7,6 +7,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -234,28 +235,30 @@ TEST_P(MoECompressedFusionTest, Inference) {
     run();
 }
 
-using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType>;
+// offload ratio, weights precision, zero point type, model read with mmap
+using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType, bool>;
 
 // The experts are streamed from the weights file on demand, so the model has to be read from a file.
 class MoECompressedOffloadTest : public testing::WithParamInterface<MoECompressedOffloadParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoECompressedOffloadParams>& info) {
-        const auto& [offload_ratio, wp, ds] = info.param;
+        const auto& [offload_ratio, wp, ds, mmap] = info.param;
         std::ostringstream result;
-        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds;
+        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds << "_mmap=" << mmap;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [offload_ratio, wp, ds] = GetParam();
+        const auto& [offload_ratio, wp, ds, mmap] = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
         const auto caps = core->get_property(targetDevice, ov::device::capabilities);
         if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
             GTEST_SKIP() << "MoE pipeline requires a systolic GPU (HW_MATMUL capability)";
         }
         inType = outType = inference_precision = ov::element::f16;
-        abs_threshold = 1e-3;
+        // Without a zero point the weights are not centered and the outputs are ~20x larger (up to 0.5), so is the f16 error
+        abs_threshold = ds == ov::test::utils::DecompressionType::empty ? 1e-2 : 1e-3;
         rel_threshold = 0.025;
         const ov::test::MoePatternParams moe_params{{-1, -1, 256}, 4, 8, 512};
         // Prefill, then decode steps on the batched GEMV, which falls back to the per-expert loop when the LRU holds
@@ -277,7 +280,7 @@ protected:
         xml_path = file_prefix + ".xml";
         bin_path = file_prefix + ".bin";
         ov::pass::Serialize(xml_path, bin_path).run_on_model(function);
-        function = core->read_model(xml_path);
+        function = core->read_model(xml_path, bin_path, {ov::enable_mmap(mmap)});
         configuration = {ov::hint::inference_precision(ov::element::f16),
                          ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
                          ov::hint::dynamic_quantization_group_size(0),
@@ -286,8 +289,36 @@ protected:
     }
 
     void compile_model() override {
+        // The experts that are offloaded must not be allocated: compare with the same model fully resident, after compilation and
+        // after the first inference (the slot buffers of a dynamic model are allocated then)
+        auto resident_configuration = configuration;
+        resident_configuration[ov::intel_gpu::offload_ratio.name()] = size_t{0};
+        const auto resident_usage = get_compile_and_inference_memory_usage(resident_configuration);
+        const auto offloaded_usage = get_compile_and_inference_memory_usage(configuration);
+        ASSERT_LT(offloaded_usage.first, resident_usage.first) << "The experts were not offloaded";
+        ASSERT_LT(offloaded_usage.second, resident_usage.second) << "The experts were not offloaded";
+
         ov::test::SubgraphBaseTest::compile_model();
         ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_3gemm_fused_compressed", 1);
+    }
+
+    std::pair<uint64_t, uint64_t> get_compile_and_inference_memory_usage(const ov::AnyMap& config) {
+        const auto before = get_memory_usage();
+        auto model = core->compile_model(function, targetDevice, config);
+        const auto compiled = get_memory_usage() - before;
+        auto request = model.create_infer_request();
+        request.set_input_tensor(
+            ov::test::utils::create_and_fill_tensor_normal_distribution(ov::element::f16, targetStaticShapes.front().front(), 0.0f, 0.05f, 1234));
+        request.infer();
+        return {compiled, get_memory_usage() - before};
+    }
+
+    uint64_t get_memory_usage() {
+        uint64_t total = 0;
+        for (const auto& [type, bytes] : core->get_property(targetDevice, ov::intel_gpu::memory_statistics)) {
+            total += bytes;
+        }
+        return total;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -316,22 +347,44 @@ TEST_P(MoECompressedOffloadTest, Inference) {
     run();
 }
 
+// An offloaded layer supports a single stream: more streams are rejected at compilation, not at the first inference
+TEST_P(MoECompressedOffloadTest, SingleStream) {
+    auto explicit_streams = configuration;
+    explicit_streams[ov::num_streams.name()] = ov::streams::Num(2);
+    OV_EXPECT_THROW(core->compile_model(function, targetDevice, explicit_streams), ov::Exception, testing::HasSubstr("supports a single stream only"));
+
+    auto throughput = configuration;
+    throughput[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+    OV_EXPECT_THROW(core->compile_model(function, targetDevice, throughput), ov::Exception, testing::HasSubstr("supports a single stream only"));
+}
+
 // OFFLOAD_RATIO 50 keeps 4 of the 8 experts resident (= top_k), 75 keeps 2, so every step falls back.
-// A scalar zero point is supported for u3 weights only. Per-group u3 zero points are not supported (see skip_tests_config.cpp).
+// A scalar zero point is supported for u3 weights only
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
                          MoECompressedOffloadTest,
                          ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u3),
                                             ::testing::Values(ov::test::utils::DecompressionType::full,
                                                               ov::test::utils::DecompressionType::scalar,
-                                                              ov::test::utils::DecompressionType::empty)),
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(true)),
                          MoECompressedOffloadTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
                          MoECompressedOffloadTest,
                          ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u8, ov::element::u4),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(true)),
+                         MoECompressedOffloadTest::getTestCaseName);
+
+// Without mmap every constant is read into its own buffer, with the file offset in its descriptor
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_no_mmap,
+                         MoECompressedOffloadTest,
+                         ::testing::Combine(::testing::Values(size_t{50}),
+                                            ::testing::Values(ov::element::u8, ov::element::u4, ov::element::u3),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false)),
                          MoECompressedOffloadTest::getTestCaseName);
 
 // GatherMatmul and fused MoE kernels support only f16 activations, so the MoE pipeline must be applied

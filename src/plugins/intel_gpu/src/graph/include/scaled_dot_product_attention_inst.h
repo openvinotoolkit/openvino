@@ -40,7 +40,7 @@ public:
         return get_typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
     }
 
-    typed_primitive_inst(network& network, scaled_dot_product_attention_node const& desc);
+    typed_primitive_inst(network& network, const scaled_dot_product_attention_node& node);
 };
 
 using scaled_dot_product_attention_inst = typed_primitive_inst<scaled_dot_product_attention>;

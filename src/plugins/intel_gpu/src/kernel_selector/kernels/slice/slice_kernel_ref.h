@@ -32,7 +32,7 @@ public:
 
 private:
     JitConstants GetJitConstants(const slice_params &params) const;
-    CommonDispatchData SetDefault(const slice_params &params) const;
+    static CommonDispatchData SetDefault(const slice_params& params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
