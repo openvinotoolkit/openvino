@@ -478,7 +478,7 @@ public:
         : IBlobFormatImporter(original_model, backend, config, Logger("HSMFormatImporter", config.get<LOG_LEVEL>())),
           m_blob_so(blob_so) {
         std::tie(m_blob_sections_registry, m_runtime_requirements) =
-            hsm::read_from(base_reader, get_readers(), {}, create_instance_evaluators(option_helper));
+            hsm::read_from(base_reader, get_section_readers(), {}, create_instance_evaluators(option_helper));
 
         if (!m_runtime_requirements.has_value()) {
             // This runtime requirements object contains more than the compiler requirements. But we need it only for
@@ -522,7 +522,8 @@ private:
     /**
      * @returns All blob section readers known to the plugin.
      */
-    std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>> get_readers() const {
+    std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>> get_section_readers()
+        const {
         return {
             {SectionTypeCode::RUNTIME_REQUIREMENTS, RuntimeRequirementsSection::decode},
             {SectionTypeCode::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::decode},
