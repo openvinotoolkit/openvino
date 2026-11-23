@@ -58,6 +58,13 @@ The following extension types are supported:
 * `ov::BaseOpExtension` - enable support for a custom operation.
 * `ov::detail::SOExtension` - allow support for `ov::BaseOpExtension` extensions loaded from an external library.
 
+### Python module extensions
+
+For TorchScript conversion, `ModuleExtension` replacement operations are assumed
+to return tensors that do not alias their inputs. Returning an input or a view
+of one is unsupported: aliasing is not preserved, and in-place mutations
+involving aliased outputs may silently produce incorrect results.
+
 ### Context-manager scopes in exported models
 
 OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
@@ -79,6 +86,21 @@ Operations inside the region, including `flat_apply` calls, are traced as well.
 This region trace runs after export for both models and supplied exported graphs.
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
+
+### Operation names in exported models
+
+When converting with `openvino.convert_model(..., dynamo=True)` or converting a
+`torch.export.ExportedProgram`, operation friendly names include the original
+module path when it is available in the FX node's `nn_module_stack` metadata:
+`<module path>/<FX node name>/<PyTorch operation>/<OpenVINO operation>`.
+For example, `encoder.0.activation/relu/aten.relu.default/Relu` identifies a ReLU
+inside `encoder.0.activation`. Functional operations use their containing
+module's path, and the FX node name distinguishes repeated operations.
+
+Nodes without a non-empty module path retain names without that prefix.
+This does not change input/output tensor names or TorchScript conversion names.
+Subsequent graph optimizations may fuse or replace operations, so names do not
+guarantee a one-to-one mapping to the original graph.
 
 ## How to Implement Support for a New PyTorch Operation
 
