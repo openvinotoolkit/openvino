@@ -37,13 +37,16 @@ namespace ov {
 namespace test {
 namespace intel_gpu {
 
-TEST(FullyConnectedHorizontalFusionGGUF, PreservesRawRowsAndOutputOrder) {
+class FullyConnectedHorizontalFusionGGUFFormats : public ::testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(FullyConnectedHorizontalFusionGGUFFormats, PreservesRawRowsAndOutputOrder) {
+    const auto type = GetParam();
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 512});
     const std::vector<size_t> rows{64, 32, 16};
     std::vector<std::shared_ptr<ov::op::v0::Constant>> weights;
     ov::ResultVector results;
     for (size_t index = 0; index < rows.size(); ++index) {
-        const auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_1, ov::Shape{rows[index], 512});
+        const auto weight = std::make_shared<ov::op::v0::Constant>(type, ov::Shape{rows[index], 512});
         auto* bytes = const_cast<uint8_t*>(weight->get_data_ptr<uint8_t>());
         for (size_t offset = 0; offset < weight->get_byte_size(); ++offset) {
             bytes[offset] = static_cast<uint8_t>(offset * 13 + index * 71);
@@ -71,7 +74,7 @@ TEST(FullyConnectedHorizontalFusionGGUF, PreservesRawRowsAndOutputOrder) {
         const auto weight = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
         ASSERT_TRUE(weight);
         EXPECT_EQ(weight->get_shape(), (ov::Shape{112, 512}));
-        EXPECT_EQ(weight->get_element_type(), ov::element::gguf_q4_1);
+        EXPECT_EQ(weight->get_element_type(), type);
         const auto lengths = ov::as_type_ptr<ov::op::v0::Constant>(split->get_input_node_shared_ptr(2));
         ASSERT_TRUE(lengths);
         const auto split_rows = lengths->cast_vector<int64_t>();
@@ -87,6 +90,22 @@ TEST(FullyConnectedHorizontalFusionGGUF, PreservesRawRowsAndOutputOrder) {
         EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::Placeholder>(fc->get_input_node_shared_ptr(4)));
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    RawFormats,
+    FullyConnectedHorizontalFusionGGUFFormats,
+    ::testing::Values(ov::element::gguf_q4_0,
+                      ov::element::gguf_q4_1,
+                      ov::element::gguf_q4_k,
+                      ov::element::gguf_q5_k,
+                      ov::element::gguf_q6_k,
+                      ov::element::gguf_q8_0,
+                      ov::element::gguf_q3_k,
+                      ov::element::gguf_iq2_xs,
+                      ov::element::gguf_iq2_s,
+                      ov::element::gguf_iq3_xxs,
+                      ov::element::gguf_iq3_s),
+    [](const ::testing::TestParamInfo<ov::element::Type>& info) { return info.param.get_type_name(); });
 
 TEST(FullyConnectedHorizontalFusionGGUF, RejectsUnsupportedPatternsWithoutChangingGraph) {
     for (const bool fuse_mlp : {false, true}) {
