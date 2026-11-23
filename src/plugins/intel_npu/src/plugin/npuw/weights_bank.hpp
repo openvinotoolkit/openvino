@@ -49,6 +49,11 @@ public:
 
     std::string get_name() const;
 
+    struct Statistics {
+        std::string to_string() const;
+        std::unordered_map<std::string, std::size_t> values;
+    };
+
 private:
     friend class ov::npuw::LLMCompiledModel;
     friend class ov::npuw::CompiledModel;
@@ -79,6 +84,7 @@ private:
     std::string m_alloc_device;
     int64_t uid_count = 0;
     std::string m_bank_name;
+    std::unordered_map<std::string, Statistics> m_statistics;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,

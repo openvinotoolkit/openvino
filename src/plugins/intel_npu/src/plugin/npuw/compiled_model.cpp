@@ -1967,17 +1967,18 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                                             comp_model_desc.closure.unsafe_get().is_remote.size(),
                                             comp_model_desc.closure.unsafe_get().closure_uid.size());
 
+            std::string preferred_device = submodel_device(real_idx);
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
                 ov::AnyMap params;
-                if (!this->is_read_by_host_closure(idx, tidx)) {
+                if (!this->is_read_by_host_closure(idx, tidx) && ov::npuw::util::starts_with(preferred_device, "NPU")) {
                     params.insert(ov::intel_npu::tensor_type(ov::intel_npu::TensorType::INPUT));
                 }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
                     m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx],
-                                               submodel_device(real_idx),
+                                               preferred_device,
                                                std::move(params));
             }
         }
