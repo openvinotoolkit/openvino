@@ -26,6 +26,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
