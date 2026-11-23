@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-17-11-33-000-45217338279",
+  "timestamp": "2026-11-23T17:11:33Z",
+  "run_id": "45217338279",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45217338279",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "e056e34af19271e77bd647e0a1f8dca619b49360",
+  "pr_number": "39413",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39413",
+  "author": "not_found",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "ninja build stopped: LINK fatal error LNK1102 (out of memory) while linking several sample executables (hello_nv12_input_classification_c.exe, hello_reshape_ssd.exe, hello_query_device.exe, hello_classification_c.exe)."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because Build_And_Run_Collect_Mode failed."
+    }
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/hello_nv12_input_classification_c.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/hello_reshape_ssd.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/hello_query_device.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/hello_classification_c.exe\nLINK : fatal error LNK1102: out of memory\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows CC (conditional compilation collect mode) build runs many parallel ninja link jobs on a memory-constrained Windows runner. MSVC's link.exe for several small sample executables fails with LNK1102 (out of memory) when too many link/compile jobs run concurrently and exhaust available RAM, not because of any code defect. This is the same recurring infrastructure signature observed 21 times since 2026-11-03, unrelated to the PR's content (an NPU VCL loader refactor) which does not touch the Windows samples build.",
+  "reproduction_steps": "Not reliably reproducible outside CI; it depends on runner memory pressure and ninja parallelism. Locally, building the full Release tree with CC enabled and a high ninja job count (-j matching or exceeding available cores) on a memory-limited Windows machine can reproduce LNK1102.",
+  "recommended_actions": [
+    "Reduce ninja/link parallelism (-j) for the Windows CC build job or set CMAKE_JOB_POOLS to cap concurrent link jobs.",
+    "Increase the Windows runner's available memory/swap or move the CC collect-mode job to a larger runner SKU.",
+    "Investigate using /INCREMENTAL or splitting link steps to lower peak linker memory usage for the samples subset.",
+    "Since this pattern has recurred 21 times, escalate to CI infra owners to adjust the Windows_Conditional_Compilation workflow's parallelism/runner sizing rather than re-investigating case by case."
+  ],
+  "prevention_strategies": "Cap the number of concurrent MSVC link jobs via CMake job pools (e.g., JOB_POOLS link=2) specifically for Release/CC builds on Windows runners, and monitor runner memory usage in this workflow to catch OOM conditions before linking many binaries in parallel.",
+  "historical_context": "This exact signature (compiler/linker out-of-memory on Windows CC build) has been recorded 21 times in the pattern database since 2026-11-03T07:07:04Z, most recently at 2026-11-23T13:22:55Z, across many unrelated commits/PRs, confirming this is a persistent CI infrastructure issue rather than a code regression introduced by PR #39413."
+}
