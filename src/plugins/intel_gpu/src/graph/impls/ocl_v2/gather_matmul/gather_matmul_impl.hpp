@@ -47,7 +47,6 @@ struct GatherMatmulImpl : public ImplementationManager {
         auto layer_id = desc.id;
 
         size_t input_idx = gather_matmul::BGMInputIdx::INPUT;
-        const auto input_type = node.get_input_layout(input_idx).data_type;
         if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
             !one_of(node.get_input_layout(input_idx).data_type, supported_activation_types)) {
             DO_NOT_USE_THIS_KERNEL(layer_id);
