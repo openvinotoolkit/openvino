@@ -4,10 +4,11 @@
   "signature_hash": "43e136cf67333978",
   "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
   "category": "Flaky Test",
-  "count": 11,
+  "count": 12,
   "first_seen": "2026-07-13T10:41:15Z",
-  "last_seen": "2026-11-16T16:38:25Z",
+  "last_seen": "2026-11-23T07:19:26Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45119446646",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43866240882",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43864218055",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33205788344",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/30904967401",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30891410624",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30540715415",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/29813410817",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/29341562536"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29813410817"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/40019",
     "https://github.com/openvinotoolkit/openvino/pull/39616",
     "https://github.com/openvinotoolkit/openvino/pull/39663",
     "https://github.com/openvinotoolkit/openvino/pull/37653",
@@ -28,12 +29,10 @@
     "https://github.com/openvinotoolkit/openvino/pull/36684",
     "https://github.com/openvinotoolkit/openvino/pull/37187",
     "https://github.com/openvinotoolkit/openvino/pull/37114",
-    "https://github.com/openvinotoolkit/openvino/pull/36872",
-    "https://github.com/openvinotoolkit/openvino/pull/36488"
+    "https://github.com/openvinotoolkit/openvino/pull/36872"
   ],
   "recent_timestamps": [
-    "2026-11-16T16:38:25Z",
-    "2026-11-16T16:17:32Z"
+    "2026-11-23T07:19:26Z"
   ],
   "rerun_search_string": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active"
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 494,
+  "total": 495,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5371,6 +5371,15 @@
       "category": "Network",
       "signature_hash": "688d70acdbdfc8ce",
       "pr_number": "40088"
+    },
+    {
+      "investigation_id": "2026-11-23-07-19-26-132-45119446646",
+      "run_id": "45119446646",
+      "timestamp": "2026-11-23T07:19:26Z",
+      "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "43e136cf67333978",
+      "pr_number": "40019"
     }
   ]
 }

@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-07-19-26-132-45119446646",
+  "timestamp": "2026-11-23T07:19:26Z",
+  "run_id": "45119446646",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45119446646",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "40019",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40019",
+  "author": "alvoron",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModel_testCache: GMock EXPECT_CALL(import_model) expected 3 calls, got 2 (known Windows timing-sensitive race)"
+    },
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "TestKerasLSTM.test_keras_lstm_flags_float32[...dropouts (0.1,0.3)...]: inference vs TF framework output mismatch beyond tolerance (pre-existing recurring LSTM/dropout flaky pattern, signature a284d27dfee44614, count 10)"
+    }
+  ],
+  "key_errors": [
+    "C:\\...\\src\\inference\\tests\\functional\\caching_test.cpp(2673): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n  Expected: to be called 3 times\n    Actual: called twice - unsatisfied and active\n[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModel_testCache, where GetParam() = ((4-byte object <00-00 00-00>, \"ByModel\", false), \"testCache\") (2060 ms)",
+    "E       AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-0. , 0.64672285, 0. ], ...])}; framework_res={'output_0': <tf.Tensor ... array([[-0. , 0.5654932 , 0. ], ...])>}.\nFAILED install\\tests\\layer_tests\\tensorflow2_keras_tests\\test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[...]"
+  ],
+  "root_cause": "Two independent, previously-known recurring flaky tests failed on this Windows merge-queue run, unrelated to the PR's GPU-only changes (src/plugins/intel_gpu/...). (1) CachingTest.LoadMultiWithConfig_race exercises concurrent MULTI-device model loading against a GMock plugin; the mock's import_model EXPECT_CALL count is timing-sensitive and intermittently under-counts on loaded Windows CI runners because one of the racing load threads occasionally has not yet invoked import_model before the test's teardown/verification point. (2) TestKerasLSTM.test_keras_lstm_flags_float32 with dropout compares CPU-plugin inference output against TensorFlow's reference within a fixed epsilon; small, non-deterministic numerical drift from dropout-affected LSTM kernels intermittently exceeds the comparison tolerance. Neither failure touches code paths modified by PR #40019.",
+  "reproduction_steps": "N/A (both are intermittent races/numerical-tolerance flakes not reliably reproducible locally; see historical pattern records 43e136cf67333978 (11 occurrences) and a284d27dfee44614 (10 occurrences) in /tmp/gh-aw/repo-memory/default/mq/patterns/ for prior occurrences and context).",
+  "recommended_actions": [
+    "Re-run the failed jobs (C++ unit tests, TensorFlow Layer Tests) for this merge-queue run; both failures are known transient flakes unrelated to the PR diff.",
+    "Track CachingTest.LoadMultiWithConfig_race/ByModel_testCache for stabilization: either relax the EXPECT_CALL count to a range/minimum or add explicit synchronization so all racing load threads complete import_model before verification (src/inference/tests/functional/caching_test.cpp:2673, :318).",
+    "Track TestKerasLSTM.test_keras_lstm_flags_float32 dropout parametrization for either a wider epsilon or disabling dropout-active comparisons that are inherently non-deterministic (install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py)."
+  ],
+  "prevention_strategies": "Both failures are long-standing known flaky tests already tracked in the CI Doctor MQ pattern database (counts 11 and 10). No new prevention action is required for this PR; continued tracking/escalation will occur automatically if recurrence accelerates within a 12-hour window.",
+  "historical_context": "CachingTest/LoadMultiWithConfig_race import_model call count mismatch: signature_hash 43e136cf67333978, previously observed 10 times (first_seen 2026-07-13, last_seen 2026-11-16) across PRs #36488-#39663, already has an approved rerun_search_string in .github/scripts/workflow_rerun/errors_to_look_for.json. TestKerasLSTM test_keras_lstm_flags_float32 dropout mismatch: signature_hash a284d27dfee44614, previously observed 9 times (first_seen 2026-08-27, last_seen 2026-11-19) across PRs #37611-#39742; no rerun string verified for it yet (non-deterministic numeric output, not a fixed log substring)."
+}
