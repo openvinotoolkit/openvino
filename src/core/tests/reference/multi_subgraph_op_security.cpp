@@ -48,8 +48,7 @@ TEST(IfReferenceSecurityTest, body_parameter_index_beyond_descriptor_count_does_
         then_params.push_back(std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic()));
     auto then_body = std::make_shared<Model>(OutputVector{then_params[4]}, then_params);
 
-    auto else_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto else_body = std::make_shared<Model>(OutputVector{else_param}, ParameterVector{else_param});
+    auto else_body = make_passthrough_body();
 
     MultiSubGraphOp::MultiSubgraphInputDescriptionVector then_inputs{
         std::make_shared<MultiSubGraphOp::InvariantInputDescription>(1, 4)};
@@ -69,6 +68,37 @@ TEST(IfReferenceSecurityTest, body_parameter_index_beyond_descriptor_count_does_
                                                    out,
                                                    args));
     EXPECT_EQ(out[0].data<float>()[0], 42.0f);
+}
+
+TEST(IfReferenceSecurityTest, unused_body_parameters_with_static_shape_throw_on_uninitialized_tensor) {
+    // Static shape means Model::evaluate actually touches the tensor, so this throws
+    // instead of quietly leaving the unused slot alone.
+    ParameterVector then_params;
+    for (int i = 0; i < 5; ++i)
+        then_params.push_back(std::make_shared<op::v0::Parameter>(element::f32, Shape{1}));
+    auto then_body = std::make_shared<Model>(OutputVector{then_params[4]}, then_params);
+
+    auto else_body = make_passthrough_body();
+
+    MultiSubGraphOp::MultiSubgraphInputDescriptionVector then_inputs{
+        std::make_shared<MultiSubGraphOp::InvariantInputDescription>(1, 4)};
+    MultiSubGraphOp::MultiSubgraphInputDescriptionVector else_inputs{
+        std::make_shared<MultiSubGraphOp::InvariantInputDescription>(1, 0)};
+    MultiSubGraphOp::MultiSubgraphOutputDescriptionVector then_outputs{
+        std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
+    MultiSubGraphOp::MultiSubgraphOutputDescriptionVector else_outputs{
+        std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
+
+    ov::TensorVector args{make_bool_tensor(true), make_tensor(element::f32, Shape{1}, 42.0f)};
+    ov::TensorVector out{ov::Tensor(element::f32, Shape{1})};
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::reference::if_reference({then_body, else_body},
+                                                              {then_outputs, else_outputs},
+                                                              {then_inputs, else_inputs},
+                                                              out,
+                                                              args),
+                                  ov::Exception,
+                                  "Tensor was not initialized");
 }
 
 TEST(IfReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
@@ -110,6 +140,23 @@ TEST(TensorIteratorReferenceSecurityTest, body_parameter_index_beyond_descriptor
 
     OV_ASSERT_NO_THROW(ov::reference::tensor_iterator(1, body, output_descs, input_descs, out, args));
     EXPECT_EQ(out[0].data<float>()[0], 7.0f);
+}
+
+TEST(TensorIteratorReferenceSecurityTest, unused_body_parameters_with_static_shape_throw_on_uninitialized_tensor) {
+    ParameterVector params;
+    for (int i = 0; i < 4; ++i)
+        params.push_back(std::make_shared<op::v0::Parameter>(element::f32, Shape{1}));
+    auto body = std::make_shared<Model>(OutputVector{params[3]}, params);
+
+    op::util::InputDescriptionVector input_descs{std::make_shared<MultiSubGraphOp::InvariantInputDescription>(0, 3)};
+    op::util::OutputDescriptionVector output_descs{std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
+
+    ov::TensorVector args{make_tensor(element::f32, Shape{1}, 7.0f)};
+    ov::TensorVector out{ov::Tensor(element::f32, Shape{1})};
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::reference::tensor_iterator(1, body, output_descs, input_descs, out, args),
+                                  ov::Exception,
+                                  "Tensor was not initialized");
 }
 
 TEST(TensorIteratorReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
@@ -175,6 +222,27 @@ TEST(LoopReferenceSecurityTest, body_parameter_index_beyond_descriptor_count_doe
     OV_ASSERT_NO_THROW(
         ov::reference::loop(body, output_descs, input_descs, op::v5::Loop::SpecialBodyPorts{-1, 1}, out, args, {}));
     EXPECT_EQ(out[0].data<float>()[0], 42.0f);
+}
+
+TEST(LoopReferenceSecurityTest, unused_body_parameters_with_static_shape_throw_on_uninitialized_tensor) {
+    ParameterVector params;
+    for (int i = 0; i < 5; ++i)
+        params.push_back(std::make_shared<op::v0::Parameter>(element::f32, Shape{1}));
+    auto condition = op::v0::Constant::create(element::boolean, Shape{}, {true});
+    auto body = std::make_shared<Model>(OutputVector{params[4], condition}, params);
+
+    op::util::InputDescriptionVector input_descs{std::make_shared<MultiSubGraphOp::InvariantInputDescription>(2, 4)};
+    op::util::OutputDescriptionVector output_descs{std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
+
+    ov::TensorVector args{make_trip_count_tensor(1),
+                          make_bool_tensor(true),
+                          make_tensor(element::f32, Shape{1}, 42.0f)};
+    ov::TensorVector out{ov::Tensor(element::f32, Shape{1})};
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::reference::loop(body, output_descs, input_descs, op::v5::Loop::SpecialBodyPorts{-1, 1}, out, args, {}),
+        ov::Exception,
+        "Tensor was not initialized");
 }
 
 TEST(LoopReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
