@@ -530,6 +530,9 @@ def test_infer_lossless_list_input_is_converted(device, ov_type, data, expected,
     ([1, 2], [1.0, 2.0]),
     ([True, False], [1.0, 0.0]),
     ([0.5, -3.0], [0.5, -3.0]),
+    # List elements are values, unlike 2-byte arrays, which hold raw bf16 bits
+    ([np.float16(1.0), np.float16(2.0)], [1.0, 2.0]),
+    ([np.int16(1), np.int16(2)], [1.0, 2.0]),
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_list_input_into_bf16(device, data, expected, share_inputs):
