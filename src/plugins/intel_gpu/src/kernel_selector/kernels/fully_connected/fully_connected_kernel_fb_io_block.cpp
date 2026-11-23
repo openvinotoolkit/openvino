@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,8 @@ DeviceFeaturesKey FullyConnected_fb_io_block::get_required_device_features_key(c
 }
 
 FullyConnected_fb_io_block::DispatchData FullyConnected_fb_io_block::SetDefault(const fully_connected_params& arg,
-                                                                                int, int /*kernel_number*/) const {
+                                                                                int /*autoTuneIndex*/,
+                                                                                int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
     const auto& output = arg.outputs[0];
 

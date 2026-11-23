@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ public:
     };
 
 protected:
-    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& runInfo) const override;
     DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
@@ -39,6 +39,6 @@ protected:
                  FusedOpType::ELTWISE };
     }
     bool Validate(const Params& params) const override;
-    FullyConnectedTuningData GetTuningParams(const fully_connected_params& params) const;
+    static FullyConnectedTuningData GetTuningParams(const fully_connected_params& params);
 };
 }  // namespace kernel_selector

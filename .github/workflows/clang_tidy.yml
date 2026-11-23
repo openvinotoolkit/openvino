@@ -69,7 +69,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_22_04_riscv_gnu\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -82,7 +82,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
-            ov_build/ubuntu_22_04_riscv
+            ov_build/ubuntu_24_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -154,7 +154,7 @@ jobs:
     with:
       runner: aks-linux-16-cores-32gb
       cmake-build-parallel-level: '15'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_riscv }}
       cmake-generator: 'Unix Makefiles'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_riscv64
       build-target: openvino_intel_cpu_plugin
