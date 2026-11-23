@@ -98,8 +98,8 @@ struct onednn_matmul {
         return *this;
     }
     onednn_matmul& post_op_gate_activation(dnnl::algorithm algo) {
-        float alpha = 1.0f;
-        float beta = 0.0f;
+        float alpha = 1.0F;
+        float beta = 0.0F;
         postops.append_eltwise(algo, alpha, beta);
         return *this;
     }
@@ -114,7 +114,7 @@ struct onednn_matmul {
         return *this;
     }
 
-    onednn_matmul& post_op_sum(float scale = 1.f, int32_t zero_point = 0) {
+    onednn_matmul& post_op_sum(float scale = 1.F, int32_t zero_point = 0) {
         postops.append_sum(scale, zero_point, dnnl::memory::data_type::undef);
         return *this;
     }
@@ -175,7 +175,7 @@ struct onednn_matmul {
             post_op_sum();
         }
         if (t == type::with_sigmoid) {
-            postops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0f, 0.0f);
+            postops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0F, 0.0F);
         }
         if (t == type::with_bin_mul_per_row) {
             bin_post_id = 0;

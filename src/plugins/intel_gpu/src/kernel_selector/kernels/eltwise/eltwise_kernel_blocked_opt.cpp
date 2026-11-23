@@ -10,11 +10,11 @@
 #include <vector>
 
 namespace kernel_selector {
-static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, const size_t input_idx);
+static inline bool InputHasFeatureBroadcast(const eltwise_params& params, size_t op_num, size_t input_idx);
 static inline bool IsBroadcastingPossibleInput(const DataTensor& input, const DataTensor& output);
-static inline int SelectVecSizeFromFormat(const DataTensor&);
-static inline int GetInnerFeatureBlockSize(const DataTensor&);
-static inline int GetInnerBatchBlockSize(const DataTensor&);
+static inline int SelectVecSizeFromFormat(const DataTensor& /*tensor*/);
+static inline int GetInnerFeatureBlockSize(const DataTensor& /*tensor*/);
+static inline int GetInnerBatchBlockSize(const DataTensor& /*tensor*/);
 static inline size_t CalculateTotalWorkItemCount(const eltwise_params& params);
 
 
