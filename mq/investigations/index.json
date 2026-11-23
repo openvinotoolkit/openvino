@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 495,
+  "total": 496,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5380,6 +5380,15 @@
       "category": "Flaky Test",
       "signature_hash": "43e136cf67333978",
       "pr_number": "40019"
+    },
+    {
+      "investigation_id": "2026-11-23-11-35-55-306-45153289836",
+      "run_id": "45153289836",
+      "timestamp": "2026-11-23T11:35:55Z",
+      "title": "Debian Packages install fails - Unable to connect to azure.archive.ubuntu.com",
+      "category": "Network",
+      "signature_hash": "c8d00529252cfb02",
+      "pr_number": "39291"
     }
   ]
 }

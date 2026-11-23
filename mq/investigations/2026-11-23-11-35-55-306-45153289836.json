@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-11-35-55-306-45153289836",
+  "timestamp": "2026-11-23T11:35:55Z",
+  "run_id": "45153289836",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45153289836",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39291",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39291",
+  "author": "Roszczyk",
+  "category": "Network",
+  "title": "Debian Packages install fails - Unable to connect to azure.archive.ubuntu.com",
+  "signature": "Unable to connect to azure.archive.ubuntu.com|Network",
+  "signature_hash": "c8d00529252cfb02",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get could not fetch perl_5.38.2-3.2ubuntu0.7_amd64.deb from security.ubuntu.com because the azure.archive.ubuntu.com mirror was unreachable, failing the 'Install debian packages & check conflicts' step with exit code 100."
+    }
+  ],
+  "key_errors": [
+    "Err:5 http://security.ubuntu.com/ubuntu noble-updates/main amd64 perl amd64 5.38.2-3.2ubuntu0.7\n  Unable to connect to azure.archive.ubuntu.com:http:",
+    "E: Failed to fetch http://security.ubuntu.com/ubuntu/pool/main/p/perl/perl_5.38.2-3.2ubuntu0.7_amd64.deb  Unable to connect to azure.archive.ubuntu.com:http:\nE: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step in the Debian Packages job runs apt-get inside an Ubuntu 24.04 container that relies on the azure.archive.ubuntu.com mirror as the primary apt source. During this run the Azure-hosted mirror was transiently unreachable (no DNS/TCP error, just repeated 'Unable to connect' on the perl package), while retries against archive.ubuntu.com and security.ubuntu.com for other packages eventually succeeded after multi-minute stalls (8-9 minutes total fetch time). The job is unrelated to the PR's GPU grid_sample kernel change - purely an upstream Azure apt mirror outage/instability causing an infrastructure-level network failure in the merge-queue CI.",
+  "reproduction_steps": "N/A - not reproducible locally; requires the same transient azure.archive.ubuntu.com mirror outage inside the CI's ubuntu24 Docker container. To inspect: docker run the ubuntu24 CI image and run 'apt-get update && apt-get install -y <debian packages>' while the mirror is degraded.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job (handled automatically by remediate_transient_failure for this investigation).",
+    "Consider adding automatic apt mirror fallback/retry (e.g., apt::Acquire::Retries or switching to archive.ubuntu.com directly) in the Debian Packages job's Dockerfile/step to reduce sensitivity to azure.archive.ubuntu.com outages.",
+    "Monitor recurrence via the ci-doctor-mq pattern database; this exact signature has now been seen 2 times (Aug 19 and Nov 23)."
+  ],
+  "prevention_strategies": "Configure apt to use multiple mirrors with automatic fallback (e.g., mirror:// protocol or apt-cacher-ng) instead of relying solely on azure.archive.ubuntu.com, and/or increase Acquire::Retries and Acquire::http::Timeout so transient mirror hiccups resolve without failing the whole job.",
+  "historical_context": "This exact signature (c8d00529252cfb02) was first recorded on 2026-08-19 (run 32234143786, PR #37396) and related azure.archive.ubuntu.com connectivity failures have recurred at least 9 times total across similar hash variants since August 2026, confirming this is a recurring upstream Azure apt-mirror reliability issue rather than a one-off."
+}
