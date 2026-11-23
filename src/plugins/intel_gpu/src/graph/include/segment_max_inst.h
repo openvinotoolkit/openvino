@@ -33,7 +33,7 @@ class typed_primitive_inst<segment_max> : public typed_primitive_inst_base<segme
     using parent::parent;
 
 public:
-    typed_primitive_inst(network& network, segment_max_node const& desc);
+    typed_primitive_inst(network& network, const segment_max_node& node);
     template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(segment_max_node const& node,
                                                    kernel_impl_params const& impl_param);

@@ -24,6 +24,7 @@
 #include <new>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <set>
 #include <string>
 #include <tuple>
@@ -50,6 +51,7 @@
 #include "nodes/convert.h"
 #include "nodes/input.h"
 #include "nodes/memory.hpp"
+#include "nodes/paged_attn.h"
 #include "nodes/reorder.h"
 #include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
@@ -2159,6 +2161,20 @@ void Graph::EnforceInferencePrecision() const {
                 if (node->getType() == Type::PagedAttention && any_of(inPort, 3U, 4U)) {
                     return true;
                 }
+                // The caches of SparsePA are written directly. The op needs the scale in the query type, but a constant
+                // input is never converted: enforce it explicitly.
+                if (node->getType() == Type::SparsePA) {
+                    if (any_of(inPort, 3U, 4U)) {
+                        return true;
+                    }
+                    if (inPort == 11U) {
+                        return false;
+                    }
+                }
+                // PagedQSAIndexer writes its caches directly and the op needs one element type on all float inputs.
+                if (node->getType() == Type::PagedQSAIndexer) {
+                    return true;
+                }
                 // kv cache of PaKVReorder should be written directly
                 if (node->getType() == Type::PaKVReorder && any_of(inPort, 0U, 1U)) {
                     return true;
@@ -2232,6 +2248,27 @@ void Graph::EnforceInferencePrecision() const {
 
 std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
+}
+
+std::optional<size_t> Graph::getPagedAttentionBlockSize() const {
+    std::optional<size_t> block_size;
+    for (const auto& node : graphNodes) {
+        if (node->getType() == Type::PagedAttention) {
+            auto* pa_node = dynamic_cast<node::PagedAttention*>(node.get());
+            OPENVINO_ASSERT(pa_node != nullptr, "[CPU] Unexpected: PagedAttention node cast failed");
+            size_t current_bs = pa_node->getBlockSize();
+            if (!block_size) {
+                block_size = current_bs;
+            } else {
+                OPENVINO_ASSERT(block_size.value() == current_bs,
+                                "[CPU] All PagedAttention layers must agree on the same block size, got ",
+                                block_size.value(),
+                                " vs ",
+                                current_bs);
+            }
+        }
+    }
+    return block_size;
 }
 
 std::vector<MemStatePtr> Graph::memoryStates() const {

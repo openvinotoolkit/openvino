@@ -6,28 +6,29 @@
 
 #include <algorithm>
 #include <array>
-#include <openvino/op/abs.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/ceiling.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/divide.hpp>
-#include <openvino/op/exp.hpp>
-#include <openvino/op/log.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/negative.hpp>
-#include <openvino/op/power.hpp>
-#include <openvino/op/reduce_max.hpp>
-#include <openvino/op/reduce_mean.hpp>
-#include <openvino/op/reduce_min.hpp>
-#include <openvino/op/reduce_prod.hpp>
-#include <openvino/op/reduce_sum.hpp>
-#include <openvino/op/sqrt.hpp>
-#include <openvino/op/subtract.hpp>
-#include <openvino/op/tanh.hpp>
-#include <openvino/pass/manager.hpp>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/pass/manager.hpp"
 
 // TODO: Prune unused headers -- it's hard to understand needed ones
 #include "common/convert_common.hpp"
@@ -505,6 +506,7 @@ void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, c
     manager.register_pass<ReshapePattern>();
     manager.register_pass<ConcatPattern>();
     manager.register_pass<ReluPattern>();
+    manager.register_pass<GeluPattern>();
     manager.register_pass<FloorPattern>();
     manager.register_pass<UnaryEltwisePattern<v0::Abs, linalg::ElementwiseKind::abs>>();
     manager.register_pass<UnaryEltwisePattern<v0::Ceiling, linalg::ElementwiseKind::ceil>>();
