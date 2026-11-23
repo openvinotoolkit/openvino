@@ -640,9 +640,12 @@ struct QueryOptions {
     bool single_token_head_first = false;
     bool query_is_reshape = false;
     bool query_is_slice = false;
+    int64_t query_length = -1;
     // A partial RoPE left as Transpose -> Split -> RoPE -> Concat, as when RoPEFusionIOSlicing is disabled.
     bool split_rope = false;
     SplitRoPEType split_rope_type = SplitRoPEType::VariadicSplit;
+    bool split_rope_input_trans0213 = false;
+    bool canonical_rope_input_transpose = false;
     bool different_tail_input = false;
     int64_t concat_axis = -1;
     int64_t rope_length = -1;
@@ -684,6 +687,12 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
         }
     };
     graph.raw_query = o.flat_norm ? graph.inputs[In::INDEX_QUERY] : unflatten(graph.inputs[In::INDEX_QUERY]);
+    if (o.query_length > 0) {
+        const auto query = ov::as_type_ptr<v0::Parameter>(graph.raw_query.get_node_shared_ptr());
+        OPENVINO_ASSERT(query, "Expected the query Parameter");
+        query->set_partial_shape(PartialShape{-1, o.query_length, query_heads, head_size});
+        graph.model->validate_nodes_and_infer_types();
+    }
     if (o.single_token_head_first) {
         const auto query = ov::as_type_ptr<v0::Parameter>(graph.raw_query.get_node_shared_ptr());
         OPENVINO_ASSERT(query, "Expected the query Parameter");
@@ -734,9 +743,12 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
         if (o.single_token_head_first) {
             rope_input = std::make_shared<v1::Reshape>(input, i64({0, query_heads, 1, head_size}), true);
         }
+        if (o.canonical_rope_input_transpose) {
+            rope_input = std::make_shared<v1::Transpose>(rope_input, i64({0, 2, 1, 3}));
+        }
         Output<Node> rope_tail;
         if (o.split_rope) {
-            config.input_trans0213 = false;
+            config.input_trans0213 = o.split_rope_input_trans0213;
             rope_input = std::make_shared<v1::Transpose>(rope_input, i64({0, 2, 1, 3}));
             if (o.split_rope_type == SplitRoPEType::VariadicSplit) {
                 const auto split = std::make_shared<v1::VariadicSplit>(rope_input, i64({3}), i64({rotary_dim, -1}));
@@ -862,6 +874,10 @@ std::shared_ptr<Model> getQueryModelRef(const QueryOptions& o) {
         query = graph.norm;
     } else if (!norm_outside) {
         query = graph.rotated;
+    }
+    if (o.canonical_rope_input_transpose && !rope_outside && !norm_outside) {
+        const auto output_transpose = graph.rotated.get_node_shared_ptr();
+        query = output_transpose->input_value(0).get_node()->input_value(0);
     }
     replace_query_indexer(graph, o, query, config);
     return graph.model;
@@ -1012,6 +1028,17 @@ const std::vector<QueryOptions> query_cases = [] {
     o.split_rope = true;
     o.concat_axis = 2;
     o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"split_rope_input_trans0213"};
+    o.split_rope = true;
+    o.split_rope_input_trans0213 = true;
+    o.query_length = query_heads;
+    o.with_norm = o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"canonical_rope_input_transpose"};
+    o.canonical_rope_input_transpose = true;
+    o.query_length = query_heads;
+    o.with_norm = o.absorb_norm = false;
     cases.push_back(o);
     o = QueryOptions{"canonical_rope_sliced_input"};
     o.query_is_slice = true;

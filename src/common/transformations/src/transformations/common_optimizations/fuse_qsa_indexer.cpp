@@ -339,7 +339,7 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         auto rope_input = rope->input_value(0);
         if (partial) {
             // The rotated head and the pass-through tail must split the same full-width input at rotary_ndims.
-            if (!pattern_map.count(p_rotary_slice)) {
+            if (rope_config.input_trans0213 || !pattern_map.count(p_rotary_slice)) {
                 return false;
             }
             const auto concat = pattern_map.at(p_concat).get_node_shared_ptr();
@@ -353,7 +353,8 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         }
         // A canonical RoPE's input can itself be a slice, without a corresponding tail Concat.
         const bool head_first = pattern_map.count(p_head_first) && pattern_map.at(p_head_first) == rope_input;
-        const bool head_major = pattern_map.count(p_head_major) && pattern_map.at(p_head_major) == rope_input;
+        const bool head_major = pattern_map.count(p_head_major) && pattern_map.at(p_head_major) == rope_input &&
+                                !rope_config.input_trans0213;
         const bool transposed = pattern_map.count(p_token_major) != 0;
         if ((head_major && rope_config.input_trans0213) || (head_major || rope_config.input_trans0213) != transposed ||
             (!transposed && (!head_first || !pattern_map.count(p_query_reshape)))) {
