@@ -60,7 +60,7 @@ struct ExecutorKey {
                                    c.v_head_size,
                                    c.key_block_size,
                                    c.page_size,
-                                   c.max_run_rows}) {
+                                   c.max_attend_kv_rows}) {
             seed = hash_combine(seed, value);
         }
         seed = hash_combine(seed, c.causal);
@@ -80,8 +80,8 @@ struct ExecutorKey {
         return l.num_heads == r.num_heads && l.num_kv_heads == r.num_kv_heads &&
                l.num_selection_heads == r.num_selection_heads && l.k_head_size == r.k_head_size &&
                l.v_head_size == r.v_head_size && l.key_block_size == r.key_block_size && l.page_size == r.page_size &&
-               l.max_run_rows == r.max_run_rows && l.causal == r.causal && l.data_precision == r.data_precision &&
-               l.key_spec == r.key_spec && l.value_spec == r.value_spec;
+               l.max_attend_kv_rows == r.max_attend_kv_rows && l.causal == r.causal &&
+               l.data_precision == r.data_precision && l.key_spec == r.key_spec && l.value_spec == r.value_spec;
     }
 };
 
@@ -254,9 +254,9 @@ void SparsePA::createPrimitive() {
                     page_size,
                     " must be divisible by key_block_size ",
                     m_config.key_block_size);
-    // Adjacent selected blocks of one page are attended as one run of up to a page of rows; with a dynamic page size
-    // every block is its own run.
-    m_config.max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
+    // The kernel attends adjacent selected blocks of one page together, up to a page of rows; with a dynamic page size
+    // every block is attended on its own.
+    m_config.max_attend_kv_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
     m_config.brgemm = {};  // set by the builder of the executor
     // The kernel reads QUERY, KEY, VALUE and writes the output as one data type.
     m_config.data_precision = getOriginalInputPrecisionAtPort(InputIdx::QUERY);

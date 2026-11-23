@@ -3,14 +3,10 @@
 //
 #pragma once
 
-// AMX tile attention engine (AVX-512 builds only: the engine is enabled only on CPUs with AMX, which have AVX-512): the
-// query heads that share the K/V rows (a pack) are the M of oneDNN brgemm products, over key rows gathered into tiles
-// of at most TileBrgemm::tile_rows rows (see attn_brgemm_common.hpp):
-//   1. QK:      scores[pack, rows] = query[pack, k_head_size] x keys[rows, k_head_size]^T
-//   2. softmax: online over the tiles (running max / sum per head), weights = exp(scale * scores - max)
-//   3. P.V:     acc[pack, v_head_size] += weights[pack, rows] x values[rows, v_head_size]
-// Callers differ in how the rows of a tile are chosen and gathered (paged or dense, plain or dequantized, selected
-// blocks or all rows): they provide a row source, see gather_run().
+// AMX tile attention engine (AVX-512 builds only). The query heads sharing K/V rows (a pack) are the M of brgemm
+// products over KV tiles (see attn_brgemm_common.hpp). Per item: 1. gather_selected_kv() fills a tile with the selected
+// K/V rows;
+// 2. attention_over_kv_tile() runs QK^T, the online softmax and P.V on it.
 
 #include <algorithm>
 #include <cmath>
@@ -44,11 +40,9 @@ struct BrgemmPack {
     float* running_sum;  ///< [pack_size] online-softmax sum
 };
 
-/// @brief The attention scores and weights of the heads of a pack, which share one buffer: the QK products write f32
-/// scores, the softmax scales them and converts them in place to the 16-bit weights that the P.V products read. A
-/// head's scores are `tile_rows` floats long and its weights start at the same address, so the weights of consecutive
-/// heads are weights_row_stride(tile_rows) = 2 * tile_rows elements apart. This is the one place that states the
-/// invariant.
+/// @brief Scores and weights of a pack's heads share one buffer: QK writes f32 scores, the softmax converts them in
+/// place to the 16-bit weights P.V reads. A head's weights start at its scores' address, so consecutive heads' weights
+/// are weights_row_stride(tile_rows) = 2 * tile_rows elements apart.
 template <typename T>
 struct WeightLayout {
     static_assert(sizeof(T) == 2, "the brgemm weights are 16-bit data (bf16 / f16)");
@@ -63,7 +57,7 @@ struct WeightLayout {
     }
 };
 
-/// @brief The buffers of one gather tile, carved from the thread's scratch (see TileBrgemmLayout).
+/// @brief The buffers of one KV tile, carved from the thread's scratch (see TileBrgemmLayout).
 template <typename T>
 struct BrgemmBuffers {
     ov::intel_cpu::BrgemmKernel* qk;
@@ -83,8 +77,8 @@ struct BrgemmBuffers {
     }
 };
 
-/// @brief The buffers of a thread's gather tile: the brgemm kernels and the regions of its scratch block `ws`, laid out
-/// by `layout` (TileBrgemmLayout).
+/// @brief The buffers of a thread's KV tile: the brgemm kernels and the regions of its scratch block `ws`, laid out by
+/// `layout` (TileBrgemmLayout).
 template <typename T>
 BrgemmBuffers<T> make_brgemm_buffers(const TileBrgemm& brgemm, const TileBrgemmLayout& layout, uint8_t* ws) {
     return {static_cast<ov::intel_cpu::BrgemmKernel*>(brgemm.qk),
@@ -165,9 +159,8 @@ void softmax_brgemm(const BrgemmPack& p,
     }
 }
 
-/// Phase 3: acc[head] (+)= weights[head] . values for the pack's heads, over the row blocks of the tile. The values of
-/// a row block are packed into the AMX layout once for all the heads of the pack. The first row block of the first tile
-/// overwrites acc (beta = 0), every other one accumulates (beta = 1).
+/// Phase 3: acc[head] (+)= weights[head] . values for the pack's heads over the row blocks of the tile; the values of
+/// a row block are packed once for all heads. The first row block of the first tile overwrites acc (beta = 0).
 template <typename T>
 void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t tile_kv_len_pad, bool first_tile) {
     ov::intel_cpu::AmxTileState tiles;  // the row blocks share one tile configuration
@@ -191,11 +184,21 @@ void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t
     }
 }
 
-/// @brief Attention of the pack's heads over one tile of `tile_kv_len` gathered KV entries in b.k_rows / b.v_rows
-/// (1 <= tile_kv_len <= tile_rows): phases 1-3 above, updating the pack's running state. The padding of the last row
-/// block is zeroed here.
+/// @brief The rows gathered into the current tile of an item so far.
+struct TileState {
+    size_t rows = 0;
+    bool first_tile = true;
+};
+
+/// @brief Step 2: attention of the pack's heads over the rows gathered into the tile (phases 1-3), updating the pack's
+/// running state. Does nothing for an empty tile; afterwards the tile is empty and no longer the first. Zeroes the
+/// padding of the last row block.
 template <typename T>
-void attention_over_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t tile_kv_len, bool first_tile) {
+void attention_over_kv_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, TileState& tile) {
+    if (tile.rows == 0) {
+        return;
+    }
+    const size_t tile_kv_len = tile.rows;
     const size_t tile_kv_len_pad = ov::intel_cpu::rnd_up(tile_kv_len, kBrgemmRowBlock);
     if (fused_pack_supported(p.k_head_size, p.v_head_size)) {
         // the padding entries of the last block all read one row of zeros
@@ -216,72 +219,51 @@ void attention_over_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t 
                     (tile_kv_len_pad - tile_kv_len) * p.v_head_size * sizeof(T));
     }
     qk_scores_brgemm<T>(p, b, tile_kv_len_pad);
-    softmax_brgemm<T>(p, b, tile_kv_len, tile_kv_len_pad, first_tile);
-    pv_accumulate_brgemm<T>(p, b, tile_kv_len_pad, first_tile);
-}
-
-/// @brief The rows gathered into the current tile of an item so far.
-struct TileState {
-    size_t rows = 0;
-    bool first_tile = true;
-};
-
-/// @brief Processes the current tile if it holds rows and starts the next one.
-template <typename T>
-void flush_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, TileState& tile) {
-    if (tile.rows == 0) {
-        return;
-    }
-    attention_over_tile<T>(p, b, tile.rows, tile.first_tile);
+    softmax_brgemm<T>(p, b, tile_kv_len, tile_kv_len_pad, tile.first_tile);
+    pv_accumulate_brgemm<T>(p, b, tile_kv_len_pad, tile.first_tile);
     tile.rows = 0;
     tile.first_tile = false;
 }
 
-// A "row source" (PagedRowSource, DenseRowSource) is the layout specific part of an item:
-//   visible(kpos0, n): how many of rows [kpos0, kpos0 + n) the query attends (a prefix)
-//   rows(kpos0, n, k_ptr, v_ptr, k_stage, v_stage): points k_ptr[i] / v_ptr[i] at row kpos0 + i of the cache, or of
-//       k_stage / v_stage when it was dequantized there
+// Row source (PagedRowSource, DenseRowSource), the layout-specific part of an item:
+//   visible(kpos0, n): rows of [kpos0, kpos0 + n) the query attends (a prefix)
+//   locate_kv_rows(kpos0, n, k_ptr, v_ptr, k_stage, v_stage): sets k_ptr[i] / v_ptr[i] to row kpos0 + i, in the
+//       cache or in the stage buffers when dequantized
 
-/// @brief Gathers the visible part of the run [kpos0, kpos0 + n) into the current tile, processing the tile whenever it
-/// is full: a run that does not fit in the rest of the tile continues in the next one.
+/// @brief Step 1: appends the rows [kpos0, kpos0 + n), all attended by the query, to the tile as K/V pointers (rows of
+/// a compressed cache are dequantized into the tile), as many as fit. Returns the rows appended; the caller processes
+/// the tile with attention_over_kv_tile() once it is full.
 template <typename T, typename RowSource>
-void gather_run(const RowSource& src,
-                const BrgemmPack& pack,
-                const BrgemmBuffers<T>& b,
-                TileState& tile,
-                int64_t kpos0,
-                int64_t n) {
-    n = src.visible(kpos0, n);
-    while (n > 0) {
-        const auto take = std::min<int64_t>(n, static_cast<int64_t>(b.tile_rows() - tile.rows));
-        T* const k_stage = b.k_rows + tile.rows * pack.k_head_size;
-        T* const v_stage = b.v_rows + tile.rows * pack.v_head_size;
-        src.template rows<T>(kpos0,
-                             static_cast<size_t>(take),
-                             b.k_ptrs + tile.rows,
-                             b.v_ptrs + tile.rows,
-                             k_stage,
-                             v_stage);
-        if (!fused_pack_supported(pack.k_head_size, pack.v_head_size)) {
-            // copy_buffer_b reads one contiguous matrix: bring the rows of the run into the tile buffers
-            for (int64_t i = 0; i < take; i++) {
-                T* const k_dst = k_stage + i * pack.k_head_size;
-                T* const v_dst = v_stage + i * pack.v_head_size;
-                if (b.k_ptrs[tile.rows + i] != k_dst) {
-                    std::memcpy(k_dst, b.k_ptrs[tile.rows + i], pack.k_head_size * sizeof(T));
-                }
-                if (b.v_ptrs[tile.rows + i] != v_dst) {
-                    std::memcpy(v_dst, b.v_ptrs[tile.rows + i], pack.v_head_size * sizeof(T));
-                }
+int64_t gather_selected_kv(const RowSource& src,
+                           const BrgemmPack& pack,
+                           const BrgemmBuffers<T>& b,
+                           TileState& tile,
+                           int64_t kpos0,
+                           int64_t n) {
+    const auto take = std::min<int64_t>(n, static_cast<int64_t>(b.tile_rows() - tile.rows));
+    T* const k_stage = b.k_rows + tile.rows * pack.k_head_size;
+    T* const v_stage = b.v_rows + tile.rows * pack.v_head_size;
+    src.template locate_kv_rows<T>(kpos0,
+                                   static_cast<size_t>(take),
+                                   b.k_ptrs + tile.rows,
+                                   b.v_ptrs + tile.rows,
+                                   k_stage,
+                                   v_stage);
+    if (!fused_pack_supported(pack.k_head_size, pack.v_head_size)) {
+        // copy_buffer_b reads one contiguous matrix: bring the rows into the tile buffers
+        for (int64_t i = 0; i < take; i++) {
+            T* const k_dst = k_stage + i * pack.k_head_size;
+            T* const v_dst = v_stage + i * pack.v_head_size;
+            if (b.k_ptrs[tile.rows + i] != k_dst) {
+                std::memcpy(k_dst, b.k_ptrs[tile.rows + i], pack.k_head_size * sizeof(T));
+            }
+            if (b.v_ptrs[tile.rows + i] != v_dst) {
+                std::memcpy(v_dst, b.v_ptrs[tile.rows + i], pack.v_head_size * sizeof(T));
             }
         }
-        tile.rows += static_cast<size_t>(take);
-        kpos0 += take;
-        n -= take;
-        if (tile.rows == b.tile_rows()) {
-            flush_tile<T>(pack, b, tile);
-        }
     }
+    tile.rows += static_cast<size_t>(take);
+    return take;
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH

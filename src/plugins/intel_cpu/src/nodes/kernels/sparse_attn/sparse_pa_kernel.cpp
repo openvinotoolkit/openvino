@@ -32,6 +32,10 @@
 #include "openvino/core/type/float16.hpp"
 #include "utils/plain_tensor.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
+#    include "nodes/kernels/scaled_attn/attn_brgemm_tiles.hpp"
+#endif
+
 namespace ov::Extensions::Cpu::XARCH {
 
 using ov::intel_cpu::CacheSpec;
@@ -41,63 +45,51 @@ using ov::intel_cpu::PlainTensor;
 
 namespace {
 
-// The cache formats of the node, with the same layouts as PagedAttention (see executor_pa.cpp):
-//  - by-token (key or value): each row is a sequence of groups `[scale f32][zp f32][group data]`, so the row holds
-//    `S + 8 * groups` elements (u8) or `S + 16 * groups` (u4); a group size of 0 means one group per row.
-//  - by-channel (key only): each page is `f32 scale[S] | f32 zp[S] | data[block_size, S]`.
-// The caches are either both quantized or both plain f32/f16/bf16. The executor writes the current-step K/V into the
-// caches before the attention, so the attention only reads them.
+// Cache formats, as in PagedAttention (see executor_pa.cpp): by token (key or value) a row is groups of
+// `[scale f32][zp f32][data]` (group size 0: one group per row); by channel (key only) a page is
+// `f32 scale[S] | f32 zp[S] | data[block_size, S]`. Both caches are compressed or both plain.
 
-/// @brief Byte layout of the per-thread scratch of the sparse PA kernel. The scratch of a call holds one such block per
-/// worker thread (so nothing is allocated while computing), carved up with this layout. Every part is 64-byte aligned.
-/// Sizes are for the largest query-head pack, max_q_head_pack_size().
+/// @brief Byte layout of the scratch block of one worker thread, for the largest query-head pack (every part 64-byte
+/// aligned). The scratch of a call holds one block per thread, so nothing is allocated while computing. A thread runs
+/// one item at a time, on the SIMD or the AMX path, so the buffers of the two paths overlap after the shared state.
 struct SparsePAScratchLayout {
-    // Shared by every path: the state of the head pack (accumulators, running softmax maximum / sum).
-    PackStateLayout pack;
+    PackStateLayout pack;  // accumulators and running softmax maximum / sum of the head pack, used by both paths
 
-    // SIMD path (run by run).
-    size_t q = 0;       ///< float[pack, k_head_size]: query rows of the pack, f32
-    size_t scores = 0;  ///< float[pack, max_run_rows]: scores, then weights, of a run of key rows
-    size_t k_run = 0;   ///< quantized caches: float[max_run_rows, k_head_size] dequantized key run
-    size_t v_run = 0;   ///< quantized caches, pack > 1: float[max_run_rows, v_head_size] dequantized value run
+    // SIMD path
+    size_t q = 0;           // float[pack, k_head_size]: the query rows
+    size_t scores = 0;      // float[pack, max_attend_kv_rows]: scores, then weights
+    size_t k_rows_f32 = 0;  // compressed keys: float[max_attend_kv_rows, k_head_size]
+    size_t v_rows_f32 = 0;  // compressed values, pack > 1: float[max_attend_kv_rows, v_head_size]
 
-    // Brgemm path: the gather tile, the scores / weights and the brgemm scratch.
-    TileBrgemmLayout brgemm;
+    TileBrgemmLayout brgemm;  // AMX path: the KV tile, scores / weights and the brgemm scratch
 
-    size_t total = 0;  ///< bytes per thread
+    size_t total = 0;  // bytes per thread
 
-    /// @param max_run_rows most key rows of one run: the page size when adjacent selected blocks are merged inside a
-    /// page, key_block_size when they are not
-    /// @param max_pack_size max_q_head_pack_size()
-    /// @param data_size size in bytes of the query/key/value data type
     SparsePAScratchLayout(size_t k_head_size,
                           size_t v_head_size,
-                          size_t max_run_rows,
+                          size_t max_attend_kv_rows,
                           size_t max_pack_size,
                           size_t data_size,
                           const CacheSpec& key_spec,
                           const TileBrgemmSizes& brgemm_sizes = {})
-        : pack(0, k_head_size, v_head_size, max_pack_size, data_size, false),
-          q(pack.total),
-          scores(q + aligned(max_pack_size * k_head_size * sizeof(float))),
-          k_run(scores + aligned(max_pack_size * max_run_rows * sizeof(float))),
-          // quantized keys are dequantized to f32 for by-channel keys and for packs, values for packs
-          v_run(
-              k_run +
-              aligned((is_quantized_cache(key_spec) && (key_spec.by_channel || max_pack_size > 1) ? max_run_rows : 0) *
-                      k_head_size * sizeof(float))),
-          brgemm(v_run + aligned((is_quantized_cache(key_spec) && max_pack_size > 1 ? max_run_rows : 0) * v_head_size *
-                                 sizeof(float)),
-                 k_head_size,
-                 v_head_size,
-                 max_pack_size,
-                 data_size,
-                 brgemm_sizes),
-          total(brgemm.total) {}
+        : pack(0, k_head_size, v_head_size, max_pack_size, data_size, false) {
+        ScratchPartition block;
+        block.reserve(pack.total);
+        q = block.reserve(max_pack_size * k_head_size * sizeof(float));
+        scores = block.reserve(max_pack_size * max_attend_kv_rows * sizeof(float));
+        // compressed keys are dequantized to f32 for by-channel keys and for packs, values for packs
+        const bool compressed = is_quantized_cache(key_spec);
+        const bool dequantize_keys = compressed && (key_spec.by_channel || max_pack_size > 1);
+        k_rows_f32 = block.reserve((dequantize_keys ? max_attend_kv_rows : 0) * k_head_size * sizeof(float));
+        v_rows_f32 =
+            block.reserve((compressed && max_pack_size > 1 ? max_attend_kv_rows : 0) * v_head_size * sizeof(float));
+        // The AMX buffers start where the SIMD ones do.
+        brgemm = TileBrgemmLayout(q, k_head_size, v_head_size, max_pack_size, data_size, brgemm_sizes);
+        total = std::max(block.bytes(), brgemm.total);
+    }
 };
 
-// ---- quantized (u8/u4) paged cache access, same layouts as PagedAttention (see CacheSpec) ----
-// Each function picks u8 or u4 at runtime (visit_quant_precision) and runs the kernel of that precision.
+// Compressed (u8 / u4) paged cache access; each function picks the precision at runtime (visit_quant_precision).
 
 // Dequantizes `n` consecutive rows [slot0, slot0 + n) of one (physical block, kv head) of the key cache into dst[n, S]:
 // by-token rows carry their own groups, a by-channel page holds the per-channel scales and zero points of all its rows.
@@ -189,14 +181,14 @@ void acc_value_rows_by_token(const SparsePAConfig& cfg,
 
 // ---- the items of a call ----
 // Brgemm tokens (the tokens of sequences of several new tokens) take the AMX head-pack path, the others SIMD items;
-// `token_ids` lists brgemm tokens first. With little SIMD work every query head is its own item (`fallback_pack` 1).
+// `token_ids` lists brgemm tokens first. With little SIMD work every query head is its own item (`simd_q_head_pack` 1).
 struct WorkList {
     const int32_t* token_ids = nullptr;
     size_t brgemm_tokens = 0;
-    size_t fallback_tokens = 0;
-    size_t brgemm_pack = 1;    ///< query heads of one item of a brgemm token
-    size_t fallback_pack = 1;  ///< query heads of one item of a fallback token
-    size_t kv_chunks = 1;      ///< slices of the selected blocks of a fallback item (a decode of few items is split)
+    size_t simd_tokens = 0;
+    size_t brgemm_q_head_pack = 1;  ///< query heads of one item of a brgemm token
+    size_t simd_q_head_pack = 1;    ///< query heads of one item of a SIMD token
+    size_t kv_chunks = 1;           ///< slices of the selected blocks of a SIMD item (a decode of few items is split)
 };
 
 // A compressed cache is dequantized once per call for prefill sequences when their tokens gather at least as many rows
@@ -244,10 +236,8 @@ struct DequantizedLayout {
     }
 };
 
-/// @brief The scratch of a call, laid out in one place so that its size and the places of its parts cannot disagree:
-///   | one block per worker thread | one token id per token | partial states OR dequantized pages |
-/// A call has partial states only when it splits a decode (no brgemm token) and dequantized pages only for a prefill
-/// (brgemm tokens), never both, so they share the memory. All the offsets are in bytes from the start of the scratch.
+/// @brief The scratch of a call: | one block per worker thread | one token id per token | partial states OR dequantized
+/// pages |. Partial states exist only for a kv-chunk split, pages only with AMX tokens, so they share the memory.
 struct SparsePAScratch {
     size_t threads = 0;  ///< num_threads blocks of thread_bytes, see SparsePAScratchLayout
     size_t thread_bytes = 0;
@@ -273,382 +263,70 @@ struct SparsePAScratch {
     }
 };
 
-// ---- everything the sparse attention work items read from the arguments, see SparsePAExecutor ----
-
-struct SparsePAArgs {
-    const SparsePAConfig& cfg;  // fixed with the executor: head sizes, key_block_size, causal, specs, brgemm
-    const SparsePATensors& t;   // the tensors of the call: shapes give the page size, the heads of the selection ...
-    WorkList work;
-    const MemoryPtr& scratch_memory;  // the scratch pad memory of the call: the owner of its parts
-    uint8_t* scratch;                 // its data
-    const SparsePAScratch& layout;    // where the parts of the scratch are
+// The sequence a token belongs to: its page table and the positions it may read.
+struct TokenSeq {
+    const int32_t* block_table = nullptr;  // physical block ids of the sequence
+    int64_t token_pos = 0;                 // logical position of the query token
+    int64_t valid_max = 0;                 // exclusive bound on the valid logical positions of the sequence
 };
 
-// State of one work item: a query token and a pack of `pack_size` consecutive query heads sharing K/V rows and selected
-// blocks. Holds the sequence's cache location, the pack's scratch and each head's running online-softmax state.
-struct PackWork {
-    const SparsePAConfig& cfg;
-    const SparsePATensors& t;
-    const int32_t* block_table;  // physical block ids of the sequence
-    size_t k_head;               // the K/V head every query head of the pack reads
-    size_t pack_size;            // query heads of the pack
-    int64_t token_pos;           // logical position of the query token
-    int64_t valid_max;           // exclusive bound on the valid logical positions of the sequence
-    const void* query;           // [pack_size, k_head_size] query rows in the data type of the query
-    float* q;                    // the same rows in f32
-    float* acc;                  // [pack_size, v_head_size] attention accumulators
-    float* running_max;
-    float* running_sum;
-    float* run_scores;  // [pack_size, max_run_rows] scores, then weights, of a run of key rows
-    float* k_run;       // quantized caches: [max_run_rows, k_head_size] dequantized key run
-    float* v_run;       // quantized caches: [max_run_rows, v_head_size] dequantized value run
-    // Tokens per physical cache block: the config holds it for quantized caches (by-channel key pages carry extra
-    // parameter rows in dim 2 of the cache); a plain cache has it in dim 2.
-    int64_t page_size;
-    int64_t key_block_size;
-
-    /// @param ws the thread's scratch block, laid out by `layout`
-    PackWork(const SparsePAArgs& args,
-             const SparsePAScratchLayout& layout,
-             uint8_t* ws,
-             const int32_t* table,
-             size_t head,
-             size_t pack,
-             int64_t pos,
-             int64_t valid,
-             const void* query_rows)
-        : cfg(args.cfg),
-          t(args.t),
-          block_table(table),
-          k_head(head),
-          pack_size(pack),
-          token_pos(pos),
-          valid_max(valid),
-          query(query_rows),
-          q(reinterpret_cast<float*>(ws + layout.q)),
-          acc(reinterpret_cast<float*>(ws + layout.pack.acc)),
-          running_max(reinterpret_cast<float*>(ws + layout.pack.running_max)),
-          running_sum(reinterpret_cast<float*>(ws + layout.pack.running_sum)),
-          run_scores(reinterpret_cast<float*>(ws + layout.scores)),
-          k_run(reinterpret_cast<float*>(ws + layout.k_run)),
-          v_run(reinterpret_cast<float*>(ws + layout.v_run)),
-          page_size(static_cast<int64_t>(cfg.page_size ? cfg.page_size : t.key_cache.size(2))),
-          key_block_size(static_cast<int64_t>(cfg.key_block_size)) {}
-};
-
-// Maps a logical KV position of the sequence to the physical (block, slot) address in the caches through the shared
-// page table. A selected key_block_size-wide span never crosses a physical block boundary (page_size % key_block_size
-// == 0 is enforced by the node).
-std::pair<size_t, size_t> physical_address(const PackWork& w, int64_t logical_pos) {
-    return {static_cast<size_t>(w.block_table[logical_pos / w.page_size]),
-            static_cast<size_t>(logical_pos % w.page_size)};
-}
-
-// ---- The phases of attention over a run of key rows, for the heads of the pack (one head is a pack of one) ----
-//   1. dot_product_block_multi_head:    scores  = query . keys^T
-//   2. online_softmax:                  weights = softmax(scale * scores), rescaling the running (max, sum, acc)
-//   3. attn_acc_value_block_multi_head: acc    += weights . values
-// attention_over_* run them for a run, the selected blocks or the causal tail.
-
-// Phase 2: online-softmax step of query head `head` over its scores[0, rows) of one run of key rows (see
-// online_softmax_step()).
-void online_softmax(PackWork& w, size_t head, size_t rows) {
-    online_softmax_step(w.run_scores + head * w.cfg.max_run_rows,
-                        rows,
-                        w.t.scale,
-                        w.running_max[head],
-                        w.running_sum[head],
-                        w.acc + head * w.cfg.v_head_size,
-                        w.cfg.v_head_size);
-}
-
-// Plain caches: attention over up to `n` consecutive logical positions [kpos0, kpos0 + n), all inside one physical
-// page, for every query head of the pack: no per-row conversion and one page-table lookup.
-template <typename T>
-void attention_over_run_plain(PackWork& w, int64_t kpos0, int64_t n) {
-    const auto [phys_block, slot] = physical_address(w, kpos0);
-    const auto rows = static_cast<size_t>(n);
-    T* key_rows = w.t.key_cache.ptr<T>(phys_block, w.k_head, slot);
-    T* value_rows = w.t.value_cache.ptr<T>(phys_block, w.k_head, slot);
-    const auto score_stride = w.cfg.max_run_rows;
-    dot_product_block_multi_head<T>(w.q, w.pack_size, w.cfg.k_head_size, key_rows, rows, w.run_scores, score_stride);
-    for (size_t head = 0; head < w.pack_size; head++) {
-        online_softmax(w, head, rows);
+// Finds the sequence of `token`; false if it belongs to none. `block_indices` is the page table the call reads.
+bool locate_token(const SparsePATensors& t, const PlainTensor& block_indices, size_t token, TokenSeq& seq) {
+    const auto* begins = t.subsequence_begins.ptr<int32_t>();
+    const auto* const begins_end = begins + t.subsequence_begins.size(0);
+    const size_t s =
+        static_cast<size_t>(std::upper_bound(begins, begins_end, static_cast<int32_t>(token)) - begins) - 1;
+    if (s + 1 >= t.subsequence_begins.size(0)) {
+        return false;
     }
-    attn_acc_value_block_multi_head<T>(w.acc,
-                                       w.pack_size,
-                                       w.cfg.v_head_size,
-                                       w.run_scores,
-                                       score_stride,
-                                       value_rows,
-                                       rows);
-}
-
-// Quantized caches. A one-head pack reads by-token rows directly with PagedAttention's fused block kernels (by-channel
-// keys are dequantized first: those kernels walk a whole page). A multi-head pack dequantizes the run's K and V to f32
-// once for all its heads.
-
-// Phase 0: dequantize the rows a fused kernel cannot read in place.
-void dequantize_run(PackWork& w, size_t phys_block, size_t slot, size_t rows, bool fused_keys, bool fused_values) {
-    if (!fused_keys) {
-        dequant_k_rows<float>(w.cfg, w.t.key_cache, phys_block, w.k_head, slot, rows, w.cfg.k_head_size, w.k_run);
-    }
-    if (!fused_values) {
-        dequant_v_rows<float>(w.cfg, w.t.value_cache, phys_block, w.k_head, slot, rows, w.cfg.v_head_size, w.v_run);
-    }
-}
-
-// Quantized caches: attention over a run of rows inside one physical page. A fused phase (one-head pack) reads the
-// quantized rows in place, the other one uses the dequantized f32 run through the head-pack kernels.
-void attention_over_run_quant(PackWork& w, int64_t kpos0, int64_t n) {
-    const auto [phys_block, slot] = physical_address(w, kpos0);
-    const auto rows = static_cast<size_t>(n);
-    const bool fused_keys = w.pack_size == 1 && !w.cfg.key_spec.by_channel;
-    const bool fused_values = w.pack_size == 1;
-    const auto score_stride = w.cfg.max_run_rows;
-    dequantize_run(w, phys_block, slot, rows, fused_keys, fused_values);
-    if (fused_keys) {
-        dot_key_rows_by_token(w.cfg,
-                              w.t.key_cache,
-                              phys_block,
-                              w.k_head,
-                              slot,
-                              rows,
-                              w.cfg.k_head_size,
-                              w.q,
-                              w.run_scores);
-    } else {
-        dot_product_block_multi_head<float>(w.q,
-                                            w.pack_size,
-                                            w.cfg.k_head_size,
-                                            w.k_run,
-                                            rows,
-                                            w.run_scores,
-                                            score_stride);
-    }
-    for (size_t head = 0; head < w.pack_size; head++) {
-        online_softmax(w, head, rows);
-    }
-    if (fused_values) {
-        acc_value_rows_by_token(w.cfg,
-                                w.t.value_cache,
-                                phys_block,
-                                w.k_head,
-                                slot,
-                                rows,
-                                w.cfg.v_head_size,
-                                w.run_scores,
-                                w.acc);
-    } else {
-        attn_acc_value_block_multi_head<float>(w.acc,
-                                               w.pack_size,
-                                               w.cfg.v_head_size,
-                                               w.run_scores,
-                                               score_stride,
-                                               w.v_run,
-                                               rows);
-    }
-}
-
-// Number of rows of the run [kpos0, kpos0 + n) that the query may see.
-int64_t visible_rows(const PackWork& w, int64_t kpos0, int64_t n) {
-    const int64_t limit = w.cfg.causal ? std::min(w.valid_max, w.token_pos + 1) : w.valid_max;
-    return XARCH::visible_rows(kpos0, n, 0, limit);
-}
-
-// Attention over up to `n` consecutive logical positions [kpos0, kpos0 + n) that lie inside one physical page, clamped
-// to the positions the query may see.
-void attention_over_run(PackWork& w, int64_t kpos0, int64_t n) {
-    n = visible_rows(w, kpos0, n);
-    if (n == 0) {
-        return;
-    }
-    if (is_quantized_cache(w.cfg.key_spec)) {
-        attention_over_run_quant(w, kpos0, n);
-    } else {
-        // The query rows are f32 here, so only the cache rows need their own type (f16 next to f32 data, like
-        // PagedAttention; the rows are converted in registers).
-        visit_float_type(w.t.key_cache.get_precision(), [&](auto cache_tag) {
-            attention_over_run_plain<decltype(cache_tag)>(w, kpos0, n);
-        });
-    }
-}
-
-// Attention over the selected complete blocks: adjacent blocks of the same physical page form one run (up to
-// max_run_rows rows), so the block kernels see as many rows per call as possible.
-void attention_selected_blocks_simd(PackWork& w, const int32_t* block_ids, size_t nblocks) {
-    const int64_t page_blocks = w.page_size / w.key_block_size;
-    const int64_t max_run_blocks = std::max<int64_t>(static_cast<int64_t>(w.cfg.max_run_rows) / w.key_block_size, 1);
-    size_t i = 0;
-    while (i < nblocks) {
-        const int64_t first = block_ids[i];
-        int64_t run_blocks = 1;
-        while (i + run_blocks < nblocks && run_blocks < max_run_blocks &&
-               block_ids[i + run_blocks] == first + run_blocks &&
-               (first + run_blocks) / page_blocks == first / page_blocks) {
-            run_blocks++;
-        }
-        attention_over_run(w, first * w.key_block_size, run_blocks * w.key_block_size);
-        i += static_cast<size_t>(run_blocks);
-    }
-}
-
-// sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never encodes the current
-// incomplete trailing block. When causal, the consumer derives and attends that tail itself from the query's own
-// logical position; it is empty at a block boundary.
-void attention_causal_tail_simd(PackWork& w) {
-    if (w.cfg.causal) {
-        const int64_t tail_start = causal_tail_start(w.token_pos, 0, w.key_block_size);
-        attention_over_run(w, tail_start, w.token_pos - tail_start + 1);
-    }
+    const int32_t block_begin = t.block_indices_begins.ptr<int32_t>()[s];
+    OPENVINO_ASSERT(t.block_indices_begins.ptr<int32_t>()[s + 1] > block_begin,
+                    "[CPU] sparse_pa: each sequence must have at least one cache block");
+    const int64_t past_len = t.past_lens.ptr<int32_t>()[s];
+    seq.block_table = block_indices.ptr<int32_t>() + block_begin;
+    seq.token_pos = past_len + (static_cast<int32_t>(token) - begins[s]);
+    // Enforced unconditionally (not just under causal) so a non-causal gather never reads an unallocated or stale slot.
+    seq.valid_max = past_len + (begins[s + 1] - begins[s]);
+    return true;
 }
 
 #if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
-// ---- prefill with AMX matrix products over the whole selection of a work item ----
-
-// The rows of the paged caches for the shared tile loop (attn_brgemm_tiles.hpp): a run of rows is contiguous inside
-// one physical page; plain caches are copied, quantized ones dequantized, into the tile.
+// Row source of gather_selected_kv() for the paged caches: the rows of a call lie in one physical page. The caches are
+// the originals or their dequantized pages; when `compressed` they are dequantized row by row.
 struct PagedRowSource {
-    const PackWork& w;
+    const SparsePAConfig& cfg;
+    const PlainTensor& key_cache;
+    const PlainTensor& value_cache;
+    bool compressed;
+    const TokenSeq& seq;
+    size_t k_head;
+    int64_t page_size;
+    int64_t visible_end;
 
     [[nodiscard]] int64_t visible(int64_t kpos0, int64_t n) const {
-        return visible_rows(w, kpos0, n);
+        return XARCH::visible_rows(kpos0, n, 0, visible_end);
     }
 
     template <typename T>
-    void rows(int64_t kpos0, size_t n, const T** k_ptr, const T** v_ptr, T* k_stage, T* v_stage) const {
-        const auto [phys_block, slot] = physical_address(w, kpos0);
+    void locate_kv_rows(int64_t kpos0, size_t n, const T** k_ptr, const T** v_ptr, T* k_stage, T* v_stage) const {
+        const auto phys_block = static_cast<size_t>(seq.block_table[kpos0 / page_size]);
+        const auto slot = static_cast<size_t>(kpos0 % page_size);
         const T* k_src = k_stage;
         const T* v_src = v_stage;
-        if (is_quantized_cache(w.cfg.key_spec)) {
-            dequant_k_rows<T>(w.cfg, w.t.key_cache, phys_block, w.k_head, slot, n, w.cfg.k_head_size, k_stage);
-            dequant_v_rows<T>(w.cfg, w.t.value_cache, phys_block, w.k_head, slot, n, w.cfg.v_head_size, v_stage);
+        if (compressed) {
+            dequant_k_rows<T>(cfg, key_cache, phys_block, k_head, slot, n, cfg.k_head_size, k_stage);
+            dequant_v_rows<T>(cfg, value_cache, phys_block, k_head, slot, n, cfg.v_head_size, v_stage);
         } else {
-            k_src = w.t.key_cache.ptr<T>(phys_block, w.k_head, slot);
-            v_src = w.t.value_cache.ptr<T>(phys_block, w.k_head, slot);
+            k_src = key_cache.ptr<T>(phys_block, k_head, slot);
+            v_src = value_cache.ptr<T>(phys_block, k_head, slot);
         }
         for (size_t i = 0; i < n; i++) {
-            k_ptr[i] = k_src + i * w.cfg.k_head_size;
-            v_ptr[i] = v_src + i * w.cfg.v_head_size;
+            k_ptr[i] = k_src + i * cfg.k_head_size;
+            v_ptr[i] = v_src + i * cfg.v_head_size;
         }
     }
 };
-
-// Attention of the pack's heads over the whole selection (blocks and causal tail) with AMX brgemm, M = the pack's
-// heads, over gathered rows (see attention_over_selection_tiles). Leaves unnormalized attention in w.acc and the
-// softmax denominators in w.running_sum; the caller normalizes and stores.
-template <typename T>
-void attention_full_selection_brgemm(
-    const SparsePAArgs& a,
-    PackWork& w,
-    uint8_t* ws,  // NOLINT(readability-non-const-parameter): the buffers it carves are written
-    const SparsePAScratchLayout& layout,
-    const int32_t* block_ids,
-    size_t nblocks) {
-    const auto& lay = layout.brgemm;
-    const TileBrgemm& brgemm = a.cfg.brgemm.handle();
-    const auto b = make_brgemm_buffers<T>(brgemm, lay, ws);
-    const BrgemmPack pack{w.query,
-                          w.pack_size,
-                          w.cfg.k_head_size,
-                          w.cfg.v_head_size,
-                          w.t.scale,
-                          w.acc,
-                          w.running_max,
-                          w.running_sum};
-    const int64_t tail_start = causal_tail_start(w.token_pos, 0, w.key_block_size);
-    const BrgemmSelection selection{block_ids, nblocks, 0, w.key_block_size, tail_start, w.token_pos - tail_start + 1};
-    attention_over_selection_tiles<T>(PagedRowSource{w}, pack, b, selection);
-}
 #endif  // OPENVINO_ARCH_X86_64 && HAVE_AVX512F
-
-// One work item: attention of one query token and one head pack, on the brgemm path (whole selection at once) or the
-// SIMD path (the `kv_chunk`-th of `kv_chunks` slices of the selected blocks, run by run; the last slice also takes the
-// causal tail). The result is written out, or left in `partial` as a softmax state when the blocks are split.
-template <typename T>
-void attention_work_item(const SparsePAArgs& a,
-                         const SparsePAScratchLayout& layout,
-                         size_t token,
-                         size_t pack,
-                         size_t pack_size,
-                         [[maybe_unused]] bool brgemm_item,
-                         size_t kv_chunk,
-                         size_t kv_chunks,
-                         float* partial) {
-    const auto* subsequence_begins = a.t.subsequence_begins.ptr<int32_t>();
-    // The sequence whose tokens contain `token`.
-    const auto* const begins_end = subsequence_begins + a.t.subsequence_begins.size(0);
-    const size_t seq =
-        static_cast<size_t>(std::upper_bound(subsequence_begins, begins_end, static_cast<int32_t>(token)) -
-                            subsequence_begins) -
-        1;
-    if (seq + 1 >= a.t.subsequence_begins.size(0)) {
-        return;  // not a token of any sequence
-    }
-    const int32_t token_begin = subsequence_begins[seq];
-    const int32_t token_end = subsequence_begins[seq + 1];
-    const int32_t block_begin = a.t.block_indices_begins.ptr<int32_t>()[seq];
-    OPENVINO_ASSERT(a.t.block_indices_begins.ptr<int32_t>()[seq + 1] > block_begin,
-                    "[CPU] sparse_pa: each sequence must have at least one cache block");
-    const int64_t past_len = a.t.past_lens.ptr<int32_t>()[seq];
-
-    // The query heads of a pack share the K head and the selection head of the pack's first query head.
-    const size_t first_head = pack * pack_size;
-    const size_t k_head = first_head / (a.cfg.num_heads / a.t.key_cache.size(1));
-    const size_t sel_head = first_head / (a.cfg.num_heads / a.t.sel_indices.size(1));
-
-    // Per-thread scratch, see SparsePAScratchLayout.
-    uint8_t* ws = a.scratch + a.layout.threads + static_cast<size_t>(parallel_get_thread_num()) * a.layout.thread_bytes;
-    PackWork w(a,
-               layout,
-               ws,
-               a.t.block_indices.ptr<int32_t>() + block_begin,
-               k_head,
-               pack_size,
-               past_len + (static_cast<int32_t>(token) - token_begin),
-               // Enforced unconditionally (not just under causal) so a non-causal gather never reads an unallocated
-               // or stale slot in the physical pages.
-               past_len + (token_end - token_begin),
-               a.t.query.ptr<T>(token, first_head * a.cfg.k_head_size));
-    cvt_copy(w.q, a.t.query.ptr<T>(token, first_head * a.cfg.k_head_size), 1, w.pack_size * a.cfg.k_head_size, 0, 0);
-    init_pack_state(w.acc, w.running_max, w.running_sum, w.pack_size, a.cfg.v_head_size);
-
-    // One query per selection row, so the row of a token is its global token index.
-    const int32_t* block_ids = a.t.sel_indices.ptr<int32_t>(token, sel_head);
-    const auto nblocks = static_cast<size_t>(*a.t.sel_count.ptr<int32_t>(token, sel_head));
-    OPENVINO_ASSERT(nblocks <= a.t.sel_indices.size(2),
-                    "[CPU] sparse_pa: block_count exceeds the width of block_indices");
-    bool done = false;
-#if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
-    // The brgemm items (prefill) of a pack of query heads with 16-bit data on AMX: matrix products over the whole
-    // selection.
-    if constexpr (!std::is_same_v<T, float>) {
-        if (brgemm_item) {
-            attention_full_selection_brgemm<T>(a, w, ws, layout, block_ids, nblocks);
-            done = true;
-        }
-    }
-#endif
-    if (!done) {
-        // This item takes the blocks [first, last) of the selection; the last kv_chunk also takes the causal tail.
-        const size_t first = nblocks * kv_chunk / kv_chunks;
-        const size_t last = nblocks * (kv_chunk + 1) / kv_chunks;
-        attention_selected_blocks_simd(w, block_ids + first, last - first);
-        if (kv_chunk + 1 == kv_chunks) {
-            attention_causal_tail_simd(w);
-        }
-    }
-
-    if (partial != nullptr) {
-        std::copy_n(w.running_max, w.pack_size, partial);
-        std::copy_n(w.running_sum, w.pack_size, partial + w.pack_size);
-        std::copy_n(w.acc, w.pack_size * a.cfg.v_head_size, partial + 2 * w.pack_size);
-        return;
-    }
-    store_normalized_pack(w.acc, w.running_sum, w.pack_size, a.cfg.v_head_size, [&](size_t head) {
-        return a.t.out.ptr<T>(token, (first_head + head) * a.cfg.v_head_size);
-    });
-}
 
 // The pages of the compressed caches that a call dequantized: views of the scratch pad memory, which they share the
 // ownership of.
@@ -662,22 +340,23 @@ struct DequantizedPages {
 // Dequantizes the pages of prefill sequences into their region of the scratch (see SparsePAScratch) and sets the views
 // of them in `pages`.
 template <typename T>
-void build_dequantized_pages(const SparsePAArgs& a,
+void build_dequantized_pages(const SparsePAConfig& cfg,
+                             const SparsePATensors& t,
+                             const SparsePAScratch& parts,
+                             const MemoryPtr& scratch_memory,
                              DequantizedPages& pages,
                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    const auto& cfg = a.cfg;
-    const auto& t = a.t;
-    const auto& region = a.layout.dequantized_layout;
-    const size_t entries = a.layout.dequantized_entries;
+    const auto& region = parts.dequantized_layout;
+    const size_t entries = parts.dequantized_entries;
     const size_t k_head_num = t.key_cache.size(1);
     const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
-    pages.table.resize_view<int32_t>({entries}, a.scratch_memory, a.layout.dequantized + region.table);
+    pages.table.resize_view<int32_t>({entries}, scratch_memory, parts.dequantized + region.table);
     pages.key.resize_view<T>({entries, k_head_num, page_size, cfg.k_head_size},
-                             a.scratch_memory,
-                             a.layout.dequantized + region.key);
+                             scratch_memory,
+                             parts.dequantized + region.key);
     pages.value.resize_view<T>({entries, k_head_num, page_size, cfg.v_head_size},
-                               a.scratch_memory,
-                               a.layout.dequantized + region.value);
+                               scratch_memory,
+                               parts.dequantized + region.value);
     auto* table = pages.table.ptr<int32_t>();
     std::iota(table, table + entries, 0);
     const auto* begins = t.subsequence_begins.ptr<int32_t>();
@@ -709,140 +388,28 @@ void build_dequantized_pages(const SparsePAArgs& a,
     });
 }
 
-// Sparse attention of every (global query token, query head pack, kv_chunk) item of the work list, in parallel: the
-// brgemm items first, then the fallback items. A split decode leaves partial softmax states in `partials` for a second
-// merging pass; the brgemm items of a compressed cache read its dequantized pages.
-template <typename T>
-void sparse_pa_impl(const SparsePAArgs& a, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    const size_t max_pack = max_q_head_pack_size(a.cfg.num_heads, a.cfg.num_kv_heads, a.cfg.num_selection_heads);
-    const SparsePAScratchLayout layout(a.cfg.k_head_size,
-                                       a.cfg.v_head_size,
-                                       a.cfg.max_run_rows,
-                                       max_pack,
-                                       sizeof(T),
-                                       a.cfg.key_spec,
-                                       tile_brgemm_sizes(a.cfg.brgemm.handle()));
-    OPENVINO_ASSERT(layout.total <= a.layout.thread_bytes, "[CPU] sparse_pa: scratch is too small");
-    const auto& work = a.work;
-    auto* const partials = reinterpret_cast<float*>(a.scratch + a.layout.partials);
-
-    // The brgemm items read dequantized copies of the pages of a compressed cache, see build_dequantized_pages. They
-    // share their memory with the partial states, which a call has only without brgemm tokens.
-    DequantizedPages dequantized;
-    bool use_dequantized = false;
-    if constexpr (!std::is_same_v<T, float>) {
-        if (a.layout.dequantized_entries > 0 && work.brgemm_tokens > 0) {
-            build_dequantized_pages<T>(a, dequantized, cpu_parallel);
-            use_dequantized = true;
-        }
-    }
-    const SparsePATensors dequantized_t{a.t.query,
-                                        a.t.key,
-                                        a.t.value,
-                                        dequantized.key,
-                                        dequantized.value,
-                                        dequantized.table,
-                                        a.t.block_indices_begins,
-                                        a.t.subsequence_begins,
-                                        a.t.past_lens,
-                                        a.t.sel_indices,
-                                        a.t.sel_count,
-                                        a.t.out,
-                                        a.t.scale};
-    SparsePAConfig dequantized_cfg = a.cfg;  // the dequantized pages are plain caches
-    dequantized_cfg.key_spec = {};
-    dequantized_cfg.value_spec = {};
-    const SparsePAArgs dequantized_args{dequantized_cfg, dequantized_t, work, a.scratch_memory, a.scratch, a.layout};
-
-    const size_t brgemm_per_token = a.cfg.num_heads / work.brgemm_pack;
-    const size_t fallback_per_token = a.cfg.num_heads / work.fallback_pack;
-    const size_t brgemm_items = work.brgemm_tokens * brgemm_per_token;
-    const size_t partial_floats = work.fallback_pack * (a.cfg.v_head_size + 2);
-    // Items are (token, pack, kv_chunk): the brgemm tokens first, each with packs of brgemm_pack heads and one chunk,
-    // then the fallback tokens; a split decode leaves its state in the slot of the item.
-    cpu_parallel->parallel_for(brgemm_items + work.fallback_tokens * fallback_per_token * work.kv_chunks,
-                               [&](size_t item) {
-                                   if (item < brgemm_items) {
-                                       attention_work_item<T>(use_dequantized ? dequantized_args : a,
-                                                              layout,
-                                                              work.token_ids[item / brgemm_per_token],
-                                                              item % brgemm_per_token,
-                                                              work.brgemm_pack,
-                                                              true,
-                                                              0,
-                                                              1,
-                                                              nullptr);
-                                   } else {
-                                       const size_t local = item - brgemm_items;
-                                       const size_t per_token = fallback_per_token * work.kv_chunks;
-                                       attention_work_item<T>(
-                                           a,
-                                           layout,
-                                           work.token_ids[work.brgemm_tokens + local / per_token],
-                                           (local % per_token) / work.kv_chunks,
-                                           work.fallback_pack,
-                                           false,
-                                           local % work.kv_chunks,
-                                           work.kv_chunks,
-                                           work.kv_chunks > 1 ? partials + local * partial_floats : nullptr);
-                                   }
-                               });
-    if (work.kv_chunks == 1) {
-        return;
-    }
-    // Second pass: merge the partial states of every fallback (token, pack) item into the output.
-    cpu_parallel->parallel_for(work.fallback_tokens * fallback_per_token, [&](size_t token_pack) {
-        const size_t token = work.token_ids[work.brgemm_tokens + token_pack / fallback_per_token];
-        const size_t first_head = (token_pack % fallback_per_token) * work.fallback_pack;
-        auto* const merged = reinterpret_cast<float*>(
-            a.scratch + a.layout.threads + static_cast<size_t>(parallel_get_thread_num()) * a.layout.thread_bytes +
-            layout.pack.acc);
-        merge_decode_partials(partials + token_pack * work.kv_chunks * partial_floats,
-                              work.kv_chunks,
-                              work.fallback_pack,
-                              a.cfg.v_head_size,
-                              merged);
-        for (size_t head = 0; head < work.fallback_pack; head++) {
-            cvt_copy(a.t.out.ptr<T>(token, (first_head + head) * a.cfg.v_head_size),
-                     merged + head * a.cfg.v_head_size,
-                     1,
-                     a.cfg.v_head_size,
-                     0,
-                     0);
-        }
-    });
-}
-
 class PaExecutor final : public SparsePAExecutor {
 public:
-    // The heads, head sizes and the data type are fixed by the config, so the scratch of a thread is computed once
-    // here.
+    // The scratch block of a worker thread depends on the config only, so it is laid out once here.
     explicit PaExecutor(const SparsePAConfig& config)
         : m_cfg(config),
-          m_thread_block_bytes(
-              SparsePAScratchLayout(
-                  config.k_head_size,
-                  config.v_head_size,
-                  config.max_run_rows,
-                  max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads),
-                  config.data_precision.size(),
-                  config.key_spec,
-                  tile_brgemm_sizes(config.brgemm.handle()))
-                  .total) {}
+          m_thread(config.k_head_size,
+                   config.v_head_size,
+                   config.max_attend_kv_rows,
+                   max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads),
+                   config.data_precision.size(),
+                   config.key_spec,
+                   tile_brgemm_sizes(config.brgemm.handle())) {}
 
     [[nodiscard]] size_t scratch_bytes(const SparsePATensors& t,
                                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
-        return SparsePAScratch(m_cfg,
-                               t,
-                               static_cast<size_t>(cpu_parallel->get_num_worker_threads()),
-                               m_thread_block_bytes)
+        return SparsePAScratch(m_cfg, t, static_cast<size_t>(cpu_parallel->get_num_worker_threads()), m_thread.total)
             .total;
     }
 
     void execute(const SparsePATensors& t,
                  const MemoryPtr& scratch,
                  const ov::intel_cpu::CpuParallelPtr& cpu_parallel) override {
-        // Phase 1 completes before phase 2, the sparse attention, reads the caches.
         write_kv(t, cpu_parallel);
         run(t, scratch, cpu_parallel);
     }
@@ -913,7 +480,7 @@ private:
         const SparsePAScratch scratch_layout(m_cfg,
                                              t,
                                              static_cast<size_t>(cpu_parallel->get_num_worker_threads()),
-                                             m_thread_block_bytes);
+                                             m_thread.total);
         OPENVINO_ASSERT(scratch_memory->getSize() >= scratch_layout.total, "[CPU] sparse_pa: scratch is too small");
         auto* const token_ids = reinterpret_cast<int32_t*>(scratch + scratch_layout.token_ids);
 
@@ -935,7 +502,7 @@ private:
         OPENVINO_ASSERT(t.subsequence_begins.size(0) >= 1, "[CPU] sparse_pa: subsequence_begins must be non-empty");
 
         // The work list: the tokens of sequences with several new tokens first (brgemm items when the brgemm kernels
-        // are enabled), then the rest (fallback items); both id lists share the `token_ids` region at the end of the
+        // are enabled), then the rest (SIMD items); both id lists share the `token_ids` region at the end of the
         // scratch (one id per token).
         const size_t max_pack_size =
             max_q_head_pack_size(m_cfg.num_heads, m_cfg.num_kv_heads, m_cfg.num_selection_heads);
@@ -961,37 +528,335 @@ private:
         for (size_t seq = 0; seq < sequences; seq++) {
             if (!is_brgemm_sequence(seq)) {
                 for (int32_t token = begins[seq]; token < begins[seq + 1] && in_range(token); token++) {
-                    token_ids[work.brgemm_tokens + work.fallback_tokens++] = token;
+                    token_ids[work.brgemm_tokens + work.simd_tokens++] = token;
                 }
             }
         }
-        work.brgemm_pack = max_pack_size;
-        // Few fallback items on many threads: split their blocks into kv_chunks (not with brgemm tokens in the call,
-        // which run in the same loop).
+        work.brgemm_q_head_pack = max_pack_size;
+        // Few SIMD items on many threads: split their blocks into kv_chunks (not when AMX tokens share the loop).
         const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
-        const size_t fallback_items = work.fallback_tokens * (m_cfg.num_heads / max_pack_size);
-        work.kv_chunks =
-            work.brgemm_tokens == 0 ? decode_kv_chunk_count(fallback_items, t.sel_indices.size(2), num_threads) : 1;
-        work.fallback_pack = (work.kv_chunks > 1 || fallback_items >= 2 * num_threads) ? max_pack_size : 1;
+        const size_t simd_items = work.simd_tokens * (m_cfg.num_heads / max_pack_size);
+        work.kv_chunks = work.brgemm_tokens == 0 ? kv_chunk_count(simd_items, t.sel_indices.size(2), num_threads) : 1;
+        work.simd_q_head_pack = (work.kv_chunks > 1 || simd_items >= 2 * num_threads) ? max_pack_size : 1;
 
-        const SparsePAArgs args{m_cfg, t, work, scratch_memory, scratch, scratch_layout};
-
-        // The data type is dispatched once; everything below works on T.
         if (data_prc == ov::element::f32) {
-            sparse_pa_impl<float>(args, cpu_parallel);
+            attend<float>(t, work, scratch_layout, scratch_memory, cpu_parallel);
         } else if (data_prc == ov::element::f16) {
-            sparse_pa_impl<ov::float16>(args, cpu_parallel);
+            attend<ov::float16>(t, work, scratch_layout, scratch_memory, cpu_parallel);
         } else if (data_prc == ov::element::bf16) {
-            sparse_pa_impl<ov::bfloat16>(args, cpu_parallel);
+            attend<ov::bfloat16>(t, work, scratch_layout, scratch_memory, cpu_parallel);
         } else {
             OPENVINO_THROW("[CPU] sparse_pa: unsupported precision ", data_prc);
         }
     }
 
+#if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
+    // AMX item: the attention of one query token and a pack of query heads over its whole selection, as matrix
+    // products over KV tiles (see attn_brgemm_tiles.hpp). `pages`: the dequantized pages of a compressed cache, or
+    // null.
+    template <typename T>
+    void attention_amx_item(const SparsePATensors& t,
+                            const WorkList& work,
+                            const SparsePAScratch& parts,
+                            uint8_t* scratch,
+                            const DequantizedPages* pages,
+                            size_t token,
+                            size_t pack_index) const {
+        TokenSeq seq;
+        if (!locate_token(t, pages != nullptr ? pages->table : t.block_indices, token, seq)) {
+            return;
+        }
+        const size_t pack_size = work.brgemm_q_head_pack;
+        const size_t Dh = m_cfg.k_head_size;
+        const size_t Dv = m_cfg.v_head_size;
+        // The query heads of a pack share the K head and the selection head of the pack's first query head.
+        const size_t first_head = pack_index * pack_size;
+        const size_t k_head = first_head / (m_cfg.num_heads / t.key_cache.size(1));
+        const size_t sel_head = first_head / (m_cfg.num_heads / t.sel_indices.size(1));
+        const auto key_block_size = static_cast<int64_t>(m_cfg.key_block_size);
+
+        uint8_t* ws = scratch + parts.threads + static_cast<size_t>(parallel_get_thread_num()) * parts.thread_bytes;
+        auto* acc = reinterpret_cast<float*>(ws + m_thread.pack.acc);
+        auto* running_max = reinterpret_cast<float*>(ws + m_thread.pack.running_max);
+        auto* running_sum = reinterpret_cast<float*>(ws + m_thread.pack.running_sum);
+        init_pack_state(acc, running_max, running_sum, pack_size, Dv);
+
+        const auto buffers = make_brgemm_buffers<T>(m_cfg.brgemm.handle(), m_thread.brgemm, ws);
+        // The query rows of the pack are contiguous in the query tensor: used in place.
+        const BrgemmPack
+            pack{t.query.ptr<T>(token, first_head * Dh), pack_size, Dh, Dv, t.scale, acc, running_max, running_sum};
+        const auto page_size = static_cast<int64_t>(m_cfg.page_size ? m_cfg.page_size : t.key_cache.size(2));
+        const PagedRowSource src{m_cfg,
+                                 pages != nullptr ? pages->key : t.key_cache,
+                                 pages != nullptr ? pages->value : t.value_cache,
+                                 pages == nullptr && is_quantized_cache(m_cfg.key_spec),
+                                 seq,
+                                 k_head,
+                                 page_size,
+                                 m_cfg.causal ? std::min(seq.valid_max, seq.token_pos + 1) : seq.valid_max};
+
+        // The rows [kpos0, kpos0 + n) the query attends: gathered into the KV tile (step 1), which goes through step 2
+        // whenever it is full. The online softmax carries the state across tiles.
+        TileState tile;
+        const auto attend_rows = [&](int64_t kpos0, int64_t n) {
+            n = src.visible(kpos0, n);
+            while (n > 0) {
+                const int64_t gathered = gather_selected_kv<T>(src, pack, buffers, tile, kpos0, n);
+                kpos0 += gathered;
+                n -= gathered;
+                if (tile.rows == buffers.tile_rows()) {
+                    attention_over_kv_tile<T>(pack, buffers, tile);
+                }
+            }
+        };
+        // One query per selection row, so the row of a token is its global token index.
+        const int32_t* block_ids = t.sel_indices.ptr<int32_t>(token, sel_head);
+        const auto nblocks = static_cast<size_t>(*t.sel_count.ptr<int32_t>(token, sel_head));
+        OPENVINO_ASSERT(nblocks <= t.sel_indices.size(2),
+                        "[CPU] sparse_pa: block_count exceeds the width of block_indices");
+        for (size_t i = 0; i < nblocks; i++) {
+            attend_rows(block_ids[i] * key_block_size, key_block_size);
+        }
+        const int64_t tail_start = causal_tail_start(seq.token_pos, 0, key_block_size);
+        attend_rows(tail_start, seq.token_pos - tail_start + 1);
+        attention_over_kv_tile<T>(pack, buffers, tile);  // the last, partial tile
+
+        store_normalized_pack(acc, running_sum, pack_size, Dv, [&](size_t head) {
+            return t.out.ptr<T>(token, (first_head + head) * Dv);
+        });
+    }
+#endif
+
+    // SIMD item: attention of one query token and a pack of query heads (one head is a pack of one) over the
+    // `kv_chunk`-th of `kv_chunks` slices of the selected blocks; the last slice also takes the causal tail. Written
+    // out, or left in `partial` as a softmax state when split.
+    template <typename T>
+    void attention_simd_item(const SparsePATensors& t,
+                             const WorkList& work,
+                             const SparsePAScratch& parts,
+                             uint8_t* scratch,
+                             size_t token,
+                             size_t pack_index,
+                             size_t kv_chunk,
+                             float* partial) const {
+        TokenSeq seq;
+        if (!locate_token(t, t.block_indices, token, seq)) {
+            return;
+        }
+        const size_t pack_size = work.simd_q_head_pack;
+        const size_t kv_chunks = work.kv_chunks;
+        const size_t Dh = m_cfg.k_head_size;
+        const size_t Dv = m_cfg.v_head_size;
+        const size_t first_head = pack_index * pack_size;
+        const size_t k_head = first_head / (m_cfg.num_heads / t.key_cache.size(1));
+        const size_t sel_head = first_head / (m_cfg.num_heads / t.sel_indices.size(1));
+        const auto key_block_size = static_cast<int64_t>(m_cfg.key_block_size);
+        // Tokens per physical page: the config holds it for compressed caches (by-channel key pages carry parameter
+        // rows in dim 2); a plain cache has it in dim 2.
+        const auto page_size = static_cast<int64_t>(m_cfg.page_size ? m_cfg.page_size : t.key_cache.size(2));
+        const size_t max_rows = m_cfg.max_attend_kv_rows;
+        const int64_t visible_end = m_cfg.causal ? std::min(seq.valid_max, seq.token_pos + 1) : seq.valid_max;
+
+        uint8_t* ws = scratch + parts.threads + static_cast<size_t>(parallel_get_thread_num()) * parts.thread_bytes;
+        auto* q = reinterpret_cast<float*>(ws + m_thread.q);
+        auto* acc = reinterpret_cast<float*>(ws + m_thread.pack.acc);
+        auto* running_max = reinterpret_cast<float*>(ws + m_thread.pack.running_max);
+        auto* running_sum = reinterpret_cast<float*>(ws + m_thread.pack.running_sum);
+        auto* scores = reinterpret_cast<float*>(ws + m_thread.scores);
+        auto* k_rows_f32 = reinterpret_cast<float*>(ws + m_thread.k_rows_f32);
+        auto* v_rows_f32 = reinterpret_cast<float*>(ws + m_thread.v_rows_f32);
+        cvt_copy(q, t.query.ptr<T>(token, first_head * Dh), 1, pack_size * Dh, 0, 0);
+        init_pack_state(acc, running_max, running_sum, pack_size, Dv);
+
+        // Attention of every head of the pack over up to max_rows consecutive rows [kpos0, kpos0 + n) of one page:
+        // scores, online softmax, accumulate V. A one-head pack reads compressed rows in place (by-channel keys are
+        // dequantized first), a larger pack dequantizes them to f32 once.
+        const auto attend_kv_rows = [&](int64_t kpos0, int64_t n) {
+            n = XARCH::visible_rows(kpos0, n, 0, visible_end);
+            if (n == 0) {
+                return;
+            }
+            const auto phys_block = static_cast<size_t>(seq.block_table[kpos0 / page_size]);
+            const auto slot = static_cast<size_t>(kpos0 % page_size);
+            const auto rows = static_cast<size_t>(n);
+            const auto softmax = [&] {
+                for (size_t head = 0; head < pack_size; head++) {
+                    online_softmax_step(scores + head * max_rows,
+                                        rows,
+                                        t.scale,
+                                        running_max[head],
+                                        running_sum[head],
+                                        acc + head * Dv,
+                                        Dv);
+                }
+            };
+            if (!is_quantized_cache(m_cfg.key_spec)) {
+                // The query rows are f32, so only the cache rows need their own type (f16 next to f32 data, like
+                // PagedAttention; converted in registers).
+                visit_float_type(t.key_cache.get_precision(), [&](auto cache_tag) {
+                    using C = decltype(cache_tag);
+                    dot_product_block_multi_head<C>(q,
+                                                    pack_size,
+                                                    Dh,
+                                                    t.key_cache.ptr<C>(phys_block, k_head, slot),
+                                                    rows,
+                                                    scores,
+                                                    max_rows);
+                    softmax();
+                    attn_acc_value_block_multi_head<C>(acc,
+                                                       pack_size,
+                                                       Dv,
+                                                       scores,
+                                                       max_rows,
+                                                       t.value_cache.ptr<C>(phys_block, k_head, slot),
+                                                       rows);
+                });
+                return;
+            }
+            const bool fused_keys = pack_size == 1 && !m_cfg.key_spec.by_channel;
+            const bool fused_values = pack_size == 1;
+            if (!fused_keys) {
+                dequant_k_rows<float>(m_cfg, t.key_cache, phys_block, k_head, slot, rows, Dh, k_rows_f32);
+            }
+            if (!fused_values) {
+                dequant_v_rows<float>(m_cfg, t.value_cache, phys_block, k_head, slot, rows, Dv, v_rows_f32);
+            }
+            if (fused_keys) {
+                dot_key_rows_by_token(m_cfg, t.key_cache, phys_block, k_head, slot, rows, Dh, q, scores);
+            } else {
+                dot_product_block_multi_head<float>(q, pack_size, Dh, k_rows_f32, rows, scores, max_rows);
+            }
+            softmax();
+            if (fused_values) {
+                acc_value_rows_by_token(m_cfg, t.value_cache, phys_block, k_head, slot, rows, Dv, scores, acc);
+            } else {
+                attn_acc_value_block_multi_head<float>(acc, pack_size, Dv, scores, max_rows, v_rows_f32, rows);
+            }
+        };
+
+        // This item takes the blocks [first, last) of the selection. Adjacent blocks of one physical page are attended
+        // together, up to max_rows rows at a time.
+        const int32_t* block_ids = t.sel_indices.ptr<int32_t>(token, sel_head);
+        const auto nblocks = static_cast<size_t>(*t.sel_count.ptr<int32_t>(token, sel_head));
+        OPENVINO_ASSERT(nblocks <= t.sel_indices.size(2),
+                        "[CPU] sparse_pa: block_count exceeds the width of block_indices");
+        const size_t first = nblocks * kv_chunk / kv_chunks;
+        const size_t last = nblocks * (kv_chunk + 1) / kv_chunks;
+        const int64_t page_blocks = page_size / key_block_size;
+        const int64_t max_adjacent_blocks = std::max<int64_t>(static_cast<int64_t>(max_rows) / key_block_size, 1);
+        for (size_t i = first; i < last;) {
+            const int64_t first_block = block_ids[i];
+            int64_t adjacent_blocks = 1;
+            while (i + adjacent_blocks < last && adjacent_blocks < max_adjacent_blocks &&
+                   block_ids[i + adjacent_blocks] == first_block + adjacent_blocks &&
+                   (first_block + adjacent_blocks) / page_blocks == first_block / page_blocks) {
+                adjacent_blocks++;
+            }
+            attend_kv_rows(first_block * key_block_size, adjacent_blocks * key_block_size);
+            i += static_cast<size_t>(adjacent_blocks);
+        }
+        // sel_indices / sel_count hold complete blocks only: when causal, the last chunk attends the trailing tail
+        // itself; it is empty at a block boundary.
+        if (m_cfg.causal && kv_chunk + 1 == kv_chunks) {
+            const int64_t tail_start = causal_tail_start(seq.token_pos, 0, key_block_size);
+            attend_kv_rows(tail_start, seq.token_pos - tail_start + 1);
+        }
+
+        if (partial != nullptr) {
+            std::copy_n(running_max, pack_size, partial);
+            std::copy_n(running_sum, pack_size, partial + pack_size);
+            std::copy_n(acc, pack_size * Dv, partial + 2 * pack_size);
+            return;
+        }
+        store_normalized_pack(acc, running_sum, pack_size, Dv, [&](size_t head) {
+            return t.out.ptr<T>(token, (first_head + head) * Dv);
+        });
+    }
+
+    // The attention of every (global query token, head pack, kv_chunk) item of the work list, in parallel: the AMX
+    // items first, then the SIMD items. A kv-chunk split leaves partial softmax states for a second merging pass; the
+    // AMX items of a compressed cache read its dequantized pages.
+    template <typename T>
+    void attend(const SparsePATensors& t,
+                const WorkList& work,
+                const SparsePAScratch& parts,
+                const MemoryPtr& scratch_memory,
+                const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
+        uint8_t* const scratch = scratch_memory->getDataAs<uint8_t>();
+        auto* const partials = reinterpret_cast<float*>(scratch + parts.partials);
+
+        // The pages share their memory with the partial states, which a call has only without AMX tokens.
+        DequantizedPages dequantized;
+        [[maybe_unused]] const DequantizedPages* pages = nullptr;  // only the AMX items read them
+        if constexpr (!std::is_same_v<T, float>) {
+            if (parts.dequantized_entries > 0 && work.brgemm_tokens > 0) {
+                build_dequantized_pages<T>(m_cfg, t, parts, scratch_memory, dequantized, cpu_parallel);
+                pages = &dequantized;
+            }
+        }
+
+        const size_t brgemm_per_token = m_cfg.num_heads / work.brgemm_q_head_pack;
+        const size_t simd_per_token = m_cfg.num_heads / work.simd_q_head_pack;
+        const size_t brgemm_items = work.brgemm_tokens * brgemm_per_token;
+        const size_t partial_floats = work.simd_q_head_pack * (m_cfg.v_head_size + 2);
+        // Items are (token, pack, kv_chunk): the AMX tokens first, each with packs of brgemm_q_head_pack heads and one
+        // chunk, then the SIMD tokens; a kv-chunk split leaves its state in the slot of the item.
+        cpu_parallel->parallel_for(brgemm_items + work.simd_tokens * simd_per_token * work.kv_chunks, [&](size_t item) {
+            if (item < brgemm_items) {
+#if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
+                if constexpr (!std::is_same_v<T, float>) {
+                    attention_amx_item<T>(t,
+                                          work,
+                                          parts,
+                                          scratch,
+                                          pages,
+                                          work.token_ids[item / brgemm_per_token],
+                                          item % brgemm_per_token);
+                }
+#endif
+                return;
+            }
+            const size_t local = item - brgemm_items;
+            const size_t per_token = simd_per_token * work.kv_chunks;
+            attention_simd_item<T>(t,
+                                   work,
+                                   parts,
+                                   scratch,
+                                   work.token_ids[work.brgemm_tokens + local / per_token],
+                                   (local % per_token) / work.kv_chunks,
+                                   local % work.kv_chunks,
+                                   work.kv_chunks > 1 ? partials + local * partial_floats : nullptr);
+        });
+        if (work.kv_chunks == 1) {
+            return;
+        }
+        // Second pass: merge the partial states of every SIMD (token, pack) item into the output.
+        cpu_parallel->parallel_for(work.simd_tokens * simd_per_token, [&](size_t token_pack) {
+            const size_t token = work.token_ids[work.brgemm_tokens + token_pack / simd_per_token];
+            const size_t first_head = (token_pack % simd_per_token) * work.simd_q_head_pack;
+            auto* const merged = reinterpret_cast<float*>(
+                scratch + parts.threads + static_cast<size_t>(parallel_get_thread_num()) * parts.thread_bytes +
+                m_thread.pack.acc);
+            merge_kv_chunk_partials(partials + token_pack * work.kv_chunks * partial_floats,
+                                    work.kv_chunks,
+                                    work.simd_q_head_pack,
+                                    m_cfg.v_head_size,
+                                    merged);
+            for (size_t head = 0; head < work.simd_q_head_pack; head++) {
+                cvt_copy(t.out.ptr<T>(token, (first_head + head) * m_cfg.v_head_size),
+                         merged + head * m_cfg.v_head_size,
+                         1,
+                         m_cfg.v_head_size,
+                         0,
+                         0);
+            }
+        });
+    }
+
     SparsePAConfig m_cfg;
-    size_t m_thread_block_bytes;  // bytes of the scratch block of one worker thread
-    PlainTensor m_slot_mapping;   // int32 [tokens], grown on demand
-    PlainTensor m_temp_buffer;    // f32 [threads, page rows, k_head_size]: by-channel key requantization
+    SparsePAScratchLayout m_thread;  // the scratch block of one worker thread
+    PlainTensor m_slot_mapping;      // int32 [tokens], grown on demand
+    PlainTensor m_temp_buffer;       // f32 [threads, page rows, k_head_size]: by-channel key requantization
 };
 
 }  // namespace

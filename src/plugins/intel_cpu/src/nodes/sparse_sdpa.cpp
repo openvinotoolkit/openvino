@@ -203,10 +203,6 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (const auto kv_op = ov::as_type_ptr<const SparseAttentionKVOp>(op)) {
         m_fuse_concat = true;
         m_base_inputs = op->get_input_size() - 3;
-        // A side is compressed when the hint asks for u8 / u4 and the head size is static; the keys are quantized by
-        // channel when that mode is requested (u8 only). Everything else (by-channel u4, TurboQuant, f16 / i8 hints)
-        // leaves the side a plain cache: the fusion is unconditional, so a TURBO setting must not make the model fail.
-        // The group size follows ScaledDotProductAttention.
         const auto& cpu_config = context->getConfig();
         auto make_spec = [&](ov::element::Type hint,
                              size_t group_size,
@@ -216,11 +212,28 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
             ov::intel_cpu::CacheSpec spec;
             spec.precision = ov::element::dynamic;  // plain cache: set in initSupportedPrimitiveDescriptors
             spec.group_size = head_dim.is_static() ? static_cast<size_t>(head_dim.get_length()) : 0;
-            if (none_of(hint, ov::element::u8, ov::element::u4) || spec.group_size == 0 ||
-                alg == ov::internal::CacheQuantAlgorithm::TURBO) {
+            if (alg == ov::internal::CacheQuantAlgorithm::TURBO) {
                 return spec;
             }
-            const size_t group = ov::intel_cpu::resolve_group_size(group_size, spec.group_size);
+            CPU_NODE_ASSERT(any_of(hint,
+                                   ov::element::dynamic,
+                                   ov::element::f32,
+                                   ov::element::f16,
+                                   ov::element::bf16,
+                                   ov::element::u8,
+                                   ov::element::u4),
+                            "supports key/value cache precision f32, f16, bf16, u8, u4 but gets ",
+                            hint);
+            if (!ov::intel_cpu::is_quantized_cache(hint) || spec.group_size == 0) {
+                return spec;
+            }
+            const size_t head_size = spec.group_size;
+            const size_t group = group_size ? group_size : head_size;
+            CPU_NODE_ASSERT(head_size % group == 0,
+                            "the head size ",
+                            head_size,
+                            " cannot be divided by the cache group size ",
+                            group);
             if (by_channel) {
                 if (hint != ov::element::u8) {
                     return spec;
@@ -229,6 +242,7 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
             } else if (hint == ov::element::u4 && group % 2 != 0) {
                 return spec;
             }
+            spec.alg = alg;
             spec.precision = hint;
             spec.group_size = group;
             return spec;

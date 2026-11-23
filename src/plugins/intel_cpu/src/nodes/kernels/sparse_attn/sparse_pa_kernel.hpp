@@ -29,9 +29,10 @@ struct SparsePAConfig {
     /// Tokens per physical page, without the parameter rows of by-channel key pages; 0: dim 2 of the key cache (plain
     /// caches).
     size_t page_size = 0;
-    /// Most key rows of one run: the page size when adjacent selected blocks are merged inside a page, key_block_size
-    /// when they are not.
-    size_t max_run_rows = 0;
+    /// Most K/V rows one attend_kv_rows() call takes: the page size (a call stays inside one physical page, so adjacent
+    /// selected blocks merge up to a page), key_block_size when the page size is unknown. It sizes the scores and the
+    /// dequantized-row buffers.
+    size_t max_attend_kv_rows = 0;
     /// The AMX prefill kernels; empty when the executor is not eligible. The config owns them, so an executor that
     /// copies the config keeps them alive.
     TileBrgemmKernels brgemm;
