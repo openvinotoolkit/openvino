@@ -684,6 +684,36 @@ bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>
     }
     return false;
 }
+
+// 2Dx3D GroupedMatMul runs on oneDNN grouped_gemm, which supports only f16 activations, so it is decomposed into MatMuls for
+// other activation types. With dynamic inference precision the activation type is kept as is, so it is checked per node.
+// 3Dx3D GroupedMatMul is lowered to a batched FullyConnected and stays as is. Without immad or oneDNN, every GroupedMatMul
+// is decomposed.
+void register_grouped_matmul_decomposition(ov::pass::Manager& manager,
+                                           const cldnn::device_info& device_info,
+                                           const ExecutionConfig& config,
+                                           ov::element::Type infer_precision) {
+    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+        return;
+    }
+    if (!device_info.supports_immad || !config.get_use_onednn()) {
+        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+        return;
+    }
+    if (infer_precision == ov::element::f16) {
+        return;
+    }
+    auto needs_decomposition = [infer_precision](const std::shared_ptr<const ov::Node>& node) {
+        return node->get_input_partial_shape(0).rank() == 2 && (infer_precision != ov::element::dynamic || node->get_input_element_type(0) != ov::element::f16);
+    };
+    auto pass_config = manager.get_pass_config();
+    // ConvertGroupedMatMulToGroupedMatMulCompressed is registered before: keep the GroupedMatMul to be decomposed uncompressed.
+    pass_config->set_callback<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(needs_decomposition);
+    pass_config->set_callback<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>([needs_decomposition](const std::shared_ptr<const ov::Node>& node) {
+        return !needs_decomposition(node);
+    });
+    manager.register_pass<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>();
+}
 }  // namespace
 
 bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -1151,9 +1181,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        if ((!device_info.supports_immad || !config.get_use_onednn()) && !GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
-            manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
-        }
+        register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
 
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
