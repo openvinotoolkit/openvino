@@ -80,7 +80,7 @@ After setting up the OpenVINO runtime environment, run:
 
 ```sh
 ./hello_remote_tensor <path_to_model> <path_to_image> <device_name>
-./hello_remote_tensor bvlcalexnet-12.onnx dog-224x224.bmp GPU
+./hello_remote_tensor squeezenet1.1.xml dog-224x224.bmp GPU
 ```
 
 The device must be a GPU selected directly, for example `GPU`, `GPU.0` or a tile such

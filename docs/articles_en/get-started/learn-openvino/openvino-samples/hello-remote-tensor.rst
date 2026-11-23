@@ -76,7 +76,7 @@ For example:
 
 .. code-block:: console
 
-   hello_remote_tensor ./models/bvlcalexnet-12.onnx ./images/dog.png GPU
+   hello_remote_tensor ./models/squeezenet1.1.xml ./images/dog.png GPU` model or the ``squeezenet1.1`` IR model that is used by the smoke tests.
 
 .. note::
 
