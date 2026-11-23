@@ -5,6 +5,8 @@
 #include "test_utils.h"
 #include <iostream>
 
+#include "openvino/runtime/core.hpp"
+
 
 using namespace cldnn;
 
@@ -513,6 +515,25 @@ void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::ne
         std::cout << o.first << ":" << time << std::endl;
     }
     std::cout << std::endl;
+}
+
+
+std::string get_engine_gpu_device_name() {
+    auto& engine = get_test_engine();
+    const auto engine_uuid = engine.get_device_info().uuid;
+    ov::Core core;
+    for (const auto& device : core.get_available_devices()) {
+        if (device.rfind("GPU", 0) != 0) {
+            continue;
+        }
+        try {
+            if (core.get_property(device, ov::device::uuid).uuid == engine_uuid.uuid) {
+                return device;
+            }
+        } catch (const ov::Exception&) {
+        }
+    }
+    return "GPU";
 }
 
 }  // namespace tests

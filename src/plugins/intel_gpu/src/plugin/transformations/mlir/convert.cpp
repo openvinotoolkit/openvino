@@ -571,6 +571,7 @@ void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, c
     manager.register_pass<ReshapePattern>();
     manager.register_pass<ConcatPattern>();
     manager.register_pass<ReluPattern>();
+    manager.register_pass<GeluPattern>();
     manager.register_pass<FloorPattern>();
     manager.register_pass<UnaryEltwisePattern<v0::Abs, linalg::ElementwiseKind::abs>>();
     manager.register_pass<UnaryEltwisePattern<v0::Ceiling, linalg::ElementwiseKind::ceil>>();

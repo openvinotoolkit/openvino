@@ -14,8 +14,8 @@ namespace ov::op::internal {
 /// \brief Paged-cache complete-block plan producer for Qwen Sparse Attention (QSA).
 ///
 /// Consumes externally projected indexer queries/keys (`index_query`/`raw_index_keys`) and the per-token
-/// RoPE coefficients of the main attention (`rope_cos`/`rope_sin`), applies query RMSNorm +
-/// partial RoPE, appends raw keys, completed-block summaries and block-start RoPE rows into
+/// RoPE coefficients of the main attention (`rope_cos`/`rope_sin`), applies query RMSNorm
+/// and partial RoPE, appends raw keys, completed-block summaries and block-start RoPE rows into
 /// caller-owned paged caches addressed through the shared main-KV page table, and emits
 /// per-query selections containing ONLY complete blocks (`selected_block_indices`/`selected_block_count`,
 /// width `block_topk`). The causal tail is not represented here; the paired
@@ -55,7 +55,9 @@ public:
         size_t indexer_rotary_dim = 0;   ///< <= indexer_head_dim, even
         size_t indexer_head_dim = 0;     ///< D_idx
         float epsilon = 1e-6f;           ///< RMSNorm epsilon
-        float scale = 0.0f;  ///< positive score multiplier; 0 is resolved to 1 / sqrt(indexer_head_dim) by the op
+        float scale = 0.0f;      ///< positive score multiplier; 0 is resolved to 1 / sqrt(indexer_head_dim) by the op
+        bool query_norm = true;  ///< Query RMSNorm is fused; false is an intermediate fusion state only.
+        bool query_rope = true;  ///< Query RoPE is fused; false is an intermediate fusion state only.
     };
 
     PagedQSAIndexer() = default;
