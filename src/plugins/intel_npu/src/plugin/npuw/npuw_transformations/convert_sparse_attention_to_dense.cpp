@@ -232,8 +232,12 @@ ov::OutputVector decompose_qsa_prepare(Builder& b,
     const auto batch = b.dim(raw, 0), seq_len = b.dim(raw, 1), head_dim = b.dim(raw, 2);
 
     const auto split = b.unsq(b.sub(m.length, seq_len), 0);
-    const auto past = b.make<op::v1::ReduceSum>(b.slice(m.valid, b.i64v({0}), split, 1), b.i64v({1}), false);
+    // Only full-width reductions: a [0, split) slice is empty when a prefill chunk covers the whole
+    // prompt (split == 0), and the NPU cannot execute empty tensors. Deriving past as total - current
+    // keeps both reduction inputs non-empty ([N, S] and [N, L] with L >= 1).
+    const auto total = b.make<op::v1::ReduceSum>(m.valid, b.i64v({1}), false);
     const auto current = b.make<op::v1::ReduceSum>(b.slice(m.valid, split, b.i64v({kEnd}), 1), b.i64v({1}), false);
+    const auto past = b.sub(total, current);
     const auto num_cached = b.div(past, ratio);
     const auto pending_past = b.sub(past, b.mul(num_cached, ratio));  // past tokens of the incomplete block
     const auto pending = b.add(pending_past, current);
