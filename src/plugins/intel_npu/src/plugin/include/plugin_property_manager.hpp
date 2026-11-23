@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -29,6 +30,7 @@ public:
     PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
+                          const std::shared_ptr<const CompilerAdapterFactory>& compilerAdapterFactory,
                           Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
@@ -60,6 +62,7 @@ private:
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
+    std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;
     Logger& _logger;
 
     mutable std::mutex _mutex;
