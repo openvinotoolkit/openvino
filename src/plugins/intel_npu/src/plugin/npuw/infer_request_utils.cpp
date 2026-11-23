@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "logging.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util.hpp"
 #include "util_xarch.hpp"
@@ -52,6 +53,7 @@ void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr
     OPENVINO_ASSERT(src_tensor->get_shape()[N] == dst_tensor->get_shape()[N]);
     OPENVINO_ASSERT(src_tensor->get_shape()[H] == dst_tensor->get_shape()[H]);
     OPENVINO_ASSERT(src_tensor->get_shape()[E] == dst_tensor->get_shape()[E]);
+    OPENVINO_ASSERT(src_tensor->get_shape()[S] <= dst_tensor->get_shape()[S]);
     OPENVINO_ASSERT(src_tensor->get_element_type() == dst_tensor->get_element_type());
     OPENVINO_ASSERT(src_tensor->get_shape()[N] == 1u);
     OPENVINO_ASSERT(src_tensor->get_shape().size() == 4u);
@@ -60,14 +62,31 @@ void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr
     auto* dst_tensor_data = reinterpret_cast<uint8_t*>(dst_tensor->data());
 
     const auto num_planes = src_tensor->get_shape()[H];
+    const auto num_rows = src_tensor->get_shape()[S];
     const auto src_plane_stride = src_tensor->get_strides()[H];
     const auto dst_plane_stride = dst_tensor->get_strides()[H];
-    const auto plane_size_in_bytes = src_tensor->get_strides()[S] * src_tensor->get_shape()[S];
+    const auto src_row_stride = src_tensor->get_strides()[S];
+    const auto dst_row_stride = dst_tensor->get_strides()[S];
+    const auto row_bytes = ov::util::get_memory_size(src_tensor->get_element_type(), src_tensor->get_shape()[E]);
 
-    for (size_t i = 0; i < num_planes; ++i) {
-        std::copy_n(src_tensor_data, plane_size_in_bytes, dst_tensor_data);
-        dst_tensor_data += dst_plane_stride;
-        src_tensor_data += src_plane_stride;
+    if (src_row_stride == row_bytes && dst_row_stride == row_bytes) {
+        // Rows are packed back to back in both tensors, so a whole plane is one contiguous run
+        const auto plane_bytes = row_bytes * num_rows;
+        for (size_t i = 0; i < num_planes; ++i) {
+            dst_tensor_data = std::copy_n(src_tensor_data, plane_bytes, dst_tensor_data);
+            dst_tensor_data += dst_plane_stride - plane_bytes;
+            src_tensor_data += src_plane_stride;
+        }
+    } else {
+        for (size_t i = 0; i < num_planes; ++i) {
+            auto src_row = src_tensor_data + i * src_plane_stride;
+            auto dst_row = dst_tensor_data + i * dst_plane_stride;
+            for (size_t r = 0; r < num_rows; ++r) {
+                dst_row = std::copy_n(src_row, row_bytes, dst_row);
+                dst_row += dst_row_stride - row_bytes;
+                src_row += src_row_stride;
+            }
+        }
     }
 }
 
@@ -93,7 +112,6 @@ void ov::npuw::util::copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::
 
     const auto& src_strides = src->get_strides();
     const auto& dst_strides = dst->get_strides();
-    const auto elem_size = src->get_byte_size() / src->get_size();
 
     const auto C = src_shape[1];
     const auto H = src_shape[2];
@@ -102,7 +120,7 @@ void ov::npuw::util::copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::
     const auto IS_H = src_strides[2];
     const auto OS_H = dst_strides[2];
 
-    const size_t chunk_byte_size = W * elem_size;
+    const size_t chunk_byte_size = ov::util::get_memory_size(src->get_element_type(), W);
 
     const auto* src_p = static_cast<uint8_t*>(src->data());
     auto* dst_p = static_cast<uint8_t*>(dst->data());
