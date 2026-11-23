@@ -2282,7 +2282,7 @@ TEST(reorder_gpu, basic_convert_f8e4m3_f32_f8e4m3) {
     //  Converts entire unambiguous range of F8E4M3 numbers to FP32 and back.
     //
     //  F8E4M3 layout: sign(1) + exponent(4) + mantissa(3).
-    //  +infinity = 0x7F, -infinity = 0xFF.
+    //  +NaN = 0x7F, -NaN = 0xFF.
     //
     //  Output is expected to contain the same value as input in range of indices from 0x00 to 0xFF.
     //
@@ -2425,9 +2425,17 @@ TEST(reorder_gpu, basic_convert_f8e5m2_f32_f8e5m2) {
 
     auto output = outputs.at("reorder_f32_f8e5m2").get_memory();
     cldnn::mem_lock<ov::float8_e5m2, mem_lock_type::read> output_ptr(output, get_test_stream());
-    for (int i = 0; i < 0xFA; ++i) // Excluding ambiguous values.
+    for (int i = 0; i < 0xFA; ++i)
     {
         ASSERT_TRUE(are_equal(expected_values[i].to_bits(), output_ptr[i].to_bits()));
+    }
+    for (int i = 0xFA; i < 0xFD; ++i)
+    {
+        ASSERT_TRUE(std::isnan(output_ptr[i]) && !std::signbit(output_ptr[i]));
+    }
+    for (int i = 0xFD; i < 0x100; ++i)
+    {
+        ASSERT_TRUE(std::isnan(output_ptr[i]) && std::signbit(output_ptr[i]));
     }
 }
 
@@ -2484,7 +2492,7 @@ TEST(reorder_gpu, basic_convert_f8e8m0_f32_f8e8m0) {
 
     auto output = outputs.at("reorder_f32_f8e8m0").get_memory();
     cldnn::mem_lock<ov::float8_e8m0, mem_lock_type::read> output_ptr(output, get_test_stream());
-    for (int i = 0; i < 0xFF; ++i)
+    for (int i = 0; i < 0x100; ++i)
     {
         ASSERT_TRUE(are_equal(expected_values[i].to_bits(), output_ptr[i].to_bits()));
     }

@@ -7,6 +7,10 @@
 #ifndef OV_GPU_OCL_F8_UTILS_H
 #define OV_GPU_OCL_F8_UTILS_H
 
+inline half _f8_f32_to_f16_sat(float x) {
+    return isnan(x) ? convert_half(x) : convert_half(clamp(x, -65504.0f, 65504.0f));
+}
+
 inline uchar _f16_to_bf8_universal(half val, bool is_saturation) {
     half val_fp16 = val;
     const ushort *p = (ushort *)&val_fp16;

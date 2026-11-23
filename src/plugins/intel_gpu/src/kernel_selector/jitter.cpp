@@ -1746,7 +1746,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
             val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
             to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
-            to_type_sat = "_intel_convert_f16_to_hf8_sat(convert_half(v))";
+            to_type_sat = "_intel_convert_f16_to_hf8_sat(_f8_f32_to_f16_sat(convert_float(v)))";
             to_vector_type = "CONVERT_F8E4M3_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
             to_vector_type_sat = "CONVERT_F8E4M3_AS_UCHAR_SAT(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
             compute_type = "half";
@@ -1764,7 +1764,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_one = "_intel_convert_bf8_to_f16((uchar)0x3C)";
             val_zero = "_intel_convert_bf8_to_f16((uchar)0x0)";
             to_type = "_intel_convert_f16_to_bf8(convert_half(v))";
-            to_type_sat = "_intel_convert_f16_to_bf8_sat(convert_half(v))";
+            to_type_sat = "_intel_convert_f16_to_bf8_sat(_f8_f32_to_f16_sat(convert_float(v)))";
             to_vector_type = "CONVERT_F8E5M2_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
             to_vector_type_sat = "CONVERT_F8E5M2_AS_UCHAR_SAT(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
             compute_type = "half";
@@ -2629,7 +2629,7 @@ std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, s
     } else if (dt == Datatype::F8E5M2) {
         ret = "CONVERT_F8E5M2_AS_UCHAR(convert_" + GetType(Datatype::F16, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     } else if (dt == Datatype::F8E8M0) {
-        ret = "CONVERT_F8E8M0_AS_UCHAR(convert_" + GetType(Datatype::F16, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
+        ret = "CONVERT_F8E8M0_AS_UCHAR(convert_" + GetType(Datatype::F32, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     } else {
         ret = "convert_" + GetType(dt, vec_size) + "(" + var + ")";
     }
