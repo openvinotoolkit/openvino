@@ -328,8 +328,7 @@ std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisi
 /// DIVIDE ///
 jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host,
                                        x64::cpu_isa_t host_isa,
-                                       const std::shared_ptr<ov::Node>& node,
-                                       ov::element::Type /*exec_prc*/)
+                                       const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)),
       m_pythondiv(ov::as_type_ptr<ov::op::v1::Divide>(node)->is_pythondiv()) {}
 jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
@@ -745,9 +744,8 @@ std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisio
 /// SQUARED_DIFFERENCE ///
 jit_squared_difference_emitter::jit_squared_difference_emitter(x64::jit_generator_t* host,
                                                                x64::cpu_isa_t host_isa,
-                                                               [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                                               ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+                                                               const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
 jit_squared_difference_emitter::jit_squared_difference_emitter(x64::jit_generator_t* host,
                                                                x64::cpu_isa_t host_isa,
                                                                ov::element::Type exec_prc)
@@ -1044,8 +1042,7 @@ size_t i32_compare_aux_vecs_count(x64::cpu_isa_t isa) {
 /// EQUAL ///
 jit_equal_emitter::jit_equal_emitter(x64::jit_generator_t* host,
                                      x64::cpu_isa_t host_isa,
-                                     const std::shared_ptr<ov::Node>& node,
-                                     [[maybe_unused]] ov::element::Type exec_prc)
+                                     const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
@@ -1132,8 +1129,7 @@ size_t jit_equal_emitter::aux_vecs_count() const {
 /// NOT_EQUAL ///
 jit_not_equal_emitter::jit_not_equal_emitter(x64::jit_generator_t* host,
                                              x64::cpu_isa_t host_isa,
-                                             const std::shared_ptr<ov::Node>& node,
-                                             [[maybe_unused]] ov::element::Type exec_prc)
+                                             const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
@@ -1222,8 +1218,7 @@ size_t jit_not_equal_emitter::aux_vecs_count() const {
 /// GREATER ///
 jit_greater_emitter::jit_greater_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
-                                         const std::shared_ptr<ov::Node>& node,
-                                         [[maybe_unused]] ov::element::Type exec_prc)
+                                         const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
@@ -1312,8 +1307,7 @@ size_t jit_greater_emitter::aux_vecs_count() const {
 /// GREATER_EQUAL ///
 jit_greater_equal_emitter::jit_greater_equal_emitter(x64::jit_generator_t* host,
                                                      x64::cpu_isa_t host_isa,
-                                                     const std::shared_ptr<ov::Node>& node,
-                                                     [[maybe_unused]] ov::element::Type exec_prc)
+                                                     const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
@@ -1402,8 +1396,7 @@ size_t jit_greater_equal_emitter::aux_vecs_count() const {
 /// LESS ///
 jit_less_emitter::jit_less_emitter(x64::jit_generator_t* host,
                                    x64::cpu_isa_t host_isa,
-                                   const std::shared_ptr<ov::Node>& node,
-                                   [[maybe_unused]] ov::element::Type exec_prc)
+                                   const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
@@ -1489,8 +1482,7 @@ size_t jit_less_emitter::aux_vecs_count() const {
 /// LESS_EQUAL ///
 jit_less_equal_emitter::jit_less_equal_emitter(x64::jit_generator_t* host,
                                                x64::cpu_isa_t host_isa,
-                                               const std::shared_ptr<ov::Node>& node,
-                                               [[maybe_unused]] ov::element::Type exec_prc)
+                                               const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }

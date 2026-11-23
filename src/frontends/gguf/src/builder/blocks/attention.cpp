@@ -59,6 +59,7 @@ std::string attention(GraphEmitter& e,
     const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
     // Qwen35 packs Q and the output gate into one interleaved attn_q_gate projection.
     const bool joint_q_gate = cfg.interleaved_q_gate;
+    bool shared_v = false;
 
     // Q/K/V projection weights. Fused-QKV archs (phi-3, minicpm) carry a single attn_qkv weight;
     // split it into separate q/k/v weights so the rest of the layer is architecture-agnostic.
@@ -76,8 +77,10 @@ std::string attention(GraphEmitter& e,
             // head_count_kv==1 and no separate attn_v.weight; V reuses K's extracted tensors.
             if (e.has_weight(p + "attn_v.weight"))
                 e.add_weight(p + "attn_v.weight");
-            else
+            else {
                 e.add_weight_from(p + "attn_v.weight", p + "attn_k");
+                shared_v = true;
+            }
         }
     }
     std::string q, gate;
@@ -127,7 +130,7 @@ std::string attention(GraphEmitter& e,
     if (cfg.has_qk_norm && !cfg.qk_norm_full && !cfg.qk_norm_after_rope)
         qk_norm();
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
-    if (cfg.has_v_norm && has_own_kv)
+    if ((cfg.has_v_norm || (cfg.arch == "dflash" && shared_v)) && has_own_kv)
         v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
 
     // RoPE. rope_freqs.weight (per-dim frequency factor) is an optional 3rd input.
