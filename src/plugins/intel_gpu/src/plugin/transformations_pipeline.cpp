@@ -129,6 +129,7 @@
 #include "intel_gpu/op/fully_connected.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/normalize_interpolate_rank3.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/remove_fq_before_dw_conv.hpp"
@@ -2175,6 +2176,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
         manager.register_pass<ov::pass::EliminatePad>();
 
+        manager.register_pass<ov::intel_gpu::NormalizeInterpolateRank3>();
         manager.register_pass<ov::pass::ConstantsReduce>();
         manager.register_pass<ov::pass::MultiScaleDeformableAttnGridSampleFusion>();
 
