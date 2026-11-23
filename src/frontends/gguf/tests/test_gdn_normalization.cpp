@@ -16,7 +16,9 @@ using namespace ov::op;
 enum class QkSlices { Adjacent, Offset, Gap, Strided, SeparateSources, ExplicitShape };
 class GGUFQkNormalization : public testing::TestWithParam<QkSlices> {};
 
+// eps^2 underflows to a subnormal, so the translator keeps ggml's explicit normalization.
 TEST_P(GGUFQkNormalization, PreservesIndependentRowsAndClamp) {
+    constexpr float eps = 1e-20f;
     constexpr int64_t batch = 2, heads = 2, width = 4, features = 4 * heads * width;
     const auto layout = GetParam();
     const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{batch, 1, -1, features});
@@ -56,7 +58,7 @@ TEST_P(GGUFQkNormalization, PreservesIndependentRowsAndClamp) {
                                               {"state", ov::element::f32, {batch, heads, width, width}}},
         std::vector<ov_gguf_test::TensorDesc>{},
         ov_gguf_test::TensorDesc{"out", ov::element::f32, qkv_shape},
-        std::map<std::string, ov::Any>{{"split_outputs", true}, {"fuse_qk_l2norm", true}, {"qk_l2_norm_eps", 1e-6f}});
+        std::map<std::string, ov::Any>{{"split_outputs", true}, {"fuse_qk_l2norm", true}, {"qk_l2_norm_eps", eps}});
     auto values = std::make_shared<ov::frontend::gguf::TensorMap>();
     for (const auto& entry : decoder->get_model_inputs())
         values->emplace(entry.first, entry.second);
@@ -66,6 +68,9 @@ TEST_P(GGUFQkNormalization, PreservesIndependentRowsAndClamp) {
     const auto outputs = ov::frontend::gguf::op::translate_gated_delta_net(context);
     const auto gdn = ov::as_type_ptr<internal::GatedDeltaNet>(outputs[0].get_node_shared_ptr());
     ASSERT_NE(gdn, nullptr);
+    EXPECT_FALSE(gdn->get_fuse_qk_l2norm());
+    EXPECT_GT(gdn->get_q_l2_norm_eps(), 0.f);
+    EXPECT_GT(gdn->get_k_l2_norm_eps(), 0.f);
     const bool joined = layout == QkSlices::Adjacent || layout == QkSlices::Offset;
     EXPECT_EQ(ov::is_type<v1::Split>(gdn->get_input_node_shared_ptr(0)), joined);
     if (joined) {
@@ -76,7 +81,7 @@ TEST_P(GGUFQkNormalization, PreservesIndependentRowsAndClamp) {
     const auto model =
         std::make_shared<ov::Model>(ov::OutputVector{gdn->input_value(0), gdn->input_value(1), q}, parameters);
     const auto reference = std::make_shared<ov::Model>(
-        ov::OutputVector{ov::frontend::gguf::make_l2_norm(q, 1e-6f), ov::frontend::gguf::make_l2_norm(k, 1e-6f), q},
+        ov::OutputVector{ov::frontend::gguf::make_l2_norm(q, eps), ov::frontend::gguf::make_l2_norm(k, eps), q},
         parameters);
     ov::Core core;
     auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
@@ -114,5 +119,32 @@ INSTANTIATE_TEST_SUITE_P(GGUFOps,
                                          QkSlices::Strided,
                                          QkSlices::SeparateSources,
                                          QkSlices::ExplicitShape));
+
+TEST(GGUFOps, GatedDeltaNetFusesQkNormWithSquaredEps) {
+    const ov::PartialShape qkv_shape{1, -1, 2, 4}, gate_shape{1, -1, 2, 1};
+    const auto decoder = std::make_shared<ov_gguf_test::SingleOpDecoder>(
+        "GGML_OP_GATED_DELTA_NET",
+        std::vector<ov_gguf_test::TensorDesc>{{"q", ov::element::f32, qkv_shape},
+                                              {"k", ov::element::f32, qkv_shape},
+                                              {"v", ov::element::f32, qkv_shape},
+                                              {"g", ov::element::f32, gate_shape},
+                                              {"beta", ov::element::f32, gate_shape},
+                                              {"state", ov::element::f32, {1, 2, 4, 4}}},
+        std::vector<ov_gguf_test::TensorDesc>{},
+        ov_gguf_test::TensorDesc{"out", ov::element::f32, qkv_shape},
+        std::map<std::string, ov::Any>{{"split_outputs", true}, {"fuse_qk_l2norm", true}, {"qk_l2_norm_eps", 1e-6f}});
+    auto values = std::make_shared<ov::frontend::gguf::TensorMap>();
+    for (const auto& entry : decoder->get_model_inputs())
+        values->emplace(entry.first, entry.second);
+    const ov::frontend::gguf::NodeContext context(decoder, values);
+    const auto outputs = ov::frontend::gguf::op::translate_gated_delta_net(context);
+    const auto gdn = ov::as_type_ptr<internal::GatedDeltaNet>(outputs[0].get_node_shared_ptr());
+    ASSERT_NE(gdn, nullptr);
+    EXPECT_TRUE(gdn->get_fuse_qk_l2norm());
+    EXPECT_FLOAT_EQ(gdn->get_q_l2_norm_eps(), 1e-12f);
+    EXPECT_FLOAT_EQ(gdn->get_k_l2_norm_eps(), 1e-12f);
+    EXPECT_EQ(gdn->input_value(0), values->at("q"));
+    EXPECT_EQ(gdn->input_value(1), values->at("k"));
+}
 
 }  // namespace
