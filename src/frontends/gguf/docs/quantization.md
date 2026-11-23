@@ -120,11 +120,14 @@ horizontal fusion without changing plugins; all-ternary projection groups remain
 
 ## Experimental Raw GPU Loading
 
-`OV_GGUF_NATIVE_WEIGHTS=1` opts the file-based FrontEnd loader into preserving Q4_K,
-Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1 blocks. This also applies to GenAI with `GGUF_READER="FRONTEND"`.
-The variable is an internal experimental control, not a stable FrontEnd property or
-GenAI configuration option. Unset or `0` retains the default decomposed representation;
-other values are rejected. Use a matching runtime/frontend/GPU build, not an older install.
+The boolean `ov::hint::gguf_native_weights` property (`GGUF_NATIVE_WEIGHTS`) opts the
+file-based FrontEnd loader into preserving Q4_K, Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1 blocks.
+Pass it per load with `frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)})`.
+It defaults to false and does not affect other loads. The former
+`OV_GGUF_NATIVE_WEIGHTS` environment variable is no longer read.
+In GenAI, pass `GGUF_READER="FRONTEND", GGUF_NATIVE_WEIGHTS=True` to the pipeline;
+the legacy reader does not accept this property. This is a loading property, not a
+device compilation property. Use a matching runtime/frontend/GPU build, not an older install.
 
 The internal `GGUFLoadOptions` fields select raw formats independently and default
 to false; the existing `GGUFLoadOptions{true}` still selects only Q4_K. A preserved tensor
@@ -136,7 +139,7 @@ element/byte counts apply before creating a view. Other formats retain their def
 The appended `preserve_q3_k` field additionally permits explicit internal file-to-FC
 loading of Q3_K (GGUF type 11, 110 bytes per 256 values). The existing OCL FC reads its
 raw blocks; default large-M prefill can transcode to F16. Q3_K has no raw Gather, SG or
-CM implementation and is not added to the environment variable's six-format selection.
+CM implementation and is not added to the property's six-format selection.
 Its file regression checks F32/F16 inference, shuffle on/off without selecting SG,
 dynamic input rebinding and actual raw/transcode stages against existing ggml fixtures.
 Unsupported GetRows and other raw consumers remain rejected. This is not a full Q3_K

@@ -2022,6 +2022,54 @@ TEST_F(GGUFShards, RejectsUnrelatedModelsAndEmptyLists) {
     OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{}), ov::Exception, testing::HasSubstr("empty"));
 }
 
+TEST_F(GGUFShards, NativeWeightsPropertyIsScopedToEachLoad) {
+    GgufWriter writer;
+    writer.kv_str("general.architecture", "qwen3");
+    writer.kv_u32("qwen3.block_count", 1);
+    writer.kv_u32("qwen3.embedding_length", 32);
+    writer.kv_u32("qwen3.attention.head_count", 2);
+    writer.kv_u32("qwen3.attention.head_count_kv", 1);
+    writer.kv_u32("qwen3.rope.dimension_count", 16);
+    writer.kv_u32("qwen3.context_length", 32);
+    writer.kv_f32("qwen3.attention.layer_norm_rms_epsilon", 1e-5f);
+    const std::vector<std::pair<std::string, std::vector<uint64_t>>> tensors{
+        {"token_embd.weight", {32, 16}}, {"output_norm.weight", {32}},
+        {"blk.0.attn_norm.weight", {32}}, {"blk.0.attn_k.weight", {32, 16}},
+        {"blk.0.attn_v.weight", {32, 16}}, {"blk.0.attn_output.weight", {32, 32}},
+        {"blk.0.attn_q_norm.weight", {16}}, {"blk.0.attn_k_norm.weight", {16}},
+        {"blk.0.ffn_norm.weight", {32}}, {"blk.0.ffn_gate.weight", {32, 12}},
+        {"blk.0.ffn_up.weight", {32, 12}}, {"blk.0.ffn_down.weight", {12, 32}},
+    };
+    for (const auto& [name, shape] : tensors) {
+        writer.filled_tensor(name, shape, name.find("norm") != std::string::npos);
+    }
+    std::vector<uint8_t> payload(32 * 34, 1);
+    for (size_t block = 0; block < 32; ++block) {
+        payload[block * 34] = 0;
+        payload[block * 34 + 1] = 0x3c;
+    }
+    writer.raw_tensor("blk.0.attn_q.weight", {32, 32}, GGUF_TYPE_Q8_0, payload);
+    const auto model_path = m_base + ".gguf";
+    m_paths.push_back(model_path);
+    ASSERT_TRUE(writer.write(model_path));
+    FrontEnd frontend;
+    for (bool enabled : {false, true, false}) {
+        const auto model = frontend.convert(frontend.load(model_path, ov::AnyMap{ov::hint::gguf_native_weights(enabled)}));
+        size_t raw_constants = 0;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (node->get_output_size() && node->get_output_element_type(0).is_gguf_block()) {
+                EXPECT_TRUE(ov::is_type<ov::op::v0::Constant>(node));
+                EXPECT_EQ(node->get_output_element_type(0), ov::element::gguf_q8_0);
+                ++raw_constants;
+            }
+        }
+        EXPECT_EQ(raw_constants, enabled ? 1u : 0u);
+    }
+    EXPECT_NO_THROW(frontend.convert(frontend.load(model_path)));
+    EXPECT_THROW(frontend.load(model_path, ov::AnyMap{{"GGUF_NATIVE_WEIGHTS", "invalid"}}), ov::Exception);
+    EXPECT_THROW(frontend.load(model_path, ov::AnyMap{{"UNKNOWN_GGUF_PROPERTY", true}}), ov::Exception);
+}
+
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
     GgufWriter complete;
     GgufWriter first;
@@ -2078,6 +2126,10 @@ TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs)
         {std::vector<std::string>{path(1), path(0)}, true},
         {path(0), path(1)},
         {std::vector<std::filesystem::path>{path(1), path(0)}},
+        {reference_path, ov::AnyMap{ov::hint::gguf_native_weights(false)}},
+        {path(0), ov::AnyMap{ov::hint::gguf_native_weights(true)}, true},
+        {std::vector<std::filesystem::path>{path(1), path(0)}, true,
+         ov::AnyMap{ov::hint::gguf_native_weights(true)}},
     };
     for (const auto& representation : representations) {
         EXPECT_TRUE(frontend.supported(representation));
