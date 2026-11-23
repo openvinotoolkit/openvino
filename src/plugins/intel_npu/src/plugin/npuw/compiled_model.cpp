@@ -243,18 +243,22 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
         if (device_properties.end() == properties_it) {
-            device_properties[device_name] = core->get_supported_property(device_name, properties);
+            const bool is_npu = ov::npuw::util::starts_with(device_name, "NPU");
+            // The DEVICE_ID this plugin was given names an NPU device. The other
+            // devices take theirs from their names in NPUW_DEVICES.
+            auto own_properties = properties;
+            if (!is_npu) {
+                own_properties.erase(ov::device::id.name());
+            }
+            device_properties[device_name] = core->get_supported_property(device_name, own_properties);
 
             // Do extra handling for the private NPU options
-            if (ov::npuw::util::starts_with(device_name, "NPU")) {
+            if (is_npu) {
                 for (auto&& opt : properties) {
                     if (ov::npuw::util::starts_with(opt.first, "NPU")) {
                         device_properties[device_name][opt.first] = opt.second;
                     }
                 }
-            } else {
-                // The DEVICE_ID this plugin was given names an NPU device.
-                device_properties[device_name].erase(ov::device::id.name());
             }  // if(NPU)
         }
     }
