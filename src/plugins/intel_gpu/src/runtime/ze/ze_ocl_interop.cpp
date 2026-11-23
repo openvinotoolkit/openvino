@@ -29,6 +29,26 @@ inline void expect_success(cl_int error, void *handle, const std::string& messag
     }
 }
 
+bool supports_interop(cl_device_id device) {
+    size_t size = 0;
+    if (clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, nullptr, &size) != CL_SUCCESS || size == 0) {
+        return false;
+    }
+    std::vector<char> extensions(size);
+    if (clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, size, extensions.data(), nullptr) != CL_SUCCESS ||
+        extensions.back() != '\0') {
+        return false;
+    }
+    std::istringstream extension_list(extensions.data());
+    std::string extension;
+    while (extension_list >> extension) {
+        if (extension == "cl_intel_level_zero_interop") {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<cl_device_id> find_ocl_devices() {
     cl_int error;
     cl_uint numPlatforms = 0;
@@ -112,6 +132,9 @@ void ze_ocl_interop::init() {
         _device_map[ze_device.second] = nullptr;
     }
     for (auto &ocl_device : ocl_devices) {
+        if (!supports_interop(ocl_device)) {
+            continue;
+        }
         ze_device_handle_t ze_dev = nullptr;
         try {
             ze_dev = get_ze_device(ocl_device);
