@@ -31,14 +31,14 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     // Constrain input matrix B to T2 type (int8 tensor, uint8 tensor)
     auto element_type_B = B.get_element_type();
     CHECK_VALID_NODE(node,
-                     element_type_B == ov::element::u8 || element_type_B == ov::element::i8,
+                     element_type_B.compatible(ov::element::u8) || element_type_B.compatible(ov::element::i8),
                      "Unsupported input B type, accepted UINT8, INT8 but got: ",
                      element_type_B);
 
     // Constrain input b_scale to T1 type (float tensor)
     auto element_type_b_scale = b_scale.get_element_type();
     CHECK_VALID_NODE(node,
-                     element_type_b_scale == ov::element::f32,
+                     element_type_b_scale.compatible(ov::element::f32),
                      "Unsupported input b_scale type, accepted FP32 but got: ",
                      element_type_b_scale);
 
@@ -48,7 +48,8 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
         b_zero_point = inputs[3];
         auto element_type_b_zero_point = b_zero_point.get_element_type();
         CHECK_VALID_NODE(node,
-                         element_type_b_zero_point == ov::element::u8 || element_type_b_zero_point == ov::element::i8,
+                         element_type_b_zero_point.compatible(ov::element::u8) ||
+                             element_type_b_zero_point.compatible(ov::element::i8),
                          "Unsupported input b_zero_point type, accepted UINT8, INT8 but got: ",
                          element_type_b_zero_point);
     }
@@ -58,7 +59,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
         bias = inputs[4];
         auto element_type_bias = bias.get_element_type();
         CHECK_VALID_NODE(node,
-                         element_type_bias == ov::element::f32,
+                         element_type_bias.compatible(ov::element::f32),
                          "Unsupported input bias type, accepted FP32 but got: ",
                          element_type_bias);
     }
