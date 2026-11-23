@@ -732,9 +732,12 @@ jobs:
 
       - name: Run GPU unit tests
         env:
+          NEO_CACHE_PERSISTENT: '1'
           GPU_TEST_FILTER: '-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*:*sdpa_gpu_sink_test.matches_independent_reference*:*permute_f_y_axes_tile.combined/InputShape=(16.32.128.512)*:*fusings_gpu/conv_fp32_multi_eltwise_quantization.basic/1:*cpu_impls/activation_random_test.random/2:*smoke/moe_3gemm_compressed_gpu_random.moe_accuracy_test_random/10'
         run: |
           . "$env:INSTALL_DIR\setupvars.ps1"
+          $env:NEO_CACHE_DIR = Join-Path $env:LOCALAPPDATA 'OpenVINO\ptl-compiler-cache'
+          New-Item -ItemType Directory -Force -Path $env:NEO_CACHE_DIR | Out-Null
           if (Test-Path -LiteralPath $env:TEST_RESULTS_DIR) {
             Remove-Item -LiteralPath $env:TEST_RESULTS_DIR -Recurse -Force
           }
@@ -742,7 +745,7 @@ jobs:
           if (-not (Test-Path -LiteralPath $env:PARALLEL_TEST_CACHE)) {
             New-Item -ItemType File -Path $env:PARALLEL_TEST_CACHE | Out-Null
           }
-          python "$env:PARALLEL_TEST_SCRIPT" -e "$env:INSTALL_TEST_DIR\ov_gpu_unit_tests.exe" -c "$env:PARALLEL_TEST_CACHE" -w "$env:TEST_RESULTS_DIR" -s suite -rf 0 --process_timeout 5400 -- --gtest_print_time=1 --report_unique_name "--gtest_filter=$env:GPU_TEST_FILTER"
+          python "$env:PARALLEL_TEST_SCRIPT" -e "$env:INSTALL_TEST_DIR\ov_gpu_unit_tests.exe" -c "$env:PARALLEL_TEST_CACHE" -w "$env:TEST_RESULTS_DIR" -j 4 -s suite -rf 0 --process_timeout 5400 -- --gtest_print_time=1 --report_unique_name "--gtest_filter=$env:GPU_TEST_FILTER"
         timeout-minutes: 500
 
       - name: Save tests execution time
