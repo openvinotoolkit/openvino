@@ -42,6 +42,7 @@ struct GgufOp {
 struct GgufGraph {
     std::string architecture;
     std::string component;
+    ov::AnyMap model_rt_info;
     ModelContract model_contract;
     ModelAdapters model_adapters;
     std::vector<GgufOp> nodes;

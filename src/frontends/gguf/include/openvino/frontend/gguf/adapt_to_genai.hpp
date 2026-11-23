@@ -54,8 +54,7 @@ public:
     /// embeddings (Gemma4 E2B/E4B) move to a separate lookup model and become the
     /// per_layer_inputs [B,T,layers,width] input; Gemma3 and other Gemma4 models take
     /// token_type_ids [B,T] for bidirectional attention within each image. M-RoPE models
-    /// receive position_ids [4,B,T], containing GenAI's sequence/time/height/width sections;
-    /// callers supply all sections.
+    /// receive position_ids [3,B,T] or [4,B,T], depending on the model's layout.
     /// EMBEDS_TO_LOGITS_TEXT uses scalar text position_ids [B,T], including for M-RoPE models.
     enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS, EMBEDS_TO_LOGITS_TEXT };
 
@@ -63,7 +62,7 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
-    /// Raw token lookup extracted by EMBEDS_TO_LOGITS, sharing the original weight buffers.
+    /// Raw token lookup extracted by either embedding mode, sharing the original weight buffers.
     /// Available after a successful run; inputs input_ids [B,T], output inputs_embeds [B,T,D].
     const std::shared_ptr<ov::Model>& get_embedding_model() const {
         return m_embedding_model;
@@ -99,8 +98,8 @@ struct GenAIAdaptOptions {
 ///     auto language = models.at("language");
 ///
 /// A decoder is made stateful (GGUFMakeStateful) and adapted (AdaptToGenAI). It returns
-/// "language" and, for EMBEDS_TO_LOGITS, "text_embeddings" plus "text_embeddings_per_layer" when the
-/// architecture has per-layer token embeddings.
+/// "language" and, for either embedding mode, "text_embeddings" plus "text_embeddings_per_layer"
+/// when the architecture has per-layer token embeddings.
 /// A decoder loaded with LoadOptions::include_mtp_draft also returns "mtp_draft" when
 /// the file contains a supported NextN block. The returned models share weight buffers.
 ///
