@@ -31,7 +31,7 @@ public:
     }
 
     std::optional<uint64_t> get_id() const noexcept override {
-        return m_descriptor ? std::optional<uint64_t>{m_descriptor->get_id()} : std::nullopt;
+        return m_id;
     }
 
     virtual ~SharedBufferBase() {
@@ -56,6 +56,25 @@ protected:
     template <typename U>
     static constexpr bool is_buffer_ptr_v = is_buffer_ptr<U>::value;
 
+    // Source ID and root-relative offset of [data, data + size) when not given by a descriptor.
+    static std::optional<uint64_t> source_id(const T& object) noexcept {
+        if constexpr (is_buffer_ptr_v<T>) {
+            if (object) {
+                return object->get_id();
+            }
+        }
+        return std::nullopt;
+    }
+
+    static size_t source_offset(const T& object, const std::byte* data) noexcept {
+        if constexpr (is_buffer_ptr_v<T>) {
+            if (object && data >= object->data() && data <= object->data() + object->size()) {
+                return object->get_properties().offset + static_cast<size_t>(data - object->data());
+            }
+        }
+        return 0;
+    }
+
     // The offset is relative to the root source buffer, so it is forwarded to the parents unchanged.
     virtual void hint_evict(size_t offset, size_t size) noexcept override {
         if constexpr (is_buffer_ptr_v<T>) {
@@ -65,7 +84,7 @@ protected:
                     mapped->hint_evict(offset, size);
                 } else if (auto* aligned = dynamic_cast<ov::AlignedBuffer*>(object)) {
                     invoke_evict(*aligned, offset, size);
-                } else if (offset == 0 && size == object->size()) {
+                } else if (offset == object->get_properties().offset && size == object->size()) {
                     object->hint_evict();  // only whole-buffer hints are available
                 }
             }
@@ -80,7 +99,7 @@ protected:
                     return mapped->hint_prefetch_async(offset, size);
                 } else if (auto* aligned = dynamic_cast<ov::AlignedBuffer*>(object)) {
                     return invoke_hint_prefetch_async(*aligned, offset, size);
-                } else if (offset == 0 && size == object->size()) {
+                } else if (offset == object->get_properties().offset && size == object->size()) {
                     return object->hint_prefetch();  // only whole-buffer hints are available
                 }
             }
@@ -113,7 +132,8 @@ protected:
                   return std::shared_ptr<IBufferDescriptor>{};
               }
           }()},
-          m_properties{m_descriptor ? m_descriptor->get_offset() : size_t{0}} {
+          m_properties{m_descriptor ? m_descriptor->get_offset() : source_offset(shared_object, data)},
+          m_id{descriptor ? std::optional<uint64_t>{descriptor->get_id()} : std::nullopt} {
         m_aligned_buffer = data;
         m_byte_size = size;
     }
@@ -121,7 +141,9 @@ protected:
     SharedBufferBase(std::byte* data, size_t size, const T& shared_object)
         : m_shared_object{shared_object},
           m_source_buffer{},
-          m_descriptor{} {
+          m_descriptor{},
+          m_properties{source_offset(shared_object, data)},
+          m_id{source_id(shared_object)} {
         m_aligned_buffer = data;
         m_byte_size = size;
     }
@@ -134,6 +156,7 @@ protected:
     std::shared_ptr<ov::AlignedBuffer> m_source_buffer;
     std::shared_ptr<IBufferDescriptor> m_descriptor;
     util::MemoryProperties m_properties;
+    std::optional<uint64_t> m_id;
 };
 
 template <typename T>
@@ -162,7 +185,9 @@ public:
         : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
 
     SharedBuffer(std::byte* data, size_t size, const T& shared_object)
-        : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}
+        : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {
+        this->m_id = SharedBufferBase<T>::source_id(shared_object);
+    }
 
     SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
         : SharedBuffer(reinterpret_cast<std::byte*>(data), size, shared_object, descriptor) {}
