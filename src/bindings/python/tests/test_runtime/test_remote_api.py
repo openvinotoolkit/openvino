@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import ctypes
+import math
 import mmap
 import os
 import pytest
@@ -134,6 +135,39 @@ def test_create_tensor_from_host_address_gpu(device, to_address):
     )
     result = ov.Tensor(ov.Type.f32, ov.Shape(expected.shape))
     tensor.copy_to(result)
+
+    assert np.array_equal(result.data, expected)
+
+
+@pytest.mark.skipif(
+    "GPU" not in os.environ.get("TEST_DEVICE", ""),
+    reason="Test can be only performed on GPU device!",
+)
+def test_cpu_va_tensor_params_round_trip_gpu(device):
+    core = ov.Core()
+    context = core.get_default_context(device)
+    cacheline_size = core.get_property(device, "GPU_CACHELINE_SIZE")
+    # Imported host memory has to be a multiple of the cacheline (OpenCL) and of the page size (Level Zero)
+    expected = np.arange(math.lcm(cacheline_size, mmap.PAGESIZE) // 4, dtype=np.float32)
+    buffer = page_aligned_array(expected.shape, np.float32)
+    buffer[:] = expected
+
+    tensor = context.create_tensor(
+        ov.Type.f32,
+        ov.Shape(expected.shape),
+        {"SHARED_MEM_TYPE": "CPU_VA", "CPU_VA": buffer.ctypes.data, "CPU_VA_SIZE": buffer.nbytes},
+    )
+
+    # get_params() must expose everything create_tensor() needs to wrap the same memory again,
+    # including the buffer size and access mode, not only the address.
+    params = tensor.get_params()
+    assert params["CPU_VA_SIZE"].value == buffer.nbytes
+    # The tensor was created without CPU_VA_ACCESS, so the default READ_WRITE mode must be reported
+    assert params["CPU_VA_ACCESS"].astype(str) == "READ_WRITE"
+
+    alias = context.create_tensor(ov.Type.f32, ov.Shape(expected.shape), params)
+    result = ov.Tensor(ov.Type.f32, ov.Shape(expected.shape))
+    alias.copy_to(result)
 
     assert np.array_equal(result.data, expected)
 

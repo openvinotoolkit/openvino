@@ -5,6 +5,7 @@
 #ifdef OV_GPU_WITH_OCL_RT
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -745,6 +746,119 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(ov_with_auto_batching),
         ::testing::ValuesIn(ov_dynamic)),
         OVRemoteTensorInputBlob_Test::getTestCaseName);
+
+TEST(OVRemoteTensorTests, smoke_cpuVaTensorParamsRoundTrip) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+
+    // CPU_VA memory has to be cacheline aligned and its size a multiple of the cacheline, page alignment satisfies both
+    const auto page_size = static_cast<size_t>(ov::util::get_system_page_size());
+    ASSERT_GT(page_size, 0u);
+    const ov::Shape shape{page_size / sizeof(float)};
+    const size_t element_count = ov::shape_size(shape);
+    const size_t byte_size = element_count * sizeof(float);
+
+    void* ptr = ov::util::aligned_alloc(byte_size, page_size);
+    ASSERT_NE(ptr, nullptr);
+    auto* data = static_cast<float*>(ptr);
+    for (size_t i = 0; i < element_count; ++i) {
+        data[i] = static_cast<float>(i);
+    }
+
+    {
+        const ov::AnyMap params{{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
+                                {ov::intel_gpu::cpu_va.name(), static_cast<ov::intel_gpu::gpu_handle_param>(ptr)},
+                                {ov::intel_gpu::cpu_va_size.name(), static_cast<int64_t>(byte_size)},
+                                {ov::intel_gpu::cpu_va_access.name(), ov::intel_gpu::AccessMode::READ}};
+        auto tensor = context.create_tensor(ov::element::f32, shape, params);
+
+        // get_params() must expose everything create_tensor() needs to wrap the same memory again:
+        // not only the address, but also the buffer size (mandatory for create_tensor) and the access mode.
+        const auto reported = tensor.get_params();
+        ASSERT_EQ(reported.count(ov::intel_gpu::cpu_va.name()), 1u);
+        ASSERT_EQ(reported.count(ov::intel_gpu::cpu_va_size.name()), 1u);
+        ASSERT_EQ(reported.count(ov::intel_gpu::cpu_va_access.name()), 1u);
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va.name()).as<ov::intel_gpu::gpu_handle_param>(), ptr);
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va_size.name()).as<int64_t>(), static_cast<int64_t>(byte_size));
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va_access.name()).as<ov::intel_gpu::AccessMode>(),
+                  ov::intel_gpu::AccessMode::READ);
+
+        auto alias = context.create_tensor(ov::element::f32, shape, reported);
+        ov::Tensor host(ov::element::f32, shape);
+        alias.copy_to(host);
+        const auto* host_data = host.data<float>();
+        for (size_t i = 0; i < element_count; ++i) {
+            ASSERT_FLOAT_EQ(host_data[i], static_cast<float>(i)) << "Mismatch at index " << i;
+        }
+    }
+
+    ov::util::aligned_free(ptr);
+}
+
+TEST(OVRemoteTensorTests, smoke_cpuVaTensorDerivedSizeRoundTripReusesBuffer) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+
+    const auto page_size = static_cast<size_t>(ov::util::get_system_page_size());
+    ASSERT_GT(page_size, 0u);
+    const ov::Shape shape{page_size / sizeof(float)};
+
+    void* ptr = ov::util::aligned_alloc(page_size, page_size);
+    ASSERT_NE(ptr, nullptr);
+
+    {
+        // Size -1 means "derive from the tensor shape"; the access mode is left at its READ_WRITE default
+        const ov::AnyMap params{{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
+                                {ov::intel_gpu::cpu_va.name(), static_cast<ov::intel_gpu::gpu_handle_param>(ptr)},
+                                {ov::intel_gpu::cpu_va_size.name(), static_cast<int64_t>(-1)}};
+        auto tensor = context.create_tensor(ov::element::f32, shape, params);
+
+        const auto reported = tensor.get_params();
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va_size.name()).as<int64_t>(), static_cast<int64_t>(page_size));
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va_access.name()).as<ov::intel_gpu::AccessMode>(), ov::intel_gpu::AccessMode::READ_WRITE);
+
+        // Wrapping the same memory again with the reported (explicit) size must reuse the already imported buffer
+        // instead of importing the same host memory into a second buffer.
+        auto alias = context.create_tensor(ov::element::f32, shape, reported);
+        EXPECT_EQ(alias.get_params().at(ov::intel_gpu::mem_handle.name()).as<ov::intel_gpu::gpu_handle_param>(),
+                  reported.at(ov::intel_gpu::mem_handle.name()).as<ov::intel_gpu::gpu_handle_param>());
+    }
+
+    ov::util::aligned_free(ptr);
+}
+
+TEST(OVRemoteTensorTests, smoke_cpuVaTensorEmptyShapeReportsImportedSize) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+
+    const auto page_size = static_cast<size_t>(ov::util::get_system_page_size());
+    ASSERT_GT(page_size, 0u);
+    // An empty tensor imports its memory as if the zero dimension were 1, i.e. page_size bytes here
+    const ov::Shape shape{0, page_size / sizeof(float)};
+
+    void* ptr = ov::util::aligned_alloc(page_size, page_size);
+    ASSERT_NE(ptr, nullptr);
+
+    {
+        const ov::AnyMap params{{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
+                                {ov::intel_gpu::cpu_va.name(), static_cast<ov::intel_gpu::gpu_handle_param>(ptr)},
+                                {ov::intel_gpu::cpu_va_size.name(), static_cast<int64_t>(-1)}};
+        auto first = context.create_tensor(ov::element::f32, shape, params);
+        // The second tensor is served from the memory cache and must report the same imported size
+        auto second = context.create_tensor(ov::element::f32, shape, params);
+        for (const auto& tensor : {first, second}) {
+            EXPECT_EQ(tensor.get_params().at(ov::intel_gpu::cpu_va_size.name()).as<int64_t>(), static_cast<int64_t>(page_size));
+        }
+
+        // The reported parameters must be usable to wrap the memory again
+        ov::RemoteTensor alias;
+        OV_ASSERT_NO_THROW(alias = context.create_tensor(ov::element::f32, shape, second.get_params()));
+        EXPECT_EQ(alias.get_params().at(ov::intel_gpu::mem_handle.name()).as<ov::intel_gpu::gpu_handle_param>(),
+                  first.get_params().at(ov::intel_gpu::mem_handle.name()).as<ov::intel_gpu::gpu_handle_param>());
+    }
+
+    ov::util::aligned_free(ptr);
+}
 
 TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
 #if defined(ANDROID)
@@ -2637,6 +2751,63 @@ TEST(RemoteTensor, smoke_CopyToEmptyTensor) {
                                   ov::Exception,
                                   "Check '_impl != nullptr' failed");
 }
+
+using SubByteTensorParams = std::tuple<ov::element::Type, ov::Shape>;
+
+struct RemoteTensorSubByteStrides : ::testing::TestWithParam<SubByteTensorParams> {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<SubByteTensorParams>& obj) {
+        const auto& [et, shape] = obj.param;
+        std::ostringstream name;
+        name << et;
+        for (const auto dim : shape)
+            name << "_" << dim;
+        return name.str();
+    }
+};
+
+TEST_P(RemoteTensorSubByteStrides, smoke_StridesAndCopy) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const auto& [et, shape] = GetParam();
+    auto core = ov::Core();
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    const auto is_byte_aligned = (shape.back() * et.bitwidth()) % 8 == 0;
+
+    auto remote_tensor = context.create_tensor(et, shape);
+    auto host_tensor = context.create_host_tensor(et, shape);
+    EXPECT_TRUE(remote_tensor.is_continuous());
+    EXPECT_TRUE(host_tensor.is_continuous());
+
+    if (is_byte_aligned) {
+        const auto expected_strides = ov::Tensor(et, shape).get_strides();
+        EXPECT_EQ(remote_tensor.get_strides(), expected_strides);
+        EXPECT_EQ(host_tensor.get_strides(), expected_strides);
+    } else {
+        EXPECT_TRUE(remote_tensor.get_strides().empty());
+        EXPECT_TRUE(host_tensor.get_strides().empty());
+    }
+
+    auto* src = static_cast<uint8_t*>(host_tensor.data());
+    for (size_t i = 0; i < host_tensor.get_byte_size(); ++i)
+        src[i] = static_cast<uint8_t>(i * 7 + 3);
+
+    ov::Tensor dst(et, shape);
+    OV_ASSERT_NO_THROW(host_tensor.copy_to(dst));
+    ASSERT_EQ(dst.get_byte_size(), host_tensor.get_byte_size());
+    EXPECT_EQ(0, std::memcmp(dst.data(), host_tensor.data(), dst.get_byte_size()));
+
+    ov::Tensor result(et, shape);
+    OV_ASSERT_NO_THROW(host_tensor.copy_to(remote_tensor));
+    OV_ASSERT_NO_THROW(remote_tensor.copy_to(result));
+    EXPECT_EQ(0, std::memcmp(result.data(), host_tensor.data(), result.get_byte_size()));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorSubByteStrides,
+                         RemoteTensorSubByteStrides,
+                         ::testing::Combine(::testing::Values(ov::element::u1, ov::element::u2, ov::element::u4, ov::element::i4),
+                                            ::testing::Values(ov::Shape{16}, ov::Shape{2, 3, 8}, ov::Shape{1, 4, 32}, ov::Shape{3, 5})),
+                         RemoteTensorSubByteStrides::getTestCaseName);
 
 TEST(RemoteTensor, smoke_EmptyRoiTensor) {
 #if defined(ANDROID)

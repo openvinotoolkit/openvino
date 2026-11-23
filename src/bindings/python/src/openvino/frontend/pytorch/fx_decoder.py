@@ -803,6 +803,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return max_out_id + 1
 
     def _node_name_prefix(self):
+        for module_path, _ in reversed(self.pt_module.meta.get("nn_module_stack", {}).values()):
+            if module_path:
+                return f"{module_path}/{self.pt_module.name}"
         return self.pt_module.name
 
     def as_constant(self):
