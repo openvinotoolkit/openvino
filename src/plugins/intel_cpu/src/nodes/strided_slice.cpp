@@ -96,12 +96,9 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     hasRuntimeAttrInputs = false;
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i]) {
-            if (any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID)) {
-                hasRuntimeAttrInputs = true;
-            } else if (isAxesSpecified && i == attrs.AXES_ID) {
-                hasRuntimeAttrInputs = true;
-            }
+        if (!isConstantInput[i] && (any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) ||
+                                    (isAxesSpecified && i == attrs.AXES_ID))) {
+            hasRuntimeAttrInputs = true;
         }
     }
 
