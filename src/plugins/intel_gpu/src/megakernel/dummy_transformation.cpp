@@ -6,7 +6,7 @@
 
 namespace mk {
 
-bool InsertMegakernelTransformation(const std::shared_ptr<ov::Model>&) {
+bool InsertMegakernelTransformation(const std::shared_ptr<ov::Model>& /*unused*/) {
     return false;
 }
 

@@ -34,8 +34,9 @@ struct megakernel : public primitive_base<megakernel> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         return attrs == downcast<const megakernel>(rhs).attrs;
     }
 
@@ -46,8 +47,9 @@ struct megakernel : public primitive_base<megakernel> {
             const ov::element::Type_t type = out.type;
             ob << make_data(&type, sizeof(type));
             ob << out.shape.size();
-            for (const auto& d : out.shape)
+            for (const auto& d : out.shape) {
                 ob << d.input << d.axis << d.value;
+            }
         }
         ob << attrs.params;
     }

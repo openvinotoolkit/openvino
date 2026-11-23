@@ -6,9 +6,7 @@
 
 namespace ov::intel_gpu::op {
 
-MegaKernel::MegaKernel(const ov::OutputVector& inputs, const MegaKernelAttrs& attrs)
-    : Op(inputs),
-      m_attrs(attrs) {
+MegaKernel::MegaKernel(const ov::OutputVector& inputs, const MegaKernelAttrs& attrs) : Op(inputs), m_attrs(attrs) {
     validate_and_infer_types();
 }
 
@@ -35,8 +33,9 @@ bool MegaKernel::visit_attributes(ov::AttributeVisitor& visitor) {
         const auto rank = static_cast<size_t>(output_shapes[pos++]);
         OPENVINO_ASSERT(pos + 3 * rank <= output_shapes.size(), "[MegaKernel] malformed output_shapes attribute");
         MegaKernelOutput out{type, {}};
-        for (size_t i = 0; i < rank; ++i, pos += 3)
+        for (size_t i = 0; i < rank; ++i, pos += 3) {
             out.shape.push_back({output_shapes[pos], output_shapes[pos + 1], output_shapes[pos + 2]});
+        }
         m_attrs.outputs.push_back(std::move(out));
     }
     OPENVINO_ASSERT(pos == output_shapes.size(), "[MegaKernel] malformed output_shapes attribute");
@@ -46,11 +45,13 @@ bool MegaKernel::visit_attributes(ov::AttributeVisitor& visitor) {
 void MegaKernel::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, !m_attrs.outputs.empty(), "MegaKernel must have at least one output");
     std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); ++i)
+    for (size_t i = 0; i < get_input_size(); ++i) {
         input_shapes.push_back(get_input_partial_shape(i));
+    }
     set_output_size(m_attrs.outputs.size());
-    for (size_t i = 0; i < m_attrs.outputs.size(); ++i)
+    for (size_t i = 0; i < m_attrs.outputs.size(); ++i) {
         set_output_type(i, m_attrs.outputs[i].type, megakernel_output_shape(m_attrs.outputs[i], input_shapes));
+    }
 }
 
 std::shared_ptr<ov::Node> MegaKernel::clone_with_new_inputs(const ov::OutputVector& new_args) const {
