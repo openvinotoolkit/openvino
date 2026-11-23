@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 497,
+  "total": 498,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5400,6 +5400,17 @@
       "category": "Network",
       "signature_hash": "7d2e2ff59d37c6b4",
       "pr_number": "39291"
+    },
+    {
+      "investigation_id": "2026-11-23-12-10-31-000-45132808296",
+      "run_id": "45132808296",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45132808296",
+      "workflow_name": "Debian Packages",
+      "timestamp": "2026-11-23T12:10:31Z",
+      "title": "Debian Packages job fails - unable to connect to azure.archive.ubuntu.com:80",
+      "category": "Network",
+      "signature_hash": "a3d456bd40bd9f42",
+      "pr_number": "40116"
     }
   ]
 }

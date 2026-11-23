@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-12-10-31-000-45132808296",
+  "timestamp": "2026-11-23T12:10:31Z",
+  "run_id": "45132808296",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45132808296",
+  "workflow_name": "Debian Packages",
+  "pr_number": "40116",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40116",
+  "author": "t-jankowski",
+  "category": "Network",
+  "title": "Debian Packages job fails - unable to connect to azure.archive.ubuntu.com:80",
+  "signature": "unable to connect to azure archive ubuntu com 80|Network",
+  "signature_hash": "a3d456bd40bd9f42",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get could not fetch media-types_10.1.0_all.deb from archive.ubuntu.com because the azure.archive.ubuntu.com mirror was unreachable on port 80, failing the 'Install debian packages & check conflicts' step with exit code 100 after an 8+ minute fetch."
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://archive.ubuntu.com/ubuntu/pool/main/m/media-types/media-types_10.1.0_all.deb  Unable to connect to azure.archive.ubuntu.com:80:",
+    "Fetched 182 MB in 9min 26s (322 kB/s)",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step in the Debian Packages job runs apt-get install inside an Ubuntu 24.04 docker container that resolves package downloads through the Azure-hosted Ubuntu mirror (azure.archive.ubuntu.com). Most of the ~140 packages fetched successfully (over several minutes), but the final package, media-types_10.1.0_all.deb, failed because the runner could not establish a TCP connection to azure.archive.ubuntu.com on port 80, causing apt to exit with code 100. This is unrelated to the PR's change (a noexcept/coverity-suppression tweak in src/inference/src/dev/hsm_reader.cpp) - it is a transient network/infrastructure failure in the GitHub-hosted runner's egress path to the Azure-hosted apt mirror, consistent with many prior occurrences of the same signature.",
+  "reproduction_steps": "N/A - not reliably reproducible locally; depends on transient network connectivity between the GitHub Actions runner and azure.archive.ubuntu.com at the time of the run. Can be approximated by running the Debian Packages job's docker image and executing 'apt-get install -y openvino' (or the equivalent package set) while azure.archive.ubuntu.com is degraded or firewalled.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job (handled automatically by remediate_transient_failure for this investigation).",
+    "Add apt retry/backoff configuration (e.g., Acquire::Retries, Acquire::http::Timeout) or a fallback mirror in the Debian Packages job's Dockerfile/step to reduce sensitivity to azure.archive.ubuntu.com outages - the job already sets Acquire::Retries=10 but this did not cover the final connection failure, suggesting the retry count or timeout needs tuning.",
+    "Monitor recurrence via the ci-doctor-mq pattern database; this exact signature has now been seen 2 times (Aug 18 and Nov 23), plus 10+ closely related azure.archive.ubuntu.com connectivity signatures since August 2026."
+  ],
+  "prevention_strategies": "Configure apt to use multiple mirrors with automatic fallback (e.g., apt-cacher-ng, a local/regional mirror, or the mirror:// protocol) instead of relying solely on azure.archive.ubuntu.com, and/or increase Acquire::Retries and Acquire::http::Timeout further so transient mirror connection failures resolve without failing the whole merge-queue job.",
+  "historical_context": "This exact signature (a3d456bd40bd9f42) was first recorded on 2026-08-18 (run 32161679000, PR #37176) and closely related azure.archive.ubuntu.com connectivity failures (DNS resolution failures, connection refused, connection timed out, InRelease fetch failures) have recurred 10+ times total across similar hash variants in the Debian Packages job since August 2026, confirming this is a recurring upstream Azure apt-mirror reliability issue rather than a one-off."
+}

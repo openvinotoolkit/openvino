@@ -4,11 +4,19 @@
   "signature_hash": "a3d456bd40bd9f42",
   "title": "Debian Packages job fails - unable to connect to azure.archive.ubuntu.com:80",
   "category": "Network",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-08-18T17:58:36Z",
-  "last_seen": "2026-08-18T17:58:36Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/32161679000"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37176"],
-  "recent_timestamps": ["2026-08-18T17:58:36Z"],
-  "rerun_search_string": "Unable to connect to azure.archive.ubuntu.com"
+  "last_seen": "2026-11-23T12:10:31Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45132808296",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32161679000"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/40116",
+    "https://github.com/openvinotoolkit/openvino/pull/37176"
+  ],
+  "recent_timestamps": [
+    "2026-11-23T12:10:31Z"
+  ],
+  "rerun_search_string": "Unable to connect to azure.archive.ubuntu.com:80"
 }
