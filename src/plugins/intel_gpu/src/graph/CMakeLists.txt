@@ -154,6 +154,14 @@ ov_add_target(
         run_codegen_test${OV_GPU_SUFFIX}
 )
 
+target_sources(${TARGET_NAME} PRIVATE
+    megakernel_inst.cpp
+    registry/megakernel_impls.cpp
+    ${MAIN_DIR}/src/plugin/transformations/insert_megakernel.cpp
+    ${MAIN_DIR}/src/plugin/transformations/op/megakernel.cpp
+    ${MEGAKERNEL_TRANSFORMATION_SOURCES})
+target_compile_definitions(${TARGET_NAME} PRIVATE ${MEGAKERNEL_GRAPH_COMPILE_DEFINITIONS})
+
 ov_build_target_faster(${TARGET_NAME} PCH)
 
 # Backends are kept out of the graph archive, so that no single archive grows past MSVC's
