@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-23-11-55-56-979-45153289836",
+  "timestamp": "2026-11-23T11:55:56Z",
+  "run_id": "45153289836",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45153289836",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39291",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39291",
+  "author": "Roszczyk",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timeout)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install of build-essential and related packages fails with repeated connection timeouts to azure.archive.ubuntu.com:80"
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://archive.ubuntu.com/ubuntu noble/main amd64 build-essential amd64 12.10ubuntu1\n  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out",
+    "E: Failed to fetch http://archive.ubuntu.com/ubuntu/pool/main/b/build-essential/build-essential_12.10ubuntu1_amd64.deb  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Test debian packages' step in the Debian Packages job runs apt-get install inside an Ubuntu 24.04 docker container that resolves the Azure-hosted Ubuntu mirror (azure.archive.ubuntu.com). The mirror connection to 52.250.76.244:80 timed out repeatedly (over a 6+ minute fetch window) while downloading build-essential and its dependencies, causing apt to report exit code 100. This is a transient network/infrastructure issue in the GitHub-hosted runner's egress path or the Azure mirror itself, unrelated to the PR's GPU grid_sample kernel changes, which were not involved in this job's test steps.",
+  "reproduction_steps": "N/A - not reliably reproducible locally; depends on transient network connectivity between the GitHub Actions runner and azure.archive.ubuntu.com at the time of the run. Can be approximated by running the job_debian_packages.yml workflow's 'Test debian packages' step in a container under congested or unstable network conditions.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job; this is a known recurring transient apt-mirror connectivity issue (9th occurrence).",
+    "Consider adding retry/backoff logic (e.g., apt-get with -o Acquire::Retries=3) or a fallback mirror in the Debian Packages Dockerfile/workflow to reduce sensitivity to azure.archive.ubuntu.com outages.",
+    "If this mirror continues to be unreliable, consider pinning a different apt mirror or using a cached/local apt proxy for CI runners."
+  ],
+  "prevention_strategies": "Add apt-get retry configuration (Acquire::Retries, Acquire::http::Timeout) and/or a secondary mirror fallback in the Debian Packages job's Dockerfile so transient mirror outages don't fail the whole merge-queue run. Consider monitoring azure.archive.ubuntu.com reachability from GitHub-hosted runners given its recurrence (9+ times in recent weeks).",
+  "historical_context": "This exact signature (apt-get timeout connecting to azure.archive.ubuntu.com during the Debian Packages job) has now been recorded 9 times historically (pattern 7d2e2ff59d37c6b4, first seen 2026-08-18), plus several closely related but distinct signatures for the same job (DNS resolution failures, connection refused, InRelease fetch failures) totaling 10+ Network-category pattern records tied to apt mirror connectivity in this CI pipeline. This recurrence suggests the underlying Azure Ubuntu mirror or runner network path is a persistent source of flakiness for this specific job."
+}

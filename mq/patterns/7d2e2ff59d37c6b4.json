@@ -4,10 +4,11 @@
   "signature_hash": "7d2e2ff59d37c6b4",
   "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timeout)",
   "category": "Network",
-  "count": 9,
+  "count": 10,
   "first_seen": "2026-08-18T16:28:00Z",
-  "last_seen": "2026-08-19T10:34:27Z",
+  "last_seen": "2026-11-23T11:55:56Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45153289836",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32234146558",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32234026072",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32232052826",
@@ -19,6 +20,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/32152602590"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39291",
     "https://github.com/openvinotoolkit/openvino/pull/37248",
     "https://github.com/openvinotoolkit/openvino/pull/37393",
     "https://github.com/openvinotoolkit/openvino/pull/37396",
@@ -29,15 +31,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/37401"
   ],
   "recent_timestamps": [
-    "2026-08-19T10:34:27Z",
-    "2026-08-19T10:02:36Z",
-    "2026-08-19T09:39:02Z",
-    "2026-08-19T08:57:00Z",
-    "2026-08-19T08:39:29Z",
-    "2026-08-19T07:28:20Z",
-    "2026-08-19T05:25:56Z",
-    "2026-08-18T16:46:02Z",
-    "2026-08-18T16:28:00Z"
+    "2026-11-23T11:55:56Z"
   ],
   "rerun_search_string": "Could not connect to azure.archive.ubuntu.com"
 }

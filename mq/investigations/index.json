@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 496,
+  "total": 497,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5388,6 +5388,17 @@
       "title": "Debian Packages install fails - Unable to connect to azure.archive.ubuntu.com",
       "category": "Network",
       "signature_hash": "c8d00529252cfb02",
+      "pr_number": "39291"
+    },
+    {
+      "investigation_id": "2026-11-23-11-55-56-979-45153289836",
+      "run_id": "45153289836",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45153289836",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-23T11:55:56Z",
+      "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timeout)",
+      "category": "Network",
+      "signature_hash": "7d2e2ff59d37c6b4",
       "pr_number": "39291"
     }
   ]
