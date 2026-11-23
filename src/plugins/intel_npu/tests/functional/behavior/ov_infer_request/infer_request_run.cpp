@@ -2119,7 +2119,8 @@ void checkSamplesWereComputed(const ov::Tensor& tensor, const size_t batch) {
 }
 
 // Runs a chain of requests (the output of a request is the input of the next one) several times, changing the batch
-// size between the runs. Request i adds '1' to each element, so output i must be (value + i + 1).
+// size between the runs. Request i adds '1' to each element, so every element of the sample s of the output i must be
+// (value of the sample s in the input + i + 1).
 // - reshapeInPlace == false: new tensors are created and set on every request for each batch size.
 // - reshapeInPlace == true: the tensors are set once and then reshaped with set_shape, without calling the setters.
 // The request i is created from the compiled model (i % compiledModels.size()), so with several compiled models the
@@ -2176,24 +2177,36 @@ void runSequentialChainWithChangingBatch(std::vector<ov::CompiledModel>& compile
             bindTensors();
         }
 
-        const float value = static_cast<float>(run);
+        // Every sample gets its own value (run * 100 + sample), so a sample written to (or read from) the wrong position
+        // of the batch, or skipped, is detected. It also changes with every run, so a stale result is detected as well.
+        const size_t sampleSize = tensors[0].get_size() / batch;
+        auto sampleValue = [&](const size_t sample) {
+            return static_cast<float>(run * 100 + sample);
+        };
         auto* inputData = tensors[0].data<float>();
-        std::fill(inputData, inputData + tensors[0].get_size(), value);
+        for (size_t sample = 0; sample < batch; ++sample) {
+            std::fill(inputData + sample * sampleSize, inputData + (sample + 1) * sampleSize, sampleValue(sample));
+        }
 
         for (uint32_t i = 0; i < inferences; i++) {
             requests[i].start_async();  // Adds '1' to each element
         }
         requests[inferences - 1].wait();
+        // The tensors are rebound on all the requests in the next run, so none of them can still be running
+        for (uint32_t i = 0; i + 1 < inferences; i++) {
+            requests[i].wait();
+        }
 
         for (uint32_t i = 0; i < inferences; i++) {
             const auto& output = tensors[i + 1];
             ASSERT_EQ(output.get_shape(), shape) << "Run=" << run << " Output=" << i;
             const auto* outputData = output.data<float>();
-            const float expected = value + static_cast<float>(i) + 1.f;
             for (size_t j = 0; j < output.get_size(); ++j) {
-                ASSERT_NEAR(outputData[j], expected, 1e-5)
-                    << "Run=" << run << " Batch=" << batch << " Output=" << i << " Expected=" << expected
-                    << ", actual=" << outputData[j] << " for index " << j;
+                const size_t sample = j / sampleSize;
+                const float expected = sampleValue(sample) + static_cast<float>(i) + 1.f;
+                ASSERT_EQ(outputData[j], expected)
+                    << "Run=" << run << " Batch=" << batch << " Output=" << i << " Sample=" << sample
+                    << " Expected=" << expected << ", actual=" << outputData[j] << " for index " << j;
             }
         }
     }
