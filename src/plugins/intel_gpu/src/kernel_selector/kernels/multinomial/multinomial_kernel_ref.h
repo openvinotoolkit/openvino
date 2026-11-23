@@ -29,7 +29,7 @@ public:
 
 private:
     JitConstants GetJitConstants(const multinomial_params &params) const;
-    CommonDispatchData SetDefault(const multinomial_params &params) const;
+    static CommonDispatchData SetDefault(const multinomial_params& params);
     bool Validate(const Params &p) const override;
 };
 
