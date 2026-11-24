@@ -2656,11 +2656,9 @@ ov::Output<ov::Node> exported_query_preprocessing(const ov::Output<ov::Node>& qu
 }
 
 /// The GPU plugin disables RoPEFusionIOSlicing, so the partial rotary embedding of an exported query stays a RoPE over the
-/// rotary slice and a Concat: the indexer must still absorb the query RMSNorm and RoPE, which its lowering requires.
+/// rotary slice and a Concat: QSAIndexerQueryRoPESlicing folds it for the indexer, which must still absorb the query
+/// RMSNorm and RoPE, as its lowering requires.
 TEST_P(QSAIndexerPluginTest, AbsorbsDecomposedQueryPreprocessingBeforeLowering) {
-    // TODO: re-enable once the decomposed partial RoPE of an exported query is fused into the indexer again.
-    GTEST_SKIP()
-        << "FuseQSAIndexerQueryRoPE does not fuse a decomposed partial RoPE yet; the fused-RoPE form is covered by AbsorbsQueryPreprocessingBeforeLowering";
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
@@ -2685,9 +2683,6 @@ INSTANTIATE_TEST_SUITE_P(QSA, QSAIndexerPluginTest, ::testing::Bool(), ([](const
 /// plugin fuses the indexer with its query preprocessing and lowers SparseAttention to sparse_sdpa. The prefill is short
 /// enough for the indexer to select every complete block, so the attention equals the reference over all of them.
 TEST(qsa_ops_gpu_test, exported_qsa_attention_layer_matches_reference) {
-    // TODO: re-enable once the decomposed partial RoPE of an exported query is fused into the indexer again.
-    GTEST_SKIP()
-        << "FuseQSAIndexerQueryRoPE does not fuse a decomposed partial RoPE yet; the fused-RoPE form is covered by AbsorbsQueryPreprocessingBeforeLowering";
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
