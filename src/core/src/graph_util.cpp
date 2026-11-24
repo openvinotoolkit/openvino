@@ -47,11 +47,15 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
                     cloned_dependencies.push_back(dependent);
                 }
             }
-            auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            auto cloned_node = node->clone_with_new_inputs(cloned_args);
+            for (const auto& dependency : cloned_dependencies) {
+                cloned_node->add_control_dependency(dependency);
+            }
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
             cloned_node->get_rt_info() = node->get_rt_info();
 
+            // Copy names once: copying them twice can erase aliases on shared Result tensors.
             for (const auto& output : node->outputs()) {
                 cloned_node->output(output.get_index()).get_tensor().clone_from(output.get_tensor());
             }

@@ -162,13 +162,20 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
                 data.insert(constant->get_data_ptr());
         return data;
     };
-    for (const auto& [mode, component] : {std::pair{InputMode::IDS_TO_LOGITS, std::string{}},
-                                          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{}},
-                                          {InputMode::IDS_TO_LOGITS, std::string{"mtp"}},
-                                          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}}}) {
+    for (const auto& [mode, component, stateful_extension] :
+         {std::tuple{InputMode::IDS_TO_LOGITS, std::string{}, false},
+          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{}, false},
+          {InputMode::IDS_TO_LOGITS, std::string{"mtp"}, false},
+          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}, false},
+          {InputMode::IDS_TO_LOGITS, std::string{"mtp"}, true},
+          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}, true}}) {
         SCOPED_TRACE(static_cast<int>(mode));
         SCOPED_TRACE(component);
+        SCOPED_TRACE(stateful_extension);
         FrontEnd frontend;
+        if (stateful_extension)
+            frontend.add_extension(
+                std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
         auto models =
             adapt_to_genai(frontend.convert(frontend.load(temporary.path, LoadOptions{!component.empty()})), {mode});
         const auto model = models.at("language");

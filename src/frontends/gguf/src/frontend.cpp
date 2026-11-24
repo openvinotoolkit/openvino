@@ -108,8 +108,6 @@ FrontEnd::~FrontEnd() = default;
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto gguf_model = std::dynamic_pointer_cast<gguf::InputModel>(model);
     FRONT_END_GENERAL_CHECK(gguf_model, "Invalid input model");
-    FRONT_END_GENERAL_CHECK(gguf_model->m_component.empty() || m_impl->transformation_extensions.empty(),
-                            "MTP conversion does not support decoder transformation extensions");
     FRONT_END_GENERAL_CHECK(gguf_model->m_component.empty() || !m_impl->genai_extension,
                             "MTP conversion requires adapt_to_genai, not GenAIExtension");
     std::shared_ptr<Model> converted_model;

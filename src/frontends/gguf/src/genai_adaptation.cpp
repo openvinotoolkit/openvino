@@ -23,43 +23,50 @@ ModelMap adapt_decoder(const std::shared_ptr<ov::Model>& model, const GenAIAdapt
         const auto info = model->get_rt_info<ov::AnyMap>({"gguf_mtp_components"});
         const auto result_count = info.at("target_results").as<int64_t>();
         const auto parameter_count = info.at("target_parameters").as<int64_t>();
+        const bool has_state_info =
+            info.count("target_sinks") && info.count("target_variables") && info.count("draft_variable_prefix");
+        OPENVINO_ASSERT(has_state_info || (!info.count("target_sinks") && !info.count("target_variables") &&
+                                           !info.count("draft_variable_prefix") && model->get_sinks().empty() &&
+                                           model->get_variables().empty()),
+                        "[GGUF] invalid MTP state boundaries");
+        const auto sink_count = has_state_info ? info.at("target_sinks").as<int64_t>() : 0;
+        const auto variable_count = has_state_info ? info.at("target_variables").as<int64_t>() : 0;
         OPENVINO_ASSERT(result_count > 0 && parameter_count > 0 &&
                             static_cast<size_t>(result_count) < model->get_results().size() &&
-                            static_cast<size_t>(parameter_count) < model->get_parameters().size(),
+                            static_cast<size_t>(parameter_count) < model->get_parameters().size() && sink_count >= 0 &&
+                            static_cast<size_t>(sink_count) <= model->get_sinks().size() && variable_count >= 0 &&
+                            static_cast<size_t>(variable_count) <= model->get_variables().size(),
                         "[GGUF] invalid MTP component boundaries");
         const auto select = [&](bool target) {
             auto branch = model->clone();
             const auto results = branch->get_results();
             const auto parameters = branch->get_parameters();
+            const auto sinks = branch->get_sinks();
+            const auto variables = branch->get_variables();
             for (size_t i = 0; i < results.size(); ++i)
                 if ((i < static_cast<size_t>(result_count)) != target)
                     branch->remove_result(results[i]);
+            for (size_t i = 0; i < sinks.size(); ++i)
+                if ((i < static_cast<size_t>(sink_count)) != target)
+                    branch->remove_sink(sinks[i]);
             for (size_t i = 0; i < parameters.size(); ++i)
                 if ((i < static_cast<size_t>(parameter_count)) != target)
                     branch->remove_parameter(parameters[i]);
+            for (size_t i = 0; i < variables.size(); ++i)
+                if ((i < static_cast<size_t>(variable_count)) != target)
+                    branch->remove_variable(variables[i]);
             if (target) {
                 branch->get_rt_info() = model->get_rt_info();
                 branch->get_rt_info().erase("gguf_mtp_components");
             } else {
                 branch->get_rt_info() = info.at("draft_rt_info").as<ov::AnyMap>();
-                const auto unprefix = [](const std::string& name) {
-                    OPENVINO_ASSERT(name.rfind("mtp.", 0) == 0, "[GGUF] invalid MTP boundary name: ", name);
-                    return name.substr(4);
-                };
-                const auto restore_names = [&](const ov::Output<ov::Node>& output) {
-                    std::unordered_set<std::string> names;
-                    for (const auto& name : output.get_names())
-                        names.insert(unprefix(name));
-                    output.get_tensor().set_names(names);
-                };
-                for (const auto& parameter : branch->get_parameters()) {
-                    parameter->set_friendly_name(unprefix(parameter->get_friendly_name()));
-                    restore_names(parameter->output(0));
-                }
-                for (const auto& result : branch->get_results()) {
-                    result->set_friendly_name(unprefix(result->get_friendly_name()));
-                    restore_names(result->input_value(0));
-                }
+                if (info.count("draft_name"))
+                    branch->set_friendly_name(info.at("draft_name").as<std::string>());
+                if (!branch->get_variables().empty())
+                    namespace_model_variables(branch, info.at("draft_variable_prefix").as<std::string>(), true);
+                const auto io_prefix =
+                    info.count("draft_io_prefix") ? info.at("draft_io_prefix").as<std::string>() : std::string{"mtp."};
+                namespace_model_boundaries(branch, io_prefix, true);
             }
             branch->validate_nodes_and_infer_types();
             return branch;

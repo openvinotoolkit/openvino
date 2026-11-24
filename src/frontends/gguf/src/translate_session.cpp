@@ -195,33 +195,76 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         pass::MaterializeGGUFWeights().run_on_model(std::make_shared<Model>(results, params));
         model = finalize_model(model->clone(), *decoder);
         draft = finalize_model(draft->clone(), *draft_decoder);
-        OPENVINO_ASSERT(model->get_sinks().empty() && draft->get_sinks().empty(),
-                        "[GGUF] MTP conversion requires stateless decoder transformations");
-        const auto prefix_names = [](const ov::Output<ov::Node>& output) {
-            std::unordered_set<std::string> names;
-            for (const auto& name : output.get_names())
-                names.insert("mtp." + name);
-            output.get_tensor().set_names(names);
+        std::unordered_set<std::string> target_variable_ids;
+        std::unordered_set<std::string> draft_variable_ids;
+        for (const auto& variable : model->get_variables()) {
+            const auto& id = variable->get_info().variable_id;
+            OPENVINO_ASSERT(target_variable_ids.insert(id).second, "[GGUF] duplicate target variable ID: ", id);
+        }
+        for (const auto& variable : draft->get_variables()) {
+            const auto& id = variable->get_info().variable_id;
+            OPENVINO_ASSERT(draft_variable_ids.insert(id).second, "[GGUF] duplicate MTP draft variable ID: ", id);
+        }
+        std::string variable_prefix = "mtp.";
+        const auto has_variable_collision = [&]() {
+            return std::any_of(draft_variable_ids.begin(), draft_variable_ids.end(), [&](const std::string& id) {
+                return target_variable_ids.count(variable_prefix + id) != 0;
+            });
         };
-        for (const auto& parameter : draft->get_parameters()) {
-            parameter->set_friendly_name("mtp." + parameter->get_friendly_name());
-            prefix_names(parameter->output(0));
-        }
-        for (const auto& result : draft->get_results()) {
-            result->set_friendly_name("mtp." + result->get_friendly_name());
-            prefix_names(result->input_value(0));
-        }
+        while (has_variable_collision())
+            variable_prefix += "mtp.";
+        if (!draft_variable_ids.empty())
+            namespace_model_variables(draft, variable_prefix, false);
+
+        const auto boundary_names = [](const std::shared_ptr<Model>& component) {
+            std::unordered_set<std::string> names;
+            for (const auto& parameter : component->get_parameters()) {
+                names.insert(parameter->get_friendly_name());
+                const auto& tensor_names = parameter->output(0).get_names();
+                names.insert(tensor_names.begin(), tensor_names.end());
+            }
+            for (const auto& result : component->get_results()) {
+                names.insert(result->get_friendly_name());
+                const auto& tensor_names = result->input_value(0).get_names();
+                names.insert(tensor_names.begin(), tensor_names.end());
+                const auto& output_names = result->output(0).get_names();
+                names.insert(output_names.begin(), output_names.end());
+            }
+            return names;
+        };
+        const auto target_names = boundary_names(model);
+        const auto draft_names = boundary_names(draft);
+        std::string io_prefix = "mtp.";
+        const auto has_boundary_collision = [&]() {
+            return std::any_of(draft_names.begin(), draft_names.end(), [&](const std::string& name) {
+                return target_names.count(io_prefix + name) != 0;
+            });
+        };
+        while (has_boundary_collision())
+            io_prefix += "mtp.";
+        namespace_model_boundaries(draft, io_prefix, false);
         results = model->get_results();
         params = model->get_parameters();
+        auto sinks = model->get_sinks();
+        auto variables = model->get_variables();
         const auto target_results = results.size();
         const auto target_params = params.size();
+        const auto target_sinks = sinks.size();
+        const auto target_variables = variables.size();
         results.insert(results.end(), draft->get_results().begin(), draft->get_results().end());
         params.insert(params.end(), draft->get_parameters().begin(), draft->get_parameters().end());
-        auto combined = std::make_shared<Model>(results, params);
+        sinks.insert(sinks.end(), draft->get_sinks().begin(), draft->get_sinks().end());
+        variables.insert(variables.end(), draft->get_variables().begin(), draft->get_variables().end());
+        auto combined = std::make_shared<Model>(results, sinks, params, variables, model->get_friendly_name());
         combined->get_rt_info() = model->get_rt_info();
         combined->get_rt_info()["gguf_mtp_components"] =
             ov::AnyMap{{"target_results", static_cast<int64_t>(target_results)},
                        {"target_parameters", static_cast<int64_t>(target_params)},
+                       {"target_sinks", static_cast<int64_t>(target_sinks)},
+                       {"target_variables", static_cast<int64_t>(target_variables)},
+                       {"draft_variable_prefix", variable_prefix},
+                       {"draft_io_prefix", io_prefix},
+                       {"draft_name", draft->get_friendly_name()},
                        {"draft_rt_info", draft->get_rt_info()}};
         size_t offset = 0;
         for (const auto& node : combined->get_ordered_ops()) {

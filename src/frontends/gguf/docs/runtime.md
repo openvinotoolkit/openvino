@@ -132,15 +132,22 @@ auto text_embeddings = models.at("text_embeddings");
 auto draft = models.find("mtp_draft");  // absent when the file has no NextN block
 ```
 
-The conversion returns one stateless model; `adapt_to_genai()` splits and adapts it. Both models
-return `last_hidden_state [B,T,D]` for every token, after final
+The conversion returns one model; `adapt_to_genai()` splits and adapts it. Registered
+`DecoderTransformationExtension` passes run separately on the target and draft before the default
+stateless cache lowering. Their sinks, variables, and model metadata are preserved when the
+components are combined and split. Without such an extension the combined model is stateless.
+Draft input/output and variable names use an `mtp.` prefix in the combined model, repeated if
+needed to avoid collisions; their original names are restored when the components are split.
+Both models return `last_hidden_state [B,T,D]` for every token, after final
 normalization and before any output-head Hadamard transform. The draft also takes
 `hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of token
 `t+1`. In the embeddings modes the draft takes the same text embeddings as the target, so
 `text_embeddings` serves both. A file without NextN blocks still converts as a target that
 exports hidden states, for a draft supplied from another file.
-MTP conversion requires a native GGUF file and cannot be combined with `GenAIExtension`
-or a `DecoderTransformationExtension`; use `adapt_to_genai()` for stateful models instead.
+MTP conversion requires a native GGUF file and cannot be combined with `GenAIExtension`;
+use `adapt_to_genai()` for GenAI-compatible models. Registered transformations must comply
+with the chosen adaptation's input/output contract. On CPU, distinct output names for multiple
+Results sharing one tensor can be lost during compilation.
 
 The draft owns the hidden-state normalization, EH projection, NextN block and output head.
 Its head is the NextN head when present, otherwise the target `output.weight` or, for a tied
