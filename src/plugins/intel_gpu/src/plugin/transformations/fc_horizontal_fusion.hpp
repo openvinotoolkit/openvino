@@ -22,7 +22,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    std::unique_ptr<ov::util::OrderedPrefetchScheduler> m_scheduler;  // Set only while run_on_model() runs.
+    std::unique_ptr<ov::util::OrderedPrefetchScheduler> m_scheduler{};  // Set only while run_on_model() runs.
     bool m_prefetch_weights = false;
     size_t m_min_num_fcs_to_fuse = 3;
 };

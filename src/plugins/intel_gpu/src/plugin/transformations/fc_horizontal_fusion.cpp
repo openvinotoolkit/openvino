@@ -161,18 +161,14 @@ struct ScopedSchedulerRestore {
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool prefetch_weights) : m_prefetch_weights(prefetch_weights) {
     using namespace ov::pass::pattern;
 
-    // Three FCs connected to the same input
-    size_t min_num_fcs_to_fuse = 3;
-
     // Note:
+    // General case - three FCs connected to same input
     // For cldnn, two fcs in mlp will be fused at horizontal fc fusion, and then swiglu will be fused at prepare_primitive_fusion
     // i.e., eltwise((fc + swish), fc) => fused_fc + swiglu => fused_fc_swilgu
     // Onednn gemms are to be handled in a different way (TBD)
-    if (fuse_mlp_swiglu) {
-        min_num_fcs_to_fuse = 2;
-    }
-    m_min_num_fcs_to_fuse = min_num_fcs_to_fuse;
-    auto is_target_pattern = [min_num_fcs_to_fuse](const Output<Node>& output) {
+    m_min_num_fcs_to_fuse = fuse_mlp_swiglu ? 2 : 3;
+
+    auto is_target_pattern = [min_num_fcs_to_fuse = m_min_num_fcs_to_fuse](const Output<Node>& output) {
         return is_fusion_candidate(ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr()),
                                    min_num_fcs_to_fuse);
     };
