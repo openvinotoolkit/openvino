@@ -162,9 +162,8 @@ bool NativeStreamBuf::fill_window() {
     if (m_cursor >= m_end || !allocate_window()) {
         return false;
     }
-    const size_t to_read =
-        static_cast<size_t>(std::min(static_cast<std::streamoff>(std::min(m_fill_hint, m_window_capacity)),
-                            m_end - m_cursor));
+    const size_t to_read = static_cast<size_t>(
+        std::min(static_cast<std::streamoff>(std::min(m_fill_hint, m_window_capacity)), m_end - m_cursor));
     m_fill_hint = std::min(m_fill_hint * 2, m_window_capacity);
     if (!read_into(m_window, to_read, m_cursor)) {
         return false;
