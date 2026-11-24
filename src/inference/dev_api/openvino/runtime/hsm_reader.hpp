@@ -244,7 +244,10 @@ public:
      * @return `std::nullopt` if no entry matches.
      */
     template <typename Pred, EntryPredicate<Pred> = 0>
-    std::optional<Section> section_if(Pred&& pred) const;
+    std::optional<Section> section_if(Pred&& pred) const {
+        const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), std::ref(pred));
+        return found != m_manifest.end() ? std::optional<Section>(make_section(*found)) : std::nullopt;
+    }
 
     /**
      * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
@@ -276,7 +279,16 @@ public:
      * @return std::vector<Section> A vector of handles to the matching sections, in manifest order.
      */
     template <typename Pred, EntryPredicate<Pred> = 0>
-    std::vector<Section> sections_if(Pred&& pred) const;
+    std::vector<Section> sections_if(Pred&& pred) const {
+        std::vector<Section> result;
+        for (const auto& entry : m_manifest) {
+            const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), std::ref(pred));
+            if (found != m_manifest.end()) {
+                result.push_back(make_section(*found));
+            }
+        }
+        return result;
+    }
 
     /**
      * @brief Runs @p decoder over the first manifest entry matching (@p device, @p tag).
@@ -308,7 +320,10 @@ public:
      * @return A decoded value if the section is found and the decoder succeeds; otherwise, `std::nullopt`.
      */
     template <typename Pred, EntryPredicate<Pred> = 0, typename T>
-    std::optional<T> decode_if(Pred&& pred, const SectionDecoder<T>& decoder) const;
+    std::optional<T> decode_if(Pred&& pred, const SectionDecoder<T>& decoder) const {
+        const auto found = section_if(pred);
+        return found ? decoder(*found) : std::nullopt;
+    }
 
     /**
      * @brief Runs @p decoder over every manifest entry matching (@p device, @p tag) - entries @p decoder
@@ -341,7 +356,15 @@ public:
      * @return A vector of decoded values for the matching sections that the decoder accepts.
      */
     template <typename Pred, EntryPredicate<Pred> = 0, typename T>
-    std::vector<T> decode_all_if(Pred&& pred, const SectionDecoder<T>& decoder) const;
+    std::vector<T> decode_all_if(Pred&& pred, const SectionDecoder<T>& decoder) const {
+        std::vector<T> result;
+        for (const auto& found : sections_if(pred)) {
+            if (auto value = decoder(found)) {
+                result.push_back(std::move(*value));
+            }
+        }
+        return result;
+    }
 
     /**
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
