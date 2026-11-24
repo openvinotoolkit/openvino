@@ -169,6 +169,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*compile_from_weightless_blob.*)"),
             // u3 Transpose reference implementation is not upstreamed yet (non-transposed u3 weights fold a Transpose)
             std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
+            // Issue: https://github.com/openvinotoolkit/openvino/issues/38584, offloaded MoE output after a non-mmap
+            // read differs from the resident model
+            std::regex(R"(.*smoke_MoEOffload/MoEOffloadFromIRFile.InferWithOffloadRatioMatchesResident/mmap=false.*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
@@ -229,6 +232,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));
             // MoE patterns are not supported on the platforms without immad (fusion transformation are disabled)
             patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MoEOffload.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));
         }

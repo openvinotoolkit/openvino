@@ -490,6 +490,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
             conv_with_bias_prim->transposed = desc->transposed;
+            conv_with_bias_prim->activations_zero_point_per_tensor = desc->activations_zero_point_per_tensor;
             auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
 
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
@@ -524,6 +525,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             deconv_with_bias_prim->pads_begin = desc->pads_begin;
             deconv_with_bias_prim->pads_end = desc->pads_end;
             deconv_with_bias_prim->out_padding = desc->out_padding;
+            deconv_with_bias_prim->auto_pad = desc->auto_pad;
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<fully_connected>()) {
@@ -1680,6 +1682,24 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
             }
             if (permute_order == std::vector<uint16_t>{0, 2, 1} ||
                 permute_order == std::vector<uint16_t>{0, 1, 3, 2}) {
+                // The {1, 0} order swaps the two outermost dims of the constant layout. That equals the original
+                // permute only when the constant data lives in those two dims, i.e. it is already 2d
+                // (e.g. [N, K, 1] or a rank-2 constant). A constant such as [1, N, K] keeps its data in the inner
+                // dims, and swapping the outer ones would reinterpret the [N, K] buffer as [K, N].
+                const auto& const_pshape = prev_const.get_output_layout().get_partial_shape();
+                if (const_pshape.is_dynamic()) {
+                    continue;
+                }
+                bool data_in_outer_dims = true;
+                for (size_t i = 2; i < const_pshape.size(); ++i) {
+                    if (const_pshape[i].get_length() != 1) {
+                        data_in_outer_dims = false;
+                        break;
+                    }
+                }
+                if (!data_in_outer_dims) {
+                    continue;
+                }
                 permute_order = {1, 0};
             } else {
                 continue;
