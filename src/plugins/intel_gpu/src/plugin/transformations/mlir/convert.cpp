@@ -140,8 +140,8 @@ MemRefType get_ordered_memref_type(MemRefType type, ArrayRef<int64_t> order) {
 // Gives the function arguments the physical orders requested by the converters. The IR built from
 // the arguments stays the same: only the memref types (and so the expected buffers) change.
 // Returns the applied orders keyed by runtime input index (inputs without an entry stay plain).
-ov::intel_gpu::op::InputOrders apply_requested_orders(mlir::func::FuncOp func, const ov::OutputVector& runtime_inputs, const GraphConverter& converter) {
-    ov::intel_gpu::op::InputOrders orders;
+InputOrders apply_requested_orders(mlir::func::FuncOp func, const ov::OutputVector& runtime_inputs, const GraphConverter& converter) {
+    InputOrders orders;
     for (size_t i = 0; i < runtime_inputs.size(); ++i) {
         const auto requested = converter.get_requested_order(runtime_inputs[i]);
         if (requested.empty() || mlir::isIdentityPermutation(requested)) {
@@ -168,7 +168,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::NodeVector& nodes,
                                                  const ov::OutputVector& outputs,
                                                  SmallVector<size_t>& keptInputIndices,
-                                                 ov::intel_gpu::op::InputOrders& keptInputOrders,
+                                                 InputOrders& keptInputOrders,
                                                  const std::string& function_name = "entry") {
     // Split inputs: splat constants are inlined, runtime inputs become function args.
     ov::OutputVector runtime_inputs;
@@ -286,7 +286,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 // This pass converts a group of nodes into a single MLIROp
 NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, uint32_t device_id) {
     SmallVector<size_t> keptInputIndices;
-    ov::intel_gpu::op::InputOrders keptInputOrders;
+    InputOrders keptInputOrders;
     mlir::OwningOpRef<mlir::ModuleOp> module =
         ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices, keptInputOrders, subgraph->function_name);
 
@@ -333,8 +333,8 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, uin
         output_map.emplace_back(dm);
     }
 
-    auto program = ov::intel_gpu::mlir::create_gpu_program(std::move(module), device_id);
-    return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs, std::move(program), output_types, output_map, std::move(keptInputOrders));
+    auto program = ov::intel_gpu::mlir::create_gpu_program(std::move(module), device_id, std::move(keptInputOrders));
+    return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs, std::move(program), output_types, output_map);
 };
 
 void replace_subgraph(const SubgraphPtr& subgraph, const NodePtr& node) {

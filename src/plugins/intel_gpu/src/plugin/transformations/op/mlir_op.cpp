@@ -17,13 +17,11 @@ namespace ov::intel_gpu::op {
 MLIROp::MLIROp(const ov::OutputVector& args,
                std::shared_ptr<mlir::MLIRGpuProgram> program,
                OVOutputTypes output_types,
-               DimensionsMap dimensions_map,
-               InputOrders input_orders)
+               DimensionsMap dimensions_map)
     : Op(args),
       program(std::move(program)),
       output_types(std::move(output_types)),
-      dimensions_map(std::move(dimensions_map)),
-      input_orders(std::move(input_orders)) {
+      dimensions_map(std::move(dimensions_map)) {
     constructor_validate_and_infer_types();
 }
 
@@ -100,7 +98,7 @@ void MLIROp::validate_and_infer_types() {
 }
 
 std::shared_ptr<ov::Node> MLIROp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<MLIROp>(new_args, program, output_types, dimensions_map, input_orders);
+    return std::make_shared<MLIROp>(new_args, program, output_types, dimensions_map);
 }
 
 }  // namespace ov::intel_gpu::op
