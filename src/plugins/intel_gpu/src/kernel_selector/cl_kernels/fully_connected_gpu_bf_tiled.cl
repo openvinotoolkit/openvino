@@ -152,17 +152,6 @@ KERNEL(quantize_input)(
 #define GET_OUTPUT_BF_OFFSET(b_idx) ((b_idx) * TILE_OUT_B_PITCH + OUTPUT_OFFSET)
 #endif
 
-// For uncompressed FP16 tiles with TILE_B > 8 (even) and contiguous 3D batch pitch,
-// stream input rows in double-buffered pairs while caching the current K-tile weights
-// on demand. This removes acc_tmp[TILE_B], in_0[TILE_B], and input_base_offset[TILE_B]
-// from the live register set so TILE_B=16 stays within 128-GRF occupancy headroom.
-#if ACCUMULATOR_IS_FP && (ACCUMULATOR_TYPE_SIZE == 2) && !COMPRESSED_WEIGHTS && !USE_SLM && \
-    !USE_PER_ROW_INPUT_OFFSET && (TILE_B > 8) && ((TILE_B % 2) == 0) && (((TILE_IFM * SIMD) / TILE_K) <= 8)
-#define USE_STREAMING_HYBRID_ACC 1
-#else
-#define USE_STREAMING_HYBRID_ACC 0
-#endif
-
 #define INPUT_BLOCK_READ(ptr, offset)        BLOCK_READN(INPUT0_TYPE, TILE_IFM, ptr, offset)
 #define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, ptr, offset)
 #define BIAS_BLOCK_READ(ptr, offset)         BLOCK_READN(BIAS_TYPE, TILE_OFM, ptr, offset)
@@ -284,15 +273,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
 
     FC_ACC_VEC_TYPE acc[TILE_B] = { };
-#if USE_STREAMING_HYBRID_ACC
-#if IS_DYNAMIC || BATCH_LEFTOVER
-    const uint last_valid_b = (BATCH_SIZE > 0) ? (uint)(BATCH_SIZE - 1) : 0;
-    uint input_offset = GET_INPUT0_BF_OFFSET(min(out_b, last_valid_b));
-    const uint max_valid_pitch = (out_b < BATCH_SIZE) ? (BATCH_SIZE - 1 - out_b) * TILE_IN_B_PITCH : 0;
-#else
-    uint input_offset = GET_INPUT0_BF_OFFSET(out_b);
-#endif
-#else
     INPUT_VEC_TYPE  in_0[TILE_B] = { };
 
     #if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
@@ -308,7 +288,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     #else
         uint input_offset = GET_INPUT0_BF_OFFSET(out_b);
     #endif
-#endif
 
 #if COMPRESSED_WEIGHTS_INT4
     #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
@@ -428,84 +407,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
     // Main computation loop
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
-#if USE_STREAMING_HYBRID_ACC
-    // Branchless address clamping keeps OOB batch rows in-bounds (required on Xe2+)
-    // while avoiding per-row branches and LICM offset-array hoisting that would push
-    // TILE_B=16 past the 128-GRF occupancy threshold. OOB outputs are masked at write time.
-    #if IS_DYNAMIC || BATCH_LEFTOVER
-    #define LOAD_IN_ROW(row_idx) \
-        INPUT_BLOCK_READ(input, min(input_offset + (uint)(row_idx) * TILE_IN_B_PITCH, input_offset + max_valid_pitch))
-    #else
-    #define LOAD_IN_ROW(row_idx) \
-        INPUT_BLOCK_READ(input, input_offset + (uint)(row_idx) * TILE_IN_B_PITCH)
-    #endif
-    __attribute__((opencl_unroll_hint(1)))
-    for (uint ni = 0; ni < iterations; ++ni) {
-        FILTER_VEC_TYPE wei_c[(TILE_IFM * SIMD) / TILE_K];
-        INPUT_VEC_TYPE in_c0 = LOAD_IN_ROW(0);
-        INPUT_VEC_TYPE in_c1 = LOAD_IN_ROW(1);
-        {
-            INPUT_VEC_TYPE in_n0 = (2 < TILE_B) ? LOAD_IN_ROW(2) : (INPUT_VEC_TYPE)(0);
-            INPUT_VEC_TYPE in_n1 = (3 < TILE_B) ? LOAD_IN_ROW(3) : (INPUT_VEC_TYPE)(0);
-            ACCUMULATOR_VEC_TYPE acc_tmp0 = (ACCUMULATOR_VEC_TYPE)(0);
-            ACCUMULATOR_VEC_TYPE acc_tmp1 = (ACCUMULATOR_VEC_TYPE)(0);
-            unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
-                FILTER_VEC_TYPE wei_cur = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
-                weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
-                wei_c[ki] = wei_cur;
-                unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
-                    const uint total_k = ki * TILE_K + kii;
-                    INPUT0_TYPE in_v0 = _sub_group_shuffle(((INPUT0_TYPE*)(&in_c0))[total_k / SIMD], total_k % SIMD);
-                    INPUT0_TYPE in_v1 = _sub_group_shuffle(((INPUT0_TYPE*)(&in_c1))[total_k / SIMD], total_k % SIMD);
-                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        ACCUMULATOR_TYPE wv = ((ACCUMULATOR_TYPE*)(&wei_cur))[W_IDX];
-                        #if TILE_OFM > 1
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp0))[fi] += in_v0 * wv;
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp1))[fi] += in_v1 * wv;
-                        #else
-                            acc_tmp0 += in_v0 * wv;
-                            acc_tmp1 += in_v1 * wv;
-                        #endif
-                    }
-                }
-            }
-            acc[0] += TO_FC_ACC_VEC_TYPE(acc_tmp0);
-            acc[1] += TO_FC_ACC_VEC_TYPE(acc_tmp1);
-            in_c0 = in_n0;
-            in_c1 = in_n1;
-        }
-        unroll_for(uint bg = 2; bg < TILE_B; bg += 2) {
-            INPUT_VEC_TYPE in_n0 = (bg + 2 < TILE_B) ? LOAD_IN_ROW(bg + 2) : (INPUT_VEC_TYPE)(0);
-            INPUT_VEC_TYPE in_n1 = (bg + 3 < TILE_B) ? LOAD_IN_ROW(bg + 3) : (INPUT_VEC_TYPE)(0);
-            ACCUMULATOR_VEC_TYPE acc_tmp0 = (ACCUMULATOR_VEC_TYPE)(0);
-            ACCUMULATOR_VEC_TYPE acc_tmp1 = (ACCUMULATOR_VEC_TYPE)(0);
-            unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
-                FILTER_VEC_TYPE wei_cur = wei_c[ki];
-                unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
-                    const uint total_k = ki * TILE_K + kii;
-                    INPUT0_TYPE in_v0 = _sub_group_shuffle(((INPUT0_TYPE*)(&in_c0))[total_k / SIMD], total_k % SIMD);
-                    INPUT0_TYPE in_v1 = _sub_group_shuffle(((INPUT0_TYPE*)(&in_c1))[total_k / SIMD], total_k % SIMD);
-                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        ACCUMULATOR_TYPE wv = ((ACCUMULATOR_TYPE*)(&wei_cur))[W_IDX];
-                        #if TILE_OFM > 1
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp0))[fi] += in_v0 * wv;
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp1))[fi] += in_v1 * wv;
-                        #else
-                            acc_tmp0 += in_v0 * wv;
-                            acc_tmp1 += in_v1 * wv;
-                        #endif
-                    }
-                }
-            }
-            acc[bg]     += TO_FC_ACC_VEC_TYPE(acc_tmp0);
-            acc[bg + 1] += TO_FC_ACC_VEC_TYPE(acc_tmp1);
-            in_c0 = in_n0;
-            in_c1 = in_n1;
-        }
-        input_offset += TILE_IFM * SIMD;
-    }
-    #undef LOAD_IN_ROW
-#else  // !USE_STREAMING_HYBRID_ACC
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
         // Load input.
@@ -822,17 +723,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         }
 #endif
     }
-#endif  // USE_STREAMING_HYBRID_ACC
     // =====================================================================================================================================
     // Leftovers
 #if MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD) != 0
     // Handle leftovers in normal case without alignment correction.
     #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
     {
-        #if USE_STREAMING_HYBRID_ACC
-        INPUT_VEC_TYPE in_0[TILE_B] = { };
-        FILTER_VEC_TYPE wei = 0;
-        #endif
         #if !USE_PER_ROW_INPUT_OFFSET
         #define LEFTOVER_IN_OFFSET(bi) (input_offset + (bi) * TILE_IN_B_PITCH)
         #else
@@ -1910,7 +1806,6 @@ KERNEL(fc)(
 #undef GET_INPUT0_BF_OFFSET
 #undef GET_OUTPUT_BF_OFFSET
 #undef USE_PER_ROW_INPUT_OFFSET
-#undef USE_STREAMING_HYBRID_ACC
 
 #undef INPUT_BLOCK_READ
 #undef FILTER_BLOCK_READ

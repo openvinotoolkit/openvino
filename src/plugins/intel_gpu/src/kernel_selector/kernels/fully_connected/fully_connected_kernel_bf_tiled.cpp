@@ -407,7 +407,8 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
     // If batch size is prime number, still can apply tile execution to avoid poor performance.
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
-        if ((tparams.dispatch_bsv != 1) || batch_size == 1) {
+        const size_t batch_tiles = CeilDiv(batch_size, static_cast<size_t>(tparams.tile_b));
+        if (batch_size == 1 || (batch_tiles % tparams.dispatch_bsv != 0)) {
             return false;
         }
 
@@ -482,29 +483,10 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     } else if ((quantized_inputs || quantized_weights) && !params.compressed) {
         acc_tmp_dt = Datatype::F32;
     }
-    bool input_has_feature_pad =
-        params.outputs[0].GetLayout() == DataLayout::bfyx &&
-        (params.is_shape_agnostic || params.inputs[0].PitchesDifferFromLogicalDims() ||
-         params.inputs[0].Feature().pad.Total() != 0 || params.inputs[0].has_dynamic_pad());
-    bool use_streaming_hybrid_acc = !params.compressed && tparams.kernel_type != FullyConnected_bf_tiled::KernelType::SLM &&
-                                    params.quantization == QuantizationType::NONE && acc_tmp_dt == Datatype::F16 &&
-                                    !input_has_feature_pad && tparams.tile_b > 8 && (tparams.tile_b % 2 == 0) &&
-                                    ((tparams.tile_ifm * simd) / tparams.tile_k <= 8);
-    unsigned total_register_bytes = 0;
-    if (use_streaming_hybrid_acc) {
-        // Streaming hybrid FP16 path caches K-tile weights in registers and streams 2 batch rows
-        // (double-buffered) with scalar pair acc_tmp, keeping TB=16 inside 128-GRF headroom.
-        unsigned wei_cache_bytes = ((tparams.tile_ifm * simd) / tparams.tile_k) * tparams.tile_ofm * tparams.tile_k * simd *
-                                   BytesPerElement(params.weights.GetDType());
-        unsigned in_pair_bytes = 4 * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
-        unsigned acc_tmp_pair_bytes = 2 * tparams.tile_ofm * simd * BytesPerElement(acc_tmp_dt);
-        total_register_bytes = acc_register_bytes + wei_cache_bytes + in_pair_bytes + acc_tmp_pair_bytes;
-    } else {
-        unsigned acc_tmp_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(acc_tmp_dt);
-        unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
-        unsigned wei_register_bytes = tparams.tile_ofm * tparams.tile_k * simd * BytesPerElement(params.weights.GetDType());
-        total_register_bytes = acc_register_bytes + acc_tmp_register_bytes + in_register_bytes + wei_register_bytes;
-    }
+    unsigned acc_tmp_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(acc_tmp_dt);
+    unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(in_dt);
+    unsigned wei_register_bytes = tparams.tile_ofm * tparams.tile_k * simd * BytesPerElement(wei_dt);
+    unsigned total_register_bytes = acc_register_bytes + acc_tmp_register_bytes + in_register_bytes + wei_register_bytes;
     unsigned max_register_bytes = 128 * 32;
 
     return total_register_bytes <= max_register_bytes;
@@ -617,14 +599,39 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
     } else {
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
+            // Keep tile_b <= 8 with 4-byte FP32 running accumulators (FC_ACC_TYPE) + tile-local acc_tmp
+            // so all non-XMX GPUs (including 128-GRF Xe-LP) stay well within register occupancy headroom.
+            // Pick the largest dispatch_bsv <= 16 dividing CeilDiv(batch, 8) (exact or prime batch)
+            // to maximize L3 weight reuse across consecutive workgroups.
             selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 8, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 2, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
+                .Case([&](const fully_connected_params&) -> tune_params {
+                    const unsigned int tile_b = 8;
+                    const unsigned int tile_ofm = std::min(max_tile_ofm, 2U);
+                    const size_t ofm_tiles = CeilDiv(output_f, static_cast<size_t>(tile_ofm) * simd);
+                    const unsigned int dispatch_fsv = (ofm_tiles % 2 == 0) ? 2 : 1;
+                    if (batch % tile_b == 0) {
+                        const size_t batch_tiles = batch / tile_b;
+                        unsigned int dispatch_bsv = 16;
+                        while (batch_tiles % dispatch_bsv != 0) {
+                            dispatch_bsv--;
+                        }
+                        return tune_params(tile_b, tile_ofm, 1, 2, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED);
+                    }
+                    size_t tile = simd;
+                    while (batch % tile != 0) {
+                        tile--;
+                    }
+                    if (batch > 1 && tile == 1) {
+                        const size_t batch_tiles = CeilDiv(batch, static_cast<size_t>(tile_b));
+                        unsigned int dispatch_bsv = 16;
+                        while (batch_tiles % dispatch_bsv != 0) {
+                            dispatch_bsv--;
+                        }
+                        return tune_params(tile_b, tile_ofm, 1, 2, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED);
+                    }
+                    return tune_params(tile_b, tile_ofm, 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED);
+                });
         } else if (dtype == Datatype::F32) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 16, 2, EXE_MODE_AGE_BASED))
