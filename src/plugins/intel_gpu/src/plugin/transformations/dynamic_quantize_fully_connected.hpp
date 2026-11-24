@@ -14,7 +14,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("DynamicQuantizeFullyConnected");
     DynamicQuantizeFullyConnected(uint64_t group_size,
                                   bool asymmetric = false,
-                                  bool precomputed_reduction = true,
+                                  bool precomputed_sum = true,
                                   bool use_gs128_for_int8_per_token = false,
                                   bool use_gs128_for_linear_attention = false,
                                   ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::PERFORMANCE);
