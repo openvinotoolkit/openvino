@@ -4039,7 +4039,9 @@ SDPA. Master's pass has no head limit. The limit is now 512, `sdpa_ocl`'s heads 
 land on `sdpa_ref`); the i8-only rule for an 8-bit cache stays.
 
 - With a transposed V the 8-bit cache at head 384 / 512 is read by `v_t_i8_read()` (fused since the entry above); a 4-bit one
-  keeps the explicit Transpose.
+  keeps the explicit Transpose. That path runs end to end in `smoke_GQAQuantizedKVCache` `int4_*_transposedV` (heads 64 /
+  80 / 128 / 512, since 2026-11-25; B70 26 / 26). With the decomposition's 4-bit exclusion removed (temporary build) the 4
+  fail at the first step: SDPA's output head is half the head size.
 - Tests: `sdpa_gpu_transposed_v_i8` +6 (heads 512 / 384: prefill, decode, the 2D read, padded rows, dynamic);
   `smoke_GQAQuantizedKVCache` head 512 now fused. B70: the transposed-V, per-channel, `gqa_decomp` and decomposition unit
   suites 147 / 147, `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` 62 / 62. The ONNX repro at head 512

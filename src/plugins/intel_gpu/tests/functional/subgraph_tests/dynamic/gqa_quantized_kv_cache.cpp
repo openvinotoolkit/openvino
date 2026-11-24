@@ -18,6 +18,7 @@
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/runtime/core.hpp"
 
 // GroupQueryAttention with a quantized KV cache (kv_cache_bit_width 8 / 4, per-channel k/v scales) executed end to end
@@ -28,7 +29,8 @@
 // per-batch cache, which dequantizes before SDPA on every device (the unfused control).
 // The oracle is the same model in f32 on TEMPLATE (TEMPLATE runs an f16 model in f16, too imprecise for these values).
 // The current K/V are integer codes times power-of-two scales, so quantize-on-write is exact in either precision and the
-// present caches must match bit for bit.
+// present caches must match bit for bit. transpose_v: the V cache kept as [B, kv_heads, head_size, S] (past_value ->
+// Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value, as in smoke_GQATransposedVCache, which has the 8-bit one).
 namespace {
 
 struct GQAQuantParams {
@@ -36,6 +38,7 @@ struct GQAQuantParams {
     size_t head_size;
     size_t batch;
     bool windowed;  // sliding_window_cache with a window of `window` keys in `capacity` rows
+    bool transpose_v = false;
 };
 
 constexpr size_t num_heads = 8;
@@ -88,16 +91,17 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAQuantParams& p,
     auto value = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{B, KVH, -1, D});
     const auto cache_len = p.windowed ? ov::Dimension(static_cast<int64_t>(capacity)) : ov::Dimension::dynamic();
     auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{B, KVH, cache_len, DC});
-    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{B, KVH, cache_len, DC});
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, p.transpose_v ? ov::PartialShape{B, KVH, DC, cache_len} : ov::PartialShape{B, KVH, cache_len, DC});
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{B});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
+    const auto transpose_v_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
     ov::OutputVector inputs(14);
     inputs[0] = query;
     inputs[1] = key;
     inputs[2] = value;
     inputs[3] = past_key;
-    inputs[4] = past_value;
+    inputs[4] = p.transpose_v ? std::make_shared<ov::op::v1::Transpose>(past_value, transpose_v_order)->output(0) : past_value->output(0);
     inputs[5] = seqlens_k;
     inputs[6] = total_sequence_length;
     for (size_t i = 7; i <= 11; ++i) {
@@ -110,7 +114,11 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAQuantParams& p,
         ov::op::internal::GroupQueryAttention>(inputs, H, KVH, 0.0f, false, false, p.bits, per_channel, per_channel, p.windowed ? window : -1, p.windowed);
     ov::ResultVector results;
     for (size_t i = 0; i < gqa->get_output_size(); ++i) {
-        results.push_back(std::make_shared<ov::op::v0::Result>(gqa->output(i)));
+        ov::Output<ov::Node> output = gqa->output(i);
+        if (p.transpose_v && i == 2) {
+            output = std::make_shared<ov::op::v1::Transpose>(output, transpose_v_order);
+        }
+        results.push_back(std::make_shared<ov::op::v0::Result>(output));
     }
     return std::make_shared<ov::Model>(results, ov::ParameterVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length});
 }
@@ -138,8 +146,9 @@ ov::Tensor coded_kv(const GQAQuantParams& p, size_t seq, const std::vector<float
     return tensor;
 }
 
-ov::Tensor random_cache(const GQAQuantParams& p, size_t past, std::mt19937& gen) {
-    ov::Tensor tensor(p.bits == 8 ? ov::element::i8 : ov::element::u8, ov::Shape{p.batch, kv_num_heads, past, cache_head_size(p)});
+ov::Tensor random_cache(const GQAQuantParams& p, size_t past, bool value, std::mt19937& gen) {
+    const auto shape = value && p.transpose_v ? ov::Shape{p.batch, kv_num_heads, cache_head_size(p), past} : ov::Shape{p.batch, kv_num_heads, past, cache_head_size(p)};
+    ov::Tensor tensor(p.bits == 8 ? ov::element::i8 : ov::element::u8, shape);
     std::uniform_int_distribution<int> byte(p.bits == 8 ? -127 : 0, p.bits == 8 ? 127 : 255);
     auto* data = static_cast<uint8_t*>(tensor.data());
     for (size_t i = 0; i < tensor.get_size(); ++i) {
@@ -152,14 +161,15 @@ class GQAQuantizedKVCacheTest : public ::testing::TestWithParam<GQAQuantParams> 
 public:
     static std::string get_test_case_name(const ::testing::TestParamInfo<GQAQuantParams>& info) {
         const auto& p = info.param;
-        return "int" + std::to_string(p.bits) + "_D" + std::to_string(p.head_size) + "_B" + std::to_string(p.batch) + (p.windowed ? "_windowed" : "");
+        return "int" + std::to_string(p.bits) + "_D" + std::to_string(p.head_size) + "_B" + std::to_string(p.batch) + (p.windowed ? "_windowed" : "") +
+               (p.transpose_v ? "_transposedV" : "");
     }
 };
 
 TEST_P(GQAQuantizedKVCacheTest, MatchesTemplate) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& p = GetParam();
-    std::mt19937 gen(static_cast<uint32_t>(p.bits * 1000 + p.head_size * 10 + p.batch + (p.windowed ? 5 : 0)));
+    std::mt19937 gen(static_cast<uint32_t>(p.bits * 1000 + p.head_size * 10 + p.batch + (p.windowed ? 5 : 0) + (p.transpose_v ? 7 : 0)));
     const auto k_scale = make_scales(p, gen);
     const auto v_scale = make_scales(p, gen);
     auto core = ov::test::utils::PluginCache::get().core();
@@ -181,8 +191,8 @@ TEST_P(GQAQuantizedKVCacheTest, MatchesTemplate) {
             random_query({p.batch, num_heads, current, p.head_size}, gen),
             coded_kv(p, current, k_scale, gen),
             coded_kv(p, current, v_scale, gen),
-            random_cache(p, past_rows, gen),
-            random_cache(p, past_rows, gen),
+            random_cache(p, past_rows, false, gen),
+            random_cache(p, past_rows, true, gen),
             ov::Tensor(ov::element::i32, ov::Shape{p.batch}),
             ov::Tensor(ov::element::i32, ov::Shape{}),
         };
@@ -269,6 +279,10 @@ std::vector<GQAQuantParams> make_params() {
         for (const size_t head_size : {256, 512}) {
             params.push_back({bits, head_size, 1, false});
         }
+    }
+    // The 4-bit cache with a transposed V (80: 40 B rows).
+    for (const size_t head_size : {64, 80, 128, 512}) {
+        params.push_back({4, head_size, 1, false, true});
     }
     return params;
 }
