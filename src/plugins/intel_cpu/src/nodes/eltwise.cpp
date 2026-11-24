@@ -719,6 +719,12 @@ bool Eltwise::created() const {
 
 bool Eltwise::canFuse(const NodePtr& node) const {
     auto isIntegerComputeSupported = [](const Node* node) {
+#if defined(OPENVINO_ARCH_X86_64)
+        // Only the x64 Mod and FloorMod emitters compute i32 inputs exactly
+        if (any_of(node->getAlgorithm(), Algorithm::EltwiseMod, Algorithm::EltwiseFloorMod)) {
+            return all_of_values(node->getOriginalInputPrecisions(), ov::element::i32);
+        }
+#endif
         if (none_of(node->getAlgorithm(),
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseMultiply,
