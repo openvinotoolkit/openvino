@@ -35,6 +35,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -70,11 +71,9 @@ private:
     Producer m_producer;
 };
 
-/** @brief Returns the section as a buffer: zero-copy when it is addressable and @p owner keeps its bytes alive,
- * otherwise an owned copy; an empty buffer for an empty section, nullptr if it cannot be read. */
-OPENVINO_RUNTIME_API std::shared_ptr<ov::AlignedBuffer> decode_model_struct(
-    const Section& section,
-    std::shared_ptr<ov::AlignedBuffer> owner = {});
+/** @brief Returns the section as a buffer: a zero-copy view when it is addressable, valid as long as the
+ * container passed to Reader::open() is alive, otherwise an owned copy; `std::nullopt` if it cannot be read. */
+OPENVINO_RUNTIME_API std::optional<std::shared_ptr<ov::AlignedBuffer>> decode_model_struct(const Section& section);
 
 }  // namespace v1
 }  // namespace ov::runtime::hsm

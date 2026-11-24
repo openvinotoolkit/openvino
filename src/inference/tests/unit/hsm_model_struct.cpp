@@ -10,6 +10,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace ov::test {
@@ -45,6 +46,10 @@ std::string text_of(const ov::AlignedBuffer& buffer) {
 
 }  // namespace
 
+static_assert(
+    std::is_convertible_v<decltype(&hsm::decode_model_struct), hsm::SectionDecoder<std::shared_ptr<ov::AlignedBuffer>>>,
+    "decode_model_struct must be usable as a SectionDecoder<std::shared_ptr<ov::AlignedBuffer>>.");
+
 TEST(HsmModelStructTest, round_trips_xml) {
     const std::string expected = "<?xml version=\"1.0\"?><net name=\"test\">\n<layers/>\n</net>";
     const auto encoded = collect(hsm::ModelStructEncoder{write(expected)});
@@ -56,7 +61,7 @@ TEST(HsmModelStructTest, round_trips_xml) {
     const hsm::Section section{entry, {reinterpret_cast<const std::byte*>(encoded.data()), encoded.size()}};
     const auto decoded = hsm::decode_model_struct(section);
     ASSERT_TRUE(decoded);
-    EXPECT_EQ(text_of(*decoded), expected);
+    EXPECT_EQ(text_of(**decoded), expected);
 }
 
 TEST(HsmModelStructTest, round_trips_empty_xml) {
@@ -67,7 +72,7 @@ TEST(HsmModelStructTest, round_trips_empty_xml) {
     const hsm::Section section{entry, ov::util::MemoryView{}};
     const auto decoded = hsm::decode_model_struct(section);
     ASSERT_TRUE(decoded);
-    EXPECT_EQ(decoded->size(), 0u);
+    EXPECT_EQ((*decoded)->size(), 0u);
 }
 
 TEST(HsmModelStructTest, encoder_generates_structure_at_encode_time) {
@@ -109,7 +114,31 @@ TEST(HsmModelStructTest, decodes_stream_section) {
 
     const auto decoded = hsm::decode_model_struct(section);
     ASSERT_TRUE(decoded);
-    EXPECT_EQ(text_of(*decoded), expected);
+    EXPECT_EQ(text_of(**decoded), expected);
+}
+
+TEST(HsmModelStructTest, decode_is_zero_copy_for_addressable_section) {
+    const std::string expected = "<net name=\"zero-copy\"/>";
+    const auto blob = buffer_of(expected);
+    hsm::ManifestEntry entry{};
+    entry.tag = hsm::model_tag;
+    entry.size = expected.size();
+    const hsm::Section section{entry, {blob->get_ptr<std::byte>(), blob->size()}};
+
+    const auto decoded = hsm::decode_model_struct(section);
+    ASSERT_TRUE(decoded);
+    EXPECT_EQ((*decoded)->get_ptr(), blob->get_ptr());
+    EXPECT_EQ(text_of(**decoded), expected);
+}
+
+TEST(HsmModelStructTest, decode_reports_truncated_stream_section) {
+    std::istringstream stream{"abc"};
+    hsm::ManifestEntry entry{};
+    entry.tag = hsm::model_tag;
+    entry.size = 8;
+    const hsm::Section section{entry, stream, std::streampos{0}};
+
+    EXPECT_FALSE(hsm::decode_model_struct(section).has_value());
 }
 
 }  // namespace ov::test

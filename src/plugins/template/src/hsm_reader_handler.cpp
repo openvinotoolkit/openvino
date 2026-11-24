@@ -64,7 +64,7 @@ void set_runtime_requirements(HsmReaderHandler& handler, const runtime::hsm::Sec
 }
 
 void set_model(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.m_model = runtime::hsm::decode_model_struct(section, handler.m_source_blob);
+    handler.m_model = runtime::hsm::decode_model_struct(section).value_or(nullptr);
 }
 
 void set_weights(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
