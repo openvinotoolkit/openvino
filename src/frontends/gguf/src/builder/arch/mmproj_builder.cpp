@@ -1582,13 +1582,17 @@ private:
         const bool has_generation = ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
         const bool qwen3tts_generation = has_generation && explicit_generation_type == "qwen3tts_gen";
         const bool lfm3_generation = has_generation && lfm3;
-        if (has_generation && !qwen3tts_generation && !lfm3_generation && modalities.empty())
-            OPENVINO_THROW("[GGUF] unsupported generated audio projector '", explicit_generation_type, "'");
         if (modalities.empty() && !qwen3tts_generation && !lfm3_generation) {
+            const std::string skipped =
+                encoders.skipped.empty() ? "" : ":\n  " + ov::util::join(encoders.skipped, "\n  ");
+            if (has_generation)
+                OPENVINO_THROW("[GGUF] unsupported generated audio projector '",
+                               explicit_generation_type,
+                               "'",
+                               skipped);
             if (encoders.skipped.empty())
                 OPENVINO_THROW("[GGUF] mmproj has no encoder");
-            OPENVINO_THROW("[GGUF] no mmproj projector could be converted:\n  ",
-                           ov::util::join(encoders.skipped, "\n  "));
+            OPENVINO_THROW("[GGUF] no mmproj projector could be converted", skipped);
         }
         if (qwen3tts_generation) {
             auto contract = g.model_contract();

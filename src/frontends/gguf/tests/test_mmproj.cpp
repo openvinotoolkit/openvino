@@ -1582,6 +1582,14 @@ TEST_F(GGUFMMProj, FileWithoutSupportedProjectorIsRejected) {
                     ov::Exception,
                     testing::AllOf(testing::HasSubstr("vision 'unsupported_vision'"),
                                    testing::HasSubstr("audio 'unsupported_audio'")));
+
+    writer.kv_bool("clip.has_gen_audio_encoder", true);
+    writer.kv_str("clip.gen.audio.projector_type", "unknown_gen");
+    OV_EXPECT_THROW(convert(),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("unsupported generated audio projector 'unknown_gen'"),
+                                   testing::HasSubstr("vision 'unsupported_vision'"),
+                                   testing::HasSubstr("audio 'unsupported_audio'")));
 }
 
 TEST_F(GGUFMMProj, FailingProjectorIsRolledBackAndSkipped) {
