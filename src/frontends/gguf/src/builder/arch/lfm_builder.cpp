@@ -107,9 +107,11 @@ public:
             g.add_input("self_kq_mask_swa", ov::element::f32, ov::PartialShape{1, 1, -1, -1});
         auto cur = g.build_inp_embd(weights.require("token_embd.weight"));
         const auto out_ids = detokenizer || encoder ? GgufValue{} : g.build_inp_out_ids();
-        const auto conv_padding = causal ? LfmConvPadding::State
-                                  : lfm3 ? LfmConvPadding::Causal
-                                         : LfmConvPadding::Centered;
+        const auto conv_padding = causal ? LfmConvPadding::STATE
+                                  : lfm3 ? LfmConvPadding::CAUSAL
+                                         : LfmConvPadding::CENTERED;
+        OPENVINO_ASSERT(conv_padding != LfmConvPadding::CENTERED || *kernel % 2 == 1,
+                        "[GGUF] a centered short convolution requires an odd kernel");
         for (int layer = 0; layer < dims.layers; ++layer) {
             const auto prefix = "blk." + std::to_string(layer) + ".";
             const auto weight = [&](const std::string& name) {
@@ -128,6 +130,9 @@ public:
                 const auto in = weight("shortconv.in_proj.weight");
                 const auto conv = weight("shortconv.conv.weight");
                 const auto out = weight("shortconv.out_proj.weight");
+                OPENVINO_ASSERT(conv.ne(0) == *kernel,
+                                "[GGUF] short-convolution weight width does not match shortconv.l_cache in layer ",
+                                layer);
                 if (lfm3)
                     OPENVINO_ASSERT(in.ne(0) == dims.embedding && in.ne(1) == int64_t{3} * dims.embedding &&
                                         conv.ne(0) == *kernel && conv.ne(1) == dims.embedding &&
@@ -238,11 +243,11 @@ GgufValue build_lfm_short_conv(GgufGraphContext& g,
         return g.node("GGML_OP_CONCAT", {left, right}, 0, {{"concat_axis", 0}});
     };
     GgufValue window;
-    if (padding == LfmConvPadding::State) {
+    if (padding == LfmConvPadding::STATE) {
         const auto state = g.add_input(state_name, ov::element::f32, {1, 1, channels, taps});
         window = concat(state, bx);
         g.add_recurrent_state(state, slice(window, -taps, taps));
-    } else if (padding == LfmConvPadding::Causal) {
+    } else if (padding == LfmConvPadding::CAUSAL) {
         window = concat(zeros(".pad", taps), bx);
     } else {
         OPENVINO_ASSERT(taps % 2 == 0, "[GGUF] a centered short convolution requires an odd kernel");
