@@ -57,6 +57,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum u
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offload_ratio, 0, "Percentage (0-100) of model weights to offload to disk. Currently supported for MoE experts only.", [](size_t v) { return v <= 100; })
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, moe_lookahead_prefetch, false, "Enable decode lookahead expert prefetching")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, les_queue_capacity, 32, "Maximum number of queued LES copy tasks", [](size_t value) { return value > 0 && value <= 1024; })
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, les_predictor, "", "Path to the LES expert predictor model (IR). Empty uses the next-layer router as the predictor")
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_zero_copy_cache_load, false, "Enable/Disable zero-copy mode for model cache blob load")

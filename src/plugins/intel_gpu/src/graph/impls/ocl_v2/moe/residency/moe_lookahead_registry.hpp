@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "lookahead_router.hpp"
+#include "les_predictor.hpp"
 #include "moe_lookahead_prefetcher.hpp"
 #include "../expert_weight_providers.hpp"
 
@@ -59,8 +60,12 @@ public:
                  const cldnn::memory::ptr& hidden,
                  const cldnn::event::ptr& ready);
     void prefetch(const cldnn::primitive_inst* current_moe);
+    // Stores the layer input as the "previous token" half of its predictor head; a no-op without a predictor.
+    void update_previous(const cldnn::primitive_id& id, const cldnn::memory::ptr& hidden, const std::vector<cldnn::event::ptr>& ready);
 
 private:
+    LesPredictor::Head* predictor_head(const cldnn::primitive_id& id);
+
     cldnn::network& m_network;
     cldnn::stream::ptr m_compute_stream;
     std::vector<cldnn::program::les_router_link> m_links;
@@ -73,6 +78,8 @@ private:
     std::optional<uint32_t> m_cursor;
     std::unordered_map<cldnn::primitive_id, std::shared_ptr<OffloadExpertWeightProvider>> m_providers;
     std::unordered_map<cldnn::primitive_id, std::unique_ptr<LookaheadRouter>> m_routers;
+    std::unique_ptr<LesPredictor> m_predictor;
+    std::unordered_map<cldnn::primitive_id, size_t> m_predictor_layers;
     std::unordered_map<cldnn::primitive_id, Prediction> m_predictions;
     std::unique_ptr<ExpertPrefetcher> m_prefetcher;
 };

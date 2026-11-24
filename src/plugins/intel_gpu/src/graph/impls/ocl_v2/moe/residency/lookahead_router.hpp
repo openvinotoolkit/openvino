@@ -37,16 +37,20 @@ public:
                     m_projection_instance(owner.get_primitive(projection).get()),
                     m_router_instance(owner.get_primitive(router).get()),
           m_input_layout(owner.get_program()->get_node(hidden).get_output_layout()) {
-        auto shape = m_input_layout.get_partial_shape();
-        OPENVINO_ASSERT(shape.rank().is_static() && shape.size() >= 2 && shape[shape.size() - 1].is_static(),
-                        "Lookahead router requires a static hidden width");
-        for (size_t axis = 0; axis + 1 < shape.size(); ++axis) {
-            shape[axis] = 1;
-        }
-        m_input_layout.set_partial_shape(shape);
-        OPENVINO_ASSERT(m_projection_instance->type() == cldnn::fully_connected::type_id() &&
-                            m_router_instance->type() == cldnn::moe_router_fused::type_id(),
-                        "Lookahead requires the next-layer FC and fused router");
+        validate();
+    }
+
+    // Projection and router instances may belong to a separate internal network that shares the compute stream.
+    LookaheadRouter(cldnn::network& stream_owner,
+                    const cldnn::layout& input_layout,
+                    cldnn::primitive_inst* projection,
+                    cldnn::primitive_inst* router)
+        : m_engine(stream_owner.get_engine()),
+          m_stream(stream_owner.get_stream_ptr()),
+          m_projection_instance(projection),
+          m_router_instance(router),
+          m_input_layout(input_layout) {
+        validate();
     }
 
     ~LookaheadRouter() {
@@ -110,6 +114,19 @@ private:
         cldnn::event::ptr ready;
         std::shared_ptr<std::vector<uint32_t>> cpu_indices;
     };
+
+    void validate() {
+        auto shape = m_input_layout.get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static() && shape.size() >= 2 && shape[shape.size() - 1].is_static(),
+                        "Lookahead router requires a static hidden width");
+        for (size_t axis = 0; axis + 1 < shape.size(); ++axis) {
+            shape[axis] = 1;
+        }
+        m_input_layout.set_partial_shape(shape);
+        OPENVINO_ASSERT(m_projection_instance->type() == cldnn::fully_connected::type_id() &&
+                            m_router_instance->type() == cldnn::moe_router_fused::type_id(),
+                        "Lookahead requires the next-layer FC and fused router");
+    }
 
     void initialize() {
         m_projection = cldnn::onednn::make_fc_prediction_entry(*m_projection_instance, &m_input_layout);

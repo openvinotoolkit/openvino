@@ -147,6 +147,7 @@ static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_l
 static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECORD_REPLAY"};
 static constexpr Property<bool, PropertyMutability::RW> moe_lookahead_prefetch{"GPU_MOE_LOOKAHEAD_PREFETCH"};
 static constexpr Property<size_t, PropertyMutability::RW> les_queue_capacity{"GPU_LES_QUEUE_CAPACITY"};
+static constexpr Property<std::string, PropertyMutability::RW> les_predictor{"GPU_LES_PREDICTOR"};
 
 /**
  * @brief [EXPERIMENTAL] Enables MLIR-based Graph Compiler execution for supported subgraphs.

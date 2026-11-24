@@ -3354,6 +3354,7 @@ public:
         bind_weights_on_first_exec(instance);
         _weight_provider->configure_routed_views(get_routed_inputs(instance), get_slot_views(instance));
         _weight_provider = _lookahead->bind(ins.id(), _weight_provider);
+        _lookahead->update_previous(ins.id(), instance.input_memory_ptr(0), events);
         try {
             return execute_impl(events, ins);
         } catch (...) {
