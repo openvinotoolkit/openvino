@@ -23,6 +23,11 @@ public:
 
 private:
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+    void apply_low_precision_transformations(const std::shared_ptr<ov::Model>& func,
+                                             ov::element::Type infer_precision,
+                                             const ov::element::TypeVector& default_precisions) const;
+    void apply_activation_scaling_transformations(const std::shared_ptr<ov::Model>& func,
+                                                  ov::element::Type infer_precision) const;
 
     const ExecutionConfig& config;
     std::shared_ptr<RemoteContextImpl> m_context;

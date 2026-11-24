@@ -135,7 +135,7 @@ constexpr std::array<uint32_t, 5> k_core_tag_ids{hsm::model_id,
                                                  hsm::model,
                                                  hsm::runtime_requirements,
                                                  hsm::weights,
-                                                 hsm::compiled_options};
+                                                 hsm::compile_options};
 
 // Every assigned device id, pinned the same way as k_core_tag_ids.
 constexpr std::array<hsm::DeviceId, 5> k_device_ids{hsm::any_device_id,
@@ -218,8 +218,8 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
     static_assert(hsm::weights_tag.id() == hsm::weights, "weights_tag id");
     static_assert(hsm::weights_tag.is_pointer(), "weights_tag must always be pointer-mode");
 
-    static_assert(hsm::compiled_options_tag.id() == hsm::compiled_options, "compiled_options_tag id");
-    static_assert(hsm::compiled_options_tag.is_pointer(), "compiled_options_tag must always be pointer-mode");
+    static_assert(hsm::compile_options_tag.id() == hsm::compile_options, "compile_options_tag id");
+    static_assert(hsm::compile_options_tag.is_pointer(), "compile_options_tag must always be pointer-mode");
 
     SUCCEED();
 }
@@ -246,7 +246,7 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
     static_assert(static_cast<uint32_t>(hsm::Tags::runtime_requirements) == 3,
                   "Tags::runtime_requirements value changed");
     static_assert(static_cast<uint32_t>(hsm::Tags::weights) == 4, "Tags::weights value changed");
-    static_assert(static_cast<uint32_t>(hsm::Tags::compiled_options) == 5, "Tags::compiled_options value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::compile_options) == 5, "Tags::compile_options value changed");
 
     SUCCEED();
 }
