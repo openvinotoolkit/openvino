@@ -100,7 +100,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
         ov::util::set_tensors_names(ov::AUTO, *model);
 
         return cpp_to_js(info.Env(), model);
-    } catch (std::runtime_error& err) {
+    } catch (const std::exception& err) {
         reportError(info.Env(), err.what());
 
         return info.Env().Undefined();
@@ -114,7 +114,7 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();
-    } catch (std::runtime_error& err) {
+    } catch (const std::exception& err) {
         reportError(info.Env(), err.what());
 
         return info.Env().Undefined();
@@ -247,14 +247,19 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
-    const auto& devices = _core.get_available_devices();
-    Napi::Array js_devices = Napi::Array::New(info.Env(), devices.size());
+    try {
+        const auto& devices = _core.get_available_devices();
+        Napi::Array js_devices = Napi::Array::New(info.Env(), devices.size());
 
-    uint32_t i = 0;
-    for (const auto& dev : devices)
-        js_devices[i++] = dev;
+        uint32_t i = 0;
+        for (const auto& dev : devices)
+            js_devices[i++] = dev;
 
-    return js_devices;
+        return js_devices;
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
@@ -267,14 +272,19 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "The argument in getVersions() method must be a string or convertible to a string.");
         return info.Env().Undefined();
     }
-    const auto& devices_map = _core.get_versions(device_arg.ToString());
-    Napi::Object versions_object = Napi::Object::New(info.Env());
+    try {
+        const auto& devices_map = _core.get_versions(device_arg.ToString());
+        Napi::Object versions_object = Napi::Object::New(info.Env());
 
-    for (const auto& dev : devices_map) {
-        versions_object.Set(dev.first, cpp_to_js(info.Env(), dev.second));
+        for (const auto& dev : devices_map) {
+            versions_object.Set(dev.first, cpp_to_js(info.Env(), dev.second));
+        }
+
+        return versions_object;
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
-
-    return versions_object;
 }
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
@@ -423,7 +433,7 @@ Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
         } else {
             _core.set_property(device_name, properties);
         }
-    } catch (std::runtime_error& err) {
+    } catch (const std::exception& err) {
         reportError(info.Env(), err.what());
     }
 
@@ -440,15 +450,20 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
         return info.Env().Undefined();
     }
 
-    if (args_length == 2)
-        device_name = info[0].ToString();
+    try {
+        if (args_length == 2)
+            device_name = info[0].ToString();
 
-    std::string property_name = info[args_length > 1 ? 1 : 0].ToString();
+        std::string property_name = info[args_length > 1 ? 1 : 0].ToString();
 
-    ov::Any value =
-        device_name.empty() ? _core.get_property(property_name) : _core.get_property(device_name, property_name);
+        ov::Any value =
+            device_name.empty() ? _core.get_property(property_name) : _core.get_property(device_name, property_name);
 
-    return any_to_js(info, value);
+        return any_to_js(info, value);
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
@@ -457,7 +472,7 @@ void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
             OPENVINO_THROW("addExtension method applies one argument of string type");
 
         _core.add_extension(js_to_cpp<std::filesystem::path>(info, 0));
-    } catch (std::runtime_error& err) {
+    } catch (const std::exception& err) {
         reportError(info.Env(), err.what());
     }
 }
