@@ -414,8 +414,11 @@ public:
         using namespace ov::pass::pattern;
 
         const auto p_query = any_input();
+        // With a single position per row, TransposeToReshape turns the 0213 transposes into Reshapes and the
+        // output one is merged into the query flattening.
+        const auto p_input_reshape = wrap_type<v1::Reshape>({p_query, any_input()});
         const auto p_input_transpose =
-            wrap_type<v1::Transpose>({p_query, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
+            wrap_type<v1::Transpose>({p_query, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))}) | p_input_reshape;
         const auto p_rope_cos = any_input();
         const auto p_rope_sin = any_input();
         const auto p_split = wrap_type_strict_index<v1::VariadicSplit>({p_input_transpose, 3, {"ndims", "?"}});
@@ -437,7 +440,7 @@ public:
                 return axis == -1 || axis == 3;
             });
         const auto p_token_major =
-            wrap_type<v1::Transpose>({p_concat, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
+            optional<v1::Transpose>({p_concat, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
         const auto query_pattern = make_qsa_indexer_query_rope_pattern<Indexer>(p_token_major, p_rope_cos, p_rope_sin);
         const auto p_query_reshape = query_pattern.query_reshape;
         const auto p_indexer = query_pattern.indexer;
@@ -462,12 +465,21 @@ public:
                 pattern_map.count(p_query_reshape)
                     ? ov::as_type_ptr<v1::Reshape>(pattern_map.at(p_query_reshape).get_node_shared_ptr())
                     : nullptr;
+            // An input Reshape keeps the memory order, so the rotated rows match the query rows only without an
+            // output Transpose and once the query is flattened to [rows, heads * head_dim].
+            const bool input_reshape = pattern_map.count(p_input_reshape) != 0;
+            const bool transposed = pattern_map.count(p_token_major) != 0;
+            if (input_reshape == transposed || (input_reshape && !query_reshape)) {
+                return false;
+            }
             NodeVector sources{rope,
                                input_transpose,
                                concat,
                                concat->get_input_node_shared_ptr(1),
-                               rope->get_input_node_shared_ptr(0),
-                               pattern_map.at(p_token_major).get_node_shared_ptr()};
+                               rope->get_input_node_shared_ptr(0)};
+            if (transposed) {
+                sources.push_back(pattern_map.at(p_token_major).get_node_shared_ptr());
+            }
             const auto fused = fuse_qsa_indexer_query_rope(indexer, query, query_reshape, sources);
             register_new_node(fused);
             return true;

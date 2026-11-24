@@ -751,7 +751,9 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
         Output<Node> rope_tail;
         if (o.split_rope) {
             config.input_trans0213 = o.split_rope_input_trans0213;
-            rope_input = std::make_shared<v1::Transpose>(rope_input, i64({0, 2, 1, 3}));
+            if (!o.single_token_head_first) {
+                rope_input = std::make_shared<v1::Transpose>(rope_input, i64({0, 2, 1, 3}));
+            }
             if (o.split_rope_type == SplitRoPEType::VariadicSplit) {
                 const auto split =
                     std::make_shared<v1::VariadicSplit>(rope_input, i64({3}), i64({o.split_rope_ndims, -1}));
@@ -1007,6 +1009,12 @@ const std::vector<QueryOptions> query_cases = [] {
     // Other consumers keep the split RoPE and its Concat.
     o.name = "split_rope_extra_consumers";
     o.extra_consumers = true;
+    cases.push_back(o);
+    // GPU form: TransposeToReshape turns the single-token transposes into Reshapes, the output one merged away.
+    o = QueryOptions{"split_rope_single_token_head_first"};
+    o.split_rope = true;
+    o.rope_length = 1;
+    o.single_token_head_first = true;
     cases.push_back(o);
     // A split RoPE that is not absorbed stays split.
     o = QueryOptions{"split_rope_distinct_cos"};
