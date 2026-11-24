@@ -26,6 +26,8 @@
 #include "openvino/op/interpolate.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/assign.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 
 #include "program_node.h"
 #include "program_helpers.h"
@@ -492,6 +494,132 @@ TEST(inplace_alias_conflict, DISABLED_row11_onednn_sum_into_resample_view_with_o
 // As above, plus a second reader of the owner conv1 that is forced (data dependency on the sum result) to run AFTER conv3.
 TEST(inplace_alias_conflict, DISABLED_row11_onednn_sum_into_resample_view_with_late_reader) {
     run_row11(format::b_fs_yx_fsv16, true, true);
+}
+
+// ---------------------------------------------------------------------------------------------
+// F29 (candidate, Phase 0.5b design 13 question 10; fixed in Phase 1a): the oneDNN sum overwrites A, A has two users {R, C-chain} where R
+// is a cbo view of A, and R has another reader Y that runs AFTER the sum. F11 only looks at the dependency of the sum writer
+// (an owner other than A), F10/F6 do not fire, hence the sum is formed and Y reads overwritten data.
+//   A = conv1(in1); R = resample(A) (cbo view, same size); X = conv2(R); C = conv3(X) with sum(A) fused; Y = prod(R, relu(C)).
+// N10: the test first asserts that the sum is really formed; otherwise it reports "construction not formed" with GTEST_SKIP.
+// ---------------------------------------------------------------------------------------------
+TEST(inplace_alias_conflict, DISABLED_row11b_onednn_sum_into_owner_with_late_reader_of_ancestor_view) {
+    auto& engine = get_test_engine();
+    auto& stream = get_test_stream();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "oneDNN (immad) not available on this device";
+    }
+    layout l1{ov::PartialShape{1, 16, 32, 32}, data_types::f16, format::bfyx};
+    layout lw{ov::PartialShape{16, 16, 1, 1}, data_types::f16, format::bfyx};
+    auto w = engine.allocate_memory(lw);
+    {
+        std::vector<ov::float16> wv(256);
+        for (size_t o = 0; o < 16; o++)
+            for (size_t i = 0; i < 16; i++)
+                wv[o * 16 + i] = ov::float16((o == i) ? 0.5f : (((o + 2 * i) % 5 == 0) ? 0.125f : 0.f));
+        set_values(w, wv);
+    }
+    auto in1 = engine.allocate_memory(l1);
+    {
+        std::vector<ov::float16> v1(l1.count());
+        for (size_t i = 0; i < v1.size(); i++) v1[i] = ov::float16(static_cast<float>(i % 17) * 0.125f - 1.0f);
+        set_values(in1, v1);
+    }
+    auto add_topo = [&](topology& t) {
+        t.add(input_layout("in1", l1));
+        t.add(data("w", w));
+        t.add(convolution("A", input_info("in1"), "w", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        t.add(resample("R", input_info("A"), tensor(1, 16, 32, 32), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST));
+        t.add(convolution("X", input_info("R"), "w", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        t.add(convolution("Cc", input_info("X"), "w", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        t.add(eltwise("C", input_info("Cc"), input_info("A"), eltwise_mode::sum));
+        t.add(activation("fC", input_info("C"), activation_func::relu));
+        t.add(eltwise("Y", input_info("R"), input_info("fC"), eltwise_mode::prod));
+        t.add(reorder("out_y", input_info("Y"), format::bfyx, data_types::f32));
+        t.add(reorder("out_c", input_info("C"), format::bfyx, data_types::f32));
+    };
+    topology test_t, ref_t;
+    add_topo(test_t);
+    add_topo(ref_t);
+    ov::intel_gpu::ImplementationDesc od = {format::b_fs_yx_fsv16, "", impl_types::onednn};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"A", od}, {"X", od}, {"Cc", od}, {"R", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::ocl}}}));
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::optimize_data(false));
+
+    network net_ref(engine, ref_t, config_ref);
+    net_ref.set_input_data("in1", in1);
+    auto outs_ref = net_ref.execute();
+
+    auto prog = program::build_program(engine, test_t, config);
+    // N10: the construction must really contain the sum into A (outer dependency A) and the cbo view R
+    bool sum_formed = false;
+    if (prog->has_node("Cc") && prog->has_node("A") && prog->has_node("R")) {
+        auto& c3 = prog->get_node("Cc");
+        for (const auto& fd : c3.get_fused_primitives()) {
+            if (fd.is_type<eltwise>() && fd.has_outer_dep()) {
+                sum_formed = onednn_eltwise_fusing_helpers::get_add_fusing_type(c3, fd) == onednn_eltwise_fusing_helpers::add_fusing_type::sum &&
+                             c3.get_dependencies()[fd.outer_dep_start_idx].first->id() == "A";
+            }
+        }
+        sum_formed = sum_formed && prog->get_node("R").can_be_optimized();
+    }
+    if (!sum_formed) {
+        dump_flags(*prog, {"A", "R", "X", "Cc", "C", "fC", "Y"});
+        GTEST_SKIP() << "construction not formed: the oneDNN sum into A with the cbo view R was not created by the passes";
+    }
+    network net(prog, 0);
+    net.set_input_data("in1", in1);
+    auto outs = net.execute();
+    EXPECT_EQ(read_f32(outs.at("out_y"), stream), read_f32(outs_ref.at("out_y"), stream));
+    EXPECT_EQ(read_f32(outs.at("out_c"), stream), read_f32(outs_ref.at("out_c"), stream));
+}
+
+// ---------------------------------------------------------------------------------------------
+// read_value / assign ordering (candidate, Phase 0.5b design 13 section 10, folded into the Phase 1a read_value/assign entry): an optimized
+// read_value returns the variable buffer itself. can_read_value_be_optimize (prepare_buffer_fusing.cpp ~:463-464) accepts a read_value with
+// a single reader without looking where that reader runs relative to the assign: a reader that runs AFTER the assign sees the new value.
+// Expected (not true today): a read_value whose only reader is ordered after an assign of the same variable is not optimized.
+// ---------------------------------------------------------------------------------------------
+TEST(inplace_alias_conflict, DISABLED_optimized_read_value_single_reader_after_assign) {
+    auto& engine = get_test_engine();
+    layout l{ov::PartialShape{1, 4, 8, 8}, data_types::f32, format::bfyx};
+    topology t;
+    t.add(input_layout("in", l));
+    t.add(input_layout("in2", l));
+    t.add(read_value{"rv", {input_info("in")}, "v0", {l}});
+    t.add(activation("src", input_info("in2"), activation_func::relu));
+    t.add(assign("as", {input_info("src")}, "v0", l));
+    // the reader is the only user of rv and depends on the assign output too, so it is ordered after the assign
+    t.add(eltwise("late_reader", {input_info("rv"), input_info("as")}, eltwise_mode::sum));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    program::ptr prog;
+    try {
+        prog = program::build_program(engine, t, config, false, false);
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << "construction not formed: graph cannot be built here: " << e.what();
+    }
+    if (!prog->has_node("rv") || !prog->has_node("as") || !prog->has_node("late_reader")) {
+        std::string ids;
+        for (auto* n : prog->get_processing_order()) {
+            ids += n->id() + " ";
+        }
+        GTEST_SKIP() << "construction not formed: nodes were removed [" << ids << "] (rv=" << prog->has_node("rv") << " as=" << prog->has_node("as")
+                     << " late_reader=" << prog->has_node("late_reader") << ")";
+    }
+    size_t pos_as = 0, pos_reader = 0, i = 0;
+    for (auto* n : prog->get_processing_order()) {
+        pos_as = n->id() == "as" ? i : pos_as;
+        pos_reader = n->id() == "late_reader" ? i : pos_reader;
+        ++i;
+    }
+    if (!(pos_as < pos_reader) || prog->get_node("rv").get_users().size() != 1) {
+        GTEST_SKIP() << "construction not formed: the reader is not the only user of rv or does not run after the assign";
+    }
+    EXPECT_FALSE(prog->get_node("rv").can_be_optimized()) << "read_value optimized although its only reader runs after the assign";
 }
 
 // ---------------------------------------------------------------------------------------------

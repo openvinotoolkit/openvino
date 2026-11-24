@@ -16,6 +16,16 @@
 // OV_CONFIG_DEBUG_GLOBAL_OPTION:
 //      Same as OV_CONFIG_DEBUG_OPTION, but applied globally to all models.
 
+// Phase 0.5b: default of enable_alias_shadow_validation. options.inl is an X-macro file that is included several times, hence the guard.
+// Debug builds (no NDEBUG) validate by default, release builds do not.
+#ifndef OV_GPU_ALIAS_SHADOW_VALIDATION_DEFAULT
+#    ifdef NDEBUG
+#        define OV_GPU_ALIAS_SHADOW_VALIDATION_DEFAULT false
+#    else
+#        define OV_GPU_ALIAS_SHADOW_VALIDATION_DEFAULT true
+#    endif
+#endif
+
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
@@ -64,6 +74,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, optimize_data, false, "Enable/D
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_memory_pool, true, "Enable/Disable memory pool usage")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_concat_holder_pool, false, "P1-B-S: admit static in-place Concat holders to the memory pool as alias-class roots (class-level restrictions). Not part of the model cache key")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_dynamic_concat_holder_pool, false, "P1-B-D: also admit dynamic in-place Concat holders to the memory pool (only effective together with enable_concat_holder_pool). Not part of the model cache key")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_alias_shadow_validation, OV_GPU_ALIAS_SHADOW_VALIDATION_DEFAULT, "Phase 0.5b: alias shadow validation (report only, never changes allocation). Not part of the model cache key")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_static_input_reorder, false, "Controls if weights tensors can be reordered during model compilation to more friendly layout for specific kernel")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, custom_outputs, std::vector<std::string>{}, "List of output primitive names")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, force_implementations, ImplForcingMap{}, "Specifies the list of forced implementations for the primitives")

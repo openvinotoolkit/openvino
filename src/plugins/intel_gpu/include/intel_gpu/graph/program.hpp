@@ -30,6 +30,7 @@ struct program_node;
 class layout_optimizer;
 class pass_manager;
 class alias_analysis;
+struct alias_validation_report;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
@@ -168,6 +169,8 @@ public:
     bool is_internal_program() const { return is_internal; }
     // Phase 0.5a: alias classes of the compiled graph; built once in prepare_memory_dependencies (nullptr before it, and when it is skipped).
     const alias_analysis* get_alias_analysis() const { return _alias_analysis.get(); }
+    // Phase 0.5b: shadow validation report (report only). nullptr when enable_alias_shadow_validation is off or prepare_memory_dependencies did not run.
+    const alias_validation_report* get_alias_validation_report() const { return _alias_validation_report.get(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
@@ -336,6 +339,7 @@ private:
     std::vector<primitive_id> allocating_order;
     std::unique_ptr<pass_manager> pm;
     std::unique_ptr<alias_analysis> _alias_analysis;
+    std::unique_ptr<alias_validation_report> _alias_validation_report;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal = false;
     // Forced oneDNN impls optimization attribute

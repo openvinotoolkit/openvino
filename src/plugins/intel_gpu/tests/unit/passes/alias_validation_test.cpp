@@ -24,6 +24,7 @@
 #include "alias_analysis.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "alias_validation.h"
 #include "exec_axis.h"
 #include "runtime_concat_order.h"
 #include "intel_gpu/primitives/activation.hpp"
@@ -37,7 +38,9 @@
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/shape_of.hpp"
 #include "intel_gpu/primitives/stateless_kv.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
@@ -683,4 +686,1071 @@ TEST(alias_validation, X4_broken_normalization_is_reported) {
     const auto fake = exec_axis::for_test(exec_axis::status::ok, {{&prog->get_node("C"), 41}});
     EXPECT_EQ(fake.position(prog->get_node("C")), std::optional<uint32_t>(41u));
     EXPECT_FALSE(fake.position(prog->get_node("D")).has_value());
+}
+
+// ==============================================================================================================================
+// W*. war_safe
+// ==============================================================================================================================
+namespace {
+
+struct war_run {
+    alias_analysis aa;
+    exec_axis ax;
+    war_result res;
+};
+
+// Builds the engine (with the hypothetical in-place edges `hyp`: {writer id, dep index}) and queries the writer `id`.
+war_run war_of(program& prog, const std::string& id, int dep, const std::vector<std::pair<std::string, int>>& hyp, const exec_axis* axis = nullptr) {
+    std::vector<hypothetical_inplace> extra;
+    for (const auto& h : hyp) {
+        extra.push_back({&prog.get_node(h.first), h.second});
+    }
+    war_run r{alias_analysis::build(prog, compile_time_envelope{}, &extra), axis ? *axis : exec_axis::build(prog), {}};
+    EXPECT_TRUE(r.aa.rejected_hypotheticals().empty()) << "a hypothetical edge was rejected (N13)";
+    r.res = war_safe(r.aa, r.ax, war_query{&prog.get_node(id), dep, 0});
+    return r;
+}
+
+std::string why(const war_result& r) {
+    std::ostringstream os;
+    os << "verdict=" << to_string(r.verdict) << " reasons=0x" << std::hex << r.reasons << std::dec;
+    for (const auto& w : r.witnesses) {
+        os << " witness(" << (w.reader ? w.reader->id() : "?") << "@" << w.reader_pos << " via " << (w.via_node ? w.via_node->id() : "?") << ")";
+    }
+    return os.str();
+}
+
+#define EXPECT_VERDICT(r, v) EXPECT_EQ((r).res.verdict, v) << why((r).res)
+#define EXPECT_REASON(r, bit) EXPECT_NE((r).res.reasons & (bit), 0u) << #bit << " expected; " << why((r).res)
+#define EXPECT_NO_REASON(r, bit) EXPECT_EQ((r).res.reasons & (bit), 0u) << #bit << " unexpected; " << why((r).res)
+
+// in -> P -> {W, Y, Z}; W -> O, Y -> OY, Z -> OZ
+topology fan_topology(bool with_y = true, bool with_z = false) {
+    topology t;
+    t.add(input_layout("in", f32_l()));
+    t.add(activation("P", input_info("in"), activation_func::relu));
+    t.add(activation("W", input_info("P"), activation_func::abs));
+    if (with_y) {
+        t.add(activation("Y", input_info("P"), activation_func::abs));
+        t.add(activation("OY", input_info("Y"), activation_func::abs));
+    }
+    if (with_z) {
+        t.add(activation("Z", input_info("P"), activation_func::abs));
+        t.add(activation("OZ", input_info("Z"), activation_func::abs));
+    }
+    return t;
+}
+std::vector<std::string> fan_outs(bool with_y = true, bool with_z = false) {
+    std::vector<std::string> o{"W"};
+    if (with_y) {
+        o.push_back("OY");
+    }
+    if (with_z) {
+        o.push_back("OZ");
+    }
+    return o;
+}
+
+}  // namespace
+
+// W1/W2: simple residual, with and without a second reader before / after the writer.
+TEST(alias_validation, W1_single_reader_is_safe) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, fan_topology(false), fan_outs(false));
+    auto r = war_of(*prog, "W", 0, {{"W", 0}});
+    EXPECT_VERDICT(r, war_verdict::Safe);
+    EXPECT_REASON(r, wr_no_other_reader);
+    EXPECT_EQ(r.res.writer_pos, static_cast<int64_t>(*r.ax.position(prog->get_node("W"))));
+}
+
+TEST(alias_validation, W2_late_reader_is_unsafe_and_early_reader_is_safe) {
+    auto& eng = get_test_engine();
+    {
+        auto prog = make_hand(eng, fan_topology(), fan_outs());
+        force_order(*prog, {"P", "W", "Y"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_late_reader);
+        ASSERT_FALSE(r.res.witnesses.empty());
+        EXPECT_EQ(r.res.witnesses[0].reader, &prog->get_node("Y"));
+        EXPECT_EQ(r.res.witnesses[0].via_node, &prog->get_node("P"));
+    }
+    {
+        auto prog = make_hand(eng, fan_topology(), fan_outs());
+        force_order(*prog, {"P", "Y", "W"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe);
+        EXPECT_NO_REASON(r, wr_no_other_reader);
+    }
+}
+
+// W3 (F29 construction at engine level): the overwritten tensor A has a view R (cbo) whose reader Y runs after W.
+TEST(alias_validation, W3_late_reader_of_a_view_of_the_overwritten_tensor) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool late) {
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("A", input_info("in"), activation_func::relu));
+        t.add(activation("R", input_info("A"), activation_func::abs));
+        t.add(activation("W", input_info("A"), activation_func::abs));
+        t.add(activation("Y", input_info("R"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"W", "Y"});
+        prog->get_node("R").can_be_optimized(true);
+        force_order(*prog, late ? std::vector<std::string>{"A", "W", "R", "Y"} : std::vector<std::string>{"A", "R", "Y", "W"});
+        return prog;
+    };
+    {
+        auto prog = make(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_late_reader);
+        // R itself reads A after the writer (conservative, P-1), Y reads R: it is found through the view edge going down
+        bool found = false;
+        for (const auto& w : r.res.witnesses) {
+            found = found || (w.reader == &prog->get_node("Y") && w.via_node == &prog->get_node("R"));
+        }
+        EXPECT_TRUE(found) << why(r.res);
+    }
+    {
+        auto prog = make(false);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe);
+    }
+}
+
+// W4 (F4 row 11 at engine level): the writer reads a VIEW V; the owner O of V has another reader Z.
+TEST(alias_validation, W4_late_reader_of_the_owner_of_the_overwritten_view) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool late) {
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("O1", input_info("in"), activation_func::relu));
+        t.add(activation("V", input_info("O1"), activation_func::abs));
+        t.add(activation("W", input_info("V"), activation_func::abs));
+        t.add(activation("Z", input_info("O1"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"W", "Z"});
+        prog->get_node("V").can_be_optimized(true);
+        force_order(*prog, late ? std::vector<std::string>{"O1", "V", "W", "Z"} : std::vector<std::string>{"O1", "V", "Z", "W"});
+        return prog;
+    };
+    {
+        auto prog = make(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_late_reader);
+        ASSERT_FALSE(r.res.witnesses.empty());
+        EXPECT_EQ(r.res.witnesses[0].reader, &prog->get_node("Z"));
+        EXPECT_EQ(r.res.witnesses[0].via_node, &prog->get_node("O1")) << "found through the view edge going up";
+    }
+    {
+        auto prog = make(false);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe);
+    }
+}
+
+// slot / holder cases (F10). C = concat(S1, S2) is an in-place holder.
+namespace {
+topology slots_topology() {
+    topology t;
+    t.add(input_layout("in1", f32_l()));
+    t.add(input_layout("in2", f32_l()));
+    t.add(activation("S1", input_info("in1"), activation_func::relu));
+    t.add(activation("S2", input_info("in2"), activation_func::abs));
+    t.add(concatenation("C", {input_info("S1"), input_info("S2")}, 1, data_types::f32));
+    t.add(activation("O", input_info("C"), activation_func::abs));
+    return t;
+}
+}  // namespace
+
+// W5: the writer overwrites the holder: every reader of any slot after the writer is a victim; static siblings included.
+TEST(alias_validation, W5_holder_overwritten_slot_reader_decides) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool late) {
+        topology t = slots_topology();
+        t.add(activation("W", input_info("C"), activation_func::abs));
+        t.add(activation("Z", input_info("S1"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"O", "W", "Z"});
+        prog->get_node("C").can_be_optimized(true);
+        force_order(*prog, late ? std::vector<std::string>{"S1", "S2", "C", "O", "W", "Z"} : std::vector<std::string>{"S1", "S2", "C", "O", "Z", "W"});
+        return prog;
+    };
+    {
+        auto prog = make(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_late_reader);
+        EXPECT_EQ(r.res.witnesses.at(0).reader, &prog->get_node("Z"));
+    }
+    {
+        auto prog = make(false);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe) << "all readers of the holder and of its slots run before the writer";
+    }
+}
+
+// W6: overwriting one slot: the holder (and its readers) are affected, the static sibling slots are not (pruned).
+TEST(alias_validation, W6_slot_overwritten_static_sibling_is_pruned_holder_is_not) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool writer_before_holder_reader) {
+        topology t = slots_topology();
+        t.add(activation("WW", input_info("S1"), activation_func::abs));
+        t.add(activation("Z", input_info("S2"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"O", "WW", "Z"});
+        prog->get_node("C").can_be_optimized(true);
+        force_order(*prog, writer_before_holder_reader ? std::vector<std::string>{"S1", "S2", "C", "WW", "O", "Z"}
+                                                         : std::vector<std::string>{"S1", "S2", "C", "O", "WW", "Z"});
+        return prog;
+    };
+    {   // the reader Z of the sibling S2 is later than the writer: irrelevant, the siblings do not intersect. The reader O of the holder is earlier.
+        auto prog = make(false);
+        auto r = war_of(*prog, "WW", 0, {{"WW", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe) << "static sibling slot pruned";
+    }
+    {   // the holder reader O is later than the writer: a victim
+        auto prog = make(true);
+        auto r = war_of(*prog, "WW", 0, {{"WW", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_EQ(r.res.witnesses.at(0).reader, &prog->get_node("O"));
+        EXPECT_EQ(r.res.witnesses.at(0).via_node, &prog->get_node("C"));
+    }
+}
+
+// W7: dynamic (RUNTIME offset) siblings are never pruned.
+TEST(alias_validation, W7_runtime_offset_sibling_is_not_pruned) {
+    auto& eng = get_test_engine();
+    topology t;
+    t.add(input_layout("in1", layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}));
+    t.add(input_layout("in2", layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}));
+    t.add(activation("S1", input_info("in1"), activation_func::relu));
+    t.add(activation("S2", input_info("in2"), activation_func::abs));
+    t.add(concatenation("C", {input_info("S1"), input_info("S2")}, 1));
+    t.add(activation("O", input_info("C"), activation_func::abs));
+    t.add(activation("WW", input_info("S1"), activation_func::abs));
+    t.add(activation("Z", input_info("S2"), activation_func::abs));
+    auto prog = make_hand(eng, t, {"O", "WW", "Z"});
+    auto& c = prog->get_node("C");
+    ASSERT_TRUE(c.is_dynamic());
+    c.can_be_optimized(true);
+    c.set_runtime_skippable(true);
+    force_order(*prog, {"S1", "S2", "C", "O", "WW", "Z"});
+    // WW is a second user of S1, so the runtime concat would be cancelled by F9 and the real axis is not normalized: use the order as given
+    std::unordered_map<const program_node*, uint32_t> pos;
+    uint32_t k = 0;
+    for (auto* n : prog->get_processing_order()) {
+        if (!n->is_type<input_layout>()) {
+            pos[n] = k++;
+        }
+    }
+    const auto axis = exec_axis::for_test(exec_axis::status::ok, pos);
+    auto r = war_of(*prog, "WW", 0, {{"WW", 0}}, &axis);
+    EXPECT_VERDICT(r, war_verdict::Unsafe) << "the sibling reader Z is later and the byte ranges are only known at runtime";
+    EXPECT_REASON(r, wr_late_reader);
+    bool z = false;
+    for (const auto& w : r.res.witnesses) {
+        z = z || w.reader == &prog->get_node("Z");
+    }
+    EXPECT_TRUE(z) << why(r.res);
+}
+
+// W8: cascaded concat: overwriting an inner slot is visible in the outer holder.
+TEST(alias_validation, W8_cascaded_concat_reaches_the_outer_holder) {
+    auto& eng = get_test_engine();
+    topology t;
+    t.add(input_layout("in1", f32_l()));
+    t.add(input_layout("in2", f32_l()));
+    t.add(input_layout("in3", layout{ov::PartialShape{1, 8, 8, 8}, data_types::f32, format::bfyx}));
+    t.add(activation("S1", input_info("in1"), activation_func::relu));
+    t.add(activation("S2", input_info("in2"), activation_func::abs));
+    t.add(concatenation("H1", {input_info("S1"), input_info("S2")}, 1, data_types::f32));
+    t.add(activation("S3", input_info("in3"), activation_func::abs));
+    t.add(concatenation("H2", {input_info("H1"), input_info("S3")}, 1, data_types::f32));
+    t.add(activation("O", input_info("H2"), activation_func::abs));
+    t.add(activation("WW", input_info("S1"), activation_func::abs));
+    auto prog = make_hand(eng, t, {"O", "WW"});
+    prog->get_node("H1").can_be_optimized(true);
+    prog->get_node("H2").can_be_optimized(true);
+    force_order(*prog, {"S1", "S2", "H1", "S3", "H2", "WW", "O"});
+    auto r = war_of(*prog, "WW", 0, {{"WW", 0}});
+    EXPECT_VERDICT(r, war_verdict::Unsafe);
+    EXPECT_EQ(r.res.witnesses.at(0).reader, &prog->get_node("O"));
+    EXPECT_EQ(r.res.witnesses.at(0).via_node, &prog->get_node("H2"));
+    // writer after the reader of the outer holder: safe, the S3 sibling of H1 inside H2 is pruned
+    force_order(*prog, {"S1", "S2", "H1", "S3", "H2", "O", "WW"});
+    auto r2 = war_of(*prog, "WW", 0, {{"WW", 0}});
+    EXPECT_VERDICT(r2, war_verdict::Safe);
+}
+
+// W9 (F11): the writer also reads the overwritten tensor (or a view of it) through another dependency.
+TEST(alias_validation, W9_self_read_through_another_port_or_a_view) {
+    auto& eng = get_test_engine();
+    {   // eltwise(P, P): both dependencies are P
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(eltwise("W", {input_info("P"), input_info("P")}, eltwise_mode::sum));
+        auto prog = make_hand(eng, t, {"W"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_self_read_other_port);
+    }
+    {   // eltwise(P, R) with R a cbo view of P
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(activation("R", input_info("P"), activation_func::abs));
+        t.add(eltwise("W", {input_info("P"), input_info("R")}, eltwise_mode::sum));
+        auto prog = make_hand(eng, t, {"W"});
+        prog->get_node("R").can_be_optimized(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_self_read_other_port);
+        // the same eltwise overwriting dependency 1 (the view): reads P through dependency 0
+        auto r1 = war_of(*prog, "W", 1, {{"W", 1}});
+        EXPECT_VERDICT(r1, war_verdict::Unsafe);
+        EXPECT_REASON(r1, wr_self_read_other_port);
+    }
+}
+
+// W10 (F6): external roots. Graph inputs, constants, and the like are never overwritten; the reason is not forgotten when the
+// root is reached through an upstream in-place edge, and removing an upstream edge never turns Safe into Unsafe (W21).
+TEST(alias_validation, W10_external_root_input_layout_and_data) {
+    auto& eng = get_test_engine();
+    {
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("W", input_info("in"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"W"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_external_root);
+        EXPECT_NO_REASON(r, wr_via_upstream_inplace);
+    }
+    {
+        topology t;
+        t.add(cldnn::data("d", get_test_engine().allocate_memory(f32_l())));
+        t.add(activation("W", input_info("d"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"W"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_external_root);
+    }
+}
+
+namespace {
+topology ext_chain_topology() {
+    topology t;
+    t.add(input_layout("in", f32_l()));
+    t.add(activation("S1", input_info("in"), activation_func::abs));
+    t.add(activation("S2", input_info("S1"), activation_func::abs));
+    t.add(activation("S3", input_info("S2"), activation_func::abs));
+    return t;
+}
+}  // namespace
+
+TEST(alias_validation, W11_chain_from_external_root_marks_upstream_inplace_and_W21_is_monotonic) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, ext_chain_topology(), {"S3"});
+    {
+        auto r1 = war_of(*prog, "S1", 0, {{"S1", 0}, {"S2", 0}});
+        EXPECT_VERDICT(r1, war_verdict::Unsafe);
+        EXPECT_REASON(r1, wr_external_root);
+        EXPECT_NO_REASON(r1, wr_via_upstream_inplace);
+        auto r2 = war_of(*prog, "S2", 0, {{"S1", 0}, {"S2", 0}});
+        EXPECT_VERDICT(r2, war_verdict::Unsafe);
+        EXPECT_REASON(r2, wr_external_root);
+        EXPECT_REASON(r2, wr_via_upstream_inplace);
+        // without the upstream edge S2 writes into the buffer of S1, which is an ordinary allocation
+        auto r3 = war_of(*prog, "S2", 0, {{"S2", 0}});
+        EXPECT_VERDICT(r3, war_verdict::Safe);
+    }
+    // W21: for every subset of the upstream edges, a verdict of S3 can only get safer when edges are removed
+    int verdict_of[4];
+    for (int mask = 0; mask < 4; ++mask) {
+        std::vector<std::pair<std::string, int>> hyp{{"S3", 0}};
+        if (mask & 1) {
+            hyp.push_back({"S1", 0});
+        }
+        if (mask & 2) {
+            hyp.push_back({"S2", 0});
+        }
+        verdict_of[mask] = static_cast<int>(war_of(*prog, "S3", 0, hyp).res.verdict);
+    }
+    for (int sup = 0; sup < 4; ++sup) {
+        for (int sub = 0; sub < 4; ++sub) {
+            if ((sub & sup) == sub && verdict_of[sup] == static_cast<int>(war_verdict::Safe)) {
+                EXPECT_EQ(verdict_of[sub], static_cast<int>(war_verdict::Safe)) << "sup=" << sup << " sub=" << sub;
+            }
+        }
+    }
+    EXPECT_EQ(verdict_of[0], static_cast<int>(war_verdict::Safe));
+    EXPECT_EQ(verdict_of[3], static_cast<int>(war_verdict::Unsafe));
+}
+
+// W12 (R5a): a version of the overwritten tensor is a network output (or becomes one through mutable_data).
+TEST(alias_validation, W12_visible_version) {
+    auto& eng = get_test_engine();
+    {
+        auto prog = make_hand(eng, fan_topology(false), {"W", "P"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_visible_version);
+    }
+    {   // an output view of the overwritten tensor
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(activation("R", input_info("P"), activation_func::abs));
+        t.add(activation("W", input_info("P"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"W", "R"});
+        prog->get_node("R").can_be_optimized(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_visible_version);
+    }
+    {   // output through a mutable_data user
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(activation("W", input_info("P"), activation_func::abs));
+        t.add(mutable_data("md", {input_info("P")}, eng.allocate_memory(f32_l())));
+        auto prog = make_hand(eng, t, {"W", "md"});
+        ASSERT_FALSE(prog->get_node("P").is_output());
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_visible_version);
+    }
+}
+
+// W13: persistent writers: kv_cache, assign, stateless_kv
+TEST(alias_validation, W13_kv_cache_and_assign_and_stateless_kv) {
+    auto& eng = get_test_engine();
+    {
+        auto prog = make_hand(eng, kv_topology(false, "v0", "v0"), {"O"});
+        auto aa = alias_analysis::build(*prog);
+        const auto writers = enumerate_inplace_writers(aa);
+        ASSERT_EQ(writers.size(), 1u);
+        EXPECT_EQ(writers[0].writer, &prog->get_node("kv"));
+        const auto ax = exec_axis::build(*prog);
+        auto r = war_safe(aa, ax, writers[0]);
+        EXPECT_EQ(r.verdict, war_verdict::Safe) << "registered persistent writer, no other reader of the variable alias\n" << why(r);
+        // read_value only has CPU implementations: the member makes the verdict Unknown
+        prog->get_node("rv").set_preferred_impl_type(impl_types::cpu);
+        auto aa2 = alias_analysis::build(*prog);
+        auto r2 = war_safe(aa2, ax, writers[0]);
+        EXPECT_EQ(r2.verdict, war_verdict::Unknown) << why(r2);
+        EXPECT_NE(r2.reasons & wr_cpu_member, 0u);
+    }
+    {   // an unregistered writer of a persistent root is a defect: a plain activation reading the read_value in place
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(read_value{"rv", {input_info("in")}, "v0", {f32_l()}});
+        t.add(activation("W", input_info("rv"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"W"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_persistent_unregistered);
+    }
+    {   // assign: a copy into the variable, the version set starts at the aliases of the variable (N1), not at dependency 0
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(read_value{"rv", {input_info("in")}, "v0", {f32_l()}});
+        t.add(activation("X", input_info("rv"), activation_func::abs));
+        t.add(assign("as", {input_info("X")}, "v0", f32_l()));
+        auto prog = make_hand(eng, t, {"as"});
+        auto aa = alias_analysis::build(*prog);
+        const auto ax = exec_axis::build(*prog);
+        const auto writers = enumerate_inplace_writers(aa);
+        ASSERT_EQ(writers.size(), 1u);
+        auto r = war_safe(aa, ax, writers[0]);
+        EXPECT_EQ(r.verdict, war_verdict::Safe) << why(r);
+        prog->get_node("as").set_preferred_impl_type(impl_types::cpu);
+        auto aa2 = alias_analysis::build(*prog);
+        auto r2 = war_safe(aa2, ax, writers[0]);
+        EXPECT_EQ(r2.verdict, war_verdict::Unknown) << why(r2);
+        EXPECT_NE(r2.reasons & wr_cpu_writer, 0u);
+        // a reader of the read_value that runs after the assign is a late reader of the variable alias
+        topology t2 = [&] {
+            topology u;
+            u.add(input_layout("in", f32_l()));
+            u.add(read_value{"rv", {input_info("in")}, "v0", {f32_l()}});
+            u.add(activation("X", input_info("rv"), activation_func::abs));
+            u.add(assign("as", {input_info("X")}, "v0", f32_l()));
+            u.add(activation("late", input_info("rv"), activation_func::abs));
+            return u;
+        }();
+        auto prog2 = make_hand(eng, t2, {"as", "late"});
+        force_order(*prog2, {"rv", "X", "as", "late"});
+        auto aa3 = alias_analysis::build(*prog2);
+        const auto ax3 = exec_axis::build(*prog2);
+        auto r3 = war_safe(aa3, ax3, enumerate_inplace_writers(aa3).at(0));
+        EXPECT_EQ(r3.verdict, war_verdict::Unsafe) << why(r3);
+        EXPECT_NE(r3.reasons & wr_late_reader, 0u);
+    }
+    {   // stateless_kv: runtime guarded, registered on `past`
+        topology t;
+        t.add(input_layout("past", layout{ov::PartialShape{1, 2, -1, 4}, data_types::f32, format::bfyx}));
+        t.add(input_layout("new_token", layout{ov::PartialShape{1, 2, 1, 4}, data_types::f32, format::bfyx}));
+        t.add(input_layout("present_len", layout{ov::PartialShape{1}, data_types::i64, format::bfyx}));
+        auto kv = stateless_kv("stateless_kv", {input_info("past"), input_info("new_token"), input_info("present_len")}, 2, true);
+        kv.num_outputs = 2;
+        kv.output_data_types = {data_types::f32, data_types::f32};
+        t.add(kv);
+        t.add(reorder("result", input_info("stateless_kv", 0), format::bfyx, data_types::f32));
+        auto prog = make_hand(eng, t, {"result"});
+        auto aa = alias_analysis::build(*prog);
+        const auto ax = exec_axis::build(*prog);
+        const auto writers = enumerate_inplace_writers(aa);
+        ASSERT_EQ(writers.size(), 1u);
+        auto r = war_safe(aa, ax, writers[0]);
+        EXPECT_EQ(r.verdict, war_verdict::Unknown) << why(r);
+        EXPECT_NE(r.reasons & wr_runtime_guarded, 0u);
+        EXPECT_EQ(r.reasons & wr_external_root, 0u) << "past is the registered target of this writer";
+    }
+}
+
+// W14: LoRA is opaque.
+TEST(alias_validation, W14_lora_is_unknown_opaque) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, lora_topology(), {"O"});
+    auto aa = alias_analysis::build(*prog);
+    const auto ax = exec_axis::build(*prog);
+    const auto writers = enumerate_inplace_writers(aa);
+    ASSERT_EQ(writers.size(), 1u);
+    auto r = war_safe(aa, ax, writers[0]);
+    EXPECT_EQ(r.verdict, war_verdict::Unknown) << why(r);
+    EXPECT_NE(r.reasons & wr_opaque, 0u);
+}
+
+// W15: OOOQ: only the order independent evidence survives.
+TEST(alias_validation, W15_out_of_order_queue) {
+    auto& eng = get_test_engine();
+    {
+        auto prog = make_hand(eng, fan_topology(), fan_outs(), QueueTypes::out_of_order);
+        force_order(*prog, {"P", "W", "Y"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unknown);
+        EXPECT_REASON(r, wr_oooq);
+        EXPECT_NO_REASON(r, wr_late_reader);
+    }
+    {
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("W", input_info("in"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"W"}, QueueTypes::out_of_order);
+        ASSERT_EQ(prog->get_config().get_queue_type(), QueueTypes::out_of_order);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe) << "the external root is order independent evidence";
+        EXPECT_REASON(r, wr_oooq);
+        EXPECT_REASON(r, wr_external_root);
+    }
+}
+
+// W16: CPU and shape_of
+TEST(alias_validation, W16_cpu_shape_of_and_body) {
+    auto& eng = get_test_engine();
+    {   // CPU reader: Unknown, a GPU late reader on top makes it Unsafe
+        auto prog = make_hand(eng, fan_topology(true, true), fan_outs(true, true));
+        prog->get_node("Y").set_preferred_impl_type(impl_types::cpu);
+        force_order(*prog, {"P", "Y", "W", "Z"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_REASON(r, wr_cpu_reader);
+        EXPECT_REASON(r, wr_late_reader);
+        force_order(*prog, {"P", "Z", "Y", "W"});
+        auto r2 = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r2, war_verdict::Unknown);
+        EXPECT_REASON(r2, wr_cpu_reader);
+    }
+    {   // CPU writer
+        auto prog = make_hand(eng, fan_topology(false), fan_outs(false));
+        prog->get_node("W").set_preferred_impl_type(impl_types::cpu);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unknown);
+        EXPECT_REASON(r, wr_cpu_writer);
+    }
+    {   // shape_of reader is skipped
+        topology t = fan_topology(false);
+        t.add(shape_of("S", input_info("P"), data_types::i32));
+        auto prog = make_hand(eng, t, {"W", "S"});
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe);
+        EXPECT_REASON(r, wr_no_other_reader);
+    }
+    {   // member / reader in a shape_of subgraph
+        auto prog = make_hand(eng, fan_topology(), fan_outs());
+        prog->get_node("P").set_in_shape_of_subgraph(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unknown);
+        EXPECT_REASON(r, wr_shape_of_member);
+        auto prog2 = make_hand(eng, fan_topology(), fan_outs());
+        prog2->get_node("Y").set_in_shape_of_subgraph(true);
+        auto r2 = war_of(*prog2, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r2, war_verdict::Unknown);
+        EXPECT_REASON(r2, wr_shape_of_subgraph_reader);
+    }
+    {   // body / internal programs
+        auto body = make_hand(eng, fan_topology(false), fan_outs(false), QueueTypes::in_order, false, true);
+        auto r = war_of(*body, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unknown);
+        EXPECT_REASON(r, wr_body_or_internal);
+        auto internal = make_hand(eng, fan_topology(false), fan_outs(false), QueueTypes::in_order, true, false);
+        auto r2 = war_of(*internal, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r2, war_verdict::Unknown);
+        EXPECT_REASON(r2, wr_body_or_internal);
+    }
+}
+
+// W17: dynamic nodes never get a MUST in-place edge; a hypothetical writer on a dynamic node is MAYBE / MAY_INPLACE.
+TEST(alias_validation, W17_dynamic_node_never_has_must_inplace) {
+    auto& eng = get_test_engine();
+    topology t;
+    t.add(input_layout("in", layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}));
+    t.add(activation("P", input_info("in"), activation_func::relu));
+    t.add(activation("W", input_info("P"), activation_func::abs));
+    auto prog = make_hand(eng, t, {"W"});
+    ASSERT_TRUE(prog->get_node("W").is_dynamic());
+    EXPECT_TRUE(alias_analysis::build(*prog).edges().empty()) << "no sum can be formed on dynamic nodes";
+    std::vector<hypothetical_inplace> extra{{&prog->get_node("W"), 0}};
+    EXPECT_TRUE(alias_analysis::build(*prog).rejected_hypotheticals().empty());
+    auto aa = alias_analysis::build(*prog, compile_time_envelope{}, &extra);
+    ASSERT_EQ(aa.edges().size(), 1u);
+    EXPECT_EQ(aa.edges()[0].kind, alias_kind::MAY_INPLACE);
+    EXPECT_EQ(aa.edges()[0].act, edge_activity::MAYBE);
+}
+
+// W18: positions come from the axis, nothing else (W19): the same graph with an axis that swaps two nodes flips the verdict.
+TEST(alias_validation, W18_positions_are_read_from_the_axis_only) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, fan_topology(), fan_outs());
+    force_order(*prog, {"P", "W", "Y"});
+    const auto real = exec_axis::build(*prog);
+    ASSERT_TRUE(real.valid());
+    std::unordered_map<const program_node*, uint32_t> pos;
+    for (auto* n : prog->get_processing_order()) {
+        if (real.position(*n)) {
+            pos[n] = *real.position(*n);
+        }
+    }
+    std::swap(pos[&prog->get_node("W")], pos[&prog->get_node("Y")]);
+    const auto swapped = exec_axis::for_test(exec_axis::status::ok, pos);
+    auto r_real = war_of(*prog, "W", 0, {{"W", 0}}, &real);
+    auto r_swap = war_of(*prog, "W", 0, {{"W", 0}}, &swapped);
+    EXPECT_VERDICT(r_real, war_verdict::Unsafe);
+    EXPECT_VERDICT(r_swap, war_verdict::Safe);
+    // a reader without a position (not executable / unknown to the axis) is reported as such
+    std::unordered_map<const program_node*, uint32_t> only_w{{&prog->get_node("W"), 3}};
+    const auto partial = exec_axis::for_test(exec_axis::status::ok, only_w);
+    auto r_partial = war_of(*prog, "W", 0, {{"W", 0}}, &partial);
+    EXPECT_VERDICT(r_partial, war_verdict::Unknown);
+    EXPECT_REASON(r_partial, wr_reader_off_axis);
+}
+
+// W20: converging readers A -> X -> B, A -> u, B -> u: readers are enumerated per dependency index through the shared helper.
+TEST(alias_validation, W20_converging_readers) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool writer_last) {
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("A", input_info("in"), activation_func::relu));
+        t.add(activation("X", input_info("A"), activation_func::abs));
+        t.add(activation("B", input_info("X"), activation_func::abs));
+        t.add(eltwise("u", {input_info("A"), input_info("B")}, eltwise_mode::sum));
+        t.add(activation("W", input_info("A"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"u", "W"});
+        force_order(*prog, writer_last ? std::vector<std::string>{"A", "X", "B", "u", "W"} : std::vector<std::string>{"A", "W", "X", "B", "u"});
+        return prog;
+    };
+    {
+        auto prog = make(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe);
+        EXPECT_NO_REASON(r, wr_no_other_reader);
+    }
+    {
+        auto prog = make(false);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        std::set<std::string> readers;
+        for (const auto& w : r.res.witnesses) {
+            readers.insert(w.reader->id());
+        }
+        EXPECT_TRUE(readers.count("X") && readers.count("u")) << why(r.res);
+    }
+}
+
+// W22 (B2): a tensor that is a STATIC_BYTES view of P and at the same time a slot of a static holder H. The byte relation of the
+// holder's other slots to P is unknown, the static sibling pruning must not apply.
+TEST(alias_validation, W22_view_that_is_also_a_slot_does_not_allow_sibling_pruning) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool as_view) {
+        topology t;
+        t.add(input_layout("in", f32_l(ov::PartialShape{1, 16, 8, 8})));
+        t.add(input_layout("in2", f32_l(ov::PartialShape{1, 8, 8, 8})));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(crop("K", input_info("P"), tensor(1, 8, 8, 8), tensor(0, 0, 0, 0)));
+        t.add(activation("S2", input_info("in2"), activation_func::abs));
+        t.add(concatenation("H", {input_info("K"), input_info("S2")}, 1, data_types::f32));
+        t.add(activation("OH", input_info("H"), activation_func::abs));
+        t.add(activation("Z", input_info("S2"), activation_func::abs));
+        t.add(activation("W", input_info("P"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"OH", "Z", "W"});
+        prog->get_node("H").can_be_optimized(true);
+        prog->get_node("K").can_be_optimized(as_view);   // as a pure slot (not a view) the pruning is legal
+        force_order(*prog, {"P", "K", "S2", "H", "OH", "W", "Z"});
+        return prog;
+    };
+    {
+        auto prog = make(true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_NE(r.res.verdict, war_verdict::Safe) << why(r.res);
+        EXPECT_REASON(r, wr_late_reader);
+        EXPECT_EQ(r.res.witnesses.at(0).reader, &prog->get_node("Z"));
+    }
+    {   // control: K is not a view, P is not related to the holder at all
+        auto prog = make(false);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_NO_REASON(r, wr_late_reader);
+    }
+}
+
+// Pattern C (documented, no oneDNN needed): a residual chain of 25 blocks, every sum writing in place into the previous residual stream.
+TEST(alias_validation, WC_residual_chain_of_25_hops_is_safe_for_every_writer) {
+    auto& eng = get_test_engine();
+    topology t;
+    t.add(input_layout("in", f32_l()));
+    t.add(activation("S0", input_info("in"), activation_func::relu));
+    std::vector<std::pair<std::string, int>> hyp;
+    for (int i = 1; i <= 25; ++i) {
+        const std::string prev = "S" + std::to_string(i - 1);
+        t.add(activation("f" + std::to_string(i), input_info(prev), activation_func::abs));
+        t.add(eltwise("S" + std::to_string(i), {input_info("f" + std::to_string(i)), input_info(prev)}, eltwise_mode::sum));
+        hyp.push_back({"S" + std::to_string(i), 1});
+    }
+    auto prog = make_hand(eng, t, {"S25"});
+    std::vector<hypothetical_inplace> extra;
+    for (const auto& h : hyp) {
+        extra.push_back({&prog->get_node(h.first), h.second});
+    }
+    auto aa = alias_analysis::build(*prog, compile_time_envelope{}, &extra);
+    ASSERT_TRUE(aa.rejected_hypotheticals().empty());
+    const auto ax = exec_axis::build(*prog);
+    size_t safe = 0;
+    for (const auto& h : hyp) {
+        auto r = war_safe(aa, ax, war_query{&prog->get_node(h.first), h.second, 0});
+        safe += r.verdict == war_verdict::Safe ? 1 : 0;
+        EXPECT_EQ(r.verdict, war_verdict::Safe) << h.first << " " << why(r);
+    }
+    EXPECT_EQ(safe, 25u);
+    // a late reader of one residual stream makes exactly its writer unsafe
+    topology t2 = t;
+    t2.add(activation("late", input_info("S10"), activation_func::abs));
+    t2.add(activation("fin", input_info("S25"), activation_func::abs));
+    auto prog2 = make_hand(eng, t2, {"fin", "late"});
+    force_order(*prog2, {"late", "fin"});   // fin depends on S25: late runs after S25
+    std::vector<hypothetical_inplace> extra2;
+    for (const auto& h : hyp) {
+        extra2.push_back({&prog2->get_node(h.first), h.second});
+    }
+    auto aa2 = alias_analysis::build(*prog2, compile_time_envelope{}, &extra2);
+    const auto ax2 = exec_axis::build(*prog2);
+    // S11 overwrites S10, and "late" reads S10 after S25: unsafe
+    auto r11 = war_safe(aa2, ax2, war_query{&prog2->get_node("S11"), 1, 0});
+    EXPECT_EQ(r11.verdict, war_verdict::Unsafe) << why(r11);
+    auto r5 = war_safe(aa2, ax2, war_query{&prog2->get_node("S5"), 1, 0});
+    EXPECT_EQ(r5.verdict, war_verdict::Safe) << why(r5);
+}
+
+// ==============================================================================================================================
+// R*. compile time rules
+// ==============================================================================================================================
+namespace {
+alias_validation_report validate(program& prog, const std::vector<hypothetical_inplace>* extra = nullptr) {
+    auto aa = alias_analysis::build(prog, compile_time_envelope{}, extra);
+    return validate_alias_rules(prog, aa);
+}
+bool has_hit(const alias_validation_report& r, rule_id id, severity sev, const std::string& cell_part, const std::string& node = "") {
+    for (const auto& h : r.hits) {
+        if (h.id == id && h.sev == sev && h.cell.find(cell_part) != std::string::npos && (node.empty() || (h.a && h.a->id() == node))) {
+            return true;
+        }
+    }
+    return false;
+}
+std::string hits_str(const alias_validation_report& r) {
+    std::ostringstream os;
+    for (const auto& h : r.hits) {
+        os << to_string(h.id) << (h.sev == severity::defect ? "/D " : h.sev == severity::war ? "/W " : "/I ") << (h.a ? h.a->id() : "?") << " " << h.cell << "\n";
+    }
+    return os.str();
+}
+}  // namespace
+
+TEST(alias_validation, R1_legal_graphs_have_no_defects) {
+    auto& eng = get_test_engine();
+    for (const bool cbo : {true, false}) {
+        auto p = make_hand(eng, chain_topology(), {"O"});
+        p->get_node("R").can_be_optimized(cbo);
+        p->get_node("Q").can_be_optimized(cbo);
+        auto rep = validate(*p);
+        EXPECT_TRUE(rep.ran);
+        EXPECT_EQ(rep.defect_count(), 0u) << hits_str(rep);
+    }
+    {
+        auto p = make_hand(eng, concat_topology(), {"O"});
+        p->get_node("C").can_be_optimized(true);
+        EXPECT_EQ(validate(*p).defect_count(), 0u);
+    }
+    {
+        auto p = make_hand(eng, crop_topology(), {"O"});
+        p->get_node("K").can_be_optimized(true);
+        EXPECT_EQ(validate(*p).defect_count(), 0u);
+    }
+    {   // static cascade on the same axis is legal
+        topology t;
+        t.add(input_layout("in1", f32_l()));
+        t.add(input_layout("in2", f32_l()));
+        t.add(input_layout("in3", layout{ov::PartialShape{1, 8, 8, 8}, data_types::f32, format::bfyx}));
+        t.add(activation("S1", input_info("in1"), activation_func::relu));
+        t.add(activation("S2", input_info("in2"), activation_func::abs));
+        t.add(concatenation("H1", {input_info("S1"), input_info("S2")}, 1, data_types::f32));
+        t.add(activation("S3", input_info("in3"), activation_func::abs));
+        t.add(concatenation("H2", {input_info("H1"), input_info("S3")}, 1, data_types::f32));
+        t.add(activation("O", input_info("H2"), activation_func::abs));
+        auto p = make_hand(eng, t, {"O"});
+        p->get_node("H1").can_be_optimized(true);
+        p->get_node("H2").can_be_optimized(true);
+        auto rep = validate(*p);
+        EXPECT_EQ(rep.defect_count(), 0u) << hits_str(rep);
+    }
+    {   // dynamic runtime in-place concat: MAY edges only: info, never a defect
+        auto p = make_hand(eng, dyn_concat_topology(), {"O"});
+        p->get_node("C").can_be_optimized(true);
+        p->get_node("C").set_runtime_skippable(true);
+        p->get_node("R").set_runtime_skippable(true);
+        EXPECT_EQ(validate(*p).defect_count(), 0u);
+    }
+    for (const bool cbo : {true, false}) {   // kv_cache: the appended output is larger than the variable, which is legal state aliasing (V1 info)
+        auto p = make_hand(eng, kv_topology(false, "v0", "v0"), {"O"});
+        p->get_node("kv").can_be_optimized(cbo);
+        auto rep = validate(*p);
+        EXPECT_EQ(rep.defect_count(), 0u) << hits_str(rep);
+    }
+    {
+        auto rep = validate(*make_hand(eng, lora_topology(), {"O"}));
+        EXPECT_EQ(rep.defect_count(), 0u) << hits_str(rep);
+        EXPECT_TRUE(has_hit(rep, rule_id::R2, severity::info, "opaque"));
+    }
+}
+
+TEST(alias_validation, R1_defect_cells_are_detected) {
+    auto& eng = get_test_engine();
+    {   // VIEW x SLOT (static): a concat predecessor that is itself a view
+        auto p = make_hand(eng, concat_topology(), {"O"});
+        p->get_node("C").can_be_optimized(true);
+        p->get_node("P1").can_be_optimized(true);
+        auto rep = validate(*p);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::defect, "VIEW x SLOT", "P1")) << hits_str(rep);
+        EXPECT_NE(rep.count(rule_id::R2, severity::info), 0u) << "also an R2 role conflict statistic";
+    }
+    {   // VIEW x SLOT with a dynamic holder is a MAY relation (F24): info
+        auto p = make_hand(eng, dyn_concat_topology(), {"O"});
+        p->get_node("C").can_be_optimized(true);
+        p->get_node("C").set_runtime_skippable(true);
+        p->get_node("P1").set_runtime_skippable(true);
+        auto rep = validate(*p);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::info, "VIEW x SLOT", "P1")) << hits_str(rep);
+        EXPECT_EQ(rep.defect_count(), 0u) << hits_str(rep);
+    }
+    {   // SLOT x OUT
+        auto p = make_hand(eng, concat_topology(), {"O", "P1"});
+        p->get_node("C").can_be_optimized(true);
+        auto rep = validate(*p);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::defect, "SLOT x OUT", "P1")) << hits_str(rep);
+    }
+    {   // HOLDER x OUT
+        auto p = make_hand(eng, concat_topology(), {"O", "C"});
+        p->get_node("C").can_be_optimized(true);
+        auto rep = validate(*p);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::defect, "HOLDER x OUT", "C")) << hits_str(rep);
+    }
+    {   // SLOT x HOLDER on different axes
+        topology t;
+        t.add(input_layout("in1", f32_l()));
+        t.add(input_layout("in2", f32_l()));
+        t.add(input_layout("in3", layout{ov::PartialShape{1, 8, 8, 8}, data_types::f32, format::bfyx}));
+        t.add(activation("S1", input_info("in1"), activation_func::relu));
+        t.add(activation("S2", input_info("in2"), activation_func::abs));
+        t.add(concatenation("H1", {input_info("S1"), input_info("S2")}, 1, data_types::f32));
+        t.add(activation("S3", input_info("in3"), activation_func::abs));
+        t.add(concatenation("H2", {input_info("H1"), input_info("S3")}, 2, data_types::f32));
+        t.add(activation("O", input_info("H2"), activation_func::abs));
+        auto p = make_hand(eng, t, {"O"});
+        p->get_node("H1").can_be_optimized(true);
+        p->get_node("H2").can_be_optimized(true);
+        auto rep = validate(*p);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::defect, "SLOT x HOLDER", "H1")) << hits_str(rep);
+    }
+    {   // SLOT x PERSIST (A18g, constructed by hand)
+        topology t = kv_topology(false, "v0", "v0");
+        t.add(input_layout("other", layout{ov::PartialShape{1, 2, 5, 8}, data_types::f16, format::bfyx}));
+        t.add(concatenation("C", {input_info("kv"), input_info("other")}, 2));
+        t.add(activation("O2", input_info("C"), activation_func::abs));
+        auto p = make_hand(eng, t, {"O", "O2"});
+        p->get_node("C").can_be_optimized(true);
+        auto rep = validate(*p);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::defect, "SLOT x PERSIST", "kv")) << hits_str(rep);
+    }
+    {   // SLOT x SOC: shape_of subgraph member as concat predecessor is a defect, a CPU one is info
+        auto p = make_hand(eng, concat_topology(), {"O"});
+        p->get_node("C").can_be_optimized(true);
+        p->get_node("P1").set_in_shape_of_subgraph(true);
+        p->get_node("P2").set_preferred_impl_type(impl_types::cpu);
+        auto rep = validate(*p);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::defect, "SLOT x SOC (shape_of)", "P1")) << hits_str(rep);
+        EXPECT_TRUE(has_hit(rep, rule_id::R1, severity::info, "SLOT x SOC (cpu)", "P2")) << hits_str(rep);
+    }
+}
+
+TEST(alias_validation, R5b_in_place_writer_that_is_or_leads_to_an_output) {
+    auto& eng = get_test_engine();
+    auto build = [&](const std::vector<std::string>& outs, bool view_of_w_cbo) {
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(activation("W", input_info("P"), activation_func::abs));
+        t.add(activation("R", input_info("W"), activation_func::abs));
+        t.add(activation("OR", input_info("R"), activation_func::abs));
+        auto prog = make_hand(eng, t, outs);
+        prog->get_node("R").can_be_optimized(view_of_w_cbo);
+        return prog;
+    };
+    auto run = [&](program& prog) {
+        std::vector<hypothetical_inplace> extra{{&prog.get_node("W"), 0}};
+        return validate(prog, &extra);
+    };
+    {   // control: neither W nor its forward view chain is visible
+        auto prog = build({"OR"}, true);
+        auto rep = run(*prog);
+        EXPECT_EQ(rep.count(rule_id::R5b, severity::defect), 0u) << hits_str(rep);
+    }
+    {   // W itself is an output
+        auto prog = build({"W", "OR"}, true);
+        auto rep = run(*prog);
+        EXPECT_TRUE(has_hit(rep, rule_id::R5b, severity::defect, "INPLACE_W x OUT", "W")) << hits_str(rep);
+    }
+    {   // a view of W is an output
+        auto prog = build({"R", "OR"}, true);
+        auto rep = run(*prog);
+        EXPECT_TRUE(has_hit(rep, rule_id::R5b, severity::defect, "forward view chain", "W")) << hits_str(rep);
+    }
+    {   // R is an output but not a view: not visible
+        auto prog = build({"R", "OR"}, false);
+        auto rep = run(*prog);
+        EXPECT_EQ(rep.count(rule_id::R5b, severity::defect), 0u) << hits_str(rep);
+    }
+}
+
+TEST(alias_validation, R5c_and_V1_and_R2_counts) {
+    auto& eng = get_test_engine();
+    {   // mutable_data propagation
+        topology t;
+        t.add(input_layout("in", f32_l()));
+        t.add(activation("D", input_info("in"), activation_func::relu));
+        t.add(activation("X", input_info("D"), activation_func::abs));
+        t.add(mutable_data("md", {input_info("D")}, eng.allocate_memory(f32_l())));
+        auto prog = make_hand(eng, t, {"X", "md"});
+        auto rep = validate(*prog);
+        EXPECT_TRUE(has_hit(rep, rule_id::R5c, severity::info, "mutable_data", "D")) << hits_str(rep);
+        EXPECT_EQ(rep.count(rule_id::R5c, severity::info), 1u);
+    }
+    {   // V1: member bytes above root bytes with a MUST edge: defect (A15)
+        topology t;
+        t.add(input_layout("in", layout{ov::PartialShape{1, 4, 8, 8}, data_types::f16, format::bfyx}));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(reorder("R", input_info("P"), format::bfyx, data_types::f32));
+        t.add(activation("O", input_info("R"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"O"});
+        prog->get_node("R").can_be_optimized(true);
+        auto rep = validate(*prog);
+        EXPECT_EQ(rep.count(rule_id::V1, severity::defect), 1u) << hits_str(rep);
+        EXPECT_TRUE(has_hit(rep, rule_id::R2, severity::info, "member_exceeds_root"));
+        // the same with a MAY edge: information only
+        topology t2 = t;
+        auto prog2 = make_hand(eng, t2, {"O"});
+        prog2->get_node("R").set_runtime_skippable(true);
+        auto rep2 = validate(*prog2);
+        EXPECT_EQ(rep2.count(rule_id::V1, severity::defect), 0u) << hits_str(rep2);
+    }
+    {   // multi edge tensors are listed (A18g: concat slot plus kv alias)
+        topology t = kv_topology(false, "v0", "v0");
+        t.add(input_layout("other", layout{ov::PartialShape{1, 2, 5, 8}, data_types::f16, format::bfyx}));
+        t.add(concatenation("C", {input_info("kv"), input_info("other")}, 2));
+        t.add(activation("O2", input_info("C"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"O", "O2"});
+        prog->get_node("C").can_be_optimized(true);
+        auto rep = validate(*prog);
+        EXPECT_TRUE(has_hit(rep, rule_id::R2, severity::info, "multi_edge", "kv")) << hits_str(rep);
+        EXPECT_TRUE(has_hit(rep, rule_id::R2, severity::info, "allocators_not_one")) << hits_str(rep);
+    }
+}
+
+// war report: every in-place writer is listed, including the origin and the verdict
+TEST(alias_validation, war_report_lists_every_in_place_writer) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, ext_chain_topology(), {"S3"});
+    std::vector<hypothetical_inplace> extra{{&prog->get_node("S2"), 0}, {&prog->get_node("S3"), 0}};
+    auto rep = validate(*prog, &extra);
+    ASSERT_EQ(rep.war.size(), 2u);
+    for (const auto& w : rep.war) {
+        EXPECT_EQ(w.origin, edge_origin::hypothetical);
+        EXPECT_EQ(w.kind, alias_kind::MUST_INPLACE);
+        EXPECT_EQ(w.r.verdict, war_verdict::Safe);
+    }
+    EXPECT_EQ(rep.war_count(war_verdict::Safe), 2u);
+    EXPECT_FALSE(rep.summary().empty());
+}
+
+// wiring in prepare_memory_dependencies, and the switch
+TEST(alias_validation, program_wiring_and_switch) {
+    auto& eng = get_test_engine();
+    auto topo = [] {
+        topology t;
+        t.add(input_layout("in1", layout{ov::PartialShape{1, 16, 8, 8}, data_types::f32, format::bfyx}));
+        t.add(input_layout("in2", layout{ov::PartialShape{1, 16, 8, 8}, data_types::f32, format::bfyx}));
+        t.add(reorder("P1", input_info("in1"), format::bfyx, data_types::f16));
+        t.add(reorder("P2", input_info("in2"), format::bfyx, data_types::f16));
+        t.add(concatenation("C", {input_info("P1"), input_info("P2")}, 1));
+        t.add(reorder("out", input_info("C"), format::bfyx, data_types::f32));
+        return t;
+    };
+    for (const bool on : {true, false}) {
+        ExecutionConfig cfg = get_test_default_config(eng);
+        cfg.set_property(ov::intel_gpu::optimize_data(true));
+        cfg.set_property(ov::intel_gpu::enable_alias_shadow_validation(on));
+        auto prog = program::build_program(eng, topo(), cfg, false, false);
+        if (!on) {
+            EXPECT_EQ(prog->get_alias_validation_report(), nullptr);
+            continue;
+        }
+        const auto* rep = prog->get_alias_validation_report();
+        ASSERT_NE(rep, nullptr);
+        EXPECT_TRUE(rep->ran) << rep->skipped_reason;
+        EXPECT_EQ(rep->defect_count(), 0u) << hits_str(*rep);
+        EXPECT_EQ(rep->axis.get_status(), prog->get_config().get_queue_type() == QueueTypes::in_order ? exec_axis::status::ok : exec_axis::status::not_in_order);
+    }
+    {   // internal and body programs are skipped with a reason (report exists because the switch is on)
+        ExecutionConfig cfg = get_test_default_config(eng);
+        cfg.set_property(ov::intel_gpu::enable_alias_shadow_validation(true));
+        auto body = program::build_program(eng, topo(), cfg, false, false, /*is_body_program=*/true);
+        if (const auto* rep = body->get_alias_validation_report()) {
+            EXPECT_FALSE(rep->ran);
+            EXPECT_EQ(rep->skipped_reason, "body");
+        }
+        auto internal = program::build_program(eng, topo(), cfg, /*is_internal=*/true, false);
+        if (const auto* rep = internal->get_alias_validation_report()) {
+            EXPECT_FALSE(rep->ran);
+            EXPECT_EQ(rep->skipped_reason, "internal");
+        }
+    }
 }

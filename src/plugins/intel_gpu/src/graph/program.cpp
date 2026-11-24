@@ -25,6 +25,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "alias_analysis.h"
+#include "alias_validation.h"
 #include "class_level_memory_dependencies.h"
 #include "intel_gpu/graph/tensor_conversion.hpp"
 
@@ -829,6 +830,27 @@ void program::prepare_memory_dependencies() {
     _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
     // P1-B-S: class-level pool identity of static in-place concat holders. No-op unless enable_concat_holder_pool is set (default off).
     apply_opt_pass<class_level_memory_dependencies>();
+    // Phase 0.5b: shadow validation of the alias analysis. Report only: it reads the graph and the engine, writes nothing but its own
+    // report, and an exception never leaves this block (B1).
+    _alias_validation_report.reset();
+    if (_config.get_enable_alias_shadow_validation()) {
+        auto report = std::make_unique<alias_validation_report>();
+        try {
+            if (is_internal_program() || is_body_program() || !_alias_analysis) {
+                report->skipped_reason = is_internal_program() ? "internal" : is_body_program() ? "body" : "no_analysis";
+            } else {
+                *report = validate_alias_rules(*this, *_alias_analysis);
+            }
+        } catch (const std::exception& e) {
+            *report = alias_validation_report{};
+            report->skipped_reason = std::string("exception: ") + e.what();
+        } catch (...) {
+            *report = alias_validation_report{};
+            report->skipped_reason = "exception: unknown";
+        }
+        GPU_DEBUG_LOG << report->summary() << std::endl;
+        _alias_validation_report = std::move(report);
+    }
     // Publish sorted restriction vectors before runtime consumers can access them.
     for (const auto& node : get_processing_order()) {
         node->get_memory_dependencies();
