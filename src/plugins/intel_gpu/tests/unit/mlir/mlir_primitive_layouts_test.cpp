@@ -4,7 +4,6 @@
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -147,8 +146,8 @@ TEST(mlir_primitive_layouts, format_from_dim_order) {
     EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 1, 2, 3, 4, 5}), format::bfwzyx);
 
     // No plain data format with this order: {3, 2, 1, 0} exists only as a weights format, {0, 0, 1} isn't a permutation.
-    EXPECT_EQ(mlir_primitive::format_from_dim_order({3, 2, 1, 0}), std::nullopt);
-    EXPECT_EQ(mlir_primitive::format_from_dim_order({0, 0, 1}), std::nullopt);
+    EXPECT_THROW(mlir_primitive::format_from_dim_order({3, 2, 1, 0}), ov::Exception);
+    EXPECT_THROW(mlir_primitive::format_from_dim_order({0, 0, 1}), ov::Exception);
     // The rank comes from the order, so an empty one is rejected.
     EXPECT_THROW(mlir_primitive::format_from_dim_order({}), ov::Exception);
 }

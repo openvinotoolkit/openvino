@@ -7,7 +7,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <optional>
 #include <vector>
 
 #include "openvino/core/partial_shape.hpp"
@@ -70,20 +69,15 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
         return it->second;
     }
 
-    // Returns the cldnn format with the given physical dimension order (e.g. {0, 2, 1} -> byfx),
-    // or nullopt if there is no such format. The order must not be empty (the rank comes from it).
-    static std::optional<format::type> format_from_dim_order(std::vector<size_t> order) {
+    // Returns the cldnn format with the given physical dimension order (e.g. {0, 2, 1} -> byfx).
+    // Throws if there is no such format. The order must not be empty (the rank comes from it).
+    static format::type format_from_dim_order(std::vector<size_t> order) {
         OPENVINO_ASSERT(!order.empty(), "[GPU] mlir_primitive: empty physical dimension order");
         // Ranks below 4 are represented as 4D by cldnn: the missing trailing dimensions keep their place.
         for (size_t i = order.size(); i < 4; ++i) {
             order.push_back(i);
         }
-        try {
-            return static_cast<format::type>(format::find_format(order, {}));
-        } catch (const ov::Exception&) {
-            // find_format throws (OPENVINO_ASSERT) if no format or more than one format has this order.
-            return std::nullopt;
-        }
+        return static_cast<format::type>(format::find_format(order, {}));
     }
 
     void save(BinaryOutputBuffer& /*ob*/) const override {

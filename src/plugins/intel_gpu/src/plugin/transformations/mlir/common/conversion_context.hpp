@@ -33,8 +33,8 @@ public:
     mlir::OpBuilder* block_builder;
     getInputsFn getInputs;
     getDimValueFn getDimValue;
-    // Asks for the source of `input` to be passed in the given physical order. This is only a hint that
-    // the driver may ignore, so the IR built by a converter must stay valid for any order.
+    // A hint to pass the source of `input` in the given physical order. The graph converter may ignore it, so the IR
+    // must always be built on logical tensors, with no reordering of the input: only the function argument layout depends on it.
     requestInputOrderFn requestInputOrder;
 
     ConversionContext(mlir::MLIRContext* context,

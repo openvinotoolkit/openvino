@@ -49,7 +49,7 @@ public:
     // Records a physical order requested by a converter for the source of `input`, see
     // ConversionContext::requestInputOrder. Conflicting requests for the same source drop it.
     // The order is applied only if the source is a function argument (produced outside of the subgraph)
-    // with a static shape and there is a cldnn format with this order: the argument then gets a strided
+    // with a static shape (the order must have a cldnn format, or it throws): the argument then gets a strided
     // memref type and cldnn provides the buffer in that format.
     void request_input_order(const ov::Input<ov::Node>& input, DimOrder order);
 
