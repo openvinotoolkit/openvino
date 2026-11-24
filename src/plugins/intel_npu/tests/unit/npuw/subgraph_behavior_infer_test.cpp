@@ -14,6 +14,7 @@
 #include <map>
 #include <mutex>
 #include <numeric>
+#include <ranges>
 #include <set>
 #include <vector>
 
