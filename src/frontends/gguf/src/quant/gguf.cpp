@@ -493,6 +493,9 @@ size_t gguf_weight_group_size(const GgufWeight& source) {
 }
 
 bool gguf_column_groups_are_aligned(const GgufWeight& source, const std::vector<int64_t>& columns) {
+    const auto layout = quant_layout(source.qtype, source.source_name);
+    if (layout && layout->group_size == 0 && columns.size() != source.shape.back())
+        return false;
     const auto group = gguf_weight_group_size(source);
     if (columns.size() % group != 0)
         return false;

@@ -22,7 +22,8 @@ Compatible matrix row patterns use the existing native unpacker for each format;
 row patterns also fold.
 Inputs must share their format and conversion policy. Aligned column permutations move complete
 quantization groups and may use packed intermediate buffers. Unsupported views, including
-unaligned column gathers, retain ordinary graph operations after leaf materialization.
+unaligned column gathers and width-changing channel-wise gathers, retain ordinary graph operations
+after leaf materialization.
 Supplied-decoder weights materialize individually using their existing conversion policy.
 Embedding/output policies, quantization groups and zero points are preserved.
 
