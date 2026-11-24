@@ -989,8 +989,12 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
         // about |Z| / 1000, and a constant other input becomes a zero point. It must not move
         //   (a) arithmetic on integer/boolean data, e.g. the T5 attention mask (1 - Convert(mask)) * lowest that LPT
         //       normalizes to (Convert(mask) - 1) * 65504, unless moving it only rescales another activation;
-        //   (b) other arithmetic with max|Z| > 64 on data that no layer scaled by ScaleDownSingleLayer feeds (heuristic
-        //       bound: for an unscaled x, the error first exceeds the 0.02 test tolerance at |Z| = 100).
+        //   (b) other arithmetic through an Add with a constant, unless a layer scaled by ScaleDownSingleLayer feeds
+        //       its data: kept as it is, it is no dequantization for the next Add, which moves the scale-up of its
+        //       other input instead;
+        //   (c) other arithmetic with max|Z| > 64 on data that no such layer feeds (heuristic bound: for an unscaled x,
+        //       the error first exceeds the 0.02 test tolerance at |Z| = 100). This keeps the scale-up of x in front of
+        //       the Add too.
         // Data that depends on such a layer carries a scale-up, whose zero point is the bias of an activation, which f16
         // rounds as coarsely in the original graph. A normalization consumes the scale-up (EliminateScalarMul); past
         // other ops that it cannot move through, e.g. Softmax, the dependency is a heuristic. A branch without a zero
@@ -1038,6 +1042,9 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
                                          : ov::as_type_ptr<ov::op::v0::Convert>(moved.data.get_node_shared_ptr());
             if (convert != nullptr && !convert->get_input_element_type(0).is_real()) {
                 return in0_const || in1_const || moved.subtract != nullptr;
+            }
+            if (in0_const || in1_const) {
+                return !depends_on_scaled_layer(moved.data);
             }
             if (moved.subtract == nullptr || depends_on_scaled_layer(moved.data)) {
                 return false;

@@ -781,4 +781,85 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingIntegerAddInput,
                          ActivationsScalingIntegerAddInput,
                          ::testing::Values(size_t{0}, size_t{1}),
                          ActivationsScalingIntegerAddInput::getTestCaseName);
+
+// (integer data, port of the shifted branch)
+using ShiftedAddInputParams = std::tuple<bool, size_t>;
+
+// A shifted integer (Convert(index) - 1) * 16 or float (y - 1) * 4096 is added to a MatMul output that exceeds the f16
+// range at full magnitude, so the scale-up of the MatMul has to move through the Add down to the RMS. Before
+// activations scaling, the plugin turns the shifted branch into a product plus a constant, y * 4096 - 4096. If the
+// activations scaling LPT run folded that constant into a zero point, the float branch, (y - 1) * 4096 with |Z| = 512 at
+// ASF 8, would stay in front of the Add with the MatMul, and the scale-up of the MatMul with it.
+//
+//      input    index / y
+//        |          |
+//     MatMul    [Convert]
+//        |          |
+//        |     Subtract(1)
+//        |          |
+//        |     Multiply(16 / 4096)
+//         \        /
+//            Add       (the shifted branch on port 0 or 1)
+//             |
+//            RMS
+class ActivationsScalingShiftedAddInput : public testing::WithParamInterface<ShiftedAddInputParams>, virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ShiftedAddInputParams>& obj) {
+        const auto& [integer, port] = obj.param;
+        return std::string(integer ? "shifted_integer" : "shifted_float") + "_on_port_" + std::to_string(port);
+    }
+
+protected:
+    static constexpr int64_t hidden_size = 64;
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        init_input_shapes({{{-1, -1, hidden_size}, {{1, 8, hidden_size}}}, {{-1, -1, hidden_size}, {{1, 8, hidden_size}}}});
+        outType = ov::element::f32;
+        abs_threshold = 0.02f;
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+        configuration.insert(ov::hint::activations_scale_factor(8.f));
+
+        const auto& [integer, port] = GetParam();
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        const auto data = std::make_shared<ov::op::v0::Parameter>(integer ? ov::element::i64 : ov::element::f32, inputDynamicShapes[1]);
+        const auto weights =
+            ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, ov::Shape{hidden_size, hidden_size}, -10000.f, 10000.f, 1);
+        const auto matmul = std::make_shared<ov::op::v0::MatMul>(input, std::make_shared<ov::op::v0::Constant>(weights), false, true);
+        const std::shared_ptr<ov::Node> values =
+            integer ? std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(data, ov::element::f32)) : data;
+        const auto shifted = std::make_shared<ov::op::v1::Multiply>(
+            std::make_shared<ov::op::v1::Subtract>(values, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f})),
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {integer ? 16.f : 4096.f}));
+        const auto sum = port == 0 ? std::make_shared<ov::op::v1::Add>(shifted, matmul) : std::make_shared<ov::op::v1::Add>(matmul, shifted);
+
+        function = std::make_shared<ov::Model>(ov::OutputVector{make_rms(sum, hidden_size, 2)},
+                                               ov::ParameterVector{input, data},
+                                               "ActivationsScalingShiftedAddInput");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& model_inputs = function->inputs();
+        inputs.insert({model_inputs[0].get_node_shared_ptr(),
+                       ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, target_input_static_shapes[0], -1.f, 1.f, 1)});
+        if (model_inputs[1].get_element_type() == ov::element::i64) {
+            inputs.insert(
+                {model_inputs[1].get_node_shared_ptr(),
+                 ov::test::utils::create_and_fill_tensor(ov::element::i64, target_input_static_shapes[1], ov::test::utils::InputGenerateData(0, 16))});
+        } else {
+            inputs.insert({model_inputs[1].get_node_shared_ptr(),
+                           ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32, target_input_static_shapes[1], 0.f, 2.f, 2)});
+        }
+    }
+};
+
+TEST_P(ActivationsScalingShiftedAddInput, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingShiftedAddInput,
+                         ActivationsScalingShiftedAddInput,
+                         ::testing::Combine(::testing::Values(true, false), ::testing::Values(size_t{0}, size_t{1})),
+                         ActivationsScalingShiftedAddInput::getTestCaseName);
 } // namespace
