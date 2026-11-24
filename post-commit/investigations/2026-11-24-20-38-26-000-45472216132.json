@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-20-38-26-000-45472216132",
+  "timestamp": "2026-11-24T20:38:26Z",
+  "run_id": "45472216132",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45472216132",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "65a61e5043ad8b05324392ab1b4b93b81dc5a31a",
+  "pr_number": "40251",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40251",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "cl.exe fatal error C1060 (compiler out of heap space) during parallel MSBuild compilation of onednn/intel_cpu and core/reference sources"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the Conditional Compilation build job failed"
+    }
+  ],
+  "key_errors": [
+    "cl : command line  warning D9014: invalid value '15' for '/cgthreads'; assuming '4' [openvino_runtime_obj.vcxproj]",
+    "c1xx : fatal  error C1060: compiler is out of heap space [src\\inference\\openvino_runtime_obj.vcxproj]",
+    "cl : command line  error D8000: UNKNOWN COMMAND-LINE ERROR [src\\plugins\\intel_cpu\\thirdparty\\onednn\\src\\cpu\\dnnl_cpu.vcxproj]",
+    "xbyak.h(1929,2): error C1060: compiler is out of heap space [dnnl_cpu.vcxproj]",
+    "algorithm(5545,117): error C1060: compiler is out of heap space"
+  ],
+  "root_cause": "The Windows Conditional Compilation build invokes MSBuild with a parallelism level that requests 15 code-generation threads per cl.exe process ('/cgthreads:15', downgraded with warning D9014 to 4), while also running many parallel cl.exe instances across vcxproj files (openvino_runtime_obj, onednn dnnl_cpu, core reference, etc). On the GitHub-hosted Windows runner's limited RAM, this combined parallelism exhausts available heap for the MSVC front-end (c1xx), causing fatal error C1060 'compiler is out of heap space' and a cascading UNKNOWN COMMAND-LINE ERROR D8000 across multiple concurrently-building projects. This is a resource-exhaustion failure of the CI runner/build configuration, unrelated to the specific commit's diff. The merged PR #40251 only touches src/frontends/gguf and genai mask logic (2 files, +14/-4) and has no plausible connection to a Windows MSVC heap exhaustion during an unrelated CPU plugin/onednn compilation.",
+  "reproduction_steps": "N/A - resource-exhaustion failure tied to Windows runner RAM/parallelism; not reliably reproducible locally. To attempt reproduction: build the CC preset locally on a memory-constrained Windows VM with the same /MP or cmake parallel job count as CI and the same /cgthreads setting, and simultaneously build the onednn and openvino_runtime_obj targets.",
+  "recommended_actions": [
+    "Reduce the cl.exe parallel job count (CMAKE_BUILD_PARALLEL_LEVEL / MSBuild /m / /cgthreads) specifically for the Windows Conditional Compilation workflow to lower peak memory use.",
+    "Investigate switching the Windows CC runner to a larger-memory runner SKU, since this is the 25th recorded occurrence of the same signature in under a month.",
+    "Consider splitting the onednn/intel_cpu heavy compilation units into smaller translation units or disabling unnecessary heavy headers (e.g. xbyak) in the CC build configuration.",
+    "Add retry-with-reduced-parallelism logic to the Windows CC job so a single heap-exhaustion failure doesn't block post-commit CI."
+  ],
+  "prevention_strategies": "Cap parallel compilation jobs/threads on Windows CI runners to a level validated against available RAM; monitor peak memory usage of Windows builds and alert before it causes OOM. Treat repeated C1060/D8000 errors on the Windows CC workflow as an infrastructure capacity issue to be fixed at the CI configuration level rather than re-investigated per commit.",
+  "historical_context": "This exact signature (Windows Release build runs out of memory - C1060/LNK1102 under high parallelism) has now been recorded 25 times since 2026-11-03, with runs recurring nearly daily (most recently 2026-11-24T14:47:10Z and 11:33:31Z, prior to this one). No past resolution has been recorded in the pattern database; this remains an open, unresolved recurring infrastructure issue."
+}
