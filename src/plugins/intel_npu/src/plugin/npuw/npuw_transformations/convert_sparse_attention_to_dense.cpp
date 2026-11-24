@@ -204,6 +204,10 @@ Out query_positions(Builder& b, const MaskInfo& m, const Out& query_length) {
 // Block index keys output -> the same keys with one extra row, [N, B + 1, Di] (see decompose_indexer)
 using PaddedKeys = std::map<Out, Out>;
 
+// Indexer block_indices output -> the 0/1 mask of the selected visible blocks, [N, Hs, L, B + 1]. The attention reads
+// the mask instead of scattering the indices again.
+using SelectedBlocks = std::map<Out, Out>;
+
 // QSAPrepare, see its specification. The past/current split is counted from attention_mask, since a
 // partial NPUW prefill chunk is left-padded after the past tokens, and the number of blocks is static.
 // That right alignment is also what offset = M - current below relies on: the valid new tokens are the
@@ -341,11 +345,39 @@ ov::OutputVector decompose_qsa_prepare(Builder& b,
     return {output, b.convert(incomplete_raw, data_type), b.convert(incomplete_rope, data_type)};
 }
 
+// The token budget covers every key block, so the indexer selects all the visible blocks whatever the scores are
+// (the order of the selected blocks does not matter): the scoring and the top-k are not needed.
+ov::OutputVector select_all_visible_blocks(Builder& b,
+                                           const std::shared_ptr<op::v17::SparseAttentionIndexer>& node,
+                                           const MaskInfo& m,
+                                           int64_t block_topk) {
+    const auto zero = b.i64(0), one = b.i64(1), ratio = b.i64(node->get_key_block_size());
+    const auto index_query = node->input_value(0);
+    const auto batch = b.dim(index_query, 0);
+    const auto query_length = b.dim(index_query, 2);
+    const auto num_selection_heads = b.i64(node->get_num_selection_heads());
+
+    const auto positions = query_positions(b, m, query_length);  // [N, L]
+    const auto num_visible = b.max(b.div(b.add(positions, one), ratio), zero);
+    const auto block_count = b.min(num_visible, b.i64(block_topk));  // [N, L]
+    const auto slots = b.range(zero, b.i64(block_topk));
+    const auto valid = b.less(slots, b.unsq(block_count, -1));  // [N, L, KB]
+    const auto minus_one = b.make<op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{-1});
+    const auto ids = b.broadcast(b.convert(slots, ov::element::i32),
+                                 b.vec({batch, num_selection_heads, query_length, b.i64(block_topk)}));
+    const auto block_indices = b.select(b.unsq(valid, 1), ids, minus_one);
+    const auto count = b.broadcast(b.convert(b.unsq(block_count, 1), ov::element::i32),
+                                   b.vec({batch, num_selection_heads, query_length}));
+    return {b.convert(block_indices, node->get_output_element_type(0)),
+            b.convert(count, node->get_output_element_type(1))};
+}
+
 // SparseAttentionIndexer, see its specification. The query positions come from attention_mask.
 ov::OutputVector decompose_indexer(Builder& b,
                                    const std::shared_ptr<op::v17::SparseAttentionIndexer>& node,
                                    const MaskInfo& m,
-                                   const PaddedKeys& padded_keys) {
+                                   const PaddedKeys& padded_keys,
+                                   SelectedBlocks& selected_blocks) {
     const int64_t r = node->get_key_block_size();
     const int64_t block_topk = node->get_token_budget() / r;
     const int64_t num_selection_heads = node->get_num_selection_heads();
@@ -359,6 +391,9 @@ ov::OutputVector decompose_indexer(Builder& b,
                     " needs a static number of key blocks, got ",
                     keys_shape);
     const int64_t num_blocks = keys_shape[1].get_length();
+    if (block_topk >= num_blocks) {
+        return select_all_visible_blocks(b, node, m, block_topk);
+    }
 
     const auto zero = b.i64(0), one = b.i64(1), ratio = b.i64(r);
     const auto batch = b.dim(index_query, 0);
@@ -424,8 +459,18 @@ ov::OutputVector decompose_indexer(Builder& b,
     block_indices = b.select(b.unsq(valid, 1), block_indices, minus_one);
     const auto count = b.broadcast(b.convert(b.unsq(block_count, 1), ov::element::i32),
                                    b.vec({batch, b.i64(num_selection_heads), query_length}));
-    return {b.convert(block_indices, node->get_output_element_type(0)),
-            b.convert(count, node->get_output_element_type(1))};
+
+    // the mask of the selected visible blocks: a top-k that has fewer visible blocks than k also returns invisible ones
+    const auto topk_ids = b.convert(topk->output(1), ov::element::i64);
+    const auto no_blocks = b.broadcast(b.f32(0.0f), b.make<op::v3::ShapeOf>(scores, ov::element::i64));
+    const auto marks = b.broadcast(b.f32(1.0f), b.make<op::v3::ShapeOf>(topk_ids, ov::element::i64));
+    auto selected = b.make<op::v3::ScatterElementsUpdate>(no_blocks, topk_ids, marks, b.i64(-1));
+    selected = b.select(b.unsq(visible, 1), selected, b.f32(0.0f));
+
+    ov::OutputVector outputs{b.convert(block_indices, node->get_output_element_type(0)),
+                             b.convert(count, node->get_output_element_type(1))};
+    selected_blocks[outputs[0]] = selected;
+    return outputs;
 }
 
 // GQA: [N, G, rest...] -> [N, H, rest...], every group repeated H / G times
@@ -444,7 +489,10 @@ Out repeat_heads(Builder& b,
 }
 
 // SparseAttention as a dense SDPA: the mask allows the tokens of the selected blocks and the causal tail.
-Out decompose_sparse_attention(Builder& b, const std::shared_ptr<op::v17::SparseAttention>& node, const MaskInfo& m) {
+Out decompose_sparse_attention(Builder& b,
+                               const std::shared_ptr<op::v17::SparseAttention>& node,
+                               const MaskInfo& m,
+                               const SelectedBlocks& selected_blocks) {
     OPENVINO_ASSERT(node->get_input_size() <= 7,
                     "ConvertSparseAttentionToDense: attention sinks of ",
                     node->get_friendly_name(),
@@ -470,14 +518,26 @@ Out decompose_sparse_attention(Builder& b, const std::shared_ptr<op::v17::Sparse
 
     // block mask [N, Hs, L, nB + 2]: the invalid entries -> column nB, the masked keys -> column nB + 1 (never set)
     const auto num_key_blocks = b.div(b.add(num_positions, b.i64(r - 1)), ratio);
-    const auto valid = b.less(b.range(zero, block_topk), b.unsq(block_count, -1));
-    block_indices = b.select(valid, block_indices, num_key_blocks);
-    auto block_mask =
-        b.broadcast(b.f32(0.0f), b.vec({batch, num_selection_heads, query_length, b.add(num_key_blocks, b.i64(2))}));
-    block_mask = b.make<op::v3::ScatterElementsUpdate>(block_mask,
-                                                       block_indices,
-                                                       b.broadcast(b.f32(1.0f), b.make<op::v3::ShapeOf>(block_indices)),
-                                                       b.i64(-1));
+    Out block_mask;
+    const auto selected = selected_blocks.find(node->input_value(3));
+    if (selected != selected_blocks.end() && node->get_query_block_size() == 1) {
+        // the indexer has the mask of the selected blocks, [N, Hs, L, nB + 1]: add the column nB + 1
+        block_mask = b.make<op::v12::Pad>(selected->second,
+                                          b.i64v({0, 0, 0, 0}),
+                                          b.i64v({0, 0, 0, 1}),
+                                          b.f32(0.0f),
+                                          op::PadMode::CONSTANT);
+    } else {
+        const auto valid = b.less(b.range(zero, block_topk), b.unsq(block_count, -1));
+        block_indices = b.select(valid, block_indices, num_key_blocks);
+        block_mask = b.broadcast(b.f32(0.0f),
+                                 b.vec({batch, num_selection_heads, query_length, b.add(num_key_blocks, b.i64(2))}));
+        block_mask =
+            b.make<op::v3::ScatterElementsUpdate>(block_mask,
+                                                  block_indices,
+                                                  b.broadcast(b.f32(1.0f), b.make<op::v3::ShapeOf>(block_indices)),
+                                                  b.i64(-1));
+    }
 
     // token mask [N, Hs, L, S]: the block of every key slot within its sequence
     const auto& positions = m.positions;  // [N, S]
@@ -627,6 +687,7 @@ bool ov::npuw::ConvertSparseAttentionToDense::run_on_model(const std::shared_ptr
     Builder shared;
     const auto mask_info = build_mask_info(shared, attention_mask);
     PaddedKeys padded_keys;
+    SelectedBlocks selected_blocks;
     size_t num_prepare = 0, num_indexer = 0, num_attention = 0;
     for (const auto& node : qsa_ops) {
         Builder b;
@@ -634,10 +695,10 @@ bool ov::npuw::ConvertSparseAttentionToDense::run_on_model(const std::shared_ptr
             replace(node, decompose_qsa_prepare(b, prepare, mask_info, num_blocks, padded_keys), b);
             ++num_prepare;
         } else if (const auto indexer = ov::as_type_ptr<op::v17::SparseAttentionIndexer>(node)) {
-            replace(node, decompose_indexer(b, indexer, mask_info, padded_keys), b);
+            replace(node, decompose_indexer(b, indexer, mask_info, padded_keys, selected_blocks), b);
             ++num_indexer;
         } else if (const auto attention = ov::as_type_ptr<op::v17::SparseAttention>(node)) {
-            replace(node, {decompose_sparse_attention(b, attention, mask_info)}, b);
+            replace(node, {decompose_sparse_attention(b, attention, mask_info, selected_blocks)}, b);
             ++num_attention;
         }
     }
