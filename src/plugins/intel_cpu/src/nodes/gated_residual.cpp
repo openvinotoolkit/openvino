@@ -5,18 +5,15 @@
 #include "gated_residual.h"
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
@@ -29,6 +26,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"

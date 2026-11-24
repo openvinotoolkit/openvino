@@ -220,7 +220,6 @@
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "transformations/common_optimizations/gated_residual_fusion.hpp"
-#    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
