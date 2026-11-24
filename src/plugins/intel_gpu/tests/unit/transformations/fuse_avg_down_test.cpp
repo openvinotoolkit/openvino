@@ -51,6 +51,7 @@ struct AvgDownParams {
     int64_t height = 8;
     int64_t width = 10;
     bool add_pad = false;
+    float pad_value = 0.0f;             // fill of the temporal Pad
     bool add_consumer = false;          // Relu after ReduceMean
     bool fold_reshapes = false;         // no flatten Reshape between Transpose and the group Reshape
     bool special_zero = false;          // special_zero on every chain Reshape
@@ -102,7 +103,7 @@ std::shared_ptr<ov::Model> getModel(const AvgDownParams& p) {
         data = std::make_shared<ov::op::v12::Pad>(data,
                                                   pads_begin,
                                                   shape_part({0, 0, 0, 0, 0}),
-                                                  ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0}),
+                                                  ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {p.pad_value}),
                                                   ov::op::PadMode::CONSTANT);
     }
 
@@ -467,6 +468,40 @@ TEST_F(TransformationTestsF, FuseAvgDownRejectsSpecialZeroWithDynamicShapes) {
     ASSERT_TRUE(reduce->get_input_partial_shape(0).is_dynamic());
     manager.register_pass<ov::intel_gpu::FuseAvgDown>();
 }
+
+struct NonzeroPadFillCase {
+    std::string name;
+    float pad_value;
+};
+
+class FuseAvgDownRejectsNonzeroPadFillTests : public TransformationTestsF, public testing::WithParamInterface<NonzeroPadFillCase> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<NonzeroPadFillCase>& obj) {
+        return obj.param.name;
+    }
+};
+
+TEST_P(FuseAvgDownRejectsNonzeroPadFillTests, Rejects) {
+    AvgDownParams p;
+    p.input_channels = 160;
+    p.output_channels = 320;
+    p.factor_t = 2;
+    p.time = 1;  // one padded frame in front
+    p.height = 56;
+    p.width = 112;
+    p.add_pad = true;
+    p.pad_value = GetParam().pad_value;
+    p.fold_reshapes = true;
+    p.special_zero = true;
+    model = getModel(p);
+    ASSERT_TRUE(find_pad(model));
+    manager.register_pass<ov::intel_gpu::FuseAvgDown>();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_FuseAvgDown,
+                         FuseAvgDownRejectsNonzeroPadFillTests,
+                         testing::Values(NonzeroPadFillCase{"fill_0p5", 0.5f}, NonzeroPadFillCase{"fill_m0p25", -0.25f}, NonzeroPadFillCase{"fill_1", 1.0f}),
+                         FuseAvgDownRejectsNonzeroPadFillTests::getTestCaseName);
 
 TEST_F(TransformationTestsF, FuseAvgDownRejectsMisplacedDynamicTemporalPadding) {
     AvgDownParams p;

@@ -48,6 +48,14 @@ bool has_values(const ov::Output<ov::Node>& output, const std::vector<int64_t>& 
     return values && *values == expected;
 }
 
+bool is_zero_fill(const ov::Output<ov::Node>& output) {
+    const auto constant = ov::util::get_constant_from_source(output);
+    if (!constant || ov::shape_size(constant->get_shape()) != 1) {
+        return false;
+    }
+    return constant->cast_vector<double>()[0] == 0.0;
+}
+
 bool has_vector_size(const ov::Output<ov::Node>& output, size_t expected) {
     const auto shape = output.get_partial_shape();
     return shape.is_static() && shape.size() == 1 && shape[0].get_length() == static_cast<int64_t>(expected);
@@ -189,7 +197,7 @@ bool is_dynamic_temporal_padding(const ov::Output<ov::Node>& output, const ov::O
 
 bool validate_temporal_padding(const std::shared_ptr<ov::op::v12::Pad>& pad, int64_t factor_t) {
     if (pad->get_pad_mode() != ov::op::PadMode::CONSTANT || !has_vector_size(pad->input_value(1), 5) || !has_values(pad->input_value(2), {0, 0, 0, 0, 0}) ||
-        !has_values(pad->input_value(3), {0})) {
+        !is_zero_fill(pad->input_value(3))) {
         return false;
     }
 
