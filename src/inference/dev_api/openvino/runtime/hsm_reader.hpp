@@ -234,16 +234,17 @@ public:
         return section_by_id(any_device_id, static_cast<uint32_t>(tag));
     }
 
+    /// Enabled only for callables that can be invoked as bool(const ManifestEntry&).
+    template <typename Pred>
+    using EntryPredicate = std::enable_if_t<std::is_invocable_r_v<bool, Pred&, const ManifestEntry&>, int>;
+
     /**
-     * @brief Finds the first manifest entry matching (@p device, @p tag) and returns a #Section handle for it.
-     *
-     * @param device The device ID to match.
-     * @param tag The tag to match, including its 4 reserved bytes.
-     * @return std::optional<Section> A handle to the matching section, or `std::nullopt` if not found.
+     * @brief Returns a #Section handle for the first manifest entry, in manifest order, for which @p pred returns true.
+     * @param pred Predicate used to find the manifest entry.
+     * @return `std::nullopt` if no entry matches.
      */
-    std::optional<Section> section(DeviceId device, SectionTagReserved tag) const {
-        return section_by_id(device, tag);
-    }
+    template <typename Pred, EntryPredicate<Pred> = 0>
+    std::optional<Section> section_if(Pred&& pred) const;
 
     /**
      * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
@@ -268,6 +269,16 @@ public:
     }
 
     /**
+     * @brief Finds all manifest entries for which @p pred returns true and returns a #Section handle for each, in
+     * manifest order.
+     *
+     * @param pred Predicate used to find manifest entries.
+     * @return std::vector<Section> A vector of handles to the matching sections, in manifest order.
+     */
+    template <typename Pred, EntryPredicate<Pred> = 0>
+    std::optional<Section> sections_if(Pred&& pred) const;
+
+    /**
      * @brief Runs @p decoder over the first manifest entry matching (@p device, @p tag).
      * @note Returns std::nullopt if no matching entry is found, or if @p decoder itself returns std::nullopt.
      * @param device The device ID to match.
@@ -290,18 +301,14 @@ public:
     }
 
     /**
-     * @brief Runs @p decoder over the first manifest entry matching (@p device, @p tag).
+     * @brief Runs @p decoder over the first manifest entry for which @p pred returns true.
      * @note Returns std::nullopt if no matching entry is found, or if @p decoder itself returns std::nullopt.
-     * @param device The device ID to match.
-     * @param tag The tag to match, including its 4 reserved bytes.
+     * @param pred Predicate used to find the manifest entry.
      * @param decoder The decoder to run over the matching section.
      * @return A decoded value if the section is found and the decoder succeeds; otherwise, `std::nullopt`.
      */
-    template <typename T>
-    std::optional<T> decode(DeviceId device, SectionTagReserved tag, const SectionDecoder<T>& decoder) const {
-        const auto found = section(device, tag);
-        return found ? decoder(*found) : std::nullopt;
-    }
+    template <typename Pred, EntryPredicate<Pred> = 0, typename T>
+    std::optional<T> decode_if(Pred&& pred, const SectionDecoder<T>& decoder) const;
 
     /**
      * @brief Runs @p decoder over every manifest entry matching (@p device, @p tag) - entries @p decoder
@@ -323,6 +330,18 @@ public:
         }
         return result;
     }
+
+    /**
+     * @brief Runs @p decoder over every manifest entry for which @p pred returns true - entries @p decoder
+     * itself rejects (returns std::nullopt for) are omitted, not treated as an error.
+     * @note If no matching entries are found, an empty vector is returned.
+     *
+     * @param pred Predicate used to find manifest entries.
+     * @param decoder The decoder to run over the matching sections.
+     * @return A vector of decoded values for the matching sections that the decoder accepts.
+     */
+    template <typename Pred, EntryPredicate<Pred> = 0, typename T>
+    std::vector<T> decode_all_if(Pred&& pred, const SectionDecoder<T>& decoder) const;
 
     /**
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
@@ -355,7 +374,6 @@ private:
     Section make_section(const ManifestEntry& entry) const;
 
     std::optional<Section> section_by_id(DeviceId device, uint32_t tag_id) const;
-    std::optional<Section> section_by_id(DeviceId device, SectionTagReserved tag_id) const;
     std::vector<Section> sections_by_id(DeviceId device, uint32_t tag_id) const;
     size_t count_by_id(DeviceId device, uint32_t tag_id) const noexcept;
 
