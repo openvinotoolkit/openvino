@@ -7,6 +7,57 @@ import pytest
 from packaging import version
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
+
+@pytest.mark.precommit
+def test_pytorch_fx_decoder_without_sym_min(monkeypatch):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    graph = torch.fx.Graph()
+    value = graph.placeholder("value")
+    result = graph.call_function(torch.ops.aten.relu.default, (value,))
+    graph.output(result)
+    decoder = TorchFXPythonDecoder(result, nodes=list(graph.nodes))
+    monkeypatch.delattr(torch, "sym_min", raising=False)
+    assert decoder.get_op_type() == "aten.relu.default"
+
+
+@pytest.mark.parametrize("name", ["sym_min", "sym_max"])
+@pytest.mark.precommit
+def test_pytorch_fx_decoder_symbolic_functions(name):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    target = getattr(torch, name, None)
+    if target is None:
+        pytest.skip(f"torch.{name} is unavailable")
+
+    from openvino import Core, convert_model
+
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            if name == "sym_min":
+                end = torch.sym_min(2, x.shape[0])
+            else:
+                end = torch.sym_max(2, x.shape[0])
+            return x.new_zeros((end,))
+
+    model = Model().eval()
+    example = torch.arange(4, dtype=torch.float32)
+    exported = torch.export.export(
+        model,
+        (example,),
+        dynamic_shapes={"x": {0: torch.export.Dim("n", min=1, max=8)}},
+    )
+    symbolic_node = next(node for node in exported.graph.nodes if node.target is target)
+    decoder = TorchFXPythonDecoder(symbolic_node, nodes=list(exported.graph.nodes))
+    assert decoder.get_op_type() == f"torch.{name}"
+
+    compiled = Core().compile_model(convert_model(exported), "CPU")
+    for size in (1, 4, 7):
+        data = torch.arange(size, dtype=torch.float32)
+        actual = compiled([data.numpy()])[0]
+        assert actual.tolist() == model(data).tolist()
+
+
 class AtenDiv(torch.nn.Module):
     # aten::div can have str or NoneType constant
     def __init__(self, rounding_mode):
@@ -1152,8 +1203,9 @@ def test_pytorch_fx_decoder_python_function_names(monkeypatch):
     assert TorchFXPythonDecoder(node, nodes=list(graph.nodes)).get_op_type() == "aten.relu.default"
 
 
+@pytest.mark.parametrize("legacy_name", [False, True])
 @pytest.mark.precommit
-def test_pytorch_fx_python_function_conversion_extension():
+def test_pytorch_fx_python_function_conversion_extension(legacy_name):
     import numpy as np
     import openvino as ov
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
@@ -1169,7 +1221,7 @@ def test_pytorch_fx_python_function_conversion_extension():
     decoder = TorchFXPythonDecoder(graph_module)
     frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
     frontend.add_extension(ov.frontend.ConversionExtension(
-        f"{__name__}.{custom_function.__qualname__}",
+        str(custom_function) if legacy_name else f"{__name__}.{custom_function.__qualname__}",
         lambda context: ops.negative(context.get_input(0)).outputs()))
     input_model = frontend.load(decoder)
     input_model.set_element_type(input_model.get_inputs()[0], ov.Type.f32)

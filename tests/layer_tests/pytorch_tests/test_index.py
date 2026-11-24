@@ -4,6 +4,7 @@
 import pytest
 import numpy as np
 import torch
+import openvino as ov
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -181,3 +182,57 @@ class TestIndexNone(PytorchLayerTest):
 
         self._test(self.aten_index_list(idxs), "aten::index", ie_device, precision,
                    ir_version, use_convert_model=True, trace_model=True)
+
+
+class TestIndexTrailingDimensions(PytorchLayerTest):
+    def _prepare_input(self, prefix, indices):
+        return (self.random.randn(*prefix, 4, 5),
+                np.asarray(indices[0], dtype=np.int64),
+                np.asarray(indices[1], dtype=np.int64))
+
+    @pytest.mark.parametrize("prefix", [(), (3,), (2, 3)])
+    @pytest.mark.parametrize("indices", [
+        ([0, 3, 1], [4, 0, 2]),
+        ([-1, 0, -2], [-1, -3, 2]),
+        ([-4, 3], [-5, 4]),
+        ([[0], [3]], [[0, 2, 4]]),
+        (2, [0, -1]),
+        (2, -1),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_index_trailing(self, prefix, indices, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            def forward(self, x, rows, columns):
+                return torch.ops.aten.index.Tensor(x, [None] * len(prefix) + [rows, columns])
+
+        self._test(Model(), "aten::index", ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"prefix": prefix, "indices": indices}, trace_model=True)
+
+    @pytest.mark.parametrize("prefix", [(), (3,), (2, 3)])
+    @pytest.mark.parametrize("invalid_index", [(-5, 0), (4, -5), (0, 5), (3, -6)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_index_trailing_out_of_bounds(self, prefix, invalid_index, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            def forward(self, x, rows, columns):
+                return torch.ops.aten.index.Tensor(x, [None] * len(prefix) + [rows, columns])
+
+        model = Model().eval()
+        data = torch.arange(1, np.prod((*prefix, 4, 5)) + 1, dtype=torch.float32).reshape(*prefix, 4, 5)
+        example = (data, torch.tensor([0, -1]), torch.tensor([-1, 0]))
+        captured = torch.export.export(model, example) if self.use_torch_export() else torch.jit.trace(model, example)
+        converted = ov.convert_model(captured)
+        converted.reshape({converted.input(0): [-1] * data.ndim})
+        compiled = ov.Core().compile_model(converted, ie_device)
+        rows = torch.tensor([0, invalid_index[0], -1])
+        columns = torch.tensor([-1, invalid_index[1], 0])
+        with pytest.raises(IndexError):
+            model(data, rows, columns)
+        # Invalid coordinates produce zero and must never spill into another axis.
+        expected = model(data, rows[[0, 2]], columns[[0, 2]]).numpy()
+        expected = np.insert(expected, 1, 0, axis=-1)
+        actual = compiled((data.numpy(), rows.numpy(), columns.numpy()))[0]
+        np.testing.assert_array_equal(actual, expected)
