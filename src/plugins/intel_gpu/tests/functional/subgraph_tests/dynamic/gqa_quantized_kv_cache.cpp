@@ -91,7 +91,8 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAQuantParams& p,
     auto value = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{B, KVH, -1, D});
     const auto cache_len = p.windowed ? ov::Dimension(static_cast<int64_t>(capacity)) : ov::Dimension::dynamic();
     auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{B, KVH, cache_len, DC});
-    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, p.transpose_v ? ov::PartialShape{B, KVH, DC, cache_len} : ov::PartialShape{B, KVH, cache_len, DC});
+    auto past_value =
+        std::make_shared<ov::op::v0::Parameter>(cache_type, p.transpose_v ? ov::PartialShape{B, KVH, DC, cache_len} : ov::PartialShape{B, KVH, cache_len, DC});
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{B});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
@@ -147,7 +148,8 @@ ov::Tensor coded_kv(const GQAQuantParams& p, size_t seq, const std::vector<float
 }
 
 ov::Tensor random_cache(const GQAQuantParams& p, size_t past, bool value, std::mt19937& gen) {
-    const auto shape = value && p.transpose_v ? ov::Shape{p.batch, kv_num_heads, cache_head_size(p), past} : ov::Shape{p.batch, kv_num_heads, past, cache_head_size(p)};
+    const auto shape =
+        value && p.transpose_v ? ov::Shape{p.batch, kv_num_heads, cache_head_size(p), past} : ov::Shape{p.batch, kv_num_heads, past, cache_head_size(p)};
     ov::Tensor tensor(p.bits == 8 ? ov::element::i8 : ov::element::u8, shape);
     std::uniform_int_distribution<int> byte(p.bits == 8 ? -127 : 0, p.bits == 8 ? 127 : 255);
     auto* data = static_cast<uint8_t*>(tensor.data());
