@@ -611,20 +611,18 @@ def test_properties_qos_in_config_dict():
     assert config["QOS"].value == props.QoS.ECO
 
 
-def get_npu_core_with_qos():
-    if os.environ.get("TEST_DEVICE") != "NPU":
-        pytest.skip("QoS is only supported by NPU")
-    core = Core()
-    if props.qos() not in core.get_property("NPU", props.supported_properties):
-        pytest.skip("The NPU driver does not support the command queue QoS extension")
-    return core
+def skip_if_qos_not_supported(core, device):
+    # QOS is registered only by devices (and drivers) that support Quality of Service
+    if props.qos() not in core.get_property(device, props.supported_properties):
+        pytest.skip(f"{device} does not support the {props.qos()} property")
 
 
 @pytest.mark.parametrize("level", [props.QoS.HIGH, props.QoS.MEDIUM, props.QoS.LOW,
                                    props.QoS.UTILITY, props.QoS.ECO])
-def test_properties_qos_info_requested_level(level):
-    core = get_npu_core_with_qos()
-    compiled_model = core.compile_model(get_relu_model(), "NPU", dict([props.qos(level)]))  # noqa: C406
+def test_properties_qos_info_requested_level(device, level):
+    core = Core()
+    skip_if_qos_not_supported(core, device)
+    compiled_model = core.compile_model(get_relu_model(), device, dict([props.qos(level)]))  # noqa: C406
 
     info = compiled_model.get_property(props.qos_info)
     assert isinstance(info, props.QoSInfo)
@@ -633,9 +631,10 @@ def test_properties_qos_info_requested_level(level):
     assert str(level).split(".")[-1] in repr(info)
 
 
-def test_properties_qos_info_driver_default():
-    core = get_npu_core_with_qos()
-    compiled_model = core.compile_model(get_relu_model(), "NPU")
+def test_properties_qos_info_driver_default(device):
+    core = Core()
+    skip_if_qos_not_supported(core, device)
+    compiled_model = core.compile_model(get_relu_model(), device)
 
     info = compiled_model.get_property(props.qos_info)
     # The reported level is the resolved driver/OS default, never DEFAULT
@@ -643,9 +642,10 @@ def test_properties_qos_info_driver_default():
     assert info.is_overridden is False
 
 
-def test_properties_qos_info_equality_and_immutability():
-    core = get_npu_core_with_qos()
-    compiled_model = core.compile_model(get_relu_model(), "NPU", dict([props.qos(props.QoS.LOW)]))  # noqa: C406
+def test_properties_qos_info_equality_and_immutability(device):
+    core = Core()
+    skip_if_qos_not_supported(core, device)
+    compiled_model = core.compile_model(get_relu_model(), device, dict([props.qos(props.QoS.LOW)]))  # noqa: C406
 
     info = compiled_model.get_property(props.qos_info)
     assert info == compiled_model.get_property(props.qos_info)
