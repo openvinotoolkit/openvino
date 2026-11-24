@@ -12,6 +12,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 int main() {
     try {
@@ -24,20 +25,33 @@ int main() {
         const auto runtime = core.get_property(*gpu, "GPU_RUNTIME_TYPE").as<std::string>();
         OPENVINO_ASSERT(runtime == "VULKAN", "Expected the Vulkan runtime");
 
+        const auto tracked_buffer_bytes = [&] {
+            const auto statistics = core.get_property(*gpu, ov::intel_gpu::memory_statistics);
+            const auto device_buffer = statistics.find("device_buffer");
+            OPENVINO_ASSERT(device_buffer != statistics.end(), "Vulkan memory statistics omit device_buffer");
+            return device_buffer->second;
+        };
+        OPENVINO_ASSERT(tracked_buffer_bytes() == 0, "Vulkan reported device-buffer bytes before context creation");
+
         auto context = core.get_default_context(*gpu);
+        OPENVINO_ASSERT(tracked_buffer_bytes() == 0, "Vulkan reported device-buffer bytes before tensor creation");
         for (const size_t count : {256, 257}) {
             const ov::Shape shape{count};
             ov::Tensor input(ov::element::u8, shape);
             ov::Tensor output(ov::element::u8, shape);
-            auto source = context.create_tensor(ov::element::u8, shape);
-            auto destination = context.create_tensor(ov::element::u8, shape);
             auto* bytes = input.data<uint8_t>();
             for (size_t i = 0; i < count; ++i) {
                 bytes[i] = static_cast<uint8_t>(i ^ 0xA5);
             }
-            source.copy_from(input);
-            source.copy_to(destination);
-            destination.copy_to(output);
+            {
+                auto source = context.create_tensor(ov::element::u8, shape);
+                auto destination = context.create_tensor(ov::element::u8, shape);
+                OPENVINO_ASSERT(tracked_buffer_bytes() == 2 * count, "Vulkan reported incorrect live device-buffer bytes");
+                source.copy_from(input);
+                source.copy_to(destination);
+                destination.copy_to(output);
+            }
+            OPENVINO_ASSERT(tracked_buffer_bytes() == 0, "Vulkan reported device-buffer bytes after tensor release");
             OPENVINO_ASSERT(std::equal(bytes, bytes + count, output.data<const uint8_t>()), "Vulkan buffer round trip changed the data");
         }
 

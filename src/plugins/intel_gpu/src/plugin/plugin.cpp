@@ -798,6 +798,9 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             add_zero_mem_usage(cldnn::allocation_type::usm_host);
             add_zero_mem_usage(cldnn::allocation_type::usm_shared);
             add_zero_mem_usage(cldnn::allocation_type::usm_device);
+            if (ctx->get_device().get_mem_caps().support_allocation_type(cldnn::allocation_type::device_buffer)) {
+                add_zero_mem_usage(cldnn::allocation_type::device_buffer);
+            }
             return res;
         }
         return decltype(ov::intel_gpu::memory_statistics)::value_type{ctx->get_engine().get_memory_statistics()};
