@@ -149,7 +149,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
         }
         for (const auto& fused_op : ewParams.fused_ops) {
             for (const auto& t : fused_op.tensors) {
-                if (t.is_dynamic() || t.has_dynamic_pad()) {
+                // Planar fused feature vectors are read with vloadN, so they must be dense and hold whole vectors
+                const bool partial_planar_vector = t.SimpleLayout() && t.Feature().v != 1 && (HasPadding(t) || t.Feature().v % vec_size != 0);
+                if (t.is_dynamic() || t.has_dynamic_pad() || partial_planar_vector) {
                     DO_NOT_USE_THIS_KERNEL(params.layerID);
                 }
             }
@@ -267,7 +269,7 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
                         std::string vload_value;
                         if (!in_tensor.is_dynamic() && in_tensor.LogicalSize() == 1) {
                             vload_value = "\\\n\t " + temp_vec_type + " " + temp_vec_var + " = (" + temp_vec_type + ")DECODE_INPUT" + in_idx_str +
-                                          "_COMPUTE_TYPE(" + input_i + "[0])";
+                                          "_COMPUTE_TYPE(" + input_i + "[GET_INDEX(INPUT, " + in_idx_str + ", " + idx_order + ")])";
                         } else if (!in_tensor.is_dynamic() && in_tensor.GetLayout() == DataLayout::bfyx) {
                             vload_value = "\\\n\t " + temp_vec_type + " " + temp_vec_var + " = TO_TYPE(" + temp_vec_type + ", DECODE_INPUT" + in_idx_str +
                                           "_COMPUTE_VECTOR_TYPE(" + vload_n + "(f_block, " + input_i + "), " + toCodeString(vec_size) + "))";
