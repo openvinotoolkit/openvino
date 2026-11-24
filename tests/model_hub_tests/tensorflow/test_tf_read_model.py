@@ -86,7 +86,6 @@ class TestTFReadModel(TestConvertModel):
         ov_model = core.read_model(model_path)
         self._reshape_if_required(ov_model, inputs, ie_device)
         compiled = core.compile_model(ov_model, ie_device, self.get_compile_config(ie_device))
-        # base _run short-circuits on None
         if npu_compile_only(ie_device):
             return None
         ov_outputs = compiled(inputs)

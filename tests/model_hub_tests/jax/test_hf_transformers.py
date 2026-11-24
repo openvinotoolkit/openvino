@@ -59,8 +59,8 @@ class TestTransformersModel(TestJaxConvertModel):
             for _, value in inputs.items():
                 new_inputs.append(value)
             inputs = new_inputs
-        # NPU compile config and the compile-only mode (NPU_TEST_MODE) live in the base
-        # class and are shared across all frameworks; compile-only returns None.
+        # NPU compile config + compile-only mode live in the base class and are shared
+        # across all frameworks. For NPU it returns None (compile-only).
         return super().infer_ov_model(ov_model, inputs, ie_device)
 
     @pytest.mark.parametrize("type,name,mark,reason",

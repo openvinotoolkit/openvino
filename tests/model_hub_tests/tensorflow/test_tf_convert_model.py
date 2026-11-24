@@ -111,7 +111,7 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def infer_ov_model(self, ov_model, inputs, ie_device):
         ov_outputs = super().infer_ov_model(ov_model, inputs, ie_device)
-        # None means NPU compile-only mode (NPU_TEST_MODE)
+        # For NPU ov_outputs returns None (compile-only)
         if ov_outputs is None:
             return None
 

@@ -604,7 +604,6 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       changed-components: ${{ needs.smart_ci.outputs.changed_components }}
 
-
   NPU_Models_Tests_HW:
     name: NPU Models Tests HW
     needs: [ Build, Smart_CI ]
@@ -623,10 +622,12 @@ jobs:
         include:
           - npu-platform: '3720'
             host-label: 'mtl'
+            host: 'ov-dmz-41'
           - npu-platform: '5020'
             host-label: 'wcl'
+            host: 'ov-dmz-51'
     with:
-      runner: '{"group": "Intel-NPU", "labels": ["self-hosted", "Windows", "npu", "${{ matrix.host-label }}"]}'
+      runner: '{"group": "intel-npu", "labels": ["self-hosted", "Windows", "npu", "${{ matrix.host-label }}", "${{ matrix.host }}"]}'
       mode: 'infer'
       npu-platforms: '["${{ matrix.npu-platform }}"]'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}

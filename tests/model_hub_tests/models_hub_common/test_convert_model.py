@@ -66,7 +66,6 @@ class TestConvertModel:
         if 'NPU' in (ie_device or ''):
             config["NPU_COMPILER_TYPE"] = "PLUGIN"
             npu_platform = os.environ.get("NPU_PLATFORM")
-            # on real hardware the platform is detected from the device
             if npu_platform and npu_compile_only(ie_device):
                 config["NPU_PLATFORM"] = npu_platform
         return config

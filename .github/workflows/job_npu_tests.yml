@@ -45,7 +45,6 @@ env:
 jobs:
   NPU_Models_Tests:
     name: ${{ matrix.npu-platform }}
-    # inference and the framework reference run come on top of compilation
     timeout-minutes: ${{ inputs.mode == 'infer' && 90 || 40 }}
     strategy:
       # one runner per NPU platform; keep going even if one platform fails.
@@ -54,7 +53,7 @@ jobs:
         npu-platform: ${{ fromJSON(inputs.npu-platforms) }}
     defaults:
       run:
-        # Windows PowerShell 5.1: the NPU hosts (ov-dmz-*) have no pwsh, unlike AKS
+        # the NPU hosts have no pwsh
         shell: powershell
     runs-on: ${{ fromJSON(inputs.runner) }}
     env:
@@ -68,12 +67,39 @@ jobs:
       # Force UTF-8 stdio so third-party progress bars (e.g. easyocr's block
       # glyph) don't crash on the cp1252 Windows console.
       PYTHONUTF8: '1'
-      # Non-AKS hosts (ov-dmz-*) are behind proxy-dmz, which re-signs TLS with the Intel
-      # proxy root CA, as in GPU_Unit_Tests (windows_vs2022_release.yml). Node-based actions
-      # (artifacts, checkout) need it from the first step; Python gets it in a step below.
+      # the NPU hosts are behind a TLS-intercepting proxy
       PROXY_CA: ${{ !contains(inputs.runner, 'aks') && 'C:\certs\IntelProxyRootCA.crt' || '' }}
       NODE_EXTRA_CA_CERTS: ${{ !contains(inputs.runner, 'aks') && 'C:\certs\IntelProxyRootCA.crt' || '' }}
     steps:
+      # the work dir cleanup hook on the NPU hosts is not reliable
+      - name: Remove leftovers of previous jobs
+        run: |
+          Get-Process python* -ErrorAction SilentlyContinue | Format-Table -AutoSize Id, ProcessName, StartTime, Path
+          Get-ChildItem -Force -Path "${{ github.workspace }}" | Remove-Item -Recurse -Force
+
+      # RUNNER_TEMP is emptied by the runner after every job, the user profile is not
+      - name: Keep temp files and caches inside the job
+        if: ${{ !contains(inputs.runner, 'aks') }}
+        run: |
+          $cache = "$env:RUNNER_TEMP\cache"
+          $dirs = [ordered]@{
+            TEMP = "$env:RUNNER_TEMP\tmp"
+            TMP = "$env:RUNNER_TEMP\tmp"
+            XDG_CACHE_HOME = $cache
+            PIP_CACHE_DIR = "$cache\pip"
+            HF_HOME = "$cache\huggingface"
+            HF_HUB_CACHE = "$cache\huggingface\hub"
+            HUGGINGFACE_HUB_CACHE = "$cache\huggingface\hub"
+            TFHUB_CACHE_DIR = "$cache\tfhub_modules"
+            KAGGLEHUB_CACHE = "$cache\kagglehub"
+            TORCH_HOME = "$cache\torch"
+            EASYOCR_MODULE_PATH = "$cache\easyocr"
+          }
+          foreach ($var in $dirs.Keys) {
+            New-Item -ItemType Directory -Force -Path $dirs[$var] | Out-Null
+            Add-Content -Path $env:GITHUB_ENV -Value "$var=$($dirs[$var])"
+          }
+
       - name: Download OpenVINO artifacts (tests)
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -90,8 +116,6 @@ jobs:
 
       - name: Setup Variables
         run: |
-          # AKS runners mount the shared HF cache and token; NPU hosts fall back to the
-          # default per-user HF cache, which outlives the per-job work dir cleanup.
           if (Test-Path "${{ env.HF_HUB_CACHE_WIN }}") {
             Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
             Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
@@ -104,14 +128,11 @@ jobs:
 
       - name: Extract OpenVINO tests package
         run: |
-          # no progress bar: in Windows PowerShell 5.1 it slows Expand-Archive down a lot
           $ProgressPreference = 'SilentlyContinue'
           Expand-Archive openvino_tests.zip -DestinationPath .
         working-directory: ${{ env.INSTALL_DIR }}
 
-      # The NPU hosts have no git, so checkout falls back to downloading the whole repo
-      # archive, which Windows PowerShell fails to extract. They need no pip proxy either,
-      # so they use actions/setup-python directly, like GPU_Unit_Tests on the same hosts.
+      # the NPU hosts have no git, so checkout would download and fail to extract the whole repo
       - name: Fetch setup_python action
         if: ${{ contains(inputs.runner, 'aks') }}
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -134,8 +155,6 @@ jobs:
       - name: Setup Python ${{ env.PYTHON_VERSION }} (NPU hosts)
         if: ${{ !contains(inputs.runner, 'aks') }}
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        # its install script upgrades pip from PyPI through proxy-dmz; the CA bundle step
-        # below needs Python, so trust the proxy CA alone here, as GPU_Unit_Tests does
         env:
           SSL_CERT_FILE: ${{ env.PROXY_CA }}
           REQUESTS_CA_BUNDLE: ${{ env.PROXY_CA }}
@@ -143,8 +162,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      # public CAs + proxy root CA, before the first pip install (pip's bundled certifi needs no network)
-      - name: Trust the Intel proxy root CA (Python)
+      - name: Trust the proxy root CA in Python
         if: ${{ env.PROXY_CA != '' }}
         run: |
           $bundle = Join-Path $env:RUNNER_TEMP 'ca-bundle.pem'
@@ -154,20 +172,15 @@ jobs:
             Add-Content -Path $env:GITHUB_ENV -Value "$var=$bundle"
           }
 
-      # The NPU hosts are physical machines that outlive the job, so all pip installs go
-      # into a per-job venv rather than the Python from setup-python. RUNNER_TEMP is
-      # emptied by the runner after every job.
       - name: Create Python virtual environment
         run: |
           $venv = Join-Path $env:RUNNER_TEMP 'venv'
           python3 -m venv $venv
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          # the steps call python3, which venv doesn't create on Windows
           Copy-Item "$venv\Scripts\python.exe" "$venv\Scripts\python3.exe"
           Add-Content -Path $env:GITHUB_PATH -Value "$venv\Scripts"
           Add-Content -Path $env:GITHUB_ENV -Value "VIRTUAL_ENV=$venv"
 
-      # Not the install_ov_wheels action: it runs in pwsh, which the NPU hosts don't have
       - name: Install OpenVINO Python wheel
         run: |
           $py = python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')"
@@ -182,6 +195,74 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Add-Content -Path $env:GITHUB_ENV -Value "SSL_CERT_FILE=$(python3 -m certifi)"
 
+      # --- Diagnostics on the NPU hosts, while the job is being brought up ----
+      - name: 'Diagnostics: environment'
+        if: ${{ inputs.mode == 'infer' }}
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value "DIAG_JOB_START=$(Get-Date -Format o)"
+          Add-Content -Path $env:GITHUB_ENV -Value "OV_NPU_LOG_LEVEL=LOG_WARNING"
+          Add-Content -Path $env:GITHUB_ENV -Value "PYTHONFAULTHANDLER=1"
+          Add-Content -Path $env:GITHUB_ENV -Value "PYTEST_ADDOPTS=--durations=30"
+
+          $os = Get-CimInstance Win32_OperatingSystem
+          "{0} (build {1})" -f $os.Caption, $os.BuildNumber
+          "RAM: {0:N1} GB, free {1:N1} GB" -f ($os.TotalVisibleMemorySize / 1MB), ($os.FreePhysicalMemory / 1MB)
+          "Disk C: free {0:N1} GB" -f ((Get-PSDrive C).Free / 1GB)
+          "Runner user: $env:USERNAME, profile: $env:USERPROFILE"
+
+          "--- proxy variables"
+          Get-ChildItem env: | Where-Object Name -match 'proxy' | Format-Table -AutoSize Name, Value
+
+          "--- Python"
+          (Get-Command python3).Source
+          python3 -c "import sys; print(sys.version); print('venv' if sys.prefix != sys.base_prefix else 'NOT A VENV', sys.prefix)"
+          python3 -m pip --version
+          python3 -m pip config list
+
+          "--- temp and cache locations"
+          foreach ($var in 'TEMP', 'XDG_CACHE_HOME', 'PIP_CACHE_DIR', 'HF_HOME', 'HF_HUB_CACHE', 'TFHUB_CACHE_DIR', 'KAGGLEHUB_CACHE', 'TORCH_HOME', 'EASYOCR_MODULE_PATH', 'HF_TOKEN_PATH') {
+            "{0,-20} {1}" -f $var, [Environment]::GetEnvironmentVariable($var)
+          }
+
+      - name: 'Diagnostics: network'
+        if: ${{ inputs.mode == 'infer' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          @'
+          import time
+          import urllib.error
+          import urllib.request
+
+          # pip, model hubs and weight downloads used by the TF, JAX and PyTorch NPU suites
+          urls = [
+              "https://pypi.org/simple/pip/",
+              "https://files.pythonhosted.org/",
+              "https://huggingface.co/api/models/bert-base-uncased",
+              "https://cas-bridge.xethub.hf.co/",
+              "https://cdn-lfs.hf.co/",
+              "https://www.kaggle.com/",
+              "https://storage.googleapis.com/",
+              "https://tfhub.dev/",
+              "https://storage.openvinotoolkit.org/",
+              "https://download.pytorch.org/models/",
+              "https://github.com/JaidedAI/EasyOCR/releases",
+              "https://objects.githubusercontent.com/",
+              "https://release-assets.githubusercontent.com/",
+          ]
+          for url in urls:
+              start = time.time()
+              try:
+                  request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "openvino-ci"})
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      result = f"OK   {response.status}"
+              except urllib.error.HTTPError as e:
+                  result = f"HTTP {e.code}"
+              except Exception as e:
+                  result = f"FAIL {e!r}"
+              print(f"{time.time() - start:5.1f}s  {url}  {result}")
+          '@ | python3 -
+
       - name: Check NPU device
         if: ${{ inputs.mode == 'infer' }}
         timeout-minutes: 5
@@ -189,21 +270,17 @@ jobs:
           PYTHONUNBUFFERED: '1'
           OV_NPU_LOG_LEVEL: 'LOG_INFO'
         run: |
-          # "Neural processors" (ComputeAccelerator) devices with their driver, and leftover
-          # Python processes that could still hold the NPU
+          (Get-CimInstance Win32_Processor).Name
           Get-PnpDevice -PresentOnly -Class ComputeAccelerator -ErrorAction SilentlyContinue | Format-List Status, FriendlyName, InstanceId
           Get-CimInstance Win32_PnPSignedDriver -Filter "DeviceClass = 'COMPUTEACCELERATOR'" | Format-List DeviceName, DriverVersion, DriverDate
-          Get-Process python* -ErrorAction SilentlyContinue | Format-Table -AutoSize Id, ProcessName, StartTime, Path
           @'
           import os
           import openvino as ov
           print("OpenVINO", ov.get_version())
           core = ov.Core()
-          # NPU plugin only: core.available_devices would also initialize the GPU plugin
+          # NPU only: core.available_devices initializes every plugin
           devices = core.get_property("NPU", "AVAILABLE_DEVICES")
           print("NPU devices:", devices)
-          # without a device the plugin still compiles with its own compiler, but for an
-          # unknown platform; the reason is in the OV_NPU_LOG_LEVEL output above
           assert devices, "NPU plugin sees no device: Level Zero backend failed to initialize"
           arch = core.get_property("NPU", "DEVICE_ARCHITECTURE")
           print("NPU:", core.get_property("NPU", "FULL_DEVICE_NAME"), arch)
@@ -260,6 +337,40 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_npu_models.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_models_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+
+      - name: 'Diagnostics: after tests'
+        if: ${{ always() && inputs.mode == 'infer' }}
+        continue-on-error: true
+        run: |
+          "--- NPU device"
+          Get-PnpDevice -PresentOnly -Class ComputeAccelerator -ErrorAction SilentlyContinue | Format-List Status, Problem, FriendlyName
+          "--- System log errors and warnings since the job started"
+          if ($env:DIAG_JOB_START) {
+            Get-WinEvent -FilterHashtable @{ LogName = 'System'; Level = 1, 2, 3; StartTime = [datetime]::Parse($env:DIAG_JOB_START) } -MaxEvents 50 -ErrorAction SilentlyContinue |
+              Format-Table -AutoSize -Wrap TimeCreated, LevelDisplayName, ProviderName, Id, Message
+          }
+          "--- Python processes left behind"
+          Get-Process python* -ErrorAction SilentlyContinue | Format-Table -AutoSize Id, ProcessName, StartTime, Path
+          "--- disk"
+          "Disk C: free {0:N1} GB" -f ((Get-PSDrive C).Free / 1GB)
+          "Job caches in RUNNER_TEMP: {0:N1} GB" -f ((Get-ChildItem -Recurse -Force -File "$env:RUNNER_TEMP\cache" -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum / 1GB)
+          "--- files written to the user profile since the job started (left behind after the job)"
+          if ($env:DIAG_JOB_START) {
+            $since = [datetime]::Parse($env:DIAG_JOB_START)
+            Get-ChildItem -Recurse -Force -File $env:USERPROFILE -ErrorAction SilentlyContinue |
+              Where-Object { $_.LastWriteTime -gt $since } |
+              Group-Object { ($_.DirectoryName.Substring($env:USERPROFILE.Length).TrimStart('\') -split '\\')[0..2] -join '\' } |
+              ForEach-Object { [pscustomobject]@{ Dir = $_.Name; Files = $_.Count; MB = [math]::Round(($_.Group | Measure-Object Length -Sum).Sum / 1MB, 1) } } |
+              Sort-Object MB -Descending | Select-Object -First 20 | Format-Table -AutoSize
+          }
+          "--- caches left in the user profile by earlier runs"
+          foreach ($dir in "$env:LOCALAPPDATA\Temp\hugging_face", "$env:LOCALAPPDATA\Temp\tfhub_modules", "$env:USERPROFILE\.cache", "$env:LOCALAPPDATA\pip\Cache", "$env:USERPROFILE\.EasyOCR") {
+            if (Test-Path $dir) {
+              "{0}: {1:N1} GB" -f $dir, ((Get-ChildItem -Recurse -Force -File $dir -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum / 1GB)
+            }
+          }
+          "--- test reports"
+          Get-ChildItem "${{ env.INSTALL_TEST_DIR }}\TEST*" -ErrorAction SilentlyContinue | Format-Table -AutoSize Name, Length
 
       - name: Upload Test Results
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
