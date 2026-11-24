@@ -1,30 +1,11 @@
 name: my_pr
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  schedule:
-    # run daily at 00:00
-    - cron: '0 0 * * *'
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  merge_group:
-  push:
-    branches:
-      - master
-      - 'releases/**'
-
-concurrency:
-  # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-cc-my_pr
-  cancel-in-progress: true
 
 permissions: read-all
 
@@ -264,7 +245,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_package
+          name: openvino_package_my_pr
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
@@ -272,7 +253,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_pdb
+          name: openvino_pdb_my_pr
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
           if-no-files-found: 'error'
 
@@ -280,7 +261,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_selective_build_stat
+          name: openvino_selective_build_stat_my_pr
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
           if-no-files-found: 'error'
 
@@ -288,7 +269,7 @@ jobs:
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
-          name: compile_commands_windows_cc_collect
+          name: compile_commands_windows_cc_collect_my_pr
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
@@ -331,7 +312,7 @@ jobs:
       - name: Download selective build statistics package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
-          name: openvino_selective_build_stat
+          name: openvino_selective_build_stat_my_pr
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
 
       - name: Extract selective build statistics package
@@ -382,17 +363,3 @@ jobs:
         run: |
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
-
-  Overall_Status:
-    name: ci/gha_overall_status_windows_cc
-    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
