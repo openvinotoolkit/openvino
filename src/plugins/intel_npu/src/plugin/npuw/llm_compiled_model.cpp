@@ -1094,10 +1094,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     // QSA layers reuse the lincache path; however, the prefix cache only stores and restores
     // per-token KV blocks and never restores lincache states, so a prefix hit would leave the
-    // QSA states out of sync with the restored KV. Hence the conversion is skipped when prefix
-    // caching is enabled.
-    if (!m_enable_prefix_caching) {
+    // QSA states out of sync with the restored KV. Hence QSA models are rejected with prefix caching.
+    const bool converted_qsa =
         ov::npuw::ConvertSparseAttentionToDense(max_prompt_len + min_response_len).run_on_model(kvcache_model);
+    if (converted_qsa && m_enable_prefix_caching) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("QSA models do not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
     }
 
     LOG_DEBUG("   ...also convert BF16 to FP16");
