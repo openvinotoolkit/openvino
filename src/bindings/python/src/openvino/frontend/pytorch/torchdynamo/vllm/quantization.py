@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # In the order `_define_classes` returns them.
-_LAZY_CLASSES = ("NNCFConfig", "NNCFLinearMethod")
-_classes: tuple[type[Any], type[Any]] | None = None
+_LAZY_CLASSES = ("NNCFConfig", "NNCFLinearMethod", "NNCFFusedMoEMethod")
+_classes: tuple[type[Any], type[Any], type[Any]] | None = None
 # Not re-entrant: `_define_classes` reaches NNCFLinearMethod through a closure, not this module.
 _classes_lock = threading.Lock()
 
@@ -47,30 +47,39 @@ def _unpack_int4(packed: "torch.Tensor") -> "torch.Tensor":
 
 def _dequantize(qweight: "torch.Tensor", scale: "torch.Tensor", bits: int, out_dtype: "torch.dtype",
                 zero_point: "torch.Tensor | None" = None) -> "torch.Tensor":
-    """Decompress to a dense [out, in] weight in `out_dtype`, in NNCF's order so it matches bit for bit."""
-    out_features = qweight.shape[0]
+    """Decompress to a dense [..., out, in] weight in `out_dtype`, in NNCF's order so it matches bit for bit.
+
+    Leading dims are MoE experts. scale and zero_point are [..., out, groups], or [..., out, groups, 1] already
+    broadcastable: OV only marks the chain as decompression, and keeps it compressed into a (Gather)MatMul, when
+    they reach the Subtract/Multiply as constants, not through an Unsqueeze.
+    """
+    rows = qweight.shape[:-1]
     if bits == 4:
-        in_features = qweight.shape[1] * 2
+        in_features = qweight.shape[-1] * 2
         weight = (_unpack_int4(qweight) if zero_point is None
                   else _unpack_uint4(qweight))
     else:
-        in_features = qweight.shape[1]
+        in_features = qweight.shape[-1]
         weight = qweight
 
-    # scale is [out, groups]; groups == 1 is per output channel.
-    groups = scale.shape[1]
-    weight = weight.reshape(out_features, groups, in_features // groups)
+    # groups == 1 is per output channel.
+    expand = scale.dim() == qweight.dim()
+    groups = scale.shape[-1 if expand else -2]
+    weight = weight.reshape(*rows, groups, in_features // groups)
     weight = weight.type(scale.dtype)
     if zero_point is not None:
-        weight = weight - zero_point.type(scale.dtype).unsqueeze(-1)
-    weight = weight * scale.unsqueeze(-1)
-    return weight.reshape(out_features, in_features).type(out_dtype)
+        zero_point = zero_point.type(scale.dtype)
+        weight = weight - (zero_point.unsqueeze(-1) if expand else zero_point)
+    weight = weight * (scale.unsqueeze(-1) if expand else scale)
+    return weight.reshape(*rows, in_features).type(out_dtype)
 
 
-def _define_classes() -> tuple[type[Any], type[Any]]:
-    """Define the config/method pair; call `_build_classes` instead, which builds them only once."""
+def _define_classes() -> tuple[type[Any], type[Any], type[Any]]:
+    """Define the config and its methods; call `_build_classes` instead, which builds them only once."""
     import torch
     from torch.nn import functional
+    from vllm.model_executor.layers.fused_moe.fused_moe_method_base import FusedMoEMethodBase
+    from vllm.model_executor.layers.fused_moe.routed_experts import FusedMoeWeightScaleSupported, RoutedExperts
     from vllm.model_executor.layers.linear import (
         LinearBase,
         LinearMethodBase,
@@ -84,6 +93,7 @@ def _define_classes() -> tuple[type[Any], type[Any]]:
         ModelWeightParameter,
         PackedvLLMParameter,
     )
+    from vllm.model_executor.utils import set_weight_attrs
 
     @register_quantization_config("nncf")
     class NNCFConfig(QuantizationConfig):
@@ -148,12 +158,16 @@ def _define_classes() -> tuple[type[Any], type[Any]]:
             names = ([f"{parent}.{s}" for s in sources] if sources else [prefix])
             return all(n in self.quantized_modules for n in names)
 
-        def get_quant_method(self, layer: torch.nn.Module, prefix: str) -> "LinearMethodBase | None":
+        def get_quant_method(self, layer: torch.nn.Module,
+                             prefix: str) -> "LinearMethodBase | FusedMoEMethodBase | None":
             # vLLM rejects None for a linear layer, so a dense one gets Unquantized.
             if isinstance(layer, LinearBase):
                 if self._is_quantized(prefix):
                     return NNCFLinearMethod(self)
                 return UnquantizedLinearMethod()
+            # Experts are listed by their FusedMoE module (`...mlp.experts`); None leaves them dense.
+            if isinstance(layer, RoutedExperts) and self._is_quantized(prefix):
+                return NNCFFusedMoEMethod(self, layer.moe_config)
             return None
 
     class NNCFLinearMethod(LinearMethodBase):
@@ -228,15 +242,93 @@ def _define_classes() -> tuple[type[Any], type[Any]]:
                 zero_point=None if config.sym else layer.zero_point)
             return functional.linear(inputs, weight, bias)
 
+    class NNCFFusedMoEMethod(FusedMoEMethodBase):
+        """Routed experts kept int4 asym, decoded by `fused_moe.nncf_moe_forward`.
+
+        Monolithic, so routing is vLLM's torch `select_experts` (the modular router calls `_moe_C.topk_softmax`,
+        which OV cannot take). Loads into fused `w13_*`, then splits gate and up: a slice between a constant
+        and its decompression would hide the compressed weight from OV.
+        """
+
+        _FIELDS = ("qweight", "scale", "zero_point")
+
+        def __init__(self, quant_config: NNCFConfig, moe: Any) -> None:
+            super().__init__(moe)
+            self.quant_config = quant_config
+
+        @property
+        def is_monolithic(self) -> bool:
+            return True
+
+        def create_weights(self, layer: torch.nn.Module, num_experts: int, hidden_size: int,
+                           intermediate_size_per_partition: int, params_dtype: torch.dtype,
+                           **extra_weight_attrs: Any) -> None:
+            config = self.quant_config
+            if config.bits != 4 or config.sym or config.group_size <= 0:
+                raise ValueError(f"[OV plugin] nncf MoE experts need grouped int4 asym, got {config}")
+            if layer.activation.value not in ("silu", "gelu", "gelu_tanh"):
+                raise ValueError(f"[OV plugin] nncf MoE experts: activation {layer.activation} is not supported")
+            if layer.apply_router_weight_on_input:
+                raise ValueError("[OV plugin] nncf MoE experts: apply_router_weight_on_input is not supported")
+            # GROUP routes scale and zero_point through FusedMoE's grouped loader, sharded like the weight.
+            attrs = {"weight_loader": extra_weight_attrs["weight_loader"],
+                     "quant_method": FusedMoeWeightScaleSupported.GROUP.value}
+            inter = intermediate_size_per_partition
+            for name, rows, cols in (("w13", 2 * inter, hidden_size), ("w2", hidden_size, inter)):
+                if cols % config.group_size:
+                    raise ValueError(f"[OV plugin] nncf MoE {name}: {cols} is not a multiple of "
+                                     f"group_size {config.group_size}")
+                groups = cols // config.group_size
+                # zero_point unpacked, as for linears.
+                for field, shape, dtype in (("qweight", (rows, cols // 2), torch.uint8),
+                                            ("scale", (rows, groups), config.scale_dtype),
+                                            ("zero_point", (rows, groups), torch.uint8)):
+                    param = torch.nn.Parameter(torch.empty(num_experts, *shape, dtype=dtype), requires_grad=False)
+                    layer.register_parameter(f"{name}_{field}", param)
+                    set_weight_attrs(param, attrs)
+            layer.nncf_out_dtype = params_dtype
+
+        def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
+            # scale/zero_point gain their broadcast dim here, as constants (see _dequantize).
+            for field in self._FIELDS:
+                tensors = {"w2": getattr(layer, f"w2_{field}").data}
+                tensors["w1"], tensors["w3"] = getattr(layer, f"w13_{field}").data.chunk(2, dim=1)
+                delattr(layer, f"w13_{field}")
+                for name, tensor in tensors.items():
+                    if field != "qweight":
+                        tensor = tensor.unsqueeze(-1)
+                    layer.register_parameter(
+                        f"{name}_{field}", torch.nn.Parameter(tensor.contiguous(), requires_grad=False))
+
+        def get_fused_moe_quant_config(self, layer: torch.nn.Module) -> None:
+            return None
+
+        def apply_monolithic(self, layer: torch.nn.Module, x: torch.Tensor, router_logits: torch.Tensor,
+                             input_ids: torch.Tensor | None = None) -> torch.Tensor:
+            from vllm.model_executor.layers.fused_moe.cpu_fused_moe import select_experts
+
+            from openvino.frontend.pytorch.torchdynamo.vllm.fused_moe import nncf_moe_forward
+
+            topk_weights, topk_ids = select_experts(
+                hidden_states=x, router_logits=router_logits, top_k=layer.top_k,
+                use_grouped_topk=layer.use_grouped_topk, renormalize=layer.renormalize,
+                topk_group=layer.topk_group, num_expert_group=layer.num_expert_group,
+                custom_routing_function=layer.custom_routing_function, scoring_func=layer.scoring_func,
+                routed_scaling_factor=layer.routed_scaling_factor,
+                e_score_correction_bias=layer.e_score_correction_bias)
+            weights = [[getattr(layer, f"{name}_{field}") for field in self._FIELDS] for name in ("w1", "w3", "w2")]
+            return nncf_moe_forward(x, weights, topk_weights, topk_ids, layer.activation.value,
+                                    lambda q, s, zp: _dequantize(q, s, 4, layer.nncf_out_dtype, zero_point=zp))
+
     # Pickle stores module + qualname; the module `__getattr__` resolves these.
-    for cls in (NNCFConfig, NNCFLinearMethod):
+    for cls in (NNCFConfig, NNCFLinearMethod, NNCFFusedMoEMethod):
         cls.__module__ = __name__
         cls.__qualname__ = cls.__name__
 
-    return NNCFConfig, NNCFLinearMethod
+    return NNCFConfig, NNCFLinearMethod, NNCFFusedMoEMethod
 
 
-def _build_classes() -> tuple[type[Any], type[Any]]:
+def _build_classes() -> tuple[type[Any], type[Any], type[Any]]:
     """`_define_classes`, memoized: pickle refuses a class whose reference resolves to another object."""
     global _classes
     if _classes is not None:
@@ -262,7 +354,7 @@ def __getattr__(name: str) -> type[Any]:
 def register() -> type[Any] | None:
     """Add the method to vLLM's registry; safe to call repeatedly and in any process."""
     try:
-        config_cls, _method_cls = _build_classes()
+        config_cls = _build_classes()[0]
     except Exception as _e:
         logger.debug("[OV plugin] quantization method not registered: %s", _e)
         return None

@@ -5,11 +5,13 @@
 """Replace vLLM's opaque _C.cpu_fused_moe with the tiled MoE block the CPU plugin lowers to GatherMatmul.
 
 If ConvertTiledMoeBlockTo3GatherMatmuls doesn't match, the block runs as dense batched matmuls over all experts.
+NNCF int4 experts (quantization.NNCFFusedMoEMethod) skip vLLM's op and trace the same block via nncf_moe_forward.
 """
 
 
 import logging
 import weakref
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from .fx_utils import is_auto_functionalized, packing_permutation, replace_mutated_output
@@ -88,20 +90,46 @@ def moe_tiled(tokens: "torch.Tensor", w1: "torch.Tensor", w3: "torch.Tensor", w2
     bmm and view keep -1 for the token dim in the trace, where matmul and reshape would bake it in.
     """
     import torch
-    from torch.nn import functional
     experts, hidden = w1.shape[0], tokens.shape[1]
     tiled = tokens.repeat(experts, 1).view(experts, -1, hidden)
     gate = torch.bmm(tiled, w1.transpose(1, 2))
     up = torch.bmm(tiled, w3.transpose(1, 2))
-    if act == "silu":
-        gated = functional.silu(gate) * up
-    else:
-        gated = functional.gelu(gate, approximate="tanh" if act == "gelu_tanh" else "none") * up
+    gated = _activation(gate, act) * up
     down = torch.bmm(gated, w2.transpose(1, 2)).view(experts, -1, hidden)
     routing = torch.zeros_like(tokens[:, :1]).expand(-1, experts)
     routing = routing.scatter(1, topk_ids, topk_weights.to(tokens.dtype))
     routing = routing.transpose(0, 1).contiguous().view(experts, -1, 1)
     return (down * routing).sum(0)
+
+
+def _activation(gate: "torch.Tensor", act: str) -> "torch.Tensor":
+    from torch.nn import functional
+    if act == "silu":
+        return functional.silu(gate)
+    return functional.gelu(gate, approximate="tanh" if act == "gelu_tanh" else "none")
+
+
+def nncf_moe_forward(tokens: "torch.Tensor", weights: "list[list[torch.Tensor]]", topk_weights: "torch.Tensor",
+                     topk_ids: "torch.Tensor", act: str,
+                     dequantize: "Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]") -> "torch.Tensor":
+    """MoE over NNCF-compressed experts; `weights` is [qweight, scale, zero_point] for w1 (gate), w3 (up), w2.
+
+    Traced, it is moe_tiled over the decompression chains, which the CPU plugin folds into GatherMatmulCompressed.
+    Eager, only the routed experts are decompressed.
+    """
+    import torch
+    from torch.nn import functional
+    if torch.compiler.is_compiling():
+        w1, w3, w2 = (dequantize(*w) for w in weights)
+        return moe_tiled(tokens, w1, w3, w2, topk_weights, topk_ids, act)
+    out = torch.zeros_like(tokens)
+    for expert in topk_ids.unique().tolist():
+        rows, slots = (topk_ids == expert).nonzero(as_tuple=True)
+        w1, w3, w2 = (dequantize(*(t[expert] for t in w)) for w in weights)
+        x = tokens[rows]
+        down = functional.linear(_activation(functional.linear(x, w1), act) * functional.linear(x, w3), w2)
+        out.index_add_(0, rows, down * topk_weights[rows, slots, None].to(tokens.dtype))
+    return out
 
 
 def _constant(gm: "torch.fx.GraphModule", node: "torch.fx.Node") -> "torch.Tensor | None":
