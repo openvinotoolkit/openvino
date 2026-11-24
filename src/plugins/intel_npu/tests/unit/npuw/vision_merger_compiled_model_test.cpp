@@ -11,11 +11,14 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -34,12 +37,14 @@ constexpr std::size_t kMergeRatio = 4;
 
 // hidden_states [N, 4] and attention_mask [1, N, N] in; "copy" [N, 4] and "merged" [N / 4, 4] out.
 // N is dynamic for the public model and kMaxLen for the model wrapped by the merger.
-std::shared_ptr<ov::Model> make_model(bool dynamic) {
+std::shared_ptr<ov::Model> make_model(bool dynamic,
+                                      const std::unordered_set<std::string>& mask_names = {"attention_mask"},
+                                      const ov::element::Type& mask_type = ov::element::f32) {
     const ov::Dimension len = dynamic ? ov::Dimension::dynamic() : ov::Dimension(kMaxLen);
     auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{len, kHidden});
     hidden->output(0).set_names({"hidden_states"});
-    auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, len, len});
-    mask->output(0).set_names({"attention_mask"});
+    auto mask = std::make_shared<ov::op::v0::Parameter>(mask_type, ov::PartialShape{1, len, len});
+    mask->output(0).set_names(mask_names);
 
     auto copy = std::make_shared<ov::op::v0::Relu>(hidden);
     copy->output(0).set_names({"copy"});
@@ -81,9 +86,13 @@ public:
         const auto hidden = get_tensor(get_inputs()[0]);
         const auto mask = get_tensor(get_inputs()[1]);
         const auto* hidden_data = static_cast<const float*>(hidden->data());
-        const auto* mask_data = static_cast<const float*>(mask->data());
         m_seen->hidden.assign(hidden_data, hidden_data + ov::shape_size(hidden->get_shape()));
-        m_seen->mask.assign(mask_data, mask_data + ov::shape_size(mask->get_shape()));
+        m_seen->mask.clear();
+        for (std::size_t i = 0; i < ov::shape_size(mask->get_shape()); ++i) {
+            m_seen->mask.push_back(mask->get_element_type() == ov::element::f16
+                                       ? static_cast<float>(static_cast<const ov::float16*>(mask->data())[i])
+                                       : static_cast<const float*>(mask->data())[i]);
+        }
 
         std::memcpy(get_tensor(get_outputs()[0])->data(), hidden_data, hidden->get_byte_size());
         auto* merged = static_cast<float*>(get_tensor(get_outputs()[1])->data());
@@ -126,10 +135,19 @@ private:
 class VisionMergerTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        build();
+    }
+
+    void build(const std::unordered_set<std::string>& mask_names = {"attention_mask"},
+               const ov::element::Type& mask_type = ov::element::f32) {
         m_plugin = std::make_shared<NullPlugin>();
         m_seen = std::make_shared<Seen>();
-        auto inner = std::make_shared<ScriptedInner>(make_model(false), m_plugin, m_seen);
-        m_compiled = std::make_shared<ov::npuw::VisionMergerCompiledModel>(make_model(true), inner, m_plugin, kMaxLen);
+        auto inner = std::make_shared<ScriptedInner>(make_model(false, mask_names, mask_type), m_plugin, m_seen);
+        m_compiled = std::make_shared<ov::npuw::VisionMergerCompiledModel>(make_model(true, mask_names, mask_type),
+                                                                           inner,
+                                                                           m_plugin,
+                                                                           kMaxLen);
+        m_mask_type = mask_type;
         m_request = m_compiled->create_sync_infer_request();
     }
 
@@ -137,8 +155,12 @@ protected:
     void set_inputs(std::size_t hidden_len, std::size_t mask_len, float mask_value) {
         ov::Tensor hidden(ov::element::f32, ov::Shape{hidden_len, kHidden});
         std::iota(hidden.data<float>(), hidden.data<float>() + hidden.get_size(), 1.0f);
-        ov::Tensor mask(ov::element::f32, ov::Shape{1, mask_len, mask_len});
-        std::fill_n(mask.data<float>(), mask.get_size(), mask_value);
+        ov::Tensor mask(m_mask_type, ov::Shape{1, mask_len, mask_len});
+        if (m_mask_type == ov::element::f16) {
+            std::fill_n(mask.data<ov::float16>(), mask.get_size(), ov::float16(mask_value));
+        } else {
+            std::fill_n(mask.data<float>(), mask.get_size(), mask_value);
+        }
         m_request->set_tensor(m_compiled->inputs()[0], ov::get_tensor_impl(hidden));
         m_request->set_tensor(m_compiled->inputs()[1], ov::get_tensor_impl(mask));
     }
@@ -147,6 +169,22 @@ protected:
     std::shared_ptr<Seen> m_seen;
     std::shared_ptr<ov::npuw::VisionMergerCompiledModel> m_compiled;
     std::shared_ptr<ov::ISyncInferRequest> m_request;
+    ov::element::Type m_mask_type = ov::element::f32;
+
+    // Every valid query row must see -inf on the padded keys and the unchanged value on the valid ones.
+    void expect_padded_keys_hidden(std::size_t len, float mask_value) const {
+        ASSERT_EQ(m_seen->mask.size(), kMaxLen * kMaxLen);
+        for (std::size_t row = 0; row < len; ++row) {
+            for (std::size_t col = 0; col < kMaxLen; ++col) {
+                const float value = m_seen->mask[row * kMaxLen + col];
+                if (col >= len) {
+                    EXPECT_TRUE(std::isinf(value) && value < 0.0f) << "row " << row << ", padded key " << col;
+                } else {
+                    EXPECT_EQ(value, mask_value) << "row " << row << ", valid key " << col;
+                }
+            }
+        }
+    }
 };
 
 TEST_F(VisionMergerTest, PublicPortsStayDynamic) {
@@ -252,3 +290,41 @@ TEST(VisionMergerCtorTest, ThrowsOnModelWithoutDynamicInputs) {
 }
 
 }  // namespace
+
+TEST_F(VisionMergerTest, HidesPaddedKeysWhenTheMaskHasSeveralNames) {
+    // get_any_name() would pick "0" here.
+    build({"0", "attention_mask"});
+    set_inputs(4, 4, 0.5f);
+    m_request->infer();
+    expect_padded_keys_hidden(4, 0.5f);
+}
+
+TEST_F(VisionMergerTest, HidesPaddedKeysOfAnF16Mask) {
+    build({"attention_mask"}, ov::element::f16);
+    set_inputs(4, 4, 0.5f);
+    m_request->infer();
+    expect_padded_keys_hidden(4, 0.5f);
+}
+
+TEST_F(VisionMergerTest, RejectsAnUnsupportedMaskType) {
+    build();
+    auto inner =
+        std::make_shared<ScriptedInner>(make_model(false, {"attention_mask"}, ov::element::bf16), m_plugin, m_seen);
+    auto compiled =
+        std::make_shared<ov::npuw::VisionMergerCompiledModel>(make_model(true, {"attention_mask"}, ov::element::bf16),
+                                                              inner,
+                                                              m_plugin,
+                                                              kMaxLen);
+    OV_EXPECT_THROW_HAS_SUBSTRING(compiled->create_sync_infer_request(),
+                                  ov::Exception,
+                                  "only f32 and f16 are supported");
+}
+
+TEST_F(VisionMergerTest, ThrowsWhenAStaticDimensionDoesNotMatch) {
+    // hidden_states is [?, 4]: a [4, 2] tensor must not be zero-padded to width 4.
+    ov::Tensor hidden(ov::element::f32, ov::Shape{4, 2});
+    ov::Tensor mask(ov::element::f32, ov::Shape{1, 4, 4});
+    m_request->set_tensor(m_compiled->inputs()[0], ov::get_tensor_impl(hidden));
+    m_request->set_tensor(m_compiled->inputs()[1], ov::get_tensor_impl(mask));
+    OV_EXPECT_THROW_HAS_SUBSTRING(m_request->infer(), ov::Exception, "does not match the port shape");
+}

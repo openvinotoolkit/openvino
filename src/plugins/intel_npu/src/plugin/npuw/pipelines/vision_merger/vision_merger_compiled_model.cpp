@@ -15,6 +15,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace {
@@ -44,10 +45,36 @@ ov::SoPtr<ov::ITensor> prefix_view(ov::SoPtr<ov::ITensor> tensor,
     return tensor;
 }
 
-// A [1, N, N] float mask: valid queries must not attend to the padded keys.
-bool is_square_float_mask(const ov::Output<const ov::Node>& port, const std::vector<std::size_t>& dims) {
-    return port.get_element_type() == ov::element::f32 && port.get_partial_shape().size() == 3 &&
-           dims == std::vector<std::size_t>{1, 2} && port_name(port).find("attention_mask") != std::string::npos;
+// A [1, N, N] attention mask: valid queries must not attend to the padded keys.
+bool is_attention_mask(const ov::Output<const ov::Node>& port, const std::vector<std::size_t>& dims) {
+    if (port.get_partial_shape().size() != 3 || dims != std::vector<std::size_t>{1, 2}) {
+        return false;
+    }
+    const auto& names = port.get_names();
+    if (names.empty()) {
+        return port.get_node()->get_friendly_name().find("attention_mask") != std::string::npos;
+    }
+    return std::any_of(names.begin(), names.end(), [](const std::string& name) {
+        return name.find("attention_mask") != std::string::npos;
+    });
+}
+
+bool is_supported_mask_type(const ov::element::Type& type) {
+    return type == ov::element::f32 || type == ov::element::f16;
+}
+
+template <typename T>
+void fill_neg_inf(const ov::SoPtr<ov::ITensor>& view, const T& neg_inf) {
+    const auto& view_shape = view->get_shape();
+    const auto& strides = view->get_strides();
+    auto* base = static_cast<uint8_t*>(view->data());
+    for (std::size_t b = 0; b < view_shape[0]; ++b) {
+        for (std::size_t r = 0; r < view_shape[1]; ++r) {
+            for (std::size_t c = 0; c < view_shape[2]; ++c) {
+                *reinterpret_cast<T*>(base + b * strides[0] + r * strides[1] + c * strides[2]) = neg_inf;
+            }
+        }
+    }
 }
 
 void block_padded_keys(const ov::SoPtr<ov::ITensor>& mask, std::size_t valid_len) {
@@ -57,16 +84,10 @@ void block_padded_keys(const ov::SoPtr<ov::ITensor>& mask, std::size_t valid_len
     }
     auto blocked =
         ov::npuw::util::view(ov::npuw::util::view(mask, 1, 0, valid_len), 2, valid_len, shape[2] - valid_len);
-    const auto& view_shape = blocked->get_shape();
-    const auto& strides = blocked->get_strides();
-    auto* base = static_cast<uint8_t*>(blocked->data());
-    for (std::size_t b = 0; b < view_shape[0]; ++b) {
-        for (std::size_t r = 0; r < view_shape[1]; ++r) {
-            for (std::size_t c = 0; c < view_shape[2]; ++c) {
-                *reinterpret_cast<float*>(base + b * strides[0] + r * strides[1] + c * strides[2]) =
-                    -std::numeric_limits<float>::infinity();
-            }
-        }
+    if (mask->get_element_type() == ov::element::f16) {
+        fill_neg_inf(blocked, ov::float16::from_bits(0xFC00));
+    } else {
+        fill_neg_inf(blocked, -std::numeric_limits<float>::infinity());
     }
 }
 }  // anonymous namespace
@@ -166,6 +187,17 @@ ov::npuw::VisionMergerInferRequest::VisionMergerInferRequest(
       m_inner(std::move(inner_request)) {
     OPENVINO_ASSERT(m_inner != nullptr, "NPUW_VISION_MERGER: the inner compiled model returned a null request");
 
+    for (std::size_t i = 0; i < get_inputs().size(); ++i) {
+        const auto& port = get_inputs()[i];
+        OPENVINO_ASSERT(!is_attention_mask(port, m_model->dynamic_input_dims()[i]) ||
+                            is_supported_mask_type(port.get_element_type()),
+                        "NPUW_VISION_MERGER: the attention mask '",
+                        port_name(port),
+                        "' has an unsupported type ",
+                        port.get_element_type(),
+                        ", only f32 and f16 are supported");
+    }
+
     m_profile.report_on_die = ov::npuw::profiling_enabled();
     m_profile.area = "vision_merger/execution";
 
@@ -190,14 +222,18 @@ std::size_t ov::npuw::VisionMergerInferRequest::valid_len() const {
     std::optional<std::size_t> len;
     for (std::size_t i = 0; i < ports.size(); ++i) {
         const auto& dims = m_model->dynamic_input_dims()[i];
+        const auto tensor = get_tensor(ports[i]);
+        OPENVINO_ASSERT(tensor, "NPUW_VISION_MERGER: input '", port_name(ports[i]), "' is not set");
+        OPENVINO_ASSERT(ports[i].get_partial_shape().compatible(ov::PartialShape(tensor->get_shape())),
+                        "NPUW_VISION_MERGER: input '",
+                        port_name(ports[i]),
+                        "' has shape ",
+                        tensor->get_shape(),
+                        " which does not match the port shape ",
+                        ports[i].get_partial_shape());
         if (dims.empty()) {
             continue;
         }
-        const auto tensor = get_tensor(ports[i]);
-        OPENVINO_ASSERT(tensor && tensor->get_shape().size() > dims.back(),
-                        "NPUW_VISION_MERGER: input '",
-                        port_name(ports[i]),
-                        "' is not set");
         for (const auto d : dims) {
             const auto dim_len = tensor->get_shape()[d];
             OPENVINO_ASSERT(!len || *len == dim_len,
@@ -240,7 +276,7 @@ void ov::npuw::VisionMergerInferRequest::infer() {
             auto dst = m_inner->get_tensor(inner_in_ports[i]);
             ov::npuw::util::fill_tensor_bytes(dst, 0);
             src->copy_to(prefix_view(dst, dims, src->get_shape())._ptr);
-            if (is_square_float_mask(in_ports[i], dims)) {
+            if (is_attention_mask(in_ports[i], dims)) {
                 block_padded_keys(dst, len);
             }
         }
