@@ -623,6 +623,7 @@ struct QueryOptions {
     bool changes_precision = false;
     bool distinct_cos = false;
     bool distinct_sin = false;
+    bool scalar_rope_cos = false;
     bool interleaved = false;
     bool extra_consumers = false;
     bool shared_query_reshape = false;
@@ -644,6 +645,7 @@ struct QueryOptions {
     // A partial RoPE left as Transpose -> Split -> RoPE -> Concat, as when RoPEFusionIOSlicing is disabled.
     bool split_rope = false;
     SplitRoPEType split_rope_type = SplitRoPEType::VariadicSplit;
+    int64_t split_rope_ndims = rotary_dim;
     bool split_rope_input_trans0213 = false;
     bool canonical_rope_input_transpose = false;
     bool different_tail_input = false;
@@ -751,7 +753,8 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
             config.input_trans0213 = o.split_rope_input_trans0213;
             rope_input = std::make_shared<v1::Transpose>(rope_input, i64({0, 2, 1, 3}));
             if (o.split_rope_type == SplitRoPEType::VariadicSplit) {
-                const auto split = std::make_shared<v1::VariadicSplit>(rope_input, i64({3}), i64({rotary_dim, -1}));
+                const auto split =
+                    std::make_shared<v1::VariadicSplit>(rope_input, i64({3}), i64({o.split_rope_ndims, -1}));
                 rope_input = split->output(0);
                 rope_tail = split->output(1);
             } else {
@@ -774,14 +777,15 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
                                                               mask,
                                                               mask);
                 };
-                rope_tail = slice(tail_input, rotary_dim, std::numeric_limits<std::int32_t>::max());
-                rope_input = slice(rope_input, 0, rotary_dim);
+                rope_tail = slice(tail_input, o.split_rope_ndims, std::numeric_limits<std::int32_t>::max());
+                rope_input = slice(rope_input, 0, o.split_rope_ndims);
             }
         }
-        rope = std::make_shared<op_internal::RoPE>(OutputVector{rope_input,
-                                                                with_head_axis(o.distinct_cos ? other_rows(cos) : cos),
-                                                                with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
-                                                   config);
+        const auto rope_cos = o.scalar_rope_cos ? Output<Node>(v0::Constant::create(element::f32, Shape{}, {1.0f}))
+                                                : with_head_axis(o.distinct_cos ? other_rows(cos) : cos);
+        rope = std::make_shared<op_internal::RoPE>(
+            OutputVector{rope_input, rope_cos, with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
+            config);
         if (o.split_rope) {
             if (o.extra_consumers) {
                 graph.model->add_results({std::make_shared<v0::Result>(rope)});
@@ -1024,6 +1028,26 @@ const std::vector<QueryOptions> query_cases = [] {
     o.different_tail_input = true;
     o.absorb_norm = o.absorb_rope = false;
     cases.push_back(o);
+    o = QueryOptions{"split_rope_mismatched_rotary_dim"};
+    o.split_rope = true;
+    o.split_rope_ndims = rotary_dim + 2;
+    o.with_norm = o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o.name = "split_rope_slice_mismatched_rotary_dim";
+    o.split_rope_type = SplitRoPEType::Slice;
+    cases.push_back(o);
+    o.name = "split_rope_strided_slice_mismatched_rotary_dim";
+    o.split_rope_type = SplitRoPEType::StridedSlice;
+    cases.push_back(o);
+    o = QueryOptions{"split_rope_scalar_cos"};
+    o.split_rope = true;
+    o.scalar_rope_cos = true;
+    o.with_norm = o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
+    o = QueryOptions{"canonical_rope_scalar_cos"};
+    o.scalar_rope_cos = true;
+    o.with_norm = o.absorb_norm = o.absorb_rope = false;
+    cases.push_back(o);
     o = QueryOptions{"split_rope_non_last_concat_axis"};
     o.split_rope = true;
     o.concat_axis = 2;
@@ -1054,7 +1078,7 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                              return info.param.name;
                          });
 
-TEST_F(TransformationTestsF, FuseQSAIndexerQuerySplitRoPE) {
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryPartialRoPE) {
     QueryOptions options;
     options.split_rope = true;
     model = getQueryModel<op_internal::QSAIndexer>(options);
@@ -1425,6 +1449,30 @@ TEST(FuseQSAIndexerQuery, SpecializationsSharePassConfigTypes) {
     using PagedNorm = pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>;
     EXPECT_EQ(DenseRoPE::get_type_info_static(), PagedRoPE::get_type_info_static());
     EXPECT_EQ(DenseNorm::get_type_info_static(), PagedNorm::get_type_info_static());
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerPartialRoPEHonorsRoPEPassConfig) {
+    QueryOptions options{"split_rope_pass_config"};
+    options.split_rope = true;
+    model = getQueryModel(options);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+    manager.get_pass_config()->disable<pass::FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerPartialRoPEHonorsRoPECallback) {
+    QueryOptions options{"split_rope_callback"};
+    options.split_rope = true;
+    options.with_norm = options.absorb_norm = false;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModel(options), getQueryModelRef<op_internal::QSAIndexer>(options));
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+    manager.get_pass_config()->set_callback<pass::FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>>(
+        [](const std::shared_ptr<const Node>& node) {
+            return ov::is_type<op_internal::PagedQSAIndexer>(node);
+        });
 }
 
 template <class Broadcast = op::v3::Broadcast>
