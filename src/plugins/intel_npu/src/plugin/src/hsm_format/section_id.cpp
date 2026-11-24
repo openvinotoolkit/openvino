@@ -49,7 +49,7 @@ SectionID SectionID::from_string(const std::string_view id) {
 
     OPENVINO_ASSERT(result <= std::numeric_limits<uint16_t>::max(),
                     "Read a section ID that is larger than the maximum limit");
-    return result;
+    return static_cast<uint16_t>(result);
 }
 
 std::ostream& operator<<(std::ostream& os, const SectionID& id) {

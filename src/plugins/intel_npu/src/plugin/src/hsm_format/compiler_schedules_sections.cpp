@@ -185,8 +185,10 @@ void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) 
     const auto* weightless_graph = std::get_if<std::shared_ptr<IGraph>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(weightless_graph, INVALID_STATE_MESSAGE);
 
-    const uint16_t number_of_inits = (*weightless_graph)->get_number_of_inits();
-    m_logger.debug("Writting %lu init schedules", number_of_inits);
+    const size_t number_of_inits_before_cast = (*weightless_graph)->get_number_of_inits();
+    OPENVINO_ASSERT(number_of_inits_before_cast <= std::numeric_limits<uint16_t>::max());
+    const auto number_of_inits = static_cast<uint16_t>(number_of_inits_before_cast);
+    m_logger.debug("Writting %u init schedules", number_of_inits);
 
     std::vector<uint64_t> init_sizes;
     if (!m_encryption_callback) {

@@ -260,7 +260,7 @@ bool is_runtime_requirements_format_v2(std::string_view runtime_requirements) {
 
     try {
         MajorMinorVersion::from_string(serialized_version);
-    } catch (const std::exception& ex) {
+    } catch (const std::exception&) {
         // The serialized version doesn't follow the known dotted format
         return false;
     }

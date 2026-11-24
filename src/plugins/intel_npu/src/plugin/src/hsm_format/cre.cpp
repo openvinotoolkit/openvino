@@ -358,7 +358,7 @@ void CRE::append_to_expression(const std::shared_ptr<CREToken> requirement_token
     }
 
     m_subexpressions.push_back(subexpression);
-    m_logger.trace("Appended token %u", requirement_token);
+    m_logger.trace("Appended token %u", requirement_token->to_string().data());
 }
 
 void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& subexpression) {

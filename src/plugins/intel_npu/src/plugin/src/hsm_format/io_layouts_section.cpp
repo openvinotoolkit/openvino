@@ -22,8 +22,8 @@ IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
       m_logger("IOLayoutsSection", Logger::global().level()) {}
 
 void IOLayoutsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    const uint32_t number_of_input_layouts = m_input_layouts.size();
-    const uint32_t number_of_output_layouts = m_output_layouts.size();
+    const auto number_of_input_layouts = static_cast<uint32_t>(m_input_layouts.size());
+    const auto number_of_output_layouts = static_cast<uint32_t>(m_output_layouts.size());
     sink({reinterpret_cast<const std::byte*>(&number_of_input_layouts), sizeof(number_of_input_layouts)});
     sink({reinterpret_cast<const std::byte*>(&number_of_output_layouts), sizeof(number_of_output_layouts)});
 
