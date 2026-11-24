@@ -4,10 +4,11 @@
   "signature_hash": "afb479532c52bf68",
   "title": "Windows CC build job fails quickly with no retrievable log content (HTTP 404)",
   "category": "Infrastructure",
-  "count": 6,
+  "count": 7,
   "first_seen": "2026-10-10T23:39:24Z",
-  "last_seen": "2026-11-24T16:04:18Z",
+  "last_seen": "2026-11-24T19:48:00Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45456217255",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45426186708",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45023224702",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45010607927",
@@ -16,6 +17,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/38092857906"
   ],
   "affected_commits": [
+    "7e922df4fb08c8513f956b6007ae043a5020bd6c",
     "b2bdae44a7c5372a7dae59e90bee72661e95153d",
     "41e483fc50de932565fbfe96f8fb9f423fbbb396",
     "e264be1b5554fb037e584673e94df3c3b56af179",
@@ -23,6 +25,7 @@
     "f7ddd2e2421c85746425d3e124cd10470e012e56"
   ],
   "recent_timestamps": [
+    "2026-11-24T19:48:00Z",
     "2026-11-24T16:04:18Z"
   ]
 }
