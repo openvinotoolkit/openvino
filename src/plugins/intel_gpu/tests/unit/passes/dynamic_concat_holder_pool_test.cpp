@@ -316,7 +316,8 @@ ab_nets check_rounds(engine& eng,
                      const ref_fn& ref,
                      const hook_fn& after_round = nullptr,
                      const hook_fn& before_round = nullptr,
-                     const sw& off_sw = OFF) {
+                     const sw& off_sw = OFF,
+                     bool compare_off = true) {
     auto t_off = mk();
     auto t_on = mk();
     ab_nets r{make_net(eng, t_off, off_sw), make_net(eng, t_on, on_sw)};
@@ -326,8 +327,26 @@ ab_nets check_rounds(engine& eng,
         }
         const auto out_off = run_round(*r.off, eng, rounds[i].s, rounds[i].seed);
         const auto out_on = run_round(*r.on, eng, rounds[i].s, rounds[i].seed);
-        EXPECT_EQ(out_on, out_off) << "round " << i << ": outputs differ between switch off and on";
+        if (compare_off) {
+            EXPECT_EQ(out_on, out_off) << "round " << i << ": outputs differ between switch off and on";
+        }
         if (ref) {
+            for (const auto* o : {&out_off, &out_on}) {
+                const auto r = ref(rounds[i].s, rounds[i].seed);
+                for (const auto& kv : r) {
+                    const auto& got = o->at(kv.first);
+                    for (size_t k = 0; k < std::min(got.size(), kv.second.size()); ++k) {
+                        if (got[k] != kv.second[k]) {
+                            std::cout << "[DIFF] round " << i << (o == &out_off ? " OFF" : " ON") << " first diff at " << k << " of " << got.size() << " got " << got[k]
+                                      << " ref " << kv.second[k] << "\n";
+                            break;
+                        }
+                    }
+                }
+            }
+            if (compare_off) {
+                EXPECT_EQ(out_off, ref(rounds[i].s, rounds[i].seed)) << "round " << i << ": the SWITCH-OFF output differs from the reference";
+            }
             EXPECT_EQ(out_on, ref(rounds[i].s, rounds[i].seed)) << "round " << i << ": output differs from the reference";
         }
         const auto v = overlap_violations(*r.on);
@@ -1297,9 +1316,11 @@ TEST(dynamic_concat_holder_pool, tdrs_strided_slice_predecessor_admission_today)
     std::cout << "[TD-rs] strided_slice predecessors: C in place=" << fused << " mask=" << class_level::to_string(mask)
               << " promoted=" << prog.get_node("C").is_pool_class_root() << " S1 rs=" << prog.get_node("S1").is_runtime_skippable()
               << " S1 cbo=" << prog.get_node("S1").can_be_optimized() << "\n";
-    // Decision recorded today (comment for the P1-B-D Step 8 / MiniMax-H3 question Q2): the strided_slice predecessors built here are plain compute
-    // nodes (rs=0, cbo=0: mark_runtime_skippable_nodes does not mark a strided_slice that feeds a concat), so the class has no role conflict and is
-    // PROMOTED. Whether the Slice nodes of the real MiniMax-H3 graph look like this is not known.
+    // Decision recorded today (comment for the P1-B-D Step 8 / MiniMax-H3 question Q2): the strided_slice predecessors built here have a real
+    // (non no-op) slice, so mark_runtime_skippable_nodes does not mark them (rs=0, cbo=0); the class has no role conflict and is PROMOTED. NOTE: the
+    // 'user is an in-place concat' guard of that pass only protects STATIC strided_slice nodes; a DYNAMIC strided_slice of no-op shape (full-range end
+    // mask) can be marked cbo+rs even when it feeds a concat (see tdrs_noop_strided_slice_predecessor below). Whether the Slice nodes of the real
+    // MiniMax-H3 graph look like this is not known.
     EXPECT_TRUE(fused);
     EXPECT_EQ(mask, 0u) << class_level::to_string(mask);
     EXPECT_TRUE(prog.get_node("C").is_pool_class_root());
@@ -1510,7 +1531,6 @@ TEST(dynamic_concat_holder_pool_onednn, td3b_non_fused_round_with_a_skip_predece
         // (a SKIP predecessor that already aliased an unchanged holder block keeps its stale count in later non-fused rounds: that state is reachable
         // without P1-B-D as well and is guarded by the same-buffer check of realloc_outputs; only the re-pointing of a replaced block clears the count)
     }, nullptr, onednn_sw(OFF));
-    EXPECT_GT(checked, 0u);
     std::cout << "[TD3b] fused per round:";
     for (int f : fused_log) {
         std::cout << " " << f;
@@ -1519,6 +1539,7 @@ TEST(dynamic_concat_holder_pool_onednn, td3b_non_fused_round_with_a_skip_predece
     if (std::count(fused_log.begin(), fused_log.end(), 0) == 0) {
         GTEST_SKIP() << "O1: the runtime rejection could not be triggered on this device/construction: the non-fused rounds are NOT covered";
     }
+    EXPECT_GT(checked, 0u);
 }
 
 // TD-A3a. As TD3b with the holder block poisoned by NaN before every round and rounds that follow a non-fused round with a SKIP predecessor by a
@@ -1597,6 +1618,97 @@ TEST(dynamic_concat_holder_pool_onednn, td7b_third_party_never_shares_the_holder
     }
 }
 
+// TD-A3c (B1, review round). P2 (oneDNN) behind P1: round 0 (P1 empty, P2 b) is fused and P2 aliases the holder block; round 1 (P1 9 features: 288
+// bytes, P2 loses its 64 byte alignment) is rejected at runtime, the holder needs a bigger block. P2's runtime padding does not change (only the mask),
+// so without the fix P2 keeps writing into the old holder block at offset 0 while the holder moved on: the concat reads unwritten bytes.
+TEST(dynamic_concat_holder_pool_onednn, tda3c_aliased_predecessor_gets_its_own_buffer_when_the_runtime_concat_is_rejected) {
+    auto& eng = get_test_engine();
+    if (!onednn_available(eng)) {
+        GTEST_SKIP() << "supports_immad is false: the oneDNN driven runtime rejection is NOT covered";
+    }
+    // NOTE: the order avoids the mirrored LEGACY state (rejected round followed by a fused round with the same, zero, paddings: the predecessor keeps its
+    // own buffer while the fused holder reads the holder block; the switch-off network is wrong there too, see P1BD-O3 below)
+    const std::vector<round_t> rounds = {{s3(0, 4), 1}, {s3(9, 4), 2}, {s3(4, 4), 3}, {s3(0, 4), 4}, {s3(9, 4), 5}, {s3(4, 4), 6}};
+    std::vector<int> fused_log;
+    check_rounds(eng, []() { return topo_onednn(); }, onednn_sw(BOTH), rounds, ref_onednn(), [&](network& net, size_t i) {
+        fused_log.push_back(is_fused(net) ? 1 : 0);
+        if (!is_fused(net)) {
+            EXPECT_NE(buf_of(net, "P1"), buf_of(net, "C")) << "round " << i;
+            EXPECT_NE(buf_of(net, "P2"), buf_of(net, "C")) << "round " << i << ": P2 must own a buffer, not alias the holder block";
+        }
+    }, [&](network& net, size_t) { fill_nan(net, "C"); }, onednn_sw(OFF), /*compare_off=*/false);  // the LEGACY output is wrong in this sequence (P1BD-O3)
+    std::cout << "[TD-A3c] fused per round:";
+    for (int f : fused_log) {
+        std::cout << " " << f;
+    }
+    std::cout << "\n";
+    if (std::count(fused_log.begin(), fused_log.end(), 0) == 0) {
+        GTEST_SKIP() << "O1: the runtime rejection could not be triggered: NOT covered";
+    }
+}
+
+// C4. A dynamic reader forced to the cpu impl is "maybe CPU" (has_impl_for returns true for forced impls): the class carries fb_maybe_cpu and is rejected.
+TEST(dynamic_concat_holder_pool_hand, c4_forced_cpu_reader_is_maybe_cpu) {
+    auto& eng = get_test_engine();
+    sw s = BOTH;
+    s.forced = {{"A", ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu}}};
+    auto t = hand_dyn_topology();
+    auto prog = hand_dyn(eng, t, s);
+    auto aa = alias_analysis::build(*prog);
+    const alias_class* c = aa.class_of(prog->get_node("C"));
+    ASSERT_NE(c, nullptr);
+    EXPECT_NE(c->fallback & fb_maybe_cpu, 0u) << "fallback=" << c->fallback;
+    const uint32_t m = class_level::pool_admission_reject_mask(*c, *prog, [](uint32_t) { return false; });
+    EXPECT_NE(m & class_level::rj_placement, 0u) << class_level::to_string(m);
+    program_wrapper::prepare_memory_dependencies(*prog);
+    expect_no_class_flags(*prog, "forced cpu reader");
+}
+
+// C5. A DYNAMIC strided_slice of no-op shape (full-range end mask, zero begin) as a concat predecessor. Records what the passes do.
+TEST(dynamic_concat_holder_pool, tdrs_noop_strided_slice_predecessor) {
+    auto& eng = get_test_engine();
+    auto mk = [&]() {
+        topology t;
+        t.add(input_layout("x1", dyn4()));
+        t.add(input_layout("x2", dyn4()));
+        auto mkd = [&](const std::string& id, std::vector<int64_t> v) {
+            auto m = eng.allocate_memory({ov::PartialShape{4}, data_types::i64, format::bfyx});
+            set_values<int64_t>(m, v);
+            t.add(cldnn::data(id, m));
+        };
+        mkd("nb", {0, 0, 0, 0});
+        mkd("ne", {0, 0, 0, 0});
+        mkd("ns", {1, 1, 1, 1});
+        t.add(strided_slice("S1", input_info("x1"), input_info("nb"), input_info("ne"), input_info("ns"), {0, 0, 0, 0}, {1, 1, 1, 1}, {}, {}, {}, {}));
+        t.add(activation("P2", input_info("x2"), activation_func::relu));
+        t.add(concatenation("C", {input_info("S1"), input_info("P2")}, 1));
+        t.add(activation("A", input_info("C"), activation_func::relu));
+        return t;
+    };
+    auto t = mk();
+    auto net = make_net(eng, t, BOTH);
+    auto& prog = *net->get_program();
+    std::cout << dump_nodes(prog);
+    const bool s1_rs = prog.get_node("S1").is_runtime_skippable();
+    const bool s1_cbo = prog.get_node("S1").can_be_optimized();
+    const bool c_fused = prog.get_node("C").can_be_optimized();
+    uint32_t mask = c_fused ? mask_of(prog, "C") : 0u;
+    std::cout << "[TD-rs noop] S1 rs=" << s1_rs << " cbo=" << s1_cbo << " C in place=" << c_fused << " promoted=" << prog.get_node("C").is_pool_class_root()
+              << " mask=" << class_level::to_string(mask) << "\n";
+    // what the code really does (asserted from the observed run): see the printed line; the invariant that must hold in every case is that a
+    // class with a view / skippable predecessor is never promoted and that outputs equal the switch-off network
+    if (s1_rs || s1_cbo) {
+        EXPECT_FALSE(prog.get_node("C").is_pool_class_root()) << "a runtime skippable predecessor is a role conflict";
+        if (c_fused) {
+            EXPECT_NE(mask & class_level::rj_placement, 0u) << class_level::to_string(mask);
+        }
+    }
+    auto t2 = mk();
+    auto off = make_net(eng, t2, OFF);
+    const shapes_t in = {{"x1", sh(4, 4, 4)}, {"x2", sh(4, 4, 4)}};
+    EXPECT_EQ(run_round(*net, eng, in, 3), run_round(*off, eng, in, 3));
+}
+
 // ==============================================================================================================================
 // Observation tests (CLAUDE.md rule: DISABLED characterisation only)
 // ==============================================================================================================================
@@ -1628,5 +1740,29 @@ TEST(dynamic_concat_holder_pool, DISABLED_never_fused_dynamic_concat_preds_stay_
         EXPECT_FALSE(net->get_program()->get_node("P1").can_share_buffer()) << "P1 is permanently off the pool (prepare_buffer_fusing sets can_share_buffer(false))";
         EXPECT_EQ(pool_records_of(*net, "P1"), 0u);
         EXPECT_EQ(pool_records_of(*net, "P2"), 0u);
+    }
+}
+
+// P1BD-O3 (candidate, LEGACY half of B1, switch OFF). Round 0 (P1 empty, P2 16 features) is fused: P2 aliases the holder block. Round 1 (P1 9 features,
+// P2 4 features) is rejected at runtime (P2 oneDNN loses its 64 byte alignment) while the holder keeps its block: P2 keeps writing into the holder block
+// at [0, b) and the concat kernel reads it from there while writing [0, 9 + b) of the same buffer in one kernel: read/write overlap. (With a block change
+// the predecessor keeps its own old DIRECT block, which should be correct.) Not a P1-B-D regression; characterisation only. Observed while writing
+// TD-A3c: the switch-OFF network gives a wrong P2 part (first diff at the P2 slot of the (9,4) round after the (0,4) round) even though the holder
+// changes its block there, i.e. the 'correct with a block change' half does not hold on this device either (TD-A3c compares only the switch-on output).
+TEST(dynamic_concat_holder_pool_onednn, DISABLED_legacy_rejected_runtime_concat_predecessor_aliases_holder_block) {
+    auto& eng = get_test_engine();
+    if (!onednn_available(eng)) {
+        GTEST_SKIP() << "supports_immad is false";
+    }
+    auto t = topo_onednn();
+    auto net = make_net(eng, t, onednn_sw(OFF));
+    const std::vector<round_t> rounds = {{s3(0, 16), 1}, {s3(9, 4), 2}, {s3(0, 4), 3}};  // round 2: the mirrored state (rejected -> fused, paddings equal)
+    for (size_t i = 0; i < rounds.size(); ++i) {
+        const auto got = run_round(*net, eng, rounds[i].s, rounds[i].seed);
+        EXPECT_EQ(got, ref_onednn()(rounds[i].s, rounds[i].seed)) << "round " << i << " fused=" << is_fused(*net);
+        if (i == 1) {  // (round 2 is the mirrored state: the output differs from the reference in the switch-off network as well)
+            EXPECT_FALSE(is_fused(*net)) << "the runtime rejection did not trigger";
+            EXPECT_NE(buf_of(*net, "P2"), buf_of(*net, "C")) << "the rejected-round predecessor must not alias the holder block";
+        }
     }
 }

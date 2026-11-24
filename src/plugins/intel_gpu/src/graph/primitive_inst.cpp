@@ -1748,8 +1748,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 }
 
 bool primitive_inst::is_dynamic_pool_class_holder() const {
-    return _node != nullptr && _node->is_type<concatenation>() && _node->is_dynamic() && _node->is_pool_class_root() && _node->can_share_buffer() &&
-           !_node->is_output();
+    // cheap flags first: is_dynamic() walks the dependencies
+    return _node != nullptr && _node->is_pool_class_root() && _node->can_share_buffer() && !_node->is_output() && _node->is_type<concatenation>() &&
+           _node->is_dynamic();
 }
 
 void primitive_inst::rebind_concat_slots(const memory::ptr& old_block) {
@@ -1766,23 +1767,28 @@ void primitive_inst::rebind_concat_slots(const memory::ptr& old_block) {
         if (fused) {
             // every predecessor, SKIP ones and those not yet prepared in this round included; same binding as the concat path of realloc_outputs()
             if (cur && (!po || !eng.is_the_same_buffer(*po, *cur))) {
-#ifndef NDEBUG
-                // A4: the holder block must not change after a non-SKIP predecessor was enqueued in this round
-                OPENVINO_ASSERT(!changed || p->get_flag(ExecutionFlags::SKIP) || !p->_dbg_enqueued_this_round,
+                // A4 (all builds): the holder block must not change after a non-SKIP predecessor was enqueued in this round: its data would stay in
+                // the old block. Unreachable by construction (F9 puts the predecessors right before the concat, the first non-SKIP predecessor's
+                // realloc_outputs triggers the holder allocation before its own enqueue); a violation is reported instead of silently re-pointing.
+                OPENVINO_ASSERT(!changed || p->get_flag(ExecutionFlags::SKIP) || !p->_enqueued_this_round,
                                 "[GPU] P1-B-D A4: holder ", id(), " changed its block after predecessor ", p->id(), " was enqueued in this round");
-#endif
                 po = cur;
                 p->set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
         } else if (changed && cur && po && eng.is_the_same_buffer(*po, *old_block)) {
+            const bool skip_pred = !p->_impl_params->get_output_layout().is_static() || p->_impl_params->get_output_layout().count() == 0;
 #ifndef NDEBUG
-            // A3(b): only a predecessor with a zero-count layout this round (SKIP) may still alias the old block
-            OPENVINO_ASSERT(!p->_impl_params->get_output_layout().is_static() || p->_impl_params->get_output_layout().count() == 0,
-                            "[GPU] P1-B-D A3(b): non-empty predecessor ", p->id(), " of non-fused holder ", id(), " still aliases the replaced holder block");
+            // A3(b): only a predecessor with a zero-count layout this round (SKIP) may still alias the old block (B1 fix in do_runtime_in_place_concat)
+            OPENVINO_ASSERT(skip_pred, "[GPU] P1-B-D A3(b): non-empty predecessor ", p->id(), " of non-fused holder ", id(), " still aliases the replaced holder block");
 #endif
-            // A3(a): re-point to the holder's CURRENT block with count 0: no untracked orphan of old_block, never reused as an own buffer
-            po = cur;
-            p->_max_output_layout_count[0] = 0;
+            if (skip_pred) {
+                // A3(a): re-point to the holder's CURRENT block with count 0: no untracked orphan of old_block, never reused as an own buffer
+                po = cur;
+                p->_max_output_layout_count[0] = 0;
+            } else {
+                // defence in depth (Release): never silently re-point a predecessor that has (or may have) written into the old block
+                p->clear_output_memory();
+            }
             p->set_flag(ExecutionFlags::MEMORY_CHANGED);
         }
     }
@@ -2435,6 +2441,26 @@ void primitive_inst::do_runtime_in_place_concat() {
         // previously, we need to reset the paddings of its deps' output layouts to the natural
         // values.
 
+        // P1-B-D (B1): a predecessor of a promoted holder that is non-empty this round and still aliases the holder block (it was fused in an earlier
+        // round) must write into its OWN buffer now. Its runtime padding may be unchanged (only the dynamic mask), so nothing else triggers a realloc,
+        // and the holder may move to another block later in this round. This runs in the first predecessor's prepare, before any predecessor of the
+        // round is enqueued. Empty (SKIP) predecessors are re-pointed by rebind_concat_slots instead (null input memory is not relied on).
+        if (concat_inst->is_dynamic_pool_class_holder() && !concat_inst->_outputs.empty() && concat_inst->_outputs[0]) {
+            auto& eng = concat_inst->get_network().get_engine();
+            for (auto& dep : concat_inst->_deps) {
+                primitive_inst* p = dep.first;
+                if (p == nullptr || p->_outputs.empty() || !p->_outputs[0]) {
+                    continue;
+                }
+                const auto& pl = p->_impl_params->get_output_layout();
+                if (pl.is_static() && pl.count() > 0 && eng.is_the_same_buffer(*p->_outputs[0], *concat_inst->_outputs[0])) {
+                    GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << p->id() << " aliases the holder block of the rejected concat: own buffer" << std::endl;
+                    p->clear_output_memory();
+                    p->set_flag(ExecutionFlags::MEMORY_CHANGED);
+                }
+            }
+        }
+
         bool padding_reverted = false;
         size_t dep_idx = 0;
         for (auto& dep : concat_inst->_deps) {
@@ -2732,9 +2758,7 @@ bool primitive_inst::get_flag(size_t flag) const {
 
 void primitive_inst::reset_flags() {
     _impl_params->flags.reset();
-#ifndef NDEBUG
-    _dbg_enqueued_this_round = false;
-#endif
+    _enqueued_this_round = false;
 }
 
 void primitive_inst::prepare_primitive() {
@@ -3004,9 +3028,7 @@ void primitive_inst::execute() {
     }
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
-#ifndef NDEBUG
-    _dbg_enqueued_this_round = true;
-#endif
+    _enqueued_this_round = true;
 
     GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() || !get_config().get_average_counters().empty()) {
         auto ev = _impl_params->out_event;

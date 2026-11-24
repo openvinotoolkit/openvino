@@ -569,9 +569,7 @@ protected:
     // P1-B-D: restore the slot binding of every predecessor after the holder output buffer may have changed. old_block: _outputs[0] before
     // realloc_outputs() ran (may be null).
     void rebind_concat_slots(const memory::ptr& old_block);
-#ifndef NDEBUG
-    bool _dbg_enqueued_this_round = false;  // set in execute() when a kernel is enqueued, cleared in reset_flags()
-#endif
+    bool _enqueued_this_round = false;  // set in execute() when a kernel is enqueued, cleared in reset_flags(); read by rebind_concat_slots (A4)
     void realloc_outputs(bool prev_execution_skipped = false);
     void realloc_outputs_for_stateless_kv();
     void realloc_intermediates();
