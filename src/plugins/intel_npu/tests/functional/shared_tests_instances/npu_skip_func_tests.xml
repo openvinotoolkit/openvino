@@ -409,10 +409,22 @@ Example:
 
     <!-- C#199570  -->
     <skip_config>
-        <message>Tests with abnomally large durations</message>
+        <message>Tests with abnomally large durations, covered by the remaining HostCompile tests</message>
         <filters>
-            <filter>.*InferWithHostCompileMultithreadTests.*</filter>
-            <filter>.*InferWithHostCompileTests.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_PerThreadCompileCreateInfer.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_CrossRequestOutputMismatchIsRejected.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_MultiCompiledModelsMultiRequestsMultiInfer.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_SingleCompileParallelZeroInputOutputTensorInfer.*</filter>
+            <filter>.*InferWithHostCompileTests.CompileAndImportAndInfer.*</filter>
+            <filter>.*InferWithHostCompileTests.CompileAndInferWithDecreasedSize.*</filter>
+            <filter>.*InferWithHostCompileTests.CompileAndInferWithZeroTensor.*</filter>
+            <filter>.*InferWithHostCompileTests.SharedCommonQueue_BasicInferAndReuse.*</filter>
+            <filter>.*InferWithHostCompileTests.CompileTimeConfig_ModelPriority.*</filter>
+            <filter>.*InferWithHostCompileTests.CompileTimeConfig_WorkloadType.*</filter>
+            <filter>.*InferWithHostCompileTests.CompileTimeConfig_Turbo_.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty_ModelPriority_SingleCompiledModel.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty_WorkloadType_SingleCompiledModel.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty_Priority_BetweenTwoRequests.*</filter>
         </filters>
     </skip_config>
 
