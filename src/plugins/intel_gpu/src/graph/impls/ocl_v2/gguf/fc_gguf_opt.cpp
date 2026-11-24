@@ -868,10 +868,11 @@ size_t gguf_ocl_gemm_align(const RuntimeParams& params) {
 // =================================================================================================
 class FCGGUFGemmGenerator : public KernelGenerator {
 public:
-    FCGGUFGemmGenerator(const char* kernel_name, const char* format_define, bool small_m = false)
-        : KernelGenerator(std::string(kernel_name) + (small_m ? "_small_m" : ""), "", "fc_gguf_gemm_opt"),
+    FCGGUFGemmGenerator(const char* kernel_name, const char* format_define, bool small_m = false, bool skip_inactive = false)
+        : KernelGenerator(std::string(kernel_name) + (small_m ? "_small_m" : skip_inactive ? "_tail" : ""), "", "fc_gguf_gemm_opt"),
           m_format_define(format_define),
-          m_small_m(small_m) {}
+          m_small_m(small_m),
+          m_skip_inactive(skip_inactive) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -891,6 +892,7 @@ protected:
             make_jit_constant("SLM_JBLK", cfg.slm_jblk),
             make_jit_constant("PF_A", 1),
             make_jit_constant("GG_N_BAND", cfg.n_band),
+            make_jit_constant("GG_SKIP_INACTIVE", m_skip_inactive ? 1 : 0),
             make_jit_constant("GG_A_F32", in0.data_type == data_types::f32 ? 1 : 0),
             make_jit_constant("GG_OUT_F32", out0.data_type == data_types::f32 ? 1 : 0),
             make_jit_constant(m_format_define, 1),
@@ -962,6 +964,7 @@ protected:
 private:
     std::string m_format_define;  // GG_FMT_* macro selecting the format section of fc_gguf_gemm_opt.cl
     bool m_small_m;
+    bool m_skip_inactive;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -1542,6 +1545,13 @@ public:
 #endif
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    std::array<Stage::Ptr, GGUF_GEMM_FORMATS> tail_gemm_stages = {
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[0], kOclGemmFormatDefines[0], false, true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[1], kOclGemmFormatDefines[1], false, true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[2], kOclGemmFormatDefines[2], false, true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[3], kOclGemmFormatDefines[3], false, true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[4], kOclGemmFormatDefines[4], false, true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[5], kOclGemmFormatDefines[5], false, true)};
     std::array<Stage::Ptr, GGUF_GEMM_FORMATS> small_m_gemm_stages = {
         make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[0], kOclGemmFormatDefines[0], true),
         make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[1], kOclGemmFormatDefines[1], true),
@@ -1626,6 +1636,10 @@ public:
             add_stage(gemm_stages[static_cast<size_t>(fmt_idx)], params);
             if (m_prefill_threshold < m_small_m_threshold && params.get_device_info().arch >= gpu_arch::xe3) {
                 add_stage(small_m_gemm_stages[static_cast<size_t>(fmt_idx)], params);
+            }
+            if (params.get_device_info().arch == gpu_arch::xe3 &&
+                (wet == data_types::gguf_q4_k || wet == data_types::gguf_q6_k)) {
+                add_stage(tail_gemm_stages[static_cast<size_t>(fmt_idx)], params);
             }
             break;
         case PrefillKernel::cm:
@@ -1874,7 +1888,12 @@ private:
     cldnn::event::ptr execute_ocl_gemm(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t fmt) {
         const auto& params = *instance.get_impl_params();
         const size_t rows = derive_bm(params.get_input_layout(0).get_shape());
-        Stage& gemm = rows <= m_small_m_threshold && has_stage(small_m_gemm_stages[fmt]) ? *small_m_gemm_stages[fmt] : *gemm_stages[fmt];
+        const auto cfg = pick_ocl_gemm_config(params);
+        const size_t token_tile = GGUF_CM_TOKENS_PER_TILE * cfg.token_groups * cfg.token_local / cfg.row_blocks;
+        const size_t tail_rows = rows % token_tile;
+        const bool use_tail = rows > token_tile && rows <= 1024 && tail_rows > 0 && tail_rows <= 32 && has_stage(tail_gemm_stages[fmt]);
+        Stage& gemm = rows <= m_small_m_threshold && has_stage(small_m_gemm_stages[fmt]) ? *small_m_gemm_stages[fmt]
+                  : use_tail ? *tail_gemm_stages[fmt] : *gemm_stages[fmt];
         // Dispatch (M tiles) and the activation / output buffers change from call to call.
         gemm.kd.need_dispatch_data_update = true;
         gemm.kd.need_args_update = true;

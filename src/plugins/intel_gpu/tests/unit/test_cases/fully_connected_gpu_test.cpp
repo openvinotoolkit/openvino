@@ -127,6 +127,7 @@ struct gguf_fc_mode {
     bool low_bit_prefill = false;
     bool small_m_tile = false;
     const char* small_m_threshold = nullptr;
+    bool tail_tile = false;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
@@ -872,7 +873,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     ov::Core core;
     auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(precision),
                                        ov::enable_profiling(true), ov::num_streams(1));
-    if (GetParam().small_m_tile) {
+    if (GetParam().small_m_tile || GetParam().tail_tile) {
         std::stringstream binary;
         compiled.export_model(binary);
         compiled = core.import_model(binary, "GPU", ov::hint::inference_precision(precision),
@@ -916,6 +917,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     std::vector<size_t> row_counts = {1, 2, 31, 32, 33, 1, 1, 33, 2};
     if (GetParam().small_m_tile)
         row_counts = {1, 2, 3, 4, 8, 17, 31, 32, 33, 48, 64, 65, 1, 17, 1};
+    if (GetParam().tail_tile)
+        row_counts = {1, 64, 256, 257, 288, 289, 513, 768, 792, 800, 801, 1024, 1025, 1, 792};
     if (GetParam().cm) {
         row_counts.push_back(128);
         row_counts.push_back(1);
@@ -1073,13 +1076,17 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         const bool ocl_for_iteration = ocl_selected && !broadcast_peer;
         const size_t small_m_cutoff = GetParam().small_m_threshold ? static_cast<size_t>(std::atol(GetParam().small_m_threshold)) : 64;
         const bool small_m = prefill && ocl_for_iteration && rows <= small_m_cutoff && engine.get_device_info().arch >= gpu_arch::xe3;
+        const bool tail = prefill && ocl_for_iteration && !small_m && engine.get_device_info().arch == gpu_arch::xe3 &&
+                  (weight_type == ov::element::gguf_q4_k || weight_type == ov::element::gguf_q6_k) &&
+                  rows > 256 && rows <= 1024 && rows % 256 > 0 && rows % 256 <= 32;
         const std::string expected_stage = broadcast_peer ? sg_stage
                   : prefill && cm_for_iteration ? cm_stage
-                  : prefill && ocl_for_iteration ? gguf_ocl_gemm_stage(weight_type) + (small_m ? "_small_m" : "")
+                  : prefill && ocl_for_iteration ? gguf_ocl_gemm_stage(weight_type) + (small_m ? "_small_m" : tail ? "_tail" : "")
                           : prefill ? "fc_gguf_transcode_" + weight_type.to_string()
                           : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
         EXPECT_EQ(entries.find("_small_m") != std::string::npos, small_m) << entries;
+        EXPECT_EQ(entries.find("_tail") != std::string::npos, tail) << entries;
         if (!has_bias && GetParam().post_activation != activation_func::negative && GetParam().use_cm)
             EXPECT_NE(public_entries.find(expected_stage), std::string::npos) << public_entries;
         if (has_bias) {
@@ -1432,6 +1439,28 @@ INSTANTIATE_TEST_SUITE_P(gguf_small_m,
                                         mode.post_activation = activation_func::swish;
                                         modes.push_back(mode);
                                     }
+                                }
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_tail,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& type : {ov::element::gguf_q4_k, ov::element::gguf_q6_k}) {
+                                for (const auto& precision : {ov::element::f16, ov::element::f32}) {
+                                    gguf_fc_mode mode{type.to_string() + "_" + precision.to_string(), true, nullptr};
+                                    mode.channels = 128;
+                                    mode.columns = 512;
+                                    mode.weight_type = type;
+                                    mode.precision = precision;
+                                    mode.tail_tile = true;
+                                    modes.push_back(mode);
+                                    mode.name += "_swish";
+                                    mode.post_activation = activation_func::swish;
+                                    modes.push_back(mode);
                                 }
                             }
                             return modes;

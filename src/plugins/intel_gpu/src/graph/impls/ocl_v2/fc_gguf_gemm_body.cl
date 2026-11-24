@@ -166,6 +166,9 @@ KERNEL(fc_gguf_gemm)(OPTIONAL_SHAPE_INFO_ARG
         FUNC_CALL(gg_fetch_stage)(W, num_blocks, nbpr, gh, lid, s + 1, nstages, raw);
         FUNC_CALL(gg_store_stage)(slm, lid, lane, s + 1, nstages, raw);
 
+#if GG_SKIP_INACTIVE
+        if (tile_base < M) {
+#endif
         const uint kb = s / GG_SLM_JPS;
         const uint jb = s - kb * GG_SLM_JPS;
 #if PF_A
@@ -209,6 +212,9 @@ KERNEL(fc_gguf_gemm)(OPTIONAL_SHAPE_INFO_ARG
                 }
             }
         }
+#if GG_SKIP_INACTIVE
+        }
+#endif
     }
 
     // Epilogue: lane = output column, element i of acc = token row i.
