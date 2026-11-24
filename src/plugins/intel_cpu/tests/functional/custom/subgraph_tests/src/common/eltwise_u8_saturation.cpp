@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Regression test for GitHub issue 33294: on AVX2 the CPU plugin returned all zeros for a Concat/Split
-// chain feeding uint8 Multiply. The uint8 product 255 * 255 must saturate to 255 (as on GPU), not 0.
-
 #include <gtest/gtest.h>
 
 #include <algorithm>
