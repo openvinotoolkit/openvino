@@ -74,6 +74,36 @@ ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<
     return bf16_cache;
 }
 
+std::unordered_map<const void*, std::size_t> ov::npuw::s11n::collect_const_offsets(
+    const std::shared_ptr<ov::Model>& model) {
+    std::unordered_map<const void*, std::size_t> const_to_offset;
+    std::unordered_set<const void*> ambiguous_ptrs;
+    for (auto&& node_ptr : model->get_ordered_ops()) {
+        if (const auto c = ov::as_type_ptr<ov::op::v0::Constant>(node_ptr)) {
+            const auto& rt_info = c->get_rt_info();
+            const auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightless_cache_attr == rt_info.end()) {
+                continue;
+            }
+            const std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+            const auto data_ptr = c->get_data_ptr();
+            const auto inserted = const_to_offset.try_emplace(data_ptr, offset);
+            if (!inserted.second && inserted.first->second != offset) {
+                ambiguous_ptrs.insert(data_ptr);
+            }
+        }
+    }
+    // A data pointer that maps to several offsets (e.g. per-node offsets assigned by a frontend) cannot be
+    // exported weightless; serialize_weightless writes such a tensor in full.
+    for (const auto* data_ptr : ambiguous_ptrs) {
+        const_to_offset.erase(data_ptr);
+    }
+    if (!ambiguous_ptrs.empty()) {
+        LOG_WARN(ambiguous_ptrs.size() << " constants have ambiguous weightless offsets and are exported in full.");
+    }
+    return const_to_offset;
+}
+
 void ov::npuw::orc::serialize(Stream& stream, std::streampos& var) {
     stream.bytes(&var, sizeof var);
 }
