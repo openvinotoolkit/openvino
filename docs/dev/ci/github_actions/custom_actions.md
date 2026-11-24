@@ -28,6 +28,11 @@ Under the hood it uses the GitHub-provided `actions/setup-python`, and community
 Since `actions/setup-python` does not work on the Linux ARM64 machines,
 `deadsnakes-action` is used instead.
 
+On Windows x64, Python 3.15 and 3.15t use the official CPython NuGet packages,
+pinned to 3.15.2, to avoid the machine-wide installer. The action adds the selected
+interpreter to `PATH` and exports `PYTHON315_EXECUTABLE` or `PYTHON315T_EXECUTABLE`
+for builds that need explicit paths; these installs are not registered with `py`.
+
 ### Usage
 ```yaml
   - name: Setup Python ${{ env.PYTHON_VERSION }}
