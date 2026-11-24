@@ -276,7 +276,7 @@ public:
      * @return std::vector<Section> A vector of handles to the matching sections, in manifest order.
      */
     template <typename Pred, EntryPredicate<Pred> = 0>
-    std::optional<Section> sections_if(Pred&& pred) const;
+    std::vector<Section> sections_if(Pred&& pred) const;
 
     /**
      * @brief Runs @p decoder over the first manifest entry matching (@p device, @p tag).

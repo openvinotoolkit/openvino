@@ -158,7 +158,7 @@ std::optional<Section> Reader::section_if(Pred&& pred) const {
 }
 
 template <typename Pred, Reader::EntryPredicate<Pred>>
-std::optional<Section> Reader::sections_if(Pred&& pred) const {
+std::vector<Section> Reader::sections_if(Pred&& pred) const {
     std::vector<Section> result;
     for (const auto& entry : m_manifest) {
         const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), std::ref(pred));
