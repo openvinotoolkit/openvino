@@ -40,7 +40,7 @@ std::size_t pa_block_size(const std::string& device, const ov::SoPtr<ov::ICompil
         return 32u;
     }
     for (const auto& input : compiled->inputs()) {
-        if (input.get_any_name().rfind("value_cache.", 0) == 0) {
+        if (ov::npuw::util::starts_with(input.get_any_name(), "value_cache.")) {
             const auto& rows = input.get_partial_shape()[2];
             OPENVINO_ASSERT(rows.is_static(), "PA: the GPU value cache block size is dynamic");
             return static_cast<std::size_t>(rows.get_length());
