@@ -326,12 +326,6 @@ jobs:
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
 
-      # We have to specify additional flags here
-      # to limit MSBuild, cl.exe, and link.exe parallelization.
-      # Default values don't respect Kubernetes pod CPU limits.
-      # They will be set too high for big VMs
-      # shared with other jobs, which will cause
-      # "Compiler is out of heap memory" errors.
       - name: CMake configure - CC ON
         run: |
           cmake `
