@@ -38,6 +38,14 @@ struct stateless_kv_runtime_params {
 
 class stateless_kv_runtime : public testing::TestWithParam<stateless_kv_runtime_params> {};
 
+TEST(stateless_kv_runtime, null_sequence_length_memory) {
+    kernel_impl_params impl_params;
+    impl_params.memory_deps.emplace(2, nullptr);
+
+    stateless_kv desc;
+    EXPECT_THROW(stateless_kv_inst::compute_runtime_state(impl_params, desc), ov::Exception);
+}
+
 static topology make_stateless_kv_topology(const layout& new_token_layout, data_types result_type = data_types::f32, bool indirect_past = false) {
     topology topology;
     const auto past_id = indirect_past ? "past_unsqueeze" : "past";

@@ -21,7 +21,7 @@ using OutputStorageType = ov::op::internal::DynamicQuantize::OutputStorageType;
 
 class rms_gpu_test : public ::testing::TestWithParam<cldnn::format> {};
 
-template <typename T>
+template <typename T, typename G = T>
 void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr output, float epsilon) {
     auto input_layout = input->get_layout();
 
@@ -33,9 +33,9 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
     cldnn::mem_lock<T> src(input, get_test_stream());
     cldnn::mem_lock<T> dst(output, get_test_stream());
 
-    std::unique_ptr<cldnn::mem_lock<T>> weight;
+    std::unique_ptr<cldnn::mem_lock<G>> weight;
     if (gamma) {
-        weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
+        weight = std::make_unique<cldnn::mem_lock<G>>(gamma, get_test_stream());
     }
     const bool scalar_gamma = gamma && gamma->count() == 1;
 
@@ -219,6 +219,7 @@ TEST(rms_gpu_test, rms_test_bfyx_ref_rank4_scalar_gamma_dyn) {
     }
 }
 
+template <typename T = float, typename G = T>
 static void run_rms_test_bfyx_feature_axis(const std::string& kernel_name) {
     auto& engine = get_test_engine();
 
@@ -228,16 +229,16 @@ static void run_rms_test_bfyx_feature_axis(const std::string& kernel_name) {
     constexpr size_t x_size = 5;
     constexpr float epsilon = 1e-5f;
     const ov::PartialShape input_shape{batch_size, feature_size, y_size, x_size};
-    auto input = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
-    auto gamma = engine.allocate_memory({ov::PartialShape{feature_size}, data_types::f32, format::bfyx});
+    auto input = engine.allocate_memory({input_shape, ov::element::from<T>(), format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{feature_size}, ov::element::from<G>(), format::bfyx});
 
-    std::vector<float> input_values(input->count());
-    std::vector<float> gamma_values(feature_size);
+    std::vector<T> input_values(input->count());
+    std::vector<G> gamma_values(feature_size);
     for (size_t index = 0; index < input_values.size(); ++index) {
-        input_values[index] = static_cast<float>(index % 23) * 0.125f - 1.25f;
+        input_values[index] = static_cast<T>(static_cast<float>(index % 23) * 0.125f - 1.25f);
     }
     for (size_t feature = 0; feature < feature_size; ++feature) {
-        gamma_values[feature] = 0.5f + static_cast<float>(feature) * 0.03125f;
+        gamma_values[feature] = static_cast<G>(0.5f + static_cast<float>(feature) * 0.03125f);
     }
     set_values(input, input_values);
     set_values(gamma, gamma_values);
@@ -248,12 +249,13 @@ static void run_rms_test_bfyx_feature_axis(const std::string& kernel_name) {
             float sum_squares = 0.0f;
             for (size_t feature = 0; feature < feature_size; ++feature) {
                 const auto offset = (feature * y_size + y) * x_size + x;
-                sum_squares += input_values[offset] * input_values[offset];
+                const auto value = static_cast<float>(input_values[offset]);
+                sum_squares += value * value;
             }
             const float scale = 1.0f / std::sqrt(sum_squares / feature_size + epsilon);
             for (size_t feature = 0; feature < feature_size; ++feature) {
                 const auto offset = (feature * y_size + y) * x_size + x;
-                expected[offset] = input_values[offset] * scale * gamma_values[feature];
+                expected[offset] = static_cast<float>(input_values[offset]) * scale * static_cast<float>(gamma_values[feature]);
             }
         }
     }
@@ -276,9 +278,10 @@ static void run_rms_test_bfyx_feature_axis(const std::string& kernel_name) {
     ASSERT_EQ(impl->get_kernel_name(), kernel_name);
 
     auto output = network.execute().at("rms").get_memory();
-    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t index = 0; index < expected.size(); ++index) {
-        EXPECT_NEAR(output_ptr[index], expected[index], 1e-4f) << " index=" << index;
+        const float tolerance = std::is_same_v<T, float> ? 1e-4f : std::max(1e-2f, std::abs(expected[index]) * 1e-2f);
+        EXPECT_NEAR(static_cast<float>(output_ptr[index]), expected[index], tolerance) << " index=" << index;
     }
 }
 
@@ -1082,40 +1085,51 @@ TEST(rms_gpu_test, in_place_crop_rms_spatial_split) {
 }
 
 // ============================================================================
-// BF16 RMS: reference is computed in FP32 via rms_ref<ov::bfloat16> (reuses the
-// generic template). GPU BF16 output is compared with relative tolerance to
-// account for native_rsqrt approximation in the opt kernel.
+// RMS with input type T and gamma type G: reference is computed in FP32 via rms_ref<T, G>.
+// GPU output is compared with relative tolerance to account for native_rsqrt
+// approximation in the opt kernel.
 // ============================================================================
-static void run_rms_bf16(const std::string& kernel_name, const ov::PartialShape& in_shape,
-                         bool with_gamma, bool dynamic, float epsilon = 1e-5f,
-                         float in_min = 7.f, float in_max = 100.f,
-                         float abs_floor = 0.01f, float rel_tol = 0.02f) {
+template <typename T, typename G = T>
+static void run_rms_typed(const std::string& kernel_name,
+                          const ov::PartialShape& in_shape,
+                          bool with_gamma,
+                          bool dynamic,
+                          float epsilon = 1e-5f,
+                          float in_min = 7.f,
+                          float in_max = 100.f,
+                          float abs_floor = 0.01f,
+                          float rel_tol = 0.02f,
+                          bool scalar_gamma = false) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({in_shape, data_types::bf16, format::bfyx});
-    // Rank-3 input [1, C, W] normalizes over the last dim W; gamma covers W elements.
-    const size_t W = in_shape[in_shape.size() - 1].get_length();
+    auto input = engine.allocate_memory({in_shape, ov::element::from<T>(), format::bfyx});
+    // Rank-3 input [1, C, W] normalizes over the last dim W; gamma covers W elements (or 1 if scalar).
+    const size_t W = scalar_gamma ? 1 : in_shape[in_shape.size() - 1].get_length();
     memory::ptr gamma = nullptr;
     if (with_gamma)
-        gamma = engine.allocate_memory({ov::PartialShape{1, static_cast<int64_t>(W)}, data_types::bf16, format::bfyx});
-    auto output_ref = engine.allocate_memory({in_shape, data_types::bf16, format::bfyx});
+        gamma = engine.allocate_memory({ov::PartialShape{1, static_cast<int64_t>(W)}, ov::element::from<G>(), format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, ov::element::from<T>(), format::bfyx});
 
     std::mt19937 rnd_gen;
-    auto fill_uniform = [&](memory::ptr mem, float lo, float hi) {
+    auto random_values = [&](size_t count, float lo, float hi) {
         std::uniform_real_distribution<float> dist(lo, hi);
-        cldnn::mem_lock<ov::bfloat16> ptr(mem, get_test_stream());
-        for (auto it = ptr.begin(); it != ptr.end(); ++it)
-            *it = ov::bfloat16(dist(rnd_gen));
+        std::vector<float> values(count);
+        for (auto& value : values)
+            value = dist(rnd_gen);
+        return values;
     };
-    fill_uniform(input, in_min, in_max);
-    if (with_gamma)
-        fill_uniform(gamma, 0.5f, 1.5f);
+    const auto input_values = random_values(input->count(), in_min, in_max);
+    set_values(input, std::vector<T>(input_values.begin(), input_values.end()));
+    if (with_gamma) {
+        const auto gamma_values = random_values(gamma->count(), 0.5f, 1.5f);
+        set_values(gamma, std::vector<G>(gamma_values.begin(), gamma_values.end()));
+    }
 
-    rms_ref<ov::bfloat16>(input, gamma, output_ref, epsilon);
+    rms_ref<T, G>(input, gamma, output_ref, epsilon);
 
     topology topology;
-    auto input_layout_dyn = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-                                   data_types::bf16, format::bfyx};
+    auto input_layout_dyn =
+        layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, ov::element::from<T>(), format::bfyx};
     topology.add(input_layout("input", dynamic ? input_layout_dyn : input->get_layout()));
     if (with_gamma) {
         topology.add(input_layout("gamma", gamma->get_layout()));
@@ -1148,10 +1162,10 @@ static void run_rms_bf16(const std::string& kernel_name, const ov::PartialShape&
     ASSERT_EQ(outputs.begin()->first, "rms");
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<ov::bfloat16> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<ov::bfloat16> output_ref_ptr(output_ref, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ref_ptr(output_ref, get_test_stream());
 
-    // BF16 has ~7 mantissa bits; relative tolerance accounts for native_rsqrt.
+    // Relative tolerance accounts for the output precision (BF16 has ~7 mantissa bits) and native_rsqrt.
     for (size_t i = 0; i < output_ref->count(); ++i) {
         float gpu_val = static_cast<float>(output_ptr[i]);
         float ref_val = static_cast<float>(output_ref_ptr[i]);
@@ -1164,43 +1178,49 @@ static void run_rms_bf16(const std::string& kernel_name, const ov::PartialShape&
 
 // BF16 RMS on the ref kernel, small rank-3 shape, with gamma
 TEST(rms_gpu_test, rms_test_bf16_bfyx_ref) {
-    run_rms_bf16("rms_gpu_ref", ov::PartialShape{1, 2, 6}, /*with_gamma=*/true, /*dynamic=*/false);
+    run_rms_typed<ov::bfloat16>("rms_gpu_ref", ov::PartialShape{1, 2, 6}, /*with_gamma=*/true, /*dynamic=*/false);
 }
 
 // BF16 RMS on the ref kernel, small rank-3 shape, without gamma
 TEST(rms_gpu_test, rms_test_bf16_without_gamma_ref) {
-    run_rms_bf16("rms_gpu_ref", ov::PartialShape{1, 2, 6}, /*with_gamma=*/false, /*dynamic=*/false);
+    run_rms_typed<ov::bfloat16>("rms_gpu_ref", ov::PartialShape{1, 2, 6}, /*with_gamma=*/false, /*dynamic=*/false);
 }
 
 // BF16 RMS on the opt kernel, 16-wide (subgroup-aligned), with gamma
 TEST(rms_gpu_test, rms_test_bf16_bfyx_opt) {
-    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 16}, /*with_gamma=*/true, /*dynamic=*/false);
+    run_rms_typed<ov::bfloat16>("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 16}, /*with_gamma=*/true, /*dynamic=*/false);
 }
 
 // BF16 RMS on the opt kernel, 18-wide (leftovers path), with gamma
 TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_leftovers) {
-    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 18}, /*with_gamma=*/true, /*dynamic=*/false);
+    run_rms_typed<ov::bfloat16>("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 18}, /*with_gamma=*/true, /*dynamic=*/false);
 }
 
 // BF16 RMS on the opt kernel, 16-wide, without gamma
 TEST(rms_gpu_test, rms_test_bf16_without_gamma_opt) {
-    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 16}, /*with_gamma=*/false, /*dynamic=*/false);
+    run_rms_typed<ov::bfloat16>("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 16}, /*with_gamma=*/false, /*dynamic=*/false);
 }
 
 // BF16 RMS, dynamic shape 4096-wide (auto kernel selection), with gamma
 TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_dyn) {
-    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 4096}, /*with_gamma=*/true, /*dynamic=*/true);
+    run_rms_typed<ov::bfloat16>("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 4096}, /*with_gamma=*/true, /*dynamic=*/true);
 }
 
 // BF16 RMS, dynamic shape 3083-wide (unaligned leftovers), with gamma
 TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_unaligned_dyn) {
-    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 3083}, /*with_gamma=*/true, /*dynamic=*/true);
+    run_rms_typed<ov::bfloat16>("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 3083}, /*with_gamma=*/true, /*dynamic=*/true);
 }
 
 TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_near_zero) {
-    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 1, 4096}, /*with_gamma=*/true, /*dynamic=*/false,
-                 /*epsilon=*/1e-5f, /*in_min=*/0.001f, /*in_max=*/0.003f,
-                 /*abs_floor=*/0.01f, /*rel_tol=*/0.05f);
+    run_rms_typed<ov::bfloat16>("rms_gpu_bfyx_opt",
+                                ov::PartialShape{1, 1, 4096},
+                                /*with_gamma=*/true,
+                                /*dynamic=*/false,
+                                /*epsilon=*/1e-5f,
+                                /*in_min=*/0.001f,
+                                /*in_max=*/0.003f,
+                                /*abs_floor=*/0.01f,
+                                /*rel_tol=*/0.05f);
 }
 
 class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tuple<size_t, data_types, bool>> {};
@@ -1308,3 +1328,75 @@ INSTANTIATE_TEST_SUITE_P(rms_mxfp8,
                          ::testing::Combine(::testing::Values(size_t{32}, size_t{320}, size_t{4096}),
                                             ::testing::Values(data_types::f8e4m3, data_types::f8e5m2),
                                             ::testing::Values(true, false)));
+
+template <typename P>
+class rms_gpu_mixed_gamma_type_test : public ::testing::Test {
+protected:
+    using input_type = typename P::first_type;
+    using gamma_type = typename P::second_type;
+};
+
+// IncreasePrecisionForQwenVLMerger converts the RMS input to f32 and keeps gamma in f16
+using rms_mixed_gamma_types = ::testing::Types<std::pair<float, ov::float16>,
+                                               std::pair<ov::float16, float>,
+                                               std::pair<ov::bfloat16, float>,
+                                               std::pair<float, ov::bfloat16>,
+                                               std::pair<ov::bfloat16, ov::float16>,
+                                               std::pair<ov::float16, ov::bfloat16>>;
+TYPED_TEST_SUITE(rms_gpu_mixed_gamma_type_test, rms_mixed_gamma_types);
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt) {
+    run_rms_typed<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_bfyx_opt",
+                                                                                      ov::PartialShape{2, 1, 4096},
+                                                                                      /*with_gamma=*/true,
+                                                                                      /*dynamic=*/false);
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_leftovers) {
+    run_rms_typed<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_bfyx_opt",
+                                                                                      ov::PartialShape{1, 2, 18},
+                                                                                      /*with_gamma=*/true,
+                                                                                      /*dynamic=*/false);
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_dyn) {
+    run_rms_typed<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_bfyx_opt",
+                                                                                      ov::PartialShape{2, 1, 4096},
+                                                                                      /*with_gamma=*/true,
+                                                                                      /*dynamic=*/true);
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_unaligned_dyn) {
+    run_rms_typed<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_bfyx_opt",
+                                                                                      ov::PartialShape{2, 1, 3083},
+                                                                                      /*with_gamma=*/true,
+                                                                                      /*dynamic=*/true);
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, ref) {
+    run_rms_typed<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_ref",
+                                                                                      ov::PartialShape{1, 2, 6},
+                                                                                      /*with_gamma=*/true,
+                                                                                      /*dynamic=*/false);
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_scalar_gamma) {
+    run_rms_typed<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_bfyx_opt",
+                                                                                      ov::PartialShape{2, 1, 4096},
+                                                                                      /*with_gamma=*/true,
+                                                                                      /*dynamic=*/false,
+                                                                                      /*epsilon=*/1e-5f,
+                                                                                      /*in_min=*/7.f,
+                                                                                      /*in_max=*/100.f,
+                                                                                      /*abs_floor=*/0.01f,
+                                                                                      /*rel_tol=*/0.02f,
+                                                                                      /*scalar_gamma=*/true);
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_feature_axis) {
+    run_rms_test_bfyx_feature_axis<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_bfyx_opt");
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, ref_feature_axis) {
+    run_rms_test_bfyx_feature_axis<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_ref");
+}
