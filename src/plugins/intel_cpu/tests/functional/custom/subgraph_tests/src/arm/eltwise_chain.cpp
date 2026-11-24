@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common_test_utils/node_builders/constant.hpp"
@@ -15,7 +16,6 @@
 #include "custom/single_layer_tests/classes/comparison.hpp"
 #include "internal_properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
 
@@ -45,289 +45,185 @@ INSTANTIATE_TEST_SUITE_P(
     EltwiseChainTest::getTestCaseName);
 
 #if defined(OPENVINO_ARCH_ARM64)
-// Scalar, full-vector, tail, broadcast and dynamic shapes without cross-products of unrelated parameters.
-const std::vector<InputShape> tailArithmeticShape = {
-    {{}, {{1, 29}}},
-    {{}, {{1, 29}}},
-    {{}, {{1, 29}}},
-};
-const std::vector<std::vector<InputShape>> arithmeticShapes = {
-    {{{}, {{1, 1}}}, {{}, {{1, 1}}}, {{}, {{1, 1}}}},
-    {{{}, {{1, 4}}}, {{}, {{1, 4}}}, {{}, {{1, 4}}}},
-    tailArithmeticShape,
-    {{{}, {{2, 29}}}, {{}, {{1, 1}}}, {{}, {{2, 29}}}},
-    {{{-1, -1}, {{1, 29}, {3, 29}, {5, 1}, {2, 29}}},
-     {{1, -1}, {{1, 29}, {1, 29}, {1, 1}, {1, 29}}},
-     {{-1, -1}, {{1, 29}, {3, 29}, {5, 1}, {2, 29}}}},
-};
+const InputShape scalar{{}, {{1, 1}}};
+const InputShape vector{{}, {{1, 4}}};
+const InputShape tail{{}, {{1, 29}}};
+const InputShape broadcast{{}, {{2, 29}}};
+const InputShape dynamic{{-1, -1}, {{1, 29}, {3, 29}, {5, 1}, {2, 29}}};
+const InputShape dynamicBroadcast{{1, -1}, {{1, 29}, {1, 29}, {1, 1}, {1, 29}}};
 
-const std::vector<std::vector<InputShape>> fourInputShapes = {
-    {{{}, {{1, 29}}}, {{}, {{1, 29}}}, {{}, {{1, 29}}}, {{}, {{1, 29}}}},
-};
-const std::vector<std::vector<InputShape>> divideShapes = {tailArithmeticShape};
-const std::vector<std::vector<InputShape>> convertShapes = {
-    {{{}, {{1, 29}}}, {{}, {{1, 29}}}},
-};
-const std::vector<std::vector<InputShape>> floorShapes = {
-    {{{}, {{1, 29}}}},
-};
-
+const std::vector<ElementType> twoI32Inputs(2, ElementType::i32);
 const std::vector<ElementType> threeI32Inputs(3, ElementType::i32);
 const std::vector<ElementType> fourI32Inputs(4, ElementType::i32);
 const std::vector<EltwiseChainOp> mulAdd{EltwiseTypes::MULTIPLY, EltwiseTypes::ADD};
-const std::vector<EltwiseChainOp> mulAddAfterAdd{
-    EltwiseTypes::ADD,
-    EltwiseTypes::MULTIPLY,
-    EltwiseTypes::ADD,
-};
-const std::vector<EltwiseChainOp> divideAfterAdd{EltwiseTypes::ADD, EltwiseTypes::DIVIDE};
-const std::vector<EltwiseChainOp> comparisonChain{
-    EltwiseTypes::ADD,
-    EltwiseTypes::SUBTRACT,
-    ComparisonTypes::EQUAL,
-};
+const std::vector<EltwiseChainOp> addMulAdd{EltwiseTypes::ADD, EltwiseTypes::MULTIPLY, EltwiseTypes::ADD};
+const std::vector<EltwiseChainOp> addDivide{EltwiseTypes::ADD, EltwiseTypes::DIVIDE};
+const std::vector<EltwiseChainOp> comparisonOps{EltwiseTypes::ADD, EltwiseTypes::SUBTRACT, ComparisonTypes::EQUAL};
 const std::vector<EltwiseChainOp> multiply{EltwiseTypes::MULTIPLY};
 const std::vector<EltwiseChainOp> floor{ActivationTypes::Floor};
-const std::vector<std::vector<ElementType>> convertPrecisions = {
-    {ElementType::i8, ElementType::i32},
-    {ElementType::u8, ElementType::i32},
-    {ElementType::i32, ElementType::i8},
-    {ElementType::i32, ElementType::u8},
-};
-const std::vector<std::vector<ElementType>> floorPrecisions = {
-    {ElementType::f16},
-    {ElementType::f32},
+
+EltwiseChainTuple chain_case(std::vector<InputShape> shapes,
+                             std::vector<ElementType> precisions,
+                             std::vector<EltwiseChainOp> ops,
+                             PostNode post = PostNode::EMPTY,
+                             ElementType conversion = ElementType::dynamic) {
+    return {std::move(shapes),
+            InputLayerType::PARAMETER,
+            std::move(precisions),
+            std::move(ops),
+            post,
+            conversion,
+            DEVICE_CPU};
+}
+
+const std::vector<EltwiseChainTuple> chainCases = {
+    chain_case({scalar, scalar, scalar}, threeI32Inputs, mulAdd),
+    chain_case({vector, vector, vector}, threeI32Inputs, mulAdd),
+    chain_case({tail, tail, tail}, threeI32Inputs, mulAdd),
+    chain_case({broadcast, scalar, broadcast}, threeI32Inputs, mulAdd),
+    chain_case({dynamic, dynamicBroadcast, dynamic}, threeI32Inputs, mulAdd),
+    chain_case({tail, tail, tail, tail}, fourI32Inputs, addMulAdd),
+    chain_case({tail, tail, tail, tail}, fourI32Inputs, comparisonOps, PostNode::LOGICAL_NOT),
+    chain_case({tail, tail}, {ElementType::i8, ElementType::i32}, multiply, PostNode::EMPTY, ElementType::i32),
+    chain_case({tail, tail}, {ElementType::u8, ElementType::i32}, multiply, PostNode::EMPTY, ElementType::i32),
+    chain_case({tail, tail}, {ElementType::i32, ElementType::i8}, multiply, PostNode::EMPTY, ElementType::i32),
+    chain_case({tail, tail}, {ElementType::i32, ElementType::u8}, multiply, PostNode::EMPTY, ElementType::i32),
+    chain_case({tail}, {ElementType::f16}, floor, PostNode::EMPTY, ElementType::i32),
+    chain_case({tail}, {ElementType::f32}, floor, PostNode::EMPTY, ElementType::i32),
 };
 
-class EltwiseChainI32Test : public EltwiseChainTest, public CPUTestUtils::CPUTestsBase {
+const std::vector<EltwiseChainTuple> eltwiseOnlyCases = {
+    chain_case({tail, tail, tail}, threeI32Inputs, addDivide),
+    chain_case({scalar, scalar}, twoI32Inputs, {EltwiseTypes::ADD}, PostNode::EMPTY, ElementType::f32),
+    chain_case({tail, tail}, twoI32Inputs, {EltwiseTypes::ADD}, PostNode::EMPTY, ElementType::f32),
+};
+
+using I32ChainParams = std::tuple<EltwiseChainTuple, bool>;
+
+class EltwiseChainI32Test : public EltwiseChainTestBase,
+                            public testing::WithParamInterface<I32ChainParams>,
+                            public CPUTestsBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<I32ChainParams>& info) {
+        const auto& [chain, snippets] = info.param;
+        return get_chain_case_name(chain) + (snippets ? "_Snippets" : "_Eltwise");
+    }
+
 protected:
     void SetUp() override {
-        EltwiseChainTest::SetUp();
-        abs_threshold = 0;
-        rel_threshold = 0;
-        const auto& precisions = std::get<2>(this->GetParam());
-        const auto& ops = std::get<3>(this->GetParam());
-        const auto conversion = std::get<5>(this->GetParam());
-        if (std::get<4>(this->GetParam()) == PostNode::LOGICAL_NOT) {
-            selectedType = "jit_(i32|I8)";
-        } else if (conversion == ov::element::i32 &&
-                   ov::intel_cpu::any_of(precisions.front(), ElementType::i8, ElementType::u8)) {
-            selectedType = "jit_(I8|i32)";
-        } else if (std::holds_alternative<EltwiseTypes>(ops.back()) &&
-                   std::get<EltwiseTypes>(ops.back()) == EltwiseTypes::DIVIDE) {
-            selectedType = "(jit|ref)_i32";
-        } else {
-            selectedType = "jit_i32";
+        const auto& [chain, snippets] = GetParam();
+        setup_chain(chain);
+        abs_threshold = rel_threshold = 0;
+        configuration.insert(ov::intel_cpu::snippets_mode(snippets ? ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK
+                                                                   : ov::intel_cpu::SnippetsMode::DISABLE));
+        if (std::get<5>(chain) == ElementType::f32) {
+            configuration.insert(ov::hint::inference_precision(ov::element::f32));
         }
     }
 
     void validate() override {
         SubgraphBaseTest::validate();
+        const auto& [chain, snippets] = GetParam();
+        const auto& [shapes, inputType, precisions, ops, post, conversion, device] = chain;
+        const bool divide = ops == addDivide;
+        if (conversion == ElementType::f32) {
+            selectedType = "jit_f32";
+        } else if (post == PostNode::LOGICAL_NOT || is_byte(precisions.front())) {
+            selectedType = "jit_(i32|I8)";
+        } else if (divide) {
+            selectedType = "(jit|ref)_i32";
+        } else {
+            selectedType = "jit_i32";
+        }
         CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
-    }
 
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        inputs.clear();
-        const auto& inputPrecisions = std::get<2>(this->GetParam());
-        const auto& ops = std::get<3>(this->GetParam());
-        const auto conversion = std::get<5>(this->GetParam());
-        const bool comparisonChain = std::holds_alternative<ComparisonTypes>(ops.back());
-        const bool divideChain = std::holds_alternative<EltwiseTypes>(ops.back()) &&
-                                 std::get<EltwiseTypes>(ops.back()) == EltwiseTypes::DIVIDE;
-        const bool narrowIntegerConversion =
-            conversion == ov::element::i32 && inputPrecisions.size() == 2 &&
-            (ov::intel_cpu::any_of(inputPrecisions[0], ElementType::i8, ElementType::u8) ||
-             ov::intel_cpu::any_of(inputPrecisions[1], ElementType::i8, ElementType::u8));
-        const auto& window = *comparison::i32Windows().front();
-        const auto& funcInputs = function->inputs();
-        for (size_t i = 0; i < funcInputs.size(); ++i) {
-            const auto& funcInput = funcInputs[i];
-            const auto type = funcInput.get_element_type();
-            const auto seed = static_cast<int32_t>(i + 1);
-            InputGenerateData data;
-            if (type == ov::element::i8) {
-                data = InputGenerateData(-128, 256, 1, seed);
-            } else if (type == ov::element::u8) {
-                data = InputGenerateData(0, 256, 1, seed);
-            } else if (type.is_real()) {
-                // Fractional inputs distinguish Convert-then-Floor from Floor-then-Convert for negative values.
-                data = InputGenerateData(-127.75, 256, 4, seed);
-            } else if (narrowIntegerConversion) {
-                // A large exact i32 value whose product with any int8 value remains representable.
-                data = InputGenerateData((1 << 23) + 1, 0, 1, seed);
-            } else if (i == 0 || (comparisonChain && i + 1 == funcInputs.size())) {
-                data = InputGenerateData(window.start_from, window.range, 1, seed);
-            } else if (divideChain && i + 1 == funcInputs.size()) {
-                // A divisor of two exposes precision lost by the preceding addition.
-                data = InputGenerateData(2, 0, 1, seed);
-            } else if (divideChain && i == 1) {
-                data = InputGenerateData(1, 0, 1, seed);
-            } else {
-                // Keep intermediates in range.
-                data = InputGenerateData(1, 2, 1, seed);
-            }
-            inputs.insert({funcInput.get_node_shared_ptr(),
-                           ov::test::utils::create_and_fill_tensor(type, targetInputStaticShapes[i], data)});
+        if (snippets) {
+            CheckNumberOfNodesWithType(compiledModel, "Subgraph", 1);
+        } else {
+            CheckNumberOfNodesWithType(compiledModel, "Eltwise", divide || post == PostNode::LOGICAL_NOT ? 3 : 1);
         }
-    }
-};
-
-class EltwiseChainI32SnippetsTest : public EltwiseChainI32Test {
-protected:
-    void SetUp() override {
-        EltwiseChainI32Test::SetUp();
-        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
-    }
-
-    void validate() override {
-        EltwiseChainI32Test::validate();
-        CheckNumberOfNodesWithType(compiledModel, "Subgraph", 1);
-        if (std::get<5>(this->GetParam()) != ov::element::dynamic) {
-            // Snippets retains a Convert at the subgraph boundary; forced Eltwise execution checks full merging below.
-            CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
+        if (conversion == ElementType::i32) {
+            CheckNumberOfNodesWithType(compiledModel,
+                                       "Convert",
+                                       snippets || ov::element::Type(precisions.front()).is_real() ? 1 : 0);
         }
-    }
-};
-
-class EltwiseChainI32EltwiseTest : public EltwiseChainI32Test {
-protected:
-    void SetUp() override {
-        EltwiseChainI32Test::SetUp();
-        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
-    }
-
-    void validate() override {
-        EltwiseChainI32Test::validate();
-        if (std::get<5>(this->GetParam()) != ov::element::dynamic) {
-            const auto& precisions = std::get<2>(this->GetParam());
-            const bool fractionalInput = ov::intel_cpu::any_of(precisions.front(), ElementType::f16, ElementType::f32);
-            CheckNumberOfNodesWithType(compiledModel, "Convert", fractionalInput ? 1 : 0);
-            CheckNumberOfNodesWithType(compiledModel, "Eltwise", 1);
-            return;
-        }
-        if (std::get<4>(this->GetParam()) == PostNode::LOGICAL_NOT) {
-            CheckNumberOfNodesWithType(compiledModel, "Eltwise", 3);
-            return;
-        }
-
-        const auto& ops = std::get<3>(this->GetParam());
-        if (std::holds_alternative<EltwiseTypes>(ops.back()) &&
-            std::get<EltwiseTypes>(ops.back()) == EltwiseTypes::DIVIDE) {
-            CheckNumberOfNodesWithType(compiledModel, "Eltwise", 3);
-            std::set<std::string> implementations;
+        if (divide) {
+            bool hasJit = false;
+            bool hasReference = false;
             for (const auto& node : compiledModel.get_runtime_model()->get_ops()) {
                 const auto& info = node->get_rt_info();
-                if (info.count(ov::exec_model_info::IMPL_TYPE)) {
-                    implementations.insert(info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>());
+                const auto impl = info.find(ov::exec_model_info::IMPL_TYPE);
+                if (impl != info.end()) {
+                    const auto& type = impl->second.as<std::string>();
+                    hasJit |= type == "jit_i32";
+                    hasReference |= type == "ref_i32";
                 }
             }
-            EXPECT_EQ(implementations.count("jit_i32"), 1);
-            EXPECT_EQ(implementations.count("ref_i32"), 1);
-            return;
+            EXPECT_TRUE(hasJit);
+            EXPECT_TRUE(hasReference);
         }
-        CheckNumberOfNodesWithType(compiledModel, "Eltwise", 1);
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& shapes) override {
+        inputs.clear();
+        const auto& chain = std::get<0>(GetParam());
+        const auto& parameters = function->get_parameters();
+        for (size_t i = 0; i < parameters.size(); ++i) {
+            const auto type = parameters[i]->get_element_type();
+            inputs.emplace(parameters[i], create_and_fill_tensor(type, shapes[i], input_data(chain, type, i)));
+        }
+    }
+
+private:
+    static bool is_byte(ElementType type) {
+        return type == ElementType::i8 || type == ElementType::u8;
+    }
+
+    static InputGenerateData input_data(const EltwiseChainTuple& chain, const ov::element::Type& type, size_t port) {
+        const auto& [shapes, inputType, precisions, ops, post, conversion, device] = chain;
+        const auto seed = static_cast<int32_t>(port + 1);
+        if (type == ElementType::i8) {
+            return {-128, 256, 1, seed};
+        }
+        if (type == ElementType::u8) {
+            return {0, 256, 1, seed};
+        }
+        if (type.is_real()) {
+            // Negative fractions distinguish truncation before Floor from truncation after Floor.
+            return {-127.75, 256, 4, seed};
+        }
+        if (conversion == ElementType::f32) {
+            // Rounding the left input before Add gives a different result from rounding the sum.
+            return {port == 0 ? (1 << 24) + 1.0 : 1.0, 0, 1, seed};
+        }
+        if (conversion == ElementType::i32) {
+            return {(1 << 23) + 1, 0, 1, seed};
+        }
+        if (port == 0 || (ops == comparisonOps && port + 1 == precisions.size())) {
+            const auto& window = *::ov::test::comparison::i32Windows().front();
+            return {window.start_from, window.range, 1, seed};
+        }
+        if (ops == addDivide) {
+            return {port == 1 ? 1.0 : 2.0, 0, 1, seed};
+        }
+        // Small operands keep the intermediate results representable.
+        return {1, 2, 1, seed};
     }
 };
 
-TEST_P(EltwiseChainI32SnippetsTest, CompareWithRefs) {
+TEST_P(EltwiseChainI32Test, CompareWithRefs) {
     run();
 }
 
-TEST_P(EltwiseChainI32EltwiseTest, CompareWithRefs) {
-    run();
-}
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_I32,
+                         EltwiseChainI32Test,
+                         ::testing::Combine(::testing::ValuesIn(chainCases), ::testing::Bool()),
+                         EltwiseChainI32Test::getTestCaseName);
 
-#define INSTANTIATE_I32_CHAIN(prefix, fixture, shapes, precisions, operations, post_node, conversion)                 \
-    INSTANTIATE_TEST_SUITE_P(prefix,                                                                                  \
-                             fixture,                                                                                 \
-                             ::testing::Combine(::testing::ValuesIn(shapes),                                          \
-                                                ::testing::Values(InputLayerType::PARAMETER),                         \
-                                                ::testing::ValuesIn(precisions),                                      \
-                                                ::testing::Values(operations),                                        \
-                                                ::testing::Values(post_node),                                         \
-                                                ::testing::Values(conversion),                                        \
-                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),                      \
-                             EltwiseChainTest::getTestCaseName)
-
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32MulAdd_Snippets,
-                      EltwiseChainI32SnippetsTest,
-                      arithmeticShapes,
-                      std::vector<std::vector<ElementType>>{threeI32Inputs},
-                      mulAdd,
-                      PostNode::EMPTY,
-                      ov::element::dynamic);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32MulAdd_Eltwise,
-                      EltwiseChainI32EltwiseTest,
-                      arithmeticShapes,
-                      std::vector<std::vector<ElementType>>{threeI32Inputs},
-                      mulAdd,
-                      PostNode::EMPTY,
-                      ov::element::dynamic);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32FusedArithmetic_Snippets,
-                      EltwiseChainI32SnippetsTest,
-                      fourInputShapes,
-                      std::vector<std::vector<ElementType>>{fourI32Inputs},
-                      mulAddAfterAdd,
-                      PostNode::EMPTY,
-                      ov::element::dynamic);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32FusedArithmetic_Eltwise,
-                      EltwiseChainI32EltwiseTest,
-                      fourInputShapes,
-                      std::vector<std::vector<ElementType>>{fourI32Inputs},
-                      mulAddAfterAdd,
-                      PostNode::EMPTY,
-                      ov::element::dynamic);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32DivideFallback,
-                      EltwiseChainI32EltwiseTest,
-                      divideShapes,
-                      std::vector<std::vector<ElementType>>{threeI32Inputs},
-                      divideAfterAdd,
-                      PostNode::EMPTY,
-                      ov::element::dynamic);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32ComparisonNot_Snippets,
-                      EltwiseChainI32SnippetsTest,
-                      fourInputShapes,
-                      std::vector<std::vector<ElementType>>{fourI32Inputs},
-                      comparisonChain,
-                      PostNode::LOGICAL_NOT,
-                      ov::element::dynamic);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32ComparisonNot_Eltwise,
-                      EltwiseChainI32EltwiseTest,
-                      fourInputShapes,
-                      std::vector<std::vector<ElementType>>{fourI32Inputs},
-                      comparisonChain,
-                      PostNode::LOGICAL_NOT,
-                      ov::element::dynamic);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32ConvertMerge_Snippets,
-                      EltwiseChainI32SnippetsTest,
-                      convertShapes,
-                      convertPrecisions,
-                      multiply,
-                      PostNode::EMPTY,
-                      ov::element::i32);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32ConvertMerge_Eltwise,
-                      EltwiseChainI32EltwiseTest,
-                      convertShapes,
-                      convertPrecisions,
-                      multiply,
-                      PostNode::EMPTY,
-                      ov::element::i32);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32FractionalFloor_Snippets,
-                      EltwiseChainI32SnippetsTest,
-                      floorShapes,
-                      floorPrecisions,
-                      floor,
-                      PostNode::EMPTY,
-                      ov::element::i32);
-INSTANTIATE_I32_CHAIN(smoke_EltwiseChain_I32FractionalFloor_Eltwise,
-                      EltwiseChainI32EltwiseTest,
-                      floorShapes,
-                      floorPrecisions,
-                      floor,
-                      PostNode::EMPTY,
-                      ov::element::i32);
-
-#undef INSTANTIATE_I32_CHAIN
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_I32EltwiseOnly,
+                         EltwiseChainI32Test,
+                         ::testing::Combine(::testing::ValuesIn(eltwiseOnlyCases), ::testing::Values(false)),
+                         EltwiseChainI32Test::getTestCaseName);
 #endif
 
 }  // namespace

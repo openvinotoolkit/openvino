@@ -57,15 +57,24 @@ typedef std::tuple<std::vector<InputShape>,           // Input shapes
                    >
     EltwiseChainTuple;
 
-class EltwiseChainTest : public testing::WithParamInterface<EltwiseChainTuple>,
-                         virtual public SubgraphBaseTest {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseChainTuple> &obj);
+class EltwiseChainTestBase : virtual public SubgraphBaseTest {
+protected:
+    static std::string get_chain_case_name(const EltwiseChainTuple& params);
+    void setup_chain(const EltwiseChainTuple& params);
     ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, int32_t seed);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
+
+class EltwiseChainTest : public testing::WithParamInterface<EltwiseChainTuple>, public EltwiseChainTestBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseChainTuple>& obj) {
+        return get_chain_case_name(obj.param);
+    }
 
 protected:
-    void SetUp() override;
+    void SetUp() override {
+        setup_chain(GetParam());
+    }
 };
 
 namespace eltwise_chain {

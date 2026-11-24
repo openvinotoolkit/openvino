@@ -1548,8 +1548,8 @@ void Transformations::MainSnippets() {
 #endif
     };
 
-    auto has_supported_tensors =
-        [ignoreCallback, has_native_i32_support](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto has_supported_tensors = [ignoreCallback,
+                                  has_native_i32_support](const std::shared_ptr<const ov::Node>& n) -> bool {
         // Check for supported precision
         auto is_supported_tensor = [&n, ignoreCallback, has_native_i32_support](descriptor::Tensor& t,
                                                                                 bool is_input) -> bool {

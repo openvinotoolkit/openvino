@@ -1163,8 +1163,10 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     }
     const auto& input_precisions = parentNode->getOriginalInputPrecisions();
 
-    if (parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::i32 && input_precisions[0].is_real()) {
-        // Removing this Convert can change execution precision and lose truncation before integer operations.
+    const auto src = input_precisions.front();
+    const auto dst = parentNode->getOriginalOutputPrecisionAtPort(0);
+    if ((src == ov::element::i32 && dst.is_real()) || (src.is_real() && dst == ov::element::i32)) {
+        // Keep the rounding or truncation at the boundary between integer and floating-point execution.
         return false;
     }
 

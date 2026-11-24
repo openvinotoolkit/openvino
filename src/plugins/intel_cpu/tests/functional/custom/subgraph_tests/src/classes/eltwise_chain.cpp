@@ -18,9 +18,9 @@ namespace ov {
 namespace test {
 using namespace ov::test::utils;
 
-std::string EltwiseChainTest::getTestCaseName(const testing::TestParamInfo<EltwiseChainTuple> &obj) {
+std::string EltwiseChainTestBase::get_chain_case_name(const EltwiseChainTuple& params) {
     const auto& [inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, postNode, conversion, targetName] =
-        obj.param;
+        params;
     std::ostringstream results;
 
     results << "IS=(";
@@ -49,9 +49,9 @@ std::string EltwiseChainTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     return results.str();
 }
 
-ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& type,
-                                                    const ov::Shape& shape,
-                                                    int32_t seed) {
+ov::Tensor EltwiseChainTestBase::generate_eltwise_input(const ov::element::Type& type,
+                                                        const ov::Shape& shape,
+                                                        int32_t seed) {
     struct gen_params {
         uint32_t range;
         int32_t start_from;
@@ -72,7 +72,7 @@ ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& typ
     return tensor;
 }
 
-void EltwiseChainTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void EltwiseChainTestBase::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -99,16 +99,21 @@ std::shared_ptr<ov::Node> make_chain_op(const ov::Output<ov::Node>& lhs,
 }
 }  // namespace
 
-void EltwiseChainTest::SetUp() {
+void EltwiseChainTestBase::setup_chain(const EltwiseChainTuple& params) {
     abs_threshold = 0.1f;
-    const auto& [inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, postNode, conversion, _targetDevice] =
-        this->GetParam();
+    const auto& [inputShapes,
+                 secondaryInputType,
+                 inputPrecisions,
+                 eltwiseOpTypes,
+                 postNode,
+                 conversion,
+                 _targetDevice] = params;
     targetDevice = _targetDevice;
     init_input_shapes(inputShapes);
     for (size_t i = 0; i < eltwiseOpTypes.size(); i++) {
         const bool lastOp = i == eltwiseOpTypes.size() - 1 && postNode != PostNode::SOFTSIGN;
         OPENVINO_ASSERT(lastOp || std::holds_alternative<EltwiseTypes>(eltwiseOpTypes[i]),
-                        "A comparison can only be the last operation of the chain");
+                        "A comparison or activation can only be the last operation of the chain");
     }
 
     ov::ParameterVector paramVec;
@@ -147,8 +152,10 @@ void EltwiseChainTest::SetUp() {
     }
 
     std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-    eltwiseOps.push_back(
-        make_chain_op(inputNodes1[0], inputNodes2.empty() ? inputNodes1[0] : inputNodes2[0], eltwiseOpTypes[0]));
+    const auto& firstOp = eltwiseOpTypes.front();
+    const auto rhs =
+        std::holds_alternative<ActivationTypes>(firstOp) ? ov::Output<ov::Node>{} : inputNodes2.at(0)->output(0);
+    eltwiseOps.push_back(make_chain_op(inputNodes1.front(), rhs, firstOp));
 
     if (postNode == PostNode::QUANTIZE) {
         for (size_t i = 1; i < eltwiseOpTypes.size() - 1; i++) {
