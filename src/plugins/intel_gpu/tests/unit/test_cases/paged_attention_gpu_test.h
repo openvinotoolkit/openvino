@@ -90,7 +90,7 @@ struct PagedAttentionManager {
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     ov::element::Type kv_cache_precision = ov::element::dynamic;
-    ov::element::Type inference_precision = ov::element::dynamic;
+    ov::element::Type qkv_precision = ov::element::f16;
     bool has_score_aggregation;
     CacheRotationDescriptor rotation_config;
     std::vector<SubsequenceDescriptor> subsequence_descs;
@@ -366,17 +366,11 @@ struct PagedAttentionManager {
         return memory;
     }
 
-    cldnn::data_types qkv_data_type() const {
-        return inference_precision == ov::element::f32 ? cldnn::data_types::f32 : cldnn::data_types::f16;
-    }
-
-    cldnn::data_types uncompressed_cache_data_type() const {
-        return kv_cache_precision == ov::element::f32 ? cldnn::data_types::f32 : cldnn::data_types::f16;
-    }
-
     // Writes f16 source values into a memory whose data type is f16 or f32.
     static void set_values_typed(cldnn::stream& stream, cldnn::memory::ptr mem, const ov::float16* vals, size_t size, size_t dst_offset) {
-        if (mem->get_layout().data_type == cldnn::data_types::f32) {
+        const auto data_type = mem->get_layout().data_type;
+        OPENVINO_ASSERT(data_type == cldnn::data_types::f16 || data_type == cldnn::data_types::f32, "Unsupported data type: ", data_type);
+        if (data_type == cldnn::data_types::f32) {
             cldnn::mem_lock<float> mem_ptr(mem, stream);
             for (size_t i = 0; i < size; i++) {
                 mem_ptr[dst_offset + i] = static_cast<float>(vals[i]);
@@ -394,7 +388,7 @@ struct PagedAttentionManager {
     }
 
     cldnn::memory::ptr get_key_cache_memory() {
-        auto key_cache_dt = uncompressed_cache_data_type();
+        auto key_cache_dt = kv_cache_precision == ov::element::f32 ? cldnn::data_types::f32 : cldnn::data_types::f16;
         auto adjusted_head_size = k_head_size;
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
@@ -605,7 +599,7 @@ struct PagedAttentionManager {
     }
 
     cldnn::memory::ptr get_value_cache_memory() {
-        auto value_cache_dt = uncompressed_cache_data_type();
+        auto value_cache_dt = kv_cache_precision == ov::element::f32 ? cldnn::data_types::f32 : cldnn::data_types::f16;
         const int head_size = v_head_size;
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
@@ -897,7 +891,7 @@ private:
             total_tokens += subsequence_desc.num_tokens;
 
         auto query_shape = ov::PartialShape{total_tokens, num_heads * head_size};
-        auto query_layout = cldnn::layout{query_shape, qkv_data_type(), cldnn::format::bfyx};
+        auto query_layout = cldnn::layout{query_shape, qkv_precision, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(query_layout);
 
         for (int subsequence_idx = 0; subsequence_idx < static_cast<int>(subsequence_descs.size()); subsequence_idx++) {
@@ -1826,7 +1820,7 @@ public:
                     p.has_xattention,
                     p.rotation_config,
                     p.kv_cache_precision);
-        pam->inference_precision = p.inference_precision;
+        pam->qkv_precision = p.qkv_precision;
 
         if (p.zero_key_data) {
             for (auto& sequence_key_data : pam->key_data) {
@@ -2211,9 +2205,6 @@ public:
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
-        }
-        if (p.inference_precision != ov::element::dynamic) {
-            config.set_property(ov::hint::inference_precision(p.inference_precision));
         }
         cldnn::network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
@@ -3037,11 +3028,7 @@ struct paged_attention_test_params {
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
 
-    // Inference precision of Q, K, V and the PagedAttention output (ov::hint::inference_precision).
-    // dynamic keeps f16, so every existing instance is unchanged. With an uncompressed cache, kv_cache_precision
-    // f32 or f16 sets the cache type, which may differ from this one (mixed-precision regression cases).
-    // Declared last: existing instances initialise this struct positionally (e.g. the qq_bias suite).
-    ov::element::Type inference_precision = ov::element::dynamic;
+    ov::element::Type qkv_precision = ov::element::f16;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
