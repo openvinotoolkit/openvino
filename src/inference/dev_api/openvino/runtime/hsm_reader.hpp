@@ -282,9 +282,8 @@ public:
     std::vector<Section> sections_if(Pred&& pred) const {
         std::vector<Section> result;
         for (const auto& entry : m_manifest) {
-            const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), std::ref(pred));
-            if (found != m_manifest.end()) {
-                result.push_back(make_section(*found));
+            if (pred(entry)) {
+                result.push_back(make_section(entry));
             }
         }
         return result;

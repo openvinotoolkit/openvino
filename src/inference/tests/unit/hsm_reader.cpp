@@ -767,6 +767,38 @@ TEST(HsmReaderTest, decode_all_any_device_id_overload_matches_the_explicit_any_d
 // --- section_if/sections_if/decode_if/decode_all_if: allows retrieving or decoding sections based on the given
 // predicate ---------------------------------------------------------------------------------------------------
 
+TEST(HsmReaderTest, predicate_methods_queried_entry_not_found) {
+    const auto model_id_predicate = [&](const hsm::ManifestEntry& e) {
+        return e.device == hsm::any_device_id && e.tag.id() == hsm::model_id_tag.id() &&
+               e.tag_reserved == std::array<uint8_t, 4>{0xFF, 0xFF, 0xFF, 0xFF};
+    };
+    const hsm::SectionDecoder<std::vector<std::byte>> section_decoder =
+        [](const hsm::Section& section) -> std::optional<std::vector<std::byte>> {
+        return section.to_bytes();
+    };
+
+    auto blob = make_container({});
+    auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    ASSERT_FALSE(reader->section_if(model_id_predicate).has_value());
+    ASSERT_TRUE(reader->sections_if(model_id_predicate).empty());
+    ASSERT_FALSE(reader->decode_if(model_id_predicate, section_decoder).has_value());
+    ASSERT_TRUE(reader->decode_all_if(model_id_predicate, section_decoder).empty());
+
+    // Only the tag reserved bytes are not matching
+    blob = make_container(
+        {{make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {}, std::array<uint8_t, 4>{0xAA, 0xAA, 0xAA, 0xAA}),
+          {}}});
+    reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    ASSERT_FALSE(reader->section_if(model_id_predicate).has_value());
+    ASSERT_TRUE(reader->sections_if(model_id_predicate).empty());
+    ASSERT_FALSE(reader->decode_if(model_id_predicate, section_decoder).has_value());
+    ASSERT_TRUE(reader->decode_all_if(model_id_predicate, section_decoder).empty());
+}
+
 TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_reserved_but_different_tag) {
     std::array<uint8_t, 4> target_reserved_bytes{0xFF, 0xFF, 0xFF, 0xFF};
     std::vector<uint8_t> target_content{0xBB, 0xBB, 0xBB, 0xBB};
@@ -793,18 +825,18 @@ TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_reserved_but_di
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    // First test the "section" method
+    // The "section_if" method
     const auto model_id = reader->section_if(model_id_predicate);
     ASSERT_TRUE(model_id.has_value());
-    const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
+    auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
     ASSERT_EQ(model_id_view.size(), 24u);
     EXPECT_EQ(std::memcmp(model_id_view.data(), target_content.data(), target_content.size()), 0);
 
-    const auto model = reader->section_if(model_predicate);
+    auto model = reader->section_if(model_predicate);
     ASSERT_TRUE(model.has_value());
     EXPECT_TRUE(to_string(*model) == "payload2");
 
-    // Then the "decode" one
+    // decode_if
     const hsm::SectionDecoder<std::vector<std::byte>> section_decoder =
         [](const hsm::Section& section) -> std::optional<std::vector<std::byte>> {
         return section.to_bytes();
@@ -817,6 +849,27 @@ TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_reserved_but_di
     decode_result = reader->decode_if(model_predicate, section_decoder);
     ASSERT_TRUE(decode_result.has_value());
     EXPECT_TRUE(to_string(*decode_result) == "payload2");
+
+    // sections_if
+    auto sections = reader->sections_if(model_id_predicate);
+    ASSERT_TRUE(sections.size() == 1);
+    model_id_view = sections.at(0).view();  // inline - always viewable, even without a buffer
+    ASSERT_EQ(model_id_view.size(), 24u);
+    EXPECT_EQ(std::memcmp(model_id_view.data(), target_content.data(), target_content.size()), 0);
+
+    sections = reader->sections_if(model_predicate);
+    ASSERT_TRUE(sections.size() == 1);
+    EXPECT_TRUE(to_string(sections.at(0)) == "payload2");
+
+    // decode_all_if
+    auto decode_all_result = reader->decode_all_if(model_id_predicate, section_decoder);
+    ASSERT_TRUE(decode_all_result.size() == 1);
+    ASSERT_EQ(decode_all_result.at(0).size(), 24u);
+    EXPECT_EQ(std::memcmp(decode_all_result.at(0).data(), target_content.data(), target_content.size()), 0);
+
+    decode_all_result = reader->decode_all_if(model_predicate, section_decoder);
+    ASSERT_TRUE(decode_all_result.size() == 1);
+    EXPECT_TRUE(to_string(decode_all_result.at(0)) == "payload2");
 }
 
 TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_tag_and_reserved) {
@@ -844,20 +897,19 @@ TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_tag_and_reserve
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    // First test the "section" method
-    const auto model_id = reader->section_if(model_id_predicate);
+    // The "section_if" method
+    auto model_id = reader->section_if(model_id_predicate);
     ASSERT_TRUE(model_id.has_value());
-    const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
+    auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
     ASSERT_EQ(model_id_view.size(), 24u);
-    EXPECT_TRUE(std::memcmp(model_id_view.data(), target_content_1.data(), target_content_1.size()) == 0 ||
-                std::memcmp(model_id_view.data(), target_content_2.data(), target_content_2.size()) == 0);
+    EXPECT_TRUE(std::memcmp(model_id_view.data(), target_content_1.data(), target_content_1.size()) == 0);
 
-    const auto model = reader->section_if(model_predicate);
+    auto model = reader->section_if(model_predicate);
     ASSERT_TRUE(model.has_value());
     auto extracted_payload = to_string(*model);
     EXPECT_TRUE(extracted_payload == "payload2");
 
-    // Then the "decode" one
+    // decode_if
     const hsm::SectionDecoder<std::vector<std::byte>> section_decoder =
         [](const hsm::Section& section) -> std::optional<std::vector<std::byte>> {
         return section.to_bytes();
@@ -865,14 +917,43 @@ TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_tag_and_reserve
     auto decode_result = reader->decode_if(model_id_predicate, section_decoder);
     ASSERT_TRUE(decode_result.has_value());
     ASSERT_EQ(decode_result->size(), 24u);
-    EXPECT_TRUE(std::memcmp(decode_result->data(), target_content_1.data(), target_content_1.size()) == 0 ||
-                std::memcmp(decode_result->data(), target_content_2.data(), target_content_2.size()) == 0);
+    EXPECT_TRUE(std::memcmp(decode_result->data(), target_content_1.data(), target_content_1.size()) == 0);
 
     decode_result = reader->decode_if(model_predicate, section_decoder);
     ASSERT_TRUE(decode_result.has_value());
     extracted_payload = to_string(*decode_result);
     EXPECT_TRUE(extracted_payload == "payload2");
+
+    // sections_if
+    auto sections = reader->sections_if(model_id_predicate);
+    ASSERT_TRUE(sections.size() == 2);
+    auto model_id_1_view = sections.at(0).view();
+    ASSERT_EQ(model_id_1_view.size(), 24u);
+    EXPECT_TRUE(std::memcmp(model_id_1_view.data(), target_content_1.data(), target_content_1.size()) == 0);
+    auto model_id_2_view = sections.at(1).view();
+    ASSERT_EQ(model_id_2_view.size(), 24u);
+    EXPECT_TRUE(std::memcmp(model_id_2_view.data(), target_content_2.data(), target_content_2.size()) == 0);
+
+    sections = reader->sections_if(model_predicate);
+    ASSERT_TRUE(sections.size() == 2);
+    EXPECT_TRUE(to_string(sections.at(0)) == "payload2");
+    EXPECT_TRUE(to_string(sections.at(1)) == "payload3");
+
+    // decode_all_if
+    auto decode_all_result = reader->decode_all_if(model_id_predicate, section_decoder);
+    ASSERT_TRUE(decode_all_result.size() == 2);
+    ASSERT_EQ(decode_all_result.at(0).size(), 24u);
+    EXPECT_TRUE(std::memcmp(decode_all_result.at(0).data(), target_content_1.data(), target_content_1.size()) == 0);
+    ASSERT_EQ(decode_all_result.at(1).size(), 24u);
+    EXPECT_TRUE(std::memcmp(decode_all_result.at(1).data(), target_content_2.data(), target_content_2.size()) == 0);
+
+    decode_all_result = reader->decode_all_if(model_predicate, section_decoder);
+    ASSERT_TRUE(decode_all_result.size() == 2);
+    EXPECT_TRUE(to_string(decode_all_result.at(0)) == "payload2");
+    EXPECT_TRUE(to_string(decode_all_result.at(1)) == "payload3");
 }
+
+// negative case
 
 // --- Negative tests (Story 2 DoD: invalid header, invalid manifest, invalid offsets, unsupported
 // runtime requirements all reject at Reader::open(), before any section can be read) ------------------
