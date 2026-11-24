@@ -25,8 +25,7 @@ DisableFP16CompForGaussianTopK::DisableFP16CompForGaussianTopK() {
     auto mean = wrap_type<ov::op::v1::ReduceMean>({data, wrap_type<ov::op::v0::Constant>()}, type_matches(element::f32));
     auto deviation = wrap_type<ov::op::v1::Subtract>({data, mean}, type_matches(element::f32));
     auto squared_deviation = wrap_type<ov::op::v1::Multiply>({deviation, deviation}, type_matches(element::f32));
-    auto variance = wrap_type<ov::op::v1::ReduceMean>({squared_deviation, wrap_type<ov::op::v0::Constant>()},
-                                                      type_matches(element::f32));
+    auto variance = wrap_type<ov::op::v1::ReduceMean>({squared_deviation, wrap_type<ov::op::v0::Constant>()}, type_matches(element::f32));
     auto std_dev = wrap_type<ov::op::v0::Sqrt>({variance}, type_matches(element::f32));
     auto scaled_std_dev = wrap_type<ov::op::v1::Multiply>({std_dev, any_input()}, type_matches(element::f32));
     auto threshold = wrap_type<ov::op::v1::Add>({mean, scaled_std_dev}, type_matches(element::f32));
@@ -35,8 +34,9 @@ DisableFP16CompForGaussianTopK::DisableFP16CompForGaussianTopK() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto sparsified_node = pattern_map.at(sparsified).get_node_shared_ptr();
-        if (transformation_callback(sparsified_node))
+        if (transformation_callback(sparsified_node)) {
             return false;
+        }
 
         const auto mean_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pattern_map.at(mean).get_node_shared_ptr());
         const auto deviation_node = pattern_map.at(deviation).get_node_shared_ptr();
@@ -49,12 +49,14 @@ DisableFP16CompForGaussianTopK::DisableFP16CompForGaussianTopK() {
         const bool is_gaussian_topk = squared_deviation_node->input_value(0) == squared_deviation_node->input_value(1) &&
                                       (threshold_node->input_value(0) == deviation_mean || threshold_node->input_value(1) == deviation_mean) &&
                                       mean_node->get_reduction_axes() == variance_node->get_reduction_axes();
-        if (!is_gaussian_topk)
+        if (!is_gaussian_topk) {
             return false;
+        }
 
         // mean and deviation cannot overflow; ConvertPrecision propagates the fp32 mark up to them from the nodes below.
-        for (const auto& pattern : {squared_deviation, variance, std_dev, scaled_std_dev, threshold})
+        for (const auto& pattern : {squared_deviation, variance, std_dev, scaled_std_dev, threshold}) {
             ov::disable_conversion(pattern_map.at(pattern).get_node_shared_ptr(), element::f16);
+        }
         return false;
     };
 
