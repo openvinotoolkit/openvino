@@ -542,6 +542,9 @@ void Constant::update_identical_flags(bool is_checked, bool identical_value) con
 }
 
 void Constant::validate_and_infer_types() {
+    const auto valid_byte_strides =
+        !ov::util::can_compute_byte_strides(m_element_type, m_shape) || m_byte_strides.size() == m_shape.size();
+    NODE_VALIDATION_CHECK(this, valid_byte_strides, "Invalid Constant: byte strides do not match its shape.");
     set_output_type(0, m_element_type, m_shape);
 }
 
@@ -554,9 +557,12 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
 
     const auto need_to_reallocate = (m_shape != prev_shape) || (prev_type != m_element_type);
     const auto is_string_constant = (m_element_type == element::string);
-    if (m_alloc_buffer_on_visit_attributes && need_to_reallocate) {
-        // string objects initialization is required, others filling in a fresh constant
-        allocate_buffer(is_string_constant);
+    if (need_to_reallocate) {
+        m_byte_strides = calc_byte_strides(m_shape, m_element_type);
+        if (m_alloc_buffer_on_visit_attributes) {
+            // string objects initialization is required, others filling in a fresh constant
+            allocate_buffer(is_string_constant);
+        }
     }
 
     if (is_string_constant) {
