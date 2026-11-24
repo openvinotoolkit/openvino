@@ -472,13 +472,39 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     // Both FP (FC_ACC_TYPE = float) and quantized (INT32) paths use 4-byte accumulators
     // plus tile-local ACCUMULATOR_VEC_TYPE partial sums (acc_tmp).
     unsigned acc_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(Datatype::F32);
-    unsigned acc_tmp_elem_bytes = (params.quantization != QuantizationType::NONE) ? BytesPerElement(Datatype::INT32)
-                                                                                  : BytesPerElement(params.inputs[0].GetDType());
-    unsigned acc_tmp_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * acc_tmp_elem_bytes;
-    unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
-    unsigned wei_register_bytes = tparams.tile_ofm * tparams.tile_k * simd * BytesPerElement(params.weights.GetDType());
-
-    unsigned total_register_bytes = acc_register_bytes + acc_tmp_register_bytes + in_register_bytes + wei_register_bytes;
+    auto in_dt = params.inputs[0].GetDType();
+    auto wei_dt = params.weights.GetDType();
+    bool quantized_inputs = in_dt == Datatype::UINT8 || in_dt == Datatype::INT8;
+    bool quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;
+    Datatype acc_tmp_dt = in_dt;
+    if (params.quantization != QuantizationType::NONE || (quantized_inputs && quantized_weights)) {
+        acc_tmp_dt = Datatype::INT32;
+    } else if ((quantized_inputs || quantized_weights) && !params.compressed) {
+        acc_tmp_dt = Datatype::F32;
+    }
+    bool input_has_feature_pad =
+        params.outputs[0].GetLayout() == DataLayout::bfyx &&
+        (params.is_shape_agnostic || params.inputs[0].PitchesDifferFromLogicalDims() ||
+         params.inputs[0].Feature().pad.Total() != 0 || params.inputs[0].has_dynamic_pad());
+    bool use_streaming_hybrid_acc = !params.compressed && tparams.kernel_type != FullyConnected_bf_tiled::KernelType::SLM &&
+                                    params.quantization == QuantizationType::NONE && acc_tmp_dt == Datatype::F16 &&
+                                    !input_has_feature_pad && tparams.tile_b > 8 && (tparams.tile_b % 2 == 0) &&
+                                    ((tparams.tile_ifm * simd) / tparams.tile_k <= 8);
+    unsigned total_register_bytes = 0;
+    if (use_streaming_hybrid_acc) {
+        // Streaming hybrid FP16 path caches K-tile weights in registers and streams 2 batch rows
+        // (double-buffered) with scalar pair acc_tmp, keeping TB=16 inside 128-GRF headroom.
+        unsigned wei_cache_bytes = ((tparams.tile_ifm * simd) / tparams.tile_k) * tparams.tile_ofm * tparams.tile_k * simd *
+                                   BytesPerElement(params.weights.GetDType());
+        unsigned in_pair_bytes = 4 * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
+        unsigned acc_tmp_pair_bytes = 2 * tparams.tile_ofm * simd * BytesPerElement(acc_tmp_dt);
+        total_register_bytes = acc_register_bytes + wei_cache_bytes + in_pair_bytes + acc_tmp_pair_bytes;
+    } else {
+        unsigned acc_tmp_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(acc_tmp_dt);
+        unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
+        unsigned wei_register_bytes = tparams.tile_ofm * tparams.tile_k * simd * BytesPerElement(params.weights.GetDType());
+        total_register_bytes = acc_register_bytes + acc_tmp_register_bytes + in_register_bytes + wei_register_bytes;
+    }
     unsigned max_register_bytes = 128 * 32;
 
     return total_register_bytes <= max_register_bytes;
@@ -591,15 +617,13 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
     } else {
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
-            // Keep tile_b <= 8 with 4-byte FP32 running accumulators (FC_ACC_TYPE) + tile-local acc_tmp
-            // to stay within 128-GRF occupancy headroom on non-XMX GPUs.
             selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 8, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 8, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 2, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 2, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
         } else if (dtype == Datatype::F32) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
@@ -852,11 +876,14 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     // for 3d output we are treating spatial as features
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         auto tile_in_b_pitch = (params.inputs[0].Feature().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Feature().pitch;
+        bool input_has_feature_pad = params.is_shape_agnostic || params.inputs[0].PitchesDifferFromLogicalDims() ||
+                                     params.inputs[0].Feature().pad.Total() != 0 || params.inputs[0].has_dynamic_pad();
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Y().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Y().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
+        jit.AddConstant(MakeJitConstant("INPUT0_HAS_FEATURE_PAD", input_has_feature_pad));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM * OUTPUT_FEATURE_NUM)"));
     } else {
         auto tile_in_b_pitch = (params.inputs[0].Batch().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Batch().pitch;
@@ -864,6 +891,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Batch().pitch));
+        jit.AddConstant(MakeJitConstant("INPUT0_HAS_FEATURE_PAD", false));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
     }
     auto batch_size = get_input_bf_size(params).first;
