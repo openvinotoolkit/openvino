@@ -1408,12 +1408,19 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         try {
             run_alias_oracle(nullptr);
         } catch (const std::exception& e) {
-            _alias_oracle_report = std::make_unique<alias_oracle_report>();
-            _alias_oracle_report->skipped_reason = std::string("exception: ") + e.what();
-            GPU_DEBUG_LOG << "[alias_oracle] " << _alias_oracle_report->skipped_reason << std::endl;
+            // nothing in here may throw (an allocation failure included): reset_flags below must run
+            try {
+                _alias_oracle_report = std::make_unique<alias_oracle_report>();
+                _alias_oracle_report->skipped_reason = std::string("exception: ") + e.what();
+                GPU_DEBUG_LOG << "[alias_oracle] " << _alias_oracle_report->skipped_reason << std::endl;
+            } catch (...) {
+            }
         } catch (...) {
-            _alias_oracle_report = std::make_unique<alias_oracle_report>();
-            _alias_oracle_report->skipped_reason = "exception: unknown";
+            try {
+                _alias_oracle_report = std::make_unique<alias_oracle_report>();
+                _alias_oracle_report->skipped_reason = "exception: unknown";
+            } catch (...) {
+            }
         }
     }
 

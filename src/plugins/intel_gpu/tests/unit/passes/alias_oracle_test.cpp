@@ -702,3 +702,37 @@ TEST(alias_oracle, AB_dynamic_concat_is_neutral) {
         n.set_input_data("in2", filled(eng, layout{ov::PartialShape(rounds[i].second), data_types::f32, format::bfyx}, 2.f));
     }, static_cast<int>(rounds.size()), {"output"}, "dynamic_concat");
 }
+
+// A member that sits in a cl_mem allocation is unverifiable (counted, no defect, no assert from engine::is_the_same_buffer)
+TEST(alias_oracle, O11_cl_mem_member_is_unverifiable_not_a_defect) {
+    auto& eng = get_test_engine();
+    auto prog = program::build_program(eng, concat_crop_topology(), make_cfg(eng), false, false);
+    network net(prog, 0);
+    set_concat_crop_inputs(eng, net);
+    net.execute();
+    const auto* aa = prog->get_alias_analysis();
+    const alias_edge* victim = nullptr;
+    for (const auto& e : aa->edges()) {
+        const auto inst = net.get_primitive(e.member_node->id());
+        if (e.act == edge_activity::ALWAYS && inst && !inst->get_flag(ExecutionFlags::SKIP) && inst->output_memory_ptr(e.member_port)) {
+            victim = &e;
+            break;
+        }
+    }
+    ASSERT_NE(victim, nullptr);
+    auto inst = net.get_primitive(victim->member_node->id());
+    memory::ptr clm;
+    try {
+        clm = eng.allocate_memory(inst->output_memory_ptr(victim->member_port)->get_layout(), allocation_type::cl_mem);
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << "cl_mem allocation is not available: " << e.what();
+    }
+    if (clm->get_allocation_type() != allocation_type::cl_mem) {
+        GTEST_SKIP() << "the engine did not return a cl_mem allocation";
+    }
+    inst->set_output_memory(clm, false, victim->member_port);
+    net.run_alias_oracle_for_test();
+    const auto& rep = *net.get_alias_oracle_report();
+    EXPECT_EQ(rep.count(rule_id::V3, severity::defect), 0u) << dump(rep);
+    EXPECT_GE(rep.v3_unverifiable, 1u) << dump(rep);
+}

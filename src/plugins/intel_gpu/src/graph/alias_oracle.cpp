@@ -48,18 +48,17 @@ bool usm_range(const memory& m, uintptr_t& lo, uintptr_t& hi) {
 
 enum class share_result { yes, no, unknown };
 
-share_result shares_allocation(const engine& eng, const memory& a, const memory& b) {
+share_result shares_allocation(const engine&, const memory& a, const memory& b) {
     if (a.size() == 0 || b.size() == 0) {
         return share_result::unknown;
     }
-    if (eng.is_the_same_buffer(a, b)) {
-        return share_result::yes;
-    }
+    // Only plain USM pointer ranges are comparable. cl_mem / images / sub-buffers are unverifiable: engine::is_the_same_buffer is not called
+    // for them (it goes through the buffer accessors, which assert on locked buffers in Debug builds).
     uintptr_t alo, ahi, blo, bhi;
     if (usm_range(a, alo, ahi) && usm_range(b, blo, bhi)) {
         return (alo < bhi && blo < ahi) ? share_result::yes : share_result::no;
     }
-    return share_result::unknown;   // cl_mem sub-buffers, images, ...
+    return share_result::unknown;
 }
 
 struct tensor_rec {
@@ -218,6 +217,14 @@ void network::run_alias_oracle(const exec_axis* axis_override) {
         return own;
     };
 
+    std::unordered_map<const memory*, std::vector<size_t>> pool_cache;
+    auto pool_users = [&](const memory& m) -> const std::vector<size_t>& {
+        auto it = pool_cache.find(&m);
+        if (it == pool_cache.end()) {
+            it = pool_cache.emplace(&m, get_memory_pool().get_user_uids(m, get_id())).first;
+        }
+        return it->second;
+    };
     for (size_t i = 0; i < recs.size(); ++i) {
         for (size_t j = i + 1; j < recs.size() && recs[j].lo < recs[i].hi; ++j) {
             const auto& a = recs[i];
@@ -234,8 +241,8 @@ void network::run_alias_oracle(const exec_axis* axis_override) {
             const size_t ua = allocator_uid(a);
             const size_t ub = allocator_uid(b);
             std::set<size_t> block;
-            for (const auto* t : {&a, &b}) {   // N6: union over both memory objects
-                for (const auto uid : get_memory_pool().get_user_uids(*t->mem, get_id())) {
+            for (const auto* t : {&a, &b}) {   // N6: union over both memory objects; the pool is scanned once per memory object
+                for (const auto uid : pool_users(*t->mem)) {
                     block.insert(uid);
                 }
             }

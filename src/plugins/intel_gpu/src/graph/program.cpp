@@ -842,11 +842,17 @@ void program::prepare_memory_dependencies() {
                 *report = validate_alias_rules(*this, *_alias_analysis);
             }
         } catch (const std::exception& e) {
-            *report = alias_validation_report{};
-            report->skipped_reason = std::string("exception: ") + e.what();
+            try {
+                *report = alias_validation_report{};
+                report->skipped_reason = std::string("exception: ") + e.what();
+            } catch (...) {
+            }
         } catch (...) {
-            *report = alias_validation_report{};
-            report->skipped_reason = "exception: unknown";
+            try {
+                *report = alias_validation_report{};
+                report->skipped_reason = "exception: unknown";
+            } catch (...) {
+            }
         }
         GPU_DEBUG_LOG << report->summary() << std::endl;
         _alias_validation_report = std::move(report);

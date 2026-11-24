@@ -75,7 +75,7 @@ bool registered_writer(const alias_analysis& aa, const storage_key& key, const p
 // ------------------------------------------------------------------------------------------------------------------------------
 // version set BFS (Appendix B2)
 // ------------------------------------------------------------------------------------------------------------------------------
-enum class vstate : uint8_t { EQUAL, CONTAINED, COVERING, OVERLAP };
+enum class vstate : uint8_t { EQUAL, CONTAINED, COVERING, COVERING_VIA_SLOT, OVERLAP };
 
 struct vnode {
     tkey t;
@@ -160,6 +160,10 @@ war_result war_safe(const alias_analysis& aa, const exec_axis& axis, const war_q
     }
     const auto wpos = axis.position(W);
     res.writer_pos = wpos ? static_cast<int64_t>(*wpos) : -1;
+    if (order_ok && !wpos) {
+        reasons |= wr_writer_off_axis;   // no position for the writer: lateness of readers cannot be judged, never Safe
+        order_ok = false;
+    }
 
     // 3. version set. A version boundary is an in-place edge or an edge whose member is a registered in-place writer (kv cbo view edge).
     auto is_boundary = [&](const alias_edge& e) {
@@ -210,8 +214,17 @@ war_result war_safe(const alias_analysis& aa, const exec_axis& axis, const war_q
                 continue;
             }
             vstate nst;
-            if (st == vstate::EQUAL || st == vstate::COVERING) {
-                nst = e.off == offset_tag::ZERO ? st : vstate::COVERING;
+            const bool static_slot = e.origin == edge_origin::concat_slot && e.off == offset_tag::LAYOUT_PADDING && e.act == edge_activity::ALWAYS;
+            if (st == vstate::EQUAL || st == vstate::COVERING || st == vstate::COVERING_VIA_SLOT) {
+                // COVERING_VIA_SLOT (the only state that allows sibling pruning) is reached only through a static concat slot edge going up;
+                // any other edge (view, crop, runtime slot) gives plain COVERING, whose relation to the siblings of a holder is unknown.
+                if (static_slot) {
+                    nst = vstate::COVERING_VIA_SLOT;
+                } else if (st == vstate::COVERING_VIA_SLOT) {
+                    nst = vstate::COVERING;
+                } else {
+                    nst = e.off == offset_tag::ZERO ? st : vstate::COVERING;
+                }
             } else {
                 nst = vstate::OVERLAP;
             }
@@ -227,10 +240,10 @@ war_result war_safe(const alias_analysis& aa, const exec_axis& axis, const war_q
             if (on_path(static_cast<int32_t>(cur), m)) {
                 continue;   // reached already, through the chain that led here
             }
-            if (st == vstate::COVERING && e.origin == edge_origin::concat_slot && e.off == offset_tag::LAYOUT_PADDING && e.act == edge_activity::ALWAYS) {
+            if (st == vstate::COVERING_VIA_SLOT && e.origin == edge_origin::concat_slot && e.off == offset_tag::LAYOUT_PADDING && e.act == edge_activity::ALWAYS) {
                 continue;   // static sibling slots do not intersect the slot the walk came from
             }
-            push(m, (st == vstate::COVERING || st == vstate::OVERLAP) ? vstate::OVERLAP : vstate::CONTAINED, static_cast<int32_t>(cur));
+            push(m, (st == vstate::COVERING || st == vstate::COVERING_VIA_SLOT || st == vstate::OVERLAP) ? vstate::OVERLAP : vstate::CONTAINED, static_cast<int32_t>(cur));
         }
     }
     std::set<tkey> version;
@@ -358,7 +371,9 @@ std::vector<war_query> enumerate_inplace_writers(const alias_analysis& aa) {
     }
     for (const auto& b : aa.persistent_bindings()) {
         for (const auto& w : b.writers) {
-            if (w.kind == persistent_writer_kind::assign_copy && seen.insert({w.writer, 0}).second) {
+            // assign (copy writer) and kv_cache (always counted as in place, also when it is a cbo node with only a view edge)
+            const bool counted = w.kind == persistent_writer_kind::assign_copy || w.kind == persistent_writer_kind::kv_cache_inplace;
+            if (counted && seen.insert({w.writer, 0}).second) {
                 out.push_back(war_query{w.writer, 0, w.port});
             }
         }
@@ -518,7 +533,6 @@ alias_validation_report validate_alias_rules(const program& p, const alias_analy
 
         bool all_must = true;
         for (const auto& m : cls.members) {
-            all_must = all_must && !is_persistent_type(*m.node);   // state aliasing legitimately grows beyond the variable layout
             if (m.edge_count > 1) {
                 add_hit(rule_id::R2, severity::info, m.node, nullptr, m.id.index, "multi_edge");
             }
@@ -698,7 +712,7 @@ alias_validation_report validate_alias_rules(const program& p, const alias_analy
                 }
             }
             if (all_known && biggest_bytes > root_bytes) {
-                add_hit(rule_id::V1, all_must ? severity::defect : severity::info, biggest, cls.root_node, 0, "member bytes > root bytes");
+                add_hit(rule_id::V1, (all_must && !is_persistent_type(*biggest)) ? severity::defect : severity::info, biggest, cls.root_node, 0, "member bytes > root bytes");
             }
         }
     }

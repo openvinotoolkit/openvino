@@ -414,20 +414,13 @@ TEST(alias_validation, E1_kv_lora_stateless_assign) {
         EXPECT_EQ(aa.binding_written_by(prog->get_node("kv")), nullptr);
         EXPECT_NE(aa.class_of(prog->get_node("kv"))->role_conflict_causes & rc_opaque, 0u);
     }
-    {   // N3: compressed kv_cache: record what the engine sees (port count) and the state port writers
-        auto t = kv_topology(false, "v0", "v0");
-        auto prog = make_hand(eng, t, {"O"});
+    {   // compressed kv_cache: all ports are opaque. NOT COVERED / NOT VERIFIED: whether get_outputs_count() of a real compressed kv_cache is 4
+        // (the hand graph reports 1 because num_outputs is not set by the primitive); the state port writers (ports 2, 3) are therefore not
+        // asserted here, only the opaque marking and the registration of the in-place writer.
+        auto prog = make_hand(eng, kv_topology(false, "v0", "v0"), {"O"});
         const_cast<kv_cache&>(*std::static_pointer_cast<const kv_cache>(prog->get_node("kv").get_primitive())).compressed = true;
         auto aa = alias_analysis::build(*prog);
-        const size_t outs = prog->get_node("kv").get_outputs_count();
-        std::cout << "[N3] compressed kv_cache get_outputs_count()=" << outs << std::endl;
-        const auto* b = aa.binding_written_by(prog->get_node("kv"));
-        ASSERT_NE(b, nullptr);
-        size_t state_ports = 0;
-        for (const auto& w : b->writers) {
-            state_ports += w.kind == persistent_writer_kind::kv_cache_state_port ? 1 : 0;
-        }
-        EXPECT_EQ(state_ports, outs > 2 ? outs - 2 : 0u);
+        ASSERT_NE(aa.binding_written_by(prog->get_node("kv")), nullptr);
         EXPECT_TRUE(aa.tensor_is_opaque(prog->get_node("kv"), 0));
     }
     {   // lora
@@ -1743,14 +1736,127 @@ TEST(alias_validation, program_wiring_and_switch) {
         ExecutionConfig cfg = get_test_default_config(eng);
         cfg.set_property(ov::intel_gpu::enable_alias_shadow_validation(true));
         auto body = program::build_program(eng, topo(), cfg, false, false, /*is_body_program=*/true);
-        if (const auto* rep = body->get_alias_validation_report()) {
-            EXPECT_FALSE(rep->ran);
-            EXPECT_EQ(rep->skipped_reason, "body");
-        }
+        const auto* body_rep = body->get_alias_validation_report();
+        ASSERT_NE(body_rep, nullptr) << "a body program must carry a (skipped) report when the switch is on";
+        EXPECT_FALSE(body_rep->ran);
+        EXPECT_EQ(body_rep->skipped_reason, "body");
         auto internal = program::build_program(eng, topo(), cfg, /*is_internal=*/true, false);
-        if (const auto* rep = internal->get_alias_validation_report()) {
-            EXPECT_FALSE(rep->ran);
-            EXPECT_EQ(rep->skipped_reason, "internal");
+        const auto* internal_rep = internal->get_alias_validation_report();
+        ASSERT_NE(internal_rep, nullptr) << "an internal program must carry a (skipped) report when the switch is on";
+        EXPECT_FALSE(internal_rep->ran);
+        EXPECT_EQ(internal_rep->skipped_reason, "internal");
+    }
+}
+
+
+// ==============================================================================================================================
+// P0.5b-4: X1 (COVERING_VIA_SLOT) and hardening
+// ==============================================================================================================================
+namespace {
+// S1, S2 -> C (static in-place holder). K = crop(C) covering the bytes of S1 (or crop(R) with R a ZERO view of C).
+// W writes K in place, Z is a second reader of S1 that runs after W, O (reader of C) runs before W.
+program::ptr x1_graph(engine& eng, bool via_reshape, bool z_late) {
+    topology t;
+    t.add(input_layout("in1", f32_l()));
+    t.add(input_layout("in2", f32_l()));
+    t.add(activation("S1", input_info("in1"), activation_func::relu));
+    t.add(activation("S2", input_info("in2"), activation_func::abs));
+    t.add(concatenation("C", {input_info("S1"), input_info("S2")}, 1, data_types::f32));
+    t.add(activation("O", input_info("C"), activation_func::abs));
+    if (via_reshape) {
+        t.add(activation("R", input_info("C"), activation_func::abs));
+        t.add(crop("K", input_info("R"), tensor(1, 4, 8, 8), tensor(0, 0, 0, 0)));
+    } else {
+        t.add(crop("K", input_info("C"), tensor(1, 4, 8, 8), tensor(0, 0, 0, 0)));
+    }
+    t.add(activation("W", input_info("K"), activation_func::abs));
+    t.add(activation("Z", input_info("S1"), activation_func::abs));
+    auto prog = make_hand(eng, t, {"O", "W", "Z"});
+    prog->get_node("C").can_be_optimized(true);
+    prog->get_node("K").can_be_optimized(true);
+    if (via_reshape) {
+        prog->get_node("R").can_be_optimized(true);
+        force_order(*prog, z_late ? std::vector<std::string>{"S1", "S2", "C", "O", "R", "K", "W", "Z"} : std::vector<std::string>{"S1", "S2", "C", "O", "R", "K", "Z", "W"});
+    } else {
+        force_order(*prog, z_late ? std::vector<std::string>{"S1", "S2", "C", "O", "K", "W", "Z"} : std::vector<std::string>{"S1", "S2", "C", "O", "K", "Z", "W"});
+    }
+    return prog;
+}
+}  // namespace
+
+TEST(alias_validation, W23_crop_of_a_static_holder_written_in_place_sees_late_slot_readers) {
+    auto& eng = get_test_engine();
+    for (const bool via_reshape : {false, true}) {   // W23 and W23b (crop o view)
+        auto prog = x1_graph(eng, via_reshape, true);
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe) << "via_reshape=" << via_reshape;
+        EXPECT_REASON(r, wr_late_reader);
+        bool z = false;
+        for (const auto& w : r.res.witnesses) {
+            z = z || w.reader == &prog->get_node("Z");
         }
+        EXPECT_TRUE(z) << "via_reshape=" << via_reshape << " " << why(r.res);
+        // control: Z before the writer: nothing late
+        auto ok = x1_graph(eng, via_reshape, false);
+        auto r2 = war_of(*ok, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r2, war_verdict::Safe) << "via_reshape=" << via_reshape;
+    }
+}
+
+TEST(alias_validation, W24_writer_without_a_position_is_never_safe) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, fan_topology(false), fan_outs(false));
+    std::unordered_map<const program_node*, uint32_t> pos{{&prog->get_node("P"), 0}};   // W is missing from the axis
+    const auto axis = exec_axis::for_test(exec_axis::status::ok, pos);
+    auto r = war_of(*prog, "W", 0, {{"W", 0}}, &axis);
+    EXPECT_VERDICT(r, war_verdict::Unknown);
+    EXPECT_REASON(r, wr_writer_off_axis);
+    // with the writer on the axis the same graph is Safe
+    auto ok = war_of(*prog, "W", 0, {{"W", 0}});
+    EXPECT_VERDICT(ok, war_verdict::Safe);
+}
+
+TEST(alias_validation, W25_cbo_kv_cache_is_enumerated_as_an_in_place_writer) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, kv_topology(false, "v0", "v0"), {"O"});
+    prog->get_node("kv").can_be_optimized(true);   // only a MUST_VIEW edge, no in-place edge
+    prog->get_node("rv").set_preferred_impl_type(impl_types::cpu);
+    auto aa = alias_analysis::build(*prog);
+    for (const auto& e : aa.edges()) {
+        EXPECT_NE(e.kind, alias_kind::MAY_INPLACE) << "precondition: no in-place edge for the cbo kv_cache";
+    }
+    const auto writers = enumerate_inplace_writers(aa);
+    ASSERT_EQ(writers.size(), 1u);
+    EXPECT_EQ(writers[0].writer, &prog->get_node("kv"));
+    auto rep = validate_alias_rules(*prog, aa);
+    ASSERT_EQ(rep.war.size(), 1u);
+    EXPECT_EQ(rep.war[0].r.verdict, war_verdict::Unknown) << why(rep.war[0].r);
+    EXPECT_NE(rep.war[0].r.reasons & wr_cpu_member, 0u);
+}
+
+TEST(alias_validation, V1_persistent_class_downgrade_only_when_the_biggest_member_is_persistent) {
+    auto& eng = get_test_engine();
+    auto build = [&](bool with_big_view) {
+        topology t = kv_topology(false, "v0", "v0");
+        if (with_big_view) {
+            t.add(reorder("RR", input_info("kv"), format::bfyx, data_types::f32));   // twice the bytes of the f16 kv output: a non persistent member
+        }
+        auto prog = make_hand(eng, t, with_big_view ? std::vector<std::string>{"O", "RR"} : std::vector<std::string>{"O"});
+        prog->get_node("kv").can_be_optimized(true);
+        if (with_big_view) {
+            prog->get_node("RR").can_be_optimized(true);
+        }
+        return prog;
+    };
+    {   // biggest member is the kv_cache itself (legal state aliasing): info
+        auto prog = build(false);
+        auto rep = validate(*prog);
+        EXPECT_EQ(rep.count(rule_id::V1, severity::defect), 0u) << hits_str(rep);
+        EXPECT_GE(rep.count(rule_id::V1, severity::info), 1u) << hits_str(rep);
+    }
+    {   // a non persistent MUST member beyond the root: defect
+        auto prog = build(true);
+        auto rep = validate(*prog);
+        EXPECT_EQ(rep.count(rule_id::V1, severity::defect), 1u) << hits_str(rep);
     }
 }

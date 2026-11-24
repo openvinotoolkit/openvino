@@ -48,12 +48,13 @@ enum war_reason : uint32_t {
     wr_ctrl_flow_reader = 1u << 18,
     wr_runtime_guarded = 1u << 19,
     wr_bad_query = 1u << 20,             // dependency index / tensor not part of the analysed graph
+    wr_writer_off_axis = 1u << 21,       // the writer has no position on a valid axis: no order check is possible
     // Safe annotation
     wr_no_other_reader = 1u << 24,
 };
 
 constexpr uint32_t war_unsafe_mask = wr_late_reader | wr_self_read_other_port | wr_visible_version | wr_external_root | wr_persistent_unregistered;
-constexpr uint32_t war_unknown_mask = 0x001fff00u;   // bits 8..20
+constexpr uint32_t war_unknown_mask = 0x003fff00u;   // bits 8..21
 
 struct war_query {
     const program_node* writer = nullptr;
