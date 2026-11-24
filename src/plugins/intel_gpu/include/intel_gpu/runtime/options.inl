@@ -63,6 +63,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, optimize_data, false, "Enable/Disable data flow optimizations for cldnn::program")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_memory_pool, true, "Enable/Disable memory pool usage")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_concat_holder_pool, false, "P1-B-S: admit static in-place Concat holders to the memory pool as alias-class roots (class-level restrictions). Not part of the model cache key")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_dynamic_concat_holder_pool, false, "P1-B-D: also admit dynamic in-place Concat holders to the memory pool (only effective together with enable_concat_holder_pool). Not part of the model cache key")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_static_input_reorder, false, "Controls if weights tensors can be reordered during model compilation to more friendly layout for specific kernel")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, custom_outputs, std::vector<std::string>{}, "List of output primitive names")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, force_implementations, ImplForcingMap{}, "Specifies the list of forced implementations for the primitives")

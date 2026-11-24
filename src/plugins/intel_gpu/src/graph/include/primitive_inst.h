@@ -410,6 +410,9 @@ public:
     // to the old inline predicate.
     enum class alloc_route { LEGACY_POOL, DIRECT, POOL_AS_ROOT, ZERO_ALLOC_MEMBER };
     static alloc_route allocation_route(const program_node& node, size_t port, bool runtime_cbo);
+    // P1-B-D: a layout a pooled dynamic holder (and its slot predecessors) may have: no padding in any dimension and a non-blocked format.
+    // `_dynamic_dims_mask` alone is not padding.
+    static bool holder_layout_is_plain(const layout& l);
 
     static memory::ptr allocate_output(engine& engine,
                                        memory_pool& pool,
@@ -561,6 +564,14 @@ protected:
     void update_impl(bool use_async_compilation);
     bool try_bind_remote_permute_output(const layout& actual_layout);
     void realloc_if_needed(bool prev_execution_skipped = false);
+    // P1-B-D: true for a promoted dynamic in-place concat holder (concatenation && is_dynamic && is_pool_class_root && can_share_buffer && !is_output).
+    bool is_dynamic_pool_class_holder() const;
+    // P1-B-D: restore the slot binding of every predecessor after the holder output buffer may have changed. old_block: _outputs[0] before
+    // realloc_outputs() ran (may be null).
+    void rebind_concat_slots(const memory::ptr& old_block);
+#ifndef NDEBUG
+    bool _dbg_enqueued_this_round = false;  // set in execute() when a kernel is enqueued, cleared in reset_flags()
+#endif
     void realloc_outputs(bool prev_execution_skipped = false);
     void realloc_outputs_for_stateless_kv();
     void realloc_intermediates();

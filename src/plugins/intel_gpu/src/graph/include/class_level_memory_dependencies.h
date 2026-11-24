@@ -42,6 +42,8 @@ enum pool_reject : uint32_t {
     rj_external_root = 1u << 10,     // L1-10: member is an external buffer root
     rj_shape_of_reader = 1u << 11,   // L1-11: reader in a shape_of subgraph
     rj_duplicate_root_dep = 1u << 12, // L1-12: the same producer node feeds the root on several edges (any port); one slot cannot hold both
+    rj_holder_padding = 1u << 13,    // L1-13 (P1-B-D): dynamic holder or slot predecessor carries padding or a blocked format
+    rj_mixed_dynamic = 1u << 14,     // L1-5d (P1-B-D): static member or reader in a dynamic holder class
 };
 
 std::string to_string(uint32_t reject_mask);

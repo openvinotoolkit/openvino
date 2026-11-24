@@ -67,6 +67,8 @@ std::string to_string(uint32_t m) {
         {rj_external_root, "external_root"},
         {rj_shape_of_reader, "shape_of_reader"},
         {rj_duplicate_root_dep, "duplicate_root_dep"},
+        {rj_holder_padding, "holder_padding_or_blocked"},
+        {rj_mixed_dynamic, "mixed_dynamic"},
     };
     std::string s;
     for (const auto& n : names) {
@@ -91,8 +93,15 @@ uint32_t pool_admission_reject_mask(const alias_class& k, const program& p, cons
         m |= rj_placement;
     }
     const program_node* root = k.root_node;
+    // P1-B-D: a dynamic holder class is only admitted by the sub-switch (the main switch was checked by L1-0)
+    const bool dyn_root = root != nullptr && root->is_dynamic();
+    const bool dyn_ok = dyn_root && cfg.get_enable_dynamic_concat_holder_pool();
     // L1-2
     if (root == nullptr || !root->is_type<concatenation>() || !root->can_be_optimized() || k.root.index != 0) {
+        m |= rj_root_kind;
+    }
+    // L1-2 (dynamic): the holder is decided per round; only a runtime skippable concat can fall back to a non-fused execution
+    if (dyn_ok && !root->is_runtime_skippable()) {
         m |= rj_root_kind;
     }
     // L1-3: the holder must be a poolable node (defect B owner marking and outputs keep it off the pool)
@@ -131,12 +140,26 @@ uint32_t pool_admission_reject_mask(const alias_class& k, const program& p, cons
     for (const auto& mem : k.members) {
         const program_node& n = *mem.node;
         // L1-4
-        const bool kind_ok = (mem.kind == alias_kind::NONE && &n == root) || mem.kind == alias_kind::MUST_SUBREGION || mem.kind == alias_kind::MUST_VIEW;
+        bool kind_ok = (mem.kind == alias_kind::NONE && &n == root) || mem.kind == alias_kind::MUST_SUBREGION || mem.kind == alias_kind::MUST_VIEW;
+        if (dyn_ok) {
+            // P1-B-D: the envelope degrades the slot edges of a dynamic holder to MAY_SUBREGION and the views of runtime skippable readers to
+            // MAY_VIEW (output members are rejected by L1-1 through the placement)
+            kind_ok = (mem.kind == alias_kind::NONE && &n == root) ||
+                      (mem.kind == alias_kind::MAY_SUBREGION && program_helpers::in_place_concat_holder_of(n) == root) || mem.kind == alias_kind::MAY_VIEW;
+        }
         if (!kind_ok) {
             m |= rj_member_kind;
         }
         // L1-5
-        if (n.is_dynamic() || n.is_runtime_skippable()) {
+        if (dyn_ok) {
+            if (!n.is_dynamic()) {
+                m |= rj_mixed_dynamic;  // runtime skippable members are allowed in a dynamic class
+            }
+            // L1-13: every byte read from the fused block must be written by a slot this round: no padding, no blocked format
+            if ((&n == root || mem.kind == alias_kind::MAY_SUBREGION) && !primitive_inst::holder_layout_is_plain(n.get_output_layout(0))) {
+                m |= rj_holder_padding;
+            }
+        } else if (n.is_dynamic() || n.is_runtime_skippable()) {
             m |= rj_dynamic;
         }
         // L1-6
@@ -161,8 +184,12 @@ uint32_t pool_admission_reject_mask(const alias_class& k, const program& p, cons
         }
     }
     for (const auto* r : k.readers) {
-        // L1-5: a dynamic reader may re-decide at runtime (pushed to P1-B-D)
-        if (r->is_dynamic()) {
+        // L1-5: a dynamic reader may re-decide at runtime (admitted only by the P1-B-D sub-switch in a dynamic class)
+        if (dyn_ok) {
+            if (!r->is_dynamic()) {
+                m |= rj_mixed_dynamic;
+            }
+        } else if (r->is_dynamic()) {
             m |= rj_dynamic;
         }
         // L1-11
@@ -423,6 +450,9 @@ void class_level_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::ClassLevelMemoryDependencies");
     const auto& cfg = p.get_config();
     if (!cfg.get_enable_concat_holder_pool()) {
+        GPU_DEBUG_IF(cfg.get_enable_dynamic_concat_holder_pool()) {
+            GPU_DEBUG_LOG << "[class_level_memory_dependencies] enable_dynamic_concat_holder_pool ignored: enable_concat_holder_pool is off" << std::endl;
+        }
         return;
     }
     if (cfg.get_queue_type() != QueueTypes::in_order) {
@@ -499,6 +529,16 @@ void class_level_memory_dependencies::run(program& p) {
                 const auto route = primitive_inst::allocation_route(*m.node, 0, m.node->can_be_optimized());
                 if (m.node == promoted_src[i]->root_node) {
                     OPENVINO_ASSERT(route == primitive_inst::alloc_route::POOL_AS_ROOT, "[GPU] P1-B-S I-B2: root ", m.node->id(), " is not routed as pool root");
+                } else if (promoted_src[i]->root_node->is_dynamic()) {
+                    // P1-B-D I-B2 (dynamic class): slot predecessors are DIRECT (can_share_buffer(false)); MAY_VIEW members may allocate at runtime
+                    // under their own uid (LEGACY_POOL, class restrictions keep their uid and gain the root uid) but never as root / zero-alloc member.
+                    // This only covers the compile-time state; the runtime state is covered by the dynamic holder tests.
+                    if (m.kind == alias_kind::MAY_SUBREGION) {
+                        OPENVINO_ASSERT(route == primitive_inst::alloc_route::DIRECT,
+                                        "[GPU] P1-B-D I-B2: slot predecessor ", m.node->id(), " of class ", promoted_src[i]->root_node->id(), " is not DIRECT");
+                    }
+                    OPENVINO_ASSERT(route != primitive_inst::alloc_route::POOL_AS_ROOT && route != primitive_inst::alloc_route::ZERO_ALLOC_MEMBER,
+                                    "[GPU] P1-B-D I-B2: member ", m.node->id(), " of class ", promoted_src[i]->root_node->id(), " has a class route");
                 } else {
                     OPENVINO_ASSERT(route != primitive_inst::alloc_route::POOL_AS_ROOT && route != primitive_inst::alloc_route::LEGACY_POOL,
                                     "[GPU] P1-B-S I-B2: member ", m.node->id(), " of class ", promoted_src[i]->root_node->id(), " may call the pool");

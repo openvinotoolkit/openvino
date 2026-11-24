@@ -1122,6 +1122,8 @@ TEST(concat_holder_pool_hand, m1_reshape_predecessor_is_not_zero_alloc) {
 }
 
 // TB22. A dynamic reader of a static holder: the class is not promoted (decision moved to P1-B-D), outputs are identical.
+// P1-B-D note (dynamic_concat_holder_pool_test.cpp, TD15): this stays true after P1-B-D, with or without enable_dynamic_concat_holder_pool: the
+// sub-switch only admits classes whose ROOT is dynamic; a class with a static root keeps the static L1-5 rule (any dynamic reader sets rj_dynamic).
 TEST(concat_holder_pool, tb22_dynamic_reader_keeps_the_legacy_path) {
     auto& eng = get_test_engine();
     auto mk = []() {

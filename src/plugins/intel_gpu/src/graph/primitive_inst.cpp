@@ -1747,8 +1747,72 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     _mem_allocated = true;
 }
 
+bool primitive_inst::is_dynamic_pool_class_holder() const {
+    return _node != nullptr && _node->is_type<concatenation>() && _node->is_dynamic() && _node->is_pool_class_root() && _node->can_share_buffer() &&
+           !_node->is_output();
+}
+
+void primitive_inst::rebind_concat_slots(const memory::ptr& old_block) {
+    auto& eng = get_network().get_engine();
+    const memory::ptr cur = _outputs.empty() ? nullptr : _outputs[0];
+    const bool changed = old_block && (!cur || !eng.is_the_same_buffer(*old_block, *cur));
+    const bool fused = can_be_optimized();
+    for (auto& d : _deps) {
+        primitive_inst* p = d.first;
+        if (p == nullptr || p->_outputs.empty()) {
+            continue;
+        }
+        memory::ptr& po = p->_outputs[0];
+        if (fused) {
+            // every predecessor, SKIP ones and those not yet prepared in this round included; same binding as the concat path of realloc_outputs()
+            if (cur && (!po || !eng.is_the_same_buffer(*po, *cur))) {
+#ifndef NDEBUG
+                // A4: the holder block must not change after a non-SKIP predecessor was enqueued in this round
+                OPENVINO_ASSERT(!changed || p->get_flag(ExecutionFlags::SKIP) || !p->_dbg_enqueued_this_round,
+                                "[GPU] P1-B-D A4: holder ", id(), " changed its block after predecessor ", p->id(), " was enqueued in this round");
+#endif
+                po = cur;
+                p->set_flag(ExecutionFlags::MEMORY_CHANGED);
+            }
+        } else if (changed && cur && po && eng.is_the_same_buffer(*po, *old_block)) {
+#ifndef NDEBUG
+            // A3(b): only a predecessor with a zero-count layout this round (SKIP) may still alias the old block
+            OPENVINO_ASSERT(!p->_impl_params->get_output_layout().is_static() || p->_impl_params->get_output_layout().count() == 0,
+                            "[GPU] P1-B-D A3(b): non-empty predecessor ", p->id(), " of non-fused holder ", id(), " still aliases the replaced holder block");
+#endif
+            // A3(a): re-point to the holder's CURRENT block with count 0: no untracked orphan of old_block, never reused as an own buffer
+            po = cur;
+            p->_max_output_layout_count[0] = 0;
+            p->set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+    }
+#ifndef NDEBUG
+    // I-B5D
+    for (auto& d : _deps) {
+        primitive_inst* p = d.first;
+        if (p == nullptr || p->_outputs.empty() || !p->_outputs[0] || !cur) {
+            continue;
+        }
+        if (fused) {
+            if (p->_impl_params->get_output_layout().is_static() && p->_impl_params->get_output_layout().count() > 0) {
+                OPENVINO_ASSERT(eng.is_the_same_buffer(*p->_outputs[0], *cur), "[GPU] P1-B-D I-B5D: fused holder ", id(), " predecessor ", p->id(),
+                                " is not bound to the holder block");
+            }
+        } else if (changed) {
+            OPENVINO_ASSERT(!(eng.is_the_same_buffer(*p->_outputs[0], *old_block) && p->_max_output_layout_count[0] > 0), "[GPU] P1-B-D I-B5D: predecessor ",
+                            p->id(), " of holder ", id(), " keeps the replaced holder block with a non-zero count");
+        }
+    }
+#endif
+}
+
 void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
+    const bool dyn_holder = is_dynamic_pool_class_holder();
+    memory::ptr old_block = (dyn_holder && !_outputs.empty()) ? _outputs[0] : nullptr;
     realloc_outputs(prev_execution_skipped);
+    if (dyn_holder) {
+        rebind_concat_slots(old_block);
+    }
     realloc_intermediates();
 }
 
@@ -2668,6 +2732,9 @@ bool primitive_inst::get_flag(size_t flag) const {
 
 void primitive_inst::reset_flags() {
     _impl_params->flags.reset();
+#ifndef NDEBUG
+    _dbg_enqueued_this_round = false;
+#endif
 }
 
 void primitive_inst::prepare_primitive() {
@@ -2937,6 +3004,9 @@ void primitive_inst::execute() {
     }
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
+#ifndef NDEBUG
+    _dbg_enqueued_this_round = true;
+#endif
 
     GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() || !get_config().get_average_counters().empty()) {
         auto ev = _impl_params->out_event;
@@ -3454,11 +3524,15 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 }
 
 primitive_inst::alloc_route primitive_inst::allocation_route(const program_node& node, size_t port, bool runtime_cbo) {
-    if (port == 0 && !node.is_dynamic()) {
+    if (port == 0) {
         if (node.is_pool_class_root() && node.can_share_buffer() && !node.is_output()) {
-            return alloc_route::POOL_AS_ROOT;
+            // P1-B-D: the generator writes the flag on a dynamic node only for an in-place concat holder with both switches on
+            if (!node.is_dynamic() || node.is_type<concatenation>()) {
+                return alloc_route::POOL_AS_ROOT;
+            }
         }
-        if (node.has_alias_pool_root() && node.get_alias_pool_root_uid() != static_cast<uint32_t>(node.get_unique_id())) {
+        // ZERO_ALLOC_MEMBER stays static-only: a dynamic predecessor edge is MAY_SUBREGION and never a zero-allocation member
+        if (!node.is_dynamic() && node.has_alias_pool_root() && node.get_alias_pool_root_uid() != static_cast<uint32_t>(node.get_unique_id())) {
             return alloc_route::ZERO_ALLOC_MEMBER;
         }
     }
@@ -3467,6 +3541,16 @@ primitive_inst::alloc_route primitive_inst::allocation_route(const program_node&
         return alloc_route::DIRECT;
     }
     return alloc_route::LEGACY_POOL;
+}
+
+bool primitive_inst::holder_layout_is_plain(const layout& l) {
+    const auto& pad = l.data_padding;
+    for (size_t i = 0; i < SHAPE_RANK_MAX; ++i) {
+        if (pad._lower_size[i] != 0 || pad._upper_size[i] != 0) {
+            return false;
+        }
+    }
+    return l.format.block_sizes().empty();
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine,
@@ -3564,6 +3648,18 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         GPU_DEBUG_LOG << "[P1-B-S] zero-allocation member " << node.id() << " reached allocate_output: falling back to the legacy route" << std::endl;
         route = (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) ? alloc_route::DIRECT : alloc_route::LEGACY_POOL;
     }
+    [[maybe_unused]] const char* direct_reason = "bypass_pool";
+    if (route == alloc_route::POOL_AS_ROOT && node.is_dynamic() && !holder_layout_is_plain(impl_params.get_output_layout(idx))) {
+        // P1-B-D per-round gate: a fused holder with padding or in a blocked format has bytes nobody writes (I-B6D); a pool block could expose
+        // stale data of other users there. Only ever a downgrade (like the retained runtime_cbo predicate).
+        route = alloc_route::DIRECT;
+        direct_reason = "bypass_pool_holder_padded";
+    }
+#ifndef NDEBUG
+    if (route == alloc_route::POOL_AS_ROOT && node.is_dynamic()) {
+        OPENVINO_ASSERT(holder_layout_is_plain(impl_params.get_output_layout(idx)), "[GPU] P1-B-D I-B6D: pooled dynamic holder ", node.id(), " has padding or a blocked format");
+    }
+#endif
     if (route == alloc_route::POOL_AS_ROOT) {
         // P1-B-S: the holder of a promoted in-place concat class is the only pool user of the class (restrictions were merged by the class
         // level generator). Same call as the LEGACY_POOL branch below.
@@ -3580,7 +3676,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         if (curr_memory != nullptr && node.get_program().get_config().get_enable_memory_pool()) {
             pool.release_memory(curr_memory, node.get_unique_id(), node.id(), net_id);
         }
-        GPU_DEBUG_CODE(trace(false, "bypass_pool");)
+        GPU_DEBUG_CODE(trace(false, direct_reason);)
         return _engine.allocate_memory(layout, alloc_type, reset);
     }
     auto mem = get_memory_from_pool(_engine, net_id, pool, node, layout, alloc_type, reusable_across_network, memory_dependencies, reset, curr_memory);
