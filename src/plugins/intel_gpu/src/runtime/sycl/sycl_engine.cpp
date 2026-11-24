@@ -11,7 +11,9 @@
 #include "sycl_memory.hpp"
 #include "sycl_stream.hpp"
 #include "sycl_engine_factory.hpp"
+#ifdef OV_GPU_VENDOR_INTEL
 #include "intel/sycl_kernel_builder.hpp"
+#endif
 #include <string>
 #include <vector>
 #include <memory>
@@ -57,7 +59,11 @@ backend_types sycl_engine::backend_type() const {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void sycl_engine::create_onednn_engine(const ExecutionConfig& config) {
     const std::lock_guard<std::mutex> lock(onednn_mutex);
+#if defined(OV_GPU_VENDOR_INTEL)
     OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
+#elif defined(OV_GPU_VENDOR_NVIDIA)
+    OPENVINO_ASSERT(_device->get_info().vendor_id == NVIDIA_VENDOR_ID, "[GPU] OneDNN engine can be used for NVIDIA GPUs only");
+#endif
     if (!_onednn_engine) {
         auto casted = std::dynamic_pointer_cast<sycl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in sycl_engine");
@@ -170,15 +176,18 @@ memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& 
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
+            // Use the USM view size, not memory.size(): a shrunk memory may be expanded back to it,
+            // but a sub-buffer must not grow into its siblings' region.
+            const auto& buffer = downcast<const sycl::gpu_usm>(memory).get_buffer();
             const auto requested_mem_size = new_layout.bytes_count();
-            const auto source_mem_size = memory.size();
-            OPENVINO_ASSERT(requested_mem_size <= source_mem_size,
+            const auto buffer_size = buffer.size();
+            OPENVINO_ASSERT(requested_mem_size <= buffer_size,
                             "[GPU] Reinterpret buffer size (", requested_mem_size,
-                            ") exceeds source buffer size (", source_mem_size, ")");
+                            ") exceeds underlying buffer size (", buffer_size, ")");
 
             return std::make_shared<sycl::gpu_usm>(this,
                                                    new_layout,
-                                                   downcast<const sycl::gpu_usm>(memory).get_buffer(),
+                                                   buffer,
                                                    memory.get_allocation_type(),
                                                    memory.get_mem_tracker());
         } else {
@@ -248,9 +257,12 @@ void* sycl_engine::get_user_context(runtime_types rt_type) const {
 std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {
     auto& sycl_device = downcast<sycl::sycl_device>(*_device);
     switch (sycl_device.get_device().get_backend()) {
+#ifdef OV_GPU_VENDOR_INTEL
     case ::sycl::backend::opencl:
     case ::sycl::backend::ext_oneapi_level_zero:
         return std::make_shared<sycl::intel::sycl_kernel_builder>(sycl_device);
+#endif
+    // OpenCL kernels are not supported on NVIDIA GPUs yet.
     default:
         OPENVINO_THROW("[GPU] No kernel builder available for backend ",
                        sycl_device.get_device().get_backend());
