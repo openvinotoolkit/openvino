@@ -573,6 +573,12 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         const ov::Output<ov::Node> gate_out = pm.at(write_gate);
         const ov::Output<ov::Node> residual_out = pm.count(result_a) != 0 ? pm.at(residual_a) : pm.at(residual_flat);
 
+        // The op constructor throws on these: it needs a real type and rank >= 2 (residual, Y and gate share both).
+        const auto& residual_ps = residual_out.get_partial_shape();
+        if (!is_real_type(residual_out) || residual_ps.rank().is_dynamic() || residual_ps.size() < 2) {
+            return false;
+        }
+
         auto gr = std::make_shared<ov::op::internal::GatedResidual>(
             ov::OutputVector{residual_out, y_out, gate_out},
             ov::op::internal::GatedResidual::Config{ov::op::internal::GatedResidual::Mode::WRITE,

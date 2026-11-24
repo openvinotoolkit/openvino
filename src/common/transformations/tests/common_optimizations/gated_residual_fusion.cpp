@@ -306,10 +306,11 @@ enum class Shared { None, Scaled, ScaledFlat };
 
 std::shared_ptr<Model> getWriteModel(const PartialShape& rows,
                                      const PartialShape& y_rows,
-                                     Shared shared = Shared::None) {
-    auto residual = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, CD));
-    auto y = std::make_shared<op::v0::Parameter>(element::f32, with_last(y_rows, D));
-    auto gate = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, C));
+                                     Shared shared = Shared::None,
+                                     const element::Type& type = element::f32) {
+    auto residual = std::make_shared<op::v0::Parameter>(type, with_last(rows, CD));
+    auto y = std::make_shared<op::v0::Parameter>(type, with_last(y_rows, D));
+    auto gate = std::make_shared<op::v0::Parameter>(type, with_last(rows, C));
 
     auto s3 = std::make_shared<op::v0::Unsqueeze>(gate, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
     auto y3 = std::make_shared<op::v0::Unsqueeze>(y, op::v0::Constant::create(element::i64, Shape{1}, {-2}));
@@ -325,10 +326,12 @@ std::shared_ptr<Model> getWriteModel(const PartialShape& rows,
 }
 
 // The same update with the Add in the split [.., C, D] domain: the form the sink produces.
-std::shared_ptr<Model> getWriteSplitModel(const PartialShape& rows, const PartialShape& y_rows) {
-    auto residual = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, CD));
-    auto y = std::make_shared<op::v0::Parameter>(element::f32, with_last(y_rows, D));
-    auto gate = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, C));
+std::shared_ptr<Model> getWriteSplitModel(const PartialShape& rows,
+                                          const PartialShape& y_rows,
+                                          const element::Type& type = element::f32) {
+    auto residual = std::make_shared<op::v0::Parameter>(type, with_last(rows, CD));
+    auto y = std::make_shared<op::v0::Parameter>(type, with_last(y_rows, D));
+    auto gate = std::make_shared<op::v0::Parameter>(type, with_last(rows, C));
 
     auto r3 = reshape_to(residual, keep_rows(rows.size(), {static_cast<int64_t>(C), static_cast<int64_t>(D)}));
     auto s3 = std::make_shared<op::v0::Unsqueeze>(gate, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
@@ -789,4 +792,19 @@ TEST_F(GatedResidualFusionTests, Write_BothWritePassesDisabledLeavesTheGraph) {
     model = getWriteModel(PartialShape::dynamic(2), PartialShape::dynamic(2));
     manager.get_pass_config()->disable<pass::GatedResidualWriteFusion>();
     manager.get_pass_config()->disable<pass::GatedResidualWriteSinkReshape>();
+}
+
+// A rank-1 residual [C*D] has no rows; the op needs at least two dimensions, so the op is not built (the sink still
+// moves the Add).
+TEST_F(GatedResidualFusionTests, Write_RankOneResidualIsNotFused) {
+    model = getWriteModel(PartialShape{}, PartialShape{});
+    model_ref = getWriteSplitModel(PartialShape{}, PartialShape{});
+}
+
+// The op takes floating-point activations; an integer graph that has the shape of the pattern is left alone (the sink
+// still moves the Add).
+TEST_F(GatedResidualFusionTests, Write_IntegerActivationsAreNotFused) {
+    const PartialShape rows{4};
+    model = getWriteModel(rows, rows, Shared::None, element::i32);
+    model_ref = getWriteSplitModel(rows, rows, element::i32);
 }

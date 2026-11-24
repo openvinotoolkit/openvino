@@ -49,9 +49,14 @@ struct ModelOptions {
     Zp zp = Zp::PerGroup;
     Zp up_zp = Zp::PerGroup;  // the zero point form of W_up when `different_forms`
     bool different_forms = false;
-    bool compressed = true;         // false: the weights are plain constants
-    bool per_tensor_scale = false;  // a [1, 1] scale instead of one per channel (`groups` == 1 only)
-    bool transposed = false;        // the weights are stored [K, N] and transposed back (`groups` == 1 only)
+    bool compressed = true;  // false: the weights are plain constants
+    // The stored type of the scales; anything but `data_type` is converted to it in the graph.
+    element::Type scale_type = element::dynamic;
+    // The stored type of the zero points; the weights type if dynamic, anything but `data_type` is converted to it.
+    element::Type zp_type = element::dynamic;
+    bool per_input_channel_scale = false;  // a [1, K] scale (`groups` == 1 only)
+    bool per_tensor_scale = false;         // a [1, 1] scale instead of one per channel (`groups` == 1 only)
+    bool transposed = false;               // the weights are stored [K, N] and transposed back (`groups` == 1 only)
     bool with_gate = false;
     std::optional<Zp> inject_zp;  // the zero point form of W_inject when it differs from the others
     bool weightless = false;      // the stored weights are linked to their file for weightless caching
@@ -94,16 +99,26 @@ Output<Node> compressed_weight(size_t n, size_t k, const ModelOptions& opt, Zp z
         scale_shape = Shape{1, n};
     } else if (opt.per_tensor_scale) {
         scale_shape = Shape{1, 1};
+    } else if (opt.per_input_channel_scale) {
+        scale_shape = Shape{1, k};
     }
     auto stored = bytes_constant(opt.weights_type, weights_shape, weights_byte(opt.weights_type));
     set_weightless_attr(stored, n, k, opt);
     Output<Node> value = std::make_shared<op::v0::Convert>(stored, opt.data_type);
     if (zp != Zp::None) {
-        auto zp_const = zp == Zp::PerGroup ? bytes_constant(opt.weights_type, scale_shape, 0x33)
-                                           : bytes_constant(opt.weights_type, Shape{1}, 0x33);
-        value = std::make_shared<op::v1::Subtract>(value, std::make_shared<op::v0::Convert>(zp_const, opt.data_type));
+        const Shape zp_shape = zp == Zp::PerGroup ? scale_shape : Shape{1};
+        const bool float_zp = opt.zp_type != element::dynamic;
+        std::shared_ptr<Node> zp_const = float_zp ? std::shared_ptr<Node>(float_constant(opt.zp_type, zp_shape, 2.0F))
+                                                  : bytes_constant(opt.weights_type, zp_shape, 0x33);
+        if (zp_const->get_output_element_type(0) != opt.data_type) {
+            zp_const = std::make_shared<op::v0::Convert>(zp_const, opt.data_type);
+        }
+        value = std::make_shared<op::v1::Subtract>(value, zp_const);
     }
     Output<Node> scale = float_constant(opt.data_type, scale_shape, 0.02F);
+    if (opt.scale_type != element::dynamic) {
+        scale = std::make_shared<op::v0::Convert>(float_constant(opt.scale_type, scale_shape, 2.0F), opt.data_type);
+    }
     Output<Node> result = std::make_shared<op::v1::Multiply>(value, scale);
     if (opt.transposed) {
         result = std::make_shared<op::v1::Transpose>(result, op::v0::Constant::create(element::i64, Shape{2}, {1, 0}));
@@ -277,6 +292,37 @@ TEST_F(ConvertGatedResidualToCompressedTests, WriteGateWeightsOfAnotherFormAreNo
     ModelOptions opt;
     opt.with_gate = true;
     opt.inject_zp = Zp::None;
+    model = getModel(opt);
+}
+
+// The op takes floating-point scales; an integer one kept behind a Convert is not a compressed form it can run.
+TEST_F(ConvertGatedResidualToCompressedTests, IntegerScalesAreNotConverted) {
+    ModelOptions opt;
+    opt.scale_type = element::i8;
+    model = getModel(opt);
+}
+
+// The zero points of the op have the weight type: a floating-point one, behind a Convert or used as it is, is not
+// converted.
+TEST_F(ConvertGatedResidualToCompressedTests, FloatZeroPointBehindConvertIsNotConverted) {
+    ModelOptions opt;
+    opt.zp_type = element::f16;
+    model = getModel(opt);
+}
+
+TEST_F(ConvertGatedResidualToCompressedTests, FloatZeroPointWithoutConvertIsNotConverted) {
+    ModelOptions opt;
+    opt.zp_type = element::f32;
+    opt.with_gate = true;
+    model = getModel(opt);
+}
+
+// The scales of the op are per output channel [N, G]: a per input channel [1, K] one is not converted.
+TEST_F(ConvertGatedResidualToCompressedTests, PerInputChannelScaleIsNotConverted) {
+    ModelOptions opt;
+    opt.groups = 1;
+    opt.zp = Zp::None;
+    opt.per_input_channel_scale = true;
     model = getModel(opt);
 }
 
