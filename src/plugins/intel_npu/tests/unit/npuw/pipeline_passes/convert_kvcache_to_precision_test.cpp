@@ -260,10 +260,13 @@ ov::AnyMap make_kv_precision_props(const ov::element::Type kv_type) {
 
 void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model,
                                  const ov::element::Type kv_type,
-                                 const bool ignore_quant_aux_ports = false) {
-    // Key cache: asymmetric quantization -> value tensor + scale (f32) + zero_point (same as quant type).
+                                 const bool ignore_quant_aux_ports = false,
+                                 const bool asymmetric_key = false) {
+    // Key cache: symmetric by default -> value tensor + scale (f32); asymmetric_key adds zero_point.
+    // A u8 key is always asymmetric (there is no symmetric u8 decomposition).
     // Value cache: symmetric quantization -> value tensor (i4) + scale (f32), no zero_point.
     const bool is_quantized = is_quantized_kv_type(kv_type);
+    const bool key_has_zp = asymmetric_key || kv_type == ov::element::u8;
 
     const std::string past_key_scale_name =
         std::string("/") + ov::npuw::util::constants::past_key_values + "/key/scale";
@@ -346,8 +349,9 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model,
     }
 
     if (is_quantized) {
-        EXPECT_TRUE(found_key_scale_input) << "Asymmetric quantized KV key-cache must expose scale input";
-        EXPECT_TRUE(found_key_zp_input) << "Asymmetric quantized KV key-cache must expose zero-point input";
+        EXPECT_TRUE(found_key_scale_input) << "Quantized KV key-cache must expose scale input";
+        EXPECT_EQ(found_key_zp_input, key_has_zp)
+            << "Quantized KV key-cache zero-point input presence must match key quantization type";
         EXPECT_TRUE(found_value_scale_input) << "Symmetric quantized KV value-cache must expose scale input";
         EXPECT_FALSE(found_value_zp_input) << "Symmetric quantized KV value-cache must not expose zero-point input";
     } else if (!is_quantized) {
@@ -445,8 +449,11 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
     }
 
     if (is_quantized) {
-        EXPECT_TRUE(found_present_key_scale) << "Asymmetric quantized KV key-cache must expose present scale output";
-        EXPECT_TRUE(found_present_key_zp) << "Asymmetric quantized KV key-cache must expose present zero-point output";
+        // The default key is symmetric, except for u8 which is always asymmetric.
+        const bool key_has_zp = kv_type == ov::element::u8;
+        EXPECT_TRUE(found_present_key_scale) << "Quantized KV key-cache must expose present scale output";
+        EXPECT_EQ(found_present_key_zp, key_has_zp)
+            << "Quantized KV key-cache present zero-point output presence must match key quantization type";
         EXPECT_TRUE(found_present_value_scale) << "Symmetric quantized KV value-cache must expose present scale output";
         EXPECT_FALSE(found_present_value_zp)
             << "Symmetric quantized KV value-cache must not expose present zero-point output";
@@ -1033,6 +1040,159 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, ClearChunkPrefillZeroFillsQuantizedAux
         });
         EXPECT_TRUE(all_zero) << "clear_chunk_prefill_kv_cache left non-zero bytes in: " << input_name;
     }
+}
+
+// Test KV-cache compression configuration string parsing
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_DefaultConfig) {
+    // Default configuration should use symmetric for both key and value with BY_TOKEN granularity
+    RecordingFactory recorder;
+    ov::AnyMap props = {{ov::hint::kv_cache_precision.name(), ov::element::i8}};
+    ASSERT_NO_THROW(create_compiled_model(props, recorder));
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    expect_kv_cache_input_types(generate.model, ov::element::i8);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_SymmetricKeyValue) {
+    // Explicitly set symmetric key and value
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    ASSERT_NO_THROW(create_compiled_model(props, recorder));
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    // Symmetric key should have scale but NO zero-point
+    expect_kv_cache_input_types(generate.model, ov::element::i8);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_AsymmetricKey) {
+    // Set asymmetric key quantization (the failing case from EISW-237450)
+    // Note: This is for testing the configuration parsing; the NPU still has the underlying
+    // asymmetric quantization issue, but we verify the config is correctly parsed.
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:ASYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    ASSERT_NO_THROW(create_compiled_model(props, recorder));
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    // Asymmetric key should have scale AND zero-point
+    expect_kv_cache_input_types(generate.model, ov::element::i8, false, true);
+}
+
+// Integer KV-cache compression needs the unrolled (decomposed) SDPA, which a DYNAMIC attention hint
+// leaves fused. The combination must be rejected up front with a message that names the option,
+// instead of compiling a prefill model with undequantized integer past KV inputs.
+TEST_F(ConvertKVCacheToPrecisionPassTest, IntegerKVCacheWithDynamicPrefillAttentionIsRejected) {
+    for (const auto kv_type : {ov::element::i8, ov::element::u8}) {
+        RecordingFactory recorder;
+        ov::AnyMap props = make_kv_precision_props(kv_type);
+        props["NPUW_LLM_PREFILL_HINT"] = "DYNAMIC";
+        props["NPUW_LLM_PREFILL_ATTENTION_HINT"] = "DYNAMIC";
+        try {
+            create_compiled_model(props, recorder);
+            FAIL() << "Expected an exception for " << kv_type << " KV-cache with dynamic prefill attention";
+        } catch (const ov::Exception& ex) {
+            const std::string msg = ex.what();
+            EXPECT_NE(msg.find("NPUW_LLM_PREFILL_ATTENTION_HINT"), std::string::npos) << msg;
+            EXPECT_NE(msg.find("DYNAMIC"), std::string::npos) << msg;
+        }
+    }
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, IntegerKVCacheWithDynamicGenerateAttentionIsRejected) {
+    RecordingFactory recorder;
+    ov::AnyMap props = make_kv_precision_props(ov::element::i8);
+    props["NPUW_LLM_GENERATE_ATTENTION_HINT"] = "DYNAMIC";
+    try {
+        create_compiled_model(props, recorder);
+        FAIL() << "Expected an exception for i8 KV-cache with dynamic generate attention";
+    } catch (const ov::Exception& ex) {
+        const std::string msg = ex.what();
+        EXPECT_NE(msg.find("NPUW_LLM_GENERATE_ATTENTION_HINT"), std::string::npos) << msg;
+    }
+}
+
+// The check is specific to integer storage: an f16 KV-cache keeps working with dynamic attention.
+TEST_F(ConvertKVCacheToPrecisionPassTest, Fp16KVCacheWithDynamicPrefillAttentionIsAccepted) {
+    RecordingFactory recorder;
+    ov::AnyMap props = make_kv_precision_props(ov::element::f16);
+    props["NPUW_LLM_PREFILL_HINT"] = "DYNAMIC";
+    props["NPUW_LLM_PREFILL_ATTENTION_HINT"] = "DYNAMIC";
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(props, recorder));
+    ASSERT_NE(compiled, nullptr);
+}
+
+// Every DynamicQuantize inserted by the compression must be decomposed by one of the decomposition passes;
+// one left in the model cannot be compiled. Regression: with the symmetric key default a u8 key had no
+// decomposition pass (DecomposeDynamicQuantize2 handles only asymmetric u8).
+TEST_F(ConvertKVCacheToPrecisionPassTest, IntegerKVCacheLeavesNoDynamicQuantize) {
+    auto count_dynamic_quantize = [](const std::shared_ptr<ov::Model>& model) {
+        const auto ops = model->get_ops();
+        return std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+            return std::string(op->get_type_name()) == "DynamicQuantize";
+        });
+    };
+    for (const auto kv_type : {ov::element::i8, ov::element::u8}) {
+        RecordingFactory recorder;
+        ASSERT_NO_THROW(create_compiled_model(make_kv_precision_props(kv_type), recorder)) << kv_type;
+        const auto& generate = require_sub_model_containing(recorder, "_kv");
+        const auto& prefill = require_sub_model(recorder, "_prefill");
+        EXPECT_EQ(count_dynamic_quantize(generate.model), 0) << kv_type << " generate model";
+        EXPECT_EQ(count_dynamic_quantize(prefill.model), 0) << kv_type << " prefill model";
+    }
+}
+
+// The KEY quantization type applies to an i8 key only: an explicit KEY:SYM still gives an asymmetric u8 key.
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_U8KeyIsAsymmetric) {
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::u8);
+    ASSERT_NO_THROW(create_compiled_model(props, recorder));
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    expect_kv_cache_input_types(generate.model, ov::element::u8, false, true);
+}
+
+// Only per-token quantization is implemented: BY_CHANNEL must be rejected rather than silently applied as
+// BY_TOKEN.
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_ByChannelIsRejected) {
+    for (const auto* config : {"KEY:SYM:BY_CHANNEL,VALUE:SYM:BY_TOKEN", "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_CHANNEL"}) {
+        RecordingFactory recorder;
+        ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", config}};
+        props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+        try {
+            create_compiled_model(props, recorder);
+            FAIL() << "Expected an exception for " << config;
+        } catch (const ov::Exception& ex) {
+            const std::string msg = ex.what();
+            EXPECT_NE(msg.find("BY_CHANNEL"), std::string::npos) << msg;
+        }
+    }
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_InvalidFormat) {
+    // Invalid configuration format should throw
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "INVALID_FORMAT"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    EXPECT_THROW(create_compiled_model(props, recorder), ov::Exception);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_UnknownQuantizationType) {
+    // Unknown quantization type should throw
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:UNKNOWN:BY_TOKEN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    EXPECT_THROW(create_compiled_model(props, recorder), ov::Exception);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_UnknownGranularity) {
+    // Unknown granularity should throw
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:SYM:BY_UNKNOWN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    EXPECT_THROW(create_compiled_model(props, recorder), ov::Exception);
 }
 
 }  // namespace

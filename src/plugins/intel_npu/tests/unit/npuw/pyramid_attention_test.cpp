@@ -736,34 +736,69 @@ TEST(PyramidAttentionTest, ProcessPyramidModelAfterI8KVCacheConversion) {
 }
 
 TEST(PyramidAttentionTest, ProcessPyramidModelI8IncludesDQParamsInAttentionInputs) {
-    AttentionModelConfig cfg;
-    cfg.query_len = 1;
-    cfg.past_len = 2047;
-    auto model = build_isolated_attention_model(cfg);
+    struct CompressionCase {
+        std::string config;
+        size_t expected_key_dq_params;
+        size_t expected_value_dq_params;
+    };
+    const std::vector<CompressionCase> compression_cases = {
+        {"", 1u, 1u},
+        {"KEY:ASYM:BY_TOKEN,VALUE:SYM:BY_TOKEN", 2u, 1u},
+    };
 
-    ov::npuw::ConvertKVCacheToPrecision(ov::element::i8).run_on_model(model);
+    for (const auto& compression_case : compression_cases) {
+        SCOPED_TRACE(compression_case.config);
 
-    auto validation = ov::npuw::function::validate_and_setup_pyramid_attention(model);
-    ASSERT_TRUE(validation.has_value());
-    const auto& contiguous = get_contiguous_result(*validation);
+        AttentionModelConfig cfg;
+        cfg.query_len = 1;
+        cfg.past_len = 2047;
+        auto model = build_isolated_attention_model(cfg);
 
-    const size_t pyramid_step = 1024;
-    auto result = ov::npuw::function::process_pyramid_model(model,
-                                                            0,
-                                                            pyramid_step,
-                                                            contiguous.query_length,
-                                                            contiguous.past_kv_length,
-                                                            contiguous.full_context_length,
-                                                            contiguous.past_key_sequence_dims,
-                                                            contiguous.past_value_sequence_dims);
+        ov::npuw::ConvertKVCacheToPrecision(ov::element::i8, false, compression_case.config).run_on_model(model);
 
-    ASSERT_TRUE(result.has_value());
+        auto validation = ov::npuw::function::validate_and_setup_pyramid_attention(model);
+        ASSERT_TRUE(validation.has_value());
+        const auto& contiguous = get_contiguous_result(*validation);
 
-    // Per layer: 2 KV params (key + value)
-    //          + 3 DQ params (key_scale, key_zp for asymmetric key; value_scale for symmetric value)
-    //          = 5 attention inputs
-    EXPECT_EQ(result->attention._inputs.size(), 5u)
-        << "Attention inputs must include DQ scale/zp parameters so pyramid runtime can view/slice them";
+        const size_t pyramid_step = 1024;
+        auto result = ov::npuw::function::process_pyramid_model(model,
+                                                                0,
+                                                                pyramid_step,
+                                                                contiguous.query_length,
+                                                                contiguous.past_kv_length,
+                                                                contiguous.full_context_length,
+                                                                contiguous.past_key_sequence_dims,
+                                                                contiguous.past_value_sequence_dims);
+
+        ASSERT_TRUE(result.has_value());
+        const auto& inputs = result->attention._inputs;
+        EXPECT_EQ(inputs.size(), 2u + compression_case.expected_key_dq_params + compression_case.expected_value_dq_params);
+
+        size_t key_params = 0;
+        size_t value_params = 0;
+        size_t key_dq_params = 0;
+        size_t value_dq_params = 0;
+        for (const auto& input : inputs) {
+            const auto& name = input.param->get_friendly_name();
+            if (ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value()) {
+                ++key_params;
+            } else if (ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value()) {
+                ++value_params;
+            } else if (ov::npuw::util::isDQScaleOrZPKey(name)) {
+                ++key_dq_params;
+            } else if (ov::npuw::util::isDQScaleOrZPValue(name)) {
+                ++value_dq_params;
+            } else {
+                ADD_FAILURE() << "Unexpected attention input: " << name;
+            }
+            EXPECT_EQ(input.dim, 2u) << "Unexpected sequence dimension for " << name;
+        }
+
+        EXPECT_EQ(key_params, 1u);
+        EXPECT_EQ(value_params, 1u);
+        EXPECT_EQ(key_dq_params, compression_case.expected_key_dq_params);
+        EXPECT_EQ(value_dq_params, compression_case.expected_value_dq_params);
+    }
 }
 
 TEST(PyramidAttentionTest, ProcessPyramidModelI8ReshapesDQParamsCorrectly) {
@@ -805,22 +840,63 @@ TEST(PyramidAttentionTest, ProcessPyramidModelI8ReshapesDQParamsCorrectly) {
 }
 
 TEST(PyramidAttentionTest, FromI8ModelIncludesDQParamsInCompiledAttentionInfos) {
-    AttentionModelConfig cfg;
-    cfg.query_len = 1;
-    cfg.past_len = 2047;
-    auto model = build_isolated_attention_model(cfg);
+    const auto check_compiled_info = [](const std::string& compression_config,
+                                        size_t expected_key_dq_params,
+                                        size_t expected_value_dq_params) {
+        AttentionModelConfig cfg;
+        cfg.query_len = 1;
+        cfg.past_len = 2047;
+        auto model = build_isolated_attention_model(cfg);
 
-    ov::npuw::ConvertKVCacheToPrecision(ov::element::i8).run_on_model(model);
+        ov::npuw::ConvertKVCacheToPrecision(ov::element::i8, false, compression_config).run_on_model(model);
 
-    auto pyramid = ov::npuw::function::PyramidAttention::from(model);
-    ASSERT_TRUE(pyramid.has_value());
-    EXPECT_EQ(pyramid->num_models(), 2u);
+        auto pyramid = ov::npuw::function::PyramidAttention::from(model);
+        ASSERT_TRUE(pyramid.has_value());
+        ASSERT_EQ(pyramid->num_models(), 2u);
 
-    // Each model's attention should have 5 inputs (2 KV + 3 DQ)
-    for (size_t i = 0; i < pyramid->num_models(); ++i) {
-        EXPECT_EQ(pyramid->_attentions[i]._inputs.size(), 5u)
-            << "Pyramid model " << i << " attention must include DQ params";
-    }
+        auto compiled_pyramid = ov::npuw::compiled::PyramidAttention::make(*pyramid);
+        auto contiguous = std::dynamic_pointer_cast<ov::npuw::compiled::PyramidAttentionContiguous>(compiled_pyramid);
+        ASSERT_NE(contiguous, nullptr);
+        ASSERT_EQ(contiguous->_attention_infos.size(), pyramid->num_models());
+
+        for (size_t i = 0; i < pyramid->num_models(); ++i) {
+            const auto& params = pyramid->_models[i]->get_parameters();
+            const auto& info = contiguous->_attention_infos[i];
+            EXPECT_EQ(info.params.size(), 2u + expected_key_dq_params + expected_value_dq_params)
+                << "Pyramid model " << i << " must include KV and DQ inputs";
+
+            size_t key_params = 0;
+            size_t value_params = 0;
+            size_t key_dq_params = 0;
+            size_t value_dq_params = 0;
+            for (const auto& param_info : info.params) {
+                ASSERT_LT(param_info.idx, params.size());
+                const auto& name = params[param_info.idx]->get_friendly_name();
+                if (ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value()) {
+                    ++key_params;
+                } else if (ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value()) {
+                    ++value_params;
+                } else if (ov::npuw::util::isDQScaleOrZPKey(name)) {
+                    ++key_dq_params;
+                } else if (ov::npuw::util::isDQScaleOrZPValue(name)) {
+                    ++value_dq_params;
+                } else {
+                    ADD_FAILURE() << "Unexpected compiled attention parameter: " << name;
+                }
+                EXPECT_EQ(param_info.dim, 2u) << "Unexpected sequence dimension for " << name;
+            }
+
+            EXPECT_EQ(key_params, 1u);
+            EXPECT_EQ(value_params, 1u);
+            EXPECT_EQ(key_dq_params, expected_key_dq_params);
+            EXPECT_EQ(value_dq_params, expected_value_dq_params);
+        }
+    };
+
+    // The default symmetric mode adds one scale per KV tensor.
+    check_compiled_info("", 1u, 1u);
+    // Asymmetric mode also exposes a zero-point for each KV tensor.
+    check_compiled_info("KEY:ASYM:BY_TOKEN,VALUE:ASYM:BY_TOKEN", 2u, 2u);
 }
 
 // --- Tests for validate_and_setup_pyramid_attention (Block-Split KV Cache) ---
