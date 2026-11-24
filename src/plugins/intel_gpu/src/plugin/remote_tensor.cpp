@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include <cstdint>
@@ -38,6 +39,9 @@ namespace {
 ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
     if (element_type.bitwidth() < 8) {
+        if (ov::util::can_compute_byte_strides(element_type, shape)) {
+            strides = ov::util::get_dense_byte_strides(element_type, shape);
+        }
         return strides;
     }
 
