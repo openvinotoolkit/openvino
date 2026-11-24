@@ -8,7 +8,6 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <cstdint>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -137,11 +136,18 @@ ov::Tensor createInput(const ov::Shape& shape, int seed) {
     return ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, range, startFrom, resolution, seed);
 }
 
+// All the dimensions differ: a mistaken order of the dimensions or a mistaken rank cannot go unnoticed
+const ov::Shape kInputShape{1, 2, 3, 4, 5, 6};
+
+const ov::AnyMap kConfig = {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+                            {"NPU_COMPILATION_MODE", "DefaultHW"}};
+
+// The NPU computes in lower precision than the f32 reference
+constexpr double kTolerance = 0.01;
+
 }  // namespace
 
 using HighRankParams = std::tuple<std::string,  // Device name
-                                  ov::AnyMap,   // Config
-                                  ov::Shape,    // Input shape
                                   HighRankOp    // Operation
                                   >;
 
@@ -150,99 +156,55 @@ class OVInferRequestHighRankTests : public testing::WithParamInterface<HighRankP
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<HighRankParams>& obj) {
         std::string targetDevice;
-        ov::AnyMap configuration;
-        ov::Shape shape;
         HighRankOp op;
-        std::tie(targetDevice, configuration, shape, op) = obj.param;
+        std::tie(targetDevice, op) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
-        std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
-        for (auto& configItem : configuration) {
-            result << "configItem=" << configItem.first << "_";
-            configItem.second.print(result);
-            result << "_";
-        }
-        result << "rank=" << shape.size() << "_shape=";
-        for (size_t i = 0; i < shape.size(); ++i) {
-            result << (i == 0 ? "" : "x") << shape[i];
-        }
-        result << "_op=" << toString(op);
-        return result.str();
+        return "targetDevice=" + targetDevice + "_op=" + toString(op);
     }
 
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        std::tie(target_device, configuration, inputShape, op) = this->GetParam();
+        std::tie(target_device, op) = this->GetParam();
         APIBaseTest::SetUp();
     }
 
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    ov::AnyMap configuration;
-    ov::Shape inputShape;
     HighRankOp op = HighRankOp::Relu;
 };
 
 TEST_P(OVInferRequestHighRankTests, CompiledModelKeepsTheShapes) {
     ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(createModel(op, inputShape), target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(createModel(op, kInputShape), target_device, kConfig));
 
-    EXPECT_EQ(compiledModel.input().get_shape(), inputShape);
-    EXPECT_EQ(compiledModel.output().get_shape(), expectedOutputShape(op, inputShape));
-}
-
-TEST_P(OVInferRequestHighRankTests, InferMatchesReference) {
-    ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(createModel(op, inputShape), target_device, configuration));
-    ov::InferRequest request;
-    OV_ASSERT_NO_THROW(request = compiledModel.create_infer_request());
-
-    const auto input = createInput(inputShape, 1);
-    OV_ASSERT_NO_THROW(request.set_tensor(compiledModel.input(), input));
-    OV_ASSERT_NO_THROW(request.infer());
-
-    const auto output = request.get_tensor(compiledModel.output());
-    EXPECT_EQ(output.get_shape(), expectedOutputShape(op, inputShape));
-    // The NPU computes in lower precision than the f32 reference
-    ov::test::utils::compare(reference(op, input), output, 0.01, 0.01);
+    EXPECT_EQ(compiledModel.input().get_shape(), kInputShape);
+    EXPECT_EQ(compiledModel.output().get_shape(), expectedOutputShape(op, kInputShape));
 }
 
 // Binding another tensor of the same rank goes through the update of the arguments of the recorded command lists
-TEST_P(OVInferRequestHighRankTests, InferAgainWithAnotherInputTensor) {
+TEST_P(OVInferRequestHighRankTests, InferMatchesReferenceForSuccessiveInputTensors) {
     ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(createModel(op, inputShape), target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(createModel(op, kInputShape), target_device, kConfig));
     ov::InferRequest request;
     OV_ASSERT_NO_THROW(request = compiledModel.create_infer_request());
 
     for (const int seed : {1, 2}) {
-        const auto input = createInput(inputShape, seed);
+        const auto input = createInput(kInputShape, seed);
         OV_ASSERT_NO_THROW(request.set_tensor(compiledModel.input(), input));
         OV_ASSERT_NO_THROW(request.infer());
 
-        ov::test::utils::compare(reference(op, input), request.get_tensor(compiledModel.output()), 0.01, 0.01);
+        const auto output = request.get_tensor(compiledModel.output());
+        EXPECT_EQ(output.get_shape(), expectedOutputShape(op, kInputShape));
+        ov::test::utils::compare(reference(op, input), output, kTolerance, kTolerance);
     }
 }
-
-namespace {
-
-const std::vector<ov::AnyMap> configs = {
-    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN), {"NPU_COMPILATION_MODE", "DefaultHW"}}};
-
-// All the dimensions differ: a mistaken order of the dimensions or a mistaken rank cannot go unnoticed
-const std::vector<ov::Shape> shapes = {{1, 2, 3, 4, 5, 6}};
-
-const std::vector<HighRankOp> ops = {HighRankOp::Relu, HighRankOp::Transpose};
-
-}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestHighRankTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs),
-                                            ::testing::ValuesIn(shapes),
-                                            ::testing::ValuesIn(ops)),
+                                            ::testing::Values(HighRankOp::Relu, HighRankOp::Transpose)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestHighRankTests>);
 
 }  // namespace behavior

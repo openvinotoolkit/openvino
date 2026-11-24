@@ -52,8 +52,44 @@ struct ArgumentDescription {
     ov::element::Type_t precision;
     ov::Shape shapeFromCompiler;
     bool isInput;
-    const void* pNext;
+    bool supportsDynamicStrides;
 };
+
+// The driver fills the strides structure only when it is part of the "pNext" chain given to it
+bool readSupportsDynamicStrides(const void* pNext) {
+    if (pNext == nullptr || *static_cast<const ze_structure_type_graph_ext_t*>(pNext) !=
+                                ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES) {
+        return false;
+    }
+
+    return static_cast<const ze_graph_argument_property_strides_t*>(pNext)->supportsDynamicStrides;
+}
+
+// Unused dimensions are zeros in the header but ones in the drivers, so neither counts towards the rank
+size_t minRankFromDims(const uint32_t* dims, size_t count) {
+    while (count > 0 && dims[count - 1] <= 1) {
+        --count;
+    }
+
+    return count;
+}
+
+void addDescriptor(const ze_graph_argument_type_t type,
+                   IODescriptor&& descriptor,
+                   std::vector<IODescriptor>& inputs,
+                   std::vector<IODescriptor>& outputs) {
+    switch (type) {
+    case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
+        inputs.push_back(std::move(descriptor));
+    } break;
+    case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
+        outputs.push_back(std::move(descriptor));
+    } break;
+    default: {
+        OPENVINO_THROW("Invalid ze_graph_argument_type_t found in the properties of a graph argument: ", type);
+    }
+    }
+}
 
 IODescriptor createIODescriptor(const uint32_t indexUsedByDriver,
                                 ArgumentDescription&& arg,
@@ -148,14 +184,9 @@ IODescriptor createIODescriptor(const uint32_t indexUsedByDriver,
         isMainInputWeights = true;
     }
 
-    bool supportsStridedLayout = false;
-    if (arg.pNext != nullptr) {
-        if (*reinterpret_cast<const ze_structure_type_graph_ext_t*>(arg.pNext) ==
-            ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES) {
-            auto& supports_strides = *reinterpret_cast<const ze_graph_argument_property_strides_t*>(arg.pNext);
-            supportsStridedLayout = supports_strides.supportsDynamicStrides;
-        }
-    }
+    // "userStrides" has room for ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE entries only
+    const bool supportsStridedLayout =
+        arg.supportsDynamicStrides && shapeFromCompiler.size() <= ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE;
 
     return {std::move(nameFromCompiler),
             arg.precision,
@@ -205,16 +236,16 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
 
     return createIODescriptor(
         indexUsedByDriver,
-        {safeStringFromFixedBuffer(arg.name, ZE_MAX_GRAPH_ARGUMENT_NAME, "name", indexUsedByDriver),
-         safeStringFromFixedBuffer(arg.debug_friendly_name,
-                                   ZE_MAX_GRAPH_ARGUMENT_NAME,
-                                   "debug_friendly_name",
-                                   indexUsedByDriver),
-         std::move(associatedTensorNames),
-         zeroUtils::toOVElementType(arg.devicePrecision),
-         ov::Shape(arg.dims, arg.dims + arg.dims_count),
-         arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT,
-         arg.pNext},
+        {.name = safeStringFromFixedBuffer(arg.name, ZE_MAX_GRAPH_ARGUMENT_NAME, "name", indexUsedByDriver),
+         .debugFriendlyName = safeStringFromFixedBuffer(arg.debug_friendly_name,
+                                                        ZE_MAX_GRAPH_ARGUMENT_NAME,
+                                                        "debug_friendly_name",
+                                                        indexUsedByDriver),
+         .associatedTensorNames = std::move(associatedTensorNames),
+         .precision = zeroUtils::toOVElementType(arg.devicePrecision),
+         .shapeFromCompiler = ov::Shape(arg.dims, arg.dims + arg.dims_count),
+         .isInput = arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT,
+         .supportsDynamicStrides = readSupportsDynamicStrides(arg.pNext)},
         metadata);
 }
 
@@ -224,31 +255,27 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
                                              std::string debugFriendlyName,
                                              std::unordered_set<std::string> associatedTensorNames,
                                              const ze_graph_argument_metadata_t& metadata) {
-    // The header zero-pads the unused dimensions, but drivers pad them with ones: only the IR rank can tell them apart
-    // from real dimensions.
-    const auto minRank = static_cast<size_t>(std::rend(arg.dims) -
-                                             std::find_if(std::rbegin(arg.dims), std::rend(arg.dims), [](uint32_t dim) {
-                                                 return dim > 1;
-                                             }));
+    const size_t minRank = minRankFromDims(arg.dims, std::size(arg.dims));
     if (metadata.shape_size < minRank) {
         OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
                        indexUsedByDriver,
                        ": metadata shape_size ",
                        metadata.shape_size,
-                       " does not match the rank ",
-                       minRank);
+                       " is below the rank ",
+                       minRank,
+                       " implied by the dimensions");
     }
     // A larger shape_size is rejected as exceeding the ABI limit
     const size_t rank = std::min<size_t>(metadata.shape_size, std::size(arg.dims));
 
     return createIODescriptor(indexUsedByDriver,
-                              {std::move(name),
-                               std::move(debugFriendlyName),
-                               std::move(associatedTensorNames),
-                               zeroUtils::toOVElementType(arg.precision),
-                               ov::Shape(std::begin(arg.dims), std::begin(arg.dims) + rank),
-                               arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT,
-                               arg.pNext},
+                              {.name = std::move(name),
+                               .debugFriendlyName = std::move(debugFriendlyName),
+                               .associatedTensorNames = std::move(associatedTensorNames),
+                               .precision = zeroUtils::toOVElementType(arg.precision),
+                               .shapeFromCompiler = ov::Shape(std::begin(arg.dims), std::begin(arg.dims) + rank),
+                               .isInput = arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT,
+                               .supportsDynamicStrides = readSupportsDynamicStrides(arg.pNext)},
                               metadata);
 }
 
@@ -681,78 +708,73 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      uint32_t indexUsedByDriver,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs) const {
-    if (_graphExtVersion >= ZE_MAKE_VERSION(1, 20)) {
-        std::string name = getArgumentName(graphHandle, indexUsedByDriver, ZE_GRAPH_ARGUMENT_NAME, "name");
-        const auto metadata = getArgumentMetadata(graphHandle, indexUsedByDriver, name);
-
-        // The 1.20 properties have no rank and drivers pad the dimensions with ones, so only the IR metadata can tell
-        // it. The arguments added by the compiler have none and are queried through the older structure below.
-        if (metadata.has_value()) {
-            auto& graphDdiTable = _zeroInitStruct->getGraphDdiTable();
-            ze_graph_argument_properties_4_t arg = {};
-            arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_4;
-            ze_graph_argument_property_strides_t supports_strides = {};
-            supports_strides.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES;
-            arg.pNext = &supports_strides;
-
-            _logger.debug("getMetadata - perform pfnGetArgumentProperties4");
-            auto result = graphDdiTable.pfnGetArgumentProperties4(graphHandle, indexUsedByDriver, &arg);
-            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties4", result, graphDdiTable);
-
-            std::string debugFriendlyName = getArgumentName(graphHandle,
-                                                            indexUsedByDriver,
-                                                            ZE_GRAPH_ARGUMENT_DEBUG_FRIENDLY_NAME,
-                                                            "debug_friendly_name");
-            const auto associatedTensorNames =
-                queryArgumentNames(graphHandle, indexUsedByDriver, ZE_GRAPH_ARGUMENT_ASSOCIATED_TENSOR_NAMES);
-
-            auto descriptor = createIODescriptorFromLevelZero(
-                indexUsedByDriver,
-                arg,
-                std::move(name),
-                std::move(debugFriendlyName),
-                parseTensorNames({associatedTensorNames.data(), associatedTensorNames.size()}),
-                *metadata);
-
-            switch (arg.type) {
-            case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-                inputs.push_back(std::move(descriptor));
-            } break;
-            case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-                outputs.push_back(std::move(descriptor));
-            } break;
-            default: {
-                OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_4_t object: ",
-                               arg.type);
-            }
-            }
-            return;
-        }
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 20)) {
+        getMetadataFromProperties3(graphHandle, indexUsedByDriver, true, inputs, outputs);
+        return;
     }
 
+    std::string name = getArgumentName(graphHandle, indexUsedByDriver, ZE_GRAPH_ARGUMENT_NAME, "name");
+    const auto metadata = getArgumentMetadata(graphHandle, indexUsedByDriver, name);
+    if (metadata.has_value()) {
+        getMetadataFromProperties4(graphHandle, indexUsedByDriver, std::move(name), *metadata, inputs, outputs);
+    } else {
+        // The 1.20 properties have no rank and the arguments added by the compiler have no IR metadata to tell it, so
+        // these stay limited to the 5 dimensions of the older structure. Their tensor names are not used.
+        getMetadataFromProperties3(graphHandle, indexUsedByDriver, false, inputs, outputs);
+    }
+}
+
+void ZeGraphExtWrappers::getMetadataFromProperties4(ze_graph_handle_t graphHandle,
+                                                    uint32_t indexUsedByDriver,
+                                                    std::string name,
+                                                    const ze_graph_argument_metadata_t& metadata,
+                                                    std::vector<IODescriptor>& inputs,
+                                                    std::vector<IODescriptor>& outputs) const {
+    auto& graphDdiTable = _zeroInitStruct->getGraphDdiTable();
+    ze_graph_argument_properties_4_t arg = {};
+    arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_4;
+    ze_graph_argument_property_strides_t supports_strides = {};
+    supports_strides.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES;
+    arg.pNext = &supports_strides;
+
+    _logger.debug("getMetadataFromProperties4 - perform pfnGetArgumentProperties4");
+    auto result = graphDdiTable.pfnGetArgumentProperties4(graphHandle, indexUsedByDriver, &arg);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties4", result, graphDdiTable);
+
+    std::string debugFriendlyName =
+        getArgumentName(graphHandle, indexUsedByDriver, ZE_GRAPH_ARGUMENT_DEBUG_FRIENDLY_NAME, "debug_friendly_name");
+    const auto associatedTensorNames =
+        queryArgumentNames(graphHandle, indexUsedByDriver, ZE_GRAPH_ARGUMENT_ASSOCIATED_TENSOR_NAMES);
+
+    addDescriptor(
+        arg.type,
+        createIODescriptorFromLevelZero(indexUsedByDriver,
+                                        arg,
+                                        std::move(name),
+                                        std::move(debugFriendlyName),
+                                        parseTensorNames({associatedTensorNames.data(), associatedTensorNames.size()}),
+                                        metadata),
+        inputs,
+        outputs);
+}
+
+void ZeGraphExtWrappers::getMetadataFromProperties3(ze_graph_handle_t graphHandle,
+                                                    uint32_t indexUsedByDriver,
+                                                    bool readTensorNames,
+                                                    std::vector<IODescriptor>& inputs,
+                                                    std::vector<IODescriptor>& outputs) const {
     // A bug inside the driver makes the "pfnGraphGetArgumentMetadata" call not safe for use prior to
     // "ze_graph_dditable_ext_1_6_t".
     // See: E#117498
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 6)) {
         ze_graph_argument_properties_3_t arg = {};
         arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
-        _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
+        _logger.debug("getMetadataFromProperties3 - perform pfnGetArgumentProperties3");
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
-        switch (arg.type) {
-        case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, std::nullopt));
-        } break;
-        case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, std::nullopt));
-        } break;
-        default: {
-            OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
-                           arg.type);
-        }
-        }
+        addDescriptor(arg.type, createIODescriptorFromLevelZero(indexUsedByDriver, arg, std::nullopt), inputs, outputs);
     } else {
         ze_graph_argument_properties_3_t arg = {};
         arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
@@ -762,35 +784,24 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
             arg.pNext = &supports_strides;
         }
 
-        _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
+        _logger.debug("getMetadataFromProperties3 - perform pfnGetArgumentProperties3");
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
-        // arg.name is scanned as a string_view by the prefix predicates below, ahead of the
-        // NUL-termination check that createIODescriptorFromLevelZero performs further down.
+        // getArgumentMetadata scans arg.name as a string_view, ahead of the NUL-termination check of the descriptor
         safeStringFromFixedBuffer(arg.name, ZE_MAX_GRAPH_ARGUMENT_NAME, "name", indexUsedByDriver);
 
         const auto optionalMetadata = getArgumentMetadata(graphHandle, indexUsedByDriver, arg.name);
 
-        // From 1.20 on this is only reached by compiler-added arguments, which have no tensor names to read from the
-        // fixed-size array
-        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 20)) {
+        if (!readTensorNames) {
             arg.associated_tensor_names_count = 0;
         }
 
-        switch (arg.type) {
-        case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, optionalMetadata));
-        } break;
-        case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, optionalMetadata));
-        } break;
-        default: {
-            OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
-                           arg.type);
-        }
-        }
+        addDescriptor(arg.type,
+                      createIODescriptorFromLevelZero(indexUsedByDriver, arg, optionalMetadata),
+                      inputs,
+                      outputs);
     }
 }
 
@@ -841,7 +852,7 @@ std::optional<ze_graph_argument_metadata_t> ZeGraphExtWrappers::getArgumentMetad
         return std::nullopt;
     }
 
-    _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
+    _logger.debug("getArgumentMetadata - perform pfnGraphGetArgumentMetadata");
     ze_graph_argument_metadata_t metadata = {};
     metadata.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;
     const auto result =
