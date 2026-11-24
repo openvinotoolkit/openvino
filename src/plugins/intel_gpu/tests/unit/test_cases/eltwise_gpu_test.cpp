@@ -5481,12 +5481,28 @@ public:
     using EltwiseKernel_blocked_opt::Validate;
 };
 
+namespace {
+// Like convert_data_tensor(), only explicit padding is stored as pad (the size-based constructor also stores block alignment there)
+kernel_selector::DataTensor make_blocked_opt_fsv16_tensor(size_t channels, size_t pad_before = 0, size_t pad_after = 0) {
+    namespace ks = kernel_selector;
+    constexpr size_t x = 3;
+    constexpr size_t y = 5;
+    constexpr size_t batch = 2;
+    return ks::DataTensor({ks::Tensor::Dim(x, 1),
+                           ks::Tensor::Dim(y, x),
+                           ks::Tensor::Dim(channels, x * y, ks::Tensor::Pad(pad_before, pad_after)),
+                           ks::Tensor::Dim(batch, x * y * (pad_before + channels + pad_after))},
+                          ks::Datatype::F16,
+                          ks::DataLayout::b_fs_yx_fsv16);
+}
+}  // namespace
+
 TEST(eltwise_gpu, blocked_opt_dynamic_rejects_partial_planar_fused_vector) {
     namespace ks = kernel_selector;
     const auto make_params = [](size_t channels, const ks::DataTensor& fused_tensor) {
         ks::eltwise_params params;
         params.is_shape_agnostic = true;
-        const ks::DataTensor tensor(std::vector<size_t>{3, 5, channels, 2}, ks::Datatype::F16, ks::DataLayout::b_fs_yx_fsv16);
+        const auto tensor = make_blocked_opt_fsv16_tensor(channels);
         params.inputs = {tensor, tensor};
         params.outputs = {tensor};
         params.operations.push_back({{ks::eltwise_params::InputType::Buffer(0), ks::eltwise_params::InputType::Buffer(1)}, ks::EltwiseMode::ADD});
@@ -5515,6 +5531,25 @@ TEST(eltwise_gpu, blocked_opt_dynamic_rejects_partial_planar_fused_vector) {
                                        ks::DataLayout::bfyx,
                                        1);
     ASSERT_FALSE(kernel.Validate(make_params(16, padded_planar)));
+}
+
+TEST(eltwise_gpu, blocked_opt_dynamic_rejects_feature_padded_output) {
+    namespace ks = kernel_selector;
+    const auto make_params = [](const ks::DataTensor& output) {
+        ks::eltwise_params params;
+        params.is_shape_agnostic = true;
+        params.inputs = {make_blocked_opt_fsv16_tensor(10), make_blocked_opt_fsv16_tensor(10)};
+        params.outputs = {output};
+        params.operations.push_back({{ks::eltwise_params::InputType::Buffer(0), ks::eltwise_params::InputType::Buffer(1)}, ks::EltwiseMode::ADD});
+        return params;
+    };
+
+    eltwise_kernel_blocked_opt_for_test kernel;
+    ASSERT_TRUE(kernel.Validate(make_params(make_blocked_opt_fsv16_tensor(10))));
+    // A pad that is not a multiple of 16 leaves the upper lanes of the last block outside the dispatch
+    ASSERT_FALSE(kernel.Validate(make_params(make_blocked_opt_fsv16_tensor(10, 8, 0))));
+    // Tail-lane zeroing would overwrite upper padding that may hold another tensor's data
+    ASSERT_FALSE(kernel.Validate(make_params(make_blocked_opt_fsv16_tensor(10, 0, 6))));
 }
 
 struct eltwise_layout_test_params {

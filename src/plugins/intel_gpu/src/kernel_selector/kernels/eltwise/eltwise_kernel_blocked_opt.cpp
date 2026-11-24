@@ -122,11 +122,12 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
             }
         }
 
-        const auto vec_size = SelectVecSizeFromFormat(output);
-        if (output.has_dynamic_pad() || output.Feature().pad.before % vec_size != 0) {
+        // Tail lanes are handled relative to an unpadded feature axis, so feature padding could stay stale or be overwritten
+        if (output.has_dynamic_pad() || output.Feature().pad.Total() != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
 
+        const auto vec_size = SelectVecSizeFromFormat(output);
         for (const auto& input : ewParams.inputs) {
             if (input.has_dynamic_pad() || input.Feature().pad.before % vec_size != 0) {
                 DO_NOT_USE_THIS_KERNEL(params.layerID);
