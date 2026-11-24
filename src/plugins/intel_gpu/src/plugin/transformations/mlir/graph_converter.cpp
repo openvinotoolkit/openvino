@@ -69,15 +69,8 @@ void GraphConverter::request_input_order(const ov::Input<ov::Node>& input, DimOr
     validate_requested_order(input, order);
 
     const auto source = input.get_source_output();
-    if (conflicting_orders.count(source) != 0U) {
-        return;
-    }
-    auto [it, inserted] = requested_orders.emplace(source, order);
-    if (!inserted && it->second != order) {
-        OPENVINO_MLIR_DEBUG_PRINT("Conflicting physical orders requested for " << source << ", keeping the default one");
-        requested_orders.erase(it);
-        conflicting_orders.insert(source);
-    }
+    const auto [it, inserted] = requested_orders.emplace(source, order);
+    OPENVINO_ASSERT(inserted || it->second == order, "[GPU] MLIR: conflicting physical orders are requested for ", source);
 }
 
 ArrayRef<int64_t> GraphConverter::get_requested_order(const ov::Output<ov::Node>& source) const {

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <set>
-
 #include "common/conversion_context.hpp"
 #include "common/convert_common.hpp"
 #include "common/typedefs.hpp"
@@ -47,19 +45,18 @@ public:
     Value get_dimension_value(const Dimension& d);
 
     // Records a physical order requested by a converter for the source of `input`, see
-    // ConversionContext::requestInputOrder. Conflicting requests for the same source drop it.
+    // ConversionContext::requestInputOrder. Conflicting requests for the same source throw.
     // The order is applied only if the source is a function argument (produced outside of the subgraph)
     // with a static shape (the order must have a cldnn format, or it throws): the argument then gets a strided
     // memref type and cldnn provides the buffer in that format.
     void request_input_order(const ov::Input<ov::Node>& input, DimOrder order);
 
-    // The physical order requested for `source`, empty if none (or conflicting).
+    // The physical order requested for `source`, empty if none.
     // The returned view is valid until the next request_input_order() call.
     [[nodiscard]] ArrayRef<int64_t> get_requested_order(const ov::Output<ov::Node>& source) const;
 
 private:
     std::map<ov::Output<ov::Node>, DimOrder> requested_orders;
-    std::set<ov::Output<ov::Node>> conflicting_orders;
 };
 
 const std::string& subgraph_mark();
