@@ -81,6 +81,7 @@ protected:
     }
     void TearDown() override {
         std::filesystem::remove(path);
+        std::filesystem::remove(path + ".baseline.gguf");
         std::filesystem::remove(path + ".xml");
         std::filesystem::remove(path + ".bin");
     }
@@ -137,10 +138,11 @@ protected:
             weight("mm.a.fc.bias", {6});
         }
     }
-    std::shared_ptr<ov::Model> convert() {
-        EXPECT_TRUE(writer.write(path));
+    std::shared_ptr<ov::Model> convert(const std::string& suffix = {}) {
+        const auto model_path = path + suffix;
+        OPENVINO_ASSERT(writer.write(model_path), "Failed to write GGUF test model: ", model_path);
         ov::frontend::gguf::FrontEnd frontend;
-        return frontend.convert(frontend.load(path));
+        return frontend.convert(frontend.load(model_path));
     }
     void add_resampler_weights() {
         writer.kv_u32("clip.minicpmv_version", 3);
@@ -201,7 +203,7 @@ protected:
 
 TEST_F(GGUFMMProj, SeparatorWeightsPreserveMetadataAndNativeEmbeddings) {
     encoder("vision", "gemma3");
-    auto baseline = convert();
+    auto baseline = convert(".baseline.gguf");
     ov::Core core;
     ov::Tensor pixels(ov::element::f32, {1, 3, 8, 8});
     for (size_t i = 0; i < pixels.get_size(); ++i)
@@ -252,6 +254,8 @@ TEST_F(GGUFMMProj, SeparatorWeightsPreserveMetadataAndNativeEmbeddings) {
         for (const auto* name : {"v.image_newline", "v.view_seperator", "model.image_newline"})
             EXPECT_EQ(adapted->get_rt_info<std::string>({"gguf_mmproj", name}),
                       model->get_rt_info<std::string>({"gguf_mmproj", name}));
+    }
+    for (const auto& candidate : {baseline, model, restored}) {
         const auto values = infer(candidate);
         ASSERT_EQ(values.size(), expected.size());
         for (size_t i = 0; i < expected.size(); ++i)
