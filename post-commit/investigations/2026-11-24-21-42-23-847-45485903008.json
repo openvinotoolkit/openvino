@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-21-42-23-847-45485903008",
+  "timestamp": "2026-11-24T21:42:23Z",
+  "run_id": "45485903008",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45485903008",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "cb9ecb0c175d69465a5f188406ea28282588cc2f",
+  "pr_number": "40093",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40093",
+  "author": "AlexanderKalistratov",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler out-of-heap-space errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "Cmake build - CC ON step fails: MSVC cl.exe errors C1060 (compiler is out of heap space) and D8027 across dozens of translation units in parallel vcxproj builds"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Downstream status-check job fails because the Conditional Compilation job it depends on failed"
+    }
+  ],
+  "key_errors": [
+    "C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\xcharconv_tables.h(110,9): error C1060: compiler is out of heap space [...\\openvino_runtime_obj.vcxproj]",
+    "cl : command line  error D8027: cannot execute 'C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\bin\\HostX64\\x64\\c1xx.dll' [...\\openvino_runtime_obj.vcxproj]",
+    "...\\src\\plugins\\intel_cpu\\thirdparty\\onednn\\src\\cpu\\x64\\brgemm\\brgemm_types.hpp(229,9): error C1060: compiler is out of heap space [...\\dnnl_cpu_x64.vcxproj]",
+    "cl : command line  warning D9014: invalid value '15' for '/cgthreads'; assuming '4' [...\\openvino_proxy_plugin_obj.vcxproj]"
+  ],
+  "root_cause": "The Windows Conditional Compilation build compiles many large MSVC projects (onednn/dnnl_cpu_x64, openvino_runtime, frontends/common, lp_transformations, core/reference) in parallel via MSBuild/cl.exe. Each cl.exe invocation attempting excessive internal compiler parallelism (/cgthreads) combined with many concurrent MSBuild project builds exhausts the 32-bit MSVC front-end's heap, producing cascading C1060 'compiler is out of heap space' and D8027 errors across nearly every object file once the first one is hit. This matches a known recurring runner-capacity/parallelism issue (pattern 80cfa127185fbf3e), already observed 26 times since 2026-11-03, rather than a new code regression; no source change in the triggering commit is implicated.",
+  "reproduction_steps": "N/A - this is an environment/resource-exhaustion failure tied to the Windows CC runner's available memory and build parallelism settings; it is not reliably reproducible by re-running the same source on a differently-loaded runner.",
+  "recommended_actions": [
+    "Reduce MSBuild/cl.exe parallelism for the Windows CC job (e.g., lower /MP or /cgthreads values, or cap maxcpucount) to keep the working set within the runner's available memory.",
+    "Evaluate moving the Windows Conditional Compilation job to a larger-memory Windows runner SKU.",
+    "Split the CC build into smaller parallel shards/targets so no single MSBuild invocation holds as many concurrent cl.exe processes.",
+    "Add automatic retry-with-reduced-parallelism for C1060 failures in the Windows CC workflow, since this is now a well-established recurring infra issue (26+ occurrences)."
+  ],
+  "prevention_strategies": "Track build-tool memory usage over time (vcxproj concurrency, cl.exe heap) and alert when parallelism settings exceed the known-safe envelope for the Windows CC runner SKU. Since this pattern already recurs dozens of times, treat it as a known infrastructure limitation and prioritize a durable fix (runner upsizing or parallelism cap) rather than re-investigating identical symptoms on each occurrence.",
+  "historical_context": "This exact signature has recurred 26 times (including this run) since first observed 2026-11-03T07:07:04Z, most recently 2026-11-24T20:38:26Z just hours before this run, all on the Windows Conditional Compilation workflow with identical C1060/D8027 heap-exhaustion errors under high build parallelism. See pattern record patterns/80cfa127185fbf3e.json for the full recurrence history."
+}
