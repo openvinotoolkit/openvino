@@ -272,11 +272,11 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     bool transpose_sdpa_value = false;
     if (past_value_transpose && present_value_transpose) {
         // SDPA reads the cache as value order {0,1,3,2} only where sdpa_ocl has a transposed-V reader for it
-        // (m_fuse_transposed_v: f16 or the 8-bit per-channel cache, head size %8 up to 256); elsewhere V reaches SDPA back
-        // as [B, KVH, S, head_size] through an explicit Transpose of the cache.
+        // (m_fuse_transposed_v: f16 or the 8-bit per-channel cache, a static head size up to 512); elsewhere V reaches SDPA
+        // back as [B, KVH, S, head_size] through an explicit Transpose of the cache (sdpa_ref faults on it, see the docs).
         const auto& value_shape = value.get_partial_shape();
         const auto& head_dim = value_shape.rank().is_static() && value_shape.size() == 4 ? value_shape[3] : ov::Dimension::dynamic();
-        const bool head_ok = head_dim.is_static() && head_dim.get_length() % 8 == 0 && head_dim.get_length() <= 256;
+        const bool head_ok = head_dim.is_static() && head_dim.get_length() <= 512;
         if (m_fuse_transposed_v && head_ok && (!node->is_kv_quantized() || node->get_kv_cache_bit_width() == 8)) {
             metadata.transpose_v_order = transpose_v_order;
         } else {

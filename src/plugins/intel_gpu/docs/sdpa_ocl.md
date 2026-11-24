@@ -3995,6 +3995,40 @@ reverted.
 - Not checked: DG2 (the gate there is unchanged); timing of the paths that now take master's common decomposition
   instead of the fused cache plus a Transpose (a compressed cache that does not fuse, the explicit chain, no XMX).
 
+### GQA transposed V at heads up to 512 (2026-11-24)
+
+The decomposition handed SDPA the transposed cache as value order `{0,1,3,2}` only at a static head that is a multiple
+of 8 up to 256 (the heads the 2026-11-20 tests covered); any other head kept the explicit Transpose.
+
+- The readers already take every head `sdpa_ocl` does (`sdpa_ocl_describe_tiling()`: up to 512): `v_tile_t()` and
+  `v_t_i8_read()` zero the value lanes past the head, and the host keeps the wide V reads and the V prefetch, which the
+  d512 tilings use, off for a transposed V. So only the decomposition changes: a static head up to 512. The 8-bit per-channel
+  cache still fuses up to head 256 (`prepare_compressed_kv()`).
+- A head above 512 (or a dynamic one) keeps the Transpose: `SDPAOpt::validate_impl()` would give the op to `sdpa_ref`, which
+  GPU-faults on it (head 576, f16, the `StatelessKV` view: `CL_OUT_OF_RESOURCES` at the first step; with the Transpose,
+  cosine 1.000000). Not analysed; no other path gives `sdpa_ref` a transposed V.
+- Tests: `sdpa_gpu_transposed_v` +14 (heads 512 / 384 / 100 / 36 / 33: prefill, decode, the 2D read, NaN padding,
+  lower-right chunks, dynamic), `sdpa_gpu_transposed_v_i8` +6 (heads 100 / 36 / 33), `smoke_GQATransposedVCache` at heads
+  100 / 512 / 576 too (40 cases). B70: the four transposed-V / GQA unit suites 100 / 100, the func test 40 / 40; the ONNX
+  repro (`test/xe2fix/x1/gqa_tv.py`) at heads 100 / 512 / 576 gives cosine 1.000000 (0.999999) on every step, SDPA reading
+  the cache at 100 / 512 and a permute in front of it at 576.
+- Cost, B70 at 1800 MHz pinned (`test/gqa_g3/perf/run_arms.sh` with `test/xe2fix/x1b/tv_cost.py`: perf-counter device time of
+  one GQA layer without the input copies, median of 30, one process per case and arm, arms rotating, 2 rounds), this change
+  / the branch before it (explicit Transpose):
+
+  | case | decode, keys | prefill | chunk of 512 on 4000 |
+  |---|---|---|---|
+  | head 512 (H 16, KV heads 4) | 0.82 / 0.87 / 0.77 / 0.93 / 0.89 at 1023 / 1024 / 4095 / 4096 / 16384 | 1.35 / 1.11 / 1.36 at 1023 / 1024 / 4096 | 1.16 |
+  | head 100 (H 32, KV heads 8) | 0.64 / 0.39 / 0.33 at 1023 / 4096 / 16384 | 0.62 / 0.62 / 0.46 at 1023 / 1024 / 4096 | 0.38 |
+
+  The plain-layout controls are 0.99-1.01. At head 512 the transposed-V SDPA of a prefill is 1.6-2.3x the plain one (1023
+  keys: 792 against 339 us; 4096: 7014 against 4040), more than the Transpose it saves, which in a prefill covers the new
+  tokens only; kept so that the decomposition comes closer to master, the read to be improved later. At head 100 the
+  plain V (a 200 B row) misses the 2D reads, the transposed one does not. Master's transposed V is wrong at head 512
+  (cosine 0.03-0.09); against master's plain V this change takes 0.96-1.11x at decode and 1.16-1.42x at prefill and chunk.
+- Not checked: xe_hpg (the PREFILL kernel and the opt single-token stage at heads 384 / 512, the generic SG8 kernel at 100 /
+  36 / 33), the timing at head 384.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each

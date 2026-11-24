@@ -224,7 +224,7 @@ TEST_P(GQATransposedVCacheTest, MatchesTemplate) {
 
 std::vector<GQAVCacheParams> make_params() {
     std::vector<GQAVCacheParams> params;
-    for (const size_t head_size : {64, 128}) {
+    for (const size_t head_size : {64, 128, 100, 512, 576}) {
         for (const bool transpose_v : {true, false}) {
             for (const auto attention : {Attention::SDPA, Attention::SOFTCAP, Attention::QK_OUTPUT, Attention::I8_KV}) {
                 params.push_back({head_size, transpose_v, attention});

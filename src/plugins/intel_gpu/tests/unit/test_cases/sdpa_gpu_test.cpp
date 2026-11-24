@@ -2309,12 +2309,12 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
 // Transposed V (order {0,1,3,2}) on sdpa_ocl's v_tile_t, step by step on one network (static: one step), against the same
 // op with the plain V layout (bit-exact where both run the same kernel family: same tiling and V values) and the host
 // reference. Key counts odd, even and a multiple of 8 (a row starts 2 B off a dword when value * seq + key is odd), shorter
-// than one cp block, ending inside one; GQA, batch 2, heads 40 / 64 / 72 / 128 / 256, a mask, lower-right causality (GQA's),
+// than one cp block, ending inside one; GQA, batch 2, heads 33 to 512, a mask, lower-right causality (GQA's),
 // and V rows padded past the keys with NaN (a windowed view), which the output must not see. Even keys on a pitch of a
 // multiple of 8 take the 2D block read (Xe2), the rest the per-lane read. On xe_hpg the PREFILL kernel reads it
 // (hpg_v_rows()), and a one-query step at the heads tests::transposed_v_decode_on_opt() takes runs the opt single-token
-// stage (V_TRANSPOSED_READ); a one-query step at another head (40, 72) the generic SG8 kernel, which the plain layout does
-// not run there (no bit-exact check then).
+// stage (V_TRANSPOSED_READ); a one-query step at another head (33, 36, 40, 72, 100) the generic SG8 kernel, which the plain
+// layout does not run there (no bit-exact check then).
 struct sdpa_tv_case {
     int batch, heads, kv_heads, head_size;
     std::vector<std::pair<int, int>> steps;  // {queries, keys}
@@ -2539,6 +2539,50 @@ TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_300q_600kv_d64) {
 }
 TEST(sdpa_gpu_transposed_v, static_lr_16q_4kv_256q_768kv_d256) {
     run_sdpa_transposed_v({1, 16, 4, 256, {{256, 768}}, false, false, false, 0, true});
+}
+// Heads above 256 (384, 512: d512 tilings, WIDE_READS / PREFETCH_V off for a transposed V) and heads that are not a multiple
+// of 8 (100, 36, 33: value lanes past the head zeroed).
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_17q_17kv_d512_causal) {
+    run_sdpa_transposed_v({1, 8, 2, 512, {{17, 17}}, false, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_1q_1025kv_d512) {
+    run_sdpa_transposed_v({1, 8, 2, 512, {{1, 1025}}});
+}
+TEST(sdpa_gpu_transposed_v, static_nanpad_8q_2kv_17q_40kv_d512_2d) {
+    run_sdpa_transposed_v({1, 8, 2, 512, {{17, 40}}, false, false, false, 8});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_nanpad_8q_2kv_64q_201kv_d512) {
+    run_sdpa_transposed_v({1, 8, 2, 512, {{64, 201}}, false, false, false, 5, true});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_300q_600kv_d512) {
+    run_sdpa_transposed_v({1, 8, 2, 512, {{300, 600}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, dynamic_lr_prompt_chunk_decode_8q_2kv_d512) {
+    run_sdpa_transposed_v({1, 8, 2, 512, {{300, 300}, {1, 301}, {1, 302}, {64, 366}, {1, 367}}, true, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_33q_193kv_d384) {
+    run_sdpa_transposed_v({1, 8, 2, 384, {{33, 193}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_1q_300kv_d384) {
+    run_sdpa_transposed_v({1, 8, 2, 384, {{1, 300}}});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_17q_41kv_d100_mask) {
+    run_sdpa_transposed_v({1, 8, 2, 100, {{17, 41}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_1q_77kv_d100) {
+    run_sdpa_transposed_v({1, 8, 2, 100, {{1, 77}}});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_33q_193kv_d36) {
+    run_sdpa_transposed_v({1, 8, 2, 36, {{33, 193}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, static_8q_2kv_1q_19kv_d36) {
+    run_sdpa_transposed_v({1, 8, 2, 36, {{1, 19}}});
+}
+TEST(sdpa_gpu_transposed_v, static_lr_8q_2kv_17q_40kv_d33) {
+    run_sdpa_transposed_v({1, 8, 2, 33, {{17, 40}}, false, false, false, 0, true});
+}
+TEST(sdpa_gpu_transposed_v, dynamic_lr_prompt_decode_8q_2kv_d100) {
+    run_sdpa_transposed_v({1, 8, 2, 100, {{33, 33}, {1, 34}, {17, 51}, {1, 52}}, true, false, false, 0, true});
 }
 
 // Masks broadcast over keys: [1, H, Q, 1] (param false) and [1, H, 1, 1] (param true).
@@ -3645,6 +3689,25 @@ TEST(sdpa_gpu_transposed_v_i8, static_pad_32q_8kv_512q_1000kv_d128_2d) {
 }
 TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_33q_96kv_d64_2d_asym) {
     run_sdpa_transposed_v_i8({1, 8, 2, 64, {{33, 96}}, false, true});
+}
+// Heads that are not a multiple of 8 (100, 36, 33).
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_17q_41kv_d100_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 100, {{17, 41}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_1q_77kv_d100) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 100, {{1, 77}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_33q_193kv_d36) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 36, {{33, 193}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_1q_19kv_d36_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 36, {{1, 19}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_17q_40kv_d33) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 33, {{17, 40}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d100) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 100, {{33, 33}, {1, 34}, {17, 51}, {1, 52}}, true});
 }
 TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d64) {
     run_sdpa_transposed_v_i8({1, 8, 2, 64, {{17, 17}, {1, 18}, {1, 19}, {40, 59}, {1, 60}, {4, 64}, {1, 65}}, true});
