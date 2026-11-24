@@ -860,7 +860,8 @@ static constexpr Property<WorkloadType, PropertyMutability::RW> workload_type{"W
 /**
  * @brief Enum to define possible Quality of Service levels
  *
- * QoS level represents the scheduling class requested for the device queues used for inference.
+ * QoS level expresses the desired power/energy characteristics of the work submitted through the command queue used
+ * for model execution.
  *
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -947,10 +948,17 @@ inline std::istream& operator>>(std::istream& is, QoSInfo& qos_info) {
 /** @endcond */
 
 /**
- * @brief Write-only property to request the Quality of Service level of the device queues.
- * Can be passed to compile_model, Core::set_property and CompiledModel::set_property; setting QoS::DEFAULT reverts to
- * the driver/OS-selected level. Use ov::qos_info on the compiled model to query the effective level.
- * This is only supported by NPU.
+ * @brief Write-only property to request the Quality of Service (QoS) level of the command queue used for model
+ * execution. The QoS level expresses the desired power/energy characteristics of the work submitted through that
+ * command queue. It is configured independently of ov::hint::model_priority and ov::workload_type: setting one of
+ * these properties does not change the others.
+ *
+ * The level can be set at core level (Core::set_property), at compilation (Core::compile_model) or changed on the
+ * compiled model at runtime (CompiledModel::set_property). Setting QoS::DEFAULT reverts to the driver/OS-selected
+ * level. Use ov::qos_info on the compiled model to query the effective level.
+ *
+ * Setting the level at core level applies only to the command queues created from that point on. Models that are
+ * already compiled keep their current QoS level; use CompiledModel::set_property to change it for them.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<QoS, PropertyMutability::WO> qos{"QOS"};
@@ -958,7 +966,6 @@ static constexpr Property<QoS, PropertyMutability::WO> qos{"QOS"};
 /**
  * @brief Read-only compiled model property to get the effective Quality of Service level and whether it was requested
  * by the application. See QoSInfo struct definition for details.
- * This is only supported by NPU.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<QoSInfo, PropertyMutability::RO> qos_info{"QOS_INFO"};
