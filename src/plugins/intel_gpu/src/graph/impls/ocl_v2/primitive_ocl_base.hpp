@@ -326,6 +326,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
             // the same local->global translation init_kernels()/init_by_cached_kernels() already do
             // via `_order[i]`, otherwise this silently binds the compiled kernel to the wrong Stage
             // object (or leaves the real stage's kernel null) - a guaranteed crash on execute().
+            OPENVINO_ASSERT(sub_kernel_idx < _order.size(), "Compiled kernel index exceeds active stages");
             _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }

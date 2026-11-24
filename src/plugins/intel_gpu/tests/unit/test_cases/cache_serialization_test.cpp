@@ -409,3 +409,27 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     // Weightless caching must serialize metadata instead of reading that full layout.
     EXPECT_LT(serialized_size(partial_data), serialized_size(plain_data));
 }
+
+TEST(cache_serialization, otd_partial_data_cache_roundtrip_preserves_small_backing) {
+    auto& engine = get_test_engine();
+    const layout full_layout(ov::PartialShape{4, 1, 1, 16}, data_types::u8, format::bfyx);
+    const layout physical_layout(ov::PartialShape{1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto physical = engine.allocate_memory(physical_layout, engine.get_preferred_memory_allocation_type(), false);
+    auto logical_view = engine.reinterpret_buffer(*physical, full_layout);
+    data original("partial", logical_view, true, physical_layout.bytes_count());
+
+    membuf blob;
+    std::ostream output(&blob);
+    BinaryOutputBuffer output_buffer(output);
+    original.save(output_buffer);
+
+    std::istream input(&blob);
+    BinaryInputBuffer input_buffer(input, engine);
+    data restored;
+    restored.load(input_buffer);
+    restored.load_weights(input_buffer, nullptr, nullptr);
+
+    EXPECT_TRUE(restored.skip_device_transfer());
+    EXPECT_EQ(restored.mem->get_layout(), full_layout);
+    EXPECT_EQ(input.peek(), std::char_traits<char>::eof());
+}

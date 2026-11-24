@@ -4,12 +4,55 @@
 
 #pragma once
 #include <list>
+#include <cstdint>
 #include <mutex>
+#include <optional>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace ov::intel_gpu::ocl::moe {
+
+class ExpertSlotReservations {
+public:
+    struct Ticket {
+        uint64_t id;
+        uint64_t epoch;
+        std::vector<size_t> slots;
+        std::vector<uint32_t> missing_experts;
+        std::vector<size_t> missing_slots;
+        std::vector<size_t> ready_pairs;
+        std::vector<size_t> missing_pairs;
+    };
+
+    explicit ExpertSlotReservations(size_t capacity);
+    std::optional<Ticket> reserve(const std::vector<uint32_t>& experts, uint64_t epoch, bool speculative = false);
+    void discard_unused(const Ticket& ticket, const std::vector<uint32_t>& used);
+    bool rollback(const Ticket& ticket);
+    bool complete(const Ticket& ticket);
+    bool release(const Ticket& ticket);
+
+private:
+    struct Slot {
+        std::optional<uint32_t> expert;
+        uint64_t generation = 0;
+        uint64_t age = 0;
+        size_t pins = 0;
+        bool ready = false;
+    };
+    struct Record {
+        uint64_t epoch;
+        std::vector<std::pair<size_t, uint64_t>> generations;
+        std::vector<std::pair<size_t, Slot>> replaced;
+    };
+    std::mutex _mutex;
+    std::vector<Slot> _slots;
+    std::unordered_map<uint64_t, Record> _active;
+    uint64_t _epoch = 0;
+    uint64_t _clock = 0;
+    uint64_t _next_id = 0;
+};
 
 class LRUCache {
 public:

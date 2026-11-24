@@ -145,6 +145,8 @@ static constexpr Property<bool, PropertyMutability::RW> enable_sdpa_micro{"GPU_E
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECORD_REPLAY"};
+static constexpr Property<bool, PropertyMutability::RW> enable_les{"GPU_ENABLE_LES"};
+static constexpr Property<size_t, PropertyMutability::RW> les_queue_capacity{"GPU_LES_QUEUE_CAPACITY"};
 
 /**
  * @brief [EXPERIMENTAL] Enables MLIR-based Graph Compiler execution for supported subgraphs.

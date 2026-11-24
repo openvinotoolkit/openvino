@@ -47,6 +47,7 @@ public:
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
     void enqueue_barrier(const std::vector<event::ptr>& deps) override;
+    void enqueue_external_barrier(const std::vector<event::ptr>& deps);
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
