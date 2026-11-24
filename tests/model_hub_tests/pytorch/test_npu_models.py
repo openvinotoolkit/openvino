@@ -8,7 +8,7 @@ import pytest
 import torch
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir, retry
-from openvino import PartialShape, convert_model
+from openvino import Core, PartialShape, convert_model
 
 from torch_utils import TestTorchConvertModel, flattenize_tuples
 
@@ -114,6 +114,16 @@ def skip_if_platform_skipped(model_name, skipped_platforms):
     npu_platform = os.environ.get("NPU_PLATFORM")
     if npu_platform and npu_platform in (skipped_platforms or []):
         pytest.skip(f"{model_name}: known NPU compilation failure on platform {npu_platform}")
+
+
+def skip_if_cpu_precision_unsupported(ie_device):
+    # TEMP: see CPU_INFERENCE_PRECISION in test_convert_model.py
+    precision = os.environ.get("CPU_INFERENCE_PRECISION")
+    capability = {"f16": "FP16", "bf16": "BF16"}.get(precision)
+    if ie_device == "CPU" and capability:
+        capabilities = Core().get_property("CPU", "OPTIMIZATION_CAPABILITIES")
+        if capability not in capabilities:
+            pytest.skip(f"CPU has no native {precision}, the hint would be silently ignored: {capabilities}")
 
 
 def make_inputs(spec, dtype):
@@ -289,6 +299,7 @@ class TestNpuModels(TestTorchConvertModel):
     @pytest.mark.nightly
     def test_compile_model(self, model_id, ie_device):
         case = get_case(model_id)
+        skip_if_cpu_precision_unsupported(ie_device)
         skip_if_not_enough_ram(model_id, case["ram_gb"])
         skip_if_platform_skipped(model_id, case.get("skipped_platforms"))
         self.run(model_id, case["repo"], ie_device)

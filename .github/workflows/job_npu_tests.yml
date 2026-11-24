@@ -281,19 +281,20 @@ jobs:
           # NPU only: core.available_devices initializes every plugin
           devices = core.get_property("NPU", "AVAILABLE_DEVICES")
           print("NPU devices:", devices)
+          print("CPU capabilities:", core.get_property("CPU", "OPTIMIZATION_CAPABILITIES"))
           assert devices, "NPU plugin sees no device: Level Zero backend failed to initialize"
           arch = core.get_property("NPU", "DEVICE_ARCHITECTURE")
           print("NPU:", core.get_property("NPU", "FULL_DEVICE_NAME"), arch)
           assert os.environ["NPU_PLATFORM"] in arch, f"runner labels promise NPU {os.environ['NPU_PLATFORM']}, device is {arch}"
           '@ | python3 -
 
-      # --- TensorFlow ---------------------------------------------------------
+      # --- TensorFlow (off in infer mode: proxy-dmz blocks storage.googleapis.com and tfhub.dev) ---
       - name: Install TF Models tests requirements
-        if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
+        if: ${{ inputs.mode != 'infer' && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE) }}
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
       - name: TensorFlow Models Tests - NPU ${{ inputs.mode }} (convert_model)
-        if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
+        if: ${{ inputs.mode != 'infer' && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE) }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -301,20 +302,20 @@ jobs:
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
       - name: TensorFlow Models Tests - NPU ${{ inputs.mode }} (read_model)
-        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE) }}
+        if: ${{ !cancelled() && inputs.mode != 'infer' && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE) }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
 
-      # --- JAX ----------------------------------------------------------------
+      # --- JAX (off in infer mode, like TensorFlow) ---------------------------
       - name: Install JAX Models tests requirements
-        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
+        if: ${{ !cancelled() && inputs.mode != 'infer' && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
 
       - name: JAX/Flax Models Tests - NPU ${{ inputs.mode }}
-        if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
+        if: ${{ !cancelled() && inputs.mode != 'infer' && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
@@ -333,6 +334,9 @@ jobs:
         shell: cmd
         env:
           OP_REPORT_FILE: "${{ env.INSTALL_TEST_DIR }}\\TEST-pt_npu_unsupported_ops_${{ matrix.npu-platform }}.log"
+          # TEMP: each model also runs on CPU in f16, to tell NPU fp16 error from a systematic mismatch
+          TEST_DEVICE: ${{ inputs.mode == 'infer' && 'NPU;CPU' || 'NPU' }}
+          CPU_INFERENCE_PRECISION: ${{ inputs.mode == 'infer' && 'f16' || '' }}
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_npu_models.py -m "%MODEL_SCOPE%" ^

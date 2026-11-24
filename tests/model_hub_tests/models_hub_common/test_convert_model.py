@@ -68,11 +68,23 @@ class TestConvertModel:
             npu_platform = os.environ.get("NPU_PLATFORM")
             if npu_platform and npu_compile_only(ie_device):
                 config["NPU_PLATFORM"] = npu_platform
+        # TEMP: CPU run with a reduced precision, to tell NPU fp16 error from a systematic mismatch
+        cpu_precision = os.environ.get("CPU_INFERENCE_PRECISION")
+        if cpu_precision and ie_device == "CPU":
+            config["INFERENCE_PRECISION_HINT"] = cpu_precision
         return config
 
     def infer_ov_model(self, ov_model, inputs, ie_device):
         core = Core()
         compiled = core.compile_model(ov_model, ie_device, self.get_compile_config(ie_device))
+        cpu_precision = os.environ.get("CPU_INFERENCE_PRECISION")
+        if cpu_precision and ie_device == "CPU":
+            # the CPU plugin silently ignores a precision it has no hardware for
+            effective = compiled.get_property("INFERENCE_PRECISION_HINT")
+            print("CPU INFERENCE_PRECISION_HINT: requested {}, effective {}".format(cpu_precision, effective))
+            full_names = {"f16": "float16", "bf16": "bfloat16", "f32": "float32"}
+            assert "'{}'".format(full_names.get(cpu_precision, cpu_precision)) in str(effective), \
+                "CPU ran with {} instead of the requested {}".format(effective, cpu_precision)
         if npu_compile_only(ie_device):
             return None
         ov_outputs = compiled(inputs)
