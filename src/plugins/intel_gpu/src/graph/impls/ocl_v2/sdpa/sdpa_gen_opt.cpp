@@ -60,20 +60,12 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
-        size_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
         const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (desc->attn_mask_val.has_value()) {
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", desc->attn_mask_val.value());
             jit.make("HAS_ATTN_MASK_INPUT", 0);
         } else {
             jit.make("HAS_ATTN_MASK_INPUT", has_attn_mask_input ? 1 : 0);
-            if (has_attn_mask_input) {
-                const auto& attn_mask_layout = params.get_input_layout(attn_mask_idx);
-                // Enable clamping only if attn_mask dtype differs from softmax_accumulator_type(f32)
-                if (attn_mask_layout.data_type != data_types::f32) {
-                    jit.make("CLAMP_ATTN_MASK_INPUT", 1);
-                }
-            }
         }
         size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if ((data_inputs_num > scale_idx) && (!desc->scale_val.has_value())) {
@@ -300,6 +292,7 @@ JitConstants SDPAOptGeneratorFinalization::get_jit_constants(const kernel_impl_p
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::FINALIZATION);
     jit.make("SDPA_STAGE_1", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", get_target_seq_len_block_size());
+    jit.make("MAX_PARTITIONS_NUM", get_max_partitions_num());
     return jit;
 }
 

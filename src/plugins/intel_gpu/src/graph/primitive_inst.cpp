@@ -657,16 +657,23 @@ bool primitive_inst::all_dependencies_cpu_impl() const {
 
 bool primitive_inst::need_reset_output_memory() const {
     for (const auto& user_inst : get_user_insts()) {
+        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
+
         // Check users of optimized_out inst, as the optimized out inst will not be able to
         // reset it's memory
         if (user_inst->can_be_optimized()) {
+            // The optimized out user aliases its data input only. Shape infer dependencies (e.g. the target shape of a reshape)
+            // are read on host to calculate the output shape, so they must not be reset. The reset is an asynchronous fill which
+            // may overwrite the values that a CPU impl (e.g. shape_of) has already written on host.
+            const auto shape_infer_deps = user_inst->get_node().get_shape_infer_dependencies();
+            if (std::find(shape_infer_deps.begin(), shape_infer_deps.end(), dependency_idx) != shape_infer_deps.end()) {
+                continue;
+            }
             if (user_inst->need_reset_output_memory()) {
                 return true;
             }
             continue;
         }
-
-        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
 
         if (user_inst->need_reset_input_memory(dependency_idx)) {
             return true;
@@ -2623,7 +2630,15 @@ void primitive_inst::prepare_primitive() {
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
             get_unfused_subgraph();
+            _use_unfused_subgraph = true;
             return;
+        }
+
+        if (_use_unfused_subgraph) {
+            // The output still points to the unfused subgraph's buffer, so re-select impl and reallocate output.
+            _use_unfused_subgraph = false;
+            clear_output_memory();
+            set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
 
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
@@ -2764,7 +2779,7 @@ void primitive_inst::execute() {
         return;
     }
 
-    if (_unfused_subgraph != nullptr) {
+    if (_use_unfused_subgraph) {
         GPU_DEBUG_TRACE << "Now execute unfused subgraph  " << _node->id() << std::endl;
         for (auto& d : _deps) {
             if (!d.first->get_node().is_type<data>()) {
@@ -2794,7 +2809,14 @@ void primitive_inst::execute() {
 
         OPENVINO_ASSERT(outputs.find(last_prim_id) != outputs.end(), "[GPU] Can't find output primitive ", last_prim_id, " for unfused subgraph");
 
-        _outputs[0] = outputs.at(last_prim_id).get_memory();
+        auto subgraph_output = outputs.at(last_prim_id).get_memory();
+        // Consumers rebind kernel arguments only when MEMORY_CHANGED is set.
+        if (!_outputs[0] || !get_network().get_engine().is_the_same_buffer(*_outputs[0], *subgraph_output)) {
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+        // The pooled fused output would otherwise stay registered to this primitive until network destruction.
+        release_and_clear_output_memory();
+        _outputs[0] = std::move(subgraph_output);
 
         _impl_params->output_layouts[0] = _unfused_subgraph->get_output_layout(last_prim_id);
         set_out_event(outputs.at(last_prim_id).get_event());
@@ -3533,7 +3555,7 @@ bool primitive_inst::is_valid_fusion() const {
         }
     }
 
-    const auto& out_pshape = (_unfused_subgraph != nullptr && !get_flag(ExecutionFlags::SHAPE_CHANGED))
+    const auto& out_pshape = (_use_unfused_subgraph && !get_flag(ExecutionFlags::SHAPE_CHANGED))
                                  ? _unfused_subgraph->get_primitive(get_node().id())->get_output_layout().get_partial_shape()
                                  : _impl_params->get_output_layout().get_partial_shape();
     for (auto& fd : fused_eltwise_prims) {

@@ -42,6 +42,27 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
     return roi_shape;
 }
 
+// Extends strides to the rank of shape (which must be greater), which adds leading dimensions to the strides' shape.
+// Strides of a scalar are empty, so then the innermost added dimension is set to the element size.
+// The innermost stride of a sub-byte type is not a byte step, so a dimension added above it gets the packed row size.
+Strides extend_strides(const Strides& strides, const Shape& shape, const element::Type& element_type) {
+    auto dim = shape.size() - strides.size();
+    Strides extended;
+    extended.reserve(shape.size());
+    extended.resize(dim);
+    extended.insert(extended.end(), strides.begin(), strides.end());
+    if (strides.empty()) {
+        extended[--dim] = element_type.size();
+    } else if (strides.size() == 1 && element_type.bitwidth() < 8) {
+        extended[dim - 1] = util::get_dense_byte_strides(element_type, Shape{1, shape.back()}).front();
+        --dim;
+    }
+    while (dim-- > 0) {
+        extended[dim] = shape[dim + 1] * extended[dim + 1];
+    }
+    return extended;
+}
+
 // Computes the byte offset of a ROI inside its owner tensor.
 size_t compute_roi_offset(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) {
     const auto& element_type = owner->get_element_type();
@@ -523,6 +544,7 @@ public:
         OPENVINO_ASSERT(can_compute_byte_strides, "Byte strides are not representable for shape: ", new_shape);
 
         m_shape = std::move(new_shape);
+        update_strides();
     }
 
     size_t get_offset() const {
@@ -534,10 +556,26 @@ public:
     }
 
 protected:
+    const Strides& get_roi_strides() const {
+        return m_strides.empty() ? m_owner->get_strides() : m_strides;
+    }
+
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
     const size_t m_offset;
+
+private:
+    void update_strides() {
+        const auto& owner_strides = m_owner->get_strides();
+        if (m_shape.size() > owner_strides.size()) {
+            m_strides = extend_strides(owner_strides, m_shape, m_owner->get_element_type());
+        } else {
+            m_strides.clear();
+        }
+    }
+
+    Strides m_strides;
 };
 
 /**
@@ -554,7 +592,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
@@ -604,7 +642,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
