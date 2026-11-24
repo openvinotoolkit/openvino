@@ -67,7 +67,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-32gb-build
+    runs-on: aks-win-16-cores-32gb-build
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -164,7 +164,7 @@ jobs:
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
-            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 2)))" `
+            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)))" `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
