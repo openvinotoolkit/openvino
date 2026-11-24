@@ -3417,13 +3417,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel,
                                            sdpa_test_params{64, 8, 2, 1, 301, 1, 4, true},
                                            sdpa_test_params{80, 8, 2, 1, 302, 1, 4, false},
                                            // Heads 384 / 512 (d_max 512, the per-channel d_max 512 tiling on Xe2: the causal
-                                           // tile skip on prefill): query and key tails, 8-bit and 4-bit, and the 4-bit decode.
+                                           // tile skip on prefill): query and key tails, 8-bit and 4-bit, and the decode.
                                            sdpa_test_params{512, 8, 2, 100, 1003, 1, 8, true},
                                            sdpa_test_params{384, 8, 2, 41, 301, 1, 8, false},
                                            sdpa_test_params{512, 8, 2, 33, 77, 1, 4, false},
                                            sdpa_test_params{384, 8, 2, 97, 1000, 1, 4, true},
                                            sdpa_test_params{512, 8, 2, 1, 1000, 1, 4, true},
-                                           sdpa_test_params{384, 8, 2, 1, 303, 1, 4, false}),
+                                           sdpa_test_params{384, 8, 2, 1, 303, 1, 4, false},
+                                           sdpa_test_params{512, 8, 2, 1, 1001, 1, 8, true},
+                                           sdpa_test_params{384, 8, 2, 1, 305, 1, 8, false}),
                          sdpa_gpu_compressed_kv_per_channel_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,

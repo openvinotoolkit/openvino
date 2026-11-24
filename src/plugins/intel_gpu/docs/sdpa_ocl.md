@@ -3993,8 +3993,9 @@ reverted.
   `OV_GPU_ENABLE_SDPA_MICRO=0`) gives cosine 1.000000 on every step (0.999999 under `=0`), where master's transposed
   layout gives 0.02-0.08 on the 2-4 row steps and on every `=0` step. The kernel trace shows: default, SDPA reads the cache
   (no permute in front); `=0`, a permute of the cache in front of SDPA; softcap, the common decomposition.
-- Not checked: DG2 (the gate there is unchanged); timing of the paths that now take master's common decomposition
-  instead of the fused cache plus a Transpose (a compressed cache that does not fuse, the explicit chain, no XMX).
+- DG2: "The GQA fusion up to head 512 on xe_hpg (2026-11-25)". Not checked: timing of the paths that now take master's
+  common decomposition instead of the fused cache plus a Transpose (a compressed cache that does not fuse, the explicit
+  chain, no XMX), except the compressed transposed V at head 512 on DG2 before the per-channel entry below fused it.
 
 ### GQA transposed V at heads up to 512 (2026-11-24)
 
@@ -4027,8 +4028,8 @@ of 8 up to 256 (the heads the 2026-11-20 tests covered); any other head kept the
   tokens only; kept so that the decomposition comes closer to master, the read to be improved later. At head 100 the
   plain V (a 200 B row) misses the 2D reads, the transposed one does not. Master's transposed V is wrong at head 512
   (cosine 0.03-0.09); against master's plain V this change takes 0.96-1.11x at decode and 1.16-1.42x at prefill and chunk.
-- Not checked: xe_hpg (the PREFILL kernel and the opt single-token stage at heads 384 / 512, the generic SG8 kernel at 100 /
-  36 / 33), the timing at head 384.
+- xe_hpg (DG2): "The GQA fusion up to head 512 on xe_hpg (2026-11-25)": the tests pass; the head-512 prefill is 1.19x and
+  the head-100 decode 1.50x the explicit Transpose there. Not checked: the timing at head 384.
 
 ### Per-channel compressed KV at heads up to 512 (2026-11-24)
 
@@ -4058,7 +4059,9 @@ land on `sdpa_ref`); the i8-only rule for an 8-bit cache stays.
   at head 512 spills (i8 prefill of 2048: 3417 against 1117 us for the f16 SDPA after the dequantization; 4-bit 2531).
   Kept so that the pass comes closer to master; the spill is a follow-up (gone since "Plain-SDPA d_max 512 tiling for the
   per-channel cache", which also lists what is still slower).
-- Not checked: xe_hpg, Xe3.
+- xe_hpg (DG2): "The GQA fusion up to head 512 on xe_hpg (2026-11-25)": the tests pass; decode is faster, the 4-bit prefill
+  and chunk 1.10-1.38x the dequantized cache, the i8 one with the transposed V (with the entry above) 1.16-1.47x. Not
+  checked: Xe3.
 
 ### xe_hpc handled as Xe2 (2026-11-24)
 
@@ -4184,7 +4187,56 @@ B70, 16 / 4 heads, head 512, SDPA us, transposed / plain: prefill 1024 534 / 336
     all 5 `d_max` 512 / 384 causal multi-query rows (before this change those stages compiled without the skip).
   - B70: the transposed-V, per-channel, `gqa_decomp`, decomposition and predicate unit suites 157 / 157;
     `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` 62 / 62.
-- Not checked: xe_hpg (its own kernels) and Xe3 (the plain `d_max` 512 tilings are `xe2_tuned()` only).
+- Not checked: Xe3 (the plain `d_max` 512 tilings are `xe2_tuned()` only). xe_hpg has its own kernels; measured unchanged
+  on DG2 ("The GQA fusion up to head 512 on xe_hpg").
+
+### The GQA fusion up to head 512 on xe_hpg (2026-11-25)
+
+"GQA transposed V: master's fusion conditions back", "GQA transposed V at heads up to 512" and "Per-channel compressed KV
+at heads up to 512" widen what the decomposition hands SDPA on xe_hpg too, and had been run on the B70 only. Run on DG2
+(A770, Windows driver 32.0.101.9175; kit `test/gqa_dg2/`, results `test/gqa_dg2/dg2/RESULT.md`): the build before the
+first of them against the branch with the three and the three entries after them.
+
+- Correctness: the transposed-V, per-channel, `gqa_decomp`, decomposition and predicate unit suites 166 / 166;
+  `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` + `smoke_GQASlidingWindow` 68 / 68. Every test in both builds
+  kept its status and every added one passes; they assert the kernel that ran. The `*sdpa*:*SDPA*:*Sdpa*` unit filter
+  1456 / 1456. The cost runs: cosine 0.999986 or more against a double reference on all 224 runs, none non-finite.
+- Cost: one GQA layer (ONNX `com.microsoft` GroupQueryAttention, 16 heads, 4 KV heads; f16, i8 and 4-bit per-channel
+  caches; plain and transposed V; heads 100 / 128 / 512) through the kit's `gqa_cost`. It reports the perf-counter device
+  time without the input copies, median of 30, 2 rounds, arms alternating. One build per entry, plus the build before
+  with the per-channel entry alone, attributes each row; kernel times are from cliloader. Rows over 1.03, layer total,
+  after / before:
+
+  | row | after / before | from | kernel, before -> after (us per call) |
+  |---|---|---|---|
+  | f16 transposed V, head 512, prefill 1024 | 1.19 | transposed V up to 512 | `sdpa_ocl_prefill` 1050 -> 1483; an 89 us Transpose gone |
+  | f16 transposed V, head 100, decode on 4095 keys | 1.50 | transposed V up to 512 | `sdpa_opt__multi_reg` 2620 + Transpose 148 -> `sdpa_ocl_mixed` 4318 |
+  | 4-bit, head 512, prefill 1024, plain / transposed V | 1.38 / 1.38 | per-channel up to 512 | `sdpa_ocl_prefill` 1021 -> 1950 (plain); dequantization gone |
+  | 4-bit, head 512, chunk of 512 on 4000, plain / transposed V | 1.13 / 1.10 | per-channel up to 512 | `sdpa_ocl_prefill` 3179 -> 4611 (transposed) |
+  | i8 transposed V, head 512, prefill 1024 / chunk | 1.47 / 1.16 | both | `sdpa_ocl_prefill` 1027 -> 2106 / 3197 -> 4704 |
+
+  Faster: the head-512 decode on 4095 keys 0.34-0.48 (kernel sums: f16 transposed 0.44, i8 0.48 / 0.34, 4-bit 0.38 /
+  0.41, plain / transposed); 16 queries on 4096 at head 512 0.53-0.80, at head 100 0.90; head-100 transposed prefill
+  0.75, chunk 0.70. The f16 plain-V and head-128 rows: 0.97-1.02, and 0.93 on one 80 us decode row that gave 1.02 in a
+  second run.
+- Every slower row is the PREFILL kernel (or, at head 100, the MIXED one) reading the fused layout, which costs more than
+  the Transpose or dequantization it replaces. On the B70 "Plain-SDPA d_max 512 tiling for the per-channel cache" and
+  "Transposed V at d_max 512" took that cost down; both are `xe2_tuned()` only. The i8 transposed V is slow only with both
+  entries: with the per-channel entry alone, V is still transposed explicitly and read as plain i8 (1245 us, 0.92-0.99 of
+  before). Why head 100 moves from the opt multi-query kernel to `sdpa_ocl_mixed` was not analysed. Kept, as on the B70,
+  so that the decomposition comes closer to master ("xe_hpg follow-ups").
+- The entries after the three move nothing on xe_hpg (23 rows, 0.990-1.005). "Master's fusion conditions back" on its own
+  made the i8 / 4-bit transposed-V rows at head 512 slower (decode 1.32x / 1.63x, kernel sums: the common decomposition's
+  Concat / Slice / Multiply / Transpose); the per-channel entry replaces that graph with the fused cache.
+- Method trap: the perf counters time only the last kernel of a multi-stage primitive. The xe_hpg decode at heads 128 /
+  512 runs `sdpa_opt__single_reg` + `sdpa_opt__finalization`, so the counter holds the finalization only; the decode
+  ratios above are cliloader kernel sums (the counter totals gave 0.19-0.42). The B70 decode rows' SDPA counter holds
+  130-290 us at head 512, the size of the main kernel (not checked under cliloader).
+- Tests: `smoke_sdpa_gpu_compressed_kv_per_channel` +2 rows, the i8 decode with the plain V at heads 512 / 384, which no
+  row covered (the transposed one is in `sdpa_gpu_transposed_v_i8`). Negative control (temporary test build): the
+  neighbouring channels' V scales swapped in the fused arm fail exactly these 2 (cosine 0.95-0.96). B70: the unit suites
+  168 / 168 (the new rows on `sdpa_ocl_mixed`), the func suites 68 / 68. Not run on DG2 (the opt single-token stage there).
+- Not checked: real models, other head counts, memory use, ARL-H, the jit variant behind each kernel name.
 
 ## Known issues
 
@@ -4331,6 +4383,13 @@ re-measures against the opt kernels.
   - Image generation (flux.1-schnell, its 32-token prompt, plain SDPA): 0.94x. The VAE's head-512 SDPA made the image
     black then (V lead 6); with the V lead of 1 of 2026-11-10 the image is right and the ratio the same (0.94x).
 
+- The GQA fusion up to head 512 ("The GQA fusion up to head 512 on xe_hpg (2026-11-25)", one layer, 16 / 4 heads) against
+  the explicit Transpose or dequantization before it: the PREFILL kernel at head 512 reading the transposed f16 V (1.19x
+  at a 1024-token prompt, kernel 1050 -> 1483 us), the 4-bit per-channel cache (1.10-1.38x, kernel 1.9x the f16 one) and
+  the i8 transposed V (1.16-1.47x, kernel 2106 us against 1245 with the Transpose); the f16 transposed-V decode at head 100
+  on `sdpa_ocl_mixed` (1.50x: 4318 us against 2620 + 148 on the opt multi-query kernel). Head-100 decode is slow in either
+  layout (plain V: SDPA 5723 us on 4095 keys; the opt single-token kernel takes 181 us at head 512), not analysed. The
+  B70 counterparts are the `xe2_tuned()` `d_max` 512 tilings.
 - PA PREFILL prompts up to about 2K tokens are slower than `sdpa_micro` with the 256-key x 32-query tile: 65 and 128
   tokens about 1.2x, 384-768 tokens 1.03-1.16x with gaps between calls, 2048 tokens 1.03x. Two study kernels cover parts
   of it (`h128_2_2_active_q8_pfix`, 8 queries, best up to 512 tokens; `h128_2_2_one_e1p6`, 16 queries x 256 keys, best
