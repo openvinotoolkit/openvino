@@ -9,6 +9,7 @@
 #include <cctype>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "fully_connected_inst.h"
@@ -437,7 +438,13 @@ protected:
         const auto s = fc_shape(params);
         const auto ep = epilogue(params);
         const std::string epi = " -DPOSTOP=" + std::to_string(static_cast<int>(ep.postop)) + (ep.out_f32 ? " -DOUT_F32" : "");
+        // The TernOCL kernels are scheduled by hand; -cl-mad-enable makes IGC slow the int8 DPAS GEMM by 16-20% (prefill,
+        // Arc Pro B70 and Arc 140V) and does not change the GEMV. Keep the other base options.
+        static constexpr std::string_view mad_enable = " -cl-mad-enable";
         std::string opts = KernelGenerator::get_build_options(params);
+        if (const auto pos = opts.find(mad_enable); pos != std::string::npos) {
+            opts.erase(pos, mad_enable.size());
+        }
         switch (m_kind) {
         case TernoclKernel::upcvt:
             if (is_gemv(m_cls)) {
