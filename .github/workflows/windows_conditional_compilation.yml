@@ -155,20 +155,24 @@ jobs:
       # If the build fails due to running out of RAM, lower the number of link jobs
       - name: CMake configure - CC COLLECT
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" `
-            -DBUILD_SHARED_LIBS=OFF `
-            -DENABLE_TESTS=ON `
-            -DENABLE_NCC_STYLE=OFF `
-            -DENABLE_PROFILING_ITT=FULL `
-            -DSELECTIVE_BUILD=COLLECT `
-            -DENABLE_UNITY_BUILD=ON `
-            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
-            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)))" `
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
-            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
-            -S ${{ env.OPENVINO_REPO }} `
-            -B ${{ env.BUILD_DIR }}
+          $cmakeArgs = @(
+            '-G', "${{ env.CMAKE_GENERATOR }}",
+            '-DBUILD_SHARED_LIBS=OFF',
+            '-DENABLE_TESTS=ON',
+            '-DENABLE_NCC_STYLE=OFF',
+            '-DENABLE_PROFILING_ITT=FULL',
+            '-DSELECTIVE_BUILD=COLLECT',
+            '-DENABLE_UNITY_BUILD=ON',
+            '-DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON',
+            '-DCMAKE_JOB_POOL_LINK:STRING=link_jobs',
+            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)))",
+            '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
+            '-DFETCHCONTENT_BASE_DIR=C:\fcc\ninja_multi_config',
+            '-S', "${{ env.OPENVINO_REPO }}",
+            '-B', "${{ env.BUILD_DIR }}"
+          )
+          Write-Host "cmake $(($cmakeArgs | ForEach-Object { if ($_ -match '\s') { "`"$_`"" } else { $_ } }) -join ' ')"
+          cmake @cmakeArgs
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
