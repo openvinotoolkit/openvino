@@ -23,7 +23,7 @@ public:
 
     static std::string to_string(experimental_detectron_topk_rois_node const &node);
 
-    typed_primitive_inst(network &network, experimental_detectron_topk_rois_node const &desc);
+    typed_primitive_inst(network& network, const experimental_detectron_topk_rois_node& node);
 };
 
 using experimental_detectron_topk_rois_inst = typed_primitive_inst<experimental_detectron_topk_rois>;

@@ -99,9 +99,9 @@ if(ARM AND NOT (CMAKE_CROSSCOMPILING OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
 endif()
 
 ####################################
-## to use C++11; can overwritten via cmake command line
+## default C++ standard; can be overwritten via cmake command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set (CMAKE_CXX_STANDARD 17)
+    set (CMAKE_CXX_STANDARD 20)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
@@ -115,6 +115,7 @@ if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
         set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
     endif()
 
+    # kept in sync with cmake/developer_package/compile_flags/cxx_standard.cmake
     set(_ov_samples_cxx20_floor_GNU 10)
     set(_ov_samples_cxx20_floor_Clang 14)
     set(_ov_samples_cxx20_floor_AppleClang 13)
@@ -290,6 +291,7 @@ set(samples_dirs
     hello_classification
     hello_nv12_input_classification
     hello_query_device
+    hello_remote_tensor
     hello_reshape_ssd
     model_creation_sample
 )

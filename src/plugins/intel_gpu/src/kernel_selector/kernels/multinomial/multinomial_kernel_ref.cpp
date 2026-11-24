@@ -35,7 +35,7 @@ ParamsKey MultinomialKernelRef::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData MultinomialKernelRef::SetDefault(const multinomial_params &params) const {
+CommonDispatchData MultinomialKernelRef::SetDefault(const multinomial_params& params) {
     CommonDispatchData dispatch_data {};
     dispatch_data.gws = {GetBatchNum(params), params.with_replacement ? GetSamplesSize(params) : 1, 1};
     dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo);
@@ -59,7 +59,7 @@ KernelsData MultinomialKernelRef::GetKernelsData(const Params &params) const {
         return {};
     }
     KernelData kernel_data = KernelData::Default<multinomial_params>(params);
-    multinomial_params &new_params = dynamic_cast<multinomial_params&>(*kernel_data.params.get());
+    multinomial_params& new_params = dynamic_cast<multinomial_params&>(*kernel_data.params);
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto multinomial_specific_jit = GetJitConstants(new_params);

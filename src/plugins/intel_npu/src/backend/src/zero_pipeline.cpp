@@ -14,6 +14,8 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/memory_util.hpp"
 
 namespace {
 
@@ -27,46 +29,10 @@ uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& 
 namespace intel_npu {
 
 std::vector<size_t> IPipeline::get_strides(const ov::ITensor& tensor, bool reverse_order) {
-    const auto& element_type = tensor.get_element_type();
-    if (element_type.bitwidth() < 8) {
-        // Packed sub-byte tensors have no byte strides, so contiguous element strides are derived from the shape
-        const auto& shape = tensor.get_shape();
-        std::vector<size_t> element_strides(shape.size());
-        size_t stride = 1;
-        for (size_t dim = shape.size(); dim > 0; --dim) {
-            element_strides[dim - 1] = stride;
-            stride *= shape[dim - 1];
-        }
-        if (reverse_order) {
-            std::reverse(element_strides.begin(), element_strides.end());
-        }
-        return element_strides;
-    }
-
-    const auto element_size = element_type.size();
-    const auto& strides_in_bytes = tensor.get_strides();
-    std::vector<size_t> element_strides(strides_in_bytes.size());
-    const auto convert_to_element_stride = [element_size](size_t byte_stride) {
-        OPENVINO_ASSERT(byte_stride % element_size == 0,
-                        "Stride ",
-                        byte_stride,
-                        " bytes is not aligned to element size ",
-                        element_size,
-                        " bytes. Strides must be multiples of element size.");
-
-        return byte_stride / element_size;
-    };
+    auto element_strides = zeroUtils::byte_strides_to_element_strides(tensor.get_strides(), tensor.get_element_type());
 
     if (reverse_order) {
-        std::transform(strides_in_bytes.rbegin(),
-                       strides_in_bytes.rend(),
-                       element_strides.begin(),
-                       convert_to_element_stride);
-    } else {
-        std::transform(strides_in_bytes.begin(),
-                       strides_in_bytes.end(),
-                       element_strides.begin(),
-                       convert_to_element_stride);
+        std::reverse(element_strides.begin(), element_strides.end());
     }
 
     return element_strides;
@@ -216,8 +182,8 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 _logger.debug("Pipeline - set args for input index: %zu", io_index);
                 const auto& tensor = input_tensors.at(io_index).at(i);
 
-                if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
-                    tensor->get_strides().empty()) {
+                if (!ov::util::can_compute_byte_strides(tensor->get_element_type(), tensor->get_shape()) ||
+                    tensor->is_continuous() || tensor->get_strides().empty()) {
                     _graph->set_argument_value(desc.indexUsedByDriver, tensor->data());
                 } else {
                     _graph->set_argument_value_with_strides(desc.indexUsedByDriver,
@@ -229,7 +195,8 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
             }
 
             const auto& tensor = input_tensors.at(io_index).at(0);
-            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+            if (!ov::util::can_compute_byte_strides(tensor->get_element_type(), tensor->get_shape()) ||
+                tensor->is_continuous() || tensor->get_strides().empty()) {
                 _graph->set_argument_value(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
@@ -246,7 +213,8 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         io_index = 0;
         for (const auto& desc : _graph->get_metadata().outputs) {
             const auto& tensor = output_tensors.at(io_index);
-            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+            if (!ov::util::can_compute_byte_strides(tensor->get_element_type(), tensor->get_shape()) ||
+                tensor->is_continuous() || tensor->get_strides().empty()) {
                 _graph->set_argument_value(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
@@ -392,7 +360,8 @@ void Pipeline::update_graph_arguments(uint32_t index,
     const size_t number_of_command_lists = _command_lists.size();
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
-        if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+        if (!ov::util::can_compute_byte_strides(tensor->get_element_type(), tensor->get_shape()) ||
+            tensor->is_continuous() || tensor->get_strides().empty()) {
             _command_lists.at(i)->updateMutableCommandList(index,
                                                            static_cast<const unsigned char*>(tensor->data()) +
                                                                (i * tensor->get_byte_size()) / number_of_command_lists);
@@ -418,7 +387,8 @@ void Pipeline::update_graph_arguments(uint32_t index,
                     "Command list index is higher than the number of Command lists ",
                     batch_index);
 
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+    if (!ov::util::can_compute_byte_strides(tensor->get_element_type(), tensor->get_shape()) ||
+        tensor->is_continuous() || tensor->get_strides().empty()) {
         _command_lists.at(batch_index)->updateMutableCommandList(index, tensor->data());
     } else {
         _command_lists.at(batch_index)
