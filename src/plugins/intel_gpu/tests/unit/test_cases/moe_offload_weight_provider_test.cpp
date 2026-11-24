@@ -416,7 +416,8 @@ TEST_F(moe_les_upload, split_demand_returns_ready_pairs_before_upload_finishes) 
     write(file);
     MOECompressed::Config config{};
     config.num_expert = 3;
-    auto provider = std::make_shared<OffloadExpertWeightProvider>(2, config, std::vector<size_t>(9), path);
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(
+        2, config, std::vector<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count), path);
     moe_weights weights;
     weights.gate_w = buffer(16, data_types::u8, 3);
     provider->bind(weights);
@@ -563,7 +564,8 @@ TEST_F(moe_les_upload, lookahead_upload_retains_resources_after_provider_destruc
     write(std::vector<uint8_t>(32, 11));
     MOECompressed::Config config{};
     config.num_expert = 2;
-    auto provider = std::make_shared<OffloadExpertWeightProvider>(1, config, std::vector<size_t>(9), path);
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(
+        1, config, std::vector<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count), path);
     moe_weights weights;
     weights.gate_w = buffer(16, data_types::u8, 2);
     provider->bind(weights);
@@ -595,7 +597,8 @@ TEST_F(moe_les_upload, lookahead_cancellation_allows_callback_after_worker_destr
     write(std::vector<uint8_t>(32, 7));
     MOECompressed::Config config{};
     config.num_expert = 2;
-    auto provider = std::make_shared<OffloadExpertWeightProvider>(1, config, std::vector<size_t>(9), path);
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(
+        1, config, std::vector<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count), path);
     moe_weights weights;
     weights.gate_w = buffer(16, data_types::u8, 2);
     provider->bind(weights);
