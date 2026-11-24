@@ -2307,7 +2307,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
 }
 
 // Transposed V (order {0,1,3,2}) on sdpa_ocl's v_tile_t, step by step on one network (static: one step), against the same
-// op with the plain V layout (bit-exact where both run the same kernel family: same tiling and V values) and the host
+// op with the plain V layout (bit-exact where both run the same kernel family and tiling: same V values; within one ULP
+// where the transposed V has its own d_max 512 tiling, see below) and the host
 // reference. Key counts odd, even and a multiple of 8 (a row starts 2 B off a dword when value * seq + key is odd), shorter
 // than one cp block, ending inside one; GQA, batch 2, heads 33 to 512, a mask, lower-right causality (GQA's),
 // and V rows padded past the keys with NaN (a windowed view), which the output must not see. Even keys on a pitch of a
@@ -2441,12 +2442,26 @@ static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
         ASSERT_FALSE(diff.has_nan) << "NaN in the output (padding read?) or the reference";
         ASSERT_LE(diff.max_abs_err, 4e-3f) << "vs the host reference: max abs error at index " << diff.max_abs_idx;
         // A dynamic network may run its shape-agnostic or (compiled in the background) static kernel at a step, so the
-        // bit-exact check is for the static cases.
+        // layout check is for the static cases: bit-exact, but within one ULP at 1 (the outputs are within the V range [-1, 1];
+        // 2^-12 measured on the B70) where the transposed V takes its own tiling: Xe2 and xe_hpc, d_max 512, several queries,
+        // no mask input (16 key subgroups instead of the table tile's 8 x 2, so the softmax sums group differently).
         if (!c.dynamic && same_family) {
+            const auto arch = engine.get_device_info().arch;
+            const bool own_tiling = (arch == gpu_arch::xe2 || arch == gpu_arch::xe_hpc) && D > 256 && seq_q > 1 && !c.mask;
+            const float plain_tv_tol = own_tiling ? 1.0f / 1024.0f : 0.0f;
             const auto plain = sdpa_to_float<ov::float16>(plain_out);
             ASSERT_EQ(plain.size(), tv.size());
-            for (size_t i = 0; i < tv.size(); ++i)
-                ASSERT_EQ(plain[i], tv[i]) << "transposed V differs from the plain layout at index " << i << " (value " << i % D << ")";
+            float max_d = 0.0f;
+            size_t at = 0;
+            for (size_t i = 0; i < tv.size(); ++i) {
+                const float d = std::fabs(plain[i] - tv[i]);
+                if (!(d <= max_d)) {
+                    max_d = d;
+                    at = i;
+                }
+            }
+            ASSERT_LE(max_d, plain_tv_tol) << "transposed V differs from the plain layout by " << max_d << " at index " << at << " (value " << at % D << ": "
+                                           << plain[at] << " vs " << tv[at] << ")";
         }
     }
 }

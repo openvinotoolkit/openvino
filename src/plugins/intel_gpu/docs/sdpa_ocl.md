@@ -1089,7 +1089,8 @@ one (tensor or single-element) it takes the PA PREFILL `d_max` 512 workgroup (32
 ran the table tile at 128 GRF, which spilled 1280 B (2432 B with a mask): a VAE decoder's attention (one head of 512,
 4096 tokens at 512 x 512, non-causal, a dynamic model; stable-diffusion-3.5, flux and SD1.5 have it) took 865-874 us
 against `sdpa_micro`'s 587-606 (in the model, cliloader, 1800 MHz). `SDPA_OCL_PLAIN_D512=0` keeps the bare table (A/B;
-it reproduces the old output bits). bf16, compressed K / V, another `v` head and other devices keep the bare table.
+it reproduces the old output bits). bf16, compressed K / V, another `v` head and other devices keep the bare table. A
+transposed V without a mask input takes its own tiling since 2026-11-24 ("Transposed V at d_max 512" in the Change history).
 
 Swept on B70 as the `d_max` 64 tiling (same protocol, 3 rounds, spread <= 1.2% on the kept sides) over VAE shapes (1K /
 4K / 16K tokens, static and dynamic), an SDPA-backend LLM prompt with a 2D mask (8 / 1 heads at 1K and 4K, 16 / 2 at
@@ -4124,6 +4125,66 @@ the fusion of "Per-channel compressed KV at heads up to 512" slower than dequant
     cosine 0.99997 or more on every step.
 - Not checked: Xe3, which keeps the 128 GRF table tile (`xe2_tuned()` only; its spill not measured). xe_hpg is unchanged:
   it always compiles at 256 GRF and has its own kernels.
+
+### Transposed V at d_max 512 (2026-11-24)
+
+With an f16 transposed V at heads 257-512 (`d_max` 512), the multi-token stage took the f16 `d_max` 512 tiling, minus the V
+wide read and the L3 V prefetch that `V_TRANSPOSED` turns off. Its SDPA was 1.6-2.0x the plain layout's. Single runs,
+B70, 16 / 4 heads, head 512, SDPA us, transposed / plain: prefill 1024 534 / 336, 4096 7033 / 4042, chunk of 512 on 4000
+1815 / 1055, 16 queries on 4096 347 / 176, decode on 4096 keys 263 / 166. At `d_max` 128 / 256 the gap is 1.15x / 1.06x.
+
+- Where the time goes (temporary builds, single runs; prefill 1024 / chunk unless noted):
+  - With no V read at all the stage takes 290 us, so the transposed read costs about 245 us, against about 46 for the
+    plain one. The per-lane read forced instead of the 2D read takes 635 us, so the 2D read was running.
+  - Not the message count: the 32-row transpose read (one message per two value blocks) changed nothing.
+  - Not DRAM latency: an L3 prefetch of the tile's rows, as plain `d_max` 512 has, gave 542 / 1851. It did help the
+    16-query step (250) and decode (248), but cost `d_max` 128 / 256 5-8%.
+  - Line reuse: a 16-key transposed read takes 32 B of each 64 B line. Reading the two cp blocks of a pair back to back
+    gave 505 / 1591 (4096: 6223).
+  - The table tile's 8 x 2 subgroups read each V block twice: the alpha nesting rules out one S*V row under two KQ query
+    subgroups.
+- Tiling sweep (transposed prefill 1024 / chunk / 16 queries on 4096, us):
+
+  | KQ subgroup tile, subgroups | result |
+  |---|---|
+  | 16 x 32, 16 x 1 | 434 / 1129 / 249 |
+  | 16 x 32, 8 x 1 | 461 / 1582 / 423 |
+  | 32 x 16, 16 x 1 | 682 / 1869 / 220 |
+  | 32 x 16, 8 x 4 (the masked tile) | 631 / 1788 / 444 |
+  | 32 x 32, 8 x 1 | 590 / 1614 / 415, spills 3 KB |
+  | 16 x 32, 16 x 1, with `CAUSAL_TILE_SKIP` | 372 / 1191 / 247 |
+
+  The paired read adds nothing on the 16 x 32 tiling (worse on it: 1023 keys 516 -> 567), so the kernel is unchanged.
+- `solve_plain_prefill_d512_tiling()`: a transposed V (`plain_prefill_shape::v_transposed`, from the op's V order) without
+  an attention mask input now takes that tiling, with the causal tile skip. It is one row of 16 key subgroups (16-key x
+  32-query subgroup tiles, 256 keys x 32 queries), the shape of the PA MIXED `d_max` 512 tiling, so each V block is read
+  once per workgroup.
+  - Plain V, a mask input and the decode stage are unchanged. Plain V on the same tiling took 345 us, and 302 with the
+    skip, against 336; it was not changed here (its tiling was swept on other shapes, "Plain-SDPA PREFILL tiling
+    (`d_max` 512)").
+- Numerics: these stages are no longer bit-identical to the plain layout's output. With 16 key subgroups instead of 8 x 2
+  the softmax sums group differently: at most 2^-12 on the test rows. `sdpa_gpu_transposed_v` bounds the difference
+  there at one ULP at 1 (bit-exact everywhere else).
+- Cost, B70 at 1800 MHz pinned, one GQA layer (16 heads, 4 KV heads, head 512 unless noted; `test/g3b/run_arms.sh`, 2
+  rounds, 4 arms; log `test/g3b/p_f16.log`). Transposed V, layer total, this change / the branch before it (before G3b),
+  and / the build before "GQA transposed V at heads up to 512", which put an explicit Transpose ahead of SDPA (before G3):
+
+  | transposed V | prefill 1023 / 1024 / 4096 | head 384, 1024 | chunk 512 on 4000 | 16 queries on 1024 / 4096 | decode 4096 |
+  |---|---|---|---|---|---|
+  | / before G3b | 0.82 / 0.87 / 0.75 | 0.90 | 0.80 | 0.95 / 0.92 | 1.00 (unchanged) |
+  | / before G3 | 1.12 / 0.97 / 1.02 | 0.93 | 0.93 | 0.84 / 0.86 | 0.93 |
+
+  The plain-V rows and head 256 are unchanged (SDPA within 1 us). Master's fused transposed V gives wrong output here
+  (cosine 0.04-0.09, "GQA transposed V: master's fusion conditions back"), so it is not compared.
+- Open (follow-up): odd key counts. Their row pitch rules out the 2D read, so they take the per-lane read: SDPA 514 us
+  at 1023 keys against 370 at 1024. The layer is 1.12x the explicit Transpose there, and 1.02x at 4096 keys.
+- Tests: no new rows; the static and dynamic `d_max` 512 / 384 rows of `sdpa_gpu_transposed_v` run the tiling (cliloader:
+  local memory 51328 B against the table tile's 42112).
+  - Negative control (temporary kernel build): the causal skip's KQ bound 16 keys early fails 11 of 42 rows, including
+    all 5 `d_max` 512 / 384 causal multi-query rows (before this change those stages compiled without the skip).
+  - B70: the transposed-V, per-channel, `gqa_decomp`, decomposition and predicate unit suites 157 / 157;
+    `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` 62 / 62.
+- Not checked: xe_hpg (its own kernels) and Xe3 (the plain `d_max` 512 tilings are `xe2_tuned()` only).
 
 ## Known issues
 

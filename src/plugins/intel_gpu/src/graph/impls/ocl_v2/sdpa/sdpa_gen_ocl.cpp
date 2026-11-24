@@ -381,6 +381,7 @@ struct plain_prefill_shape {
     bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
     bool i8_per_channel_kv = false;  // f16 Q with a per-channel compressed i8 K / V (the plain decode and its own PREFILL tiling)
     bool u4_per_channel_kv = false;  // f16 Q with a per-channel compressed 4-bit K / V (PLAIN_KV_U4)
+    bool v_transposed = false;       // V read as [value][key] (V_TRANSPOSED): the op's order, so compile time and dispatch agree
 };
 
 // Plain (non-PA) SDPA PREFILL on xe_hpc and Xe2+ at d_max 128 with f16 Q / K / V: the "mirror" workgroup of 256 keys x
@@ -450,9 +451,11 @@ bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, 
 
 // Plain (non-PA) SDPA PREFILL on xe2_tuned() arches at d_max 512 with f16 Q / K / V: 256 GRF with the PA PREFILL d_max 512
 // loop changes (L3-only V prefetch, wide K / V / Q_slm reads), no causal tile skip. Without an attention mask input the
-// table tile, with one the PA PREFILL d_max 512 workgroup. The choice reads the op's mask input only, so the compiled stage
-// and its dispatch agree ("Plain-SDPA PREFILL tiling (d_max 512)" in the docs). False (also with SDPA_OCL_PLAIN_D512=0):
-// keep the bare table.
+// table tile, with one the PA PREFILL d_max 512 workgroup. A transposed V without a mask input takes one row of 16
+// subgroups (16-key x 32-query tiles, 256 keys x 32 queries) with the causal tile skip instead, so each V tile is read once
+// per workgroup ("Transposed V at d_max 512" in the docs). The choice reads the op's mask input and V order only, so the
+// compiled stage and its dispatch agree ("Plain-SDPA PREFILL tiling (d_max 512)" in the docs). False (also with
+// SDPA_OCL_PLAIN_D512=0): keep the bare table.
 bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
     if (d_max != 512 || vd_max != 512 || !xe2_tuned(arch) || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D512", 1) == 0) {
         return false;
@@ -464,6 +467,12 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
         t.kq_sg_tile_queries = 16;
         t.kq_sg_per_wg_keys = 8;
         t.kq_sg_per_wg_queries = 4;
+    } else if (shape.v_transposed) {
+        t.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+        t.kq_sg_tile_keys = 16;
+        t.kq_sg_tile_queries = 32;
+        t.kq_sg_per_wg_keys = 16;
+        t.kq_sg_per_wg_queries = 1;
     } else {
         t = choose_config_kq_only(arch, d_max);
     }
@@ -473,7 +482,7 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
     t.v_prefetch_l3 = true;
     t.micro_math = false;  // plain SDPA never emits MICRO_MATH
     t.wide_reads = 7;
-    t.causal_skip_off = true;
+    t.causal_skip_off = shape.mask_input || !shape.v_transposed;
     if (!solve_sv_split(t, vd_max) || !tiling_fits_device(arch, d_max, t)) {
         return false;
     }
@@ -1205,6 +1214,7 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
                                     params.input_layouts[2].data_type == data_types::i8;
     plain_shape.u4_per_channel_kv = !is_pa && params.typed_desc<scaled_dot_product_attention>()->is_kv_compressed && plain_kv_u4(params) &&
                                     params.input_layouts[0].data_type == data_types::f16;
+    plain_shape.v_transposed = SDPABase::has_transposed_v(params);
     if (plain_prefill) {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         plain_shape.mask_input = desc->has_attn_mask_input && !desc->attn_mask_val.has_value();
