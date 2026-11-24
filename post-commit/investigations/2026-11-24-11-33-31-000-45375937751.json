@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-11-33-31-000-45375937751",
+  "timestamp": "2026-11-24T11:33:31Z",
+  "run_id": "45375937751",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45375937751",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "bea795b42b2694de92937efbff58a8f21d87070f",
+  "pr_number": "39902",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39902",
+  "author": "jade-cho",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "Cmake build - CC ON step fails: CL.exe runs out of heap space (C1060) while building onednn/intel_cpu and common_translators objects in parallel"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Downstream status-aggregation job fails because the Conditional Compilation job it depends on failed"
+    }
+  ],
+  "key_errors": [
+    "C:\\BuildTools\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(755,5): error MSB8084: Invalid structured output from 'CL.exe': Cannot parse JsonRpc notification: 'Exception of type 'System.OutOfMemoryException' was thrown.'. [...dnnl_cpu_x64.vcxproj]",
+    "C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\iterator(88,1): error C1060: compiler is out of heap space [...dnnl_common.vcxproj]",
+    "c1xx : fatal  error C1060: compiler is out of heap space [...dnnl_cpu_x64.vcxproj]",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_cpu\\thirdparty\\onednn\\src\\common\\memory_desc.cpp(1184,1): error C1060: compiler is out of heap space [...dnnl_common.vcxproj]"
+  ],
+  "root_cause": "This is a known recurring Infrastructure failure (pattern 80cfa127185fbf3e, previously observed 23 times). The Windows Conditional Compilation build runs MSBuild with high parallel job count (observed /cgthreads warning clamped from 15 to 4, indicating an overloaded parallel compile), and multiple cl.exe worker processes compiling heavy oneDNN/intel_cpu and frontends/common_translators translation units simultaneously exhaust the runner's available heap memory, causing MSVC's cl.exe to abort with C1060 'compiler is out of heap space' and the MSBuild CppCommon targets to surface it as MSB8084. This is a runner resource-constraint issue unrelated to the specific commit's code change (a GPU oneDNN convolution zero-point fix); the merged PR's diff does not touch the CC/Windows build configuration or the affected oneDNN/common_translators source files in a way that would increase compile memory footprint.",
+  "reproduction_steps": "N/A - requires reproducing constrained-memory parallel MSVC compilation on a Windows CI runner building the full oneDNN/intel_cpu and common_translators targets under the Conditional Compilation profile; not reliably reproducible locally without matching runner memory/CPU specs and MSBuild parallelism settings.",
+  "recommended_actions": [
+    "Reduce MSBuild/CL.exe parallelism (e.g., lower /MP or /cgthreads thread count, or /maxcpucount) for the Windows Conditional Compilation workflow to avoid exceeding available heap memory.",
+    "Consider splitting or disabling parallel compilation for the largest oneDNN translation units (e.g., dnnl_cpu_x64.vcxproj, dnnl_common.vcxproj) specifically on the CC Windows runner.",
+    "Evaluate increasing the Windows CC runner's available memory/VM SKU, since this is the 23rd occurrence of the same OOM signature.",
+    "Add retry-with-reduced-parallelism logic to the Windows CC workflow so transient OOM failures auto-recover instead of failing the whole pipeline."
+  ],
+  "prevention_strategies": "Cap MSBuild/cl.exe parallel job count explicitly in the Windows CC workflow configuration rather than relying on runner auto-detection, and monitor runner memory headroom during this job given its history of repeated OOM failures.",
+  "historical_context": "Matches existing pattern 80cfa127185fbf3e ('Windows CC build fails with compiler/linker out-of-memory errors under high parallelism'), first seen 2026-11-03, now observed 24 times including this run across many different commits/PRs - a chronic, unresolved infrastructure issue on the Windows Conditional Compilation pipeline."
+}
