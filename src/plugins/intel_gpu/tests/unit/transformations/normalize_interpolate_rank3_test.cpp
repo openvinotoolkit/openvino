@@ -41,8 +41,8 @@ struct Config {
 
 std::shared_ptr<ov::Model> getModel(const Config& config) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, config.shape);
-    data->set_friendly_name("audio");
-    data->output(0).set_names({"audio"});
+    data->set_friendly_name("data");
+    data->output(0).set_names({"data"});
     ov::ParameterVector parameters{data};
     const bool scales_mode = config.attrs.shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES;
     const auto value_type = config.value_type.is_static() ? config.value_type : (scales_mode ? ov::element::f32 : ov::element::i64);
@@ -75,15 +75,15 @@ std::shared_ptr<ov::Model> getModel(const Config& config) {
         output = config.implicit_axes ? std::make_shared<ov::op::v4::Interpolate>(data, sizes, scales, config.attrs)
                                       : std::make_shared<ov::op::v4::Interpolate>(data, sizes, scales, axes_input, config.attrs);
     }
-    output->set_friendly_name("audio_resize");
-    output->output(0).set_names({"resized_audio"});
+    output->set_friendly_name("interpolate");
+    output->output(0).set_names({"interpolated_data"});
     return std::make_shared<ov::Model>(ov::OutputVector{output}, parameters);
 }
 
 std::shared_ptr<ov::Model> getModelRef(const Config& config) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, config.shape);
-    data->set_friendly_name("audio");
-    data->output(0).set_names({"audio"});
+    data->set_friendly_name("data");
+    data->output(0).set_names({"data"});
     const auto singleton_axis = Constant::create(ov::element::i64, {1}, {2});
     const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(data, singleton_axis);
     const auto axes = Constant::create(ov::element::i64, {2}, {2, 3});
@@ -100,8 +100,8 @@ std::shared_ptr<ov::Model> getModelRef(const Config& config) {
         interpolate = std::make_shared<ov::op::v4::Interpolate>(unsqueeze, scales_mode ? unused : values, scales_mode ? values : unused, axes, attrs);
     }
     const auto squeeze = std::make_shared<ov::op::v0::Squeeze>(interpolate, singleton_axis);
-    squeeze->set_friendly_name("audio_resize");
-    squeeze->output(0).set_names({"resized_audio"});
+    squeeze->set_friendly_name("interpolate");
+    squeeze->output(0).set_names({"interpolated_data"});
     return std::make_shared<ov::Model>(ov::OutputVector{squeeze}, ov::ParameterVector{data});
 }
 
@@ -167,6 +167,10 @@ std::vector<Config> negative_cases() {
     runtime_axes.v11 = true;
     runtime_axes.runtime_axes = true;
     cases.push_back(runtime_axes);
+    Config empty_axes("V4_EmptyAxesScales");
+    empty_axes.axes = {};
+    empty_axes.values = {1, 1, 160};
+    cases.push_back(empty_axes);
     Config base("SharedGuards");
     auto add = [&](const std::string& name, const Config& value) {
         cases.push_back(value);
@@ -240,7 +244,7 @@ class NormalizeInterpolateRank3Positive : public NormalizeInterpolateRank3Test {
 class NormalizeInterpolateRank3Negative : public NormalizeInterpolateRank3Test {};
 class NormalizeInterpolateRank3Callback : public NormalizeInterpolateRank3Test {};
 
-TEST_P(NormalizeInterpolateRank3Positive, NormalizesAudioResize) {
+TEST_P(NormalizeInterpolateRank3Positive, NormalizesInterpolate) {
     model = getModel(GetParam());
     model_ref = getModelRef(GetParam());
 }

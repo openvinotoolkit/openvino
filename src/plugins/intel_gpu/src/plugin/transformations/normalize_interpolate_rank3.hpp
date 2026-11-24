@@ -9,7 +9,8 @@
 namespace ov::intel_gpu {
 
 /**
- * @brief Legalizes rank-3 LINEAR_ONNX audio interpolation for GPU spatial kernels.
+ * @brief Normalizes eligible rank-3 LINEAR_ONNX Interpolate operations
+ *        to rank-4 for GPU execution.
  *
  * Before: [N,C,L] -> Interpolate -> [N,C,Lout]
  * After:  [N,C,L] -> Unsqueeze(2) -> [N,C,1,L]
@@ -17,7 +18,8 @@ namespace ov::intel_gpu {
  *                -> Squeeze(2) -> [N,C,Lout]
  *
  * The input rank must be known; its dimensions may be dynamic.
- * Axes must be constant or omitted and include the last axis. Constant positive
+ * Axes must be constant or omitted and include the last axis. Omitted axes default
+ * to all input axes; explicit empty axes are left unchanged. Constant positive
  * sizes or finite positive scales are required to prove that N and C are unchanged
  * before excluding them from interpolation. Sizes on N/C require static dimensions
  * for that proof. Padding and antialiasing are excluded because promoting rank

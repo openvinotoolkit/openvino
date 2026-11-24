@@ -31,15 +31,12 @@ size_t values_port(const std::shared_ptr<Interpolate>& op) {
 }
 
 std::vector<int64_t> interpolation_axes(const std::shared_ptr<Interpolate>& op) {
-    std::vector<int64_t> axes;
-    if (op->get_input_size() > axes_port(op)) {
-        const auto constant = ov::as_type_ptr<Constant>(op->get_input_node_shared_ptr(axes_port(op)));
-        if (!constant)
-            return {};
-        axes = constant->cast_vector<int64_t>();
-    }
-    if (axes.empty())
-        axes = {0, 1, 2};
+    if (op->get_input_size() <= axes_port(op))
+        return {0, 1, 2};
+    const auto constant = ov::as_type_ptr<Constant>(op->get_input_node_shared_ptr(axes_port(op)));
+    if (!constant)
+        return {};
+    auto axes = constant->cast_vector<int64_t>();
     for (auto& axis : axes) {
         if (axis < 0)
             axis += 3;
