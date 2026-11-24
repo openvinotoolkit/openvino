@@ -4,21 +4,23 @@
   "signature_hash": "5c9adec102201520",
   "title": "smoke_MatMulCompressedWeights_Kleidiai fails with unexpected impl type undef_f32 on ARM64",
   "category": "Flaky Test",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-11-13T07:09:24Z",
-  "last_seen": "2026-11-20T13:48:31Z",
+  "last_seen": "2026-11-24T21:10:36Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45480700557",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44741418306",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43486543645",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43378018632"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/40095",
     "https://github.com/openvinotoolkit/openvino/pull/39963",
     "https://github.com/openvinotoolkit/openvino/pull/39548",
     "https://github.com/openvinotoolkit/openvino/pull/39266"
   ],
   "recent_timestamps": [
-    "2026-11-20T13:48:31Z"
+    "2026-11-24T21:10:36Z"
   ],
   "rerun_search_string": "unexpected impl type: undef_f32"
 }

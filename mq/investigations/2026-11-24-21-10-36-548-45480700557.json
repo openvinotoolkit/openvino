@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-21-10-36-548-45480700557",
+  "timestamp": "2026-11-24T21:10:36Z",
+  "run_id": "45480700557",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45480700557",
+  "workflow_name": "CPU functional tests / CPU functional tests",
+  "pr_number": "40095",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40095",
+  "author": "ykhrustalev",
+  "category": "Flaky Test",
+  "title": "smoke_MatMulCompressedWeights_Kleidiai fails with unexpected impl type undef_f32 on ARM64",
+  "signature": "unexpected impl type undef_f32 implType find kleidiai npos matmulcompressedweights|Flaky Test",
+  "signature_hash": "5c9adec102201520",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch test asserts implType does not contain 'kleidiai', got undef_f32"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the CPU functional tests job in the same pipeline failed"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp:168: Failure\nExpected: (implType.find(\"kleidiai\")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615\nunexpected impl type: undef_f32",
+    "[  FAILED  ] smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch/MatmulWeightsDecompression.CompareWithRefs/...weights_precision=i8_decompression_precision=f32..."
+  ],
+  "root_cause": "A single ARM64 CPU functional test (smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch, i8 weights/f32 decompression/dynamic scale) expects the matmul to be executed by the KleidiAI-accelerated implementation but the selected primitive reports an 'undef_f32' impl type instead, i.e. the expected kernel-switch/fusion to the KleidiAI backend did not happen for this parameter combination on this run. This is unrelated to PR #40095, which only touches Intel NPU plugin (NPUW) transformation files; the same signature has recurred 4 times across unrelated PRs since 2026-11-13, consistent with a flaky/non-deterministic KleidiAI kernel-selection heuristic on ARM64 rather than a regression introduced by this change.",
+  "reproduction_steps": "On an ARM64 (aarch64) build with KleidiAI enabled, run: ov_cpu_func_tests --gtest_filter=*smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch*CompareWithRefs*data_shape=*1.1.32*1.5.32*weights_shape=32,3*weights_precision=i8*decompression_precision=f32*decompression_multiply=full* . The test is intermittent; may require several repeats to reproduce the undef_f32 impl-type selection.",
+  "recommended_actions": [
+    "Re-run the failed job (this is a known recurring flaky test unrelated to the PR's NPU-only changes); merging should not be blocked on it.",
+    "Investigate the KleidiAI kernel-switch heuristic in src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp and the underlying primitive-selection logic for the i8/f32/dynamic-scale/full-decompression-multiply parameter combination to understand why it non-deterministically falls back to undef_f32 instead of kleidiai.",
+    "Consider marking this specific parameterized case as disabled/quarantined until the kernel-selection flakiness is root-caused, to stop it from intermittently failing unrelated merge-queue runs."
+  ],
+  "prevention_strategies": "Add retry-on-flaky-test handling or quarantine for ARM64 KleidiAI matmul-decompression smoke tests until the kernel-selection non-determinism is fixed; track the pattern via repo-memory to confirm it is not a regression trend before next escalation threshold.",
+  "historical_context": "This exact signature has now been seen 4 times (2026-11-13, 2026-11-20, and now 2026-11-24 x2 counted as prior run + this one) across unrelated PRs (#39266, #39548, #39963), all on the ARM64 cross-compilation pipeline, confirming it is a pre-existing flaky test rather than something introduced by PR #40095."
+}
