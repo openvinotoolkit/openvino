@@ -1682,6 +1682,43 @@ TEST(dynamic_concat_holder_pool_onednn, tda3d_case_c_rejected_holder_keeps_its_b
     run_mirror_sequence({{s3(0, 4), 1}, {s3(9, 4), 2}, {s3(4, 4), 3}, {s3(0, 4), 4}, {s3(9, 4), 5}}, "TD-A3d c", true);
 }
 
+// TD-A3e. Exception then retry: a round that throws AFTER the predecessors were enqueued (the eltwise E gets incompatible shapes from A and W, which is
+// detected in E's prepare, after P1, P2, C and A were executed) leaves the per-round enqueue markers true and the flags unreset (reset_flags() runs only at
+// the end of a round). The retry with a different (bigger) total length must not hit a false A4 and must give the correct output.
+TEST(dynamic_concat_holder_pool, tda3e_exception_in_a_later_node_then_retry) {
+    auto& eng = get_test_engine();
+    auto t = topo_third_party();
+    auto net = make_net(eng, t, BOTH);
+    auto good = [&](size_t f1, size_t f2, int seed) {
+        const auto s = s3(f1, f2);
+        EXPECT_EQ(run_round(*net, eng, s, seed), ref_third_party()(s, seed)) << f1 << "+" << f2;
+        EXPECT_TRUE(overlap_violations(*net).empty());
+    };
+    good(2, 2, 1);
+    shapes_t bad = s3(2, 2);
+    bad["in3"] = sh(5);  // A has 4 features, W has 5: E cannot be inferred
+    bool threw = false;
+    try {
+        run_round(*net, eng, bad, 2);
+    } catch (const std::exception& e) {
+        threw = true;
+        std::cout << "[TD-A3e] expected exception: " << std::string(e.what()).substr(0, 120) << "\n";
+    }
+    ASSERT_TRUE(threw) << "the injected shape mismatch did not throw: the exception path is NOT covered";
+    EXPECT_TRUE(net->get_primitive("P2")->output_memory_ptr() != nullptr);
+    good(8, 8, 3);  // retry, holder grows
+    good(1, 3, 4);
+    good(0, 6, 5);
+}
+
+// P1BD-O5 (candidate, DISABLED, not constructed). An eltwise predecessor whose fused operation is invalid at runtime (is_valid_fusion() false,
+// primitive_inst.cpp prepare_primitive: it builds the unfused subgraph and returns before the normal execute) never writes its slot of the fused holder
+// through the normal path and _enqueued_this_round is not set for it. A faithful construction needs a dynamic eltwise with a fused binary op whose
+// broadcast becomes invalid for the runtime shapes next to the concat; the cheap constructions available here fuse nothing into the predecessor.
+TEST(dynamic_concat_holder_pool, DISABLED_invalid_runtime_fusion_predecessor_never_writes_its_slot) {
+    GTEST_SKIP() << "P1BD-O5: a predecessor with an invalid runtime fusion could not be constructed cheaply: NOT covered (comment only)";
+}
+
 // C4. A dynamic reader forced to the cpu impl is "maybe CPU" (has_impl_for returns true for forced impls): the class carries fb_maybe_cpu and is rejected.
 TEST(dynamic_concat_holder_pool_hand, c4_forced_cpu_reader_is_maybe_cpu) {
     auto& eng = get_test_engine();

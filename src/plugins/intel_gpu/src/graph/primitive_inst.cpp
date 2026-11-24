@@ -1778,18 +1778,12 @@ void primitive_inst::rebind_concat_slots(const memory::ptr& old_block) {
             }
         } else if (changed && cur && po && eng.is_the_same_buffer(*po, *old_block)) {
             const bool skip_pred = !p->_impl_params->get_output_layout().is_static() || p->_impl_params->get_output_layout().count() == 0;
-#ifndef NDEBUG
-            // A3(b): only a predecessor with a zero-count layout this round (SKIP) may still alias the old block (B1 fix in do_runtime_in_place_concat)
+            // A3(b) (all builds): only an empty (SKIP) predecessor may still alias the replaced block. A non-empty one was cleared by the decision point of
+            // do_runtime_in_place_concat (B1) before it could be enqueued; clearing it here would be too late (its data is in the old block), so report.
             OPENVINO_ASSERT(skip_pred, "[GPU] P1-B-D A3(b): non-empty predecessor ", p->id(), " of non-fused holder ", id(), " still aliases the replaced holder block");
-#endif
-            if (skip_pred) {
-                // A3(a): re-point to the holder's CURRENT block with count 0: no untracked orphan of old_block, never reused as an own buffer
-                po = cur;
-                p->_max_output_layout_count[0] = 0;
-            } else {
-                // defence in depth (Release): never silently re-point a predecessor that has (or may have) written into the old block
-                p->clear_output_memory();
-            }
+            // A3(a): re-point to the holder's CURRENT block with count 0: no untracked orphan of old_block, never reused as an own buffer
+            po = cur;
+            p->_max_output_layout_count[0] = 0;
             p->set_flag(ExecutionFlags::MEMORY_CHANGED);
         }
     }
@@ -1805,7 +1799,15 @@ void primitive_inst::rebind_concat_slots(const memory::ptr& old_block) {
                 OPENVINO_ASSERT(eng.is_the_same_buffer(*p->_outputs[0], *cur), "[GPU] P1-B-D I-B5D: fused holder ", id(), " predecessor ", p->id(),
                                 " is not bound to the holder block");
             }
-        } else if (changed) {
+        } else {
+            // I-B5D'(b): in a non-fused round no non-empty predecessor shares a buffer with the holder's current block (after the decision point)
+            const auto& pl = p->_impl_params->get_output_layout();
+            if (pl.is_static() && pl.count() > 0) {
+                OPENVINO_ASSERT(!eng.is_the_same_buffer(*p->_outputs[0], *cur), "[GPU] P1-B-D I-B5D'(b): non-empty predecessor ", p->id(),
+                                " shares the block of the non-fused holder ", id());
+            }
+        }
+        if (!fused && changed) {
             OPENVINO_ASSERT(!(eng.is_the_same_buffer(*p->_outputs[0], *old_block) && p->_max_output_layout_count[0] > 0), "[GPU] P1-B-D I-B5D: predecessor ",
                             p->id(), " of holder ", id(), " keeps the replaced holder block with a non-zero count");
         }
@@ -2399,6 +2401,17 @@ void primitive_inst::do_runtime_in_place_concat() {
         concat_inst->set_can_be_optimized(false);
         return;
     }
+    // P1-B-D: per-round enqueue marker (read by the A4 check of rebind_concat_slots). This is the decision point of the round: it runs in the prepare of the
+    // FIRST predecessor, before any predecessor of the round is enqueued (later predecessors return at the _update_shape_done_by_other check above), so a
+    // stale 'true' left by a round that was aborted by an exception (reset_flags() did not run) cannot make A4 fire for the next round.
+    if (concat_inst->is_dynamic_pool_class_holder()) {
+        concat_inst->_enqueued_this_round = false;
+        for (const auto& d : concat_inst->_deps) {
+            if (d.first != nullptr) {
+                d.first->_enqueued_this_round = false;
+            }
+        }
+    }
     // Currently does not support cascaded concats
     std::vector<primitive_inst*> concat_preds;
     for (auto pred : concat_inst->_deps) {
@@ -2456,6 +2469,8 @@ void primitive_inst::do_runtime_in_place_concat() {
                 const auto& pl = p->_impl_params->get_output_layout();
                 if (pl.is_static() && pl.count() > 0 && eng.is_the_same_buffer(*p->_outputs[0], *concat_inst->_outputs[0])) {
                     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << p->id() << " aliases the holder block of the rejected concat: own buffer" << std::endl;
+                    OPENVINO_ASSERT(!p->_enqueued_this_round, "[GPU] P1-B-D: predecessor ", p->id(), " of holder ", concat_inst->id(),
+                                    " was enqueued before the rejected-concat decision of this round");
                     p->clear_output_memory();
                     p->set_flag(ExecutionFlags::MEMORY_CHANGED);
                 }
@@ -2525,6 +2540,8 @@ void primitive_inst::do_runtime_in_place_concat() {
             }
             if (!holder_mem || !eng.is_the_same_buffer(*p->_outputs[0], *holder_mem)) {
                 GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << p->id() << " is not bound to the holder block of the accepted concat: re-acquire" << std::endl;
+                OPENVINO_ASSERT(!p->_enqueued_this_round, "[GPU] P1-B-D: predecessor ", p->id(), " of holder ", concat_inst->id(),
+                                " was enqueued before the accepted-concat decision of this round");
                 p->clear_output_memory();
                 p->set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
