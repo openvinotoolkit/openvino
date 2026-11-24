@@ -622,7 +622,18 @@ void Const::serialize(ov::npuw::orc::Stream& stream) {
             // Multiple reshape closures can serialize the same source.
             stream & m_copied_if_not_in_model;
         } else {
+            OPENVINO_ASSERT(m_cached_type.is_static(), "[NPU] ORC embedded weight has unsupported element type");
+            const auto expected_byte_size = ov::util::get_memory_size_safe(m_cached_type, m_cached_shape);
+            OPENVINO_ASSERT(expected_byte_size && *expected_byte_size == m_byte_size,
+                            "[NPU] ORC embedded weight byte size does not match its type and shape");
             stream & m_read_from_bin;
+            OPENVINO_ASSERT(m_read_from_bin, "[NPU] ORC embedded weight is not initialized");
+            OPENVINO_ASSERT(m_read_from_bin.get_element_type() == m_cached_type,
+                            "[NPU] ORC embedded weight type does not match its metadata");
+            OPENVINO_ASSERT(m_read_from_bin.get_shape() == m_cached_shape,
+                            "[NPU] ORC embedded weight shape does not match its metadata");
+            OPENVINO_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size,
+                            "[NPU] ORC embedded weight byte size does not match its metadata");
         }
     }
 }

@@ -83,6 +83,48 @@ private:
     std::size_t m_failures_left = 0;
 };
 
+struct EmbeddedConstPayload {
+    std::string type;
+    ov::Shape shape;
+    std::size_t offset = 0;
+    std::size_t byte_size;
+    bool contains_weight = true;
+    ov::Tensor weight;
+
+    void serialize(ov::npuw::orc::Stream& stream) {
+        stream & type & shape & offset & byte_size & contains_weight;
+        if (contains_weight) {
+            stream & weight;
+        }
+    }
+};
+
+struct ReshapePayload {
+    EmbeddedConstPayload source;
+    ov::Shape shape;
+    bool canonical_offset = false;
+
+    void serialize(ov::npuw::orc::Stream& stream) {
+        const bool initialized = true;
+        const std::size_t hash = 42;
+        auto source_section = ov::npuw::orc::make_payload_section(1, 0, source);
+        stream & initialized & hash & source_section & shape & canonical_offset;
+    }
+};
+
+std::string serialize_embedded_const(const EmbeddedConstPayload& source, bool reshape) {
+    const bool initialized = true;
+    const std::size_t hash = 42;
+    auto shape = source.shape;
+    shape.insert(shape.begin(), 1);
+    auto section = reshape ? ov::npuw::orc::make_payload_section(8, 0, ReshapePayload{source, shape})
+                           : ov::npuw::orc::make_payload_section(1, 0, source);
+    std::stringstream output;
+    auto stream = ov::npuw::orc::Stream::writer(output);
+    stream & initialized & hash & section;
+    return output.str();
+}
+
 }  // namespace
 
 TEST(LazyTensorConstDataPtrTest, ReshapedViewsOfOneBufferShareThePointer) {
@@ -148,6 +190,92 @@ protected:
     std::shared_ptr<testing::NiceMock<ov::MockICore>> m_core;
     std::shared_ptr<Bank> m_bank;
 };
+
+TEST_F(WeightsBankAliasTest, RejectMalformedEmbeddedConstantsBeforeRegistration) {
+    struct TestCase {
+        const char* name;
+        EmbeddedConstPayload payload;
+        const char* error;
+    };
+
+    const std::vector<TestCase> cases = {
+        {"short payload",
+         {"u8", {1024}, 0, 1024, true, ov::Tensor(ov::element::u8, {1})},
+         "embedded weight shape does not match its metadata"},
+        {"different shape",
+         {"u8", {2, 2}, 0, 4, true, ov::Tensor(ov::element::u8, {4})},
+         "embedded weight shape does not match its metadata"},
+        {"different type",
+         {"u8", {4}, 0, 4, true, ov::Tensor(ov::element::i8, {4})},
+         "embedded weight type does not match its metadata"},
+        {"different byte size",
+         {"u8", {4}, 0, 5, true, ov::Tensor(ov::element::u8, {4})},
+         "embedded weight byte size does not match its type and shape"},
+        {"short packed payload",
+         {"u4", {3}, 0, 2, true, ov::Tensor(ov::element::u4, {1})},
+         "embedded weight shape does not match its metadata"},
+        {"incorrect packed byte size",
+         {"u4", {3}, 0, 1, true, ov::Tensor(ov::element::u4, {3})},
+         "embedded weight byte size does not match its type and shape"},
+        {"dynamic type",
+         {"dynamic", {4}, 0, 4, true, ov::Tensor(ov::element::u8, {4})},
+         "embedded weight has unsupported element type"},
+        {"shape overflow",
+         {"u8", {std::numeric_limits<std::size_t>::max(), 2}, 0, 0, true, ov::Tensor(ov::element::u8, {1})},
+         "embedded weight byte size does not match its type and shape"},
+        {"uninitialized payload", {"u8", {4}, 0, 4, true, ov::Tensor()}, "embedded weight is not initialized"},
+    };
+
+    for (const bool reshape : {false, true}) {
+        for (const auto& test : cases) {
+            SCOPED_TRACE(test.name);
+            SCOPED_TRACE(reshape ? "Reshape source" : "Const root");
+            std::stringstream input(serialize_embedded_const(test.payload, reshape));
+            LazyTensor imported;
+            try {
+                ov::npuw::s11n::read(input, imported);
+                ADD_FAILURE() << "Malformed embedded weight was accepted";
+            } catch (const ov::Exception& ex) {
+                EXPECT_THAT(std::string(ex.what()), testing::HasSubstr(test.error));
+            }
+        }
+    }
+    EXPECT_EQ(m_context->host_allocations(), 0u);
+}
+
+TEST_F(WeightsBankAliasTest, EmbeddedPackedWeightReshapeRemainsShareable) {
+    ov::Tensor weight(ov::element::u4, {3});
+    std::memset(weight.data(), 0x21, weight.get_byte_size());
+    const EmbeddedConstPayload payload{"u4", {3}, 0, 2, true, weight};
+    std::stringstream source_input(serialize_embedded_const(payload, false));
+    std::stringstream reshape_input(serialize_embedded_const(payload, true));
+    LazyTensor source;
+    LazyTensor reshaped;
+    ASSERT_NO_THROW(ov::npuw::s11n::read(source_input, source));
+    ASSERT_NO_THROW(ov::npuw::s11n::read(reshape_input, reshaped));
+
+    const auto source_uid = m_bank->registerLT(source, "NPU");
+    const auto reshape_uid = m_bank->registerLT(reshaped, "NPU");
+    m_bank->evaluate_and_allocate();
+
+    EXPECT_EQ(m_context->host_allocations(), 1u);
+    EXPECT_EQ(m_bank->get(source_uid, "NPU").data(), m_bank->get(reshape_uid, "NPU").data());
+    EXPECT_EQ(m_bank->get(reshape_uid, "NPU").get_byte_size(), 2u);
+    EXPECT_EQ(std::memcmp(m_bank->get(reshape_uid, "NPU").data(), weight.data(), 2), 0);
+}
+
+TEST(WeightsBankAliasSerializationTest, ValidEmptyEmbeddedWeightsAreAccepted) {
+    const EmbeddedConstPayload payload{"u8", {0}, 0, 0, true, ov::Tensor(ov::element::u8, {0})};
+    for (const bool reshape : {false, true}) {
+        std::stringstream input(serialize_embedded_const(payload, reshape));
+        LazyTensor imported;
+        ASSERT_NO_THROW(ov::npuw::s11n::read(input, imported));
+        const auto evaluated = imported.eval();
+        EXPECT_EQ(evaluated.get_element_type(), ov::element::u8);
+        EXPECT_EQ(evaluated.get_byte_size(), 0u);
+        EXPECT_EQ(evaluated.get_shape(), reshape ? (ov::Shape{1, 0}) : (ov::Shape{0}));
+    }
+}
 
 TEST_F(WeightsBankAliasTest, RepeatedRegistrationOfTheSameLazyTensorRemainsEvaluable) {
     const LazyTensor tensor(make_u8_const(ov::Shape{4, 8}));
