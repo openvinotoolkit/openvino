@@ -380,6 +380,7 @@ struct plain_prefill_shape {
     bool f16_qkv = false;     // f16 Q, K and V (the tilings below take no bf16, no compressed KV)
     bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
     bool i8_per_channel_kv = false;  // f16 Q with a per-channel compressed i8 K / V (the plain decode and its own PREFILL tiling)
+    bool u4_per_channel_kv = false;  // f16 Q with a per-channel compressed 4-bit K / V (PLAIN_KV_U4)
 };
 
 // Plain (non-PA) SDPA PREFILL on xe_hpc and Xe2+ at d_max 128 with f16 Q / K / V: the "mirror" workgroup of 256 keys x
@@ -508,6 +509,30 @@ bool solve_plain_prefill_i8_tiling(gpu_arch arch, size_t d_max, size_t vd_max, c
     return true;
 }
 
+// Plain (non-PA) SDPA on xe2_tuned() arches at d_max 512 with f16 Q and the per-channel compressed i8 or 4-bit K / V of the
+// GQA decomposition, where no other tiling took the stage (the i8 decode has its own): the table tile at 256 GRF (it spilled
+// 7-11 KB at 128 GRF), PREFILL with the PA PREFILL loop changes (the 8-bit / 4-bit reads take neither PREFETCH_V nor
+// WIDE_READS). Reads no query or key count ("Plain-SDPA d_max 512 tiling for the per-channel cache" in the docs).
+bool solve_plain_per_channel_d512_tiling(gpu_arch arch,
+                                         size_t d_max,
+                                         size_t vd_max,
+                                         bool prefill,
+                                         const plain_prefill_shape& shape,
+                                         sdpa_ocl_config_t& config) {
+    if (d_max != 512 || vd_max != 512 || !xe2_tuned(arch) || (!shape.i8_per_channel_kv && !shape.u4_per_channel_kv)) {
+        return false;
+    }
+    sdpa_ocl_config_t t = choose_config_kq_only(arch, d_max);
+    t.large_grf = true;
+    t.prefill_pipeline = prefill;
+    t.micro_math = false;  // plain SDPA never emits MICRO_MATH
+    if (!tiling_fits_device(arch, d_max, t)) {
+        return false;
+    }
+    config = t;
+    return true;
+}
+
 // Plain (non-PA) SDPA decode (one query) on xe2_tuned() arches with f16 Q / K / V, or f16 Q with the per-channel
 // compressed i8 K / V of the GQA decomposition (types_ok): every subgroup takes keys, 32-key x 16-query subgroup tiles in
 // one row of 16 subgroups (8 at d_max 64, whose S*V cannot split a 64-wide head over 16), 256 GRF, and the PREFILL loop
@@ -624,6 +649,9 @@ bool solve_tiling(gpu_arch arch,
         return true;
     }
     if (plain_decode && solve_plain_decode_tiling(arch, d_max, vd_max, plain_shape.f16_qkv || plain_shape.i8_per_channel_kv, config)) {
+        return true;
+    }
+    if ((plain_prefill || plain_decode) && solve_plain_per_channel_d512_tiling(arch, d_max, vd_max, plain_prefill, plain_shape, config)) {
         return true;
     }
     config = choose_config_kq_only(arch, d_max);
@@ -1175,6 +1203,8 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
                                     SDPABase::has_per_channel_compressed_kv(params) && !plain_kv_u4(params) &&
                                     params.input_layouts[0].data_type == data_types::f16 && params.input_layouts[1].data_type == data_types::i8 &&
                                     params.input_layouts[2].data_type == data_types::i8;
+    plain_shape.u4_per_channel_kv = !is_pa && params.typed_desc<scaled_dot_product_attention>()->is_kv_compressed && plain_kv_u4(params) &&
+                                    params.input_layouts[0].data_type == data_types::f16;
     if (plain_prefill) {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         plain_shape.mask_input = desc->has_attn_mask_input && !desc->attn_mask_val.has_value();
