@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <locale>
 #include <sstream>
 #include <unordered_map>
 
@@ -51,6 +52,24 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
 namespace {
+class CommaDecimalPoint : public std::numpunct<char> {
+protected:
+    char do_decimal_point() const override {
+        return ',';
+    }
+};
+
+class ScopedGlobalLocale {
+public:
+    explicit ScopedGlobalLocale(const std::locale& locale) : m_previous(std::locale::global(locale)) {}
+    ~ScopedGlobalLocale() {
+        std::locale::global(m_previous);
+    }
+
+private:
+    std::locale m_previous;
+};
+
 class GGUFMMProj : public ::testing::Test {
 protected:
     ov_gguf_test::GgufWriter writer;
@@ -238,6 +257,17 @@ TEST_F(GGUFMMProj, SeparatorWeightsPreserveMetadataAndNativeEmbeddings) {
         for (size_t i = 0; i < expected.size(); ++i)
             EXPECT_NEAR(values[i], expected[i], 1e-6f) << i;
     }
+}
+
+TEST_F(GGUFMMProj, SeparatorWeightsUseClassicLocale) {
+    encoder("vision", "gemma3");
+    writer.tensor("v.image_newline", {3}, {1.f, .5f, -.25f});
+    std::shared_ptr<ov::Model> model;
+    {
+        ScopedGlobalLocale locale(std::locale(std::locale::classic(), new CommaDecimalPoint));
+        model = convert();
+    }
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "v.image_newline"}), "1,0.5,-0.25");
 }
 
 TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {

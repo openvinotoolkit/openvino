@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <locale>
 #include <map>
 #include <optional>
 #include <set>
@@ -1590,6 +1591,7 @@ public:
                             name);
             const auto values = ov::op::v0::Constant(tensor).cast_vector<float>();
             std::ostringstream stream;
+            stream.imbue(std::locale::classic());
             stream.precision(std::numeric_limits<float>::max_digits10);
             for (size_t i = 0; i < values.size(); ++i) {
                 if (i)
