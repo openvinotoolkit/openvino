@@ -105,7 +105,6 @@ protected:
                                                         inputHigh,
                                                         std::vector<float>(inputLow.size(), outputLow),
                                                         std::vector<float>(inputLow.size(), outputHigh));
-        outputFQ->set_friendly_name(outputFQName);
 
         // A quantized consumer keeps the output FQ fused into integer Pooling, unless it is per-channel.
         // Identity weights keep each channel observable without cancellation.
@@ -144,27 +143,21 @@ protected:
     void validate() override {
         SubgraphBaseTest::validate();
         CheckNumberOfNodesWithType(compiledModel, "Pooling", 1);
-        const auto& runtimeModel = compiledModel.get_runtime_model();
+        // No standalone FakeQuantize is left: the output one is either fused into the Pooling (per-tensor) or
+        // decomposed (per-channel).
+        CheckNumberOfNodesWithType(compiledModel, "FakeQuantize", 0);
         const auto expectedPrecision = std::get<0>(GetParam());
         const bool perChannelFQ = std::get<5>(GetParam());
-        if (perChannelFQ) {
-            // The per-channel FakeQuantize must be decomposed, not left as a standalone node.
-            for (const auto& node : GetNodesWithTypes(runtimeModel, {"FakeQuantize"})) {
-                EXPECT_EQ(originalNames(node).find(outputFQName), std::string::npos)
-                    << "Per-channel FakeQuantize was not decomposed";
-            }
-        } else {
+        if (!perChannelFQ) {
             CheckPluginRelatedResults(compiledModel, "Pooling");
         }
-        for (const auto& node : GetNodesWithTypes(runtimeModel, {"Pooling"})) {
+        for (const auto& node : GetNodesWithTypes(compiledModel.get_runtime_model(), {"Pooling"})) {
             const auto& rtInfo = node->get_rt_info();
             // The Pooling reads the quantized input in both cases.
             EXPECT_EQ(rtInfo.at(ov::exec_model_info::RUNTIME_PRECISION).as<element::Type>(), expectedPrecision);
             if (perChannelFQ) {
                 // The per-channel FakeQuantize is not fused, so the Pooling output is not requantized and stays
                 // floating point.
-                EXPECT_EQ(originalNames(node).find(outputFQName), std::string::npos)
-                    << "Per-channel FakeQuantize was fused into int8 Pooling";
                 EXPECT_TRUE(node->get_output_element_type(0).is_real()) << node->get_output_element_type(0);
             } else {
                 EXPECT_EQ(node->get_output_element_type(0), expectedPrecision);
@@ -172,14 +165,7 @@ protected:
         }
     }
 
-    static std::string originalNames(const std::shared_ptr<const ov::Node>& node) {
-        const auto& rtInfo = node->get_rt_info();
-        const auto it = rtInfo.find(ov::exec_model_info::ORIGINAL_NAMES);
-        return it == rtInfo.end() ? std::string{} : it->second.as<std::string>();
-    }
-
     static constexpr float weightScale = 0.125f;
-    static constexpr const char* outputFQName = "OutputFQ";
 };
 
 TEST_P(PoolingAndFQ, CompareWithRefs) {

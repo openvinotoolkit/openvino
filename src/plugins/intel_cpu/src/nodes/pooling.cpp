@@ -609,19 +609,17 @@ bool Pooling::created() const {
 }
 
 bool Pooling::canFuse(const NodePtr& node) const {
-    if (node->getType() != Type::FakeQuantize || node->getAlgorithm() == Algorithm::FQBinarization) {
-        return false;
-    }
 #if defined(OV_CPU_WITH_ACL)
     // ACL int8 pooling takes a single destination scale and zero point, so only a per-tensor FakeQuantize whose
     // output scale/shift folds into them can be fused (see AclPoolingExecutor::init).
-    const auto* fq = dynamic_cast<const FakeQuantize*>(node.get());
-    OPENVINO_ASSERT(fq, "Cannot cast ", node->getName(), " to FakeQuantize node");
-    return fq->getBroadcastingPolicy() == FakeQuantize::BroadcastingPolicy::PerTensor &&
-           canFoldFakeQuantizeOutputShift(fq->getOutputScale(), fq->getOutputShift());
-#else
-    return true;
+    if (const auto* fq = dynamic_cast<const FakeQuantize*>(node.get())) {
+        if (fq->getBroadcastingPolicy() != FakeQuantize::BroadcastingPolicy::PerTensor ||
+            !canFoldFakeQuantizeOutputShift(fq->getOutputScale(), fq->getOutputShift())) {
+            return false;
+        }
+    }
 #endif
+    return node->getType() == Type::FakeQuantize && node->getAlgorithm() != Algorithm::FQBinarization;
 }
 
 dnnl::algorithm Pooling::getPoolingAlgorithm() const {
