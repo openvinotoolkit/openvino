@@ -15,9 +15,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace cldnn {
@@ -77,6 +80,21 @@ struct alias_member {
     offset_tag off = offset_tag::ZERO;
     alias_role role = alias_role::allocator;
     const program_node* node = nullptr;
+    // Phase 0.5b (additive): provider edge table. first_edge / edge_count index alias_analysis::edges() entries whose member is this
+    // tensor (edge_count > 1 for tensors with several providers, e.g. a cbo kv_cache that is also a concat slot).
+    int32_t first_edge = -1;
+    uint8_t edge_count = 0;
+    const program_node* provider_node = nullptr;   // provider of the first edge
+    uint16_t provider_port = 0;
+    bool opaque = false;                           // alias target not statically known
+};
+
+// Phase 0.5b: why a class is a role conflict (statistics only; fb_role_conflict is written at the same points as before).
+enum role_conflict_cause : uint32_t {
+    rc_allocators_not_one = 1,
+    rc_opaque = 2,
+    rc_member_exceeds_root = 4,
+    rc_view_slot_pred = 8,
 };
 
 struct alias_class {
@@ -86,6 +104,7 @@ struct alias_class {
     std::vector<const program_node*> readers;          // users of members that are not members themselves; shape_of users are skipped
     uint32_t fallback = 0;
     uint32_t domain = 0;
+    uint32_t role_conflict_causes = 0;                 // role_conflict_cause bits, statistics only
 
     bool has_fallback() const {
         return fallback != 0;
@@ -121,15 +140,87 @@ struct compile_time_envelope : decision_source {
     edge_activity active(const alias_member& m) const override;
 };
 
+// Phase 0.5b ---------------------------------------------------------------------------------------------------------------------
+enum class edge_origin : uint8_t { concat_slot, view, onednn_sum, onednn_mul, kv_cache, stateless_kv, lora, hypothetical };
+
+// One alias edge: the member tensor lives in (a region of) the buffer of the provider tensor.
+struct alias_edge {
+    const program_node* member_node = nullptr;
+    uint16_t member_port = 0;
+    const program_node* provider_node = nullptr;
+    uint16_t provider_port = 0;
+    alias_kind kind = alias_kind::NONE;                // after the envelope: MUST_* / MAY_*
+    offset_tag off = offset_tag::ZERO;
+    edge_activity act = edge_activity::ALWAYS;         // NEVER edges are not recorded
+    int32_t dep_index = -1;                            // dependency index of the member through which it reads the provider; -1 for concat slots
+    edge_origin origin = edge_origin::view;
+};
+
+enum class persistent_writer_kind : uint8_t { kv_cache_inplace, kv_cache_state_port, stateless_kv_past, assign_copy };
+
+struct storage_key {
+    enum class kind : uint8_t { variable, external_node } k = kind::variable;
+    std::string variable_id;
+    const program_node* node = nullptr;
+    bool operator==(const storage_key& o) const {
+        return k == o.k && variable_id == o.variable_id && node == o.node;
+    }
+};
+
+struct persistent_writer {
+    const program_node* writer = nullptr;
+    uint16_t port = 0;
+    persistent_writer_kind kind = persistent_writer_kind::kv_cache_inplace;
+};
+
+struct persistent_binding {
+    storage_key key;
+    std::vector<std::pair<const program_node*, uint16_t>> aliases;   // tensors that alias the storage (read_value output 0 of the variable)
+    std::vector<persistent_writer> writers;
+};
+
+// A what-if in-place writer for tests and for Phase 1a (relaxing F10). Precondition (N13): the output layout of `writer` (padding
+// included) equals the layout of the tensor it would overwrite; entries that do not satisfy it are not added (see rejected_hypotheticals()).
+struct hypothetical_inplace {
+    const program_node* writer = nullptr;
+    int32_t dep_index = 0;
+};
+
+// Shared with the validation code (single implementation, N8). cpu_state: same rule the allocator uses.
+inline constexpr int8_t cpu_none = 0, cpu_sure = 1, cpu_maybe = 2;
+int8_t cpu_state(const program_node& n);
+bool is_persistent_type(const program_node& n);
+
 // kv_cache / stateless_kv: every kv_cache (cbo or not) and every stateless_kv has an alias edge to its input 0 (MAY_INPLACE, or the settled
 // view edge of a cbo kv_cache). Source: user decision of 2026-11-20, errata of design 08 B.2 step 3; runtime reference:
 // primitive_inst::do_runtime_in_place_kv_cache runs for every kv_cache regardless of can_be_optimized.
 class alias_analysis {
 public:
-    static alias_analysis build(const program& p, const decision_source& src);
+    // `extra` (Phase 0.5b) adds hypothetical MUST_INPLACE edges; with nullptr the result is bit-identical to the plain build.
+    static alias_analysis build(const program& p, const decision_source& src, const std::vector<hypothetical_inplace>* extra = nullptr);
     static alias_analysis build(const program& p) {
         return build(p, compile_time_envelope{});
     }
+
+    // ---- Phase 0.5b: provider edge table, persistent registry, tensor-level user enumeration ----
+    const std::vector<alias_edge>& edges() const {
+        return m_edges;
+    }
+    // Indices into edges(): edges whose provider / member is the tensor (n, port). Empty for unknown tensors.
+    const std::vector<size_t>& edges_into(const program_node& provider, uint16_t port) const;
+    const std::vector<size_t>& edges_from(const program_node& member, uint16_t port) const;
+    bool tensor_is_opaque(const program_node& n, uint16_t port) const;
+    const std::vector<persistent_binding>& persistent_bindings() const {
+        return m_bindings;
+    }
+    // First binding that lists `writer` among its writers (nullptr if none).
+    const persistent_binding* binding_written_by(const program_node& writer) const;
+    const std::vector<const program_node*>& rejected_hypotheticals() const {
+        return m_rejected_hypotheticals;
+    }
+    // Tensor-level user enumeration, shared by war_safe and P2 (the only implementation): fn(user, dep_index) is called once for every
+    // dependency index of a user of the graph that reads (n, port). shape_of users are NOT skipped: the caller decides.
+    void for_each_tensor_user(const program_node& n, uint16_t port, const std::function<void(const program_node&, size_t)>& fn) const;
 
     // port must be >= 0. Returns nullptr for nodes that are not part of the analysed graph. Looked up by node identity, so it is exact
     // even when unique ids are not unique (see duplicate_uid_count()).
@@ -166,6 +257,16 @@ private:
     size_t m_duplicate_uids = 0;
     std::unordered_set<uint64_t> m_colliding_keys;
     std::unordered_map<const program_node*, size_t> m_po_rank;
+
+    // Phase 0.5b
+    size_t tensor_index(const program_node& n, uint16_t port) const;   // SIZE_MAX if unknown
+    std::vector<alias_edge> m_edges;
+    std::vector<std::vector<size_t>> m_edges_from;     // per tensor
+    std::vector<std::vector<size_t>> m_edges_into;     // per tensor
+    std::vector<char> m_opaque;                        // per tensor
+    std::unordered_map<const program_node*, std::pair<size_t, size_t>> m_tensor_base;   // node -> (first tensor index, port count)
+    std::vector<persistent_binding> m_bindings;
+    std::vector<const program_node*> m_rejected_hypotheticals;
 };
 
 }  // namespace cldnn

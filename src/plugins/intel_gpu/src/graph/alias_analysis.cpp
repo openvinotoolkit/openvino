@@ -46,10 +46,6 @@ bool is_may(alias_kind k) {
     return k == alias_kind::MAY_VIEW || k == alias_kind::MAY_INPLACE || k == alias_kind::MAY_SUBREGION;
 }
 
-bool is_persistent_type(const program_node& n) {
-    return n.is_type<read_value>() || n.is_type<assign>() || n.is_type<kv_cache>() || n.is_type<stateless_kv>();
-}
-
 uint32_t to_uid32(const program_node& n) {
     const size_t uid = n.get_unique_id();
     OPENVINO_ASSERT(uid <= std::numeric_limits<uint32_t>::max(), "[GPU] alias_analysis: unique id of node ", n.id(), " does not fit uint32");
@@ -59,24 +55,6 @@ uint32_t to_uid32(const program_node& n) {
 uint16_t checked_port(int64_t port) {
     OPENVINO_ASSERT(port >= 0 && port <= std::numeric_limits<uint16_t>::max(), "[GPU] alias_analysis: output port ", port, " out of range");
     return static_cast<uint16_t>(port);
-}
-
-constexpr int8_t cpu_none = 0, cpu_sure = 1, cpu_maybe = 2;
-
-// Same rule the allocator uses (primitive_inst.cpp: selected_impl ? is_cpu() : preferred == cpu); dynamic nodes whose supported
-// implementation set contains a CPU one are "maybe CPU".
-int8_t cpu_state(const program_node& n) {
-    if (n.is_dynamic()) {
-        if (n.is_type<input_layout>() || n.is_type<data>()) {
-            return cpu_none;
-        }
-        // Request only the impl type (any shape type): a primitive with a static-only CPU impl (e.g. non_max_suppression) can still land on
-        // CPU for a dynamic node, because ImplementationsFactory picks a static impl from the supported set per concrete shape. Requesting
-        // only cpu also keeps validate() away from the oneDNN lazy init (get_kernel_impl_params).
-        return n.type()->has_impl_for(n, impl_types::cpu) ? cpu_maybe : cpu_none;
-    }
-    const bool is_cpu = n.get_selected_impl() ? n.get_selected_impl()->is_cpu() : n.get_preferred_impl_type() == impl_types::cpu;
-    return is_cpu ? cpu_sure : cpu_none;
 }
 
 struct dsu {
@@ -102,6 +80,26 @@ struct dsu {
 
 }  // namespace
 
+bool is_persistent_type(const program_node& n) {
+    return n.is_type<read_value>() || n.is_type<assign>() || n.is_type<kv_cache>() || n.is_type<stateless_kv>();
+}
+
+// Same rule the allocator uses (primitive_inst.cpp: selected_impl ? is_cpu() : preferred == cpu); dynamic nodes whose supported
+// implementation set contains a CPU one are "maybe CPU".
+int8_t cpu_state(const program_node& n) {
+    if (n.is_dynamic()) {
+        if (n.is_type<input_layout>() || n.is_type<data>()) {
+            return cpu_none;
+        }
+        // Request only the impl type (any shape type): a primitive with a static-only CPU impl (e.g. non_max_suppression) can still land on
+        // CPU for a dynamic node, because ImplementationsFactory picks a static impl from the supported set per concrete shape. Requesting
+        // only cpu also keeps validate() away from the oneDNN lazy init (get_kernel_impl_params).
+        return n.type()->has_impl_for(n, impl_types::cpu) ? cpu_maybe : cpu_none;
+    }
+    const bool is_cpu = n.get_selected_impl() ? n.get_selected_impl()->is_cpu() : n.get_preferred_impl_type() == impl_types::cpu;
+    return is_cpu ? cpu_sure : cpu_none;
+}
+
 edge_activity compile_time_envelope::active(const alias_member& m) const {
     const program_node& n = *m.node;
     switch (m.kind) {
@@ -115,6 +113,57 @@ edge_activity compile_time_envelope::active(const alias_member& m) const {
         return n.is_dynamic() ? edge_activity::MAYBE : edge_activity::ALWAYS;
     default:
         return edge_activity::ALWAYS;
+    }
+}
+
+size_t alias_analysis::tensor_index(const program_node& n, uint16_t port) const {
+    auto it = m_tensor_base.find(&n);
+    if (it == m_tensor_base.end() || port >= it->second.second) {
+        return std::numeric_limits<size_t>::max();
+    }
+    return it->second.first + port;
+}
+
+const std::vector<size_t>& alias_analysis::edges_into(const program_node& provider, uint16_t port) const {
+    static const std::vector<size_t> empty;
+    const size_t t = tensor_index(provider, port);
+    return t == std::numeric_limits<size_t>::max() ? empty : m_edges_into[t];
+}
+
+const std::vector<size_t>& alias_analysis::edges_from(const program_node& member, uint16_t port) const {
+    static const std::vector<size_t> empty;
+    const size_t t = tensor_index(member, port);
+    return t == std::numeric_limits<size_t>::max() ? empty : m_edges_from[t];
+}
+
+bool alias_analysis::tensor_is_opaque(const program_node& n, uint16_t port) const {
+    const size_t t = tensor_index(n, port);
+    return t != std::numeric_limits<size_t>::max() && m_opaque[t] != 0;
+}
+
+const persistent_binding* alias_analysis::binding_written_by(const program_node& writer) const {
+    for (const auto& b : m_bindings) {
+        for (const auto& w : b.writers) {
+            if (w.writer == &writer) {
+                return &b;
+            }
+        }
+    }
+    return nullptr;
+}
+
+void alias_analysis::for_each_tensor_user(const program_node& n, uint16_t port, const std::function<void(const program_node&, size_t)>& fn) const {
+    std::unordered_set<const program_node*> visited;   // a node that reads the tensor twice can be listed twice among the users
+    for (const auto* u : n.get_users()) {
+        if (m_tensor_base.find(u) == m_tensor_base.end() || !visited.insert(u).second) {
+            continue;  // not part of the analysed graph, or already enumerated
+        }
+        const auto& deps = u->get_dependencies();
+        for (size_t d = 0; d < deps.size(); ++d) {
+            if (deps[d].first == &n && std::max(0, deps[d].second) == static_cast<int32_t>(port)) {
+                fn(*u, d);
+            }
+        }
     }
 }
 
@@ -163,7 +212,7 @@ tensor_id alias_analysis::root_of(const tensor_id& id) const {
     return c ? c->root : id;
 }
 
-alias_analysis alias_analysis::build(const program& p, const decision_source& src) {
+alias_analysis alias_analysis::build(const program& p, const decision_source& src, const std::vector<hypothetical_inplace>* extra) {
     alias_analysis res;
 
     // 1. Snapshot of the processing order. Only used to order members and classes deterministically (not a time axis).
@@ -200,17 +249,29 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
         return base[node_idx] + static_cast<size_t>(std::max(0, port));
     };
 
+    std::vector<size_t> tensor_node(tensor_count);
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        for (size_t k = 0; k < nports[i]; ++k) {
+            tensor_node[base[i] + k] = i;
+        }
+        res.m_tensor_base.emplace(nodes[i], std::make_pair(base[i], nports[i]));
+    }
+    res.m_edges_from.resize(tensor_count);
+    res.m_edges_into.resize(tensor_count);
+
     struct tensor_info {
         alias_kind kind = alias_kind::NONE;
         offset_tag off = offset_tag::ZERO;
         uint32_t providers = 0;
         bool opaque = false;
         bool slot_pred = false;   // has a slot (in-place concat) provider
+        int32_t first_edge = -1;
     };
     std::vector<tensor_info> info(tensor_count);
     dsu sets(tensor_count);
 
-    auto add_edge = [&](size_t member_node, int32_t member_port, alias_kind must_kind, offset_tag off, size_t provider_tensor) {
+    auto add_edge = [&](size_t member_node, int32_t member_port, alias_kind must_kind, offset_tag off, size_t provider_tensor, edge_origin origin,
+                        int32_t dep_index) {
         const program_node& n = *nodes[member_node];
         alias_member probe;
         probe.id = tensor_id{to_uid32(n), tensor_space::OUTPUT, checked_port(member_port)};
@@ -229,15 +290,54 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
         }
         const size_t t = tensor_of(member_node, member_port);
         sets.unite(t, provider_tensor);
+        const size_t edge_idx = res.m_edges.size();
+        alias_edge e;
+        e.member_node = &n;
+        e.member_port = probe.id.index;
+        e.provider_node = nodes[tensor_node[provider_tensor]];
+        e.provider_port = static_cast<uint16_t>(provider_tensor - base[tensor_node[provider_tensor]]);
+        e.kind = kind;
+        e.off = off;
+        e.act = act;
+        e.dep_index = dep_index;
+        e.origin = origin;
+        res.m_edges.push_back(e);
+        res.m_edges_from[t].push_back(edge_idx);
+        res.m_edges_into[provider_tensor].push_back(edge_idx);
         if (info[t].providers++ == 0) {
             info[t].kind = kind;
             info[t].off = off;
+            info[t].first_edge = static_cast<int32_t>(edge_idx);
         }
+    };
+
+    auto find_binding = [&](const storage_key& key) -> persistent_binding& {
+        for (auto& b : res.m_bindings) {
+            if (b.key == key) {
+                return b;
+            }
+        }
+        res.m_bindings.push_back(persistent_binding{});
+        res.m_bindings.back().key = key;
+        return res.m_bindings.back();
+    };
+    auto variable_key = [](const std::string& id) {
+        storage_key k;
+        k.k = storage_key::kind::variable;
+        k.variable_id = id;
+        return k;
     };
 
     // 2. Alias edges.
     for (size_t i = 0; i < nodes.size(); ++i) {
         const program_node& n = *nodes[i];
+
+        // Phase 0.5b persistent registry: read_value outputs alias the variable storage, assign is a copy writer.
+        if (n.is_type<read_value>()) {
+            find_binding(variable_key(n.as<read_value>().get_primitive()->variable_id)).aliases.emplace_back(&n, uint16_t{0});
+        } else if (n.is_type<assign>()) {
+            find_binding(variable_key(n.as<assign>().get_primitive()->variable_id)).writers.push_back({&n, uint16_t{0}, persistent_writer_kind::assign_copy});
+        }
 
         // slot of an in-place concat: the consumer is the holder (allocator), this node is a region of it.
         for (const auto* u : n.get_users()) {
@@ -252,7 +352,7 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
                 if (d.first != &n) {
                     continue;
                 }
-                add_edge(i, d.second, alias_kind::MUST_SUBREGION, offset_tag::LAYOUT_PADDING, tensor_of(h->second, 0));
+                add_edge(i, d.second, alias_kind::MUST_SUBREGION, offset_tag::LAYOUT_PADDING, tensor_of(h->second, 0), edge_origin::concat_slot, -1);
                 info[tensor_of(i, d.second)].slot_pred = true;
             }
         }
@@ -267,7 +367,7 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
             auto d = idx_of.find(dep.first);
             if (d != idx_of.end()) {
                 const offset_tag off = (n.is_type<crop>() && n.can_be_optimized()) ? offset_tag::STATIC_BYTES : offset_tag::ZERO;
-                add_edge(i, static_cast<int32_t>(k), alias_kind::MUST_VIEW, off, tensor_of(d->second, dep.second));
+                add_edge(i, static_cast<int32_t>(k), alias_kind::MUST_VIEW, off, tensor_of(d->second, dep.second), edge_origin::view, src);
             }
         }
 
@@ -285,7 +385,8 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
             const auto dep = n.get_dependency_with_port(static_cast<size_t>(reused));
             auto d = idx_of.find(dep.first);
             if (d != idx_of.end()) {
-                add_edge(i, 0, is_sum ? alias_kind::MUST_INPLACE : alias_kind::MAY_INPLACE, offset_tag::ZERO, tensor_of(d->second, dep.second));
+                add_edge(i, 0, is_sum ? alias_kind::MUST_INPLACE : alias_kind::MAY_INPLACE, offset_tag::ZERO, tensor_of(d->second, dep.second),
+                         is_sum ? edge_origin::onednn_sum : edge_origin::onednn_mul, reused);
             }
         }
 
@@ -316,10 +417,20 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
                 for (size_t k = 0; k < nports[i]; ++k) {
                     info[tensor_of(i, static_cast<int32_t>(k))].opaque = true;  // alias target not statically known: conservative fallback
                 }
-            } else if (d != idx_of.end()) {
+            } else if (n.is_type<kv_cache>()) {
+                // registered even when no edge is added (already in the same class): the writer is a persistent writer of the variable
+                find_binding(variable_key(n.as<kv_cache>().get_primitive()->variable_info.variable_id))
+                    .writers.push_back({&n, uint16_t{0}, persistent_writer_kind::kv_cache_inplace});
+            } else {
+                storage_key key;
+                key.k = storage_key::kind::external_node;
+                key.node = program_helpers::resolve_buffer_owner(*dep.first, program_helpers::view_resolution::settled_only).owner;
+                find_binding(key).writers.push_back({&n, uint16_t{0}, persistent_writer_kind::stateless_kv_past});
+            }
+            if (target_ok && d != idx_of.end()) {
                 const size_t target = tensor_of(d->second, dep.second);
                 if (sets.find(tensor_of(i, 0)) != sets.find(target)) {
-                    add_edge(i, 0, alias_kind::MAY_INPLACE, offset_tag::ZERO, target);
+                    add_edge(i, 0, alias_kind::MAY_INPLACE, offset_tag::ZERO, target, n.is_type<kv_cache>() ? edge_origin::kv_cache : edge_origin::stateless_kv, 0);
                 }
             }
         }
@@ -335,26 +446,59 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
                 info[tensor_of(i, static_cast<int32_t>(k))].opaque = true;
             }
         }
+        // Phase 0.5b: state ports of a kv_cache are persistent writer ports of its variable (they stay opaque / edge-less)
+        if (n.is_type<kv_cache>()) {
+            const auto* kvp = n.as<kv_cache>().get_primitive().get();
+            auto& b = find_binding(variable_key(kvp->variable_info.variable_id));
+            if (kvp->indirect && nports[i] > 1) {
+                b.writers.push_back({&n, uint16_t{1}, persistent_writer_kind::kv_cache_state_port});
+            }
+            if (kvp->compressed) {
+                for (size_t k = 2; k < nports[i]; ++k) {
+                    b.writers.push_back({&n, checked_port(static_cast<int64_t>(k)), persistent_writer_kind::kv_cache_state_port});
+                }
+            }
+        }
         if (n.is_type<lora>() && !n.get_dependencies().empty()) {
             // LoRA may reuse the memory of its input (pass_manager.h memory_dependency_pass): opaque, class is not promotable.
             const auto dep = n.get_dependency_with_port(0);
             auto d = idx_of.find(dep.first);
             if (d != idx_of.end()) {
-                add_edge(i, 0, alias_kind::MAY_INPLACE, offset_tag::ZERO, tensor_of(d->second, dep.second));
+                add_edge(i, 0, alias_kind::MAY_INPLACE, offset_tag::ZERO, tensor_of(d->second, dep.second), edge_origin::lora, 0);
             }
             info[tensor_of(i, 0)].opaque = true;
+        }
+    }
+
+    // 2b. Hypothetical in-place writers (tests, Phase 1a): MUST_INPLACE edges from the writer to dependency `dep_index`.
+    if (extra != nullptr) {
+        for (const auto& h : *extra) {
+            auto w = h.writer != nullptr ? idx_of.find(h.writer) : idx_of.end();
+            if (w == idx_of.end() || h.dep_index < 0 || static_cast<size_t>(h.dep_index) >= h.writer->get_dependencies().size()) {
+                res.m_rejected_hypotheticals.push_back(h.writer);
+                continue;
+            }
+            const auto dep = h.writer->get_dependency_with_port(static_cast<size_t>(h.dep_index));
+            auto d = idx_of.find(dep.first);
+            if (d == idx_of.end()) {
+                res.m_rejected_hypotheticals.push_back(h.writer);
+                continue;
+            }
+            // N13: the writer output must have exactly the layout (padding included) of the overwritten tensor
+            const bool layouts_ok = h.writer->is_all_valid_output_layouts() && dep.first->is_all_valid_output_layouts() &&
+                                    h.writer->get_output_layouts().size() > 0 && dep.first->get_output_layouts().size() > static_cast<size_t>(std::max(0, dep.second)) &&
+                                    h.writer->get_output_layouts()[0] == dep.first->get_output_layouts()[static_cast<size_t>(std::max(0, dep.second))];
+            if (!layouts_ok) {
+                res.m_rejected_hypotheticals.push_back(h.writer);
+                continue;
+            }
+            add_edge(w->second, 0, alias_kind::MUST_INPLACE, offset_tag::ZERO, tensor_of(d->second, dep.second), edge_origin::hypothetical, h.dep_index);
         }
     }
 
     // 3. Classes: group by DSU representative, order by the PO rank of the first member.
     std::vector<size_t> rep_to_class(tensor_count, std::numeric_limits<size_t>::max());
     std::vector<std::vector<size_t>> class_tensors;
-    std::vector<size_t> tensor_node(tensor_count);
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        for (size_t k = 0; k < nports[i]; ++k) {
-            tensor_node[base[i] + k] = i;
-        }
-    }
     for (size_t t = 0; t < tensor_count; ++t) {  // tensors are laid out in PO order, so classes come out ordered by first member
         const size_t rep = sets.find(t);
         if (rep_to_class[rep] == std::numeric_limits<size_t>::max()) {
@@ -401,6 +545,10 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
         return layouts[port].bytes_count();
     };
 
+    res.m_opaque.resize(tensor_count, 0);
+    for (size_t t = 0; t < tensor_count; ++t) {
+        res.m_opaque[t] = info[t].opaque ? 1 : 0;
+    }
     res.m_classes.reserve(class_tensors.size());
     for (const auto& tensors : class_tensors) {
         alias_class cls;
@@ -421,6 +569,7 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
             root_t = allocators.front();
         } else {
             cls.fallback |= fb_role_conflict;
+            cls.role_conflict_causes |= rc_allocators_not_one;
             if (!allocators.empty()) {
                 root_t = allocators.front();
             }
@@ -444,6 +593,13 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
                 m.off = info[t].off;
                 m.role = is_may(m.kind) ? alias_role::may_allocate_member : alias_role::zero_alloc_member;
             }
+            m.first_edge = info[t].first_edge;
+            m.edge_count = static_cast<uint8_t>(std::min<size_t>(res.m_edges_from[t].size(), 255));
+            if (info[t].first_edge >= 0) {
+                m.provider_node = res.m_edges[static_cast<size_t>(info[t].first_edge)].provider_node;
+                m.provider_port = res.m_edges[static_cast<size_t>(info[t].first_edge)].provider_port;
+            }
+            m.opaque = info[t].opaque;
             cls.members.push_back(m);
             if (t == root_t) {
                 cls.root = m.id;
@@ -456,10 +612,12 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
             }
             if (info[t].opaque) {
                 cls.fallback |= fb_role_conflict;
+                cls.role_conflict_causes |= rc_opaque;
             }
             // a concat predecessor that is itself a view / skippable node has two providers (cascaded concat is allowed)
             if (info[t].slot_pred && (n.can_be_optimized() || n.is_runtime_skippable()) && !n.is_type<concatenation>()) {
                 cls.fallback |= fb_role_conflict;
+                cls.role_conflict_causes |= rc_view_slot_pred;
             }
             if (is_persistent_type(n)) {
                 cls.domain |= dm_persistent;
@@ -477,6 +635,7 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
         }
         if (sizes_known && max_bytes > root_bytes) {
             cls.fallback |= fb_role_conflict;  // a member does not fit the root allocation
+            cls.role_conflict_causes |= rc_member_exceeds_root;
         }
         if (cls.root_node != nullptr) {
             if (cls.root.index != 0) {

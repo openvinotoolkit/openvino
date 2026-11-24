@@ -72,29 +72,22 @@ struct check_result {
     bool ok() const { return message.empty(); }
 };
 
-inline check_result check_exec_order(const program::nodes_ordering& po, const std::vector<primitive_id>& exec_ids) {
-    check_result res;
-    // A1
-    {
-        std::unordered_set<primitive_id> seen;
-        for (size_t i = 0; i < exec_ids.size(); ++i) {
-            if (!seen.insert(exec_ids[i]).second) {
-                res.index = i;
-                res.message = "A1: duplicate primitive '" + exec_ids[i] + "' in exec order at index " + std::to_string(i);
-                return res;
-            }
-        }
-    }
-    // Filtered processing order.
+// Phase 0.5b: the two building blocks of A2, shared with exec_axis (pure refactoring of check_exec_order, same semantics).
+// Processing order restricted to executable nodes (what network::_exec_order contains when nothing is postponed).
+inline std::vector<const program_node*> filtered_processing_order(const program::nodes_ordering& po) {
     std::vector<const program_node*> filtered;
     for (const auto& n : po) {
         if (is_executable_node(n)) {
             filtered.push_back(n);
         }
     }
-    // Normalization (C4).
-    res.normalized = true;
-    for (size_t i = 0; i < filtered.size() && res.normalized; ++i) {
+    return filtered;
+}
+
+// Normalization (C4): every runtime-optimized concat is directly preceded, in dependency order, by its non-data dependencies,
+// and no runtime concat optimization has to be cancelled.
+inline bool is_normalized(const std::vector<const program_node*>& filtered) {
+    for (size_t i = 0; i < filtered.size(); ++i) {
         const auto* c = filtered[i];
         if (!is_runtime_optimized_concat(c)) {
             continue;
@@ -106,16 +99,32 @@ inline check_result check_exec_order(const program::nodes_ordering& po, const st
             }
         }
         if (must_cancel_runtime_concat(*c) || preds.size() > i) {
-            res.normalized = false;
-            break;
+            return false;
         }
         for (size_t k = 0; k < preds.size(); ++k) {
             if (filtered[i - preds.size() + k] != preds[k]) {
-                res.normalized = false;
-                break;
+                return false;
             }
         }
     }
+    return true;
+}
+
+inline check_result check_exec_order(const program::nodes_ordering& po, const std::vector<primitive_id>& exec_ids) {
+    check_result res;
+    // A1 (must stay ahead of the normalization)
+    {
+        std::unordered_set<primitive_id> seen;
+        for (size_t i = 0; i < exec_ids.size(); ++i) {
+            if (!seen.insert(exec_ids[i]).second) {
+                res.index = i;
+                res.message = "A1: duplicate primitive '" + exec_ids[i] + "' in exec order at index " + std::to_string(i);
+                return res;
+            }
+        }
+    }
+    const std::vector<const program_node*> filtered = filtered_processing_order(po);
+    res.normalized = is_normalized(filtered);
     if (!res.normalized) {
         return res;
     }
