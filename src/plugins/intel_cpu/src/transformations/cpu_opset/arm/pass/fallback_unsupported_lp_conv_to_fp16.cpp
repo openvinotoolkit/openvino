@@ -31,6 +31,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/utils.hpp"
 
 using namespace ov::pass;
 
@@ -71,10 +72,9 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        // If there's a Subtract (zero-point dequantization), always apply fallback —
-        // int8 ACL convolution executor does not support zero-point yet
-        const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
-        if (!has_subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
+        // A Subtract on the activations is a zero point. The int8 ACL convolution executor supports only
+        // a per-tensor zero point on i8 activations, other zero points make the activation type mismatch.
+        if (fake_quantize->get_output_element_type(0) == get_int8_activation_type(conv)) {
             return false;
         }
 

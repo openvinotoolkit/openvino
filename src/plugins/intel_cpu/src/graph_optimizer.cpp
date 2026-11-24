@@ -941,8 +941,54 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
-// zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // oneDNN is not involved into int8 convolution inference on ARM. The int8 ACL convolution supports only
+    // a per-tensor zero point on i8 activations, so only such a zero point Subtract is fused.
+    for (const auto& node : graphNodes) {
+        auto* convNode = dynamic_cast<Convolution*>(node.get());
+        // the int8 ACL convolution supports only 4D activations
+        if (!convNode || convNode->getAlgorithm() != Algorithm::ConvolutionCommon ||
+            node->getInputShapeAtPort(0).getRank() != 4) {
+            continue;
+        }
+        const auto subtract = node->getParentEdgeAt(0)->getParent();
+        if (subtract->getType() != Type::Eltwise || subtract->getAlgorithm() != Algorithm::EltwiseSubtract ||
+            subtract->getParentEdges().size() != 2 || subtract->getChildEdges().size() != 1 ||
+            !subtract->getFusedWith().empty()) {
+            continue;
+        }
+        const auto weights = node->getParentEdgeAt(1)->getParent();
+        if (weights->getType() != Type::Input || !weights->isConstant() ||
+            weights->getOriginalOutputPrecisionAtPort(0) != ov::element::i8) {
+            continue;
+        }
+        const auto& dataEdge = subtract->getParentEdgeAt(0);
+        if (dataEdge->getParent()->getOriginalOutputPrecisionAtPort(dataEdge->getInputNum()) != ov::element::i8) {
+            continue;
+        }
+        auto* zeroPoint = dynamic_cast<node::Input*>(subtract->getParentEdgeAt(1)->getParent().get());
+        if (!zeroPoint || !zeroPoint->isConstant() ||
+            zeroPoint->getOriginalOutputPrecisionAtPort(0) != ov::element::i8) {
+            continue;
+        }
+        const auto& zeroPointMemory = zeroPoint->getMemoryPtr();
+        const auto* zeroPointData = zeroPointMemory->getDataAs<const int8_t>();
+        const auto zeroPointSize = zeroPointMemory->getShape().getElementsCount();
+        if (zeroPointSize == 0 || !std::all_of(zeroPointData, zeroPointData + zeroPointSize, [&](const int8_t value) {
+                return value == zeroPointData[0];
+            })) {
+            continue;
+        }
+
+        DEBUG_LOG("[GraphOptimizer##FusingZeorPoint]:Eltwise Subtract Node ##",
+                  subtract->getName(),
+                  " is optimized as zeropoint of Conv ##",
+                  node->getName());
+        convNode->initializePerTensorInputZeroPoint(zeroPointData[0]);
+        node->setOriginalInputPrecisionAtPort(0, ov::element::i8);
+        graph.RemoveEdge(subtract->getParentEdgeAt(1));
+        graph.DropNode(subtract);
+    }
     return;
 #endif
 

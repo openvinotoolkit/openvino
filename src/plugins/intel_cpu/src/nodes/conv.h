@@ -65,6 +65,8 @@ public:
     // Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, size_t inputZpSize);
+    // Used on ARM, where the int8 ACL convolution supports a per-tensor zero point on i8 activations
+    void initializePerTensorInputZeroPoint(int32_t inputZeroPoint);
 
     const VectorDims& getWeightDims() {
         return getInputShapeAtPort(WEIGHTS).getDims();
