@@ -5,6 +5,7 @@
 #include "cpu_tensor.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -93,6 +94,9 @@ void Tensor::update_strides() const {
     auto blocked_desc = m_memptr->getDescWithType<BlockedMemoryDesc>();
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
     const auto& strides = blocked_desc->getStrides();
+    OPENVINO_ASSERT(m_element_type.bitwidth() >= CHAR_BIT || strides.size() <= 1,
+                    "intel_cpu::Tensor cannot report byte strides for a multi-dimensional sub-byte tensor of type ",
+                    m_element_type);
     m_strides.resize(strides.size());
     std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this](const size_t stride) {
         return stride * m_element_type.size();
