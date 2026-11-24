@@ -424,6 +424,10 @@ public:
                    config.key_spec,
                    tile_brgemm_sizes(config.brgemm.handle())) {}
 
+    [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
+        return m_cfg.brgemm.handle().enabled() ? ov::intel_cpu::impl_desc_type::brgemm_avx512_amx : variant_impl_type();
+    }
+
     [[nodiscard]] size_t scratch_bytes(const SparsePATensors& t,
                                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
         return SparsePAScratch(m_cfg, t, static_cast<size_t>(cpu_parallel->get_num_worker_threads()), m_thread.total)

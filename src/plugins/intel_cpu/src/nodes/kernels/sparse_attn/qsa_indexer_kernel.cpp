@@ -47,7 +47,6 @@ using ov::intel_cpu::rnd_up;
 using qsa_kernel::batch_entry_plan;
 using qsa_kernel::BatchEntryPlan;
 using qsa_kernel::BlockScore;
-using qsa_kernel::qsa_kernel_impl_type;
 using qsa_kernel::rope_batch;
 
 // The buffers of one worker thread's slice of the scratch. The stages run one after the other, so they share them; the
@@ -366,7 +365,7 @@ public:
           m_brgemm_scorer(BrgemmScorer::create(config, cache)) {}
 
     [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
-        return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : qsa_kernel_impl_type();
+        return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : variant_impl_type();
     }
 
     void find_batch_max_params(IndexerArgs& call) const override {

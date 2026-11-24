@@ -26,18 +26,6 @@ namespace ov::Extensions::Cpu::XARCH::qsa_kernel {
 
 using ov::Extensions::Cpu::XARCH::ScratchPartition;
 
-/// @brief The implementation type of the stages of this instruction-set variant. It is fixed when the variant is
-/// compiled, as the dispatcher picks the variant by the same CPU check.
-inline ov::intel_cpu::impl_desc_type qsa_kernel_impl_type() {
-#if defined(HAVE_AVX512F)
-    return ov::intel_cpu::impl_desc_type::avx512;
-#elif defined(HAVE_AVX2)
-    return ov::intel_cpu::impl_desc_type::avx2;
-#else
-    return ov::intel_cpu::impl_desc_type::ref;
-#endif
-}
-
 // The vector type of a loop body: the full-width one in the main loop, the scalar one in the tail.
 template <typename Lanes>
 using vec_of = simd::f32_t<Lanes::isa_tag::value>;

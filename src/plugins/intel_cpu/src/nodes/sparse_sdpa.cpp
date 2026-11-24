@@ -288,6 +288,7 @@ void SparseSDPA::createPrimitive() {
         });
     CPU_NODE_ASSERT(sparse_sdpa_executor, "executor creation fails");
     m_executor = sparse_sdpa_executor;
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->impl_type());
 }
 
 void SparseSDPA::initSupportedPrimitiveDescriptors() {

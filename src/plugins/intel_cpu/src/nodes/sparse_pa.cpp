@@ -259,6 +259,7 @@ void SparsePA::createPrimitive() {
         });
     CPU_NODE_ASSERT(sparse_pa_executor, "executor creation fails");
     m_executor = sparse_pa_executor;
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->impl_type());
 }
 
 void SparsePA::initSupportedPrimitiveDescriptors() {

@@ -11,6 +11,7 @@
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
@@ -49,6 +50,9 @@ struct SparseSdpaTensors {
 class SparseSdpaExecutor {
 public:
     virtual ~SparseSdpaExecutor() = default;
+    /// The implementation type the node reports: the matrix extension of the prefill kernels when it has them, else
+    /// the SIMD stages of the variant.
+    [[nodiscard]] virtual ov::intel_cpu::impl_desc_type impl_type() const = 0;
     [[nodiscard]] virtual size_t scratch_bytes(const SparseSdpaTensors& tensors,
                                                const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
     virtual void execute(const SparseSdpaTensors& tensors,

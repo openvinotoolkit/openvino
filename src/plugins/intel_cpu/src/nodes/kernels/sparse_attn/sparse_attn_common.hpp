@@ -12,6 +12,7 @@
 
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
 
 namespace ov::Extensions::Cpu {
@@ -29,6 +30,18 @@ inline size_t max_q_head_pack_size(size_t q_head_num, size_t k_head_num, size_t 
 // copy: an inline function in a shared namespace would be merged by the linker, and the AVX-512 copy could then run on
 // an AVX2 CPU.
 namespace ov::Extensions::Cpu::XARCH {
+
+/// @brief The implementation type of the SIMD stages of this instruction-set variant. It is fixed when the variant is
+/// compiled, as the dispatcher picks the variant by the same CPU check.
+inline ov::intel_cpu::impl_desc_type variant_impl_type() {
+#if defined(HAVE_AVX512F)
+    return ov::intel_cpu::impl_desc_type::avx512;
+#elif defined(HAVE_AVX2)
+    return ov::intel_cpu::impl_desc_type::avx2;
+#else
+    return ov::intel_cpu::impl_desc_type::ref;
+#endif
+}
 
 /// @brief Lays out buffers one after the other, each aligned to 64 bytes, so a scratch's size and the places of its
 /// buffers come from the same code: with a null base it only measures (bytes()), with a base take() returns the

@@ -40,7 +40,6 @@ using ov::intel_cpu::div_up;
 using ov::intel_cpu::rnd_up;
 using qsa_kernel::block_address;
 using qsa_kernel::BlockScore;
-using qsa_kernel::qsa_kernel_impl_type;
 using qsa_kernel::row_view;
 using qsa_kernel::seq_plan;
 using qsa_kernel::token_address;
@@ -284,7 +283,7 @@ public:
           m_brgemm_scorer(BrgemmScorer::create(config, cache)) {}
 
     [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
-        return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : qsa_kernel_impl_type();
+        return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : variant_impl_type();
     }
 
     void find_batch_max_params(PagedIndexerArgs& call) const override {

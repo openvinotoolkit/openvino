@@ -208,6 +208,10 @@ public:
     // The heads and head sizes are fixed by the config, so the scratch layout is computed once here.
     explicit SdpaExecutor(const SparseSdpaConfig& config) : m_cfg(config), m_scratch(config) {}
 
+    [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
+        return m_cfg.brgemm.handle().enabled() ? ov::intel_cpu::impl_desc_type::brgemm_avx512_amx : variant_impl_type();
+    }
+
     [[nodiscard]] size_t scratch_bytes(const SparseSdpaTensors& t,
                                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
         return scratch_parts(t, static_cast<size_t>(cpu_parallel->get_num_worker_threads())).total;
