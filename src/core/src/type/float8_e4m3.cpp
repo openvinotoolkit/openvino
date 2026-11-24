@@ -129,7 +129,8 @@ float8_e4m3::float8_e4m3(const uint32_t sign, const uint32_t biased_exponent, co
     : m_value(((sign & 0x01U) << (f8e4m3_e_size + f8e4m3_m_size)) |
               (biased_exponent & (f8e4m3_e_mask >> f8e4m3_m_size)) << f8e4m3_m_size | (fraction & f8e4m3_m_mask)) {}
 
-float8_e4m3::float8_e4m3(const float value) : m_value{f16_to_f8e4m3_bits(static_cast<float16>(value))} {}
+float8_e4m3::float8_e4m3(const float value)
+    : m_value{f16_to_f8e4m3_bits(static_cast<float16>(util::round_to_odd_for_f8(value)))} {}
 
 float8_e4m3::operator float() const {
     auto f32_bits = util::f32_to_u32_bits(f8_to_float_lut[m_value & (f8e4m3_e_mask | f8e4m3_m_mask)]);

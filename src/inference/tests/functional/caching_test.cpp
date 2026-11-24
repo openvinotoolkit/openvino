@@ -280,6 +280,9 @@ public:
             .Times(AnyNumber())
             .WillRepeatedly(Return(ov::Any{1u}));
         EXPECT_CALL(*mock, get_property(ov::model_name.name())).Times(AnyNumber()).WillRepeatedly(Return("mock_net"));
+        EXPECT_CALL(*mock, get_property(ov::loaded_from_cache.name()))
+            .Times(AnyNumber())
+            .WillRepeatedly(Return(ov::Any{false}));
         EXPECT_CALL(*mock, get_property(ov::supported_properties.name()))
             .Times(AnyNumber())
             .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(),
