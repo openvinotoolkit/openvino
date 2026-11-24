@@ -225,6 +225,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/constant_result_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv3d_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_concat.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_deconv_shared_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convert_bool_math.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_maxpool_activ.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convs_and_sums.cpp
@@ -788,6 +789,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/constant_result_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv3d_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_concat.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_deconv_shared_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_maxpool_activ.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convert_bool_math.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convs_and_sums.cpp
