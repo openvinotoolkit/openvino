@@ -154,14 +154,13 @@ cl_device_id ze_ocl_interop::find_ocl_device(ze_device_handle_t ze_device) const
 }
 
 ze_driver_handle_t ze_ocl_interop::find_ze_driver(cl_device_id ocl_device) {
-    auto* ze_device = get_ze_device(ocl_device);
-    auto all_devices = find_ze_devices();
-    for (auto &device : all_devices) {
-        if (device.second == ze_device) {
-            return device.first;
-        }
-    }
-    OPENVINO_THROW("[GPU] Failed to find matching ZE driver for given ZE device");
+    cl_platform_id platform = nullptr;
+    cl_int error = clGetDeviceInfo(ocl_device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+    expect_success(error, platform, "[GPU] Failed to get OCL platform for device");
+    ze_driver_handle_t driver = nullptr;
+    error = clGetPlatformInfo(platform, CL_L0_PLATFORM_DRIVER_HANDLE, sizeof(driver), &driver, nullptr);
+    expect_success(error, driver, "[GPU] Attempt to extract ZE driver from OCL platform failed");
+    return driver;
 }
 
 ze_context_handle_t ze_ocl_interop::get_ze_context(cl_context context) {
@@ -216,7 +215,7 @@ std::vector<ze_image_handle_t> ze_ocl_interop::get_ze_images(cl_mem ocl_mem) {
 }
 
 ze_device_handle_t ze_ocl_interop::get_ze_device(cl_device_id device) {
-    ze_device_handle_t ze_device;
+    ze_device_handle_t ze_device = nullptr;
     cl_int error = clGetDeviceInfo(device, CL_L0_DEVICE_HANDLE, sizeof(ze_device_handle_t), &ze_device, nullptr);
     expect_success(error, ze_device, "[GPU] Attempt to extract ZE device from OCL device failed");
     return ze_device;
