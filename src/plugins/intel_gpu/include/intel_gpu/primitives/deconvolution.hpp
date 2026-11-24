@@ -7,6 +7,7 @@
 
 #include "openvino/core/strides.hpp"
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -355,6 +356,9 @@ struct deconvolution : public primitive_base<deconvolution> {
     ov::CoordinateDiff pads_end;
     /// @brief Defines additional amount of paddings per each spatial axis added to output tensor.
     ov::CoordinateDiff out_padding;
+    /// @brief Defines how the padding is calculated. SAME_UPPER/SAME_LOWER padding depends on the spatial
+    /// dimensions, so for dynamic shapes it is calculated from the actual shapes at runtime.
+    ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT;
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape = false;
     /// @brief Defines spatial shape of the output.
@@ -371,6 +375,7 @@ struct deconvolution : public primitive_base<deconvolution> {
         seed = hash_range(seed, pad.begin(), pad.end());
         seed = hash_range(seed, stride.begin(), stride.end());
         seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, auto_pad);
         seed = hash_combine(seed, grouped_weights_shape);
         seed = hash_combine(seed, weights.is_valid());
         seed = hash_combine(seed, bias.is_valid());
@@ -393,6 +398,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                cmp_fields(pads_begin) &&
                cmp_fields(pads_end) &&
                cmp_fields(out_padding) &&
+               cmp_fields(auto_pad) &&
                cmp_fields(grouped_weights_shape) &&
                cmp_fields(weights.is_valid()) &&
                cmp_fields(bias.is_valid()) &&
@@ -411,6 +417,7 @@ struct deconvolution : public primitive_base<deconvolution> {
         ob << pads_begin;
         ob << pads_end;
         ob << out_padding;
+        ob << make_data(&auto_pad, sizeof(ov::op::PadType));
         ob << grouped_weights_shape;
         ob << output_partial_shape;
         ob << output_shape_id;
@@ -429,6 +436,7 @@ struct deconvolution : public primitive_base<deconvolution> {
         ib >> pads_begin;
         ib >> pads_end;
         ib >> out_padding;
+        ib >> make_data(&auto_pad, sizeof(ov::op::PadType));
         ib >> grouped_weights_shape;
         ib >> output_partial_shape;
         ib >> output_shape_id;
