@@ -153,6 +153,23 @@ TEST(moe_lookahead_lru, prediction_protection_does_not_pin_hits_or_change_demand
     EXPECT_EQ(demand->missing[1].slot, 0U);
 }
 
+TEST(moe_lookahead_lru, cancellation_does_not_reuse_an_active_copy_slot) {
+    LRUCache cache(8);
+    const auto active = cache.reserve_speculative(1, 2, make_lookahead_test_event);
+    ASSERT_TRUE(active);
+    ASSERT_TRUE(cache.start_load(*active));
+    EXPECT_FALSE(cache.cancel_load(*active));
+    const auto still_pending = cache.get_pending_load(1);
+    ASSERT_TRUE(still_pending);
+    EXPECT_EQ(still_pending->generation, active->generation);
+    const auto queued = cache.reserve_speculative(2, 2, make_lookahead_test_event);
+    ASSERT_TRUE(queued);
+    EXPECT_NE(queued->slot, active->slot);
+    EXPECT_TRUE(cache.cancel_load(*queued));
+    EXPECT_TRUE(cache.complete_load(*active));
+    EXPECT_FALSE(cache.cancel_load(*active));
+}
+
 TEST(moe_lookahead_lru, cancelled_replacement_retains_physical_slot_war) {
     LRUCache cache(4);
     auto initial = cache.partition_3way({1, 2, 3, 4}, make_lookahead_test_event);
