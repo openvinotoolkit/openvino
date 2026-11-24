@@ -4,6 +4,7 @@
 
 #include "convert_sparse_attention_to_dense.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -11,6 +12,7 @@
 #include <optional>
 #include <regex>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -63,6 +65,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/node_util.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 
@@ -78,9 +81,15 @@ constexpr const char* kBlockIndexKey = "block_index_key";
 // Graph building helpers. Every new node is collected to copy the runtime info of the replaced operation.
 class Builder {
 public:
+    // Constant subgraphs are folded right away. ShapeOf is kept as is: the model is reshaped to static afterwards.
     template <typename T, typename... Args>
     Out make(Args&&... args) {
-        auto node = std::make_shared<T>(std::forward<Args>(args)...);
+        std::shared_ptr<ov::Node> node;
+        if constexpr (std::is_same_v<T, op::v3::ShapeOf>) {
+            node = std::make_shared<T>(std::forward<Args>(args)...);
+        } else {
+            node = ov::op::util::make_try_fold<T>(std::forward<Args>(args)...);
+        }
         m_nodes.push_back(node);
         return node->output(0);
     }
@@ -609,13 +618,19 @@ std::optional<QSAState> qsa_state(const ov::descriptor::Tensor& tensor, const st
 void replace(const std::shared_ptr<ov::Node>& node, const ov::OutputVector& outputs, const Builder& b) {
     OPENVINO_ASSERT(outputs.size() == node->get_output_size());
     ov::copy_runtime_info(node, b.nodes());
+    const auto& name = node->get_friendly_name();
     for (size_t i = 0; i < outputs.size(); ++i) {
         OPENVINO_ASSERT(outputs[i].get_element_type() == node->get_output_element_type(i),
                         "ConvertSparseAttentionToDense: ",
-                        node->get_friendly_name(),
+                        name,
                         " output ",
                         i,
                         " type mismatch");
+        // the new producer of every output takes the name of the replaced operation, suffixed for a multi-output one
+        const auto producer = outputs[i].get_node_shared_ptr();
+        if (std::find(b.nodes().begin(), b.nodes().end(), producer) != b.nodes().end()) {
+            producer->set_friendly_name(outputs.size() == 1 ? name : name + "." + std::to_string(i));
+        }
         node->output(i).replace(outputs[i]);
     }
 }
@@ -686,6 +701,7 @@ bool ov::npuw::ConvertSparseAttentionToDense::run_on_model(const std::shared_ptr
     // 2. the operations, in the topological order: the producers are replaced before their consumers
     Builder shared;
     const auto mask_info = build_mask_info(shared, attention_mask);
+    ov::copy_runtime_info(attention_mask, shared.nodes());
     PaddedKeys padded_keys;
     SelectedBlocks selected_blocks;
     size_t num_prepare = 0, num_indexer = 0, num_attention = 0;
