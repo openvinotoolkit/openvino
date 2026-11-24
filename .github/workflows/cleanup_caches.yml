@@ -168,3 +168,65 @@ jobs:
           cache-path: C:\\mount\\caches\\ccache
           recursive: true
           key: '.'
+
+  Docker:
+    name: Docker
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_24_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: '{"docker_env": false, "dockerfiles": false}'
+
+  # Remote ccache entries are hash-named files without the ".cache" suffix used by the cache
+  # action, so they are trimmed by ccache itself: least recently used entries (by modification
+  # time, refreshed on hits via update-mtime=true) are evicted down to CCACHE_REMOTE_MAX_SIZE.
+  Cleanup_remote_ccache_lin:
+    name: Cleanup Linux remote ccache
+    needs: Docker
+    runs-on: aks-linux-medium
+    timeout-minutes: 60
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      volumes:
+        - /mount:/mount
+    env:
+      CCACHE_REMOTE_PATH: /mount/caches/ccache/shared
+      CCACHE_REMOTE_MAX_SIZE: 500Gi
+
+    steps:
+      - name: Cleanup remote ccache
+        shell: bash
+        run: ccache --trim-dir "${CCACHE_REMOTE_PATH}" --trim-max-size "${CCACHE_REMOTE_MAX_SIZE}" --trim-method mtime
+
+  Cleanup_remote_ccache_win:
+    name: Cleanup Windows remote ccache
+    runs-on: 'aks-win-4-cores-8gb-build'
+    timeout-minutes: 60
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    env:
+      CCACHE_REMOTE_PATH: "C:\\mount\\caches\\ccache\\shared"
+      CCACHE_REMOTE_MAX_SIZE: 500Gi
+
+    steps:
+      - name: Cleanup remote ccache
+        shell: pwsh
+        run: |
+          ccache --trim-dir $env:CCACHE_REMOTE_PATH --trim-max-size $env:CCACHE_REMOTE_MAX_SIZE --trim-method mtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

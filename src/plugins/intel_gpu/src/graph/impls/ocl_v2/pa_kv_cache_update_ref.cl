@@ -100,7 +100,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
             out_data[offset] = res;
         }
 
-        INPUT0_TYPE* comp_ptr = out_data + comp_offset;
+        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(out_data + comp_offset);
         if (sglid == 0) {
             comp_ptr[token_pos_in_block] = 1.0 / scale;
             comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + token_pos_in_block] = zp;

@@ -26,6 +26,7 @@
 #include "compiled_model.hpp"
 #undef private
 #include "attn/attn_subgraph.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
@@ -353,16 +354,29 @@ void FakeSubInferRequest::check_port(const ov::Output<const ov::Node>& port) con
                     port);
 }
 
+// Some ports (e.g. the Dynamic-attention sub-model's past-KV input) are intentionally dynamic;
+// substitute a placeholder for preallocation, since set_tensor() rebinds the real shape later.
+ov::Shape resolve_placeholder_shape(const ov::Output<const ov::Node>& port) {
+    const auto& pshape = port.get_partial_shape();
+    ov::Shape shape(pshape.rank().get_length());
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        shape[i] =
+            pshape[i].is_static() ? pshape[i].get_length() : static_cast<std::size_t>(pshape[i].get_min_length());
+    }
+    return shape;
+}
+
 FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model)
     : ov::ISyncInferRequest(std::move(compiled_model)) {
     for (const auto& input : get_compiled_model()->inputs()) {
-        ov::ISyncInferRequest::set_tensor(input,
-                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            input,
+            ov::get_tensor_impl(ov::Tensor(input.get_element_type(), resolve_placeholder_shape(input))));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
         ov::ISyncInferRequest::set_tensor(
             output,
-            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), resolve_placeholder_shape(output))));
     }
     // Sparse request pools run a warmup before bindings are populated.
     for (const auto& input : get_compiled_model()->inputs()) {
@@ -853,6 +867,95 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
 }
 
+TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsOutOfRangeMaskIdx) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    bool corrupted = false;
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (auto* dynamic = ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context)) {
+            dynamic->mask_idx = std::numeric_limits<std::size_t>::max();
+            corrupted = true;
+        }
+    }
+    ASSERT_TRUE(corrupted) << "No compiled submodel carried a Dynamic attention state to corrupt";
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+    OV_EXPECT_THROW_HAS_SUBSTRING(request->infer(), ov::Exception, "mask_idx");
+}
+
+TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsMaskIdxInClosureGap) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    ov::npuw::compiled::Attention* dynamic = nullptr;
+    std::size_t body_idx = 0;
+    for (std::size_t idx = 0; idx < compiled->m_compiled_submodels.size(); ++idx) {
+        auto& desc = compiled->m_compiled_submodels[idx];
+        if (desc.compiled_model) {
+            if (auto* found = ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context)) {
+                dynamic = found;
+                body_idx = idx;
+                break;
+            }
+        }
+    }
+    ASSERT_NE(dynamic, nullptr) << "No compiled submodel carried a Dynamic attention state";
+
+    auto& body = compiled->m_compiled_submodels[body_idx];
+    const auto param_base = body.param_base;
+    auto extended_model = body.compiled_model->get_runtime_model()->clone();
+    ov::test::npuw::ModelBuilder mb;
+    auto extra_param = mb.parameter(ov::element::f32, ov::PartialShape{1}, "__closure_gap_probe__");
+    extended_model->add_parameters({extra_param});
+    body.compiled_model = ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(extended_model, plugin)};
+
+    ov::Tensor fake_closure_tensor(ov::element::f32, ov::Shape{1});
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context) == dynamic) {
+            auto& closure = desc.closure.unsafe_get();
+            closure.closure.push_back(fake_closure_tensor);
+            closure.closure_uid.push_back(-1);
+            closure.is_remote.push_back(false);
+            // closure and lazy_closure must stay the same size (see CompiledModelDesc). Forgetting
+            // this is a latent race: finalize_weights_bank() validates that invariant on a background
+            // thread (std::async in finalize_weights_bank()), so whether a mismatch here is caught
+            // depends on scheduling - it was missed on this machine but surfaced on CI as an unrelated
+            // "Malformed ORC blob" failure instead of the mask_idx assertion this test targets.
+            desc.lazy_closure.emplace_back();
+        }
+    }
+
+    // Valid mask_idx must stay within [0, param_base); param_base itself is out of range and
+    // should trigger the assertion.
+    dynamic->mask_idx = param_base;
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+    OV_EXPECT_THROW_HAS_SUBSTRING(request->infer(), ov::Exception, "mask_idx");
+}
+
 // Regression test for "Cannot find tensor for port" on the first inference of an LLM imported
 // from CACHE_DIR with chunked prefill (PYRAMID prefill attention). The pyramid variants are
 // separate compiled models with their own infer requests; every port bound on a variant request
@@ -894,6 +997,106 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
         request->set_tensor(input, ov::get_tensor_impl(tensor));
     }
     EXPECT_NO_THROW(request->infer());
+}
+
+// The history size reaches the base infer request only through the npuw_history_size variable
+// state, which a caller holding nothing but the public request can find via query_state().
+// Dynamic attention uses it to pick the pyramid variant for a prefill chunk, so driving that
+// state from the outside must change which variant executes.
+TEST_F(SubgraphBehaviorInferTest, PyramidSelectionFollowsHistorySizeStateSetThroughRequest) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+    ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+    ov::npuw::RedirectNewKvToOutput().run_on_model(model);
+
+    auto evaluation = std::make_shared<EvaluationLog>();
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin, /*own_ports_only=*/true, evaluation);
+    plugin->set_core(core);
+
+    auto props = base_props();
+    props["NPUW_ATTN"] = std::string("PYRAMID");
+    props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+
+    const ov::npuw::compiled::PyramidAttention* pyramid = nullptr;
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        if (const auto* candidate = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
+            pyramid = candidate;
+            break;
+        }
+    }
+    ASSERT_NE(pyramid, nullptr);
+    ASSERT_GT(pyramid->_compiled_models.size(), 1u) << "Need more than one pyramid variant to tell them apart";
+    const ov::ICompiledModel* smallest = pyramid->_compiled_models.front()._ptr.get();
+    const ov::ICompiledModel* largest = pyramid->_compiled_models.back()._ptr.get();
+    ASSERT_NE(smallest, largest);
+
+    // Exactly what an external framework sees: the request's states, nothing else.
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    const auto find_history_state = [&]() {
+        for (const auto& state : request->query_state()) {
+            if (state->get_name() == ov::npuw::HistorySizeState::name) {
+                return state;
+            }
+        }
+        ADD_FAILURE() << ov::npuw::HistorySizeState::name << " is not exposed by the request";
+        return ov::SoPtr<ov::IVariableState>{};
+    };
+    const auto set_history = [&](int64_t history) {
+        ov::Tensor tensor(ov::element::i64, ov::Shape{1});
+        tensor.data<int64_t>()[0] = history;
+        find_history_state()->set_state(ov::get_tensor_impl(tensor));
+    };
+
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        if (input.get_names().count("position_ids")) {
+            std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{0});
+        }
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+
+    const auto executed = [&](const ov::ICompiledModel* variant) {
+        std::lock_guard<std::mutex> lock(evaluation->mutex);
+        const auto it = evaluation->executions.find(variant);
+        return it != evaluation->executions.end() && !it->second.empty();
+    };
+    const auto run = [&]() {
+        {
+            std::lock_guard<std::mutex> lock(evaluation->mutex);
+            evaluation->executions.clear();  // Drop warmups and the previous run.
+        }
+        ASSERT_NO_THROW(request->infer());
+    };
+
+    EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], -1) << "No history until a caller provides it";
+    run();
+    EXPECT_TRUE(executed(smallest)) << "An unset history behaves as an empty one";
+    EXPECT_FALSE(executed(largest));
+
+    set_history(0);
+    run();
+    EXPECT_TRUE(executed(smallest)) << "A first chunk without history runs the smallest variant";
+    EXPECT_FALSE(executed(largest));
+
+    // Enough history to need the largest context.
+    const auto history = static_cast<int64_t>(pyramid->_context_lengths.back());
+    set_history(history);
+    EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], history);
+    run();
+    EXPECT_TRUE(executed(largest)) << "History set through the request state must reach attention selection";
+    EXPECT_FALSE(executed(smallest));
+
+    // Resetting the request's states marks history unset, which behaves as an empty history.
+    for (const auto& state : request->query_state()) {
+        state->reset();
+    }
+    EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], -1);
+    run();
+    EXPECT_TRUE(executed(smallest));
+    EXPECT_FALSE(executed(largest));
 }
 
 }  // namespace

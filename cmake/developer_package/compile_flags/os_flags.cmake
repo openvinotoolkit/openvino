@@ -12,9 +12,12 @@ if(NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
+# the only place to change the project default standard
+set(OV_CXX_STANDARD_DEFAULT 20)
+
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD ${OV_CXX_STANDARD_DEFAULT})
 endif()
 
 if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
@@ -24,6 +27,9 @@ endif()
 if(NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
+
+# checks that the toolchain supports the requested CMAKE_CXX_STANDARD
+include(compile_flags/cxx_standard)
 
 if(ENABLE_COVERAGE)
     ov_add_compiler_flags(--coverage)
@@ -124,6 +130,21 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     #
     # PDB related flags
     #
+
+    # With embedded debug information (/Z7, e.g. for compiler caches) the linker builds PDB files
+    # from scratch anyway, while incremental linking adds padding and thunks to binaries, a second
+    # link to embed manifests and stale blocks in PDB files.
+    # /INCREMENTAL:NO is added as a link option: third-party projects (e.g. level_zero) rewrite
+    # "/INCREMENTAL" in the linker flag variables and would turn it into "/INCREMENTAL:NO:NO".
+    if(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
+        foreach(link_type IN ITEMS EXE SHARED MODULE)
+            foreach(config IN ITEMS DEBUG RELWITHDEBINFO)
+                string(REGEX REPLACE "(^| )/INCREMENTAL( |$)" " "
+                       CMAKE_${link_type}_LINKER_FLAGS_${config} "${CMAKE_${link_type}_LINKER_FLAGS_${config}}")
+            endforeach()
+        endforeach()
+        add_link_options("$<$<CONFIG:Debug,RelWithDebInfo>:/INCREMENTAL:NO>")
+    endif()
 
     if(ENABLE_PDB_IN_RELEASE)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")

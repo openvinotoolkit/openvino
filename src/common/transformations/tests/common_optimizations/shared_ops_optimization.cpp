@@ -26,6 +26,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 using namespace ov;
 
@@ -492,6 +493,32 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTestMixed) {
 
         auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
         model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input});
+    }
+}
+
+// ConvertPrecision(i64->i32) turns v0::ShapeOf into TypeRelaxed<v0::ShapeOf> with i32 output,
+// the upgrade to v3::ShapeOf must keep i32, otherwise the i32 shape subgraph gets an i64 input
+TEST_F(SharedTransformationTestsF, ShapeOfUpgradeKeepsRelaxedOutputType) {
+    PartialShape input_shape{-1, -1, 4};
+    auto make_shape_subgraph = [](const Output<Node>& shape_of) {
+        auto gather = std::make_shared<v8::Gather>(shape_of,
+                                                   v0::Constant::create(element::i32, Shape{1}, {0}),
+                                                   v0::Constant::create(element::i32, Shape{}, {0}));
+        auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
+        return std::make_shared<v0::Concat>(OutputVector{gather, minus_one}, 0);
+    };
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+        auto shape_of = std::make_shared<ov::op::TypeRelaxed<v0::ShapeOf>>(*std::make_shared<v0::ShapeOf>(input),
+                                                                           element::TypeVector{},
+                                                                           element::TypeVector{element::i32});
+        model = std::make_shared<Model>(OutputVector{make_shape_subgraph(shape_of)}, ParameterVector{input});
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+        auto shape_of = std::make_shared<v3::ShapeOf>(input, element::i32);
+        model_ref = std::make_shared<Model>(OutputVector{make_shape_subgraph(shape_of)}, ParameterVector{input});
     }
 }
 

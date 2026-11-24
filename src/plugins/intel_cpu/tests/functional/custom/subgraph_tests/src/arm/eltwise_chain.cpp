@@ -22,7 +22,7 @@ using namespace ov::test::eltwise_chain;
 
 namespace {
 
-std::vector<std::vector<EltwiseTypes>> eltwiseOpsConvertInt8 = {
+std::vector<std::vector<EltwiseChainOp>> eltwiseOpsConvertInt8 = {
         { EltwiseTypes::MULTIPLY },
         { EltwiseTypes::ADD },
         { EltwiseTypes::DIVIDE }
