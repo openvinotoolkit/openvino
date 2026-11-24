@@ -7,6 +7,7 @@
 #include <fstream>
 #include <list>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -258,7 +259,7 @@ private:
     static std::vector<std::vector<program_node*>> find_constant_subgraphs(program& p);
     static void add_weights_rotation(program& p, program_node& node);
     static void build_kernels(const std::vector<std::vector<program_node*>>& subgraphs, kernels_cache& cache);
-    static size_t allocation_size(const std::vector<program_node*>& subgraph);
+    static std::optional<size_t> allocation_size(const std::vector<program_node*>& subgraph);
     static std::vector<std::pair<size_t, size_t>> make_batches(const std::vector<std::vector<program_node*>>& subgraphs);
     static std::vector<std::pair<program_node*, memory::ptr>> execute_subgraphs(network& net,
                                                                                 const std::vector<program_node*>& inputs,

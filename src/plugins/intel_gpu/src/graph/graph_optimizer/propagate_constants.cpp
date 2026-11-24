@@ -272,7 +272,8 @@ void propagate_constants::add_weights_rotation(program& p, program_node& node) {
 // compile_graph selected the implementations of the constant nodes but their kernels are built only in
 // build_implementations, after this pass. Build them here in one batch, the same way.
 void propagate_constants::build_kernels(const std::vector<std::vector<program_node*>>& subgraphs, kernels_cache& cache) {
-    // The inputs of the constant nodes are static, so the layouts that compile_graph left dynamic can be computed now
+    // The layouts that compile_graph left dynamic can be computed now, except where they depend on the values of an
+    // input computed in the same subgraph (range with a computed stop): those are known only once the subgraph ran
     for (const auto& subgraph : subgraphs) {
         for (auto* node : subgraph) {
             if (node->is_dynamic()) {
@@ -303,36 +304,43 @@ void propagate_constants::build_kernels(const std::vector<std::vector<program_no
     cache.reset();
 }
 
-// Bytes of the outputs of all nodes of a subgraph, which are allocated while it runs
-size_t propagate_constants::allocation_size(const std::vector<program_node*>& subgraph) {
+// Bytes of the outputs of all nodes of a subgraph, which are allocated while it runs; nothing when an output size is
+// known only once the subgraph ran
+std::optional<size_t> propagate_constants::allocation_size(const std::vector<program_node*>& subgraph) {
     size_t bytes = 0;
     for (auto* node : subgraph) {
         for (size_t i = 0; i < node->get_outputs_count(); ++i) {
-            bytes += node->get_output_layout(false, i).bytes_count();
+            const auto& out_layout = node->get_output_layout(false, i);
+            if (out_layout.is_dynamic()) {
+                return std::nullopt;
+            }
+            bytes += out_layout.bytes_count();
         }
     }
     return bytes;
 }
 
 // Splits the subgraphs into ranges of consecutive ones that run together with one wait. A range allocates no more than
-// the largest subgraph does on its own, so batching does not raise the peak memory of running them one by one.
+// the largest subgraph does on its own, so batching does not raise the peak memory of running them one by one. A
+// subgraph whose size is not known before it runs is a range of its own.
 std::vector<std::pair<size_t, size_t>> propagate_constants::make_batches(const std::vector<std::vector<program_node*>>& subgraphs) {
-    std::vector<size_t> sizes;
+    std::vector<std::optional<size_t>> sizes;
+    size_t limit = 0;
     for (const auto& subgraph : subgraphs) {
         sizes.push_back(allocation_size(subgraph));
+        limit = std::max(limit, sizes.back().value_or(0));
     }
-    const size_t limit = *std::max_element(sizes.begin(), sizes.end());
 
     std::vector<std::pair<size_t, size_t>> batches;
     size_t begin = 0;
     size_t bytes = 0;
     for (size_t s = 0; s < subgraphs.size(); ++s) {
-        if (s > begin && bytes + sizes[s] > limit) {
+        if (s > begin && (!sizes[s] || !sizes[s - 1] || bytes + *sizes[s] > limit)) {
             batches.emplace_back(begin, s);
             begin = s;
             bytes = 0;
         }
-        bytes += sizes[s];
+        bytes += sizes[s].value_or(0);
     }
     batches.emplace_back(begin, subgraphs.size());
     return batches;
