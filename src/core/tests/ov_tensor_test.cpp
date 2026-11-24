@@ -710,6 +710,21 @@ TEST_F(OVTensorTest, expandRankOnSubByteRoiTensor) {
     ASSERT_TRUE(vector.is_continuous());
 }
 
+TEST_F(OVTensorTest, expandRankOnI4RoiKeepsStridesRankMatchedAndContinuityWellDefined) {
+    ov::Tensor owner{ov::element::i4, {4, 8}};
+    ov::Tensor roi{owner, {0, 0}, {2, 8}};
+    ASSERT_EQ(roi.get_strides().size(), 2U);
+
+    roi.set_shape({1, 2, 8});
+    ASSERT_EQ(roi.get_strides(), ov::Strides({8, 4, 1}));
+    ASSERT_TRUE(roi.is_continuous());
+
+    ov::Tensor roi2{owner, {0, 0}, {2, 8}};
+    roi2.set_shape({1, 2, 4});
+    ASSERT_EQ(roi2.get_strides(), ov::Strides({8, 4, 1}));
+    ASSERT_FALSE(roi2.is_continuous());
+}
+
 TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
     ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
