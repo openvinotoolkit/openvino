@@ -6,12 +6,12 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <future>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <system_error>
 #include <type_traits>
@@ -147,31 +147,7 @@ struct MemoryProperties {
 using PrefetchToken = std::shared_future<void>;
 
 /** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
-class MemoryView {
-public:
-    constexpr MemoryView() noexcept = default;
-    constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
-
-    constexpr const std::byte* data() const noexcept {
-        return m_data;
-    }
-    constexpr size_t size() const noexcept {
-        return m_size;
-    }
-    constexpr const std::byte* begin() const noexcept {
-        return data();
-    }
-    constexpr const std::byte* end() const noexcept {
-        return data() + size();
-    }
-    constexpr bool empty() const noexcept {
-        return size() == 0 || data() == nullptr;
-    }
-
-private:
-    const std::byte* m_data = nullptr;
-    size_t m_size = 0;
-};
+using MemoryView = std::span<const std::byte>;
 
 /** @brief True for types with std::data() and std::size() (containers, arrays). */
 template <typename T, typename = void>

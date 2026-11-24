@@ -5,6 +5,7 @@
 #include "openvino/runtime/hsm_format.hpp"
 
 #include <algorithm>
+#include <span>
 
 namespace ov::runtime::hsm {
 
@@ -32,11 +33,11 @@ const Header& ContainerView::header() const noexcept {
 }
 
 const ManifestEntry& ContainerView::manifest() const noexcept {
-    return *reinterpret_cast<const ManifestEntry*>(begin() + header().manifest_offset);
+    return *reinterpret_cast<const ManifestEntry*>(m_view.data() + header().manifest_offset);
 }
 
 bool ContainerView::validate() const noexcept {
-    if (static_cast<size_t>(end() - begin()) < sizeof(Header)) {
+    if (m_view.size() < sizeof(Header)) {
         return false;
     }
     const auto& hdr = header();
@@ -48,8 +49,8 @@ bool ContainerView::validate() const noexcept {
         return true;
     }
 
-    const auto* entries = &manifest();
-    return std::all_of(entries, entries + manifest_count(), [&hdr](const auto& entry) {
+    const std::span entries{&manifest(), manifest_count()};
+    return std::ranges::all_of(entries, [&hdr](const auto& entry) {
         return is_valid_section_bounds(entry, hdr);
     });
 }
@@ -93,9 +94,7 @@ std::optional<MultiBlobView::NextContainer> MultiBlobView::advance_container(
         return std::nullopt;
     } else {
         const auto container_size = static_cast<size_t>(hdr.container_size);
-        return NextContainer{ov::util::MemoryView{view.data() + container_size, view.size() - container_size},
-                             container_size,
-                             hdr.magic == BlobMagic::single};
+        return NextContainer{view.subspan(container_size), container_size, hdr.magic == BlobMagic::single};
     }
 }
 
