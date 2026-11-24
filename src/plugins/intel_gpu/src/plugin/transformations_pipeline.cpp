@@ -983,23 +983,17 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     if (activations_scale_factor > 0.F && infer_precision == ov::element::f16) {
         using namespace ov::pass::low_precision;
 
-        // Activations scaling scales floating-point activations only, and only its own scale-ups may move through an
-        // Add. AddTransformation moves the dequantization S * (y - SH) of one input below the Add: the other input
-        // S_x * (x - SH_x) becomes S_x / S * (x - SH_x - Z), Z = S * SH / S_x, with an f16 rounding error of up to
-        // about |Z| / 1000, and a constant other input becomes a zero point. It must not move
-        //   (a) arithmetic on integer/boolean data, e.g. the T5 attention mask (1 - Convert(mask)) * lowest that LPT
-        //       normalizes to (Convert(mask) - 1) * 65504, unless moving it only rescales another activation;
-        //   (b) other arithmetic through an Add with a constant, unless a layer scaled by ScaleDownSingleLayer feeds
-        //       its data: kept as it is, it is no dequantization for the next Add, which moves the scale-up of its
-        //       other input instead;
-        //   (c) other arithmetic with max|Z| > 64 on data that no such layer feeds (heuristic bound: for an unscaled x,
-        //       the error first exceeds the 0.02 test tolerance at |Z| = 100). This keeps the scale-up of x in front of
-        //       the Add too.
-        // Data that depends on such a layer carries a scale-up, whose zero point is the bias of an activation, which f16
-        // rounds as coarsely in the original graph. A normalization consumes the scale-up (EliminateScalarMul); past
-        // other ops that it cannot move through, e.g. Softmax, the dependency is a heuristic. A branch without a zero
-        // point only rescales x.
-        // ActivationsScaling runs its LPT pass with a copy of this PassConfig, so the callback applies there.
+        // Only the scale-ups of activations scaling may move through an Add. AddTransformation moves S * (y - SH) of one
+        // input below the Add and turns the other input into S_x / S * (x - SH_x - Z), Z = S * SH / S_x (a constant input
+        // becomes a zero point), which f16 rounds by up to about |Z| / 1000. The Add is kept when the moved branch
+        //   (a) is integer/boolean data with a zero point or a constant other input, e.g. the T5 mask
+        //       (Convert(mask) - 1) * 65504, which would erase the position bias;
+        //   (b) meets a constant, or (c) has max|Z| > 64 (heuristic: the 0.02 test tolerance fails at 100), while no
+        //       scaled layer (MatMul, Convolution, MOECompressed) feeds its data. Kept, it is no dequantization for the
+        //       next Add, which then moves the scale-up of its other input.
+        // Data fed by a scaled layer carries a scale-up whose zero point is an activation bias, so it may move. A
+        // normalization consumes the scale-up; past other ops, e.g. Softmax, the dependency is a heuristic.
+        // ActivationsScaling copies this PassConfig into its LPT run.
         const auto depends_on_scaled_layer = [](const ov::Output<ov::Node>& data) {
             bool found = false;
             std::unordered_set<ov::Node*> visited;
