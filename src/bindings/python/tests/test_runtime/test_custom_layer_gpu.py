@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 import openvino.opset14 as ops
-from openvino import Core, DiscreteTypeInfo, Model, Op, Shape
+from openvino import Core, DiscreteTypeInfo, Model, Op, PartialShape, Shape
 
 gpu_only = pytest.mark.skipif(
     os.environ.get("TEST_DEVICE") not in ["GPU"],
@@ -16,7 +16,7 @@ gpu_only = pytest.mark.skipif(
 )
 
 
-def make_custom_op_type(type_name):
+def make_custom_op_type(type_name, output_shape=None):
     """Build an Op whose type name the GPU plugin resolves against a CustomLayer entry."""
 
     class CustomLayerOp(Op):
@@ -29,7 +29,8 @@ def make_custom_op_type(type_name):
                 self.constructor_validate_and_infer_types()
 
         def validate_and_infer_types(self):
-            self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
+            shape = self.get_input_partial_shape(0) if output_shape is None else PartialShape(output_shape)
+            self.set_output_type(0, self.get_input_element_type(0), shape)
 
         def clone_with_new_inputs(self, new_inputs):
             return CustomLayerOp(new_inputs)
@@ -170,3 +171,52 @@ def test_custom_layer_same_producer_on_two_ports(device, tmp_path):
     result = compiled(data)[0]
 
     assert np.array_equal(result, data * 2)
+
+
+@gpu_only
+def test_custom_layer_static_work_sizes_use_input_shape(device, tmp_path):
+    kernel = """
+__kernel void transpose(__global const ushort* input, __global ushort* output) {
+    const uint tile = get_global_id(0);
+    const uint time = tile / 4;
+    const uint feature = get_global_id(1);
+    const uint batch = get_global_id(2);
+    if (time >= INPUT0_DIMS[1]) return;
+    const uint channel = (tile % 4) * 16;
+    const uint src = INPUT0_OFFSET + batch * INPUT0_PITCHES[0] + time * INPUT0_PITCHES[1]
+                   + feature * INPUT0_PITCHES[2] + channel;
+    const uint dst = OUTPUT0_OFFSET + batch * OUTPUT0_PITCHES[0] + feature * OUTPUT0_PITCHES[1]
+                   + time * OUTPUT0_PITCHES[2] + channel;
+    vstore16(vload16(0, input + src), 0, output + dst);
+}
+"""
+    config = write_config(
+        tmp_path,
+        """<CustomLayer name="CustomLayerTranspose" type="SimpleGPU" version="1">
+    <Kernel entry="transpose">
+        <Source filename="transpose.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+    <WorkSizes dim="input" global="(F+3)/4*16,8,2" local="16,1,1"/>
+</CustomLayer>""",
+        {"transpose.cl": kernel},
+    )
+
+    # Input F=17 needs 80 work-items. Using output F=8 launches only 32 and leaves
+    # time indices 8 through 16 unwritten.
+    input_shape = [2, 17, 8, 64]
+    param = ops.parameter(Shape(input_shape), dtype=np.float16, name="data")
+    custom_op = make_custom_op_type("CustomLayerTranspose", output_shape=[2, 8, 17, 64])
+    custom = custom_op([param.output(0)])
+    model = Model([custom.output(0)], [param], "input_work_sizes")
+
+    bits = np.arange(1, np.prod(input_shape) + 1, dtype=np.uint16).reshape(input_shape)
+    core = Core()
+    core.add_extension(custom_op)
+    compiled = core.compile_model(model, device, {"CONFIG_FILE": config, "INFERENCE_PRECISION_HINT": "dynamic"})
+    result = compiled(bits.view(np.float16))[0]
+
+    np.testing.assert_array_equal(result.view(np.uint16), bits.transpose(0, 2, 1, 3))
