@@ -430,12 +430,15 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#199570  -->
+     <!-- C#199570 CVS-199606-->
     <skip_config>
-        <message>Tests with abnomally large durations</message>
+        <message>Tests with abnomally large durations for HostCompile on NPU4000, only selected cases are run</message>
+        <enable_rules>
+            <device>4000</device>
+        </enable_rules>
         <filters>
-            <filter>.*InferWithHostCompileMultithreadTests.*</filter>
-            <filter>.*InferWithHostCompileTests.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests\.(?!(MT_ConcurrentInferThenSetPriorityAndInfer|MT_CompileAndInferOverlap|MT_PerThreadCompileCreateInfer|MT_SingleCompileParallelCreateRequestAndInfer|MT_CrossRequestOutputMismatchIsRejected)/).*</filter>
+            <filter>.*InferWithHostCompileTests\.(?!(SetProperty_Priority_RetryAfterUndersizedOutput|CompileAndInferWithIncreasedSize|DynamicBatchUsesOneVMExecution|CompileAndImportAndInfer)/).*</filter>
         </filters>
     </skip_config>
 
