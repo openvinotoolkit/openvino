@@ -19,7 +19,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/openvino.hpp"
 
-TEST(CPUEltwiseU8Saturation, ConcatSplitChainMultiply) {
+TEST(smoke_CPUEltwiseU8Saturation, ConcatSplitChainMultiply) {
     auto v0 = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 1});
     auto v3 = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{59, 3});
     auto one = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {1});
