@@ -35,27 +35,6 @@
 #include <dlfcn.h>
 #endif
 
-#if __cplusplus > 201703L
-
-// Add operators `==` and `!=` for rapidjson::GenericMemberIterator for non const iterator when build with C++20,
-// is more strict regarding type checks.
-namespace rapidjson {
-
-template <typename Encoding, typename Allocator>
-inline bool operator==(GenericMemberIterator<false, Encoding, Allocator> lhs,
-                       GenericMemberIterator<false, Encoding, Allocator> rhs) {
-    return static_cast<GenericMemberIterator<true, Encoding, Allocator>>(lhs) ==
-           static_cast<GenericMemberIterator<true, Encoding, Allocator>>(rhs);
-}
-
-template <typename Encoding, typename Allocator>
-inline bool operator!=(GenericMemberIterator<false, Encoding, Allocator> lhs,
-                       GenericMemberIterator<false, Encoding, Allocator> rhs) {
-    return !(lhs == rhs);
-}
-}  // namespace rapidjson
-#endif
-
 namespace kernel_selector {
 
 class TuningCache::Impl {
@@ -92,7 +71,8 @@ TuningCache::TuningCache(const std::string& cacheFilePath)
     }
 
     bool needsV1 = false;
-    for (auto& member : cacheObj) {
+    for (auto it = cacheObj.begin(); it.operator!=(cacheObj.end()); ++it) {
+        auto& member = *it;
         std::string nameStr = member.name.GetString();
         if (nameStr != version1Marker && nameStr != version2Marker) {
             needsV1 = true;
@@ -106,7 +86,7 @@ TuningCache::TuningCache(const std::string& cacheFilePath)
             cacheObj.AddMember(newName, newObj, impl->cache.GetAllocator());
         }
 
-        for (auto it = cacheObj.begin(); it != cacheObj.end();) {
+        for (auto it = cacheObj.begin(); it.operator!=(cacheObj.end());) {
             auto& member = *it;
             std::string nameStr = member.name.GetString();
             if (nameStr != version1Marker && nameStr != version2Marker) {
@@ -158,17 +138,17 @@ TuningCache::Entry TuningCache::LoadKernel_v1(const Params& params, uint32_t com
     auto computeUnitsStr = std::to_string(computeUnitsCount);
 
     auto v1It = impl->cache.FindMember(version1Marker);
-    if (v1It == impl->cache.MemberEnd()) {
+    if (v1It.operator==(impl->cache.MemberEnd())) {
         return result;
     }
 
     auto computeUnitsIt = v1It->value.FindMember(computeUnitsStr.c_str());
-    if (computeUnitsIt == v1It->value.MemberEnd()) {
+    if (computeUnitsIt.operator==(v1It->value.MemberEnd())) {
         return result;
     }
 
     auto hashIt = computeUnitsIt->value.FindMember(hashStr.c_str());
-    if (hashIt == computeUnitsIt->value.MemberEnd()) {
+    if (hashIt.operator==(computeUnitsIt->value.MemberEnd())) {
         return result;
     }
 
@@ -184,22 +164,22 @@ TuningCache::Entry TuningCache::LoadKernel_v2(const Params& params, uint32_t com
     auto computeUnitsStr = std::to_string(computeUnitsCount);
 
     auto v2It = impl->cache.FindMember(version2Marker);
-    if (v2It == impl->cache.MemberEnd()) {
+    if (v2It.operator==(impl->cache.MemberEnd())) {
         return result;
     }
 
     auto computeUnitsIt = v2It->value.FindMember(computeUnitsStr.c_str());
-    if (computeUnitsIt == v2It->value.MemberEnd()) {
+    if (computeUnitsIt.operator==(v2It->value.MemberEnd())) {
         return result;
     }
 
     auto kTypeIt = computeUnitsIt->value.FindMember(kTypeStr.c_str());
-    if (kTypeIt == computeUnitsIt->value.MemberEnd()) {
+    if (kTypeIt.operator==(computeUnitsIt->value.MemberEnd())) {
         return result;
     }
 
     auto paramIt = kTypeIt->value.FindMember(paramStr.c_str());
-    if (paramIt == kTypeIt->value.MemberEnd()) {
+    if (paramIt.operator==(kTypeIt->value.MemberEnd())) {
         return result;
     }
 
