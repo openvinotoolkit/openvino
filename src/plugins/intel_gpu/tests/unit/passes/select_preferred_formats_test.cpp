@@ -404,15 +404,21 @@ TEST(test_select_preferred_formats, onednn_dyn_conv_fp16_preferred_format) {
 
     const std::vector<ConvFmtCase> cases = {
         {3, 32, format::bfyx, format::b_fs_yx_fsv16},
+        {8, 32, format::bfyx, format::b_fs_yx_fsv16},
+        {8, 64, format::bfyx, format::b_fs_yx_fsv16},
+        {9, 32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16},
         {32, 16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16},
         {16, 16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16},
         {16, 96, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16},
+        {32, 8, format::b_fs_yx_fsv16, format::bfyx},
+        {32, 9, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16},
         {32, 4, format::b_fs_yx_fsv16, format::bfyx},
         {4, 16, format::bfyx, format::b_fs_yx_fsv16},
     };
 
     for (const auto& tc : cases) {
         auto weights = engine.allocate_memory({ov::PartialShape{tc.oc, tc.ic, 3, 3}, data_types::f16, format::bfyx});
+        set_values(weights, std::vector<ov::float16>(weights->count(), ov::float16(0.01F)));
         topology topo;
         topo.add(input_layout("input", layout{ov::PartialShape{1, tc.ic, -1, -1}, data_types::f16, format::bfyx}));
         topo.add(data("weights", weights));
@@ -433,6 +439,18 @@ TEST(test_select_preferred_formats, onednn_dyn_conv_fp16_preferred_format) {
         EXPECT_EQ(conv_node.get_preferred_output_fmt(0), tc.expected_out_fmt) << "ic=" << tc.ic << ", oc=" << tc.oc;
         EXPECT_EQ(conv_node.get_input_layout(0).format, tc.expected_in_fmt) << "ic=" << tc.ic << ", oc=" << tc.oc;
         EXPECT_EQ(conv_node.get_output_layout(0).format, tc.expected_out_fmt) << "ic=" << tc.ic << ", oc=" << tc.oc;
+
+        auto input_mem = engine.allocate_memory({ov::PartialShape{1, tc.ic, 16, 16}, data_types::f16, format::bfyx});
+        set_values(input_mem, std::vector<ov::float16>(input_mem->count(), ov::float16(1.0F)));
+        net.set_input_data("input", input_mem);
+        auto outputs = net.execute();
+        ASSERT_EQ(outputs.count("out"), 1U);
+
+        const auto* conv_impl = net.get_primitive("conv")->get_impl();
+        ASSERT_NE(conv_impl, nullptr);
+        EXPECT_TRUE(conv_impl->is_onednn()) << "ic=" << tc.ic << ", oc=" << tc.oc;
+        EXPECT_EQ(conv_impl->get_kernel_name().find("ref"), std::string::npos)
+            << "ic=" << tc.ic << ", oc=" << tc.oc << ", kernel=" << conv_impl->get_kernel_name();
     }
 }
 

@@ -1293,12 +1293,14 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         node.set_preferred_input_fmt(0, get_fsv16_format(rank));
         node.set_preferred_output_fmt(0, get_fsv16_format(rank));
 
-        // Override with default format for small channels (<= 4)
-        if (input_channels > 0 && input_channels <= 4) {
+        // Override with default planar format for small channels (<= 8).
+        // Matches oneDNN jit:ir small-channel threshold for FP16 (get_default_mad_block(f16) / 2 = 8),
+        // where fsv16 (aBcd16b) is rejected and falls back to ocl:ref:any.
+        if (input_channels > 0 && input_channels <= 8) {
             node.set_preferred_input_fmt(0, format::get_default_format(rank));
         }
 
-        if (output_channels > 0 && output_channels <= 4) {
+        if (output_channels > 0 && output_channels <= 8) {
             node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
     } else if (is_fp32_input) {
