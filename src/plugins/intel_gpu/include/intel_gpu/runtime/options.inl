@@ -55,7 +55,7 @@ OV_CONFIG_RELEASE_OPTION(ov::internal, key_cache_quant_mode, ov::internal::Cache
 OV_CONFIG_RELEASE_OPTION(ov::internal, value_cache_quant_mode, ov::internal::CacheQuantMode::BY_TOKEN, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum utilization threshold (0.0~1.0) for reusable memory in the pool")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offload_ratio, 0, "Percentage (0-100) of model weights to offload to disk. Currently supported for MoE experts only.", [](size_t v) { return v <= 100; })
-OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_les, false, "Enable the experimental network-local LES context")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, moe_lookahead_prefetch, false, "Enable decode lookahead expert prefetching")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, les_queue_capacity, 32, "Maximum number of queued LES copy tasks", [](size_t value) { return value > 0 && value <= 1024; })
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
