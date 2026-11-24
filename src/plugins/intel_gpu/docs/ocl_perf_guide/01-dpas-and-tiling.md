@@ -544,7 +544,7 @@ The rest (Q staging `vload16` fallback, V `v_tile_gather`, alpha `sub_group_broa
 - K-direction alternatives (D=128 t_med µs): **K1 scalar gather 365 (adopted)**, K0 contiguous 286 (assumes alignment), K2 row vload8+pack 370, K3 SLM transpose 449, K4 A=Q/B=K 344 (KQ only, not adopted). V: V0 lane=value gather.
 - The micro xe_hpg config (tuning seed): `xehpg_h128 = {16,16,32,8, 8,2, 4,4}` (`sdpa_gen_micro.cpp:322`) satisfies the alpha nesting of sdpa_ocl `solve_sv_split`.
 - Failure modes to watch: (1) an SG8 codegen failure is swallowed by `add_stage` and **silently demoted to the opt kernel**; check with a census; (2) PA MIXED f16 fails to compile on DG2 even with `USE_2D_BLOCK_IO_*=0`, because `v_tile_b2d16` always uses the 2D transform (scalar Kc/Vc readers needed);
-  (3) offline-checking a source dumped with a faked arch (`OV_GPU_ARCH_OVERRIDE`) on the B70 with ocloc `-device dg2` is possible, but **the execution results are meaningless**.
+  (3) offline-checking a source dumped with a faked arch (`OV_GPU_ARCH_OVERRIDE`, a local debug patch not in this tree) on the B70 with ocloc `-device dg2` is possible, but **the execution results are meaningless**.
 
 ---
 

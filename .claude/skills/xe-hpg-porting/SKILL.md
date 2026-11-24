@@ -59,7 +59,7 @@ Working copies/plan: memory `sdpa-ocl-xe-hpg-plan` (hub), `-facts`, `-s7-perform
 1. **What is possible on B70**: host routing/jit generation/fake-device unit tests, byte-identity proofs for SG16-neutral changes, offline compilation of fake-arch dumps:
    ```bash
    OV_GPU_ARCH_OVERRIDE=xe_hpg TEST_USE_SDPA_OCL_HPG=1 SDPA_OCL_HPG_TIERS=all \
-     bash test/sdpa_ocl_gtests.sh dump <tag> U1 U3 F2     # ENABLE_DEBUG_CAPS build (+F1, U2)
+     bash test/sdpa_ocl_gtests.sh dump <tag> U1 U3 F2     # ENABLE_DEBUG_CAPS build + git apply test/dev_patches/arch_override.patch (+F1, U2); stderr must show "OV_GPU_ARCH_OVERRIDE: arch N -> xe_hpg"
    python3 test/sdpa_ocl_ab.py corpus <dir> --base <snapshot>
    python3 test/sdpa_ocl_ab.py hpg --corpus <dir> --base <snapshot> --device dg2 --grf256 [--define SDPA_OCL_SG8_ARM_READY] --out <dir>
    ```

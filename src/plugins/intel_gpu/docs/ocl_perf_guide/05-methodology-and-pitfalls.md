@@ -420,7 +420,7 @@ Routing pitfall: if `sdpa_ocl_selected` is true but `supported()` is false, the 
 ### 5.7.5 What can and cannot be done on B70
 
 - **Cannot**: verify SG8 execution (B70 min SG=16, the iGPU has no XMX) -> real hardware means DG2. Upstream CI has no DG2.
-- **Can**: host routing/jit generation tests, `OV_GPU_ARCH_OVERRIDE=xe_hpg` (ENABLE_DEBUG_CAPS only) + `SDPA_OCL_HPG_TIERS=all` dumps -> offline compile with `sdpa_ocl_ab.py hpg --device dg2 --grf256 [--define SDPA_OCL_SG8_ARM_READY]`, byte-identity proof of the SG16-neutral refactor (S4). **Do not interpret gtest results run on a faked arch; only the dumped sources mean anything.**
+- **Can**: host routing/jit generation tests, `OV_GPU_ARCH_OVERRIDE=xe_hpg` (ENABLE_DEBUG_CAPS + the local debug patch `test/dev_patches/arch_override.patch`, not in this tree; ignored without it) + `SDPA_OCL_HPG_TIERS=all` dumps -> offline compile with `sdpa_ocl_ab.py hpg --device dg2 --grf256 [--define SDPA_OCL_SG8_ARM_READY]`, byte-identity proof of the SG16-neutral refactor (S4). **Do not interpret gtest results run on a faked arch; only the dumped sources mean anything.**
 - The jit identity between faked-arch dumps and real DG2 dumps was planned to be checked with `pset` in S6a.
 - pass1/pass2 detectors: looking only at first_error masks things, so 2D leaks are caught with the TSV `any_2d` column + pass2 (`ARM_READY` mutation, 2D tripwire 38/38). Offline `ab.py hpg` compile time per 1 run: a few seconds to 25 s.
 
