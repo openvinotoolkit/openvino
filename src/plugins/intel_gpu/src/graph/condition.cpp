@@ -5,6 +5,7 @@
 #include "condition_inst.h"
 #include "data_inst.h"
 #include "input_layout_inst.h"
+#include "program_helpers.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
@@ -250,9 +251,14 @@ std::vector<program_node*> condition_node::get_inputs_forwarded_to_outputs() con
                 for (const auto* nested_input : node->as<condition>().get_inputs_forwarded_to_outputs()) {
                     candidates.push_back(nested_input);
                 }
-            } else if (!node->is_type<data>() && !node->get_dependencies().empty() &&
-                       (body_is_skipped || node->can_be_optimized() || node->is_runtime_skippable())) {
-                candidates.push_back(&node->get_dependency(0));
+            } else if (!node->is_type<data>()) {
+                if (!node->get_dependencies().empty() && (body_is_skipped || node->can_be_optimized() || node->is_runtime_skippable())) {
+                    candidates.push_back(&node->get_dependency(0));
+                }
+                // A oneDNN in-place post-op (sum or binary_mul_inplace) writes the output into the buffer of its eltwise input
+                if (const auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*node); idx >= 0) {
+                    candidates.push_back(&node->get_dependency(static_cast<size_t>(idx)));
+                }
             }
         }
     };
