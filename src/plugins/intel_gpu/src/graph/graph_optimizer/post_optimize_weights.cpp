@@ -117,11 +117,12 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
                 // Need to update input format in case of fusing weights constant with transpose
                 format input_fmt = prev_node.get_input_layout().format;
+                const bool is_grouped = format::is_grouped(updated_input_layout.format);
                 if (format::is_default_format(input_fmt) &&
                     input_fmt.dimension() != updated_input_layout.format.dimension()) {
                     input_fmt = format::get_default_format(updated_input_layout.format.dimension());
                 }
-                updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
+                updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, is_grouped));
 
                 weights_reorder_params->set_input_layout(updated_input_layout);
 #ifdef ENABLE_ONEDNN_FOR_GPU

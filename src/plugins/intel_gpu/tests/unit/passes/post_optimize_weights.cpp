@@ -393,3 +393,57 @@ TEST(post_optimize_weights, fc_5d_fuse_reorder_to_weights_reorder_test) {
     EXPECT_GT(folded_node.get_output_layout().bytes_count(), 0u);
     check_folded_fc_weights(folded_node, weights_data, 32, 16);
 }
+
+TEST(post_optimize_weights, ocl_group_conv_fuse_reorder_preserves_grouped_format_test) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({{1, 64, 11, 11}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({{64, 1, 9, 9}, data_types::f32, format::bfyx});
+
+    std::vector<ov::float16> input_data(input->count(), ov::float16(1.0F));
+    set_values(input, input_data);
+
+    std::vector<float> weights_data(weights->count(), 0.0F);
+    for (size_t g = 0; g < 64; ++g) {
+        weights_data[g * 81 + g] = static_cast<float>(g + 1);
+    }
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("input_weights", weights->get_layout()),
+        reorder("reorder_weights", input_info("input_weights"), format::bfzyx, data_types::f16),
+        convolution("conv", input_info("input"), "reorder_weights", "", 64, {1, 1}, {1, 1}, {0, 0}, {0, 0}, true)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::any, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+
+    ASSERT_TRUE(has_node(*prog, "reorder_weights"));
+    auto& reorder_node = prog->get_node("reorder_weights");
+    ASSERT_TRUE(reorder_node.is_type<reorder>());
+    auto weights_reorder_params = reorder_node.as<reorder>().get_primitive()->weights_reorder_params;
+    ASSERT_NE(weights_reorder_params, nullptr);
+    EXPECT_EQ(weights_reorder_params->get_input_layout().format, format::goiyx);
+
+    network net(engine, topology, config);
+    net.set_input_data("input", input);
+    net.set_input_data("input_weights", weights);
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("conv").get_memory();
+    const auto out_layout = out_mem->get_layout();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+
+    for (int32_t f = 0; f < 64; ++f) {
+        const auto offset = out_layout.get_linear_offset(tensor(batch(0), feature(f), spatial(0, 0, 0, 0)));
+        ASSERT_FLOAT_EQ(static_cast<float>(out_ptr[offset]), static_cast<float>(f + 1)) << "f=" << f;
+    }
+}
