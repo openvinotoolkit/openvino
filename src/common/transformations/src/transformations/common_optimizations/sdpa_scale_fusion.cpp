@@ -4,21 +4,25 @@
 
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 
+#include <cmath>
+#include <limits>
 #include <memory>
-#include <optional>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/squeeze_base.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
@@ -27,6 +31,7 @@
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v13 = ov::op::v13;
+namespace v15 = ov::op::v15;
 
 namespace ov::pass {
 
@@ -37,91 +42,118 @@ bool SDPAScaleFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<SDPAScaleFusionPass>();
+    symbolic_ctx_manager->register_pass<SDPAValueScaleFusionPass>();
 
     return symbolic_optimizations.run_on_model(model);
 }
 
 namespace {
 
-bool is_scalar_shape(const ov::PartialShape& pshape) {
-    return pshape.is_static() && ov::shape_size(pshape.to_shape()) == 1 && pshape.size() <= 1;
+// Reshape/Squeeze/Unsqueeze/Transpose only move data, so a scalar Multiply commutes with them.
+// The chain is limited to two such ops (e.g. Squeeze + Transpose that unpack a fused QKV tensor);
+// each op must have a single consumer so that the rebuilt chain replaces it.
+std::shared_ptr<ov::Node> optional_data_movement(const std::shared_ptr<ov::Node>& input) {
+    return pattern::optional<v1::Reshape, v0::Squeeze, v15::Squeeze, v0::Unsqueeze, v1::Transpose>(
+        {input, pattern::any_input()},
+        pattern::consumers_count(1));
 }
 
-// A scalar Multiply found above an SDPA input, possibly separated from it by data-movement ops.
-struct ScalarMulOnInput {
-    std::shared_ptr<v1::Multiply> mul;
-    // Data-movement ops between the Multiply and SDPA, ordered from SDPA upwards.
-    std::vector<std::shared_ptr<ov::Node>> chain;
-};
+bool is_single_element(const ov::Output<ov::Node>& output) {
+    const auto& pshape = output.get_partial_shape();
+    return pshape.is_static() && ov::shape_size(pshape.to_shape()) == 1;
+}
 
-// Scalar multiplication commutes with ops that only move data, so a scalar Multiply placed
-// above such ops is equivalent to one applied directly to the SDPA input.
-std::optional<ScalarMulOnInput> find_scalar_mul(const ov::Output<ov::Node>& sdpa_input) {
-    ScalarMulOnInput res;
-    auto node = sdpa_input.get_node_shared_ptr();
-    while (ov::is_type<v1::Reshape>(node) || ov::is_type<ov::op::util::SqueezeBase>(node) ||
-           ov::is_type<v0::Unsqueeze>(node) || ov::is_type<v1::Transpose>(node)) {
-        if (node->get_output_target_inputs(0).size() != 1) {
-            return std::nullopt;
+// A single-element scale of rank <= 1 never changes the rank of the scaled tensor; a higher rank
+// one only keeps it when the data rank is static and not lower.
+bool keeps_rank(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& scale) {
+    const auto scale_rank = scale.get_partial_shape().size();
+    const auto& data_rank = data.get_partial_shape().rank();
+    return scale_rank <= 1 || (data_rank.is_static() && static_cast<int64_t>(scale_rank) <= data_rank.get_length());
+}
+
+// Rebuilds the matched data-movement chain on top of `data`, skipping the scalar Multiply.
+ov::Output<ov::Node> rebuild_chain(ov::Output<ov::Node> data,
+                                   const ov::pass::pattern::PatternValueMap& pattern_map,
+                                   const std::vector<std::shared_ptr<ov::Node>>& chain_labels) {
+    for (const auto& label : chain_labels) {
+        const auto it = pattern_map.find(label);
+        if (it == pattern_map.end()) {
+            continue;
         }
-        res.chain.push_back(node);
-        node = node->get_input_node_shared_ptr(0);
+        const auto old_node = it->second.get_node_shared_ptr();
+        auto inputs = old_node->input_values();
+        inputs[0] = data;
+        const auto new_node = old_node->clone_with_new_inputs(inputs);
+        new_node->set_friendly_name(old_node->get_friendly_name());
+        ov::copy_runtime_info(old_node, new_node);
+        data = new_node->output(0);
     }
-    res.mul = ov::as_type_ptr<v1::Multiply>(node);
-    if (!res.mul) {
-        return std::nullopt;
-    }
-    // A non-constant scale must be a scalar; a constant one may be any single-element tensor that
-    // does not broadcast the data (e.g. [1,1,1,1] produced by merging scalar multiplies).
-    const auto& scale_pshape = res.mul->get_input_partial_shape(1);
-    const auto& data_rank = res.mul->get_input_partial_shape(0).rank();
-    const bool single_element_const = ov::is_type<v0::Constant>(res.mul->get_input_node_ptr(1)) &&
-                                      scale_pshape.is_static() && ov::shape_size(scale_pshape.to_shape()) == 1 &&
-                                      data_rank.is_static() &&
-                                      static_cast<int64_t>(scale_pshape.size()) <= data_rank.get_length();
-    if (!single_element_const && !is_scalar_shape(scale_pshape)) {
-        return std::nullopt;
-    }
-    if (res.mul->get_input_element_type(0) != res.mul->get_output_element_type(0)) {
-        return std::nullopt;
-    }
-    if (!res.chain.empty() && (res.mul->get_output_target_inputs(0).size() != 1 ||
-                               !ov::is_type<v0::Constant>(res.mul->get_input_node_ptr(1)))) {
-        return std::nullopt;
-    }
-    return res;
-}
-
-// Removes the Multiply from the path to SDPA input `idx`; returns the new source for that input.
-ov::Output<ov::Node> bypass_scalar_mul(const ScalarMulOnInput& found, const ov::Output<ov::Node>& sdpa_input) {
-    const auto data = found.mul->input_value(0);
-    if (found.chain.empty()) {
-        return data;
-    }
-    found.chain.back()->input(0).replace_source_output(data);
-    for (auto it = found.chain.rbegin(); it != found.chain.rend(); ++it) {
-        (*it)->validate_and_infer_types();
-    }
-    return sdpa_input;
+    return data;
 }
 
 float scalar_value(const ov::Output<ov::Node>& output) {
     return ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr())->cast_vector<float>()[0];
 }
 
+// True if `value` is a finite, normal (or exactly zero) number of the floating-point type `et`,
+// so that storing it in a constant of that type neither overflows nor flushes to zero.
+bool is_representable(double value, const ov::element::Type& et) {
+    const auto in_range = [value](double lowest_normal, double max) {
+        const double abs_value = std::fabs(value);
+        return std::isfinite(value) && abs_value <= max && (abs_value == 0.0 || abs_value >= lowest_normal);
+    };
+    switch (et) {
+    case ov::element::f16:
+        return in_range(static_cast<double>(std::numeric_limits<ov::float16>::min()),
+                        static_cast<double>(std::numeric_limits<ov::float16>::max()));
+    case ov::element::bf16:
+        return in_range(static_cast<double>(std::numeric_limits<ov::bfloat16>::min()),
+                        static_cast<double>(std::numeric_limits<ov::bfloat16>::max()));
+    case ov::element::f32:
+        return in_range(std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
+    case ov::element::f64:
+        return std::isfinite(value);
+    default:
+        return false;
+    }
+}
+
 }  // namespace
 
 SDPAScaleFusionPass::SDPAScaleFusionPass() {
+    MATCHER_SCOPE(SDPAScaleFusionPass);
+    // Optional scalar Multiply on Q/K, possibly followed by up to two data-movement ops. Multiply is
+    // commutative, so the scale may be either operand.
     auto q = pattern::any_input();
     auto k = pattern::any_input();
     auto v = pattern::any_input();
     auto mask = pattern::any_input();
     auto sdpa_scale = pattern::wrap_const();
+    auto scale_q = pattern::any_input(is_single_element);
+    auto scale_k = pattern::any_input(is_single_element);
+    auto scaled_q = pattern::optional<v1::Multiply>({q, scale_q});
+    auto scaled_k = pattern::optional<v1::Multiply>({k, scale_k});
+    auto q_dm1 = optional_data_movement(scaled_q);
+    auto q_dm2 = optional_data_movement(q_dm1);
+    auto k_dm1 = optional_data_movement(scaled_k);
+    auto k_dm2 = optional_data_movement(k_dm1);
 
+    // Q and K must be 4D at the SDPA input: the default scale is derived from the head size (dim 3).
+    auto qk_rank_4 = pattern::op::Predicate(
+        [](const ov::Output<ov::Node>& out) {
+            const auto node = out.get_node();
+            return node->get_input_partial_shape(0).rank() == 4 && node->get_input_partial_shape(1).rank() == 4;
+        },
+        "qk_rank_4");
     auto sdpa_mask_scale =
-        pattern::wrap_type<v13::ScaledDotProductAttention>({q, k, v, mask, sdpa_scale}, {{"causal", false}});
-    auto sdpa_mask = pattern::wrap_type<v13::ScaledDotProductAttention>({q, k, v, mask}, {{"causal", false}});
-    auto sdpa_simple = pattern::wrap_type<v13::ScaledDotProductAttention>({q, k, v}, {{"causal", false}});
+        pattern::wrap_type<v13::ScaledDotProductAttention>({q_dm2, k_dm2, v, mask, sdpa_scale},
+                                                           qk_rank_4 && pattern::attrs_match({{"causal", false}}));
+    auto sdpa_mask =
+        pattern::wrap_type<v13::ScaledDotProductAttention>({q_dm2, k_dm2, v, mask},
+                                                           qk_rank_4 && pattern::attrs_match({{"causal", false}}));
+    auto sdpa_simple =
+        pattern::wrap_type<v13::ScaledDotProductAttention>({q_dm2, k_dm2, v},
+                                                           qk_rank_4 && pattern::attrs_match({{"causal", false}}));
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
@@ -132,46 +164,27 @@ SDPAScaleFusionPass::SDPAScaleFusionPass() {
 
         auto sdpa = m.get_match_root();
 
-        const auto rank_4 = [](const ov::PartialShape& pshape) {
-            return pshape.rank().is_static() && pshape.rank().get_length() == 4;
+        // A scale is usable when the Multiply keeps the data type and rank. A non-constant scale can
+        // only be moved into the SDPA scale input, which is done for a Multiply feeding SDPA directly.
+        const auto usable_scale = [&](const std::shared_ptr<ov::Node>& scaled,
+                                      const std::shared_ptr<ov::Node>& data,
+                                      const std::shared_ptr<ov::Node>& scale,
+                                      const std::shared_ptr<ov::Node>& dm1) {
+            if (!pattern_map.count(scaled)) {
+                return false;
+            }
+            const auto mul = pattern_map.at(scaled).get_node_shared_ptr();
+            const bool has_chain = pattern_map.count(dm1) > 0;
+            return mul->get_input_element_type(0) == mul->get_output_element_type(0) &&
+                   pattern_map.at(data).get_element_type() == mul->get_output_element_type(0) &&
+                   keeps_rank(pattern_map.at(data), pattern_map.at(scale)) &&
+                   (!has_chain || ov::is_type<v0::Constant>(pattern_map.at(scale).get_node()));
         };
-        const bool qk_rank_4 = rank_4(sdpa->get_input_partial_shape(0)) && rank_4(sdpa->get_input_partial_shape(1));
-
-        auto q_mul = qk_rank_4 ? find_scalar_mul(sdpa->input_value(0)) : std::nullopt;
-        auto k_mul = qk_rank_4 ? find_scalar_mul(sdpa->input_value(1)) : std::nullopt;
-        bool has_q_scale = q_mul.has_value();
-        bool has_k_scale = k_mul.has_value();
-
-        // V: a scalar on V scales the SDPA output, so it can be merged into a scalar Multiply
-        // that is the only consumer of the SDPA output. Only done when such a Multiply exists,
-        // so that no op is ever added.
-        std::optional<ScalarMulOnInput> v_mul;
-        std::shared_ptr<v1::Multiply> out_mul;
-        size_t out_mul_scale_idx = 1;
-        {
-            const auto& out_targets = sdpa->get_output_target_inputs(0);
-            if (out_targets.size() == 1) {
-                out_mul = ov::as_type_ptr<v1::Multiply>(out_targets.begin()->get_node()->shared_from_this());
-            }
-            if (out_mul) {
-                out_mul_scale_idx = 1 - out_targets.begin()->get_index();
-                const auto out_scale = out_mul->input_value(out_mul_scale_idx);
-                if (!ov::is_type<v0::Constant>(out_scale.get_node()) || ov::shape_size(out_scale.get_shape()) != 1 ||
-                    out_mul->get_output_partial_shape(0) != sdpa->get_output_partial_shape(0) ||
-                    out_mul->get_output_element_type(0) != sdpa->get_output_element_type(0)) {
-                    out_mul = nullptr;
-                }
-            }
-            if (out_mul) {
-                v_mul = find_scalar_mul(sdpa->input_value(2));
-                if (v_mul && !ov::is_type<v0::Constant>(v_mul->mul->get_input_node_ptr(1))) {
-                    v_mul = std::nullopt;
-                }
-            }
-        }
+        bool has_q_scale = usable_scale(scaled_q, q, scale_q, q_dm1);
+        bool has_k_scale = usable_scale(scaled_k, k, scale_k, k_dm1);
 
         // Nothing to do
-        if (!has_q_scale && !has_k_scale && !v_mul)
+        if (!has_q_scale && !has_k_scale)
             return false;
 
         auto prev_scale_value = 1.0f;
@@ -185,109 +198,142 @@ SDPAScaleFusionPass::SDPAScaleFusionPass() {
         std::shared_ptr<ov::Node> scale_q_node = nullptr;
         std::shared_ptr<ov::Node> scale_k_node = nullptr;
 
-        if (has_q_scale || has_k_scale) {
-            if (pattern_map.find(sdpa_scale) != pattern_map.end()) {
-                auto prev_scale_node = ov::as_type_ptr<v0::Constant>(pattern_map.at(sdpa_scale).get_node_shared_ptr());
-                prev_scale_value = prev_scale_node->cast_vector<float>()[0];
-                scale_et = prev_scale_node->get_output_element_type(0);
-            } else {
-                auto head_size = q_input.get_partial_shape()[3];
-                if (head_size.is_dynamic()) {
-                    has_q_scale = has_k_scale = false;
-                } else {
-                    prev_scale_value = 1.0f / std::sqrt(static_cast<float>(head_size.get_length()));
-                }
-            }
+        if (pattern_map.find(sdpa_scale) != pattern_map.end()) {
+            auto prev_scale_node = ov::as_type_ptr<v0::Constant>(pattern_map.at(sdpa_scale).get_node_shared_ptr());
+            prev_scale_value = prev_scale_node->cast_vector<float>()[0];
+            scale_et = prev_scale_node->get_output_element_type(0);
+        } else {
+            auto head_size = q_input.get_partial_shape()[3];
+            if (head_size.is_dynamic())
+                return false;
+
+            prev_scale_value = 1.0f / std::sqrt(static_cast<float>(head_size.get_length()));
         }
 
-        // Extract scalar scale values for Q and K if those are constant
-        bool q_bypassed = false;
-        bool k_bypassed = false;
+        // Extract scalar scale values for Q and K if those are constant and set new inputs for SDPA
         if (has_q_scale) {
-            scale_q_node = q_mul->mul->get_input_node_shared_ptr(1);
+            scale_q_node = pattern_map.at(scale_q).get_node_shared_ptr();
             if (ov::is_type<v0::Constant>(scale_q_node)) {
-                scale_q_value = scalar_value(q_mul->mul->input_value(1));
-                q_bypassed = true;
+                scale_q_value = scalar_value(pattern_map.at(scale_q));
+                q_input = rebuild_chain(pattern_map.at(q), pattern_map, {q_dm1, q_dm2});
             }
         }
         if (has_k_scale) {
-            scale_k_node = k_mul->mul->get_input_node_shared_ptr(1);
+            scale_k_node = pattern_map.at(scale_k).get_node_shared_ptr();
             if (ov::is_type<v0::Constant>(scale_k_node)) {
-                scale_k_value = scalar_value(k_mul->mul->input_value(1));
-                k_bypassed = true;
+                scale_k_value = scalar_value(pattern_map.at(scale_k));
+                k_input = rebuild_chain(pattern_map.at(k), pattern_map, {k_dm1, k_dm2});
             }
         }
 
-        const bool fuse_qk = has_q_scale || has_k_scale;
-        if (!fuse_qk && !v_mul)
-            return false;
-
-        OutputVector new_inputs = sdpa->input_values();
-        if (fuse_qk) {
-            Output<ov::Node> new_scale_node;
-            auto new_scale_val = prev_scale_value * scale_q_value * scale_k_value;
-            // If new scale is 1 and we have non-constant scale node for either Q or K (only possible
-            // for a Multiply feeding SDPA directly), then we can make it a scale of SDPA
-            if (new_scale_val == 1.0f) {
-                if (has_q_scale && !ov::is_type<v0::Constant>(scale_q_node)) {
-                    new_scale_node = q_mul->mul->input_value(1);
-                    q_input = q_mul->mul->input_value(0);
-                } else if (has_k_scale && !ov::is_type<v0::Constant>(scale_k_node)) {
-                    new_scale_node = k_mul->mul->input_value(1);
-                    k_input = k_mul->mul->input_value(0);
-                } else {
-                    new_scale_node = v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{new_scale_val});
-                }
+        Output<ov::Node> new_scale_node;
+        auto new_scale_val = prev_scale_value * scale_q_value * scale_k_value;
+        // If new scale is 1 and we have non-constant scale node for either Q or K, then we can make it a scale of SDPA
+        if (new_scale_val == 1.0f) {
+            if (has_q_scale && !ov::is_type<v0::Constant>(scale_q_node)) {
+                new_scale_node = pattern_map.at(scale_q);
+                q_input = pattern_map.at(q);
+            } else if (has_k_scale && !ov::is_type<v0::Constant>(scale_k_node)) {
+                new_scale_node = pattern_map.at(scale_k);
+                k_input = pattern_map.at(k);
             } else {
                 new_scale_node = v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{new_scale_val});
             }
-            if (q_bypassed)
-                q_input = bypass_scalar_mul(*q_mul, sdpa->input_value(0));
-            if (k_bypassed)
-                k_input = bypass_scalar_mul(*k_mul, sdpa->input_value(1));
-
-            new_inputs.resize(3);
-            new_inputs[0] = q_input;
-            new_inputs[1] = k_input;
-            if (pattern_map.find(mask) != pattern_map.end()) {
-                new_inputs.push_back(pattern_map.at(mask));
-            } else {
-                new_inputs.push_back(
-                    v0::Constant::create(new_scale_node.get_element_type(), ov::Shape{}, std::vector<float>{0.0f}));
-            }
-            new_inputs.push_back(new_scale_node);
+        } else {
+            new_scale_node = v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{new_scale_val});
         }
 
-        float out_scale_value = 1.0f;
-        if (v_mul) {
-            out_scale_value =
-                scalar_value(v_mul->mul->input_value(1)) * scalar_value(out_mul->input_value(out_mul_scale_idx));
-            new_inputs[2] = bypass_scalar_mul(*v_mul, sdpa->input_value(2));
+        OutputVector new_inputs = {q_input, k_input, pattern_map.at(v)};
+        if (pattern_map.find(mask) != pattern_map.end()) {
+            new_inputs.push_back(pattern_map.at(mask));
+        } else {
+            new_inputs.push_back(
+                v0::Constant::create(new_scale_node.get_element_type(), ov::Shape{}, std::vector<float>{0.0f}));
         }
+
+        new_inputs.push_back(new_scale_node);
 
         auto new_sdpa = sdpa->clone_with_new_inputs(new_inputs);
         new_sdpa->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(sdpa, new_sdpa);
         ov::replace_node(sdpa, new_sdpa);
 
-        if (v_mul) {
-            const auto out_scale = out_mul->input_value(out_mul_scale_idx);
-            if (out_scale_value == 1.0f) {
-                ov::replace_output_update_name(out_mul->output(0), new_sdpa->output(0));
-            } else {
-                auto merged_scale = v0::Constant::create(out_scale.get_element_type(),
-                                                         out_scale.get_shape(),
-                                                         std::vector<float>{out_scale_value});
-                ov::copy_runtime_info({out_scale.get_node_shared_ptr(), v_mul->mul->get_input_node_shared_ptr(1)},
-                                      merged_scale);
-                out_mul->input(out_mul_scale_idx).replace_source_output(merged_scale);
-            }
-        }
-
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(sdpa, "SDPAScaleFusionPass");
+    auto m = std::make_shared<pattern::Matcher>(sdpa, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+SDPAValueScaleFusionPass::SDPAValueScaleFusionPass() {
+    MATCHER_SCOPE(SDPAValueScaleFusionPass);
+    // Constant scalar Multiply on V, possibly followed by up to two data-movement ops, and a constant
+    // scalar Multiply consuming the SDPA output. The Multiply on V and the SDPA must have a single
+    // consumer: otherwise they still run for their other consumers and nothing is saved.
+    auto v = pattern::any_input();
+    auto v_scale = pattern::wrap_type<v0::Constant>(is_single_element);
+    auto scaled_v = pattern::wrap_type<v1::Multiply>({v, v_scale}, pattern::consumers_count(1));
+    auto v_dm1 = optional_data_movement(scaled_v);
+    auto v_dm2 = optional_data_movement(v_dm1);
+    auto q = pattern::any_input();
+    auto k = pattern::any_input();
+    auto mask = pattern::any_input();
+    auto sdpa_scale = pattern::any_input();
+    auto sdpa = pattern::wrap_type<v13::ScaledDotProductAttention>({q, k, v_dm2}, pattern::consumers_count(1)) |
+                pattern::wrap_type<v13::ScaledDotProductAttention>({q, k, v_dm2, mask}, pattern::consumers_count(1)) |
+                pattern::wrap_type<v13::ScaledDotProductAttention>({q, k, v_dm2, mask, sdpa_scale},
+                                                                   pattern::consumers_count(1));
+    auto out_scale = pattern::wrap_type<v0::Constant>(is_single_element);
+    auto out_mul = pattern::wrap_type<v1::Multiply>({sdpa, out_scale});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto out_node = m.get_match_root();
+        if (transformation_callback(out_node)) {
+            return false;
+        }
+        const auto sdpa_node = pattern_map.at(sdpa).get_node_shared_ptr();
+        const auto v_mul = pattern_map.at(scaled_v).get_node_shared_ptr();
+        const auto et = out_node->get_output_element_type(0);
+        if (v_mul->get_input_element_type(0) != v_mul->get_output_element_type(0) ||
+            sdpa_node->get_output_element_type(0) != et || out_node->get_input_element_type(0) != et) {
+            return false;
+        }
+        // Both Multiplies must keep the rank of their data, so that removing them cannot change shapes.
+        if (!keeps_rank(pattern_map.at(v), pattern_map.at(v_scale)) ||
+            !keeps_rank(pattern_map.at(sdpa), pattern_map.at(out_scale))) {
+            return false;
+        }
+        // The SDPA output is linear in V: SDPA(.., V * a) * b == SDPA(.., V) * (a * b). The product must be
+        // representable in the output type, otherwise the merged constant would overflow or flush to zero
+        // even though both original factors were fine.
+        const double merged = static_cast<double>(scalar_value(pattern_map.at(v_scale))) *
+                              static_cast<double>(scalar_value(pattern_map.at(out_scale)));
+        if (!is_representable(merged, et)) {
+            return false;
+        }
+
+        auto sdpa_inputs = sdpa_node->input_values();
+        sdpa_inputs[2] = rebuild_chain(pattern_map.at(v), pattern_map, {v_dm1, v_dm2});
+        const auto new_sdpa = sdpa_node->clone_with_new_inputs(sdpa_inputs);
+        new_sdpa->set_friendly_name(sdpa_node->get_friendly_name());
+        ov::copy_runtime_info(sdpa_node, new_sdpa);
+
+        if (merged == 1.0) {
+            return ov::replace_output_update_name(out_node->output(0), new_sdpa->output(0));
+        }
+        const auto out_scale_node = pattern_map.at(out_scale);
+        const auto merged_scale = v0::Constant::create(out_scale_node.get_element_type(),
+                                                       out_scale_node.get_shape(),
+                                                       std::vector<double>{merged});
+        const auto new_out = out_node->clone_with_new_inputs({new_sdpa, merged_scale});
+        new_out->set_friendly_name(out_node->get_friendly_name());
+        ov::copy_runtime_info({out_node, v_mul, out_scale_node.get_node_shared_ptr()}, {merged_scale, new_out});
+        ov::replace_node(out_node, new_out);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(out_mul, matcher_name);
     this->register_matcher(m, callback);
 }
 

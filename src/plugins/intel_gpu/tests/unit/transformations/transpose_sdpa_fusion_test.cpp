@@ -509,6 +509,21 @@ TEST_F(TransformationTestsF, SinkTransposeThroughSplitForSDPA_HeadAxisMoved) {
     manager.register_pass<SinkTransposeThroughSplitForSDPA>();
 }
 
+// Squeeze keeps a selected axis whose size is not 1: the split slices here have 2 elements on the
+// squeezed axis, so Q/K/V stay 4D with 2 heads and the transpose must not be sunk.
+TEST_F(TransformationTestsF, SinkTransposeThroughSplitForSDPA_NonUnitSliceKept) {
+    auto qkv = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 256, 6, 32});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(qkv, i64_const({0, 2, 1, 3}));
+    auto split = std::make_shared<ov::op::v1::Split>(transpose, i64_const({1}, true), 3);
+    auto q = std::make_shared<ov::op::v0::Squeeze>(split->output(0), i64_const({1}));
+    auto k = std::make_shared<ov::op::v0::Squeeze>(split->output(1), i64_const({1}));
+    auto v = std::make_shared<ov::op::v0::Squeeze>(split->output(2), i64_const({1}));
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, false);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{qkv});
+    manager.register_pass<SinkTransposeThroughSplitForSDPA>();
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

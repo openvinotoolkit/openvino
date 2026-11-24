@@ -58,10 +58,11 @@ public:
 /// where p' is p without position a, renumbered to the reduced rank. Covers e.g.
 /// qkv.reshape(B, N, 3, H, D).permute(2, 0, 3, 1, 4).unbind(0) and its qkv[i] form.
 /// Must run before passes that insert ops between the split and SDPA (e.g. activations scaling).
-class SinkTransposeThroughSplitForSDPA : public ov::pass::MatcherPass {
+/// A ModelPass because the rewrite replaces the consumers of the Transpose.
+class SinkTransposeThroughSplitForSDPA : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SinkTransposeThroughSplitForSDPA");
-    SinkTransposeThroughSplitForSDPA();
+    OPENVINO_MODEL_PASS_RTTI("SinkTransposeThroughSplitForSDPA");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }   // namespace ov::intel_gpu

@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
@@ -357,6 +358,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionVScaleCancelsOutputScale) {
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 // When the product is not 1, the merged factor stays on the output Multiply.
@@ -381,4 +383,78 @@ TEST_F(TransformationTestsF, SDPAScaleFusionVScaleMergedIntoOutputScale) {
         model_ref = std::make_shared<ov::Model>(OutputVector{out}, ParameterVector{query, key, value, mask});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+// The scale may be either operand of the Multiply, also behind data-movement ops.
+TEST_F(TransformationTestsF, SDPAScaleFusionSwappedOperands) {
+    const PartialShape shape{2, 4, 16, 32};
+    const auto query = std::make_shared<v0::Parameter>(element::f32, shape);
+    const auto key = std::make_shared<v0::Parameter>(element::f32, PartialShape{2, 16, 1, 4, 32});
+    const auto value = std::make_shared<v0::Parameter>(element::f32, shape);
+    {
+        const auto q = std::make_shared<v1::Multiply>(v0::Constant::create(element::f32, ov::Shape{}, {0.5f}), query);
+        const auto k =
+            to_bhsd(std::make_shared<v1::Multiply>(v0::Constant::create(element::f32, ov::Shape{1}, {4.0f}), key));
+        const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, value, false);
+
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
+        manager.register_pass<ov::pass::SDPAScaleFusion>();
+    }
+    {
+        const auto new_mask_const = v0::Constant::create(element::f32, ov::Shape{}, std::vector<float>{0.0f});
+        const auto new_scale_const =
+            v0::Constant::create(element::f32, ov::Shape{}, std::vector<float>{2.0f / std::sqrt(32.0f)});
+        const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query,
+                                                                           to_bhsd(key),
+                                                                           value,
+                                                                           new_mask_const,
+                                                                           new_scale_const,
+                                                                           false);
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+// With dynamic ranks a [1,1,1,1,1] output scale may raise the output rank, so the output Multiply
+// must be kept even though the V and output scales cancel.
+TEST_F(TransformationTestsF, SDPAScaleFusionVScaleDynamicRankKept) {
+    const auto query = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto key = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto value = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto v_scaled =
+        std::make_shared<v1::Multiply>(value, v0::Constant::create(element::f32, ov::Shape{}, {2.0f}));
+    const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query, key, v_scaled, false);
+    const auto out =
+        std::make_shared<v1::Multiply>(sdpa, v0::Constant::create(element::f32, ov::Shape{1, 1, 1, 1, 1}, {0.5f}));
+
+    model = std::make_shared<ov::Model>(OutputVector{out}, ParameterVector{query, key, value});
+    manager.register_pass<ov::pass::SDPAScaleFusion>();
+}
+
+namespace {
+// SDPA(Q, K, V * v_scale) * out_scale in f16 with one key, so that the output equals the scaled V.
+std::shared_ptr<ov::Model> make_f16_v_and_output_scaled(float v_scale, float out_scale) {
+    const auto query = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 2, 4, 16});
+    const auto key = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 2, 1, 16});
+    const auto value = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 2, 1, 16});
+    const auto v_scaled =
+        std::make_shared<v1::Multiply>(value, v0::Constant::create(element::f16, ov::Shape{}, {v_scale}));
+    const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query, key, v_scaled, false);
+    const auto out = std::make_shared<v1::Multiply>(sdpa, v0::Constant::create(element::f16, ov::Shape{}, {out_scale}));
+    return std::make_shared<ov::Model>(OutputVector{out}, ParameterVector{query, key, value});
+}
+}  // namespace
+
+// 256 * 256 is not representable in f16 (max 65504): merging would produce an infinite scale although
+// e.g. V = 2^-13 gives the finite result 8 in the original graph. The graph must stay unchanged.
+TEST_F(TransformationTestsF, SDPAScaleFusionVScaleF16OverflowKept) {
+    model = make_f16_v_and_output_scaled(256.0f, 256.0f);
+    manager.register_pass<ov::pass::SDPAScaleFusion>();
+}
+
+// 2^-13 * 2^-13 flushes to zero in f16 although e.g. V = 4096 gives 2^-14 in the original graph.
+TEST_F(TransformationTestsF, SDPAScaleFusionVScaleF16UnderflowKept) {
+    model = make_f16_v_and_output_scaled(std::ldexp(1.0f, -13), std::ldexp(1.0f, -13));
+    manager.register_pass<ov::pass::SDPAScaleFusion>();
 }
