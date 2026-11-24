@@ -519,9 +519,11 @@ bool solve_plain_prefill_i8_tiling(gpu_arch arch, size_t d_max, size_t vd_max, c
 }
 
 // Plain (non-PA) SDPA on xe2_tuned() arches at d_max 512 with f16 Q and the per-channel compressed i8 or 4-bit K / V of the
-// GQA decomposition, where no other tiling took the stage (the i8 decode has its own): the table tile at 256 GRF (it spilled
-// 7-11 KB at 128 GRF), PREFILL with the PA PREFILL loop changes (the 8-bit / 4-bit reads take neither PREFETCH_V nor
-// WIDE_READS). Reads no query or key count ("Plain-SDPA d_max 512 tiling for the per-channel cache" in the docs).
+// GQA decomposition, where no other tiling took the stage (the i8 decode has its own): 256 GRF (the table tile spilled 7-11
+// KB at 128 GRF), PREFILL with the PA PREFILL loop changes (the 8-bit / 4-bit reads take neither PREFETCH_V nor WIDE_READS).
+// A PREFILL stage with a plain V takes one row of 16 subgroups (16-key x 32-query tiles, 256 keys x 32 queries), the i8 V
+// widened by convert_half4 and prefetched into L3; a transposed i8 V and the 4-bit decode keep the table tile. Reads the op's
+// V order, no query or key count ("Plain-SDPA d_max 512 tiling for the per-channel cache" in the docs).
 bool solve_plain_per_channel_d512_tiling(gpu_arch arch,
                                          size_t d_max,
                                          size_t vd_max,
@@ -532,6 +534,17 @@ bool solve_plain_per_channel_d512_tiling(gpu_arch arch,
         return false;
     }
     sdpa_ocl_config_t t = choose_config_kq_only(arch, d_max);
+    if (prefill && !shape.v_transposed) {
+        t.kq_sg_tile_keys = 16;
+        t.kq_sg_tile_queries = 32;
+        t.kq_sg_per_wg_keys = 16;
+        t.kq_sg_per_wg_queries = 1;
+        t.v_i8_convert = shape.i8_per_channel_kv;
+        t.v_prefetch_l3 = shape.i8_per_channel_kv;
+        if (!solve_sv_split(t, vd_max)) {
+            return false;
+        }
+    }
     t.large_grf = true;
     t.prefill_pipeline = prefill;
     t.micro_math = false;  // plain SDPA never emits MICRO_MATH

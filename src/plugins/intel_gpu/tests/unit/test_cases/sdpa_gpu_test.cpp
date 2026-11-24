@@ -3645,9 +3645,11 @@ static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
         // A dynamic network may run its shape-agnostic or (compiled in the background) static kernel at a step, so the
         // layout check is for the static cases: bit-exact, but on xe_hpg's multi-query steps within two half ULPs at 1 (the
         // outputs are within the V range [-1, 1]; one ULP measured on the A770): its PREFILL kernel widens a [key][value]
-        // i8 V by the 0x6480 XOR and a transposed one by conversion, which round differently.
+        // i8 V by the 0x6480 XOR and a transposed one by conversion, which round differently. On Xe2 / xe_hpc above head
+        // 256 within one ULP at 1: the plain V's multi-query stage takes another tiling than the transposed one's.
         if (!c.dynamic) {
-            const float plain_tv_tol = (arch == gpu_arch::xe_hpg && seq_q > 1) ? 1.0f / 512.0f : 0.0f;
+            const bool own_tiling = (arch == gpu_arch::xe2 || arch == gpu_arch::xe_hpc) && D > 256 && seq_q > 1;
+            const float plain_tv_tol = (arch == gpu_arch::xe_hpg && seq_q > 1) ? 1.0f / 512.0f : (own_tiling ? 1.0f / 1024.0f : 0.0f);
             const auto plain = sdpa_to_float<ov::float16>(plain_out);
             ASSERT_EQ(plain.size(), tv.size());
             float max_d = 0.0f;

@@ -4118,7 +4118,8 @@ the fusion of "Per-channel compressed KV at heads up to 512" slower than dequant
   kernel itself: SDPA at prefill 1024 takes 551 us (i8) / 568 us (4-bit), against 339 us for the f16 SDPA after
   dequantizing and 360 us for `sdpa_micro` on the i8 cache. A tiling with more queries per subgroup, as at `d_max` 128
   ("Plain-SDPA PREFILL tiling for the per-channel i8 cache"), was not tried. A separate item: the i8 transposed V at
-  1023 tokens takes 783 us against 554 us at 1024 (V row pitch 1023 B).
+  1023 tokens takes 783 us against 554 us at 1024 (V row pitch 1023 B). The plain V is faster since "Per-channel d_max 512
+  PREFILL with a plain V on 16 key subgroups", which lists what is still open.
 - Tests: `smoke_sdpa_gpu_compressed_kv_per_channel` +6 rows: prefill at heads 512 / 384 with query and key tails (i8 and
   4-bit), plus the 4-bit decode at both heads. cliloader shows REG256 and no spill on them.
   - Negative controls (temporary kernel builds): the causal skip's KQ bound (`kq_sg_causal_k`) 16 keys early, or its
@@ -4239,6 +4240,66 @@ first of them against the branch with the three and the three entries after them
   neighbouring channels' V scales swapped in the fused arm fail exactly these 2 (cosine 0.95-0.96). B70: the unit suites
   168 / 168 (the new rows on `sdpa_ocl_mixed`), the func suites 68 / 68. Not run on DG2 (the opt single-token stage there).
 - Not checked: real models, other head counts, memory use, ARL-H, the jit variant behind each kernel name.
+
+### Per-channel d_max 512 PREFILL with a plain V on 16 key subgroups (2026-11-25)
+
+After "Plain-SDPA d_max 512 tiling for the per-channel cache" the per-channel prefill at heads 257-512 was still slower
+than dequantizing first and than master: SDPA at a 1024-token prefill (16 / 4 heads, head 512) 551 us for i8 and 568 us
+for 4-bit, against 339 us for the f16 SDPA after the dequantization and 360 us for `sdpa_micro` on the i8 cache.
+
+- Where the time goes (B70, single runs, SDPA us, i8 with the plain V, prefill 1024; temporary builds):
+  - f16 on the same table tile and flags (no wide reads, no V prefetch, the causal skip on): 404, so the 8-bit reads cost
+    about 145 us there. The K scale is folded into Q and the V scale into the output already, so that is the i8 to f16
+    widening and the reads.
+  - More queries per subgroup alone does not help i8: 16-key x 32-query tiles in one row of 16 subgroups take 596 (f16
+    333, 4-bit 485). The same with the i8 V block prefetch (`PREFETCH_V_I8`) takes 458, with the L3 V prefetch 439:
+    that tiling waits on V. On the table tile neither prefetch changes anything.
+  - On the table tile the V widening is about 128 us (removed, timing only: 421); `convert_half4` instead of the 0x6480
+    XOR takes 526.
+  - Other tilings, with or without the prefetch: 32 x 16 tiles in 8 x 2 / 8 x 4 / 8 x 1 subgroups 484-690, 16 x 32 in
+    8 x 1 / 8 x 2 649-788 (8 x 1 spills 3 KB), 16 x 64 and 32 x 32 1158-1314.
+- `solve_plain_per_channel_d512_tiling()`: a PREFILL stage with a plain V (`plain_prefill_shape::v_transposed` false)
+  takes the 16-key x 32-query tiles in one row of 16 subgroups (256 keys x 32 queries); the i8 V is widened by
+  `convert_half4` (`v_i8_convert`) and prefetched into L3 (`v_prefetch_l3`). A 4-bit cache with a transposed V reaches
+  SDPA as a plain V (an explicit Transpose), so it takes it too.
+  - Kept on the table tile: the i8 transposed V (that tiling took 1.12-1.16x at a 1024-token prefill and 1.06-1.24x on 16
+    queries there; it has no V prefetch) and the 4-bit decode.
+  - The 4-bit cache takes no V prefetch: the L3 one changed nothing (within 0.6%).
+  - The choice reads the op's V order and cache type, no query or key count.
+- Numerics: these stages are no longer bit-identical to before (the softmax sums group over 16 key subgroups). The i8
+  plain and transposed layouts now differ by at most 2^-12 on the test rows (they were bit-identical);
+  `sdpa_gpu_transposed_v_i8` bounds the difference at one ULP at 1 above head 256 on Xe2 / xe_hpc.
+- Cost, B70 at 1800 MHz pinned, one GQA layer (16 heads, 4 KV heads, head 512 unless noted; `test/g6c/run_arms.sh`, 2
+  rounds, arms rotating; logs `test/g6c/p_i8.log`, `p_u4.log`), layer total, this change / the other arm:
+
+  | cache, V | prefill 1023 / 1024 / 4096 | head 384, 1024 | chunk 512 on 4000 | 16 queries on 1024 / 4096 |
+  |---|---|---|---|---|
+  | i8 plain, / before | 0.92 / 0.92 / 0.82 | 0.90 | 0.82 | 0.88 / 0.87 |
+  | 4-bit plain, / before | 0.95 / 0.95 / 0.84 | 0.95 | 0.81 | 0.94 / 0.83 |
+  | 4-bit transposed, / before | 0.95 / 0.95 / 0.84 | 0.94 | 0.83 | 0.91 / 0.86 |
+  | i8 plain, / dequantized | 0.99 / 1.00 / 1.06 | 0.98 | 0.87 | 0.67 / 0.59 |
+  | 4-bit plain, / dequantized | 0.93 / 0.94 / 0.95 | 0.93 | 0.63 | 0.45 / 0.32 |
+  | 4-bit transposed, / dequantized | 0.94 / 0.95 / 0.95 | 0.95 | 0.56 | 0.38 / 0.28 |
+  | i8 plain, / master | 1.06 / 1.07 / 1.14 | 1.02 | 1.15 | 0.99 / 1.02 |
+
+  "Before" is the branch before this change, "dequantized" the build before "Per-channel compressed KV at heads up to
+  512" (cache dequantized ahead of an f16 SDPA), master `sdpa_micro` (master cannot build the 4-bit GQA). SDPA, i8
+  plain, before -> after: 551 -> 438 us at 1024, 6878 -> 5048 at 4096, 1800 -> 1310 on the chunk. Unchanged (SDPA
+  within 1 us): the i8 transposed V (0.97-1.00), the decode on 4096 keys (0.99-1.02) and head 256 (1.00-1.02).
+- Open (follow-up): the i8 plain V is still 1.06-1.15x master on prefill and chunk (SDPA 438 against 360 us at 1024)
+  and 1.06x the dequantized cache at 4096; the i8 transposed V is still 1.05-1.26x the dequantized cache on prefill
+  (1023 tokens: 782 us, the per-lane read of an odd row pitch); outside `d_max` 512, the i8 plain V at head 256 is 1.16x
+  master (SDPA 301 against 179 us at 1024, the table tile; not looked at).
+- Tests: no new rows. The `d_max` 512 / 384 prefill rows of `smoke_sdpa_gpu_compressed_kv_per_channel` run the tiling
+  (cliloader: local memory 51328 / 43136 B against the table tile's 42112 at head 512), as do the plain arm of
+  `sdpa_gpu_transposed_v_i8` (non-causal) and the head-512 `smoke_GQAQuantizedKVCache` / `smoke_GQATransposedVCache`
+  cases.
+  - Negative control (temporary kernel build): the causal skip's KQ bound 16 keys early on this tiling only fails exactly
+    the 4 per-channel prefill rows at heads 512 / 384 (i8 and 4-bit) and 4 func cases (`int8_D512_B1`, `int4_D512_B1`,
+    `int4_D512_B1_transposedV`, `D512_plainV_i8_kv`).
+  - B70: the transposed-V, per-channel, `gqa_decomp`, decomposition and predicate unit suites 168 / 168;
+    `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` + `smoke_GQASlidingWindow` 72 / 72.
+- Not checked: xe_hpg (its own kernels, unchanged; "xe_hpg follow-ups"), Xe3 (`xe2_tuned()` only), real models.
 
 ## Known issues
 
