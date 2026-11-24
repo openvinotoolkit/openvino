@@ -70,7 +70,7 @@ void CumuSchedule::init() {
         DeviceInformation cpu_device_information;
         for (auto& device : valid_devices) {
             if (device.device_name.find("CPU") == std::string::npos) {
-                m_p_ctput_loadcontext[idx].m_device_info = device;
+                m_p_ctput_loadcontext[idx].request.m_device_info = device;
                 idx++;
             } else {
                 cpu_device_information = device;
@@ -78,7 +78,7 @@ void CumuSchedule::init() {
             }
         }
         if (!cpu_device_information.device_name.empty())
-            m_p_ctput_loadcontext[idx].m_device_info = cpu_device_information;
+            m_p_ctput_loadcontext[idx].request.m_device_info = cpu_device_information;
     }
     if (m_context->m_log_tag == "MULTI") {
         // MULTI's performance hint always is tput
@@ -86,12 +86,11 @@ void CumuSchedule::init() {
     }
 
     auto load_device_task = [&](RoleSlot* context_ptr, const std::shared_ptr<ov::Model>& model) {
-        auto result = try_to_compile_model(*context_ptr, model);
+        auto result = try_to_compile_model(context_ptr->request, model);
         context_ptr->m_err_message += result.m_error;
         if (result.m_succeeded) {
-            context_ptr->m_device_context = &register_compile_result(*context_ptr, std::move(result.m_compiled_model));
-            context_ptr->m_state = RoleState::Ready;
-            auto& device_name = context_ptr->m_device_info.device_name;
+            context_ptr->m_device_context = &register_compile_result(context_ptr->request, std::move(result.m_compiled_model));
+            auto& device_name = context_ptr->request.m_device_info.device_name;
             LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
                 auto supported_config_keys = context_ptr->compiled_model()->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
@@ -109,8 +108,7 @@ void CumuSchedule::init() {
         }
         // Handle device load failure in case of ctput
         if (!result.m_succeeded) {
-            context_ptr->m_state = RoleState::Failed;
-            std::string failedDeviceName = context_ptr->m_device_info.device_name;
+            std::string failedDeviceName = context_ptr->request.m_device_info.device_name;
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
             const auto DeviceIter = deviceChecker().check_and_return_if_device_in_list(failedDeviceName, m_context->m_device_priorities);
             // Remove failed device from m_device_priorities
@@ -131,7 +129,7 @@ void CumuSchedule::init() {
         auto model = m_context->m_model;
         m_p_ctput_loadcontext[i].m_task = std::bind(load_device_task, context_ptr, model);
         if (i == m_n_ctput_devicenums - 1 &&
-            m_p_ctput_loadcontext[i].m_device_info.device_name.find("CPU") != std::string::npos) {
+            m_p_ctput_loadcontext[i].request.m_device_info.device_name.find("CPU") != std::string::npos) {
             cpu_loads.push_back(m_p_ctput_loadcontext[i].m_task);
         } else {
             other_devices_loads.push_back(m_p_ctput_loadcontext[i].m_task);

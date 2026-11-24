@@ -7,6 +7,11 @@
 namespace ov {
 namespace auto_plugin {
 
+bool RoleSlot::is_ready() const {
+    const auto* device_context = m_device_context.load();
+    return device_context && device_context->is_ready();
+}
+
 SoCompiledModel RoleSlot::compiled_model() const {
     const auto* device_context = m_device_context.load();
     return device_context ? device_context->compiled_model() : SoCompiledModel{};
@@ -263,6 +268,14 @@ SoCompiledModel DeviceExecutionContext::exchange_model(SoCompiledModel model) {
     std::lock_guard<std::mutex> lock(m_model_mutex);
     std::swap(m_compiled_model, model);
     return model;
+}
+
+void DeviceExecutionContext::mark_used(Time now) {
+    m_last_used = now;
+}
+
+Time DeviceExecutionContext::last_used() const {
+    return m_last_used;
 }
 
 WorkerPool& DeviceExecutionContext::pool() {

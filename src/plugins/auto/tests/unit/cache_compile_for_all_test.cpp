@@ -972,8 +972,8 @@ TEST_F(AutoCachePrecompileTest, compileServiceRecordsNoBlobIdWithoutCaching) {
     EXPECT_TRUE(service.compile(model, "GPU.0", {ov::cache_dir(std::string{}), ov::cache_blob_id(746352)}));
     EXPECT_TRUE(service.compile(model, "GPU.1", {ov::cache_dir(cache_dir.string()), ov::cache_blob_id(746352)}));
     std::filesystem::remove_all(cache_dir);
-    EXPECT_EQ(service.stats("GPU.0")->last_blob_id, std::nullopt);
-    EXPECT_EQ(service.stats("GPU.1")->last_blob_id, std::nullopt);
+    EXPECT_EQ(service.blob_id("GPU.0", model), std::nullopt);
+    EXPECT_EQ(service.blob_id("GPU.1", model), std::nullopt);
 }
 
 TEST_F(AutoCachePrecompileTest, compileServiceRecordsTheBlobIdOfACachedCompilation) {
@@ -987,7 +987,7 @@ TEST_F(AutoCachePrecompileTest, compileServiceRecordsTheBlobIdOfACachedCompilati
     std::filesystem::create_directories(cache_dir);
     ov::auto_plugin::CompileService service(core, {}, "test");
     EXPECT_TRUE(service.compile(model, "GPU.0", {ov::cache_dir(cache_dir.string()), ov::cache_blob_id(746352)}));
-    EXPECT_EQ(service.stats("GPU.0")->last_blob_id, std::optional<std::string>("746352"));
+    EXPECT_EQ(service.blob_id("GPU.0", model), std::optional<std::string>("746352"));
     std::filesystem::remove_all(cache_dir);
 }
 

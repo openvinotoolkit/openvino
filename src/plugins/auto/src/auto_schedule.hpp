@@ -84,10 +84,8 @@ private:
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_dynamic_executor;
     std::shared_ptr<ov::Model>                                           m_dynamic_model;
     // the members below belong to the dynamic dispatch thread
-    std::map<DeviceName, bool>                                           m_reloadable_devices;
-    std::map<DeviceName, Time>                                           m_last_used;
     // null keeps every compiled model
-    std::unique_ptr<EvictionPolicy>                                      m_eviction_policy;
+    std::optional<ReloadablePolicy>                                      m_eviction_policy;
     FailurePolicy                                                        m_failure_policy;
     mutable std::mutex                                                   m_gate_mutex;
     bool                                                                 m_gate_busy = false;

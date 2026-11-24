@@ -25,7 +25,7 @@ bool AutoSchedule::select_other_device(const ModelInstanceKey& failed_instance) 
         get_execution_devices = [&](const ModelInstanceKey& failed) {
             const auto& real_device_name = failed.device;
             const bool is_cpuhelp = failed.is_startup_helper();
-            m_compile_context[FALLBACKDEVICE].m_model_precision = m_context->m_model_precision;
+            m_compile_context[FALLBACKDEVICE].request.m_model_precision = m_context->m_model_precision;
             if (is_cpuhelp) {
                 // if infer failed in the startup helper, we will remove CPU from m_device_priorities
                 // and re-run infer request when m_compile_context[ACTUALDEVICE] is ready
@@ -49,19 +49,19 @@ bool AutoSchedule::select_other_device(const ModelInstanceKey& failed_instance) 
                 LOG_DEBUG_TAG("Already selected the fallback device");
                 return m_compile_context[FALLBACKDEVICE].is_ready();
             }
-            m_compile_context[FALLBACKDEVICE].m_meta_devices = m_context->m_device_priorities;
-            m_compile_context[FALLBACKDEVICE].m_profile = ModelInstanceKey::Profile::Main;
-            m_compile_context[FALLBACKDEVICE].m_state = RoleState::Idle;
+            m_compile_context[FALLBACKDEVICE].request.m_meta_devices = m_context->m_device_priorities;
+            m_compile_context[FALLBACKDEVICE].request.m_profile = ModelInstanceKey::Profile::Main;
+            m_compile_context[FALLBACKDEVICE].m_device_context = nullptr;
             // a previous fallback device is being replaced, drop its reservation
-            if (!m_compile_context[FALLBACKDEVICE].m_priority_released &&
-                !m_compile_context[FALLBACKDEVICE].m_device_info.unique_name.empty()) {
+            if (!m_compile_context[FALLBACKDEVICE].request.m_priority_released &&
+                !m_compile_context[FALLBACKDEVICE].request.m_device_info.unique_name.empty()) {
                 m_plugin->unregister_priority(m_context->m_model_priority,
-                                              m_compile_context[FALLBACKDEVICE].m_device_info.unique_name);
+                                              m_compile_context[FALLBACKDEVICE].request.m_device_info.unique_name);
             }
-            m_compile_context[FALLBACKDEVICE].m_priority_released = false;
-            m_compile_context[FALLBACKDEVICE].m_device_info =
+            m_compile_context[FALLBACKDEVICE].request.m_priority_released = false;
+            m_compile_context[FALLBACKDEVICE].request.m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
-                                        m_compile_context[FALLBACKDEVICE].m_model_precision,
+                                        m_compile_context[FALLBACKDEVICE].request.m_model_precision,
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
@@ -75,13 +75,13 @@ bool AutoSchedule::select_other_device(const ModelInstanceKey& failed_instance) 
             }
             if (m_compile_context[FALLBACKDEVICE].is_ready()) {
                 m_compile_context[ACTUALDEVICE].m_is_enabled = false;
-                m_compile_context[ACTUALDEVICE].m_state = RoleState::Retired;
+                m_compile_context[ACTUALDEVICE].m_device_context = nullptr;
                 publish_active_instance();
-                LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
+                LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].request.m_device_info.device_name.c_str());
                 return true;
             } else {
                 // load failed or generate works failed, so reselect other devices
-                return get_execution_devices(ModelInstanceKey(m_compile_context[FALLBACKDEVICE].m_device_info.device_name));
+                return get_execution_devices(ModelInstanceKey(m_compile_context[FALLBACKDEVICE].request.m_device_info.device_name));
             }
         };
 
@@ -103,7 +103,7 @@ void AutoSchedule::publish_active_instance() {
     m_instances.publish([this]() -> std::optional<ModelInstanceKey> {
         for (const auto role : {FALLBACKDEVICE, ACTUALDEVICE, CPU}) {
             const auto& compile_context = m_compile_context[role];
-            const auto* context = compile_context.is_ready() ? compile_context.m_device_context.load() : nullptr;
+            const auto* context = compile_context.m_device_context.load();
             if (context && context->is_ready()) {
                 return context->key();
             }
@@ -122,7 +122,7 @@ void AutoSchedule::init() {
         // compile_for_all leaves a cache blob for every candidate, so the inactive ones can be released; without it
         // every compiled model is kept
         if (m_context->m_compile_for_all) {
-            m_eviction_policy = std::make_unique<ReloadablePolicy>();
+            m_eviction_policy.emplace();
         }
         m_dynamic_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             ov::threading::IStreamsExecutor::Config{"AutoDynamicSchedule", 1, 0});
@@ -134,21 +134,21 @@ void AutoSchedule::init() {
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     m_compile_context[ACTUALDEVICE].m_is_enabled = true;
-    m_compile_context[ACTUALDEVICE].m_model_precision = m_context->m_model_precision;
-    m_compile_context[ACTUALDEVICE].m_meta_devices = m_context->m_device_priorities;
-    m_compile_context[ACTUALDEVICE].m_device_info =
+    m_compile_context[ACTUALDEVICE].request.m_model_precision = m_context->m_model_precision;
+    m_compile_context[ACTUALDEVICE].request.m_meta_devices = m_context->m_device_priorities;
+    m_compile_context[ACTUALDEVICE].request.m_device_info =
         m_plugin->select_device(m_context->m_device_priorities,
-                                m_compile_context[ACTUALDEVICE].m_model_precision,
+                                m_compile_context[ACTUALDEVICE].request.m_model_precision,
                                 m_context->m_model_priority,
                                 m_context->m_selection_policy,
                                 (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
     if (m_context->m_dynamic_device_selection) {
         // nothing was reserved by select_device() in this mode
-        m_compile_context[ACTUALDEVICE].m_priority_released = true;
+        m_compile_context[ACTUALDEVICE].request.m_priority_released = true;
     }
     if (m_context->m_compile_for_all) {
-        const auto& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
-        const auto& candidates = m_compile_context[ACTUALDEVICE].m_meta_devices;
+        const auto& actual_device = m_compile_context[ACTUALDEVICE].request.m_device_info.device_name;
+        const auto& candidates = m_compile_context[ACTUALDEVICE].request.m_meta_devices;
         const bool has_device_to_compile = std::any_of(candidates.begin(), candidates.end(), [&](const auto& device) {
             return device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU";
         });
@@ -168,17 +168,16 @@ void AutoSchedule::init() {
     }
 
     auto load_device_task = [&](RoleSlot* context_ptr, const std::shared_ptr<ov::Model>& model) {
-        auto result = try_to_compile_model(*context_ptr, model);
+        auto result = try_to_compile_model(context_ptr->request, model);
         context_ptr->m_err_message += result.m_error;
         if (result.m_succeeded) {
             // release cloned model here
             const_cast<std::shared_ptr<ov::Model>&>(model).reset();
-            context_ptr->m_device_context = &register_compile_result(*context_ptr, std::move(result.m_compiled_model));
-            context_ptr->m_state = RoleState::Ready;
+            context_ptr->m_device_context = &register_compile_result(context_ptr->request, std::move(result.m_compiled_model));
             if (!m_context->m_dynamic_device_selection) {
                 publish_active_instance();
             }
-            auto& device_name = context_ptr->m_device_info.device_name;
+            auto& device_name = context_ptr->request.m_device_info.device_name;
             LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
                 auto supported_config_keys = context_ptr->compiled_model()->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
@@ -194,7 +193,6 @@ void AutoSchedule::init() {
                 }
             });
         } else {
-            context_ptr->m_state = RoleState::Failed;
         }
         context_ptr->m_promise.set_value();
         // the first compile model process finished
@@ -211,20 +209,20 @@ void AutoSchedule::init() {
             m_compile_context[CPU].m_is_enabled = false;
             return;
         }
-        m_compile_context[CPU].m_device_info = *cpu_iter;
-        m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
+        m_compile_context[CPU].request.m_device_info = *cpu_iter;
+        m_compile_context[CPU].request.m_device_info.config[ov::hint::performance_mode.name()] =
             ov::hint::PerformanceMode::LATENCY;
         if (CacheManager::disable_caching(*m_context->m_ov_core,
-                                          m_compile_context[CPU].m_device_info.device_name,
-                                          m_compile_context[CPU].m_device_info.config)) {
+                                          m_compile_context[CPU].request.m_device_info.device_name,
+                                          m_compile_context[CPU].request.m_device_info.config)) {
             LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
         }
-        m_compile_context[CPU].m_profile = ModelInstanceKey::Profile::StartupHelper;
+        m_compile_context[CPU].request.m_profile = ModelInstanceKey::Profile::StartupHelper;
         LOG_INFO_TAG("will load CPU for accelerator");
     };
     if (m_compile_context[ACTUALDEVICE].m_is_enabled) {
-        LOG_INFO_TAG("select device:%s", m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
-        bool is_actual_cpu = m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("CPU") != std::string::npos;
+        LOG_INFO_TAG("select device:%s", m_compile_context[ACTUALDEVICE].request.m_device_info.device_name.c_str());
+        bool is_actual_cpu = m_compile_context[ACTUALDEVICE].request.m_device_info.device_name.find("CPU") != std::string::npos;
         // if Actual device is CPU or perf_hint is cumulative, disabled m_compile_context[CPU], only use
         // m_compile_context[ACTUALDEVICE]
         if (is_actual_cpu || !m_context->m_startup_fallback) {
@@ -254,7 +252,7 @@ void AutoSchedule::init() {
         add_device_context(m_context->m_low_power_device->device_name);
     }
     if (m_compile_context[CPU].m_is_enabled) {
-        add_device_context(m_compile_context[CPU].instance_key());
+        add_device_context(m_compile_context[CPU].request.instance_key());
     }
     if (m_compile_context[CPU].m_is_enabled) {
         m_firstload_future = m_firstload_promise.get_future();
@@ -270,7 +268,7 @@ void AutoSchedule::init() {
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
         auto recycleTask = [this]() mutable {
             wait_actual_compiled_model_ready();
-            auto& cpu_help = get_device_context(m_compile_context[CPU].instance_key());
+            auto& cpu_help = get_device_context(m_compile_context[CPU].request.instance_key());
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].is_ready()) {
                 // handle the case of ACTUAL faster than CPU
                 m_compile_context[CPU].m_future.wait();
@@ -314,7 +312,7 @@ void AutoSchedule::init() {
                         }
                     });
                     LOG_INFO_TAG("release all work requests of the startup helper");
-                    m_compile_context[CPU].m_state = RoleState::Retired;
+                    m_compile_context[CPU].m_device_context = nullptr;
                     publish_active_instance();
                     LOG_INFO_TAG("helper released!!");
                     break;
@@ -327,15 +325,15 @@ void AutoSchedule::init() {
                 ((m_context->m_device_priorities.size() != 1 && m_context->m_str_devices_initial.size() != 1) ||
                  // an out-of-list low power device can still fall back onto the candidates at runtime
                  !deviceChecker().check_if_device_in_list<DeviceInformation>(
-                     m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                     m_compile_context[ACTUALDEVICE].request.m_device_info.device_name,
                      m_context->m_device_priorities,
                      true)))) {
         // The performance will has some drop then the passthrough compiled model when enable ENABLE_RUNTIME_FALLBACK
         m_compile_context[ACTUALDEVICE].m_task();
         if (m_context->m_dynamic_device_selection && m_compile_context[ACTUALDEVICE].is_ready()) {
             // devices that failed to compile at startup were pruned from this copy only
-            m_context->m_device_priorities = m_compile_context[ACTUALDEVICE].m_meta_devices;
-            const auto& initial_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+            m_context->m_device_priorities = m_compile_context[ACTUALDEVICE].request.m_meta_devices;
+            const auto& initial_device = m_compile_context[ACTUALDEVICE].request.m_device_info.device_name;
             m_gate_current_device = initial_device;
             m_instances.publish(ModelInstanceKey(initial_device));
             LOG_INFO_TAG("[dynamic] initial target device:%s", initial_device.c_str());
@@ -355,8 +353,8 @@ void AutoSchedule::init() {
     // compile_for_all disables the CPU helper, so the pre-compilation can start as soon as the actual device is ready.
     if (m_compile_service->has_precompile() && m_compile_context[ACTUALDEVICE].is_ready()) {
         // Failed startup devices were already removed from the actual context's candidates.
-        m_compile_service->start_precompile(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
-                                            m_compile_context[ACTUALDEVICE].m_meta_devices,
+        m_compile_service->start_precompile(m_compile_context[ACTUALDEVICE].request.m_device_info.device_name,
+                                            m_compile_context[ACTUALDEVICE].request.m_meta_devices,
                                             [this](const std::string& device_name) {
                                                 const auto* context = find_device_context(device_name);
                                                 return context && context->is_ready();
@@ -415,7 +413,7 @@ CompileResult AutoSchedule::try_to_compile_model(CompileRequest& request,
         !result.m_succeeded && check_and_disable_if_low_power_device_failed(device);
     // a failed low power CPU picked at startup must still cascade to the candidates
     const bool retry_actual_low_power_device =
-        low_power_first_failure && &request == &m_compile_context[ACTUALDEVICE];
+        low_power_first_failure && &request == &m_compile_context[ACTUALDEVICE].request;
     if (result.m_succeeded || (cur_dev_is_cpu && !retry_actual_low_power_device)) {
         return result;
     }
@@ -477,7 +475,7 @@ CompileResult AutoSchedule::try_to_compile_model(CompileRequest& request,
             }
             return true;
         };
-        if (compare(request.m_device_info.config, m_compile_context[CPU].m_device_info.config)) {
+        if (compare(request.m_device_info.config, m_compile_context[CPU].request.m_device_info.config)) {
             return result;
         }
     }
@@ -547,18 +545,18 @@ bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
             wait_actual_compiled_model_ready();
             if (!deviceChecker().check_if_device_in_list<DeviceInformation>(
                     preferred_device,
-                    std::vector<DeviceInformation>{m_compile_context[ACTUALDEVICE].m_device_info})) {
+                    std::vector<DeviceInformation>{m_compile_context[ACTUALDEVICE].request.m_device_info})) {
                 OPENVINO_THROW("The preferred device should be the selected device");
             }
-            instances.push_back(m_compile_context[ACTUALDEVICE].instance_key());
+            instances.push_back(m_compile_context[ACTUALDEVICE].request.instance_key());
         } else {
             // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
             if (m_compile_context[FALLBACKDEVICE].is_ready()) {
-                instances.push_back(m_compile_context[FALLBACKDEVICE].instance_key());
+                instances.push_back(m_compile_context[FALLBACKDEVICE].request.instance_key());
             } else if (m_compile_context[ACTUALDEVICE].is_ready()) {
-                instances.push_back(m_compile_context[ACTUALDEVICE].instance_key());
+                instances.push_back(m_compile_context[ACTUALDEVICE].request.instance_key());
             } else {
-                instances.push_back(m_compile_context[CPU].instance_key());
+                instances.push_back(m_compile_context[CPU].request.instance_key());
             }
         }
     }
@@ -687,7 +685,7 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
             }
         }
         m_dynamic_infer_count++;
-        m_last_used[device_name] = std::chrono::steady_clock::now();
+        get_device_context(device_name).mark_used(std::chrono::steady_clock::now());
         const bool dispatched =
             run_pipeline_task(pipeline_task, get_device_context(device_name).pool());
         OPENVINO_ASSERT(dispatched, get_log_tag(), ": no idle infer request available on device ", device_name);
@@ -861,9 +859,7 @@ void AutoSchedule::release_inactive_devices(const DeviceName& active_device) {
         usage.instance = context.key();
         usage.reloadable = is_reloadable(context.name());
         usage.stats = m_compile_service->stats(context.name());
-        if (const auto last_used = m_last_used.find(context.name()); last_used != m_last_used.end()) {
-            usage.last_used = last_used->second;
-        }
+        usage.last_used = context.last_used();
         inactive.push_back(std::move(usage));
     });
     if (inactive.empty()) {
@@ -891,28 +887,7 @@ bool AutoSchedule::is_reloadable(const DeviceName& device_name) {
     if (device == candidates.end()) {
         return false;
     }
-    auto cacheable = m_reloadable_devices.find(device_name);
-    if (cacheable == m_reloadable_devices.end()) {
-        cacheable = m_reloadable_devices
-                        .emplace(device_name,
-                                 CacheManager::is_reloadable(*m_context->m_ov_core, device_name, device->config))
-                        .first;
-    }
-    if (!cacheable->second) {
-        return false;
-    }
-    // the export may have failed and the device reports nothing about it, so look for the blob itself
-    const auto stats = m_compile_service->stats(device_name);
-    if (!stats || !stats->last_blob_id) {
-        return false;
-    }
-    try {
-        const auto cache_location = CacheManager::get_cache_location(*m_context->m_ov_core, device->config, device_name);
-        return CacheManager::is_blob_cached(cache_location, *stats->last_blob_id);
-    } catch (const std::exception& ex) {
-        LOG_DEBUG_TAG("cache blob probe failed for %s: %s", device_name.c_str(), ex.what());
-        return false;
-    }
+    return m_compile_service->has_cache_blob(device_name, m_dynamic_model);
 }
 
 std::vector<DeviceInformation> AutoSchedule::available_candidates() const {
@@ -1022,10 +997,10 @@ AutoSchedule::~AutoSchedule() {
     m_compile_service->stop_precompile();
     if (m_plugin && !m_context->m_dynamic_device_selection) {
         m_plugin->unregister_priority(m_context->m_model_priority,
-                                      m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
+                                      m_compile_context[ACTUALDEVICE].request.m_device_info.unique_name);
         const auto& fallback = m_compile_context[FALLBACKDEVICE];
-        if (!fallback.m_priority_released && !fallback.m_device_info.unique_name.empty()) {
-            m_plugin->unregister_priority(m_context->m_model_priority, fallback.m_device_info.unique_name);
+        if (!fallback.request.m_priority_released && !fallback.request.m_device_info.unique_name.empty()) {
+            m_plugin->unregister_priority(m_context->m_model_priority, fallback.request.m_device_info.unique_name);
         }
     }
     if (m_context) {

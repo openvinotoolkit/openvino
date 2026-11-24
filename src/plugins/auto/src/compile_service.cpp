@@ -35,14 +35,6 @@ SoCompiledModel CompileService::compile(const std::shared_ptr<const ov::Model>& 
         loaded_from_cache = compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>();
     } catch (const ov::Exception&) {
     }
-    std::optional<std::string> blob_id;
-    try {
-        if (CacheManager::is_reloadable(*m_core, device, config)) {
-            blob_id = CacheManager::get_blob_id(*m_core, device, config, m_model_path.empty() ? model : nullptr, m_model_path);
-        }
-    } catch (const std::exception& ex) {
-        LOG_DEBUG_TAG("Device: [%s]: cache blob ID is unknown: %s", device.c_str(), ex.what());
-    }
     LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms, loaded from cache: %s",
                  device.c_str(),
                  compile_ms,
@@ -51,7 +43,8 @@ SoCompiledModel CompileService::compile(const std::shared_ptr<const ov::Model>& 
     auto& stats = m_stats[device];
     stats.last_compile_ms = compile_ms;
     stats.last_loaded_from_cache = loaded_from_cache;
-    stats.last_blob_id = std::move(blob_id);
+    stats.last_config = config;
+    stats.last_blob_id.reset();
     stats.compile_count++;
     return compiled_model;
 }
@@ -60,6 +53,62 @@ std::optional<CompileStats> CompileService::stats(const DeviceName& device) cons
     std::lock_guard<std::mutex> lock(m_stats_mutex);
     const auto iter = m_stats.find(device);
     return iter == m_stats.end() ? std::nullopt : std::optional<CompileStats>(iter->second);
+}
+
+std::optional<std::string> CompileService::blob_id(const DeviceName& device,
+                                                   const std::shared_ptr<const ov::Model>& model) {
+    ov::AnyMap config;
+    size_t compile_count = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_stats_mutex);
+        const auto iter = m_stats.find(device);
+        if (iter == m_stats.end()) {
+            return std::nullopt;
+        }
+        if (iter->second.last_blob_id) {
+            return iter->second.last_blob_id;
+        }
+        config = iter->second.last_config;
+        compile_count = iter->second.compile_count;
+    }
+    std::optional<std::string> blob_id;
+    try {
+        if (CacheManager::is_reloadable(*m_core, device, config)) {
+            blob_id = CacheManager::get_blob_id(*m_core,
+                                                device,
+                                                config,
+                                                m_model_path.empty() ? model : nullptr,
+                                                m_model_path);
+        }
+    } catch (const std::exception& ex) {
+        LOG_DEBUG_TAG("Device: [%s]: cache blob ID is unknown: %s", device.c_str(), ex.what());
+    }
+    std::lock_guard<std::mutex> lock(m_stats_mutex);
+    // a newer compilation has its own config, so do not store the ID of the old one
+    if (auto& stats = m_stats[device]; blob_id && stats.compile_count == compile_count) {
+        stats.last_blob_id = blob_id;
+    }
+    return blob_id;
+}
+
+bool CompileService::has_cache_blob(const DeviceName& device, const std::shared_ptr<const ov::Model>& model) {
+    const auto id = blob_id(device, model);
+    if (!id) {
+        return false;
+    }
+    ov::AnyMap config;
+    {
+        std::lock_guard<std::mutex> lock(m_stats_mutex);
+        config = m_stats[device].last_config;
+    }
+    try {
+        const auto cache_location = CacheManager::get_cache_location(*m_core, config, device);
+        // probed on every call: the blob may have been removed since it was written
+        return CacheManager::is_blob_cached(cache_location, *id);
+    } catch (const std::exception& ex) {
+        LOG_DEBUG_TAG("Device: [%s]: cache blob probe failed: %s", device.c_str(), ex.what());
+    }
+    return false;
 }
 
 void CompileService::enable_precompile(CacheManager& manager, std::shared_ptr<const ov::Model> model) {

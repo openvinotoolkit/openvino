@@ -27,7 +27,8 @@ struct ActiveDevice {
  *
  * The contexts are added while the schedule initializes and are never removed before it is destroyed, so their
  * address stays valid. The routing decision is published as an immutable snapshot: model level queries read it
- * without taking any lock of the scheduler, and only copy the model handle of the published instance.
+ * without taking any lock of the scheduler (only the short publication lock of the registry), and only copy the
+ * model handle of the published instance.
  */
 class InstanceRegistry {
 public:

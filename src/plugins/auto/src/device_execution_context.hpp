@@ -91,9 +91,13 @@ public:
     size_t idle_count() const;
     size_t leased_count() const;
     bool has_queued_tasks() const;
+    // The three below read the workers without the lock: only the serialized owner that calls open(), close() and
+    // clear() may use them, never concurrently with those.
     // only for binding a request to the worker with the given index
     WorkerInferRequest& worker(size_t index);
     void for_each_worker(const std::function<void(const WorkerInferRequest&)>& visit) const;
+    // size(), worker(), for_each_worker() and wait_all() read the workers without a lock: open() and clear() must be
+    // serialized with them by the owner, which is the case since a pool is only reopened after try_close_idle()
     // waits for the inference of every worker, a failed one is reported to on_error
     void wait_all(const std::function<void(const ov::Exception&)>& on_error);
 
@@ -150,6 +154,9 @@ public:
     const ModelInstanceKey& key() const;
     // the device the instance runs on
     const DeviceName& name() const;
+    // when an inference was last dispatched to the instance; only the dynamic dispatch thread uses them
+    void mark_used(Time now);
+    Time last_used() const;
     // reason of the latest compile failure, empty unless Faulted
     const std::string& last_error() const;
     // a copy, so it stays valid when another thread releases the context meanwhile; empty unless Ready
@@ -171,8 +178,10 @@ private:
 
     const ModelInstanceKey m_key;
     bool m_keep_alive = false;
+    // written only by the serialized owner, atomic so that other threads can read it without a lock
     std::atomic<State> m_state{State::Unloaded};
     std::string m_last_error;
+    Time m_last_used{};
     std::list<Time> m_released_start_times;
     std::list<Time> m_released_end_times;
     // the declaration order is the reverse of the destruction order: requests first, the model last

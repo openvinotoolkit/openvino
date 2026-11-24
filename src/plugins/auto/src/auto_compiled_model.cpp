@@ -100,7 +100,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             DeviceInformation device_info;
             {
                 std::lock_guard<std::mutex> lock(m_context->m_mutex);
-                device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
+                device_info = m_scheduler->m_compile_context[ACTUALDEVICE].request.m_device_info;
             }
             unsigned int optimal_batch_size = 0;
             unsigned int requests = 0;

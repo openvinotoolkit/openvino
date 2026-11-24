@@ -24,7 +24,9 @@ struct CompileStats {
     // empty if the device does not report ov::loaded_from_cache
     std::optional<bool> last_loaded_from_cache;
     size_t compile_count = 0;
-    // the cache blob ID of the last compilation; empty if the device does not cache its models
+    // the config of the last compilation, the input of the lazy blob ID
+    ov::AnyMap last_config;
+    // the cache blob ID of the last compilation, set by CompileService::blob_id()
     std::optional<std::string> last_blob_id;
 };
 
@@ -48,6 +50,13 @@ public:
                             const DeviceName& device,
                             const ov::AnyMap& config);
     std::optional<CompileStats> stats(const DeviceName& device) const;
+    // The cache blob ID of the last compilation of the device, computed on first use because hashing the model is
+    // costly; empty if the device does not reload its model from a cache. The model is ignored for a model path.
+    std::optional<std::string> blob_id(const DeviceName& device, const std::shared_ptr<const ov::Model>& model);
+
+    // Whether the cache of the device holds the blob of its last compilation: the export may have failed and the device
+    // reports nothing about it, so the blob itself is looked up. A hit is remembered, a blob never disappears.
+    bool has_cache_blob(const DeviceName& device, const std::shared_ptr<const ov::Model>& model);
 
     // sets up the background lane; must be called before the startup compilation releases the model
     void enable_precompile(CacheManager& manager, std::shared_ptr<const ov::Model> model);

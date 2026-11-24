@@ -126,7 +126,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
                         (m_scheduler->m_p_ctput_loadcontext[i].compiled_model()->get_property(name).as<bool>());
                 } catch (const ov::Exception&) {
                     LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed",
-                                  m_scheduler->m_p_ctput_loadcontext[i].m_device_info.device_name.c_str());
+                                  m_scheduler->m_p_ctput_loadcontext[i].request.m_device_info.device_name.c_str());
                     return false;
                 }
             }

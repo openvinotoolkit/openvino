@@ -31,28 +31,20 @@ struct EvictionDecision {
 };
 
 /**
- * @brief Decides which inactive instances of the dynamic device selection are released.
+ * @brief Decides which inactive instances of the dynamic device selection are released: the ones that can be reloaded
+ * from the cache, beyond the most recently used ones.
  *
  * Called on the dispatch thread right after an inference was started on the active instance, with every other
  * instance that is ready and not kept alive yet.
- */
-class EvictionPolicy {
-public:
-    virtual ~EvictionPolicy() = default;
-    virtual EvictionDecision decide(const std::vector<InstanceUsage>& inactive, Time now) const = 0;
-};
-
-/**
- * @brief Releases the inactive instances that can be reloaded from the cache, beyond the most recently used ones.
  *
  * An instance that cannot be reloaded, or that was compiled again without a cache hit, stays resident for good:
  * releasing it would turn every switch back to it into a full compilation.
  */
-class ReloadablePolicy : public EvictionPolicy {
+class ReloadablePolicy {
 public:
     // max_inactive: how many reloadable inactive instances may stay; min_idle: how long one stays after its last use
     explicit ReloadablePolicy(size_t max_inactive = 0, std::chrono::milliseconds min_idle = {});
-    EvictionDecision decide(const std::vector<InstanceUsage>& inactive, Time now) const override;
+    EvictionDecision decide(const std::vector<InstanceUsage>& inactive, Time now) const;
 
 private:
     size_t m_max_inactive;
@@ -67,7 +59,8 @@ private:
  */
 class FailurePolicy {
 public:
-    explicit FailurePolicy(std::chrono::milliseconds initial_backoff = std::chrono::seconds(1), size_t max_failures = 3);
+    explicit FailurePolicy(std::chrono::milliseconds initial_backoff = std::chrono::seconds(1),
+                           size_t max_failures = 3);
     // returns true if the device must not be selected anymore
     bool record_failure(const DeviceName& device, Time now);
     void record_success(const DeviceName& device);

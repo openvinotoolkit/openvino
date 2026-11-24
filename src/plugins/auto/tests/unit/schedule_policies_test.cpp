@@ -14,7 +14,10 @@ using ov::auto_plugin::ReloadablePolicy;
 using ov::auto_plugin::Time;
 
 namespace {
-InstanceUsage usage(const std::string& device, bool reloadable, Time last_used, std::optional<CompileStats> stats = {}) {
+InstanceUsage usage(const std::string& device,
+                    bool reloadable,
+                    Time last_used,
+                    std::optional<CompileStats> stats = {}) {
     InstanceUsage result;
     result.instance = ModelInstanceKey(device);
     result.reloadable = reloadable;

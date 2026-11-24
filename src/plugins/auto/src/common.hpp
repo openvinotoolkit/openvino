@@ -284,28 +284,19 @@ struct CompileResult {
     std::string m_error;
 };
 
-// Lifecycle of a role. The model and the workers belong to the DeviceExecutionContext of the instance, the role only
-// records whether that instance currently plays it.
-enum class RoleState {
-    Idle,     // not compiled yet, or reset for the next fallback attempt
-    Ready,    // the instance plays the role, its context is m_device_context
-    Failed,   // the compilation failed on every candidate
-    Retired   // replaced by another role: the startup helper after the actual device, or the actual device after a fallback
-};
-
 // One role of the AUTO schedule (startup helper, actual device or runtime fallback device).
-struct RoleSlot : CompileRequest {
+struct RoleSlot {
+    CompileRequest request;
     std::atomic<bool> m_is_enabled = {false};
-    std::atomic<RoleState> m_state = {RoleState::Idle};
     std::future<void> m_future;
     std::promise<void> m_promise;
-    // the instance that played the role last, never reset so readers keep seeing the last loaded model
+    // the instance that plays the role, null while it is not compiled, failed, or replaced by another role;
+    // the contexts of a schedule are never destroyed before it, so the pointer stays valid
     std::atomic<DeviceExecutionContext*> m_device_context = {nullptr};
     std::string m_err_message;
     ov::threading::Task m_task;
-    bool is_ready() const {
-        return m_state == RoleState::Ready;
-    }
+    // the role is played by an instance that holds a compiled model
+    bool is_ready() const;
     // the compiled model of the instance, empty unless it is ready
     SoCompiledModel compiled_model() const;
 };
