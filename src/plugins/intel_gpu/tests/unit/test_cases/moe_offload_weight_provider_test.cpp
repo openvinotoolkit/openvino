@@ -149,6 +149,34 @@ TEST_F(moe_les_upload, weights_stream_while_quantization_copies_resident_sources
     }
 }
 
+TEST_F(moe_les_upload, async_metadata_upload_matches_known_bytes) {
+    const std::vector<uint8_t> source{0x00, 0x10, 0x01, 0x11, 0x02, 0x12,
+                                      0x03, 0x13, 0x04, 0x14, 0x05, 0x15,
+                                      0x10, 0x32, 0x54};
+    auto transfer = copy_lane();
+    otd::ParallelWeightReader reader(path);
+    moe_weights weights;
+    weights.gate_s = buffer(6, data_types::f16);
+    weights.gate_z = buffer(6, data_types::u4);
+    auto scale_source = buffer(6, data_types::f16);
+    auto zp_source = buffer(6, data_types::u4);
+    scale_source->copy_from(*transfer, source.data(), true);
+    zp_source->copy_from(*transfer, source.data() + 12, true);
+    const std::vector<otd::SlicedTensor> plan{{weights.gate_s, 12, scale_source}, {weights.gate_z, 3, zp_source}};
+    otd::LookaheadStagingPool staging;
+    auto events = otd::fill_weights_memory_async(*transfer, reader, plan, {0}, {0}, nullptr, &staging);
+    ASSERT_EQ(events.size(), 2U);
+    for (const auto& event : events) {
+        event->wait();
+    }
+    std::vector<uint8_t> scale(12);
+    std::vector<uint8_t> zero_point(3);
+    weights.gate_s->copy_to(*transfer, scale.data(), 0, 0, scale.size(), true);
+    weights.gate_z->copy_to(*transfer, zero_point.data(), 0, 0, zero_point.size(), true);
+    EXPECT_EQ(scale, (std::vector<uint8_t>(source.begin(), source.begin() + 12)));
+    EXPECT_EQ(zero_point, (std::vector<uint8_t>(source.begin() + 12, source.end())));
+}
+
 TEST_F(moe_les_upload, staging_reuse_preserves_large_tensor_source) {
     std::vector<uint8_t> source(16 * 1024 * 1024 + 37);
     for (size_t index = 0; index < source.size(); ++index) {
@@ -203,6 +231,7 @@ TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent)
     write(std::vector<uint8_t>(256, 11));
     MOECompressed::Config expert_config{};
     expert_config.num_expert = 16;
+    expert_config.top_k = 1;
     auto provider = std::make_shared<OffloadExpertWeightProvider>(4, expert_config, std::vector<size_t>(9), path);
     moe_weights expert_weights;
     expert_weights.gate_w = engine.reinterpret_buffer(*buffer(16, data_types::u8, 4),
@@ -256,9 +285,22 @@ TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent)
     auto prediction = current_finished.get();
     prediction.ready->wait();
     uint32_t predicted_id = 0;
-    prediction.indices->copy_to(actual.get_stream(), &predicted_id, true);
+    EXPECT_EQ(prediction.indices->get_allocation_type(), allocation_type::usm_host);
+    {
+        mem_lock<uint32_t, mem_lock_type::read> indices(prediction.indices, compute);
+        predicted_id = indices[0];
+    }
     EXPECT_EQ(predicted_id, 5U);
     EXPECT_EQ(actual_id, 2U);
+    prefetcher.advance(1, 0);
+    auto consumed = std::make_shared<std::atomic<bool>>(false);
+    prefetcher.submit_prefetch({1, 1, prediction.indices, prediction.ready, provider, consumed});
+    prefetcher.drain();
+    EXPECT_TRUE(consumed->load(std::memory_order_acquire));
+    auto predicted = provider->cache().partition_3way({5}, [&] { return prefetcher.make_ready_event(); });
+    ASSERT_TRUE(predicted);
+    EXPECT_EQ(predicted->ready_pairs, std::vector<size_t>{0});
+    provider->cache().unpin_all(compute.enqueue_marker({}, true));
     std::vector<uint8_t> uploaded(16);
     expert_weights.gate_w->copy_to(compute, uploaded.data(), 0, 0, uploaded.size(), true);
     EXPECT_EQ(uploaded, std::vector<uint8_t>(16, 11));
@@ -425,7 +467,8 @@ TEST_F(moe_les_upload, current_demand_does_not_wait_for_next_prediction) {
     current_weights.gate_w = buffer(16, data_types::u8, 8);
     current_provider->bind(current_weights);
     auto compute = lane();
-    auto predicted_ids = buffer(1, data_types::i32);
+    auto predicted_ids = get_test_engine().allocate_memory(
+        layout{data_types::i32, format::bfyx, {1, 1, 1, 1}}, allocation_type::usm_host, false);
     const uint32_t predicted_expert = 1;
     predicted_ids->copy_from(*compute, &predicted_expert, true);
     compute->flush();
