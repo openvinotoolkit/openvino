@@ -3048,9 +3048,6 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
         auto k_mem = engine.allocate_memory(k_layout);
         auto v_mem = engine.allocate_memory(v_layout);
         auto mask_mem = engine.allocate_memory(mask_layout);
-        auto scalar_mask_layout = cldnn::layout({1, 1, 1, 1}, data_types::f16, format::bfyx);
-        auto scalar_mask_mem = engine.allocate_memory(scalar_mask_layout);
-        set_values(scalar_mask_mem, std::vector<ov::float16>{ov::float16(0.0f)});
 
         auto q_data = rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f);
         auto k_data = rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f);
@@ -3123,16 +3120,9 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             topo.add(input_layout("q", q_layout));
             topo.add(input_layout("k", k_layout));
             topo.add(input_layout("v", impl == "sdpa_ref" ? v_ref_layout : v_layout));
-            std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
-            // A non-const scalar mask keeps sdpa_micro out of sdpa_opt, so only its own stages run.
-            const bool pin_opt_stages = impl == "sdpa_opt";
-            if (pin_opt_stages) {
-                topo.add(input_layout("scalar_mask", scalar_mask_layout));
-                inputs.push_back(input_info("scalar_mask"));
-            }
 
             auto prim = scaled_dot_product_attention("sdpa",
-                                                     inputs,
+                                                     {input_info("q"), input_info("k"), input_info("v")},
                                                      true,
                                                      -1,
                                                      {0, 2, 1, 3},
@@ -3147,15 +3137,15 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
             ExecutionConfig cfg = config_common;
+            if (impl == "sdpa_opt") {
+                cfg.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+            }
             cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, impl}}}));
 
             auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
             net->set_input_data("q", q_mem);
             net->set_input_data("k", k_mem);
             net->set_input_data("v", v_mem);
-            if (pin_opt_stages) {
-                net->set_input_data("scalar_mask", scalar_mask_mem);
-            }
 
             auto result = net->execute().at("result").get_memory();
             assert_impl(net, impl);
@@ -3201,6 +3191,9 @@ TEST_P(sdpa_sliding_window_test, micro) {
         GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
     if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
         GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
+    const auto& gfx_ver = device_info.gfx_ver;
+    if (p.seq_q == 1 && gfx_ver.major == 12 && gfx_ver.minor == 74)
+        GTEST_SKIP() << "Single-token micro SDPA is disabled on ARL-H";
     execute(p, "sdpa_micro");
 }
 #endif
@@ -3276,7 +3269,6 @@ struct sdpa_transposed_v_test : public ::testing::TestWithParam<sdpa_transposed_
         // Dynamic V head size makes sdpa_ref the only candidate.
         const layout v_ref_layout(ov::PartialShape{batch, num_heads, seq_kv, -1}, data_types::f16, format::bfyx);
         const layout v_transposed_ref_layout(ov::PartialShape{batch, num_heads, -1, seq_kv}, data_types::f16, format::bfyx);
-        const layout scalar_mask_layout({1, 1, 1, 1}, data_types::f16, format::bfyx);
 
         const auto q_data = rg.generate_random_1d<ov::float16>(q_layout.count(), -1.0f, 1.0f);
         const auto k_data = rg.generate_random_1d<ov::float16>(k_layout.count(), -1.0f, 1.0f);
@@ -3301,22 +3293,14 @@ struct sdpa_transposed_v_test : public ::testing::TestWithParam<sdpa_transposed_
         set_values(k_mem, k_data);
         set_values(v_mem, v_data);
         set_values(v_transposed_mem, v_transposed_data);
-        auto scalar_mask_mem = engine.allocate_memory(scalar_mask_layout);
-        set_values(scalar_mask_mem, std::vector<ov::float16>{ov::float16(0.0f)});
 
         auto run_sdpa = [&](const layout& v_in_layout, const std::vector<int64_t>& v_order, const memory::ptr& v_in, const std::string& forced_impl) {
             topology topo;
             topo.add(input_layout("q", q_layout));
             topo.add(input_layout("k", k_layout));
             topo.add(input_layout("v", v_in_layout));
-            std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
-            // A non-const scalar mask keeps sdpa_micro out, so only sdpa_opt's own stages run.
-            if (forced_impl == "sdpa_opt") {
-                topo.add(input_layout("scalar_mask", scalar_mask_layout));
-                inputs.push_back(input_info("scalar_mask"));
-            }
             topo.add(scaled_dot_product_attention("sdpa",
-                                                  inputs,
+                                                  {input_info("q"), input_info("k"), input_info("v")},
                                                   p.is_causal,
                                                   -1,
                                                   {0, 1, 2, 3},
@@ -3330,18 +3314,17 @@ struct sdpa_transposed_v_test : public ::testing::TestWithParam<sdpa_transposed_
 
             ExecutionConfig cfg = get_test_default_config(engine);
             cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            if (forced_impl == "sdpa_opt") {
+                cfg.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+            }
             cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, forced_impl}}}));
 
             auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
             net->set_input_data("q", q_mem);
             net->set_input_data("k", k_mem);
             net->set_input_data("v", v_in);
-            if (forced_impl == "sdpa_opt") {
-                net->set_input_data("scalar_mask", scalar_mask_mem);
-            }
             auto result = net->execute().at("result").get_memory();
-            // sdpa_opt rejects a non-contiguous V head (when micro is unavailable), so the node falls back to sdpa_ref.
-            assert_sdpa_impl(net, forced_impl == "sdpa_opt" ? "sdpa_ref" : forced_impl);
+            assert_sdpa_impl(net, forced_impl);
             return result;
         };
 
@@ -3373,6 +3356,7 @@ TEST_P(sdpa_transposed_v_test, opt) {
     execute(GetParam(), "sdpa_opt");
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 TEST_P(sdpa_transposed_v_test, micro) {
     const auto p = GetParam();
     const auto& device_info = get_test_engine().get_device_info();
@@ -3380,8 +3364,12 @@ TEST_P(sdpa_transposed_v_test, micro) {
         GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
     if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
         GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
+    const auto& gfx_ver = device_info.gfx_ver;
+    if (p.seq_q == 1 && gfx_ver.major == 12 && gfx_ver.minor == 74)
+        GTEST_SKIP() << "Single-token micro SDPA is disabled on ARL-H";
     execute(p, "sdpa_micro");
 }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_transposed_v,
                          sdpa_transposed_v_test,
@@ -3389,8 +3377,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_transposed_v,
                                            sdpa_transposed_v_test_params{64, 8, 128, 128, 1, false},
                                            sdpa_transposed_v_test_params{64, 8, 1, 512, 1, true},
                                            sdpa_transposed_v_test_params{64, 8, 1, 512, 1, false},
+                                           sdpa_transposed_v_test_params{64, 8, 1, 519, 1, false},
                                            sdpa_transposed_v_test_params{128, 4, 64, 256, 2, true},
-                                           sdpa_transposed_v_test_params{128, 4, 64, 256, 2, false}),
+                                           sdpa_transposed_v_test_params{128, 4, 64, 256, 2, false},
+                                           sdpa_transposed_v_test_params{128, 4, 64, 259, 1, false}),
                          [](const testing::TestParamInfo<sdpa_transposed_v_test_params>& info) {
                              return "h" + std::to_string(info.param.head_size) + "_n" + std::to_string(info.param.num_heads) + "_sq" +
                                     std::to_string(info.param.seq_q) + "_sk" + std::to_string(info.param.seq_kv) + "_b" + std::to_string(info.param.batch) +
