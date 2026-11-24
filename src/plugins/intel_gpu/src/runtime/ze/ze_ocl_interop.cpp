@@ -11,15 +11,15 @@ namespace cldnn {
 namespace ze {
 namespace {
 
-static constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x42B0;
-static constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x42B1;
-static constexpr cl_uint CL_L0_EVENT_HANDLE = 0x42B2;
-static constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x42B3;
-static constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
-static constexpr cl_uint CL_L0_PLATFORM_DRIVER_HANDLE = 0x42B5;
-static constexpr cl_uint CL_L0_IMAGE_HANDLE = 0x42B6;
+constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x42B0;
+constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x42B1;
+constexpr cl_uint CL_L0_EVENT_HANDLE = 0x42B2;
+constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x42B3;
+constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
+constexpr cl_uint CL_L0_PLATFORM_DRIVER_HANDLE = 0x42B5;
+constexpr cl_uint CL_L0_IMAGE_HANDLE = 0x42B6;
 
-static constexpr cl_mem_properties CL_L0_IMAGE_LIST_END_HANDLE = 0;
+constexpr cl_mem_properties CL_L0_IMAGE_LIST_END_HANDLE = 0;
 
 inline void expect_success(cl_int error, void *handle, const std::string& message) {
     if (error != CL_SUCCESS || handle == nullptr) {
