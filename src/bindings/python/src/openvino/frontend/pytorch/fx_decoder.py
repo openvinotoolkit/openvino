@@ -703,6 +703,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             if isinstance(value, torch.Tensor) and not value.is_complex() and str(value.dtype) in pt_to_ov_type_map:
                 return OVAny(pt_to_ov_type_map[str(value.dtype)])
             return OVAny(None)
+        if name == "__openvino_legacy_op_type":
+            return OVAny(self.get_legacy_op_type())
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):
@@ -792,12 +794,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
-            if self.pt_module.target in (torch.sym_float, torch.sym_min, torch.sym_max):
-                return "aten." + self.pt_module.target.__name__
-            if type(self.pt_module.target).__name__ == "EdgeOpOverload":
-                name = self.pt_module.target.__name__
+            target = self.pt_module.target
+            if type(target).__name__ == "EdgeOpOverload":
+                name = target.__name__
+            elif inspect.isfunction(target):
+                name = f"{target.__module__}.{target.__qualname__}"
             else:
-                name = str(self._functional_out_target(self.pt_module.target))
+                name = str(self._functional_out_target(target))
             if self._module_extension_target_ops:
                 if name in self._module_extension_target_ops:
                     return self._module_extension_target_ops[name]
@@ -806,6 +809,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
             return "UNKNOWN_TYPE_" + str(self.pt_module.op)
+
+    def get_legacy_op_type(self):
+        if (isinstance(self.pt_module, torch.fx.Node) and self.pt_module.op == "call_function"
+                and inspect.isfunction(self.pt_module.target)):
+            return str(self.pt_module.target)
+        return ""
 
     def get_schema(self):
         schema = getattr(getattr(self.pt_module, "target", None), "_schema", None)
@@ -868,6 +877,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return max_out_id + 1
 
     def _node_name_prefix(self):
+        for module_path, _ in reversed(self.pt_module.meta.get("nn_module_stack", {}).values()):
+            if module_path:
+                return f"{module_path}/{self.pt_module.name}"
         return self.pt_module.name
 
     def as_constant(self):

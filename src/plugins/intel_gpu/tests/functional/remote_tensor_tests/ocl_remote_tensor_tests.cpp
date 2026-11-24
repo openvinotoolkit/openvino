@@ -5,6 +5,7 @@
 #ifdef OV_GPU_WITH_OCL_RT
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -2750,6 +2751,63 @@ TEST(RemoteTensor, smoke_CopyToEmptyTensor) {
                                   ov::Exception,
                                   "Check '_impl != nullptr' failed");
 }
+
+using SubByteTensorParams = std::tuple<ov::element::Type, ov::Shape>;
+
+struct RemoteTensorSubByteStrides : ::testing::TestWithParam<SubByteTensorParams> {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<SubByteTensorParams>& obj) {
+        const auto& [et, shape] = obj.param;
+        std::ostringstream name;
+        name << et;
+        for (const auto dim : shape)
+            name << "_" << dim;
+        return name.str();
+    }
+};
+
+TEST_P(RemoteTensorSubByteStrides, smoke_StridesAndCopy) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const auto& [et, shape] = GetParam();
+    auto core = ov::Core();
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    const auto is_byte_aligned = (shape.back() * et.bitwidth()) % 8 == 0;
+
+    auto remote_tensor = context.create_tensor(et, shape);
+    auto host_tensor = context.create_host_tensor(et, shape);
+    EXPECT_TRUE(remote_tensor.is_continuous());
+    EXPECT_TRUE(host_tensor.is_continuous());
+
+    if (is_byte_aligned) {
+        const auto expected_strides = ov::Tensor(et, shape).get_strides();
+        EXPECT_EQ(remote_tensor.get_strides(), expected_strides);
+        EXPECT_EQ(host_tensor.get_strides(), expected_strides);
+    } else {
+        EXPECT_TRUE(remote_tensor.get_strides().empty());
+        EXPECT_TRUE(host_tensor.get_strides().empty());
+    }
+
+    auto* src = static_cast<uint8_t*>(host_tensor.data());
+    for (size_t i = 0; i < host_tensor.get_byte_size(); ++i)
+        src[i] = static_cast<uint8_t>(i * 7 + 3);
+
+    ov::Tensor dst(et, shape);
+    OV_ASSERT_NO_THROW(host_tensor.copy_to(dst));
+    ASSERT_EQ(dst.get_byte_size(), host_tensor.get_byte_size());
+    EXPECT_EQ(0, std::memcmp(dst.data(), host_tensor.data(), dst.get_byte_size()));
+
+    ov::Tensor result(et, shape);
+    OV_ASSERT_NO_THROW(host_tensor.copy_to(remote_tensor));
+    OV_ASSERT_NO_THROW(remote_tensor.copy_to(result));
+    EXPECT_EQ(0, std::memcmp(result.data(), host_tensor.data(), result.get_byte_size()));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorSubByteStrides,
+                         RemoteTensorSubByteStrides,
+                         ::testing::Combine(::testing::Values(ov::element::u1, ov::element::u2, ov::element::u4, ov::element::i4),
+                                            ::testing::Values(ov::Shape{16}, ov::Shape{2, 3, 8}, ov::Shape{1, 4, 32}, ov::Shape{3, 5})),
+                         RemoteTensorSubByteStrides::getTestCaseName);
 
 TEST(RemoteTensor, smoke_EmptyRoiTensor) {
 #if defined(ANDROID)
