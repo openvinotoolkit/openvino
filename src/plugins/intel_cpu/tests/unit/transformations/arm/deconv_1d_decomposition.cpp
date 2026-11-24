@@ -31,7 +31,6 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/convolution.hpp"
@@ -192,16 +191,22 @@ public:
         auto pad_value = ov::op::v0::Constant::create(result.get_element_type(), {}, {0});
         result = std::make_shared<ov::op::v1::Pad>(result, pads_begin_dyn, pads_end_dyn, pad_value, ov::op::PadMode::CONSTANT);
 
-        // Weights: reshape to 4D and transpose
-        auto weights_shape_1d = shape_of_i32(weights_e);
-        auto weights_4d_shape = concat0({weights_shape_1d, c1_1d()});
-        auto weights_4d = std::make_shared<ov::op::v1::Reshape>(weights_e, weights_4d_shape, false);
-        std::vector<int32_t> transpose_order = {1, 0, 2, 3};
-        auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {4}, transpose_order);
-        auto weights_transposed = std::make_shared<ov::op::v1::Transpose>(weights_4d, transpose_const);
-        auto reverse_axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
-        auto weights_reversed =
-            std::make_shared<ov::op::v1::Reverse>(weights_transposed, reverse_axes, ov::op::v1::Reverse::Mode::INDEX);
+        const auto in_channels = p.weights_shape[0];
+        const auto out_channels = p.weights_shape[1];
+        const auto kernel_size = p.weights_shape[2];
+        std::vector<float> expected_weights(in_channels * out_channels * kernel_size);
+        for (size_t in = 0; in < in_channels; ++in) {
+            for (size_t out = 0; out < out_channels; ++out) {
+                for (size_t k = 0; k < kernel_size; ++k) {
+                    const auto src = (in * out_channels + out) * kernel_size + (kernel_size - 1 - k);
+                    const auto dst = (out * in_channels + in) * kernel_size + k;
+                    expected_weights[dst] = p.weight_values.size() == 1 ? p.weight_values[0] : p.weight_values[src];
+                }
+            }
+        }
+        auto weights_reversed = ov::op::v0::Constant::create(ov::element::f32,
+                                                             ov::Shape{out_channels, in_channels, kernel_size, 1},
+                                                             expected_weights);
 
         // 2D Convolution
         ov::Strides conv_strides{1, 1};
@@ -436,3 +441,29 @@ INSTANTIATE_TEST_SUITE_P(AsymmetricKernel,
                                                              18.0f},
                                                             true}),
                          DeconvDecomposition1DTest::getTestCaseName);
+
+TEST(Deconv1DDecomposition, PreservesWeightBranchWhenWeightsAreNotConstant) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
+    auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
+    auto deconv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(input,
+                                                                        weights,
+                                                                        ov::Strides{1},
+                                                                        ov::CoordinateDiff{0},
+                                                                        ov::CoordinateDiff{0},
+                                                                        ov::Strides{1},
+                                                                        ov::op::PadType::EXPLICIT);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{deconv}, ov::ParameterVector{input, weights});
+
+    ov::pass::Manager manager;
+    manager.register_pass<Deconv1DDecomposition>();
+    manager.run_passes(model);
+
+    std::shared_ptr<ov::op::v1::Convolution> conv;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto candidate = ov::as_type_ptr<ov::op::v1::Convolution>(op)) {
+            conv = candidate;
+        }
+    }
+    ASSERT_NE(conv, nullptr);
+    EXPECT_NE(ov::as_type_ptr<ov::op::v1::Reverse>(conv->input_value(1).get_node_shared_ptr()), nullptr);
+}
