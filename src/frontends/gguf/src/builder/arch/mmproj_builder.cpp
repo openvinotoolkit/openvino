@@ -1484,12 +1484,11 @@ MmprojEncoders build_mmproj_encoders(GgufGraphContext& g,
             continue;
         const auto type = resolve_projector_type(ctx.metadata, modality);
         const auto definition = registry.find(ctx.metadata, modality, type);
-        std::string reason;
-        if (const auto it = failed.find(modality); it != failed.end())
-            reason = it->second;
-        else if (!definition)
-            reason = "no registered builder; register a ProjectorExtension";
-        if (!reason.empty()) {
+        const auto it = failed.find(modality);
+        if (it != failed.end() || !definition) {
+            const auto reason = it != failed.end()
+                                    ? (it->second.empty() ? std::string("projector builder failed") : it->second)
+                                    : std::string("no registered builder; register a ProjectorExtension");
             config[modality + ".projector"] = type;
             config[modality + ".supported"] = "false";
             encoders.skipped.push_back(modality + " '" + type + "': " + reason);

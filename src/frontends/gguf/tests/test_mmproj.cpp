@@ -7,6 +7,7 @@
 #include <cstring>
 #include <filesystem>
 #include <sstream>
+#include <stdexcept>
 #include <unordered_map>
 
 #include "builder/api/metadata_store.hpp"
@@ -1624,6 +1625,17 @@ TEST_F(GGUFMMProj, FailingProjectorIsRolledBackAndSkipped) {
     const auto components = adapt_to_genai(model);
     ASSERT_EQ(components.size(), 1);
     EXPECT_EQ(components.count("audio_embeddings"), 1);
+
+    ProjectorDefinition silent = failing;
+    silent.build = [](GgufGraphContext&) -> ProjectorResult {
+        throw std::runtime_error("");
+    };
+    FrontEnd silent_frontend;
+    silent_frontend.add_extension(std::make_shared<ProjectorExtension>(silent));
+    silent_frontend.add_extension(std::make_shared<ProjectorExtension>(audio));
+    auto audio_only = silent_frontend.convert(silent_frontend.load(path));
+    ASSERT_EQ(audio_only->outputs().size(), 1);
+    EXPECT_EQ(audio_only->get_rt_info<std::string>({"gguf_mmproj", "vision.supported"}), "false");
 
     FrontEnd vision_only;
     vision_only.add_extension(std::make_shared<ProjectorExtension>(failing));
