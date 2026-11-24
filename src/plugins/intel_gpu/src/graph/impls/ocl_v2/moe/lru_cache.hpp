@@ -66,6 +66,7 @@ struct CacheItemExtended {
     uint64_t generation = 0;
     bool loading = false;
     bool demanded = false;
+    bool copying = false;
 };
 
 class LRUCache {
@@ -99,6 +100,8 @@ public:
                                           const EventFactory& make_event,
                                           const std::vector<uint32_t>& predicted_experts = {});
     bool complete_load(const Load& load);
+    bool start_load(const Load& load);
+    bool fail_load(const Load& load);
     bool cancel_load(const Load& load);
     std::optional<Load> get_pending_load(uint32_t expert_id) const;
     void unpin_all(const cldnn::event::ptr& complete_event);

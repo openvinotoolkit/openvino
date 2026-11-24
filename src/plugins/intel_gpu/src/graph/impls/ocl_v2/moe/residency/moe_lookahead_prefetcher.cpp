@@ -147,6 +147,8 @@ struct ExpertPrefetcher::State {
     void finish(Job& job, cl_int status) {
         if (status == CL_COMPLETE) {
             job.binding->cache->complete_load(job.load);
+        } else {
+            job.binding->cache->fail_load(job.load);
         }
         signal(job.load.ready_event, status);
         if (job.batch && (status != CL_COMPLETE || --job.batch->remaining == 0)) {
@@ -331,6 +333,7 @@ struct ExpertPrefetcher::State {
                             dynamic_cast<cldnn::ocl::ocl_stream&>(*dma).enqueue_external_barrier({selected->load.last_use_event});
                         }
                         auto& source = *selected->binding;
+                        source.cache->start_load(selected->load);
                         moe_otd::fill_weights_memory_async(*dma, source.config, source.offsets, *source.reader,
                                                            source.weights, {selected->load.expert_id}, {selected->load.slot},
                                                            nullptr, &staging);

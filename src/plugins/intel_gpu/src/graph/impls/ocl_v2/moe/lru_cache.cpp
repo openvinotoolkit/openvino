@@ -326,6 +326,25 @@ std::optional<LRUCache::Load> LRUCache::get_pending_load(uint32_t expert_id) con
     return Load{expert_id, node.lru_expert_no, node.state.generation, node.state.ready_event, node.state.last_use_event};
 }
 
+bool LRUCache::start_load(const Load& load) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto found = m_map.find(Key{load.expert_id});
+    if (found == m_map.end() || found->second->state.generation != load.generation ||
+        !found->second->state.loading || found->second->state.copying)
+        return false;
+    found->second->state.copying = true;
+    return true;
+}
+
+bool LRUCache::fail_load(const Load& load) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto found = m_map.find(Key{load.expert_id});
+    if (found == m_map.end() || found->second->state.generation != load.generation || !found->second->state.loading)
+        return false;
+    found->second->state.copying = false;
+    return true;
+}
+
 bool LRUCache::complete_load(const Load& load) {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto found = m_map.find(Key{load.expert_id});
@@ -334,6 +353,7 @@ bool LRUCache::complete_load(const Load& load) {
     }
     auto& node = *found->second;
     node.state.loading = false;
+    node.state.copying = false;
     if (node.state.status != SlotStatus::PINNED) {
         node.state.status = SlotStatus::READY;
     }
@@ -345,7 +365,7 @@ bool LRUCache::cancel_load(const Load& load) {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto found = m_map.find(Key{load.expert_id});
     if (found == m_map.end() || found->second->state.generation != load.generation ||
-        found->second->state.demanded || !found->second->state.loading) {
+        found->second->state.demanded || found->second->state.copying || !found->second->state.loading) {
         return false;
     }
     m_filled_list[found->second->lru_expert_no] = false;
