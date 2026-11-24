@@ -148,6 +148,21 @@ public:
     Out less(const Out& a, const Out& b) {
         return make<op::v1::Less>(a, b);
     }
+    Out greater(const Out& a, const Out& b) {
+        return make<op::v1::Greater>(a, b);
+    }
+    Out ge(const Out& a, const Out& b) {
+        return make<op::v1::GreaterEqual>(a, b);
+    }
+    Out le(const Out& a, const Out& b) {
+        return make<op::v1::LessEqual>(a, b);
+    }
+    Out land(const Out& a, const Out& b) {
+        return make<op::v1::LogicalAnd>(a, b);
+    }
+    Out lor(const Out& a, const Out& b) {
+        return make<op::v1::LogicalOr>(a, b);
+    }
     Out select(const Out& c, const Out& a, const Out& b) {
         return make<op::v1::Select>(c, a, b);
     }
@@ -172,6 +187,18 @@ public:
     Out broadcast(const Out& x, const Out& shape) {
         return make<op::v3::Broadcast>(x, shape);
     }
+    Out reduce_sum(const Out& x, const Out& axes) {
+        return make<op::v1::ReduceSum>(x, axes, false);
+    }
+    Out reduce_mean(const Out& x, const Out& axes, bool keep_dims) {
+        return make<op::v1::ReduceMean>(x, axes, keep_dims);
+    }
+    Out shape_of(const Out& x) {
+        return make<op::v3::ShapeOf>(x, ov::element::i64);
+    }
+    Out reshape(const Out& x, const Out& shape) {
+        return make<op::v1::Reshape>(x, shape, false);
+    }
 
     const ov::NodeVector& nodes() const {
         return m_nodes;
@@ -195,7 +222,7 @@ struct MaskInfo {
 
 MaskInfo build_mask_info(Builder& b, const std::shared_ptr<op::v0::Parameter>& attention_mask) {
     const auto mask = attention_mask->output(0);
-    const auto valid_bool = b.make<op::v1::Greater>(mask, b.scalar_like(0.0f, mask.get_element_type()));
+    const auto valid_bool = b.greater(mask, b.scalar_like(0.0f, mask.get_element_type()));
     const auto valid = b.convert(valid_bool, ov::element::i64);
     const auto count = b.make<op::v0::CumSum>(valid, b.i64(1));
     const auto positions = b.select(valid_bool, b.sub(count, b.i64(1)), b.i64(-1));
@@ -253,8 +280,8 @@ ov::OutputVector decompose_qsa_prepare(Builder& b,
     // Only full-width reductions: a [0, split) slice is empty when a prefill chunk covers the whole
     // prompt (split == 0), and the NPU cannot execute empty tensors. Deriving past as total - current
     // keeps both reduction inputs non-empty ([N, S] and [N, L] with L >= 1).
-    const auto total = b.make<op::v1::ReduceSum>(m.valid, b.i64v({1}), false);
-    const auto current = b.make<op::v1::ReduceSum>(b.slice(m.valid, split, b.i64v({kEnd}), 1), b.i64v({1}), false);
+    const auto total = b.reduce_sum(m.valid, b.i64v({1}));
+    const auto current = b.reduce_sum(b.slice(m.valid, split, b.i64v({kEnd}), 1), b.i64v({1}));
     const auto past = b.sub(total, current);
     const auto num_cached = b.div(past, ratio);
     const auto pending_past = b.sub(past, b.mul(num_cached, ratio));  // past tokens of the incomplete block
@@ -278,12 +305,11 @@ ov::OutputVector decompose_qsa_prepare(Builder& b,
     const auto gathered = b.gather(tokens, source_rows(t, offset, b.sub(num_tokens, one)), 1, 1);  // [N, J * r, Di]
 
     // 2. mean-pool and RMS-normalize every block that can be completed
-    auto keys = b.make<op::v1::Reshape>(gathered, b.vec({batch, num_steps, ratio, head_dim}), false);
-    keys = b.make<op::v1::ReduceMean>(b.convert(keys, ov::element::f32), b.i64(2), false);  // [N, J, Di]
+    auto keys = b.reshape(gathered, b.vec({batch, num_steps, ratio, head_dim}));
+    keys = b.reduce_mean(b.convert(keys, ov::element::f32), b.i64(2), false);  // [N, J, Di]
     if (!is_empty(k_norm_weight)) {
-        const auto mean_square = b.make<op::v1::ReduceMean>(b.mul(keys, keys), b.i64(-1), true);
-        const auto inv_rms =
-            b.make<op::v1::Divide>(b.f32(1.0f), b.make<op::v0::Sqrt>(b.add(mean_square, b.f32(node->get_epsilon()))));
+        const auto mean_square = b.reduce_mean(b.mul(keys, keys), b.i64(-1), true);
+        const auto inv_rms = b.div(b.f32(1.0f), b.make<op::v0::Sqrt>(b.add(mean_square, b.f32(node->get_epsilon()))));
         keys = b.mul(b.mul(keys, inv_rms), b.convert(k_norm_weight, ov::element::f32));
     }
 
@@ -346,7 +372,7 @@ ov::OutputVector decompose_qsa_prepare(Builder& b,
     if (use_rope) {
         const auto [rest_cos, rest_sin] = rope_at(b.unsq(b.mul(num_new, ratio), 1));                 // [N, 1, Dr]
         incomplete_rope = b.make<op::v0::Squeeze>(b.concat({rest_cos, rest_sin}, -1), b.i64v({1}));  // [N, 2 * Dr]
-        const auto has_rest = b.unsq(b.make<op::v1::Greater>(rest, zero), 1);
+        const auto has_rest = b.unsq(b.greater(rest, zero), 1);
         incomplete_rope = b.select(has_rest, incomplete_rope, b.f32(0.0f));
     } else {
         incomplete_rope = b.broadcast(b.f32(0.0f), b.vec({batch, zero}));
@@ -430,11 +456,9 @@ ov::OutputVector decompose_indexer(Builder& b,
         scores = b.mul(scores, b.unsq(weights, -1));
     }
     const auto group_size = b.div(num_index_heads, b.i64(num_selection_heads));
-    scores = b.make<op::v1::Reshape>(
-        scores,
-        b.vec({batch, b.i64(num_selection_heads), group_size, query_length, b.i64(num_blocks + 1)}),
-        false);
-    scores = b.make<op::v1::ReduceSum>(scores, b.i64(2), false);  // [N, Hs, L, B + 1]
+    scores =
+        b.reshape(scores, b.vec({batch, b.i64(num_selection_heads), group_size, query_length, b.i64(num_blocks + 1)}));
+    scores = b.reduce_sum(scores, b.i64(2));  // [N, Hs, L, B + 1]
 
     // a query at the position p sees the blocks b < (p + 1) / r; a padding query (p = -1) sees none
     const auto positions = query_positions(b, m, query_length);  // [N, L]
@@ -444,9 +468,10 @@ ov::OutputVector decompose_indexer(Builder& b,
     scores = b.select(b.unsq(visible, 1), scores, b.f32(-std::numeric_limits<float>::infinity()));
 
     // stable top-k: equal scores -> smaller block index first
-    const int64_t k = std::min(block_topk, num_blocks + 1);
+    // block_topk < num_blocks here (see the early return above), so the num_blocks + 1 score columns
+    // always cover the request: TopK never truncates and no padding of the selection is needed.
     const auto topk = b.make_node<op::v11::TopK>(scores,
-                                                 b.i64(k),
+                                                 b.i64(block_topk),
                                                  -1,
                                                  op::TopKMode::MAX,
                                                  op::TopKSortType::SORT_VALUES,
@@ -454,13 +479,6 @@ ov::OutputVector decompose_indexer(Builder& b,
                                                  true);
     Out block_indices = topk->output(1);
     const auto minus_one = b.make<op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{-1});
-    if (k < block_topk) {
-        block_indices = b.make<op::v12::Pad>(block_indices,
-                                             b.i64v({0, 0, 0, 0}),
-                                             b.i64v({0, 0, 0, block_topk - k}),
-                                             minus_one,
-                                             op::PadMode::CONSTANT);
-    }
 
     const auto block_count = b.min(num_visible, b.i64(block_topk));  // [N, L]
     const auto slots = b.range(zero, b.i64(block_topk));
@@ -471,8 +489,8 @@ ov::OutputVector decompose_indexer(Builder& b,
 
     // the mask of the selected visible blocks: a top-k that has fewer visible blocks than k also returns invisible ones
     const auto topk_ids = b.convert(topk->output(1), ov::element::i64);
-    const auto no_blocks = b.broadcast(b.f32(0.0f), b.make<op::v3::ShapeOf>(scores, ov::element::i64));
-    const auto marks = b.broadcast(b.f32(1.0f), b.make<op::v3::ShapeOf>(topk_ids, ov::element::i64));
+    const auto no_blocks = b.broadcast(b.f32(0.0f), b.shape_of(scores));
+    const auto marks = b.broadcast(b.f32(1.0f), b.shape_of(topk_ids));
     auto selected = b.make<op::v3::ScatterElementsUpdate>(no_blocks, topk_ids, marks, b.i64(-1));
     selected = b.select(b.unsq(visible, 1), selected, b.f32(0.0f));
 
@@ -494,7 +512,7 @@ Out repeat_heads(Builder& b,
     const auto expanded = b.broadcast(b.unsq(x, 2), b.vec(shape));
     std::vector<Out> out_shape{batch, num_heads};
     out_shape.insert(out_shape.end(), rest.begin(), rest.end());
-    return b.make<op::v1::Reshape>(expanded, b.vec(out_shape), false);
+    return b.reshape(expanded, b.vec(out_shape));
 }
 
 // SparseAttention as a dense SDPA: the mask allows the tokens of the selected blocks and the causal tail.
@@ -541,29 +559,26 @@ Out decompose_sparse_attention(Builder& b,
         block_indices = b.select(valid, block_indices, num_key_blocks);
         block_mask = b.broadcast(b.f32(0.0f),
                                  b.vec({batch, num_selection_heads, query_length, b.add(num_key_blocks, b.i64(2))}));
-        block_mask =
-            b.make<op::v3::ScatterElementsUpdate>(block_mask,
-                                                  block_indices,
-                                                  b.broadcast(b.f32(1.0f), b.make<op::v3::ShapeOf>(block_indices)),
-                                                  b.i64(-1));
+        block_mask = b.make<op::v3::ScatterElementsUpdate>(block_mask,
+                                                           block_indices,
+                                                           b.broadcast(b.f32(1.0f), b.shape_of(block_indices)),
+                                                           b.i64(-1));
     }
 
     // token mask [N, Hs, L, S]: the block of every key slot within its sequence
     const auto& positions = m.positions;  // [N, S]
-    const auto is_valid_key = b.make<op::v1::GreaterEqual>(positions, zero);
+    const auto is_valid_key = b.ge(positions, zero);
     auto key_blocks = b.select(is_valid_key, b.div(b.max(positions, zero), ratio), b.add(num_key_blocks, one));
     key_blocks = b.broadcast(b.make<op::v0::Unsqueeze>(key_blocks, b.i64v({1, 2})),
                              b.vec({batch, num_selection_heads, query_length, num_positions}));
-    auto mask = b.make<op::v1::Greater>(b.make<op::v6::GatherElements>(block_mask, key_blocks, 3), b.f32(0.0f));
+    auto mask = b.greater(b.make<op::v6::GatherElements>(block_mask, key_blocks, 3), b.f32(0.0f));
     if (node->get_causal()) {
         const auto query_pos = query_positions(b, m, query_length);  // [N, L]
         const auto tail_begin = b.mul(b.div(b.add(query_pos, one), ratio), ratio);
         const auto key_pos = b.unsq(positions, 1);  // [N, 1, S]
-        const auto tail = b.make<op::v1::LogicalAnd>(
-            b.make<op::v1::LogicalAnd>(b.make<op::v1::GreaterEqual>(key_pos, b.unsq(tail_begin, -1)),
-                                       b.make<op::v1::LessEqual>(key_pos, b.unsq(query_pos, -1))),
-            b.make<op::v1::GreaterEqual>(key_pos, zero));  // [N, L, S]
-        mask = b.make<op::v1::LogicalOr>(mask, b.unsq(tail, 1));
+        const auto tail = b.land(b.land(b.ge(key_pos, b.unsq(tail_begin, -1)), b.le(key_pos, b.unsq(query_pos, -1))),
+                                 b.ge(key_pos, zero));  // [N, L, S]
+        mask = b.lor(mask, b.unsq(tail, 1));
     }
 
     // a single selection head broadcasts over the query heads in the SDPA
@@ -683,6 +698,12 @@ bool ov::npuw::ConvertSparseAttentionToDense::run_on_model(const std::shared_ptr
         }
     }
     OPENVINO_ASSERT(ratio > 0, "ConvertSparseAttentionToDense: no QSAPrepare operation");
+    OPENVINO_ASSERT(static_cast<int64_t>(m_max_kv_len) % ratio == 0,
+                    "ConvertSparseAttentionToDense: the KV cache length ",
+                    m_max_kv_len,
+                    " must be a multiple of the QSA key block size ",
+                    ratio,
+                    "; a non-zero remainder would leave the tail tokens without a key block");
     const int64_t num_blocks = static_cast<int64_t>(m_max_kv_len) / ratio;
     OPENVINO_ASSERT(num_blocks > 0, "ConvertSparseAttentionToDense: the KV cache is shorter than one key block");
     for (const auto& [state, param] : past) {

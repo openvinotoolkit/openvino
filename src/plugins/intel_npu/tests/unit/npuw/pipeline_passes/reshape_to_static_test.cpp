@@ -174,7 +174,6 @@ TEST_F(ReshapeToStaticPassTest, MaxGenerationTokenLenDrivesGenerateInputShape) {
 
 }  // namespace
 
-
 // ---------------------------------------------------------------------------
 // Direct ReshapeToStatic unit tests for Qwen3-VL inputs
 // ---------------------------------------------------------------------------
@@ -187,7 +186,6 @@ namespace {
 
 using ov::npuw::KVAxesPosition;
 using ov::npuw::ReshapeToStatic;
-
 
 // --- Test 5 -------------------------------------------------------------------------
 // per_layer_inputs is consumed by Add with a static sibling tensor. The pass should
@@ -244,10 +242,10 @@ std::shared_ptr<ov::Model> build_model_with_lincache_inputs() {
     ssm->output(0).set_names({"cache_params.past.ssm.0"});
 
     auto result = std::make_shared<ov::op::v0::Result>(input_ids);
-    return std::make_shared<ov::Model>(ov::ResultVector{result},
-                                       ov::ParameterVector{input_ids, attention_mask, position_ids,
-                                                           kv_key, kv_value, conv, ssm},
-                                       "lincache_reshape_model");
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{result},
+        ov::ParameterVector{input_ids, attention_mask, position_ids, kv_key, kv_value, conv, ssm},
+        "lincache_reshape_model");
 }
 
 // --- Test 6 -------------------------------------------------------------------------
@@ -264,8 +262,7 @@ TEST_F(ReshapeToStaticPassTest, LinCacheInputsOnlyBatchIsReshaped) {
                                           /*lora_rank=*/0)
                     .run_on_model(model));
 
-    EXPECT_TRUE(all_inputs_static(model))
-        << "At least one input still has a dynamic dimension after ReshapeToStatic";
+    EXPECT_TRUE(all_inputs_static(model)) << "At least one input still has a dynamic dimension after ReshapeToStatic";
 
     // Conv linear cache: batch=1, other dims unchanged
     const auto conv_shape = input_shape(model, "cache_params.past.conv.0");
@@ -324,7 +321,6 @@ TEST_F(ReshapeToStaticPassTest, QSAStateInputsOnlyBatchIsReshaped) {
 
 }  // namespace
 
-
 // ---------------------------------------------------------------------------
 // Direct ReshapeToStatic unit tests for Qwen3-VL inputs
 // ---------------------------------------------------------------------------
@@ -341,23 +337,20 @@ using ov::npuw::ReshapeToStatic;
 // Build a minimal model that contains visual_pos_masks and attention_mask.
 // Both are dynamic so ReshapeToStatic must assign static shapes to them.
 static std::shared_ptr<ov::Model> build_vlm_inputs_model() {
-    auto visual_pos_masks =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::PartialShape{-1, -1});
+    auto visual_pos_masks = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::PartialShape{-1, -1});
     visual_pos_masks->set_friendly_name("visual_pos_masks");
     visual_pos_masks->output(0).set_names({"visual_pos_masks"});
 
-    auto attention_mask =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::PartialShape{-1, -1});
+    auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::PartialShape{-1, -1});
     attention_mask->set_friendly_name("attention_mask");
     attention_mask->output(0).set_names({"attention_mask"});
 
     auto r1 = std::make_shared<ov::op::v0::Result>(visual_pos_masks);
     auto r2 = std::make_shared<ov::op::v0::Result>(attention_mask);
 
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{r1, r2},
-        ov::ParameterVector{visual_pos_masks, attention_mask},
-        "vlm_inputs_model");
+    return std::make_shared<ov::Model>(ov::ResultVector{r1, r2},
+                                       ov::ParameterVector{visual_pos_masks, attention_mask},
+                                       "vlm_inputs_model");
 }
 
 // --- Test 6 -------------------------------------------------------------------
