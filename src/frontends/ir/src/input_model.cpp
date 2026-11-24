@@ -242,15 +242,13 @@ private:
 
 InputModel::InputModel(std::istream& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path) {
+                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path) {
+                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
 }
 
@@ -267,6 +265,10 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);
+    // `__weights_path` is an internal, legacy bridge and not part of the IR format: it hands the weights file the
+    // frontend resolved to plugins that need it after read_model (GPU MoE offload, weightless cache import) until
+    // they receive the path through an explicit property or compilation context, when it is to be removed.
+    // The provider carries the path of the file it was built from, whether file-backed or a buffer loaded from it.
     if (m_weights_provider) {
         const auto weights_path = m_weights_provider->path();
         if (!weights_path.empty())
