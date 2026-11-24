@@ -8,7 +8,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-all_comp=(core dev gpu python)
+all_comp=(dev gpu python)
 os=${os:-auto}
 
 # public options
@@ -22,17 +22,18 @@ comp=()
 keepcache=
 selftest=
 
+usage() {
+    echo "Options:"
+    echo "  -y          non-interactive run (off)"
+    echo "  -n          dry-run, assume no (off)"
+    echo "  -c=<name>   install component <name>, can be repeated (${all_comp[*]})"
+    echo "  -e          add extra repositories (RHEL 8, 9 only; no effect on other OSes) (off)"
+    echo "  -p          print package list and exit (off)"
+}
+
 while :; do
     case $1 in
-        -h|-\?|--help)
-            echo "Options:"
-            echo "  -y          non-interactive run (off)"
-            echo "  -n          dry-run, assume no (off)"
-            echo "  -c=<name>   install component <name>, can be repeated (${all_comp[*]})"
-            echo "  -e          add extra repositories (RHEL 8, 9) (off)"
-            echo "  -p          print package list and exit (off)"
-            exit
-            ;;
+        -h|-\?|--help) usage; exit ;;
         -y) interactive= ;;
         -n) dry=yes ;;
         -c=?*) comp+=("${1#*=}") ;;
@@ -40,7 +41,8 @@ while :; do
         -p) print=yes ;;
         --selftest) selftest=yes ;;
         --keepcache) keepcache=yes ;;
-        *) break ;;
+        "") break ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
     esac
     shift
 done
@@ -50,10 +52,26 @@ if [ ${#comp[@]} -eq 0 ]; then
     comp=("${all_comp[@]}")
 fi
 
+# Validate component names
+for c in "${comp[@]}"; do
+    valid=
+    for a in "${all_comp[@]}"; do
+        [ "$c" == "$a" ] && valid=yes
+    done
+    if [ -z "$valid" ]; then
+        echo "Unknown component: ${c} (valid: ${all_comp[*]})" >&2
+        exit 1
+    fi
+done
+
 #===================================================================================================
 #  Selftest
 
 if [ -n "$selftest" ] ; then
+    # -t requires a TTY; use it only when one is available (e.g. not in CI)
+    tty_opt=(-i)
+    [ -t 0 ] && tty_opt=(-it)
+
     for image in centos:8 centos:9 rhel:8 rhel:9.1 \
                  almalinux:8.7 \
                  fedora:43 fedora:44 fedora:45 \
@@ -64,13 +82,15 @@ if [ -n "$selftest" ] ; then
             echo "|| Test $image / '$opt'"
             echo "||"
             SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE:-$0}")" )" >/dev/null 2>&1 && pwd )"
-            docker run -it --rm \
+            # $opt is intentionally unquoted so combined options split into separate arguments
+            # shellcheck disable=SC2086
+            docker run "${tty_opt[@]}" --rm \
                 --volume "${SCRIPT_DIR}":/scripts:ro,Z  \
                 --volume yum-cache:/var/cache/yum \
                 --volume apt-cache:/var/cache/apt/archives \
                 -e DEBIAN_FRONTEND=noninteractive \
                 $image \
-                bash "/scripts/${0##*/}" "$opt" --keepcache
+                bash "/scripts/${0##*/}" $opt --keepcache
             echo "||"
             echo "|| Completed: $image / '$opt'"
             echo "||"
@@ -87,7 +107,7 @@ fi
 if [ "$os" == "auto" ] ; then
     # shellcheck source=/dev/null
     os=$( . /etc/os-release ; echo "${ID}${VERSION_ID}" )
-    if [[ "$os" =~ "rhel8".* ]] ; then
+    if [[ "$os" == rhel8* ]] ; then
       os="rhel8"
     fi
     case $os in
@@ -167,9 +187,17 @@ elif [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
 
     pkgs_gpu=()
     pkgs_python=()
-    # shellcheck disable=SC2034 
+    # shellcheck disable=SC2034
     # pkgs_dev is consumed indirectly via "${!var}" below
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 sudo pkgconf-pkg-config)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc sudo pkgconf-pkg-config)
+
+    # cmake is packaged as "cmake3" on the EL8 series and as "cmake" on newer releases
+    major=$(echo "$os" | grep -oE '[0-9]+' | head -1)
+    if [ "$major" == "8" ] ; then
+        pkgs_dev+=(cmake3)
+    else
+        pkgs_dev+=(cmake)
+    fi
 
     if [ "$os" == "fedora43" ] || [ "$os" == "fedora44" ] || [ "$os" == "fedora45" ] ||
        [ "$os" == "ol8.7" ] || [ "$os" == "ol8.8" ] ||
@@ -185,8 +213,10 @@ elif [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
         pkgs_python+=(python3 python3-pip)
     fi
 
-    # OpenVINO requires Python >= 3.11; on these EL8/EL9-based distros the default "python3"
-    # stream is older, so also pull the python3.11 package already shipped in their AppStream repo
+    # OpenVINO requires Python >= 3.11. The python3.11 package is added on the EL8/EL9 distros
+    # listed below, whose AppStream repos ship it. It is intentionally NOT added on centos8,
+    # anolis, openEuler, amzn2022/2023, or the tencentos/opencloudos releases, because their
+    # python3.11 availability has not been verified; their default python3 may be too old.
     if [ "$os" == "ol8.7" ] || [ "$os" == "ol8.8" ] ||
        [ "$os" == "ol9.2" ] || [ "$os" == "ol9.3" ] || [ "$os" == "ol9.4" ] ||
        [ "$os" == "rocky8.7" ] || [ "$os" == "rocky8.8" ] ||
@@ -198,7 +228,9 @@ elif [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
     fi
 
     if [ "$os" == "rhel8" ] ; then
-        pkgs_gpu+=("http://vault.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
+        # NOTE: vault.centos.org hosts EOL CentOS 8 content and may be unavailable. Consider
+        # sourcing ocl-icd from a supported repository instead.
+        pkgs_gpu+=("https://vault.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
         pkgs_python+=(python3.11 python3.11-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] || [ "$os" == "rhel9.2" ] || [ "$os" == "rhel9.3" ] || [ "$os" == "rhel9.4" ] ; then
@@ -215,8 +247,8 @@ fi
 # Gather packages and print list
 
 pkgs=()
-for comp in "${comp[@]}" ; do
-    var="pkgs_${comp}[@]"
+for c in "${comp[@]}" ; do
+    var="pkgs_${c}[@]"
     pkgs+=("${!var}")
 done
 
@@ -254,11 +286,15 @@ if [ "$os" == "ubuntu22.04" ] ||
     [ -n "$dry" ] && iopt="--dry-run"
     [ -n "$keepcache" ] && rm -f /etc/apt/apt.conf.d/docker-clean
 
-    apt-get update && apt-get install --no-install-recommends "$iopt" "${pkgs[@]}"
+    apt-get update && apt-get install --no-install-recommends ${iopt:+$iopt} "${pkgs[@]}"
 
 elif [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
      [ "$os" == "rhel8" ] ||
      [ "$os" == "rhel9.1" ] || [ "$os" == "rhel9.2" ] || [ "$os" == "rhel9.3" ] || [ "$os" == "rhel9.4" ] ||
+     [ "$os" == "opencloudos8.5" ] || [ "$os" == "opencloudos8.6" ] || [ "$os" == "opencloudos8.8" ] ||
+     [ "$os" == "opencloudos9.0" ] || [ "$os" == "opencloudos9.2" ] ||
+     [ "$os" == "tencentos3.1" ] || [ "$os" == "tencentos3.2" ] || [ "$os" == "tencentos3.3" ] ||
+     [ "$os" == "tencentos4.0" ] || [ "$os" == "tencentos4.2" ] ||
      [ "$os" == "anolis8.6" ] || [ "$os" == "anolis8.8" ] ||
      [ "$os" == "openEuler20.03" ] || [ "$os" == "openEuler22.03" ] || [ "$os" == "openEuler23.03" ] || [ "$os" == "openEuler24.03" ] ||
      [ "$os" == "fedora43" ] || [ "$os" == "fedora44" ] || [ "$os" == "fedora45" ] ||
