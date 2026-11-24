@@ -28,6 +28,17 @@ namespace test {
 namespace Reduce {
 namespace {
 
+std::string getReduceImplType(const ov::CompiledModel& compiled) {
+    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
+        const auto& info = node->get_rt_info();
+        const auto layerType = info.find(ov::exec_model_info::LAYER_TYPE);
+        if (layerType != info.end() && layerType->second.as<std::string>() == "Reduce") {
+            return info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+        }
+    }
+    return {};
+}
+
 using ReduceNaNCase = std::tuple<ov::Shape, std::vector<int>, cpu_memory_format_t>;
 using ReduceNaNParams = std::tuple<ov::test::utils::ReductionType, ReduceNaNCase>;
 
@@ -74,6 +85,35 @@ INSTANTIATE_TEST_SUITE_P(
                         ReduceNaNCase{{1, 3, 2, 3}, {3}, nchw},
                         ReduceNaNCase{{1, 19, 2, 17}, {1, 2, 3}, ov::with_cpu_x86_avx512_core() ? nChw16c : nChw8c})));
 
+TEST(smoke_ReduceMaxNaN, ReferenceFallback) {
+    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 2, 1, 1, 1});
+    const auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 2});
+    const auto reduce = ov::test::utils::make_reduce(parameter, axes, true, ov::test::utils::ReductionType::Max);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{parameter});
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       ov::test::utils::DEVICE_CPU,
+                                       {{ov::hint::inference_precision.name(), ov::element::f32}});
+    const auto implType = getReduceImplType(compiled);
+    ASSERT_EQ(implType.find("ref"), 0U) << implType;
+
+    auto request = compiled.create_infer_request();
+    auto input = request.get_input_tensor();
+    constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+    // Axis 1 selects the group: {8, NaN, NaN, 5} or {NaN, NaN, NaN, NaN}.
+    const float values[] = {8.0F, nan, nan, nan, nan, 5.0F, nan, nan};
+    ASSERT_EQ(input.get_size(), 8U);
+    std::copy_n(values, input.get_size(), input.data<float>());
+
+    ov::TensorVector expected{ov::Tensor(ov::element::f32, model->get_output_shape(0))};
+    ASSERT_TRUE(model->evaluate(expected, ov::TensorVector{input}));
+    request.infer();
+    const auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.get_shape(), expected[0].get_shape());
+    EXPECT_EQ(actual.data<const float>()[0], expected[0].data<const float>()[0]) << "Mixed finite and NaN group";
+    EXPECT_EQ(actual.data<const float>()[1], expected[0].data<const float>()[1]) << "All-NaN group";
+}
+
 struct ReduceMinNonFiniteCase {
     ov::Shape shape;
     std::vector<int> axes;
@@ -97,15 +137,7 @@ TEST_P(ReduceMinNonFiniteCPUTest, ReturnsPositiveInfinity) {
                                        ov::test::utils::DEVICE_CPU,
                                        {{ov::hint::inference_precision.name(), ov::element::f32}});
 
-    std::string implType;
-    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
-        const auto& info = node->get_rt_info();
-        const auto layerType = info.find(ov::exec_model_info::LAYER_TYPE);
-        if (layerType != info.end() && layerType->second.as<std::string>() == "Reduce") {
-            implType = info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
-            break;
-        }
-    }
+    const auto implType = getReduceImplType(compiled);
     EXPECT_EQ(implType.find(expectJit ? "jit_" : "ref"), 0U) << implType;
 
     auto request = compiled.create_infer_request();
