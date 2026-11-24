@@ -61,6 +61,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/host_flash_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/host_flash_attention.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/host_mask_templates.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/host_mask_templates.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/infer_request_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/infer_request_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/just_sync_infer_request.cpp
