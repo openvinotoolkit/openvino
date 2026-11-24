@@ -4,10 +4,11 @@
   "signature_hash": "80cfa127185fbf3e",
   "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
   "category": "Infrastructure",
-  "count": 22,
+  "count": 23,
   "first_seen": "2026-11-03T07:07:04Z",
-  "last_seen": "2026-11-23T17:11:33Z",
+  "last_seen": "2026-11-24T07:22:12Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45341885273",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45217338279",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45167278168",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45167302131",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/44701506598",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44683220365",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44641581499",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/44603426744",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/44599895950"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44603426744"
   ],
   "affected_commits": [
+    "619890384b153707d3e070b60f90b247e38a606b",
     "e056e34af19271e77bd647e0a1f8dca619b49360",
     "2636ccab3ecd869ceab8140f7bda3d1792dbe69c",
     "9df90457dde4ed07a8dde7dff5071efcbd9ed858",
@@ -28,13 +29,12 @@
     "d6b2a405d8f138b69ad9c2702a166c20eb8ee659",
     "442b3aca319c6b37f3e7a0278bf6ccebe2a538c5",
     "c64f0fe07bbede1c83fba898c886e3c56b0543e0",
-    "419b3b2c281b37308145afbed6cc0a349d17bbc2",
-    "c9bfbcfe298567c070a1c744e3695d9fcf50bf13"
+    "419b3b2c281b37308145afbed6cc0a349d17bbc2"
   ],
   "recent_timestamps": [
+    "2026-11-24T07:22:12Z",
     "2026-11-23T17:11:33Z",
     "2026-11-23T13:22:55Z",
-    "2026-11-23T12:50:24Z",
-    "2026-11-23T06:33:08Z"
+    "2026-11-23T12:50:24Z"
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-07-22-12-000-45341885273",
+  "timestamp": "2026-11-24T07:22:12Z",
+  "run_id": "45341885273",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45341885273",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "619890384b153707d3e070b60f90b247e38a606b",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "MSBuild 'Cmake build - CC ON' step fails: MSVC cl.exe reports fatal error C1060 (compiler is out of heap space) across dozens of onednn/CPU-plugin/frontend translation units, followed by MSB4018 OutOfMemoryException from the CL task."
+    }
+  ],
+  "key_errors": [
+    "C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\type_traits(540,1): error C1060: compiler is out of heap space [...\\dnnl_common.vcxproj]",
+    "c1xx : fatal  error C1060: compiler is out of heap space [...\\dnnl_common.vcxproj]",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_cpu\\thirdparty\\onednn\\src\\common\\group_normalization.cpp(233,1): error C1060: compiler is out of heap space",
+    "C:\\BuildTools\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(755,5): error MSB4018: The \"CL\" task failed unexpectedly. [...\\openvino_runtime_obj.vcxproj]",
+    "C:\\BuildTools\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(755,5): error MSB4018: System.AggregateException: One or more errors occurred. ---> System.OutOfMemoryException: Exception of type 'System.OutOfMemoryException' was thrown.",
+    "cl : command line  warning D9014: invalid value '15' for '/cgthreads'; assuming '4'"
+  ],
+  "root_cause": "The Windows Conditional Compilation build runs MSBuild with a high degree of parallelism (/cgthreads requested at 15, clamped to 4 per-TU, combined with many parallel MSBuild projects) on a 16-core/32GB runner. Compiling heavy C++ template-heavy translation units (oneDNN, CPU plugin, frontend common_translators) simultaneously exhausts the 32-bit cl.exe/MSBuild process heap, producing cascading C1060 'out of heap space' errors across many .vcxproj files almost simultaneously, followed by an OutOfMemoryException inside the CL MSBuild task. This is a known, recurring infrastructure capacity issue (already recorded 22 times since 2026-11-03), not caused by the merged PR's code changes (a GPU oneDNN convolution preferred-format fix, unrelated to the Windows CC toolchain or build parallelism).",
+  "reproduction_steps": "N/A - requires reproducing memory pressure on a 16-core/32GB Windows CC runner with the exact MSBuild parallelism/cgthreads configuration used by windows_conditional_compilation.yml; not reliably reproducible locally.",
+  "recommended_actions": [
+    "Reduce MSBuild/cl.exe parallelism (MSBUILDDISABLENODEREUSE, /m:<n>, or /cgthreads) for the Windows CC job to lower peak per-process heap usage, trading build time for reliability.",
+    "Move the Windows Conditional Compilation job to a runner with more memory (e.g., 64GB) given this is the 22nd occurrence of the same signature in under three weeks.",
+    "Consider splitting the heaviest translation units (oneDNN common/cpu sources, openvino_common_translators) into smaller compilation batches or enabling /Zm (increase compiler memory limit) as a stopgap.",
+    "Escalate to the CI infrastructure owners given the persistent recurrence (count=22) - this should be treated as a standing infra ticket rather than a one-off investigation."
+  ],
+  "prevention_strategies": "Track peak build memory usage in the Windows CC workflow and alert before C1060 occurs; cap MSBuild parallelism proportional to available RAM (recommend <= 1GB per concurrent cl.exe process for oneDNN/CPU-plugin heavy TUs); consider a dedicated higher-memory runner pool for Windows C++ builds.",
+  "historical_context": "This exact signature (compiler/linker out-of-memory errors under high parallelism on the Windows CC build) has recurred 22 times since first recorded on 2026-11-03T07:07:04Z, most recently on 2026-11-23T17:11:33Z just one day prior to this run - confirming this is an ongoing, unresolved infrastructure capacity problem rather than a new code regression."
+}
