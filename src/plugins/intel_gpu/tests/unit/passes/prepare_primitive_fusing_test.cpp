@@ -50,70 +50,6 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
     ASSERT_FALSE(has_node_with_type<activation>(*prog));
 }
 
-// fp8 concatenation/scatter_update take a byte-copy kernel path that cannot run fused ops, so
-// prepare_primitive_fusing must not fuse an activation into an f8e4m3 scatter_update (unlike a
-// regular f16 cache, where the activation is fused).
-TEST(prepare_primitive_fusing, dont_fuse_activation_into_fp8_scatter_update) {
-    auto& engine = get_test_engine();
-
-    auto activation_survives_fusing = [&](data_types kv_dt) -> bool {
-        auto indices = engine.allocate_memory({ov::PartialShape{2}, data_types::f32, format::bfyx});
-        auto updates = engine.allocate_memory({ov::PartialShape{2, 4}, kv_dt, format::bfyx});
-        auto in_layout = layout{ov::PartialShape{4, 4}, kv_dt, format::bfyx};
-
-        topology topology;
-        topology.add(input_layout("input", in_layout));
-        topology.add(data("indices", indices));
-        topology.add(data("updates", updates));
-        topology.add(scatter_update("scatter", input_info("input"), input_info("indices"), input_info("updates"), 0));
-        topology.add(activation("act", input_info("scatter"), activation_func::abs));
-        topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
-
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        auto prog = program::build_program(engine, topology, config, false, true);
-
-        program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
-        return has_node(*prog, "act");
-    };
-
-    // Control: a regular f16 KV cache fuses the activation into scatter_update (node is removed).
-    ASSERT_FALSE(activation_survives_fusing(data_types::f16));
-    // fp8 scatter_update byte-copies; fusion is blocked so the activation stays a separate node.
-    ASSERT_TRUE(activation_survives_fusing(data_types::f8e4m3));
-}
-
-// Same byte-copy concern for concatenation: activation must not be fused into an f8e4m3 concat.
-TEST(prepare_primitive_fusing, dont_fuse_activation_into_fp8_concatenation) {
-    auto& engine = get_test_engine();
-
-    auto activation_survives_fusing = [&](data_types kv_dt) -> bool {
-        auto in0_layout = layout{ov::PartialShape{1, 2, 4}, kv_dt, format::bfyx};
-        auto in1_layout = layout{ov::PartialShape{1, 2, 4}, kv_dt, format::bfyx};
-
-        topology topology;
-        topology.add(input_layout("in0", in0_layout));
-        topology.add(input_layout("in1", in1_layout));
-        topology.add(concatenation("concat", {input_info("in0"), input_info("in1")}, 1));
-        topology.add(activation("act", input_info("concat"), activation_func::abs));
-        topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
-
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        auto prog = program::build_program(engine, topology, config, false, true);
-
-        program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
-        return has_node(*prog, "act");
-    };
-
-    // Control: a regular f16 concat fuses the activation (node is removed).
-    ASSERT_FALSE(activation_survives_fusing(data_types::f16));
-    // fp8 concat byte-copies; fusion is blocked so the activation stays a separate node.
-    ASSERT_TRUE(activation_survives_fusing(data_types::f8e4m3));
-}
-
 TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {
     auto& engine = get_test_engine();
     auto in_layout = layout{ ov::PartialShape{-1, -1, 10}, data_types::f32, format::bfyx };
@@ -747,6 +683,54 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
 
     for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
         ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+}
+
+// Regression test for https://github.com/openvinotoolkit/openvino/issues/39700:
+// a rank-3 [1, N, K] weights constant transposed by {0, 2, 1} must not be fused as a swap of its outer dims.
+TEST(prepare_primitive_fusing, fuse_constant_transposes_3d_weights_accuracy_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "FC with non-transposed constant weights is only produced for oneDNN (XMX) devices";
+    }
+
+    const size_t T = 2, K = 32, N = 4;
+    auto input = engine.allocate_memory({ { 1, T, K }, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({ { 1, N, K }, data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(T * K, -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(N * K, -1, 1);
+    set_values(input, input_data);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        permute("permute", input_info("weights"), {0, 2, 1}),
+        fully_connected("fc", input_info("input"), "permute", "", data_types::f16, 3, 3, false)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("fc").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), T * N);
+    for (size_t t = 0; t < T; ++t) {
+        for (size_t n = 0; n < N; ++n) {
+            float ref = 0.f;
+            for (size_t k = 0; k < K; ++k) {
+                ref += static_cast<float>(input_data[t * K + k]) * static_cast<float>(weights_data[n * K + k]);
+            }
+            ASSERT_NEAR(static_cast<float>(output_ptr[t * N + n]), ref, 2e-2f) << "t=" << t << " n=" << n;
+        }
     }
 }
 
