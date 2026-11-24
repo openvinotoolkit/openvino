@@ -23,6 +23,7 @@
 #include "lfm3_audio_generator.hpp"
 #include "lfm3_projector_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "openvino/util/common_util.hpp"
 #include "projector_adapter.hpp"
 #include "qwen3tts_projector.hpp"
 
@@ -1439,9 +1440,35 @@ struct ProjectorBuildError {
 };
 
 struct MmprojEncoders {
-    std::vector<std::string> built;
+    std::vector<std::string> modalities;
     std::vector<std::string> skipped;
 };
+
+void add_projector_branch(GgufGraphContext& g,
+                          const ProjectorDefinition& definition,
+                          ModelAdapters& adapters,
+                          std::map<std::string, std::string>& config) {
+    auto result = definition.build(g);
+    OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition.id, "' returned no output");
+    g.set_output(result.output, definition.modality + ".embeddings");
+    for (const auto& entry : result.config) {
+        OPENVINO_ASSERT(entry.first.rfind(definition.modality + ".", 0) == 0,
+                        "[GGUF] projector metadata must use its modality prefix");
+        config[entry.first] = entry.second;
+    }
+    config[definition.modality + ".projector"] = definition.projector_type;
+    const auto layout = result.genai_layout.value_or(definition.genai_layout.value_or(ProjectorLayout::Unsupported));
+    config[definition.modality + ".genai_layout"] =
+        definition.modality == "audio" ? audio_layout_name(result.audio_layout.value_or(
+                                             definition.audio_layout.value_or(AudioLayout::Unsupported)))
+                                       : projector_layout_name(layout);
+    auto callback = result.genai_adapter.value_or(definition.genai_adapter);
+    if (callback) {
+        auto adapter = std::make_shared<ModelAdapter>();
+        adapter->transform = std::move(callback);
+        adapters[definition.modality + ".embeddings"] = std::move(adapter);
+    }
+}
 
 MmprojEncoders build_mmproj_encoders(GgufGraphContext& g,
                                      const BuildContext& ctx,
@@ -1473,33 +1500,13 @@ MmprojEncoders build_mmproj_encoders(GgufGraphContext& g,
     config.emplace("vision.auxiliary_count", "0");
     for (const auto& definition : definitions) {
         try {
-            auto result = definition->build(g);
-            OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
-            g.set_output(result.output, definition->modality + ".embeddings");
-            for (const auto& entry : result.config) {
-                OPENVINO_ASSERT(entry.first.rfind(definition->modality + ".", 0) == 0,
-                                "[GGUF] projector metadata must use its modality prefix");
-                config[entry.first] = entry.second;
-            }
-            config[definition->modality + ".projector"] = definition->projector_type;
-            const auto layout =
-                result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
-            config[definition->modality + ".genai_layout"] =
-                definition->modality == "audio" ? audio_layout_name(result.audio_layout.value_or(
-                                                      definition->audio_layout.value_or(AudioLayout::Unsupported)))
-                                                : projector_layout_name(layout);
-            auto callback = result.genai_adapter.value_or(definition->genai_adapter);
-            if (callback) {
-                auto adapter = std::make_shared<ModelAdapter>();
-                adapter->transform = std::move(callback);
-                adapters[definition->modality + ".embeddings"] = std::move(adapter);
-            }
+            add_projector_branch(g, *definition, adapters, config);
         } catch (const std::bad_alloc&) {
             throw;
         } catch (const std::exception& error) {
             throw ProjectorBuildError{definition->modality, error.what()};
         }
-        encoders.built.push_back(definition->modality);
+        encoders.modalities.push_back(definition->modality);
     }
     return encoders;
 }
@@ -1557,9 +1564,7 @@ public:
             try {
                 return build(failed);
             } catch (const ProjectorBuildError& error) {
-                OPENVINO_ASSERT(failed.emplace(error.modality, error.message).second,
-                                "[GGUF] mmproj projector failed twice: ",
-                                error.modality);
+                failed.emplace(error.modality, error.message);
             }
         }
     }
@@ -1570,7 +1575,7 @@ private:
         ModelAdapters adapters;
         std::map<std::string, std::string> config;
         const auto encoders = build_mmproj_encoders(g, ctx, adapters, config, failed);
-        const auto& modalities = encoders.built;
+        const auto& modalities = encoders.modalities;
         const auto generation_type = resolve_projector_type(ctx.metadata, "gen.audio");
         const auto explicit_generation_type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
         const bool lfm3 = resolve_projector_type(ctx.metadata, "vision") == "lfm3vl" ||
@@ -1581,11 +1586,10 @@ private:
         if (has_generation && !qwen3tts_generation && !lfm3_generation && modalities.empty())
             OPENVINO_THROW("[GGUF] unsupported generated audio projector '", explicit_generation_type, "'");
         if (modalities.empty() && !qwen3tts_generation && !lfm3_generation) {
-            std::string skipped;
-            for (const auto& entry : encoders.skipped)
-                skipped += "\n  " + entry;
-            OPENVINO_ASSERT(encoders.skipped.empty(), "[GGUF] no mmproj projector could be converted:", skipped);
-            OPENVINO_THROW("[GGUF] mmproj has no encoder");
+            if (encoders.skipped.empty())
+                OPENVINO_THROW("[GGUF] mmproj has no encoder");
+            OPENVINO_THROW("[GGUF] no mmproj projector could be converted:\n  ",
+                           ov::util::join(encoders.skipped, "\n  "));
         }
         if (qwen3tts_generation) {
             auto contract = g.model_contract();
