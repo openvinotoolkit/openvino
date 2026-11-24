@@ -738,7 +738,7 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::model.name());
         },
-        [this](const ov::AnyMap&) -> ov::Any {
+        [](const ov::AnyMap&) -> ov::Any {
             return ov::Any{};
         },
         [](const ov::Any&) {

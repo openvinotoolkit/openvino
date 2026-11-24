@@ -353,7 +353,7 @@ void CRE::append_to_expression(const std::shared_ptr<CREToken> requirement_token
 
     const std::vector<std::shared_ptr<CREToken>> subexpression{requirement_token};
     if (subexpression_already_registered(subexpression)) {
-        m_logger.trace("CREToken %u was already registered", requirement_token);
+        m_logger.trace("CREToken %u was already registered", requirement_token->to_string().data());
         return;
     }
 
@@ -514,7 +514,7 @@ ov::CompatibilityCheck CRE::evaluate(
     ov::CompatibilityCheck subexpression_result;
 
     while (!end_condition(expression_iterator, expression_end, end_delimiter)) {
-        m_logger.trace("evaluate: the current token is %s", (*expression_iterator)->to_string());
+        m_logger.trace("evaluate: the current token is %s", (*expression_iterator)->to_string().data());
 
         CRE_ASSERT(!is_section_id(*expression_iterator), "Unexpected section ID token");
         CRE_ASSERT(!is_close_special_token(*expression_iterator),
