@@ -134,8 +134,7 @@ Users:
 * The RISC-V GNU and Conan builds in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
   and [`linux_riscv_conan.yml`](./../../../../.github/workflows/linux_riscv_conan.yml).
 * The Windows builds in
-  [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml),
-  [`job_build_windows_cpp20.yml`](./../../../../.github/workflows/job_build_windows_cpp20.yml) and
+  [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml) and
   [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml).
 
 ccache cannot cache MSVC compilations with a separate PDB (`/Zi`), so the Windows Debug build

@@ -77,6 +77,7 @@ set(OV_TEMPLATE_TESTS_OP_REFERENCE_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/experimental_detectron_topkrois.cpp
     ${CMAKE_CURRENT_LIST_DIR}/extract_image_patches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/eye.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/fake_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/floor_mod.cpp
