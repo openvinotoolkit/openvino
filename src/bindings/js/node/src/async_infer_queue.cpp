@@ -36,8 +36,10 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
         auto& compiled = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(info[0].ToObject())->get_compiled_model();
-        size_t jobs =
-            info.Length() == 1 ? get_optimal_number_of_requests(compiled) : info[1].As<Napi::Number>().Int32Value();
+        size_t jobs = info.Length() == 1 ? 0 : js_to_cpp<size_t>(env, info[1]);
+        if (jobs == 0) {
+            jobs = get_optimal_number_of_requests(compiled);
+        }
         m_tsfn = nullptr;
 
         m_requests.reserve(jobs);
@@ -52,7 +54,7 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
             m_idle_handles.push(handle);
         }
 
-    } catch (const ov::Exception& e) {
+    } catch (const std::exception& e) {
         reportError(env, e.what());
     }
 }
