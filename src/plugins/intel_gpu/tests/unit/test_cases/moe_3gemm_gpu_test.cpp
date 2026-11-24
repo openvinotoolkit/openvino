@@ -71,9 +71,10 @@ protected:
         auto& stream = get_test_stream();
         const auto weight_type = is_u4 ? data_types::u4 : data_types::u8;
         topology topo;
-        topo.add(input_layout("hidden", layout{ov::Shape{1, tokens, hidden}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("routing", layout{ov::Shape{1, tokens, top_k}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("indices", layout{ov::Shape{1, tokens, top_k}, data_types::i32, format::bfyx}));
+        const ov::Dimension sequence = tokens ? ov::Dimension(tokens) : ov::Dimension::dynamic();
+        topo.add(input_layout("hidden", layout{ov::PartialShape{1, sequence, hidden}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("routing", layout{ov::PartialShape{1, sequence, top_k}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("indices", layout{ov::PartialShape{1, sequence, top_k}, data_types::i32, format::bfyx}));
         std::vector<input_info> inputs{input_info("hidden"), input_info("routing"), input_info("indices")};
 
         weights_path = std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".bin");
@@ -224,7 +225,11 @@ TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
         constant_inputs.push_back(moe_inst->input_memory_ptr(i));
     }
 
-    run_and_check(net, tokens, shared, 3);
+    run_and_check(net, tokens ? tokens : 33, shared, 3);
+    if (!tokens) {
+        run_and_check(net, 1, shared, 3);
+        run_and_check(net, 2, shared, 3);
+    }
 
     for (size_t i = 3; i < moe_inst->dependencies().size(); ++i) {
         EXPECT_EQ(moe_inst->input_memory_ptr(i), constant_inputs[i - 3]) << "input " << i << " was replaced";
@@ -1005,9 +1010,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         std::ofstream file(offload_weights_path, std::ios::binary);
         ASSERT_TRUE(file.is_open());
         std::vector<size_t> offsets;
-        for (const auto& memory : std::vector<memory::ptr>{w0_weight_mem, w1_weight_mem, w2_weight_mem,
-                                                         w0_scale_mem, w1_scale_mem, w2_scale_mem,
-                                                         w0_zp_mem, w1_zp_mem, w2_zp_mem}) {
+        for (const auto& memory : std::vector<memory::ptr>{w0_weight_mem, w1_weight_mem, w2_weight_mem}) {
             offsets.push_back(static_cast<size_t>(file.tellp()));
             std::vector<uint8_t> bytes(memory->size());
             memory->copy_to(get_test_stream(), bytes.data(), 0, 0, bytes.size(), true);
@@ -1018,7 +1021,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         const std::vector<memory::ptr> target_weights{w0_weight_mem, w0_scale_mem, w0_zp_mem,
                                                      w1_weight_mem, w1_scale_mem, w1_zp_mem,
                                                      w2_weight_mem, w2_scale_mem, w2_zp_mem};
-        for (size_t index = 0; index < target_weights.size(); ++index) {
+        for (size_t index = 0; index < target_weights.size(); index += 3) {
             auto full_layout = target_weights[index]->get_layout();
             auto partial_shape = full_layout.get_partial_shape();
             partial_shape[0] = param.lru_expert_num;
@@ -1314,9 +1317,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_les_resident,
     moe_3gemm_compressed_gpu_random,
     ::testing::Combine(
         ::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX, cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS),
-        ::testing::Values(
-            Moe3GemmTestParams{1, true, 256, 256, 4, 2, 128, false, true},
-            Moe3GemmTestParams{4, true, 256, 256, 4, 2, 128, false, true})));
+        ::testing::ValuesIn([] {
+            std::vector<Moe3GemmTestParams> parameters;
+            for (size_t tokens : {size_t{1}, size_t{4}}) {
+                Moe3GemmTestParams parameter{tokens, true, 256, 256, 4, 2, 128};
+                parameter.enable_les = true;
+                parameters.push_back(parameter);
+            }
+            return parameters;
+        }())));
 
 INSTANTIATE_TEST_SUITE_P(smoke_les_p4_compressed_proxy,
     moe_3gemm_compressed_gpu_random,
