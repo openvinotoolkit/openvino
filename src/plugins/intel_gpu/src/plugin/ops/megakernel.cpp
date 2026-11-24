@@ -21,8 +21,9 @@ namespace ov::intel_gpu {
 static void CreateMegaKernelOp(ProgramBuilder& p,
                                       const std::shared_ptr<ov::intel_gpu::op::MegaKernel>& op) {
     std::vector<cldnn::input_info> prim_inputs;
-    for (auto& ii : p.GetInputInfo(op))
+    for (auto& ii : p.GetInputInfo(op)) {
         prim_inputs.push_back(cldnn::input_info(ii));
+    }
 
     auto prim = cldnn::megakernel(layer_type_name_ID(op), prim_inputs, op->get_attrs());
     prim.output_data_types = get_output_data_types(op);

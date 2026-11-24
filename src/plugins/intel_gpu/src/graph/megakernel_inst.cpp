@@ -20,9 +20,10 @@ std::vector<layout> megakernel_inst::calc_output_layouts(megakernel_node const& 
     auto desc = impl_param.typed_desc<megakernel>();
 
     std::vector<ov::PartialShape> input_shapes;
-    for (const auto& l : impl_param.input_layouts)
+    for (const auto& l : impl_param.input_layouts) {
         input_shapes.push_back(l.get<ov::PartialShape>());
-
+    }
+    
     std::vector<layout> outs;
     for (size_t i = 0; i < desc->attrs.outputs.size(); ++i) {
         const auto& out = desc->attrs.outputs[i];

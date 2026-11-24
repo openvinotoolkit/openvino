@@ -66,8 +66,9 @@ struct megakernel : public primitive_base<megakernel> {
             size_t rank = 0;
             ib >> rank;
             out.shape.resize(rank);
-            for (auto& d : out.shape)
+            for (auto& d : out.shape) {
                 ib >> d.input >> d.axis >> d.value;
+            }
         }
         ib >> attrs.params;
     }

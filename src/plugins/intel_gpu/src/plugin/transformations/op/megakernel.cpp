@@ -18,8 +18,9 @@ bool MegaKernel::visit_attributes(ov::AttributeVisitor& visitor) {
     for (const auto& out : m_attrs.outputs) {
         output_types.push_back(out.type);
         output_shapes.push_back(static_cast<int64_t>(out.shape.size()));
-        for (const auto& d : out.shape)
+        for (const auto& d : out.shape) {
             output_shapes.insert(output_shapes.end(), {d.input, d.axis, d.value});
+        }
     }
     visitor.on_attribute("output_types", output_types);
     visitor.on_attribute("output_shapes", output_shapes);
