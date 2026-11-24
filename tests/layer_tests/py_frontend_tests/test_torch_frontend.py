@@ -2921,6 +2921,68 @@ class TestConvertModelDynamo:
             convert_model(program, example_input=example,
                           input={"first": PartialShape([Dimension(2, 6), 3])})
 
+    @pytest.mark.parametrize("as_file", [False, True])
+    @pytest.mark.parametrize("export_as_kwargs", [False, True])
+    @pytest.mark.parametrize("example_as_kwargs", [False, True])
+    def test_exported_program_reordered_nested_examples(self, as_file, export_as_kwargs, example_as_kwargs, tmp_path):
+        from openvino import Dimension, Type, compile_model, convert_model
+        from openvino.tools.ovc.error import Error
+        from torch.export import Dim
+
+        class Model(torch.nn.Module):
+            def forward(self, values):
+                return values["a"] + values["b"].sum() + values["scale"]
+
+        a = torch.ones(3, 2, dtype=torch.float32)
+        b = torch.arange(4, dtype=torch.int64)
+        values = {"a": a, "scale": 2, "b": b}
+        shapes = {"a": {0: Dim("batch", min=3, max=7)}, "scale": None, "b": None}
+        program = torch.export.export(
+            Model(), () if export_as_kwargs else (values,),
+            kwargs={"values": values} if export_as_kwargs else None,
+            dynamic_shapes={"values": shapes} if export_as_kwargs else (shapes,))
+        if as_file:
+            path = tmp_path / "model.pt2"
+            torch.export.save(program, path)
+            program = path
+
+        reordered = {"b": b, "a": a, "scale": 2}
+        example = {"values": reordered} if example_as_kwargs else (reordered,)
+        inferred = convert_model(program, example_input=example)
+        assert inferred.input("values_a").get_element_type() == Type.f32
+        assert inferred.input("values_b").get_element_type() == Type.i64
+        converted = convert_model(program, example_input=example,
+                                  input={"a": PartialShape([Dimension(3, 7), 2])})
+        assert converted.input("values_a").get_element_type() == Type.f32
+        assert converted.input("values_b").get_element_type() == Type.i64
+        assert converted.input("values_a").get_partial_shape() == PartialShape([Dimension(3, 7), 2])
+        sample = torch.ones(5, 2)
+        actual = compile_model(converted, "CPU", default_cfg)(
+            {"values_a": sample.numpy(), "values_b": b.numpy()})[0]
+        np.testing.assert_array_equal(actual, Model()({"a": sample, "scale": 2, "b": b}).numpy())
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(program, example_input=example, input={"a": [2, 2]})
+        with pytest.raises(Error, match="does not match.*input structure"):
+            convert_model(program, example_input={"values": {"a": a, "b": b, "wrong": 2}})
+
+    @pytest.mark.parametrize("as_file", [False, True])
+    def test_exported_program_nested_list_example(self, as_file, tmp_path):
+        from openvino import compile_model, convert_model
+
+        class Model(torch.nn.Module):
+            def forward(self, values):
+                return values[0] - values[1]
+
+        a, b = torch.ones(3), torch.arange(3, dtype=torch.float32)
+        program = torch.export.export(Model(), ([a, b],))
+        if as_file:
+            path = tmp_path / "model.pt2"
+            torch.export.save(program, path)
+            program = path
+        converted = convert_model(program, example_input=([a, b],))
+        result = compile_model(converted, "CPU", default_cfg)([a.numpy(), b.numpy()])[0]
+        np.testing.assert_array_equal(result, (a - b).numpy())
+
     def test_exported_program_cli_input_checks_bounds(self, tmp_path):
         from argparse import Namespace
         from openvino.tools.ovc.cli_parser import _InputCutInfo

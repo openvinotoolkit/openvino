@@ -222,7 +222,8 @@ def get_pytorch_decoder(model, example_inputs, args):
     if dynamo and isinstance(model, getattr(torch.jit, "ScriptFunction", ())):
         raise Error("torch.export does not support torch.jit.ScriptFunction; pass dynamo=False to use TorchScript.")
     use_dynamo = dynamo and isinstance(model, torch.nn.Module)
-    inputs = prepare_torch_inputs(example_inputs, preserve_lists=use_dynamo)
+    is_exported = TorchFXPythonDecoder is not None and isinstance(model, torch.export.ExportedProgram)
+    inputs = prepare_torch_inputs(example_inputs, preserve_lists=use_dynamo or is_exported)
     if use_dynamo and inputs is None:
         raise Error("example_input is required when dynamo=True; pass dynamo=False to use TorchScript.")
     elif use_dynamo and (TorchFXPythonDecoder is None or not hasattr(getattr(torch.export, "Dim", None), "AUTO")):
@@ -570,11 +571,36 @@ def extract_input_info_from_example(args, inputs):
     input_names = args.input_model._input_signature or None
     if input_names and input_names[0] == "self":
         input_names = input_names[1:]
-    if input_names and not is_dict_input:
-        example_inputs = dict(zip(input_names, example_inputs))
-    example_inputs = flatten_inputs(example_inputs, input_names)
-    input_arg = []
     is_exported = getattr(args.input_model, "_is_exported_program", False)
+    if is_exported and not is_dict_input and len(example_inputs) != len(input_names or []):
+        raise Error("example_input does not match the exported PyTorch model's input arguments.")
+    if (input_names or is_exported) and not is_dict_input:
+        example_inputs = dict(zip(input_names or [], example_inputs))
+    input_names = input_names or []
+    if is_exported:
+        from torch.utils._pytree import tree_unflatten
+
+        spec = args.input_model.pt_module._in_spec
+        args_spec, kwargs_spec = list(spec.children())
+        positional_names = input_names[:args_spec.num_children]
+        keyword_names = kwargs_spec.context
+        expected_names = positional_names + list(keyword_names)
+        if not isinstance(example_inputs, dict) or set(example_inputs) != set(expected_names):
+            raise Error("example_input does not match the exported PyTorch model's input arguments.")
+        try:
+            ordered_leaves = spec.flatten_up_to((
+                tuple(example_inputs[name] for name in positional_names),
+                {name: example_inputs[name] for name in keyword_names},
+            ))
+        except (ValueError, TypeError) as error:
+            raise Error(f"example_input does not match the exported PyTorch model's input structure: {error}") from error
+        positional, keyword = tree_unflatten(ordered_leaves, spec)
+        ordered_inputs = dict(zip(positional_names, positional))
+        ordered_inputs.update(keyword)
+        example_inputs = flatten_inputs(ordered_inputs, expected_names)
+    else:
+        example_inputs = flatten_inputs(example_inputs, input_names)
+    input_arg = []
     if is_exported and len(example_inputs) != len(args.input_model._flat_input_is_constant):
         raise Error("The number of example inputs does not match the exported PyTorch model inputs.")
     example_aliases = {}
