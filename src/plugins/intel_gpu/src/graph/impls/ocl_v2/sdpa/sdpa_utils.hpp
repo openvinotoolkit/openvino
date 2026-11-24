@@ -205,10 +205,11 @@ inline ChannelName get_transposed_channel(ChannelName c, const std::vector<int64
     return ChannelName::UNKNOWN;
 }
 
-inline bool is_prefill_stage(const RuntimeParams& params) {
+// Number of query rows, -1 if dynamic
+inline int64_t get_target_seq_len(const RuntimeParams& params) {
     auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
     const auto target_seq_len = extract_dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
-    return target_seq_len.is_static() ? target_seq_len.get_length() > 1 : false;
+    return target_seq_len.is_static() ? target_seq_len.get_length() : -1;
 }
 
 inline bool unaligned_head_size(const RuntimeParams& params) {

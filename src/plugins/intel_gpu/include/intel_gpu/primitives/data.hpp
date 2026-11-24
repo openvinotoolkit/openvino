@@ -199,6 +199,10 @@ struct weightless_cache_manager {
             ib >> *reorder_rep.input_layout;
             reorder_rep.reorder = std::make_shared<reorder>();
             ib >> *reorder_rep.reorder;
+            if (!do_precision_conversion) {
+                // External weights describe the reorder input, not its padded destination.
+                original_size = reorder_rep.input_layout->bytes_count();
+            }
         }
 
         OPENVINO_ASSERT(weights_memory != nullptr, "weights_memory is nullptr!!!");
@@ -437,7 +441,7 @@ public:
         ib >> weightless_caching;
         const auto& dev_info = ib.get_engine().get_device_info();
         const bool can_use_zero_copy_mode = ib.get_engine().can_use_host_usm_zero_copy() && ib.is_tensor_aligned(ov::util::min_page_alignment) &&
-                                            host_buffer_base_ptr != nullptr && !weightless_caching;
+                                            host_buffer_base_ptr != nullptr && !weightless_caching && data_size > 0;
         if (!can_use_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }

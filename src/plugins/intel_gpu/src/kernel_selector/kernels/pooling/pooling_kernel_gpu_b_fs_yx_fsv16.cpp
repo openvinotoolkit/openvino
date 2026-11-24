@@ -36,7 +36,7 @@ DeviceFeaturesKey PoolingKernel_b_fs_yx_fsv16::get_required_device_features_key(
     return k;
 }
 
-size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) const {
+size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) {
     if (params.outputs[0].X().v > 4) {
         return 8;
     }
@@ -46,7 +46,7 @@ size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) c
     return 1;
 }
 
-size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) const {
+size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) {
     const auto& out = params.outputs[0];
     // Use smaller simd size in case of global pooling and small channels count to have more threads
     if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64 && IsSIMDSizeSupported(params.engineInfo, 8)) {
@@ -96,7 +96,7 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
     jit.Merge(MakeTypeJitConstants(acc_type, "ACCUMULATOR"));
 
     auto can_preload_full_line = [&]() -> bool {
-        const float max_reg_bytes = 128 * 32 * 0.95f;
+        const float max_reg_bytes = 128 * 32 * 0.95F;
         const size_t line_bytes = input_line_size * BytesPerElement(input.GetDType());
         const size_t acc_bytes = x_block_size * BytesPerElement(acc_type);
 
