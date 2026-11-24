@@ -490,6 +490,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
             conv_with_bias_prim->transposed = desc->transposed;
+            conv_with_bias_prim->activations_zero_point_per_tensor = desc->activations_zero_point_per_tensor;
             auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
 
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
@@ -1018,13 +1019,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= legacy_fusion;
 
-            // fp8 concatenation/scatter_update/gather take a byte-copy kernel path that cannot run fused ops
-            // (ACTIVATION does not compile on the 1-byte fp8 struct), so block fusion into an fp8 output.
-            if (should_fuse && input.get_output_layout().data_type == data_types::f8e4m3 &&
-                (input.is_type<concatenation>() || input.is_type<scatter_update>() || input.is_type<gather>())) {
-                should_fuse = false;
-            }
-
             if (!should_fuse) {
                 return;
             }
@@ -1148,17 +1142,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            (!lo.has_all_enabled_onednn_impls_optimization_attribute() ||
                              in_dt_is_i8_u8 || !out_dt_is_i8_u8);
 
-            // fp8 gather byte-copies its data; fused ops don't compile on the fp8 struct, so don't fuse into it.
-            should_fuse |=
-                input_data.is_type<gather>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
+            should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather_nd>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather_elements>() && quantize_node.get_scale_shift_opt();
 
-            // fp8 scatter_update byte-copies its data; fused ops don't compile on the fp8 struct, so don't fuse into it.
-            should_fuse |=
-                input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
+            should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<scatter_nd_update>() && quantize_node.get_scale_shift_opt();
 
