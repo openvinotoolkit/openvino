@@ -45,7 +45,8 @@ The LFM2.5 vocoder is a separate `lfm2.audio_vocoder` architecture.
 Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `llama4`,
 `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
-`granite4_vision`. An unsupported projector fails conversion of the whole file.
+`granite4_vision`. A file with both encoders still converts when only one of them is supported;
+see [files with vision and audio encoders](#files-with-vision-and-audio-encoders).
 
 ## Validation coverage
 
@@ -72,16 +73,18 @@ both. Conversion builds the file's supported encoders into one model:
 2. Each encoder takes its projector from the global `clip.projector_type`, or else from
    `clip.vision.projector_type` / `clip.audio.projector_type`. A combined file therefore uses the
    per-modality keys; only the legacy `qwen2.5o` resolves to a different projector per modality
-   (Qwen2.5 VL vision, Qwen2 audio). An unsupported projector fails conversion of the whole file,
-   except for the combined Gemma3n `gemma3nv` vision / `gemma3na` audio pair. As in the reference,
-   this pair builds only vision when no registered extension handles its audio branch.
+   (Qwen2.5 VL vision, Qwen2 audio). An encoder that cannot be converted is skipped with a notice
+   on stderr: either no builder is registered for its projector, or the registered builder throws,
+   for example on an unsupported variant. The graph is then rebuilt without that encoder, so none
+   of its partial nodes or inputs remain. For example, a combined Gemma3n `gemma3nv` / `gemma3na`
+   file builds only vision unless an extension handles its audio branch. A file with no
+   convertible encoder or supported speech generation fails and reports each encoder's reason.
 3. The encoders become disconnected branches of the same graph. Vision reads `v.*` tensors and
    `vision.*` inputs and produces `vision.embeddings`; audio reads `a.*` tensors and `audio.*`
    inputs and produces `audio.embeddings`.
 4. `gguf_mmproj` rt_info records each encoder's `<modality>.projector` and `<modality>.merge`.
-   The omitted Gemma3n audio branch retains `audio.projector=gemma3na` and
-   `audio.supported=false`; both fields survive serialization, and GenAI adaptation skips the
-   unsupported audio branch while returning the vision encoder.
+   A skipped encoder keeps its `<modality>.projector` and adds `<modality>.supported=false`;
+   both fields survive serialization, and GenAI adaptation returns only the built encoders.
 
 Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
 turns it into one encoder; apply it to a clone per modality to obtain both.
@@ -110,7 +113,9 @@ random pixels/features and is not a media preprocessor.
 ## Runtime metadata
 
 Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds derived values such as
-`<modality>.projector`, `<modality>.merge`, `vision.patch_size` and `vision.genai_layout`. Values
+`<modality>.projector`, `<modality>.merge`, `vision.patch_size` and `vision.genai_layout`. A
+skipped encoder has no output, keeps its source `clip.has_<modality>_encoder` flag and is marked
+with `<modality>.supported=false`. Values
 are strings: numeric arrays are comma-separated, and string arrays use `length:value` entries
 flagged by a `<key>.encoding` companion. The metadata survives IR serialization and adaptation.
 

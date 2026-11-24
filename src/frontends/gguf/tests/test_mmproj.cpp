@@ -279,7 +279,10 @@ TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
     for (size_t i = 0; i < output.get_size(); ++i)
         EXPECT_FLOAT_EQ(output.data<float>()[i], 6.0f);
     FrontEnd isolated;
-    OV_EXPECT_THROW(isolated.convert(isolated.load(path)), ov::Exception, testing::HasSubstr("custom-audio"));
+    auto vision_only = isolated.convert(isolated.load(path));
+    ASSERT_EQ(vision_only->outputs().size(), 1);
+    EXPECT_EQ(vision_only->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "custom-audio");
+    EXPECT_EQ(vision_only->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}), "false");
 }
 
 TEST_F(GGUFMMProj, ExtensionReusesBuiltinProjectorAndReplacementIsExplicit) {
@@ -1554,11 +1557,79 @@ TEST(GGUFMMProjLayout, RejectsUnexpectedQwenNormalizationWithoutChangingModel) {
     }
 }
 
-TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
+TEST_F(GGUFMMProj, UnsupportedSecondModalityIsSkippedAndRecorded) {
     encoder("vision", "gemma3");
     writer.kv_bool("clip.has_audio_encoder", true);
     writer.kv_str("clip.audio.projector_type", "unsupported_audio");
-    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("unsupported_audio"));
+    auto model = convert();
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->output().get_any_name(), "vision.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "gemma3");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "unsupported_audio");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}), "false");
+    const auto components = ov::frontend::gguf::adapt_to_genai(model);
+    ASSERT_EQ(components.size(), 1);
+    EXPECT_EQ(components.count("vision_embeddings"), 1);
+}
+
+TEST_F(GGUFMMProj, FileWithoutSupportedProjectorIsRejected) {
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "unsupported_vision");
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "unsupported_audio");
+    OV_EXPECT_THROW(convert(),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("vision 'unsupported_vision'"),
+                                   testing::HasSubstr("audio 'unsupported_audio'")));
+}
+
+TEST_F(GGUFMMProj, FailingProjectorIsRolledBackAndSkipped) {
+    using namespace ov::frontend::gguf;
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "failing-vision");
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "custom-audio");
+    ASSERT_TRUE(writer.write(path));
+    const ProjectorDefinition failing{"clip.vision.failing",
+                                      "clip",
+                                      "vision",
+                                      "failing-vision",
+                                      [](GgufGraphContext& graph) -> ProjectorResult {
+                                          auto input =
+                                              graph.add_input("vision.partial", ov::element::f32, {1, 1, 2, 3});
+                                          graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}});
+                                          OPENVINO_THROW("vision variant is not implemented");
+                                      },
+                                      {}};
+    const ProjectorDefinition audio{
+        "clip.audio.custom",
+        "clip",
+        "audio",
+        "custom-audio",
+        [](GgufGraphContext& graph) {
+            auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 3});
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}}), {}};
+        },
+        {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(failing));
+    frontend.add_extension(std::make_shared<ProjectorExtension>(audio));
+    auto model = frontend.convert(frontend.load(path));
+    ASSERT_EQ(model->inputs().size(), 1);
+    EXPECT_EQ(model->input().get_any_name(), "audio.custom");
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "failing-vision");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.supported"}), "false");
+    const auto components = adapt_to_genai(model);
+    ASSERT_EQ(components.size(), 1);
+    EXPECT_EQ(components.count("audio_embeddings"), 1);
+
+    FrontEnd vision_only;
+    vision_only.add_extension(std::make_shared<ProjectorExtension>(failing));
+    OV_EXPECT_THROW(vision_only.convert(vision_only.load(path)),
+                    ov::Exception,
+                    testing::HasSubstr("vision variant is not implemented"));
 }
 
 TEST_F(GGUFMMProj, Gemma3nCombinedFileBuildsVisionAndRecordsUnsupportedAudio) {
@@ -1609,20 +1680,6 @@ TEST_F(GGUFMMProj, Gemma3nAudioExtensionTakesPrecedenceOverVisionFallback) {
     EXPECT_NO_THROW(model->output("audio.embeddings"));
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "gemma3na");
     EXPECT_FALSE(model->has_rt_info({"gguf_mmproj", "audio.supported"}));
-}
-
-TEST_F(GGUFMMProj, Gemma3nAudioFallbackRejectsOtherVisionProjectors) {
-    encoder("vision", "gemma3");
-    writer.kv_bool("clip.has_audio_encoder", true);
-    writer.kv_str("clip.audio.projector_type", "gemma3na");
-    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("gemma3na"));
-}
-
-TEST_F(GGUFMMProj, Gemma3nVisionRejectsOtherUnsupportedAudioProjectors) {
-    gemma3n_vision();
-    writer.kv_bool("clip.has_audio_encoder", true);
-    writer.kv_str("clip.audio.projector_type", "unsupported_audio");
-    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("unsupported_audio"));
 }
 
 TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
