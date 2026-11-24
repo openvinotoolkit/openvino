@@ -28,7 +28,7 @@ public:
         ze_kernel_flags_t flags = 0;
         ze_kernel_desc_t kernel_desc = {
             ZE_STRUCTURE_TYPE_KERNEL_DESC, nullptr, flags, nullptr};
-        for (auto name_cstr : kernel_names) {
+        for (const auto* name_cstr : kernel_names) {
             auto name = std::string(name_cstr);
             // ZE returns Intel_Symbol_Table_Void_Program that does not correspond to actual kernel
             if (name == "Intel_Symbol_Table_Void_Program") {
@@ -59,22 +59,21 @@ public:
     std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const override {
         if (reuse_kernel_handle) {
             return std::make_shared<ze_kernel>(m_module, m_kernel, m_kernel_id, m_build_log);
-        } else {
-            ze_kernel_handle_t cloned_handle;
-            ze_module_handle_t module_handle = get_module_handle();
-            ze_kernel_desc_t descriptor;
-            descriptor.stype = ZE_STRUCTURE_TYPE_KERNEL_DESC;
-            descriptor.pNext = nullptr;
-            descriptor.flags = 0;
-            descriptor.pKernelName = m_kernel_id.c_str();
-            OV_ZE_EXPECT(ze::zeKernelCreate(module_handle, &descriptor, &cloned_handle));
-            ze_kernel_resource kernel_holder(cloned_handle);
-            return std::make_shared<ze_kernel>(m_module, kernel_holder, m_kernel_id, m_build_log);
         }
+        ze_kernel_handle_t cloned_handle;
+        ze_module_handle_t module_handle = get_module_handle();
+        ze_kernel_desc_t descriptor;
+        descriptor.stype = ZE_STRUCTURE_TYPE_KERNEL_DESC;
+        descriptor.pNext = nullptr;
+        descriptor.flags = 0;
+        descriptor.pKernelName = m_kernel_id.c_str();
+        OV_ZE_EXPECT(ze::zeKernelCreate(module_handle, &descriptor, &cloned_handle));
+        ze_kernel_resource kernel_holder(cloned_handle);
+        return std::make_shared<ze_kernel>(m_module, kernel_holder, m_kernel_id, m_build_log);
     }
 
     bool is_same(const kernel &other) const override {
-        auto other_ptr = dynamic_cast<const ze_kernel*>(&other);
+        const auto* other_ptr = dynamic_cast<const ze_kernel*>(&other);
         if (other_ptr == nullptr) {
             return false;
         }

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include "tensor_type.h"
 
 namespace kernel_selector {
-Tensor::DataChannelName ConcatenationKernelBase::GetConcatChannel(const concatenation_params& params) const {
+Tensor::DataChannelName ConcatenationKernelBase::GetConcatChannel(const concatenation_params& params) {
     switch (params.axis) {
     case ConcatAxis::X:
         return Tensor::DataChannelName::X;
@@ -34,7 +34,7 @@ Tensor::DataChannelName ConcatenationKernelBase::GetConcatChannel(const concaten
     }
 }
 
-int32_t ConcatenationKernelBase::GetConcatChannelIndex(const concatenation_params& params) const {
+int32_t ConcatenationKernelBase::GetConcatChannelIndex(const concatenation_params& params) {
     return DataTensor::Channelndex(params.outputs[0].GetLayout(), GetConcatChannel(params));
 }
 
