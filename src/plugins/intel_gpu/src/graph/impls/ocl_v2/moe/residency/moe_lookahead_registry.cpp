@@ -57,7 +57,7 @@ void LookaheadContext::build_once(cldnn::network& network) {
             descriptor.is_supported = true;
             m_moe_to_next_index.emplace(network.get_primitive(link.chain.source_moe).get(), target_index);
             m_routers.emplace(link.chain.target_moe,
-                              std::make_unique<LookaheadRouter>(network, link.chain.target_hidden, link.router));
+                              std::make_unique<LookaheadRouter>(network, link.chain.target_hidden, link.router, link.projection));
         }
     });
 }
@@ -118,7 +118,7 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
     }
     auto result = m_routers.at(target)->enqueue(hidden, ready);
     state = {hidden, ready, result.indices, result.weights, result.ready,
-             std::make_shared<std::atomic<bool>>(true), false};
+             std::make_shared<std::atomic<bool>>(true), false, result.cpu_indices};
 }
 
 void LookaheadContext::prefetch(const cldnn::primitive_inst* current_moe) {
@@ -141,7 +141,7 @@ void LookaheadContext::prefetch(const cldnn::primitive_inst* current_moe) {
     state.consumed->store(false, std::memory_order_release);
     m_network.get_stream().flush();
     m_prefetcher->submit_prefetch({m_layer_indices.at(target), m_epoch,
-                                  state.predicted_indices, state.prediction_ready, weights, state.consumed});
+                                  state.predicted_indices, state.prediction_ready, weights, state.consumed, state.cpu_indices});
 }
 
 std::shared_ptr<LookaheadContext> LookaheadRegistry::acquire(cldnn::network& network) {
