@@ -23,7 +23,38 @@ struct MoeRouterTestParams {
     size_t num_tokens;
     size_t num_experts;
     size_t top_k;
+    bool padded = false;
+    bool dynamic_shape = false;
+    size_t batch_size = 0;
 };
+
+static memory::ptr make_router_logits(engine& engine, const MoeRouterTestParams& param, const std::vector<ov::float16>& logits_data) {
+    ov::PartialShape input_shape{static_cast<int64_t>(param.num_tokens), static_cast<int64_t>(param.num_experts)};
+    const size_t sequence_length = param.batch_size == 0 ? 1 : param.num_tokens / param.batch_size;
+    if (param.batch_size != 0) {
+        input_shape = {static_cast<int64_t>(param.batch_size), static_cast<int64_t>(sequence_length), static_cast<int64_t>(param.num_experts)};
+    }
+    layout logits_layout{input_shape, data_types::f16, format::bfyx};
+    if (param.padded) {
+        std::vector<ov::Dimension::value_type> lower_padding(input_shape.size(), 0);
+        std::vector<ov::Dimension::value_type> upper_padding(input_shape.size(), 0);
+        lower_padding.back() = 3;
+        upper_padding.back() = 5;
+        logits_layout.data_padding = padding{lower_padding, upper_padding};
+    }
+    auto logits_mem = engine.allocate_memory(logits_layout);
+    std::vector<ov::float16> storage(logits_layout.get_linear_size(), ov::float16(10.0f));
+    const auto pitches = logits_layout.get_pitches();
+    for (size_t token = 0; token < param.num_tokens; ++token) {
+        for (size_t expert = 0; expert < param.num_experts; ++expert) {
+            const size_t offset =
+                logits_layout.get_linear_offset() + (token / sequence_length) * pitches[0] + (token % sequence_length) * pitches[1] + expert * pitches.back();
+            storage[offset] = logits_data[token * param.num_experts + expert];
+        }
+    }
+    set_values(logits_mem, storage);
+    return logits_mem;
+}
 
 class moe_router_fused_softmax_gpu : public ::testing::TestWithParam<MoeRouterTestParams> {};
 
@@ -43,14 +74,16 @@ TEST_P(moe_router_fused_softmax_gpu, router_accuracy_test) {
     auto logits_data = rg.generate_random_1d<ov::float16>(num_tokens * num_experts, -2.0f, 2.0f, 1000);
 
     // Create input memory
-    auto logits_mem = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(num_tokens), static_cast<int64_t>(num_experts)},
-                                                    data_types::f16, format::bfyx});
-    set_values(logits_mem, logits_data);
+    auto logits_mem = make_router_logits(engine, param, logits_data);
     get_test_stream().finish();
 
     // Build topology
     topology topology;
-    topology.add(input_layout("logits", logits_mem->get_layout()));
+    auto logits_layout = logits_mem->get_layout();
+    if (param.dynamic_shape) {
+        logits_layout.set_partial_shape(ov::PartialShape::dynamic(logits_layout.get_partial_shape().size()));
+    }
+    topology.add(input_layout("logits", logits_layout));
 
     MoERouterFused::Config config;
     config.num_expert = num_experts;
@@ -146,9 +179,7 @@ TEST_P(moe_router_fused_sigmoid_bias_gpu, router_accuracy_test) {
     ov::float16 eps_val = ov::float16(1e-6f);
 
     // Create memories
-    auto logits_mem = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(num_tokens), static_cast<int64_t>(num_experts)},
-                                                    data_types::f16, format::bfyx});
-    set_values(logits_mem, logits_data);
+    auto logits_mem = make_router_logits(engine, param, logits_data);
     get_test_stream().finish();
 
     auto bias_mem = engine.allocate_memory(layout{ov::PartialShape{1, static_cast<int64_t>(num_experts)},
@@ -162,7 +193,11 @@ TEST_P(moe_router_fused_sigmoid_bias_gpu, router_accuracy_test) {
 
     // Build topology
     topology topology;
-    topology.add(input_layout("logits", logits_mem->get_layout()));
+    auto logits_layout = logits_mem->get_layout();
+    if (param.dynamic_shape) {
+        logits_layout.set_partial_shape(ov::PartialShape::dynamic(logits_layout.get_partial_shape().size()));
+    }
+    topology.add(input_layout("logits", logits_layout));
     topology.add(data("bias", bias_mem));
     topology.add(data("eps", eps_mem));
 
@@ -238,11 +273,25 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          ::testing::Values(MoeRouterTestParams{1, 4, 2},
                                            MoeRouterTestParams{4, 4, 2},
                                            MoeRouterTestParams{16, 8, 2},
-                                           MoeRouterTestParams{1, 8, 4}));
+                                           MoeRouterTestParams{1, 8, 4},
+                                           MoeRouterTestParams{1, 8, 4, true},
+                                           MoeRouterTestParams{4, 8, 2, true},
+                                           MoeRouterTestParams{6, 8, 2, true, false, 2},
+                                           MoeRouterTestParams{4, 8, 2, true, true},
+                                           MoeRouterTestParams{6, 8, 2, true, true, 2},
+                                           MoeRouterTestParams{6, 8, 2, false, false, 2},
+                                           MoeRouterTestParams{6, 8, 2, false, true, 2}));
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_router_fused_sigmoid_bias_gpu,
                          ::testing::Values(MoeRouterTestParams{1, 4, 2},
                                            MoeRouterTestParams{4, 4, 2},
                                            MoeRouterTestParams{16, 8, 2},
-                                           MoeRouterTestParams{1, 8, 4}));
+                                           MoeRouterTestParams{1, 8, 4},
+                                           MoeRouterTestParams{1, 8, 4, true},
+                                           MoeRouterTestParams{4, 8, 2, true},
+                                           MoeRouterTestParams{6, 8, 2, true, false, 2},
+                                           MoeRouterTestParams{4, 8, 2, true, true},
+                                           MoeRouterTestParams{6, 8, 2, true, true, 2},
+                                           MoeRouterTestParams{6, 8, 2, false, false, 2},
+                                           MoeRouterTestParams{6, 8, 2, false, true, 2}));
