@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-12-18-21-221-45385163410",
+  "timestamp": "2026-11-24T12:18:21Z",
+  "run_id": "45385163410",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45385163410",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "940895eec8cd324191707f28334d6d35fec53659",
+  "pr_number": "39446",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39446",
+  "author": "zhanmyz",
+  "category": "Flaky Test",
+  "title": "model_creation_sample.py Python/CPU smoke test fails intermittently with no stderr output",
+  "signature": "test_model_creation_sample.py::Test_model_creation_sample::test[Python-CPU] - AssertionError: Sample execution failed|Flaky Test",
+  "signature_hash": "c915b782819c6432",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "install/tests/smoke_tests/test_model_creation_sample.py::Test_model_creation_sample::test[param3] (Python, CPU) failed with AssertionError: Sample execution failed, non-zero retcode and empty stderr"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check failed because the Samples job failed (exit 1), no independent signal"
+    }
+  ],
+  "key_errors": [
+    "install/tests/smoke_tests/test_model_creation_sample.py:24: \n>       stdout = self._test(collections.OrderedDict(\nE       AssertionError: Sample execution failed\ninstall/tests/smoke_tests/common/samples_common_test_class.py:340: AssertionError",
+    "Running command: python3 /__w/openvino/openvino/install/samples/python/model_creation_sample/model_creation_sample.py \"/__w/openvino/openvino/install/samples/cpp/model_creation_sample/lenet.bin\" CPU\nERROR    root:samples_common_test_class.py:339\nFAILED install/tests/smoke_tests/test_model_creation_sample.py::Test_model_creation_sample::test[param3] - AssertionError: Sample execution failed",
+    "============ 1 failed, 207 passed, 10 skipped in 360.00s (0:06:00) ============="
+  ],
+  "root_cause": "Only the Python/CPU variant of model_creation_sample (test[param3]) failed out of 218 smoke tests; the identical C++/CPU variant (param0-2) and the other Python variants (MULTI:CPU, AUTO; param4-5) passed. samples_common_test_class.py logs stderr via log.error(stderr) only when retcode != 0, but the captured log shows an empty ERROR line with no message body, meaning the subprocess produced no stderr text despite a non-zero return code. This is the same isolated single-parametrization, no-diagnostic-output signature previously recorded on 2026-11-03 (run 41606510649) for the identical test on the same Linux ARM64 workflow, consistent with a transient runner-level issue (process killed/raced on the ARM64 host) rather than a deterministic regression from the merged commit (#39446), which only touches the GPU plugin's primitive_inst.cpp/fully_connected_onednn.cpp and does not affect samples or Python sample scripts.",
+  "reproduction_steps": "Not reliably reproducible outside CI. On a Linux ARM64 host after building/installing OpenVINO with samples: `python3 install/samples/python/model_creation_sample/model_creation_sample.py install/samples/cpp/model_creation_sample/lenet.bin CPU` and check the return code; run the full smoke suite with `pytest install/tests/smoke_tests -k test_model_creation_sample` repeatedly to try to reproduce the intermittent failure.",
+  "recommended_actions": [
+    "Confirm this failure does not reproduce on the next master push (if it does not reproduce, this strengthens the Flaky Test / Infrastructure classification and no code change is needed).",
+    "Enhance samples_common_test_class.py (around line 339-340) to always log subprocess stdout in addition to stderr on failure, and log the retcode value itself, so future occurrences carry actionable diagnostics instead of an empty ERROR line.",
+    "Check ARM64 GitHub-hosted runner resource usage (memory/CPU) during the Samples job window (12:03 UTC) for signs of OOM or contention, since this is the second occurrence of an empty-stderr failure for this exact test on this workflow.",
+    "Since this signature has now recurred (2nd occurrence, both on Linux ARM64), consider adding a bounded automatic retry for isolated single-parametrization smoke test failures when all sibling parametrizations of the same sample pass."
+  ],
+  "prevention_strategies": "Capture and log both stdout and stderr (and the retcode) unconditionally on sample test failures so intermittent runner-level issues can be distinguished from real regressions without needing extra re-run instrumentation. Add a bounded automatic retry for isolated single-parametrization smoke-test failures when all other parametrizations of the same sample pass, to reduce noise from transient runner issues while still surfacing systematic failures.",
+  "historical_context": "This is the 2nd recorded occurrence of this exact signature (test_model_creation_sample.py::Test_model_creation_sample::test[Python-CPU] - AssertionError: Sample execution failed | Flaky Test). The first was recorded on 2026-11-03 (run 41606510649, PR #39251) with an identical symptom: single Python/CPU parametrization failing with empty stderr while all other parametrizations passed. That investigation also concluded Flaky Test/transient runner issue and found the triggering PR unrelated to samples code."
+}
