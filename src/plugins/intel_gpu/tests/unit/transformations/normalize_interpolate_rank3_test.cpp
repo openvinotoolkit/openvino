@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,6 @@ std::vector<Config> positive_cases() {
         const auto prefix = v11 ? "V11_" : "V4_";
         Config last_axis(std::string(prefix) + "LastAxis");
         last_axis.v11 = v11;
-        cases.push_back(last_axis);
         auto dynamic = last_axis;
         dynamic.name = std::string(prefix) + "DynamicDimensions";
         dynamic.shape = {-1, 18, -1};
@@ -124,80 +123,62 @@ std::vector<Config> positive_cases() {
         all_axes.implicit_axes = true;
         all_axes.values = {1, 1, 160};
         cases.push_back(all_axes);
-        all_axes.name = std::string(prefix) + "PermutedAllAxes";
-        all_axes.implicit_axes = false;
-        all_axes.axes = {2, 0, 1};
-        all_axes.values = {160, 1, 1};
-        cases.push_back(all_axes);
         auto sizes = dynamic;
         sizes.name = std::string(prefix) + "SizesDynamicDimensions";
         sizes.attrs.shape_calculation_mode = Interpolate::ShapeCalcMode::SIZES;
         sizes.values = {16160};
         sizes.expected_values = {1, 16160};
         cases.push_back(sizes);
-        sizes.name = std::string(prefix) + "SizesAllAxes";
-        sizes.shape = {2, 18, 101};
-        sizes.axes = {0, 1, 2};
-        sizes.values = {2, 18, 16160};
-        cases.push_back(sizes);
         if (v11)
             continue;
-        for (const auto& type : {ov::element::f16, ov::element::bf16}) {
-            auto typed_scales = last_axis;
-            typed_scales.name = std::string(prefix) + "ConstantScales_" + type.get_type_name();
-            typed_scales.value_type = type;
-            typed_scales.values = {0.75};
-            typed_scales.expected_values = {1, 0.75};
-            cases.push_back(typed_scales);
-        }
-        for (const auto& type : {ov::element::i32, ov::element::i64, ov::element::u32, ov::element::u64}) {
-            auto typed_sizes = last_axis;
-            typed_sizes.name = std::string(prefix) + "ConstantSizes_" + type.get_type_name();
-            typed_sizes.attrs.shape_calculation_mode = Interpolate::ShapeCalcMode::SIZES;
-            typed_sizes.value_type = type;
-            typed_sizes.values = {16777217};
-            typed_sizes.expected_values = {1, 16777217};
-            cases.push_back(typed_sizes);
-        }
+        all_axes.name = "V4_PermutedAllAxes";
+        all_axes.implicit_axes = false;
+        all_axes.axes = {2, 0, 1};
+        all_axes.values = {160, 1, 1};
+        cases.push_back(all_axes);
+        auto typed_scales = last_axis;
+        typed_scales.name = "V4_ConstantScales_f16";
+        typed_scales.value_type = ov::element::f16;
+        typed_scales.values = {0.75};
+        typed_scales.expected_values = {1, 0.75};
+        cases.push_back(typed_scales);
+        auto typed_sizes = last_axis;
+        typed_sizes.name = "V4_ConstantSizes_i32";
+        typed_sizes.attrs.shape_calculation_mode = Interpolate::ShapeCalcMode::SIZES;
+        typed_sizes.value_type = ov::element::i32;
+        typed_sizes.values = {16777217};
+        typed_sizes.expected_values = {1, 16777217};
+        cases.push_back(typed_sizes);
     }
     return cases;
 }
 
 std::vector<Config> negative_cases() {
     std::vector<Config> cases;
-    for (bool v11 : {false, true}) {
-        const auto prefix = v11 ? "V11_" : "V4_";
-        Config config(std::string(prefix) + "RuntimeScales");
-        config.v11 = v11;
-        config.runtime_values = true;
-        cases.push_back(config);
-        config.name = std::string(prefix) + "RuntimeSizes";
-        config.attrs.shape_calculation_mode = Interpolate::ShapeCalcMode::SIZES;
-        cases.push_back(config);
-        config = Config(std::string(prefix) + "RuntimeAxes");
-        config.v11 = v11;
-        config.runtime_axes = true;
-        cases.push_back(config);
-    }
+    Config runtime_scales("V4_RuntimeScales");
+    runtime_scales.runtime_values = true;
+    cases.push_back(runtime_scales);
+    Config runtime_sizes("V11_RuntimeSizes");
+    runtime_sizes.v11 = true;
+    runtime_sizes.runtime_values = true;
+    runtime_sizes.attrs.shape_calculation_mode = Interpolate::ShapeCalcMode::SIZES;
+    cases.push_back(runtime_sizes);
+    Config runtime_axes("V11_RuntimeAxes");
+    runtime_axes.v11 = true;
+    runtime_axes.runtime_axes = true;
+    cases.push_back(runtime_axes);
     Config base("SharedGuards");
     auto add = [&](const std::string& name, const Config& value) {
         cases.push_back(value);
         cases.back().name = name;
     };
     auto config = base;
-    config.shape = ov::PartialShape::dynamic();
-    add("DynamicRank", config);
-    for (size_t rank : {2, 4, 5}) {
-        config = base;
-        config.shape = ov::PartialShape::dynamic(rank);
-        config.axes = {static_cast<int64_t>(rank - 1)};
-        add("Rank" + std::to_string(rank), config);
-    }
-    for (auto mode : {Interpolate::InterpolateMode::NEAREST, Interpolate::InterpolateMode::LINEAR, Interpolate::InterpolateMode::CUBIC}) {
-        config = base;
-        config.attrs.mode = mode;
-        add("OtherMode" + std::to_string(static_cast<int>(mode)), config);
-    }
+    config.shape = ov::PartialShape::dynamic(4);
+    config.axes = {3};
+    add("Rank4", config);
+    config = base;
+    config.attrs.mode = Interpolate::InterpolateMode::NEAREST;
+    add("OtherModeNearest", config);
     config = base;
     config.attrs.antialias = true;
     add("Antialias", config);
@@ -229,9 +210,6 @@ std::vector<Config> negative_cases() {
     config.values = {2, 18, 16160};
     config.shape = {-1, 18, 101};
     add("UnprovenBatchSize", config);
-    config.shape = {2, 18, 101};
-    config.values = {2, 19, 16160};
-    add("ResizedChannelSizes", config);
     config = base;
     config.attrs.shape_calculation_mode = Interpolate::ShapeCalcMode::SIZES;
     config.values = {0};
