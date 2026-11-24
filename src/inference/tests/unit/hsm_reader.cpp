@@ -953,8 +953,6 @@ TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_tag_and_reserve
     EXPECT_TRUE(to_string(decode_all_result.at(1)) == "payload3");
 }
 
-// negative case
-
 // --- Negative tests (Story 2 DoD: invalid header, invalid manifest, invalid offsets, unsupported
 // runtime requirements all reject at Reader::open(), before any section can be read) ------------------
 

@@ -272,7 +272,7 @@ public:
     }
 
     /**
-     * @brief Finds all manifest entries for which @p pred returns true and returns a #Section handle for each, in
+     * @brief Finds all manifest entries for which @p pred is true and returns a #Section handle for each, in
      * manifest order.
      *
      * @param pred Predicate used to find manifest entries.
