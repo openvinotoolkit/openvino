@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "scatterelementsupdatelayercpuerrorconditiontest throwsonoutofrangeindices expected exception ov exception not thrown smoke_scatterelementsupdateoutofrangeindices|Code Issue",
+  "signature_hash": "994265a25f80a7b5",
+  "title": "smoke_ScatterElementsUpdateOutOfRangeIndices tests fail - reference plugin doesn't throw ov::Exception on out-of-range indices",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-11-24T20:04:24Z",
+  "last_seen": "2026-11-24T20:04:24Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45459992712"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/40119"
+  ],
+  "recent_timestamps": [
+    "2026-11-24T20:04:24Z"
+  ],
+  "rerun_search_string": null
+}

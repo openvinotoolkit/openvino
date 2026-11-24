@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 500,
+  "total": 501,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5431,6 +5431,15 @@
       "category": "Flaky Test",
       "signature_hash": "a284d27dfee44614",
       "pr_number": "39751"
+    },
+    {
+      "investigation_id": "2026-11-24-20-04-24-000-45459992712",
+      "run_id": "45459992712",
+      "timestamp": "2026-11-24T20:04:24Z",
+      "title": "smoke_ScatterElementsUpdateOutOfRangeIndices tests fail - reference plugin doesn't throw ov::Exception on out-of-range indices",
+      "category": "Code Issue",
+      "signature_hash": "994265a25f80a7b5",
+      "pr_number": "40119"
     }
   ]
 }

@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-20-04-24-000-45459992712",
+  "timestamp": "2026-11-24T20:04:24Z",
+  "run_id": "45459992712",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45459992712",
+  "workflow_name": "CPU functional tests",
+  "pr_number": "40119",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40119",
+  "author": "mryzhov",
+  "category": "Code Issue",
+  "title": "smoke_ScatterElementsUpdateOutOfRangeIndices tests fail - reference plugin doesn't throw ov::Exception on out-of-range indices",
+  "signature": "scatterelementsupdatelayercpuerrorconditiontest throwsonoutofrangeindices expected exception ov exception not thrown smoke_scatterelementsupdateoutofrangeindices|Code Issue",
+  "signature_hash": "994265a25f80a7b5",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "4 parametrized ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices cases (smoke_ScatterElementsUpdateOutOfRangeIndices, f32/i32 x i32/i64) fail at scatter_elements_update.cpp:183 - 'Expected exception ov::Exception' not thrown by the CPU or TEMPLATE reference plugin for out-of-range scatter indices."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Downstream aggregate status check fails because the CPU functional tests job did not succeed."
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_elements_update.cpp:183: Failure\nFailed\nExpected exception ov::Exception\n[  FAILED  ] smoke_ScatterElementsUpdateOutOfRangeIndices/ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/i32_IS=[?.?]_[?.?]_[?.?]_...idx_precision=i32 (30 ms)",
+    "ERROR:test_parallel_runner:Run is not successful\n##[error]Process completed with exit code 255."
+  ],
+  "root_cause": "ScatterElementsUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices (src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_elements_update.cpp:176-184) asserts that both the CPU plugin and the TEMPLATE reference plugin throw ov::Exception when ScatterElementsUpdate indices are out of range (e.g. -1000). All 4 parametrized instances of smoke_ScatterElementsUpdateOutOfRangeIndices failed this assertion, indicating the reference/CPU implementation no longer throws for out-of-range indices. This is unrelated to PR #40119, which only touches src/common/transformations/{include,src}/transformations/common_optimizations/fuse_qsa_indexer.{hpp,cpp} and its test file (QSAIndexer partial-RoPE fusion) - a transformation-level change with no relation to the ScatterElementsUpdate op or its CPU/reference kernels. This is the sibling of the already-tracked ScatterUpdate (not ScatterElementsUpdate) Code Issue pattern e746e8e11c0fe156, which has recurred 3+ times with the same 'Expected exception ov::Exception not thrown' symptom on out-of-range indices tests, suggesting a shared underlying regression in how out-of-range index validation/exception-throwing was removed or changed across the ScatterUpdate family of ops.",
+  "reproduction_steps": "Build and run: `ov_cpu_func_tests --gtest_filter=*ScatterElementsUpdateOutOfRangeIndices*ThrowsOnOutOfRangeIndices*` locally against src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_elements_update.cpp:176.",
+  "recommended_actions": [
+    "Do not block PR #40119's merge on this failure - it is unrelated to the fuse_qsa_indexer transformation change being merged; re-run the failed CPU functional tests job.",
+    "Investigate why ScatterElementsUpdate (and the related ScatterUpdate, pattern e746e8e11c0fe156) no longer throws ov::Exception for out-of-range indices in either the CPU plugin or TEMPLATE reference implementation - check recent changes to the scatter op shape/bounds validation or reference kernel.",
+    "If the out-of-range-throw behavior was intentionally relaxed, update both test expectations (scatter_elements_update.cpp:183 and scatter_update.cpp:145) to match the new intended behavior instead of expecting an exception."
+  ],
+  "prevention_strategies": "Track this alongside the related ScatterUpdate pattern (e746e8e11c0fe156) as a single cross-cutting regression in out-of-range index handling for the Scatter*Update op family; prioritize a fix given it recurs across unrelated PRs and now has two related signatures in the pattern database.",
+  "historical_context": "This is the first recorded occurrence of the ScatterElementsUpdateOutOfRangeIndices variant (signature_hash 994265a25f80a7b5). A closely related sibling failure, ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices (pattern e746e8e11c0fe156, same 'Expected exception ov::Exception not thrown' symptom), has recurred at least 4 times since 2026-10-23 across unrelated PRs (#38825, #39833, #39956 x2), confirming a persistent pre-existing defect in the Scatter*Update out-of-range exception path rather than something newly introduced by this PR."
+}
