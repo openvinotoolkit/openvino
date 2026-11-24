@@ -190,7 +190,7 @@ TEST(moe_les_reservations, pending_is_not_ready_and_abort_permits_retry) {
 }
 
 TEST(moe_les_reservations, rejects_zero_capacity) {
-    EXPECT_THROW(ExpertSlotReservations(0), std::invalid_argument);
+    EXPECT_ANY_THROW(ExpertSlotReservations(0));
 }
 
 TEST(moe_les_reservations, partitions_all_top8_masks_in_canonical_pair_order) {

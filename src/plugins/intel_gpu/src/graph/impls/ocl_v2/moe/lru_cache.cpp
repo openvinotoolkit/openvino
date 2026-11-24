@@ -11,7 +11,7 @@ namespace ov::intel_gpu::ocl::moe {
 
 ExpertSlotReservations::ExpertSlotReservations(size_t capacity) : _slots(capacity) {
     if (capacity == 0) {
-        throw std::invalid_argument("LES requires at least one resident slot");
+        OPENVINO_THROW("LES requires at least one resident slot");
     }
 }
 
