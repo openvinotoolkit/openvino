@@ -458,5 +458,10 @@
         "error_text": "httpx.ConnectError: [Errno -2] Name or service not known",
         "ticket": 9999999,
         "category": "Network"
+    },
+    {
+        "error_text": "certificate verify failed: certificate has expired",
+        "ticket": 9999999,
+        "category": "External Service"
     }
 ]
