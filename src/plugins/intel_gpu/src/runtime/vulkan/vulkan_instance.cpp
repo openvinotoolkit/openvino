@@ -56,9 +56,11 @@ vulkan_instance::ptr vulkan_instance::create() {
     create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
     create_info.ppEnabledExtensionNames = enabled_extensions.empty() ? nullptr : enabled_extensions.data();
 
-    VkInstance instance = VK_NULL_HANDLE;
-    check_vk_result(vkCreateInstance(&create_info, nullptr, &instance), "vkCreateInstance");
-    return ptr(new vulkan_instance(instance, has_portability_enumeration));
+    auto instance = ptr(new vulkan_instance(VK_NULL_HANDLE, has_portability_enumeration));
+    VkInstance handle = VK_NULL_HANDLE;
+    check_vk_result(vkCreateInstance(&create_info, nullptr, &handle), "vkCreateInstance");
+    instance->_instance = handle;
+    return instance;
 }
 
 vulkan_instance::~vulkan_instance() {
