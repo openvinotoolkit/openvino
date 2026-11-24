@@ -10,6 +10,7 @@
 #include <deque>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <tuple>
 #include <unordered_set>
@@ -47,6 +48,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
@@ -241,6 +243,7 @@
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "transformations/utils/utils.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
@@ -976,6 +979,83 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     float activations_scale_factor = config.get_activations_scale_factor();
 
     if (activations_scale_factor > 0.F && infer_precision == ov::element::f16) {
+        using namespace ov::pass::low_precision;
+
+        // Activations scaling scales floating-point activations only, and only its own scale-ups may move through an
+        // Add. AddTransformation moves the dequantization S * (y - SH) of one input below the Add: the other input
+        // S_x * (x - SH_x) becomes S_x / S * (x - SH_x - Z), Z = S * SH / S_x, with an f16 rounding error of up to
+        // about |Z| / 1000, and a constant other input becomes a zero point. It must not move
+        //   (a) arithmetic on integer/boolean data, e.g. the T5 attention mask (1 - Convert(mask)) * lowest that LPT
+        //       normalizes to (Convert(mask) - 1) * 65504, unless moving it only rescales another activation;
+        //   (b) other arithmetic with max|Z| > 64 on data that no layer scaled by ScaleDownSingleLayer feeds (heuristic
+        //       bound: for an unscaled x, the error first exceeds the 0.02 test tolerance at |Z| = 100).
+        // Data that depends on such a layer carries a scale-up, whose zero point is the bias of an activation, which f16
+        // rounds as coarsely in the original graph. A branch without a zero point only rescales x.
+        // ActivationsScaling runs its LPT pass with a copy of this PassConfig, so the callback applies there.
+        const auto depends_on_scaled_layer = [](const ov::Output<ov::Node>& data) {
+            bool found = false;
+            std::unordered_set<ov::Node*> visited;
+            ov::op::util::visit_path(
+                data.get_node(),
+                visited,
+                [&found](ov::Node* node) {
+                    found = found || ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Convolution, ov::op::internal::MOECompressed>(node);
+                },
+                // A shape carries no activation values.
+                [&found](ov::Node* node) {
+                    return found || ov::is_type<ov::op::util::ShapeOfBase>(node);
+                });
+            return found;
+        };
+        pass_config->set_callback<AddTransformation>([&infer_precision, depends_on_scaled_layer](const std::shared_ptr<const ov::Node>& node) -> bool {
+            const auto dq0 = NetworkHelper::getDequantization(node, {infer_precision}, 0);
+            const auto dq1 = NetworkHelper::getDequantization(node, {infer_precision}, 1);
+            if (dq0.empty() && dq1.empty()) {
+                return false;
+            }
+
+            const bool in0_const = ov::is_type<ov::op::v0::Constant>(dq0.data.get_node());
+            const bool in1_const = ov::is_type<ov::op::v0::Constant>(dq1.data.get_node());
+            size_t moved_port = 0;
+            if (in0_const || in1_const) {
+                moved_port = in0_const ? 1 : 0;
+            } else if (!dq0.empty() && dq1.empty()) {
+                moved_port = 0;
+            } else {
+                moved_port = 1;
+            }
+            const auto& moved = (moved_port == 0) ? dq0 : dq1;
+            const auto& other = (moved_port == 0) ? dq1 : dq0;
+
+            const auto convert =
+                moved.convert != nullptr ? moved.convert
+                                         : ov::as_type_ptr<ov::op::v0::Convert>(moved.data.get_node_shared_ptr());
+            if (convert != nullptr && !convert->get_input_element_type(0).is_real()) {
+                return in0_const || in1_const || moved.subtract != nullptr;
+            }
+            if (moved.subtract == nullptr || depends_on_scaled_layer(moved.data)) {
+                return false;
+            }
+
+            // max|Z|, Z = S * SH / S_x folded element-wise as AddTransformation folds it (per-channel constants broadcast)
+            using ov::op::util::make_try_fold;
+            const auto [zero_point, scale] = NetworkHelper::createEmptyValues(moved, ov::element::f32);
+            const auto other_scale = std::get<1>(NetworkHelper::createEmptyValues(other, ov::element::f32));
+            const auto abs_folded_zero_point =
+                make_try_fold<ov::op::v0::Abs>(make_try_fold<ov::op::v1::Divide>(make_try_fold<ov::op::v1::Multiply>(zero_point, scale), other_scale));
+            const auto& shape = abs_folded_zero_point->get_output_shape(0);
+            if (ov::shape_size(shape) == 0) {
+                return false;
+            }
+            std::vector<int64_t> axes(shape.size());
+            std::iota(axes.begin(), axes.end(), 0);
+            const auto max_folded_zero_point = ov::as_type_ptr<ov::op::v0::Constant>(
+                make_try_fold<ov::op::v1::ReduceMax>(abs_folded_zero_point, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes), false));
+            OPENVINO_ASSERT(max_folded_zero_point != nullptr, "The zero point folded into ", node->get_friendly_name(), " is not a constant");
+            constexpr float kMaxFoldedZeroPoint = 64.0F;
+            return max_folded_zero_point->cast_vector<float>()[0] > kMaxFoldedZeroPoint;
+        });
+
         manager.register_pass<ov::pass::ActivationsScaling>(activations_scale_factor, infer_precision);
     }
 
