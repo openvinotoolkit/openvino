@@ -112,14 +112,13 @@ void dropUnusedInputArgs(mlir::func::FuncOp func, size_t numInputs, SmallVector<
 }
 
 // Whether a function argument of `type` can be passed in the physical dimension `order`:
-// a permutation of a plain static-shaped memref that has a matching cldnn format.
+// it must have a static shape and a matching cldnn format.
 bool is_supported_order(MemRefType type, ArrayRef<int64_t> order) {
+    OPENVINO_ASSERT(order.size() == static_cast<size_t>(type.getRank()) && mlir::isPermutationVector(order),
+                    "[GPU] MLIR: physical order request doesn't match the function argument type");
     // Static shapes only: a dynamic shape would need dynamic strides (strided<[?, 1, ?]>), which the current
     // graph-compiler pipeline can't handle yet. This is not a fundamental limitation.
-    if (order.size() != static_cast<size_t>(type.getRank()) || !type.hasStaticShape() || !type.getLayout().isIdentity()) {
-        return false;
-    }
-    if (!mlir::isPermutationVector(order)) {
+    if (!type.hasStaticShape()) {
         return false;
     }
     return cldnn::mlir_primitive::format_from_dim_order(std::vector<size_t>(order.begin(), order.end())).has_value();

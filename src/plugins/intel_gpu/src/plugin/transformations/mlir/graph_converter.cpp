@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "common/conversion_context.hpp"
+#include "mlir/Dialect/Utils/IndexingUtils.h"
 
 namespace ov::intel_gpu::mlir {
 
@@ -34,6 +35,14 @@ GraphConverter::GraphConverter(mlir::MLIRContext* context, mlir::OpBuilder* bloc
           }) {}
 
 void GraphConverter::request_input_order(const ov::Input<ov::Node>& input, DimOrder order) {
+    // Verify the requested order is valid for this input (static rank, permutation of the rank)
+    const auto rank = input.get_partial_shape().rank();
+    OPENVINO_ASSERT(rank.is_static() && order.size() == static_cast<size_t>(rank.get_length()) && mlir::isPermutationVector(order),
+                    "[GPU] MLIR: invalid physical order requested for input ",
+                    input.get_index(),
+                    " of ",
+                    input.get_node()->get_friendly_name());
+
     const auto source = input.get_source_output();
     if (conflicting_orders.count(source) != 0U) {
         return;
