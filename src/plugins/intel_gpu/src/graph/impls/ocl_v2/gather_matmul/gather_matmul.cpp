@@ -301,6 +301,8 @@ private:
         auto a_dt = convert_data_type(input_layout.data_type);
         auto out_dt = convert_data_type(output_layout.data_type);
         auto w_dt = convert_data_type(weights_layout.data_type);
+        // Zero points can be wider than the weights (e.g. u4 weights with u8 zero points).
+        auto zp_dt = desc->has_zp ? convert_data_type(impl_params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT_ZP].data_type) : w_dt;
 
         const dnnl::memory::dim num_experts = static_cast<dnnl::memory::dim>(wshape[0]);
         const dnnl::memory::dim N = static_cast<dnnl::memory::dim>(wshape[1]);
@@ -343,13 +345,13 @@ private:
                 // per-expert(0) × per-K-group(1) × per-N-channel(2)
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {weight_group_size, 1}, dnnl::memory::data_type::f16);
                 if (desc->has_zp) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {weight_group_size, 1}, w_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {weight_group_size, 1}, zp_dt);
                 }
             } else {
                 // per-expert(0) × per-N-channel(2), no K-grouping
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, dnnl::memory::data_type::f16);
                 if (desc->has_zp) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, w_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
                 }
             }
         }
@@ -384,12 +386,12 @@ private:
                 const dnnl::memory::dim num_k_groups = K / weight_group_size;
                 gk->scale_md = dnnl::memory::desc({num_experts, num_k_groups, N}, s_dt, dnnl::memory::format_tag::abc);
                 if (gk->has_zp) {
-                    gk->zp_md = dnnl::memory::desc({num_experts, num_k_groups, N}, w_dt, dnnl::memory::format_tag::abc);
+                    gk->zp_md = dnnl::memory::desc({num_experts, num_k_groups, N}, zp_dt, dnnl::memory::format_tag::abc);
                 }
             } else {
                 gk->scale_md = dnnl::memory::desc({num_experts, N}, s_dt, dnnl::memory::format_tag::ab);
                 if (gk->has_zp) {
-                    gk->zp_md = dnnl::memory::desc({num_experts, N}, w_dt, dnnl::memory::format_tag::ab);
+                    gk->zp_md = dnnl::memory::desc({num_experts, N}, zp_dt, dnnl::memory::format_tag::ab);
                 }
             }
         }
