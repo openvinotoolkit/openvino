@@ -5,7 +5,7 @@
 #pragma once
 
 #include "../compiler_option_support_helper.hpp"
-#include "intel_npu/common/hsm_format/isection_instance_evaluator.hpp"
+#include "hsm_format/isection_instance_evaluator.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 

@@ -9,14 +9,25 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/encrypted_schedules_flag_section.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/io_layouts_section.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/read_write.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/blob_sections_registry.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/cre_token.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/cre.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/isection_instance_evaluator.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/isection_type_evaluator.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/runtime_requirements.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/section_id.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/section_type.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/single_section_instance_evaluator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/async_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/backends_registry.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_format_importers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_source.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_option_support_helper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_format/compiler_schedule_instance_evaluator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model_property_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/executor.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/major_minor_version.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/metadata.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin_property_manager.hpp
@@ -28,6 +39,9 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/backends_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/batch_size_section.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_format_importers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_source.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_sections_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cre.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_option_support_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedules_sections.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
@@ -39,11 +53,18 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extension.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/read_write.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/io_layouts_section.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/isection_type_evaluator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/isection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/major_minor_version.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime_requirements.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime_requirements_validation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/section_id.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/section_type.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/single_section_instance_evaluator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations.cpp
 )
 

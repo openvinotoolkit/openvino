@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/hsm_format/section_type.hpp"
+#include "hsm_format/section_type.hpp"
 
 #include <algorithm>
 

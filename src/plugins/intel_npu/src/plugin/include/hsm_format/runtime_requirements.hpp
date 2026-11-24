@@ -8,7 +8,7 @@
 #include "../hsm_format/isection_instance_evaluator.hpp"
 #include "../hsm_format/isection_type_evaluator.hpp"
 #include "../hsm_format/single_section_instance_evaluator.hpp"
-#include "intel_npu/common/hsm_format/isection.hpp"
+#include "hsm_format/isection.hpp"
 
 namespace intel_npu {
 

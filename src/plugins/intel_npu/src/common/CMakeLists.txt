@@ -5,16 +5,6 @@
 set(TARGET_NAME "openvino_npu_common")
 
 set(SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/blob_sections_registry.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/cre_token.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/cre.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/isection_instance_evaluator.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/isection_type_evaluator.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/runtime_requirements.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/section_id.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/section_type.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/single_section_instance_evaluator.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/blob_source.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/compiler_adapter_factory.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/option_support_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/device_helpers.hpp
@@ -24,24 +14,13 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iprofiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iparser.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/itt.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/major_minor_version.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/network_metadata.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/npu.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/parser_factory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_sections_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_source.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/cre.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/device_helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/igraph.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/isection_type_evaluator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/isection.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/major_minor_version.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/network_metadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/npu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime_requirements.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/section_id.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/section_type.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/single_section_instance_evaluator.cpp
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 

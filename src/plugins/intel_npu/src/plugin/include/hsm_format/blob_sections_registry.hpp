@@ -9,8 +9,8 @@
 #include <queue>
 #include <unordered_map>
 
-#include "intel_npu/common/hsm_format/isection.hpp"
-#include "intel_npu/common/hsm_format/runtime_requirements.hpp"
+#include "hsm_format/isection.hpp"
+#include "hsm_format/runtime_requirements.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {

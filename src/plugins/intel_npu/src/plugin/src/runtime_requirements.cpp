@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/hsm_format/runtime_requirements.hpp"
+#include "hsm_format/runtime_requirements.hpp"
 
 #include <algorithm>
 
-#include "intel_npu/common/major_minor_version.hpp"
 #include "intel_npu/compat_string_parser.hpp"
+#include "major_minor_version.hpp"
 
 namespace {
 

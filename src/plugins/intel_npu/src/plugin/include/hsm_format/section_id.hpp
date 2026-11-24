@@ -8,7 +8,7 @@
 #include <iostream>
 #include <memory>
 
-#include "intel_npu/common/hsm_format/cre_token.hpp"
+#include "hsm_format/cre_token.hpp"
 
 namespace intel_npu {
 

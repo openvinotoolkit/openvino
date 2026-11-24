@@ -5,7 +5,7 @@
 #include "runtime_requirements_validation.hpp"
 
 #include "hsm_format/compiler_schedule_instance_evaluator.hpp"
-#include "intel_npu/common/hsm_format/runtime_requirements.hpp"
+#include "hsm_format/runtime_requirements.hpp"
 #include "metadata.hpp"
 
 namespace {

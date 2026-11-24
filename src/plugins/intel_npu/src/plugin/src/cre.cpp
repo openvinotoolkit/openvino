@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/hsm_format/cre.hpp"
+#include "hsm_format/cre.hpp"
 
 #include <functional>
 
-#include "intel_npu/common/hsm_format/isection.hpp"
+#include "hsm_format/isection.hpp"
 
 #define CRE_ASSERT(...) OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
 

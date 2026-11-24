@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/common/hsm_format/isection.hpp"
+#include "hsm_format/isection.hpp"
 #include "openvino/core/layout.hpp"
 
 namespace intel_npu {

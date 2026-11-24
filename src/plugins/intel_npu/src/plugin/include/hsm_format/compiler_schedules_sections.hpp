@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "intel_npu/common/hsm_format/isection.hpp"
+#include "hsm_format/isection.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "openvino/runtime/properties.hpp"
 

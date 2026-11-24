@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-#include "intel_npu/common/hsm_format/cre_token.hpp"
+#include "hsm_format/cre_token.hpp"
 #include "openvino/runtime/hsm_format.hpp"
 
 namespace intel_npu {

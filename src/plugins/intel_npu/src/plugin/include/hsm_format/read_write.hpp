@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/common/hsm_format/blob_sections_registry.hpp"
+#include "hsm_format/blob_sections_registry.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 

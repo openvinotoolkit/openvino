@@ -9,9 +9,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "intel_npu/common/hsm_format/cre_token.hpp"
-#include "intel_npu/common/hsm_format/section_id.hpp"
-#include "intel_npu/common/hsm_format/section_type.hpp"
+#include "hsm_format/cre_token.hpp"
+#include "hsm_format/section_id.hpp"
+#include "hsm_format/section_type.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/hsm_writer.hpp"

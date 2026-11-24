@@ -11,8 +11,8 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
-#include "intel_npu/common/blob_source.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
