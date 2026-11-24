@@ -239,8 +239,9 @@ struct convolution : public primitive_base<convolution> {
         }
 
         auto rhs_casted = downcast<const convolution>(rhs);
-        if (activations_zero_point_per_tensor != rhs_casted.activations_zero_point_per_tensor)
+        if (activations_zero_point_per_tensor != rhs_casted.activations_zero_point_per_tensor) {
             return false;
+        }
 
         #define cmp_fields(name) name == rhs_casted.name
         return cmp_fields(stride) &&
