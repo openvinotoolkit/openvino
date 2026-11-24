@@ -17,28 +17,37 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "cnpy.h"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "gtest/gtest.h"
 #include "op_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
+#include "quant/gguf.hpp"
 
 // TEST_DATA_DIR is injected by CMakeLists.txt as an absolute path to the source-tree
 // test_data/ directory; used as a fallback when running from the build tree.
@@ -323,5 +332,120 @@ std::vector<T> load_npy(const std::string& stem) {
     const T* begin = arr.data<T>();
     return std::vector<T>(begin, begin + arr.num_vals);
 }
+
+// cnpy::npz_t is a vector of pairs, so look the entry up by name.
+inline const cnpy::NpyArray& npz_array(const cnpy::npz_t& arrays, const std::string& name) {
+    const auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
+        return entry.first == name;
+    });
+    OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
+    return it->second;
+}
+
+inline void quantize_weight(GgufWeightTable& weights, const std::string& name, GgufTensorType type) {
+    const auto source = weights.at(name).data;
+    OPENVINO_ASSERT(source.get_element_type() == ov::element::f32);
+    const auto* values = source.data<const float>();
+    GgufWeight result;
+    result.shape = source.get_shape();
+    result.qtype = type;
+    result.source_name = name;
+    if (type == GGUF_TYPE_BF16) {
+        ov::Tensor converted(ov::element::bf16, source.get_shape());
+        std::transform(values, values + source.get_size(), converted.data<ov::bfloat16>(), [](float value) {
+            return ov::bfloat16(value);
+        });
+        result.data = std::move(converted);
+    } else {
+        OPENVINO_ASSERT(type == GGUF_TYPE_Q8_0 && !source.get_shape().empty() && source.get_shape().back() % 32 == 0);
+        ov::Tensor packed(ov::element::u8, {source.get_size() / 32 * 34});
+        for (size_t group = 0; group < source.get_size() / 32; ++group) {
+            std::array<int8_t, 32> codes;
+            ov::float16 scale;
+            quantize_row_q8_0_c(values + group * 32, codes.size(), codes.data(), scale);
+            const auto bits = scale.to_bits();
+            auto* block = packed.data<uint8_t>() + group * 34;
+            std::memcpy(block, &bits, sizeof(bits));
+            std::memcpy(block + sizeof(bits), codes.data(), codes.size());
+        }
+        result.data = std::move(packed);
+    }
+    weights.at(name) = std::move(result);
+}
+
+// Normalized MSE, the acceptance metric for the accuracy fixtures: sum((a-e)^2) / sum(e^2).
+class Nmse {
+public:
+    void add(double actual, double expected) {
+        m_error += (actual - expected) * (actual - expected);
+        m_norm += expected * expected;
+        m_finite = m_finite && std::isfinite(actual);
+    }
+    bool all_finite() const {
+        return m_finite;
+    }
+    // Reference energy; a near-zero value means the fixture itself carries no signal.
+    double reference_norm() const {
+        return m_norm;
+    }
+    double value() const {
+        return m_error / m_norm;
+    }
+
+private:
+    double m_error = 0, m_norm = 0;
+    bool m_finite = true;
+};
+
+inline Nmse nmse(const float* actual, const float* expected, size_t count) {
+    Nmse result;
+    for (size_t i = 0; i < count; ++i)
+        result.add(actual[i], expected[i]);
+    return result;
+}
+
+inline void expect_nmse_below(const Nmse& metric, double limit, const std::string& context = {}) {
+    ASSERT_TRUE(metric.all_finite()) << context;
+    ASSERT_GT(metric.reference_norm(), 1e-12) << context;
+    EXPECT_LT(metric.value(), limit) << context;
+}
+
+// Round-trips a model through in-memory IR serialization.
+inline std::shared_ptr<ov::Model> reload_ir_model(const std::shared_ptr<ov::Model>& model) {
+    std::stringstream xml, weights;
+    ov::pass::Serialize(xml, weights).run_on_model(model);
+    const auto bytes = weights.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    if (!bytes.empty())
+        std::memcpy(constants.data(), bytes.data(), bytes.size());
+    return ov::Core{}.read_model(xml.str(), constants);
+}
+
+// GGUFMakeStateful keeps extra leading convolution taps; returns the trailing `taps` per channel.
+inline ov::Tensor trailing_conv_taps(const ov::Tensor& state, size_t channels, size_t taps) {
+    const auto stride = state.get_size() / channels;
+    ov::Tensor logical(ov::element::f32, {channels, taps});
+    for (size_t channel = 0; channel < channels; ++channel)
+        std::copy_n(state.data<const float>() + channel * stride + stride - taps,
+                    taps,
+                    logical.data<float>() + channel * taps);
+    return logical;
+}
+
+// The GGUF bytes a reference npz stores as "model", written to a temporary file for its lifetime.
+struct TemporaryGguf {
+    std::string path =
+        (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
+    explicit TemporaryGguf(const cnpy::NpyArray& bytes) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(bytes.data<char>(), bytes.num_vals);
+        OPENVINO_ASSERT(file, "Cannot write ", path);
+    }
+    TemporaryGguf(const TemporaryGguf&) = delete;
+    TemporaryGguf& operator=(const TemporaryGguf&) = delete;
+    ~TemporaryGguf() {
+        std::filesystem::remove(path);
+    }
+};
 
 }  // namespace ov_gguf_test

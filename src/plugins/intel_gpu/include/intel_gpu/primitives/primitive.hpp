@@ -67,7 +67,7 @@ struct input_info {
     };
 
     bool is_valid() const {
-        return pid.compare("") != 0;
+        return !pid.empty();
     }
 
     void save(BinaryOutputBuffer& ob) const {
@@ -102,7 +102,7 @@ struct prim_map_storage {
         return map.at(type_string);
     }
 
-    const cldnn::primitive_id get_type_string(const cldnn::primitive_type_id type_id) const {
+    cldnn::primitive_id get_type_string(const cldnn::primitive_type_id type_id) const {
         return inverse_map.at(type_id);
     }
 
@@ -321,7 +321,7 @@ public:
         }
 
         auto dependencies_map = get_dependencies_map();
-        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+        OPENVINO_ASSERT(dependencies_map.contains(idx),
                         "[GPU] Requested index ",
                         std::to_string(idx),
                         " exceeds total dependencies count (",
@@ -344,7 +344,7 @@ public:
         }
 
         auto dependencies_map = get_dependencies_map();
-        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+        OPENVINO_ASSERT(dependencies_map.contains(idx),
                         "[GPU] Requested index ",
                         std::to_string(idx),
                         " exceeds total dependencies count (",

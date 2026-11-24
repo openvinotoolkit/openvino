@@ -432,29 +432,6 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     }
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct OPENVINO_DEPRECATED("This property is deprecated and has no effect on the NPU Plugin. It will be removed in "
-                           "the OpenVINO 2027.0 release.") ENABLE_CPU_PINNING final
-    : OptionBase<ENABLE_CPU_PINNING, bool> {
-    static std::string_view key() {
-        return ov::hint::enable_cpu_pinning.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static constexpr const char* deprecationMessage() {
-        return "The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin. It will "
-               "be removed in the OpenVINO 2027.0 release.";
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-};
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
     static std::string_view key() {
         return ov::workload_type.name();
@@ -626,24 +603,6 @@ struct TILES final : OptionBase<TILES, int64_t> {
 struct STEPPING final : OptionBase<STEPPING, int64_t> {
     static std::string_view key() {
         return ov::intel_npu::stepping.name();
-    }
-
-    static std::vector<std::string_view> deprecatedKeys() {
-        return {};
-    }
-
-    static int64_t defaultValue() {
-        return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
-    static std::string_view key() {
-        return ov::intel_npu::max_tiles.name();
     }
 
     static std::vector<std::string_view> deprecatedKeys() {

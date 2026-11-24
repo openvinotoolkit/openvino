@@ -22,10 +22,12 @@ struct rms : public primitive_base<rms> {
     rms(const primitive_id& id,
         const input_info& input,
         const input_info& gamma,
-        const float epsilon)
+        const float epsilon,
+        const int64_t axis = -1)
         : primitive_base(id, {input, gamma}),
           epsilon(epsilon),
-          elementwise_affine(true) {}
+          elementwise_affine(true),
+          axis(axis) {}
 
     /// @brief Constructs rms primitive without gamma
     /// @param id This primitive id
@@ -33,20 +35,25 @@ struct rms : public primitive_base<rms> {
     /// @param epsilon Epsilon for not dividing by zero while normalizing
     rms(const primitive_id& id,
         const input_info& input,
-        const float epsilon)
+        const float epsilon,
+        const int64_t axis = -1)
         : primitive_base(id, {input}),
           epsilon(epsilon),
-          elementwise_affine(false) {}
+          elementwise_affine(false),
+          axis(axis) {}
 
     /// @brief Epsilon for not dividing by zero while normalizing
     float epsilon;
     /// @brief A boolean value that when set to True, RMS has learnable affine parameters (gamma)
     bool elementwise_affine;
+    /// @brief Logical input axis normalized by RMS
+    int64_t axis = -1;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, epsilon);
         seed = hash_combine(seed, elementwise_affine);
+        seed = hash_combine(seed, axis);
         return seed;
     }
 
@@ -58,19 +65,22 @@ struct rms : public primitive_base<rms> {
         auto rhs_casted = downcast<const rms>(rhs);
 
         return epsilon == rhs_casted.epsilon &&
-               elementwise_affine == rhs_casted.elementwise_affine;
+               elementwise_affine == rhs_casted.elementwise_affine &&
+               axis == rhs_casted.axis;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<rms>::save(ob);
         ob << epsilon;
         ob << elementwise_affine;
+        ob << axis;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<rms>::load(ib);
         ib >> epsilon;
         ib >> elementwise_affine;
+        ib >> axis;
     }
 };
 }  // namespace cldnn

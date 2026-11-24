@@ -5,6 +5,8 @@
 #include "ze_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "ze_kernel_builder.hpp"
 #include "openvino/zero_api.hpp"
 #include "ze_engine_factory.hpp"
@@ -29,7 +31,7 @@ ze_engine::ze_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::ze, "[GPU] Invalid runtime type specified for ZE engine. Only ZE runtime is supported");
 
-    auto casted = dynamic_cast<ze_device*>(dev.get());
+    auto* casted = dynamic_cast<ze_device*>(dev.get());
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type passed to ze engine");
 
     _service_stream.reset(new ze_stream(*this, ExecutionConfig()));
@@ -112,11 +114,14 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
     memory::ptr reinterpret_memory = nullptr;
     if (memory_capabilities::is_usm_type(memory.get_allocation_type())
         || memory.get_allocation_type() == allocation_type::cl_mem) {
-        reinterpret_memory = std::make_shared<ze::gpu_usm>(this,
+        const auto& src = reinterpret_cast<const ze::gpu_usm&>(memory);
+        auto usm_memory = std::make_shared<ze::gpu_usm>(this,
                                      new_layout,
-                                     reinterpret_cast<const ze::gpu_usm&>(memory).get_resource(),
+                                     src.get_resource(),
                                      memory.get_allocation_type(),
                                      memory.get_mem_tracker());
+        usm_memory->set_parent_resource(src.get_owning_resource());
+        reinterpret_memory = usm_memory;
     } else if (new_layout.format.is_image_2d()) {
         reinterpret_memory = std::make_shared<ze::gpu_image2d>(this,
                                      new_layout,
@@ -138,22 +143,25 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
         const bool is_borrowed = true;
         ze_usm_resource usm_res(usm_handle, is_borrowed);
         return std::make_shared<ze::gpu_usm>(this, new_layout, usm_res, nullptr);
-    }  else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
+    }
+    if (params.mem_type == shared_mem_type::shared_mem_buffer) {
         auto ctx = get_context();
-        auto ocl_buffer = static_cast<cl_mem>(params.mem);
+        auto* ocl_buffer = static_cast<cl_mem>(params.mem);
         auto imported_buffer = ze_import_usm(ocl_buffer, ctx);
         return std::make_shared<ze::gpu_usm>(this, new_layout, imported_buffer, allocation_type::cl_mem, nullptr);
-    } else if (params.mem_type == shared_mem_type::shared_mem_image) {
-        auto ocl_image = static_cast<cl_mem>(params.mem);
+    }
+    if (params.mem_type == shared_mem_type::shared_mem_image) {
+        auto* ocl_image = static_cast<cl_mem>(params.mem);
         auto imported_image = ze_import_image(ocl_image);
         return std::make_shared<ze::gpu_image2d>(this, new_layout, imported_image, nullptr);
-    } else if (params.mem_type == shared_mem_type::shared_mem_vasurface) {
-        return std::make_shared<ze::gpu_media_buffer>(this, new_layout, params);
-    } else if (params.mem_type == shared_mem_type::shared_mem_dxbuffer) {
-        return std::make_shared<ze::gpu_dx_buffer>(this, new_layout, params);
-    } else {
-        OPENVINO_THROW("[GPU] Unsupported shared memory type: ", params.mem_type);
     }
+    if (params.mem_type == shared_mem_type::shared_mem_vasurface) {
+        return std::make_shared<ze::gpu_media_buffer>(this, new_layout, params);
+    }
+    if (params.mem_type == shared_mem_type::shared_mem_dxbuffer) {
+        return std::make_shared<ze::gpu_dx_buffer>(this, new_layout, params);
+    }
+    OPENVINO_THROW("[GPU] Unsupported shared memory type: ", params.mem_type);
 }
 
 memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) {
@@ -162,45 +170,144 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
         OPENVINO_NOT_IMPLEMENTED;
     }
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(memory.get_allocation_type()), "[GPU] Trying to create subbuffer for non usm memory");
-    auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
-    auto ptr = new_buf.buffer_ptr();
+    OPENVINO_ASSERT(byte_offset <= memory.size() && new_layout.bytes_count() <= memory.size() - byte_offset,
+                    "[GPU] Sub-buffer size (",
+                    new_layout.bytes_count(),
+                    ") + offset (",
+                    byte_offset,
+                    ") exceeds parent buffer size (",
+                    memory.size(),
+                    ")");
+    const auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
+    auto* ptr = new_buf.buffer_ptr();
     auto ctx = get_context();
     ov_ze_usm_handle usm_handle{ctx.handle(), reinterpret_cast<uint8_t*>(ptr) + byte_offset};
     const bool is_borrowed = true;
     ze_usm_resource usm_res(usm_handle, is_borrowed);
-    return std::make_shared<ze::gpu_usm>(this,
-                             new_layout,
-                             usm_res,
-                             memory.get_allocation_type(),
-                             memory.get_mem_tracker());
+    auto sub_buffer = std::make_shared<ze::gpu_usm>(this,
+                                                    new_layout,
+                                                    usm_res,
+                                                    memory.get_allocation_type(),
+                                                    memory.get_mem_tracker());
+    sub_buffer->set_parent_resource(new_buf.get_owning_resource());
+    return sub_buffer;
 }
 
 memory_ptr ze_engine::create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
-    OPENVINO_NOT_IMPLEMENTED;
+    return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
 }
 
 memory_ptr ze_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool host_read_only) {
-    OPENVINO_NOT_IMPLEMENTED;
+    const cl_mem_flags flags = host_read_only ? (CL_MEM_READ_ONLY | CL_MEM_HOST_READ_ONLY) : CL_MEM_READ_ONLY;
+    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, flags);
 }
 
-bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
-    if (mem1.get_engine() != this || mem2.get_engine() != this)
+memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
+                                             size_t data_size,
+                                             allocation_type allocation,
+                                             const layout& output_layout,
+                                             cl_mem_flags access_flags) {
+                                             const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size.value_or(0));
+    OPENVINO_ASSERT(minimal_alignment > 0, "[GPU] cacheline_size must be > 0 for host pointer import");
+    OPENVINO_ASSERT(cpu_address != nullptr, "[GPU] shared buffer pointer is invalid");
+    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
+                    "[GPU] shared buffer pointer must be ",
+                    minimal_alignment,
+                    "-byte aligned");
+    OPENVINO_ASSERT((data_size % minimal_alignment) == 0,
+                    "[GPU] shared buffer size must be a multiple of ",
+                    minimal_alignment,
+                    " bytes");
+    const auto page_size = static_cast<size_t>(ov::util::get_system_page_size());
+    OPENVINO_ASSERT(page_size > 0, "[GPU] system page size must be > 0 for host pointer import");
+    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % page_size) == 0,
+                    "[GPU] shared buffer pointer must be ",
+                    page_size,
+                    "-byte page aligned");
+    OPENVINO_ASSERT((data_size % page_size) == 0,
+                    "[GPU] shared buffer size must be a multiple of ",
+                    page_size,
+                    " bytes");
+
+    auto ctx = get_context();
+
+    // Prefer mapping the host pointer directly via the native ZE_extension_external_memmap_sysmem
+    // extension: it avoids the OpenCL interop round-trip (ze_export_ocl_context + clCreateBuffer +
+    // ze_import_usm) entirely. The extension requires the pointer and size to be page-aligned.
+    if (get_device_info().supports_external_memmap_sysmem) {
+        ze_external_memmap_sysmem_ext_desc_t sysmem_desc = {};
+        sysmem_desc.stype = ZE_STRUCTURE_TYPE_EXTERNAL_MEMMAP_SYSMEM_EXT_DESC;
+        sysmem_desc.pSystemMemory = cpu_address;
+        sysmem_desc.size = data_size;
+
+        ze_host_mem_alloc_desc_t host_desc = {};
+        host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
+        host_desc.pNext = &sysmem_desc;
+        host_desc.flags = (access_flags & CL_MEM_READ_ONLY) ? ZE_HOST_MEM_ALLOC_FLAG_MEM_READ_ONLY : 0;
+
+        ov_ze_usm_handle usm_handle{ctx.handle(), nullptr};
+        OV_ZE_EXPECT(ze::zeMemAllocHost(usm_handle.context, &host_desc, data_size, 0, &usm_handle.ptr));
+        ze_usm_resource usm_resource(usm_handle);
+        OPENVINO_ASSERT(usm_handle.ptr == cpu_address,
+                        "[GPU] zeMemAllocHost with external system memory mapping returned a different pointer than requested");
+        auto mem_tracker = std::make_shared<MemoryTracker>(nullptr, usm_handle.ptr, data_size, allocation);
+        auto memory = std::make_shared<ze::gpu_usm>(
+            this, output_layout, std::move(usm_resource), allocation, mem_tracker);
+        return memory;
+    }
+
+    OPENVINO_ASSERT(get_device_info().supports_leo,
+                    "[GPU] Cannot import a host pointer: the device supports neither the native "
+                    "ZE_extension_external_memory_mapping extension nor Level Zero - OpenCL interoperability (LEO), "
+                    "which the OpenCL fallback path requires");
+
+    ze_export_ocl_context(ctx, get_device());
+    cl_int err = CL_SUCCESS;
+    cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
+#endif
+    cl_mem ocl_buffer =
+        clCreateBuffer(ctx.ocl_handle<ocl_resource_type::context>(), flags, data_size, cpu_address, &err);
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    OPENVINO_ASSERT(err == CL_SUCCESS && ocl_buffer != nullptr,
+                    "[GPU] clCreateBuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed: ",
+                    err);
+#else
+    OPENVINO_ASSERT(err == CL_SUCCESS && ocl_buffer != nullptr,
+                    "[GPU] clCreateBuffer with CL_MEM_USE_HOST_PTR failed: ",
+                    err);
+#endif
+
+    auto imported_buffer = ze_import_usm(ocl_buffer, ctx, false);
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    auto mem_tracker = std::make_shared<MemoryTracker>(nullptr, imported_buffer.handle().ptr, data_size, allocation);
+#else
+    auto mem_tracker = std::make_shared<MemoryTracker>(this, imported_buffer.handle().ptr, data_size, allocation);
+#endif
+    return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, mem_tracker);
+}
+
+bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
+    if (mem1.get_engine() != this || mem2.get_engine() != this) {
         return false;
-    if (mem1.get_allocation_type() != mem2.get_allocation_type())
+    }
+    if (mem1.get_allocation_type() != mem2.get_allocation_type()) {
         return false;
-    if (&mem1 == &mem2)
+    }
+    if (&mem1 == &mem2) {
         return true;
-    
+    }
+
     auto alloc_type = mem1.get_allocation_type();
     if (memory_capabilities::is_usm_type(mem1.get_allocation_type()) || alloc_type == allocation_type::cl_mem) {
         const auto &usm1 = downcast<const ze::gpu_usm>(mem1);
         const auto &usm2 = downcast<const ze::gpu_usm>(mem2);
         return usm1.buffer_ptr() == usm2.buffer_ptr();
-    } else {
-        const auto &img1 = downcast<const ze::gpu_image2d>(mem1);
-        const auto &img2 = downcast<const ze::gpu_image2d>(mem2);
-        return img1.get_resource().handle() == img2.get_resource().handle();
     }
+    const auto& img1 = downcast<const ze::gpu_image2d>(mem1);
+    const auto& img2 = downcast<const ze::gpu_image2d>(mem2);
+    return img1.get_resource().handle() == img2.get_resource().handle();
 }
 
 std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {
@@ -213,12 +320,12 @@ void* ze_engine::get_user_context(runtime_types rt_type) const {
     auto ctx = get_context();
     if (rt_type == runtime_types::ze) {
         return ctx.handle();
-    } else if (rt_type == runtime_types::ocl) {
+    }
+    if (rt_type == runtime_types::ocl) {
         ze_export_ocl_context(ctx, get_device());
         return ctx.ocl_handle<ocl_resource_type::context>();
-    } else {
-        OPENVINO_THROW("[GPU] ZE engine cannot provide context for ", rt_type);
     }
+    OPENVINO_THROW("[GPU] ZE engine cannot provide context for ", rt_type);
 }
 
 stream::ptr ze_engine::create_stream(const ExecutionConfig& config) const {

@@ -26,9 +26,11 @@ namespace ov::frontend::gguf::pass {
 ///
 /// Extensions run ahead of the built-in LowerSetRowsStateless, so this pass claims the KV-cache
 /// SetRows ops and the default stateless lowering only sees the rest (e.g. MoE routing writes).
+/// The pass can also run on a converted stateless model, where it rewrites the KV-cache writes
+/// already lowered to ScatterUpdate; ov::frontend::gguf::adapt_to_genai does this.
 ///
 /// Per KV cache it replaces the Parameter/Result pair with a Variable + ReadValue(empty init) +
-/// Gather(beam_idx) + Concat(past, this step's rows) + Assign. Only a SetRows writing to a model
+/// Gather(beam_idx) + Concat(past, this step's rows) + Assign. Only a write to a model
 /// Parameter is converted.
 ///
 /// Two details that are load-bearing rather than cosmetic:
@@ -36,6 +38,7 @@ namespace ov::frontend::gguf::pass {
 ///    it in a decoder would leave a consumer-less input on the stateless graph.
 ///  - the ReadValue init must be empty: CPU's stateful_sdpa_fusion folds the cache into
 ///    ScaledDotProductAttentionWithKVCache, whose MemoryInputSDPA aborts on zero parent edges.
+///    Caches fused into SDPA broadcast it to the beam_idx batch; plain states need a constant.
 ///
 /// Scope: this grows the cache and deliberately does not touch the attention mask. The native
 /// builder emits a dynamically sized mask, which needs no change; a graph that preallocates a

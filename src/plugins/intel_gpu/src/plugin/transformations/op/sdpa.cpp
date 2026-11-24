@@ -19,7 +19,8 @@ SDPA::SDPA(const OutputVector& inputs,
            const std::vector<int64_t>& order_v,
            const std::vector<int64_t>& order_out,
            const ov::element::Type output_type,
-           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment)
+           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment,
+           int64_t sliding_window_size)
     : m_is_causal(is_causal)
     , m_order_q(order_q)
     , m_order_k(order_k)
@@ -27,7 +28,10 @@ SDPA::SDPA(const OutputVector& inputs,
     , m_order_out(order_out)
     , m_output_type(output_type)
     , m_causal_mask_alignment(causal_mask_alignment)
-    , m_compressed(false) {
+    , m_compressed(false)
+    , m_sliding_window_size(sliding_window_size) {
+    OPENVINO_ASSERT(sliding_window_size >= 0,
+                    "SDPA sliding_window_size must be >= 0 (0 disables SWA); got ", sliding_window_size);
     set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
@@ -41,7 +45,8 @@ SDPA::SDPA(const OutputVector& inputs,
            const std::vector<int64_t>& order_out,
            const QuantizationAttribute& quantization_attrs,
            const ov::element::Type output_type,
-           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment)
+           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment,
+           int64_t sliding_window_size)
     : m_is_causal(is_causal)
     , m_order_q(order_q)
     , m_order_k(order_k)
@@ -50,7 +55,10 @@ SDPA::SDPA(const OutputVector& inputs,
     , m_output_type(output_type)
     , m_causal_mask_alignment(causal_mask_alignment)
     , m_compressed(true)
-    , m_quantization_attrs(quantization_attrs) {
+    , m_quantization_attrs(quantization_attrs)
+    , m_sliding_window_size(sliding_window_size) {
+    OPENVINO_ASSERT(sliding_window_size >= 0,
+                    "SDPA sliding_window_size must be >= 0 (0 disables SWA); got ", sliding_window_size);
     set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
@@ -68,7 +76,8 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
                                       m_order_out,
                                       m_quantization_attrs,
                                       m_output_type,
-                                      m_causal_mask_alignment);
+                                      m_causal_mask_alignment,
+                                      m_sliding_window_size);
     }
 
     return std::make_shared<SDPA>(new_args,
@@ -78,7 +87,14 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
                                   m_order_v,
                                   m_order_out,
                                   m_output_type,
-                                  m_causal_mask_alignment);
+                                  m_causal_mask_alignment,
+                                  m_sliding_window_size);
+}
+
+void SDPA::set_sliding_window_size(int64_t v) {
+    OPENVINO_ASSERT(v >= 0,
+                    "SDPA sliding_window_size must be >= 0 (0 disables SWA); got ", v);
+    m_sliding_window_size = v;
 }
 
 void SDPA::validate_and_infer_types() {
@@ -117,6 +133,7 @@ bool SDPA::visit_attributes(ov::AttributeVisitor &visitor) {
     bool causal_lower_right = m_causal_mask_alignment == CausalMaskAlignment::LOWER_RIGHT;
     visitor.on_attribute("causal_lower_right", causal_lower_right);
     m_causal_mask_alignment = causal_lower_right ? CausalMaskAlignment::LOWER_RIGHT : CausalMaskAlignment::UPPER_LEFT;
+    visitor.on_attribute("sliding_window_size", m_sliding_window_size);
     return true;
 }
 

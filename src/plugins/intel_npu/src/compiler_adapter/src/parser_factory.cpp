@@ -4,16 +4,33 @@
 
 #include "intel_npu/common/parser_factory.hpp"
 
+#include <exception>
+#include <memory>
+
 #include "parser.hpp"
+#include "vcl_profiling_decoder.hpp"
 
 namespace intel_npu {
 
-std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs) const {
+std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs,
+                                                  const VCLFunctionTableProvider& vclFunctionsProvider,
+                                                  bool perfCountEnabled) const {
     OPENVINO_ASSERT(
         zeroInitStructs != nullptr,
         "Could not find an NPU device. The driver compiler requires a valid device to be present in the system.");
 
-    return std::make_unique<Parser>(zeroInitStructs);
+    std::shared_ptr<IProfilingDecoder> profilingDecoder;
+    if (perfCountEnabled) {
+        try {
+            OPENVINO_ASSERT(vclFunctionsProvider != nullptr,
+                            "Profiling is enabled but no way to obtain the VCL entry points was given");
+            profilingDecoder = std::make_shared<VCLProfilingDecoder>(vclFunctionsProvider());
+        } catch (const std::exception& ex) {
+            Logger::global().warning("Failed to create the VCL profiling decoder for model import: %s", ex.what());
+        }
+    }
+
+    return std::make_unique<Parser>(zeroInitStructs, profilingDecoder);
 }
 
 }  // namespace intel_npu

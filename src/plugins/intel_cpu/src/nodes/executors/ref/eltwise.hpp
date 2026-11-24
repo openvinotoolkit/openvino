@@ -73,7 +73,8 @@ template <typename T, typename... Ts>
 constexpr bool one_of_v = (std::is_same_v<T, Ts> || ...);
 
 template <typename T>
-constexpr bool supported_eltwise_ref_types_v = one_of_v<T, float, dnnl::impl::float16_t>;
+constexpr bool supported_eltwise_ref_types_v =
+    one_of_v<T, float, dnnl::impl::float16_t, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
 
 template <typename T, typename Enable = std::enable_if_t<supported_eltwise_ref_types_v<T>>>
 class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
@@ -85,6 +86,12 @@ public:
               const CpuParallelPtr& cpu_parallel) override;
 
     static bool supports([[maybe_unused]] const EltwiseConfig& config);
+
+private:
+    template <typename U = T>
+    void execFloatingPoint(const jit_eltwise_call_args_ptrs& args_ptrs,
+                           const VectorDims& dims_out,
+                           const CpuParallelPtr& cpu_parallel);
 };
 
 template <typename T>

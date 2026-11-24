@@ -19,6 +19,9 @@ GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
 GGUF_OP_CONVERTER(translate_cpy);
 GGUF_OP_CONVERTER(translate_get_rows);
+GGUF_OP_CONVERTER(translate_get_rel_pos);
+GGUF_OP_CONVERTER(translate_win_part);
+GGUF_OP_CONVERTER(translate_win_unpart);
 GGUF_OP_CONVERTER(translate_permute);
 GGUF_OP_CONVERTER(translate_repeat);
 GGUF_OP_CONVERTER(translate_reshape);
@@ -51,7 +54,10 @@ GGUF_OP_CONVERTER(translate_mul_mat_id);
 GGUF_OP_CONVERTER(translate_add_id);
 GGUF_OP_CONVERTER(translate_argsort);
 GGUF_OP_CONVERTER(translate_top_k);
+GGUF_OP_CONVERTER(translate_mean);
 GGUF_OP_CONVERTER(translate_sum_rows);
+GGUF_OP_CONVERTER(translate_conv_transpose_1d);
+GGUF_OP_CONVERTER(translate_unary_step);
 
 // Elementwise clamp and division.
 GGUF_OP_CONVERTER(translate_clamp);
@@ -81,8 +87,10 @@ GGUF_OP_CONVERTER(translate_fill);
 
 // Convolution-family / sequence ops.
 GGUF_OP_CONVERTER(translate_im2col);
-GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_pool_2d);
+GGUF_OP_CONVERTER(translate_conv_2d);
+GGUF_OP_CONVERTER(translate_upscale);
+GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_roll);
 GGUF_OP_CONVERTER(translate_solve_tri);
 GGUF_OP_CONVERTER(translate_ssm_conv);

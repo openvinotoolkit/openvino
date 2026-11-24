@@ -41,6 +41,24 @@ class quantized_decomposed_quantize_per_tensor_aten_dequantize(torch.nn.Module):
         return dequantized_tensor
 
 
+class quantized_decomposed_quantize_per_tensor_dequantize_op(torch.nn.Module):
+    def __init__(self, scale, zero_point, quant_min, quant_max, dtype, op) -> None:
+        torch.nn.Module.__init__(self)
+        self.scale = torch.tensor(scale, dtype=torch.float)
+        self.zero_point = torch.tensor(zero_point, dtype=torch.float)
+        self.quant_min = quant_min
+        self.quant_max = quant_max
+        self.dtype = dtype
+        self.op = op
+
+    def forward(self, input_tensor):
+        quantized_tensor = torch.ops.quantized_decomposed.quantize_per_tensor(input_tensor, scale=self.scale,
+                zero_point=self.zero_point, quant_min=self.quant_min, quant_max=self.quant_max, dtype=self.dtype)
+        dequantized_tensor = torch.ops.quantized_decomposed.dequantize_per_tensor(quantized_tensor, scale=self.scale,
+                zero_point=self.zero_point, quant_min=self.quant_min, quant_max=self.quant_max, dtype=self.dtype)
+        return self.op(dequantized_tensor)
+
+
 class aten_quantize_per_channel_aten_dequantize(torch.nn.Module):
     def __init__(self, scales, zero_points, dtype, axis) -> None:
         torch.nn.Module.__init__(self)
@@ -128,6 +146,35 @@ class TestDecomposedQuantizePerTensorDequantize(PytorchLayerTest):
         self._test(quantized_decomposed_quantize_per_tensor_aten_dequantize(scale,
                 zero_point, quant_min, quant_max, dtype), ["aten::quantize_per_tensor", "aten::dequantize"],
                 ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, **kwargs)
+
+
+class TestDecomposedQuantizePerTensorDequantizeOp(PytorchLayerTest):
+
+    def _prepare_input(self):
+        return (5.00 * self.random.rand(1, 3, 16, 16) + 5.00,)
+
+    @pytest.mark.parametrize("op", [
+        torch.nn.MaxPool2d(3, 2, 1),
+        torch.nn.Flatten(),
+        torch.nn.AdaptiveAvgPool2d(1),
+    ])
+    @pytest.mark.parametrize("dtype", [
+        torch.uint8,
+        torch.int8,
+    ])
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_decomposed_quantize_per_tensor_dequantize_op(self, op, dtype, ie_device, precision, ir_version):
+        scale = 0.05
+        quant_min = -128
+        quant_max = 127
+        if dtype == torch.uint8:
+            quant_min = 0
+            quant_max = 255
+        self._test(quantized_decomposed_quantize_per_tensor_dequantize_op(scale,
+                0, quant_min, quant_max, dtype, op), None,
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale,
+                fx_kind=["quantized_decomposed.quantize_per_tensor", "quantized_decomposed.dequantize_per_tensor"])
 
 
 class TestQuantizePerChannelDequantize(PytorchLayerTest):

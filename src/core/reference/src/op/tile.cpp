@@ -4,10 +4,7 @@
 
 #include "openvino/reference/tile.hpp"
 
-#include <algorithm>
 #include <cstdio>
-
-#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace reference {
@@ -28,11 +25,8 @@ void tile(const char* arg,
           const Shape& out_shape,
           const size_t elem_size,
           const std::vector<int64_t>& repeats) {
-    if (std::any_of(repeats.begin(), repeats.end(), [](int64_t repeat) {
-            return repeat <= 0;
-        })) {
-        OPENVINO_ASSERT(shape_size(out_shape) == 0,
-                        "Tile with non-positive repeats must produce an empty output shape.");
+    // Nothing to copy when the inferred output is empty.
+    if (shape_size(out_shape) == 0) {
         return;
     }
 

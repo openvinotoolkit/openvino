@@ -5,10 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "openvino/core/except.hpp"
 #include "vcl.h"
 namespace intel_npu {
 
@@ -76,35 +74,30 @@ struct VCLFunctionTable {
 /**
  * @brief Owns the loaded VCL compiler library and the function table resolved out of it.
  *
- * The loading constructor is private: `getInstance` is the only way to load, so the process cannot
- * end up with two independently dlopen'd copies of the compiler library.
+ * Instances must be owned by a `shared_ptr` (`sharedFunctions()` relies on it); use `std::make_shared`.
  */
 class VCLLoader final : public std::enable_shared_from_this<VCLLoader> {
 public:
+    VCLLoader();
+
     VCLLoader(const VCLLoader& other) = delete;
     VCLLoader(VCLLoader&& other) = delete;
     void operator=(const VCLLoader&) = delete;
     void operator=(VCLLoader&&) = delete;
 
-    static const std::shared_ptr<const VCLLoader> getInstance(const std::string& library_dir = std::string());
-
     /**
      * @brief The function table, sharing this loader's lifetime.
      *
      * An aliasing `shared_ptr`, so a holder of the returned table keeps the library loaded without
-     * having to know a library exists.
+     * having to know a library exists. This is the only handle on the library handed out: consumers
+     * need nothing else to dispatch safely, and none of them can extend the library's lifetime
+     * beyond their own use of the table.
      */
     std::shared_ptr<const VCLFunctionTable> sharedFunctions() const {
         return {shared_from_this(), &_functions};
     }
 
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
-    }
-
 private:
-    explicit VCLLoader(const std::string& library_dir);
-
     VCLFunctionTable _functions;
     std::shared_ptr<void> lib;
     Logger _logger;

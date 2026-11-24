@@ -7,12 +7,17 @@
 #include <cstdint>
 
 #include "common_test_utils/node_builders/activation.hpp"
-#include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
@@ -42,6 +47,7 @@ struct QuantizationParams {
     std::vector<size_t> fqConstShapes;                // fq constant shapes
     element::Type expectedPrecision;                  // convolution expected precision
     bool perChannelWeightsScale;                      // use per-channel scale on weights
+    double absoluteThreshold = 1e-2f;
 };
 
 typedef std::tuple<InputShape,          // input shape
@@ -84,28 +90,6 @@ protected:
     void SetUp() override {
         const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, convType, targetName] =
             this->GetParam();
-        abs_threshold = 1e-2f;
-        targetDevice = targetName;
-        std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
-        init_input_shapes({inputShape});
-        ov::ParameterVector input_params{
-            std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0])};
-
-        const auto& inputIntervals = quantizationParams.inputIntervals;
-        const auto& outputIntervals = quantizationParams.outputIntervals;
-        const auto& fqConstShapes = quantizationParams.fqConstShapes;
-
-        auto fq_before = ov::test::utils::make_fake_quantize(input_params[0],
-                                                             inputPrecision,
-                                                             256,
-                                                             fqConstShapes,
-                                                             inputIntervals[0],
-                                                             inputIntervals[1],
-                                                             inputIntervals[2],
-                                                             inputIntervals[3]);
-
-        const size_t inputRank = static_cast<size_t>(inputDynamicShapes[0].rank().get_length());
-        const size_t spatialRank = inputRank - 2;
         const bool isDepthwise = convType == ConvType::Depthwise;
         const size_t numOutChannels = isDepthwise ? 3 : 4;
         ov::Shape weightsShape;
@@ -120,65 +104,73 @@ protected:
             weightsShape = ov::Shape{4, 3, 2, 2, 2};
             break;
         }
-        auto weights = utils::make_constant(element::i8, weightsShape);
-        auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-
-        std::shared_ptr<ov::Node> multiply;
+        const auto weights = utils::make_constant(element::i8, weightsShape);
+        ov::Shape scaleShape(weightsShape.size(), 1);
+        std::vector<float> scaleValues{0.625F};
         if (quantizationParams.perChannelWeightsScale) {
-            auto weightScaleDim = ov::Shape(weightsShape.size(), 1);
-            weightScaleDim[0] = numOutChannels;
-            const std::vector<float> scales = {0.02f, 0.025f, 0.03f, 0.035f};
-            multiply = std::make_shared<op::v1::Multiply>(
-                convert,
-                op::v0::Constant::create(element::f32,
-                                         weightScaleDim,
-                                         std::vector<float>(scales.begin(), scales.begin() + numOutChannels)));
-        } else {
-            auto weightScaleDim = ov::Shape(weightsShape.size(), 1);
-            multiply =
-                std::make_shared<op::v1::Multiply>(convert,
-                                                   op::v0::Constant::create(element::f32, weightScaleDim, {0.625f}));
+            scaleShape[0] = numOutChannels;
+            scaleValues = {0.02F, 0.025F, 0.03F, 0.035F};
+            scaleValues.resize(numOutChannels);
         }
+        const auto scales = op::v0::Constant::create(element::f32, scaleShape, scaleValues);
+
+        std::shared_ptr<Node> bias;
+        if (withBias) {
+            ov::Shape biasShape(weightsShape.size() - (isDepthwise ? 1 : 0), 1);
+            biasShape[1] = numOutChannels;
+            bias = std::make_shared<op::v0::Convert>(utils::make_constant(element::f16, biasShape), element::f32);
+        }
+        buildModel(weights, scales, bias, true);
+    }
+
+    void buildModel(const std::shared_ptr<Node>& weights,
+                    const std::shared_ptr<Node>& scales,
+                    const std::shared_ptr<Node>& bias,
+                    bool withMatMul) {
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, convType, targetName] =
+            GetParam();
+        abs_threshold = quantizationParams.absoluteThreshold;
+        targetDevice = targetName;
+        std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
+        init_input_shapes({inputShape});
+        ov::ParameterVector input_params{std::make_shared<op::v0::Parameter>(inputPrecision, inputDynamicShapes[0])};
+
+        const auto& inputIntervals = quantizationParams.inputIntervals;
+        const auto& outputIntervals = quantizationParams.outputIntervals;
+        const auto fq_before = utils::make_fake_quantize(input_params[0],
+                                                        inputPrecision,
+                                                        256,
+                                                        quantizationParams.fqConstShapes,
+                                                        inputIntervals[0],
+                                                        inputIntervals[1],
+                                                        inputIntervals[2],
+                                                        inputIntervals[3]);
+
+        const auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        const auto multiply = std::make_shared<op::v1::Multiply>(convert, scales);
+        const size_t spatialRank = static_cast<size_t>(inputDynamicShapes[0].rank().get_length()) - 2;
+        const Strides strides(spatialRank, 1);
+        const CoordinateDiff pads(spatialRank, 0);
+        const Strides dilations(spatialRank, 1);
+        const auto padding = op::PadType::EXPLICIT;
 
         std::shared_ptr<Node> conv;
-        {
-            const std::vector<size_t> kernelSize(spatialRank, 1);
-            const std::vector<size_t> strides = std::vector<size_t>(spatialRank, 1);
-            const std::vector<ptrdiff_t> padBegin = std::vector<ptrdiff_t>(spatialRank, 0);
-            const std::vector<ptrdiff_t> padEnd = std::vector<ptrdiff_t>(spatialRank, 0);
-            const std::vector<size_t> dilation = std::vector<size_t>(spatialRank, 1);
-            const op::PadType paddingType = op::PadType::EXPLICIT;
-            if (isDepthwise) {
-                conv = ov::test::utils::make_group_convolution(fq_before,
-                                                               multiply,
-                                                               inputPrecision,
-                                                               strides,
-                                                               padBegin,
-                                                               padEnd,
-                                                               dilation,
-                                                               paddingType);
-            } else {
-                conv = ov::test::utils::make_convolution(fq_before,
-                                                         multiply,
-                                                         inputPrecision,
-                                                         kernelSize,
-                                                         strides,
-                                                         padBegin,
-                                                         padEnd,
-                                                         dilation,
-                                                         paddingType,
-                                                         numOutChannels);
-            }
+        if (convType == ConvType::Depthwise) {
+            conv = utils::make_group_convolution(fq_before,
+                                                 multiply,
+                                                 inputPrecision,
+                                                 strides,
+                                                 pads,
+                                                 pads,
+                                                 dilations,
+                                                 padding);
+        } else {
+            conv = std::make_shared<op::v1::Convolution>(fq_before, multiply, strides, pads, pads, dilations, padding);
         }
 
         auto fqInput = conv;
-        if (withBias) {
-            auto biasDim = ov::Shape(inputRank, 1);
-            biasDim[1] = numOutChannels;
-            auto bias = ov::test::utils::make_constant(ov::element::f16, biasDim);
-            auto convertBias = std::make_shared<op::v0::Convert>(bias, element::f32);
-            auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, convertBias);
-            fqInput = convBiasAdd;
+        if (bias) {
+            fqInput = std::make_shared<op::v1::Add>(conv, bias);
         }
         if (withSwish) {
             fqInput = ov::test::utils::make_activation(fqInput,
@@ -196,6 +188,11 @@ protected:
                                                             {outputIntervals[1][0]},
                                                             {outputIntervals[2][0]},
                                                             {outputIntervals[3][0]});
+
+        if (!withMatMul) {
+            function = create_ov_model(inputPrecision, input_params, fq_after, "ConvFQ");
+            return;
+        }
 
         auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
         auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
@@ -221,28 +218,68 @@ protected:
             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
-    void checkConvolutionPrecision(ov::element::Type expectedPrecision) {
-        const auto runtime_model = compiledModel.get_runtime_model();
-        for (auto& op : runtime_model->get_ops()) {
-            if (op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "Convolution") {
-                EXPECT_EQ(op->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(),
-                          expectedPrecision);
-            }
-        }
+    void runAndCheckConvolution() {
+        run();
+        const auto convolutions = GetNodesWithTypes(compiledModel.get_runtime_model(), {"Convolution"});
+        ASSERT_EQ(convolutions.size(), 1u);
+        EXPECT_EQ(convolutions.front()->get_rt_info().at(exec_model_info::RUNTIME_PRECISION).as<element::Type>(),
+                  std::get<QuantizationParams>(GetParam()).expectedPrecision);
+        CheckPluginRelatedResults(compiledModel, "Convolution");
     }
 };
 
 TEST_P(ConvAndFQ, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    run();
-
-    const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, convType, targetName] =
-        this->GetParam();
-    checkConvolutionPrecision(quantizationParams.expectedPrecision);
-    CheckPluginRelatedResults(compiledModel, "Convolution");
+    runAndCheckConvolution();
 }
 
 namespace {
+
+#if defined(OPENVINO_ARCH_ARM64)
+class ConvAndFQZeroPointRounding : public ConvAndFQ {
+protected:
+    void SetUp() override {
+        const auto weights =
+            op::v0::Constant::create(element::i8, {4, 4, 1, 1}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1});
+        const auto scales = op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.012F, 0.011F, 0.014F, 0.017F});
+        const auto bias = op::v0::Constant::create(element::f32, {1, 4, 1, 1}, {0.012F, -0.018F, 0.032F, -0.041F});
+        buildModel(weights, scales, bias, false);
+    }
+
+    void generate_inputs(const std::vector<Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto input = function->input();
+        Tensor tensor(input.get_element_type(), targetInputStaticShapes[0]);
+        std::fill_n(tensor.data<float>(), tensor.get_size(), 0.0F);
+        inputs.insert({input.get_node_shared_ptr(), tensor});
+    }
+};
+
+TEST_P(ConvAndFQZeroPointRounding, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    runAndCheckConvolution();
+}
+
+// The destination range puts -255 * low / (high - low) just below 128 in float.
+// Truncating to 127 shifts the output by one bin (~0.0061), above the 0.001 tolerance.
+const QuantizationParams zeroPointRoundingParams{{{0.F}, {0.64194745F}, {0.F}, {0.64194745F}},
+                                                 {{-0.78389084F}, {0.777767F}, {-0.78389084F}, {0.777767F}},
+                                                 {},
+                                                 element::u8,
+                                                 true,
+                                                 1e-3};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQZeroPointRounding_CPU,
+                         ConvAndFQZeroPointRounding,
+                         ::testing::Combine(::testing::Values(InputShape{{}, {{1, 4, 4, 4}}}),
+                                            ::testing::Values(element::f32),
+                                            ::testing::Values(zeroPointRoundingParams),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ConvType::Regular),
+                                            ::testing::Values(utils::DEVICE_CPU)),
+                         ConvAndFQZeroPointRounding::getTestCaseName);
+#endif
 
 std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}}, {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
 std::vector<InputShape> inputShapes3D{{{}, {{4, 3, 2, 2, 2}}}};

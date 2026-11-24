@@ -33,7 +33,7 @@ public:
             output_type = impl_param.get_output_element_type();
             for (const auto& desc : impl_param.fused_desc) {
                 if (desc.is_type<reorder>()) {
-                    out_format = desc.output_layout.format;
+                    out_format = desc.get_output_layout().format;
                 }
             }
         }
@@ -44,7 +44,7 @@ public:
     static layout calc_output_layout(group_normalization_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(group_normalization_node const& node);
 
-    typed_primitive_inst(network& network, group_normalization_node const& desc);
+    typed_primitive_inst(network& network, const group_normalization_node& node);
 };
 
 using group_normalization_inst = typed_primitive_inst<group_normalization>;

@@ -70,8 +70,7 @@ struct program_helpers {
     // helper function for selecting function basing on the type of the given primitive
     // this is the termination case for parameter pack recurrence, see overload below for logic
     template <class... T>
-    static void do_for_types(program_node&) {
-    }
+    static void do_for_types(program_node& /*unused*/) {}
 
     // helper function for selecting function basing on the type of the given primitive
     // this function should be explicitly given set of types and implicitly set of functions.
@@ -100,12 +99,12 @@ struct program_helpers {
     }
 
     // helper functions for deconvolution optimizations
-    static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
-                                              const int channels,
-                                              const int kernel_width,
-                                              const int kernel_height,
-                                              const int scale_factor,
-                                              std::vector<std::vector<std::vector<float> > >& subpixel_weights);
+    static void reshape_deconvolution_weights(const std::vector<float>& deconv_weights,
+                                              int channels,
+                                              int kernel_width,
+                                              int kernel_height,
+                                              int scale_factor,
+                                              std::vector<std::vector<std::vector<float>>>& subpixel_weights);
     template <typename T>
     static void set_weights_values(T* mem, std::vector<std::vector<std::vector<float> > > args) {
         for (uint32_t x = 0; x < static_cast<uint32_t>(args.size()); ++x) {
@@ -119,7 +118,7 @@ struct program_helpers {
     }
 };
 
-struct onednn_add_fusing_helpers {
+struct onednn_eltwise_fusing_helpers {
     enum class add_fusing_type {
         sum,
         binary_per_tensor,
@@ -127,15 +126,14 @@ struct onednn_add_fusing_helpers {
         not_supported,
     };
 
-    static bool is_full_tensor(const layout& layout);
-    static std::vector<fused_primitive_desc> get_fused_eltwise_primitives();
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
     static int32_t get_reused_eltwmem_idx(const program_node& node);
+    static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
 };
 
-using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
+using add_fusing_type = onednn_eltwise_fusing_helpers::add_fusing_type;
 
 static inline std::ostream& operator<< (std::ostream& os, add_fusing_type& t) {
     switch (t) {

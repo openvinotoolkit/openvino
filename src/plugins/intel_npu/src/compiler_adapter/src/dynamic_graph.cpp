@@ -51,15 +51,13 @@ void DynamicGraph::create_execution_engine(const Config& config) {
     if (npuVMRuntimeGetAPIVersion(&_apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to get VM runtime API version");
     }
+    _logger.debug("DynamicGraph: using VM runtime API %u.%u",
+                  ZE_MAJOR_VERSION(_apiVersion),
+                  ZE_MINOR_VERSION(_apiVersion));
 
-    const auto result = [&]() {
-        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
-            NpuVMRuntimeConfigChain runtimeConfig;
-            populateRuntimeConfigChain(runtimeConfig, config);
-            return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
-        }
-        return npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties);
-    }();
+    NpuVMRuntimeConfigChain runtimeConfig;
+    populateRuntimeConfigChain(runtimeConfig, config);
+    const auto result = npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
 
     if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create VM runtime engine");
@@ -208,51 +206,56 @@ CommandQueueDesc DynamicGraph::get_command_queue_desc() const {
 }
 
 void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the workload type must be applied directly on it.
     if (_commandQueue && zeWorkloadType.has_value()) {
         // When shared common queue is disabled, workload type is set per command queue.
         // Update the existing queue if it has already been created.
         _commandQueue->setWorkloadType(zeWorkloadType.value());
         _workloadType = workloadType;
-
         return;
     }
 
-    if (_commandQueueDesc.workload() == zeWorkloadType) {
-        return;
-    }
-    _commandQueueDesc.set_workload(zeWorkloadType);
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setWorkload(zeWorkloadType);
 }
 
 void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
-    if (_commandQueueDesc.priority() == zeModelPriority) {
-        return;
-    }
-    _commandQueueDesc.set_priority(zeModelPriority);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the priority must be applied on it (directly, or by recreating it on legacy drivers).
     if (_commandQueue) {
+        if (_zeroInitStruct->isCommandQueueSetPrioritySupported()) {
+            _commandQueue->setPriority(zeModelPriority);
+            return;
+        }
+
+        // Legacy behavior: Create new command queue if setPriority is not supported.
         // When shared common queue is disabled, workload type is set per command queue.
         // Recreate the queue with the new priority while preserving the current workload type.
         if (_workloadType.has_value()) {
             auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(_workloadType.value());
-            _commandQueueDesc.set_workload(zeWorkloadType);
+            _commandQueueDesc.setWorkload(zeWorkloadType);
             _workloadType = std::nullopt;  // Clear the cached workload type after applying it to the new queue
         }
 
+        _commandQueueDesc.setPriority(zeModelPriority);
         _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
     }
+
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setPriority(zeModelPriority);
 }
 
 void* DynamicGraph::get_handle() const {
@@ -295,7 +298,7 @@ void DynamicGraph::initialize_impl(const Config& runtimeConfig) {
                                              this,
                                              sharedCommonQueue};
 
-        if (!use_npu_vm_runtime_v2_api(_apiVersion) && sharedCommonQueue == false) {
+        if (!sharedCommonQueue) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }

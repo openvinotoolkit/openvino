@@ -23,7 +23,7 @@ namespace ov::intel_cpu::riscv64 {
 
 jit_binary_call_emitter::jit_binary_call_emitter(jit_generator_t* h, cpu_isa_t isa, std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
-      m_live_regs(std::move(live_regs)) {}
+      m_regs_to_spill(std::move(live_regs)) {}
 
 void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
                                                     const std::vector<size_t>& used_gpr_idxs) const {
@@ -38,6 +38,7 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     std::vector<size_t> reserved_regs = used_gpr_idxs;
     for (size_t i = 0; i < num_binary_args; ++i) {
         reserved_regs.push_back(jit_generator_t::abi_param_regs[i].getIdx());
+        m_regs_to_spill.emplace(snippets::RegType::gpr, jit_generator_t::abi_param_regs[i].getIdx());
     }
 
     const auto found_reg = std::find_if(aux_gpr_idxs.rbegin(), aux_gpr_idxs.rend(), [&reserved_regs](size_t idx) {
@@ -64,8 +65,8 @@ const Xbyak_riscv::Reg& jit_binary_call_emitter::get_call_address_reg() const {
 
 std::vector<size_t> jit_binary_call_emitter::get_gpr_regs_to_spill() const {
     std::vector<size_t> regs;
-    regs.reserve(m_live_regs.size());
-    for (const auto& reg : m_live_regs) {
+    regs.reserve(m_regs_to_spill.size());
+    for (const auto& reg : m_regs_to_spill) {
         if (reg.type == snippets::RegType::gpr) {
             regs.push_back(reg.idx);
         }
@@ -75,8 +76,8 @@ std::vector<size_t> jit_binary_call_emitter::get_gpr_regs_to_spill() const {
 
 std::vector<size_t> jit_binary_call_emitter::get_vec_regs_to_spill() const {
     std::vector<size_t> regs;
-    regs.reserve(m_live_regs.size());
-    for (const auto& reg : m_live_regs) {
+    regs.reserve(m_regs_to_spill.size());
+    for (const auto& reg : m_regs_to_spill) {
         if (reg.type == snippets::RegType::vec || reg.type == snippets::RegType::mask) {
             regs.push_back(reg.idx);
         }

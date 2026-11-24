@@ -11,10 +11,13 @@
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -58,6 +61,37 @@ OutputVector translate_pad(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
     auto input = context.get_input(0);
+    const auto reflect = context.get_attribute<int64_t>("reflect_last_axis", 0);
+    if (reflect) {
+        FRONT_END_OP_CONVERSION_CHECK(reflect > 0 && input.get_partial_shape().rank().is_static(),
+                                      "Reflect padding requires a positive extent and static rank");
+        std::vector<int64_t> extents(input.get_partial_shape().size(), 0);
+        extents.back() = reflect;
+        auto pads = ov::op::v0::Constant::create(ov::element::i64, {extents.size()}, extents);
+        auto result = std::make_shared<ov::op::v1::Pad>(input, pads, pads, ov::op::PadMode::REFLECT);
+        return rename_outputs_with_suffix({result}, context.get_name());
+    }
+    const auto multiple = context.get_attribute<int64_t>("pad_tokens_to_multiple", 0);
+    if (multiple) {
+        FRONT_END_OP_CONVERSION_CHECK(multiple > 0 && input.get_partial_shape().rank() == 4,
+                                      "Token padding requires rank four and a positive multiple");
+        auto length = get_dimensions(input, {2});
+        auto divisor = ov::op::v0::Constant::create(ov::element::i64, {1}, {multiple});
+        auto remainder = std::make_shared<ov::op::v1::FloorMod>(length, divisor);
+        auto count =
+            std::make_shared<ov::op::v1::FloorMod>(std::make_shared<ov::op::v1::Subtract>(divisor, remainder), divisor);
+        auto pads = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, {2}, {0, 0}),
+                             count,
+                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0})},
+            0);
+        auto result =
+            std::make_shared<ov::op::v1::Pad>(input,
+                                              ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 0, 0, 0}),
+                                              pads,
+                                              ov::op::PadMode::CONSTANT);
+        return rename_outputs_with_suffix({result}, context.get_name());
+    }
     if (context.get_input_shape(0) == context.get_output_shape()) {
         auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input);
         auto res = std::make_shared<ov::op::v1::Reshape>(input, input_shape, false);

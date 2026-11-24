@@ -6,14 +6,10 @@
 
 #include <iterator>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "openvino/runtime/make_tensor.hpp"
-#include "openvino/util/file_util.hpp"
 
 namespace intel_npu {
 
@@ -23,7 +19,8 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
-             const bool blobIsPersistent)
+             const bool blobIsPersistent,
+             const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -31,6 +28,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
+      _profilingDecoder(profilingDecoder),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", Logger::global().level()) {}
 
@@ -48,51 +46,56 @@ CommandQueueDesc Graph::get_command_queue_desc() const {
 }
 
 void Graph::set_workload_type(const ov::WorkloadType workloadType) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the workload type must be applied directly on it.
     if (_commandQueue && zeWorkloadType.has_value()) {
         // When shared common queue is disabled, workload type is set per command queue.
         // Update the existing queue if it has already been created.
         _commandQueue->setWorkloadType(zeWorkloadType.value());
         _workloadType = workloadType;
-
         return;
     }
 
-    if (_commandQueueDesc.workload() == zeWorkloadType) {
-        return;
-    }
-    _commandQueueDesc.set_workload(zeWorkloadType);
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setWorkload(zeWorkloadType);
 }
 
 void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
-    if (_commandQueueDesc.priority() == zeModelPriority) {
-        return;
-    }
-    _commandQueueDesc.set_priority(zeModelPriority);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the priority must be applied on it (directly, or by recreating it on legacy drivers).
     if (_commandQueue) {
+        if (_zeroInitStruct->isCommandQueueSetPrioritySupported()) {
+            _commandQueue->setPriority(zeModelPriority);
+            return;
+        }
+
+        // Legacy behavior: Create new command queue if setPriority is not supported.
         // When shared common queue is disabled, workload type is set per command queue.
         // Recreate the queue with the new priority while preserving the current workload type.
         if (_workloadType.has_value()) {
             auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(_workloadType.value());
-            _commandQueueDesc.set_workload(zeWorkloadType);
+            _commandQueueDesc.setWorkload(zeWorkloadType);
             _workloadType = std::nullopt;  // Clear the cached workload type after applying it to the new queue
         }
 
+        _commandQueueDesc.setPriority(zeModelPriority);
         _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
     }
+
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setPriority(zeModelPriority);
 }
 
 void* Graph::get_handle() const {
@@ -153,14 +156,13 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
-    auto compiler = std::make_shared<VCLCompilerImpl>(VCLLoader::getInstance(ov_lib_path)->sharedFunctions());
-    OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
+    OPENVINO_ASSERT(_profilingDecoder != nullptr, "No VCL profiling decoder is available for this graph");
+    OPENVINO_ASSERT(_blob.has_value(), "VCL profiling decoder requires the compiled network blob");
+    return _profilingDecoder->decode(profData, _blob.value());
+}
 
-    std::vector<uint8_t> blob(_blob->get_byte_size());
-    blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
-                reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return compiler->process_profiling_output(profData, blob);
+bool Graph::has_profiling_decoder() const {
+    return _profilingDecoder != nullptr;
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {
