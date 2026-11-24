@@ -38,6 +38,12 @@ describe("ov.Core tests", () => {
     assert.equal(cacheDir, tmpDir);
   });
 
+  it("Core.getProperty() throws for an unknown property or device", () => {
+    assert.throws(() => core.getProperty("NONEXISTENT_PROPERTY"), /NONEXISTENT_PROPERTY/);
+    assert.throws(() => core.getProperty("CPU", "NONEXISTENT_PROPERTY"), /NONEXISTENT_PROPERTY/);
+    assert.throws(() => core.getProperty("NONEXISTENT_DEVICE", "CACHE_DIR"), /NONEXISTENT_DEVICE/);
+  });
+
   it('Core.getProperty("CPU", "SUPPORTED_PROPERTIES") is Array', () => {
     const supportedPropertiesArray = core.getProperty("CPU", "SUPPORTED_PROPERTIES");
 

@@ -212,6 +212,8 @@ const std::map<std::string, Fingerprint>& fingerprints() {
         {"smollm3-dense.gguf.hdr", {389, 10}},
         {"jais2-dense.gguf.hdr", {334, 10}},
         {"lfm3.gguf.hdr", {702, 12}},
+        {"qwen3vl-dense.gguf.hdr", {469, 10}},
+        {"qwen3vlmoe-moe.gguf.hdr", {620, 10}},
     };
     return fp;
 }
