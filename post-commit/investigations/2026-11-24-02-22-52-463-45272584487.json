@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-02-22-52-463-45272584487",
+  "timestamp": "2026-11-24T02:22:52Z",
+  "run_id": "45272584487",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45272584487",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "b47d57bb9c10af8879cc121ce23e6ada4e7f4ba9",
+  "pr_number": "40203",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40203",
+  "author": "mryzhov",
+  "category": "Flaky Test",
+  "title": "CachingTest.LoadMultiWithConfig_race fails with mock import_model call count mismatch on Windows",
+  "signature": "caching_test.cpp mock import_model call count mismatch EXPECT_CALL unsatisfied LoadMultiWithConfig_race|Flaky Test",
+  "signature_hash": "9f9ea52f699d8da3",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "OpenVINO Inference Functional Tests step failed: CachingTest.LoadMultiWithConfig_race/ByModelName_testCache mock expectation unmet"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the C++ unit tests job failed"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2673): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))... Expected: to be called 3 times Actual: called twice - unsatisfied and active",
+    "caching_test.cpp(318): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get()) Actual: false Expected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2046 ms)"
+  ],
+  "root_cause": "CachingTest.LoadMultiWithConfig_race spawns multiple concurrent threads that race to load/cache a model and asserts the mock plugin's import_model() is called exactly 3 times. On Windows runners, thread scheduling occasionally lets one thread observe the cache file before another thread finishes writing it, so only 2 of the 3 expected cache-miss imports occur, making the GMock EXPECT_CALL count assertion fail. This is an existing known timing-sensitive (racy) test unrelated to the PR being merged (#40203), which only touched a single CMake option (ENABLE_STATIC_LIBS_PDB) in src/CMakeLists.txt and does not affect the caching test or ICompiledModel import_model logic.",
+  "reproduction_steps": "Not reliably reproducible locally; requires running src/inference/tests/functional/caching_test.cpp's CachingTest.LoadMultiWithConfig_race/ByModelName_testCache repeatedly (e.g., in a loop with --gtest_repeat=200 --gtest_filter=CachingTest.LoadMultiWithConfig_race*) on a loaded Windows CI-like machine to trigger the race window.",
+  "recommended_actions": [
+    "Increase the race-test's retry/tolerance window in caching_test.cpp around line 2673 so a 2-vs-3 call count during the race does not immediately fail, or add a short synchronization barrier between cache-writer and cache-reader threads before asserting call counts.",
+    "Consider marking CachingTest.LoadMultiWithConfig_race as a known-flaky test on Windows (e.g., via test filter/skip list) until the underlying race condition is fixed.",
+    "No action needed on PR #40203 itself — the merged change (ENABLE_STATIC_LIBS_PDB CMake fix) is unrelated to this test failure."
+  ],
+  "prevention_strategies": "Add deterministic synchronization (e.g., explicit thread join points or condition variables) around the mock-call-count assertions in multi-threaded caching race tests instead of relying on timing to guarantee call counts. Track recurring flaky-test signatures in the CI Doctor pattern DB and auto-quarantine tests once they exceed a recurrence threshold.",
+  "historical_context": "This exact signature has recurred 4 times before (2026-11-09, 2026-11-20, 2026-11-20, 2026-11-21) across unrelated commits, confirming it is a long-standing flaky test rather than a regression introduced by this commit."
+}
