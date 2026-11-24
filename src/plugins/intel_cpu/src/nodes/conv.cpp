@@ -562,28 +562,15 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
-    // check for multiply node
-    auto isScaleShiftMul = [&](const NodePtr& n) -> bool {
-        if (n->getAlgorithm() != Algorithm::EltwiseMultiply) {
-            return false;
-        }
-        for (size_t i = 0; i < n->getParentEdges().size(); i++) {
-            auto parent = n->getParentEdgeAt(i)->getParent();
-            if (parent.get() != this && parent->isConstant()) {
-                return true;
-            }
-        }
-        return false;
-    };
-
+    // A Multiply by a constant is not fused: Eltwise::fuseInto() fills its scales only where
+    // canBePerformedAsScaleShift() holds (x86 only), and a post-op with empty scales fails to compose.
     auto isSwish = [](const NodePtr& n) -> bool {
         return n->getType() == Type::Eltwise && n->getAlgorithm() == Algorithm::EltwiseSwish;
     };
 
     if (!fusedWith.empty()) {
         if (node->getType() == Type::Eltwise) {
-            return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) || isScaleShiftMul(node) ||
-                   isSwish(node);
+            return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) || isSwish(node);
         }
         // Allow FakeQuantize to fuse after a single Eltwise activation
         // to enable Conv -> Activation -> FakeQuantize for the ACL INT8 path.
@@ -613,10 +600,6 @@ bool Convolution::canFuse(const NodePtr& node) const {
         if (any_of(convInPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
             return false;
         }
-    }
-
-    if (node->getType() == Type::Eltwise && isScaleShiftMul(node)) {
-        return true;
     }
 
     if (isSwish(node)) {
