@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,12 +45,12 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const concatenation_params& params) const;
     virtual DispatchData SetDefault(const concatenation_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
-    int32_t GetConcatChannelIndex(const concatenation_params& params) const;
-    Tensor::DataChannelName GetConcatChannel(const concatenation_params& params) const;
+    static int32_t GetConcatChannelIndex(const concatenation_params& params);
+    static Tensor::DataChannelName GetConcatChannel(const concatenation_params& params);
     virtual size_t GetAlignment(const concatenation_params& /*params*/) const {
         return 1;
     }

@@ -70,7 +70,7 @@ const device_info& engine::get_device_info() const {
     return _device->get_info();
 }
 
-const device::ptr engine::get_device() const {
+device::ptr engine::get_device() const {
     return _device;
 }
 
@@ -90,7 +90,7 @@ uint64_t engine::get_max_memory_size() const {
     return max_device_mem;
 }
 
-uint64_t engine::get_host_memory_size() const {
+uint64_t engine::get_host_memory_size() {
     return static_cast<uint64_t>(get_cpu_ram_size());
 }
 
@@ -109,6 +109,13 @@ bool engine::can_use_host_usm_zero_copy() const {
     return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
 }
 
+bool engine::keeps_constants_in_device_memory() const {
+    const auto& info = get_device_info();
+    // usm_device memory does not provide performance benefits on integrated Xe2+ platforms
+    return supports_allocation(cldnn::allocation_type::usm_device) && info.has_separate_cache &&
+           (info.arch < cldnn::gpu_arch::xe2 || info.dev_type != cldnn::device_type::integrated_gpu);
+}
+
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
     if (!use_unified_shared_memory() || is_image_layout) {
         return get_default_allocation_type();
@@ -117,7 +124,8 @@ allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_im
     /*
         We do not check device allocation here.
         Device allocation is reserved for buffers of hidden layers.
-        Const buffers are propagated to device if possible.
+        Const buffers are allocated in device memory directly on discrete GPUs, otherwise they are propagated to
+        device if keeps_constants_in_device_memory() is true.
     */
 
     bool support_usm_host = supports_allocation(allocation_type::usm_host);
@@ -312,7 +320,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     return engine::create(engine_type, runtime_type, device);
 }
 
-bool engine::check_allocatable(const layout& layout, allocation_type type) {
+bool engine::check_allocatable(const layout& layout, allocation_type type) const {
     OPENVINO_ASSERT(supports_allocation(type), "[GPU] Unsupported allocation type: ", type);
 
     if (!get_enable_large_allocations()) {

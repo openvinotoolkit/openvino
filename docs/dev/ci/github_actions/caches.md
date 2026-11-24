@@ -90,12 +90,12 @@ add the mounting point under the `container`'s `volumes` key in a job configurat
 Build:
   ...
   needs: Docker
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: <self-hosted runner>
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.<image> }}
     volumes:
-      - /mount:/mount
-      - /home/runner/secrets/:/secrets:ro
+      - <shared drive path>:<shared drive path>
+      - <secrets path on runner>:/secrets:ro
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -108,16 +108,17 @@ Build:
   ...
 ```
 
-In `- /mount:/mount`, the first `/mount` is the path on the runner, the second `/mount` is the
-path in the Docker container where the resources will be available.
+In `- <shared drive path>:<shared drive path>`, the first path is the location of the shared drive
+on the runner, the second one is the path in the Docker container where the resources will be
+available. Use the same mount point as the existing workflows for the target runner.
 
 ### Available Resources
 
 * `pip` cache
-  * Accessible via the environment variable `PIP_CACHE_PATH: /mount/caches/pip/linux`, defined at the workflow level
+  * Accessible via the `PIP_CACHE_PATH` environment variable, defined at the workflow level
   * Used in jobs that involve Python usage
 * onnx models for tests
-  * Accessible at the path: `/mount/onnxtestdata`
+  * Stored in a dedicated folder on the shared drive
   * Used in the `ONNX Models tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow
 * Linux RISC-V with Conan build artifacts
   * Used in the [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) workflow
@@ -127,12 +128,28 @@ To add new resources, contact a member of the CI team for assistance.
 ### Remote Storage Compiler Cache
 
 Builds can share compiled objects through ccache's remote storage on the shared drive
-by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache)
-to `file:///mount/caches/ccache/shared`. The RISC-V GNU build in
-[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) is the pilot user.
-Old entries are evicted together with the rest of `/mount/caches/ccache` by the
-`Cleanup_ccache_lin` job in
-[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
+by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache) to a
+`file://` URL. Each build configuration uses its own directory inside the shared storage.
+Users:
+* The RISC-V GNU and Conan builds in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
+  and [`linux_riscv_conan.yml`](./../../../../.github/workflows/linux_riscv_conan.yml).
+* The Windows builds in
+  [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml) and
+  [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml).
+
+ccache cannot cache MSVC compilations with a separate PDB (`/Zi`), so the Windows Debug build
+sets `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`), which stores debug information
+in object files. Builds with embedded debug information link without `/INCREMENTAL`, which keeps
+PDB files free of stale incremental-link data. See `ENABLE_STATIC_LIBS_PDB` in
+[CMake options for custom compilation](./../../cmake_options_for_custom_compilation.md) for how
+static libraries are handled.
+
+`CCACHE_MAXSIZE` limits only the local cache. The remote storage is trimmed periodically by the
+`Cleanup_remote_ccache_*` jobs in
+[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) with
+`ccache --trim-dir --trim-method mtime` (ccache 4.8 or newer), which evicts the least recently used
+entries down to `CCACHE_REMOTE_MAX_SIZE`. Builds must keep `update-mtime=true` in the remote storage
+URL so that cache hits refresh the modification time used for eviction.
 
 ## Cloud Storage via Azure Blob Storage
 
@@ -176,12 +193,12 @@ key under the `container` key to make them accessible for `sccache` inside the c
 Build:
   ...
   needs: Docker
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: <self-hosted runner>
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.<image> }}
     volumes:
-      - /mount:/mount
-      - /home/runner/secrets/:/secrets:ro
+      - <shared drive path>:<shared drive path>
+      - <secrets path on runner>:/secrets:ro
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
