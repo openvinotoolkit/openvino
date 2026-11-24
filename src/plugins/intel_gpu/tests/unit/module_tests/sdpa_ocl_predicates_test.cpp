@@ -63,8 +63,8 @@ TEST(SdpaOclPredicates, Plain3dOkTruthTable) {
                 SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " dev_type=" << static_cast<int>(t));
                 auto info = make_info(a, immad);
                 info.dev_type = t;
-                // Xe2 and newer, discrete or integrated, on the lane's oneDNN / XMX term; not xe_hpg or xe_hpc.
-                const bool want = kOneDnn && immad && (a == gpu_arch::xe2 || a == gpu_arch::xe3 || a == gpu_arch::xe3p);  // spelled out, NOT '>='
+                // The SG16 arms (xe_hpc and Xe2+), discrete or integrated, on the lane's oneDNN / XMX term; not xe_hpg.
+                const bool want = kOneDnn && immad && sg16_arch(a);
                 EXPECT_EQ(pa::sdpa_ocl_plain_3d_ok(info), want);
             }
         }

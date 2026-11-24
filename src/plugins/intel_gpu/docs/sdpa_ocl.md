@@ -68,7 +68,7 @@ output, alibi, ...) the last column's kernel runs.
   `sdpa_ocl`.
 - (2) `sdpa_ocl_decode`'s SG8 reader (`sdpa_ocl_hpg_decode.cl`) is not selected (`sdpa_ocl_decode_reader_available()`;
   "xe_hpg reader (SG8)").
-- (3) A rank-3 SDPA (Q/K/V `[B, L, E]`) takes `sdpa_ocl` on Xe2 and newer GPUs only (discrete or integrated; xe3p unmeasured), for heads of 64..256 that are multiples of 16
+- (3) A rank-3 SDPA (Q/K/V `[B, L, E]`) takes `sdpa_ocl` on the SG16 arms only (xe_hpc and Xe2+, discrete or integrated; xe_hpc and xe3p unmeasured), for heads of 64..256 that are multiples of 16
   (`sdpa_ocl_plain_3d_ok()`, `sdpa_ocl_plain_3d_head_ok()`; "Rank-3 plain SDPA"). A dynamic one keeps `sdpa_opt` for one
   query. Every other device and head runs `sdpa_opt`, and a static rank-3 op on an XMX device is still decomposed.
 - (4) Since 2026-11-23 ("Per-channel compressed KV on xe_hpg"): a step of more than one query reads the cache in the
@@ -1289,8 +1289,8 @@ static one reach `sdpa_ocl` (the plugin reshapes it to 4D). Since 2026-11-14 ("R
 "Change history") it takes `sdpa_ocl` on Xe2 discrete GPUs, and since 2026-11-16 on every Xe2 and newer GPU, discrete or integrated ("Rank-3 plain
 SDPA on LNL and PTL-H (2026-11-16)"):
 
-- Where: `sdpa_ocl_plain_3d_ok()` (the `sdpa_ocl` lane, `arch >= xe2`, a discrete or an integrated GPU; measured on the B70 (xe2,
-  discrete), LNL (xe2, integrated) and PTL-H (xe3, integrated), one SKU each; xe3p is included by the comparison and was not measured) and
+- Where: `sdpa_ocl_plain_3d_ok()` (the `sdpa_ocl` lane, `arch >= xe_hpc` since 2026-11-24, a discrete or an integrated GPU; measured on the B70 (xe2,
+  discrete), LNL (xe2, integrated) and PTL-H (xe3, integrated), one SKU each; xe_hpc and xe3p are included by the comparison and were not measured) and
   heads that `sdpa_ocl_plain_3d_head_ok()` accepts (64..256, a multiple of 16: the measured ones).
 - Static: `transformations_pipeline.cpp` skips the decomposition rule (`is_fused_sdpa_ocl_3d_faster()`: DPAS kernel on, f16,
   non-causal, no mask or one f16 mask of rank >= 2, at most a constant scalar scale, equal static heads), so the op stays fused.
@@ -4057,6 +4057,19 @@ land on `sdpa_ref`); the i8-only rule for an 8-bit cache stays.
   at head 512 spills (i8 prefill of 2048: 3417 against 1117 us for the f16 SDPA after the dequantization; 4-bit 2531).
   Kept so that the pass comes closer to master; the spill is a follow-up.
 - Not checked: xe_hpg, Xe3.
+
+### xe_hpc handled as Xe2 (2026-11-24)
+
+OpenVINO does not officially support PVC (xe_hpc), so the branch keeps no xe_hpc-specific rule: xe_hpc takes the SG16 arms
+as Xe2 does everywhere. Three branch rules still left it out:
+
+- `paged_attention::sdpa_ocl_transposed_v_ok()` (Xe2+ and xe_hpg) is gone: with xe_hpc it is the lane itself, so
+  `SDPABase::transposed_v_reader_ok()` checks `sdpa_ocl_selected()` and the pipeline's `fuse_transposed_v` drops the term.
+- `paged_attention::sdpa_ocl_plain_3d_ok()`: `arch >= xe_hpc` (was `xe2`), so a rank-3 SDPA takes `sdpa_ocl` there too.
+- `use_2d_block_io_k_token_major()` (`paged_attention_opt.cpp`): `arch >= xe_hpc` for the 2D read of the token-major K page.
+- Tests: `SdpaOclPredicates.Plain3dOkTruthTable` expects the SG16 arms; the transposed-V suites skip off the lane only.
+  B70 (where every rule gives what it gave): `SdpaOclPredicates` and the transposed-V, per-channel and GQA unit suites
+  151 / 151, `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` 62 / 62. Nothing run on xe_hpc.
 
 ## Known issues
 

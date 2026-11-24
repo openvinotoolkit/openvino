@@ -68,22 +68,15 @@ struct paged_attention : public primitive_base<paged_attention> {
 #endif
     }
 
-    // Rank-3 plain SDPA (Q/K/V [B, L, E]) on the sdpa_ocl lane for Xe2 and newer (docs/sdpa_ocl.md, "Rank-3 plain SDPA"). On xe_hpg
-    // and xe_hpc a rank-3 op stays on sdpa_opt and a static one is still decomposed on XMX devices (should_decompose_sdpa_for_memory_size()).
+    // Rank-3 plain SDPA (Q/K/V [B, L, E]) on the sdpa_ocl lane for xe_hpc and Xe2+ (docs/sdpa_ocl.md, "Rank-3 plain SDPA"). On xe_hpg
+    // a rank-3 op stays on sdpa_opt and a static one is still decomposed on XMX devices (should_decompose_sdpa_for_memory_size()).
     static bool sdpa_ocl_plain_3d_ok(const device_info& info) {
-        return sdpa_ocl_selected(info) && info.arch >= gpu_arch::xe2;
+        return sdpa_ocl_selected(info) && info.arch >= gpu_arch::xe_hpc;
     }
 
     // Rank-3 head sizes: a multiple of 16 in 64..256 (verified at 64, 80, 96, 128 and 256).
     static bool sdpa_ocl_plain_3d_head_ok(int64_t head_size) {
         return head_size >= 64 && head_size <= 256 && head_size % 16 == 0;
-    }
-
-    // Transposed V (SDPA value order {.., 3, 2}) in sdpa_ocl (v_tile_t): Xe2+, and xe_hpg, where its PREFILL kernel and the
-    // opt single-token stage read it too (docs/sdpa_ocl.md, "Transposed V read in sdpa_ocl" and "Transposed V on xe_hpg").
-    // On top of sdpa_ocl_selected().
-    static bool sdpa_ocl_transposed_v_ok(const device_info& info) {
-        return info.arch >= gpu_arch::xe2 || info.arch == gpu_arch::xe_hpg;
     }
 
     // ARL-H (gfx 12.74) keeps sdpa_opt for a static one-query plain SDPA (upstream's rule, "Where it runs" in the docs).

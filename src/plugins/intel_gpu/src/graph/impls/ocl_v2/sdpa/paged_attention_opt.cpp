@@ -74,11 +74,11 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
 }
 
 // Whether paged_attention_opt.cl reads the uncompressed K page with a 2D block transpose instead of a per-lane vload16
-// (USE_2D_BLOCK_IO_K_TM): Xe2+ only, the arch check keeps the 2D block read off a part without it (the rest read per
-// lane). The K row is the surface width and pitch; the page base is a whole number of pages, which the pitch rule keeps
+// (USE_2D_BLOCK_IO_K_TM): xe_hpc and Xe2+ only, the arch check keeps the 2D block read off a part without it (the rest
+// read per lane). The K row is the surface width and pitch; the page base is a whole number of pages, which the pitch rule keeps
 // 64 B aligned.
 inline bool use_2d_block_io_k_token_major(const RuntimeParams& params) {
-    if (get_kv_compressed(params) || params.get_device_info().arch < gpu_arch::xe2) {
+    if (get_kv_compressed(params) || params.get_device_info().arch < gpu_arch::xe_hpc) {
         return false;
     }
     const size_t elem_size = ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type).size();

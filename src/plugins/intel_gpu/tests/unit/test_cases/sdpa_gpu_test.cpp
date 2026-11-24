@@ -2327,8 +2327,8 @@ struct sdpa_tv_case {
 
 static void run_sdpa_transposed_v(const sdpa_tv_case& c) {
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || !cldnn::paged_attention::sdpa_ocl_transposed_v_ok(engine.get_device_info()))
-        GTEST_SKIP() << "no transposed-V reader on this device (paged_attention::sdpa_ocl_transposed_v_ok())";
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "no transposed-V reader off the sdpa_ocl lane";
     ASSERT_TRUE(!c.causal_lr || (!c.mask && !c.causal)) << "lower-right cases have no mask";
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -3488,8 +3488,8 @@ struct sdpa_tv_i8_case {
 static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
     auto& engine = get_test_engine();
     const auto arch = engine.get_device_info().arch;
-    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl || (arch < gpu_arch::xe2 && arch != gpu_arch::xe_hpg))
-        GTEST_SKIP() << "the transposed-V readers are Xe2+ and xe_hpg";
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "no transposed-V reader off the sdpa_ocl lane";
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     const int B = c.batch, H = c.heads, KVH = c.kv_heads, D = c.head_size;
