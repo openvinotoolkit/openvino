@@ -1018,13 +1018,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= legacy_fusion;
 
-            // fp8 concatenation/scatter_update/gather take a byte-copy kernel path that cannot run fused ops
-            // (ACTIVATION does not compile on the 1-byte fp8 struct), so block fusion into an fp8 output.
-            if (should_fuse && input.get_output_layout().data_type == data_types::f8e4m3 &&
-                (input.is_type<concatenation>() || input.is_type<scatter_update>() || input.is_type<gather>())) {
-                should_fuse = false;
-            }
-
             if (!should_fuse) {
                 return;
             }
@@ -1148,17 +1141,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            (!lo.has_all_enabled_onednn_impls_optimization_attribute() ||
                              in_dt_is_i8_u8 || !out_dt_is_i8_u8);
 
-            // fp8 gather byte-copies its data; fused ops don't compile on the fp8 struct, so don't fuse into it.
-            should_fuse |=
-                input_data.is_type<gather>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
+            should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather_nd>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather_elements>() && quantize_node.get_scale_shift_opt();
 
-            // fp8 scatter_update byte-copies its data; fused ops don't compile on the fp8 struct, so don't fuse into it.
-            should_fuse |=
-                input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
+            should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<scatter_nd_update>() && quantize_node.get_scale_shift_opt();
 
@@ -1681,9 +1670,14 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
             continue;
         }
 
+        const bool is_onednn = lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn;
         auto permute_order = permute_node.get_primitive()->permute_order;
         // Assumption that fc weights will be reshaped to 2d
         if (permute_order.size() != 2 && weightable_node->is_type<fully_connected>()) {
+            // The onednn reorder below works on the N-D layout, where {1,0} doesn't swap the last two dims; the kept permute is constant-folded.
+            if (is_onednn) {
+                continue;
+            }
             if (permute_order == std::vector<uint16_t>{0, 2, 1} ||
                 permute_order == std::vector<uint16_t>{0, 1, 3, 2}) {
                 permute_order = {1, 0};
@@ -1714,7 +1708,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         new_const_node.recalc_output_layout(false);
 
         // Add format reorder in case of onednn to avoid overhead during execution on weights memory allocation
-        if (lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
+        if (is_onednn) {
             const auto& const_users = new_const_node.get_users();
             auto* next_node = const_users.front();
             bool can_be_fused = const_users.size() == 1 &&
