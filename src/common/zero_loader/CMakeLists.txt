@@ -31,3 +31,33 @@ ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 if(TARGET ze_loader)
     add_dependencies(${TARGET_NAME} ze_loader)
 endif()
+
+#
+# Variant which resolves the Level Zero API from the statically linked loader (used by the NPU plugin)
+#
+
+if(ENABLE_NPU_STATIC_ZE_LOADER)
+    set(TARGET_NAME openvino_zero_loader_static)
+
+    add_library(${TARGET_NAME} STATIC)
+
+    target_sources(${TARGET_NAME}
+        PRIVATE
+        # Sources
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/zero.api.cpp
+        # Headers
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/openvino/zero_api.hpp
+    )
+    add_library(openvino::zero_loader_static ALIAS ${TARGET_NAME})
+
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_ZERO_LOADER_STATIC)
+    target_link_libraries(${TARGET_NAME} PUBLIC LevelZero::Headers PRIVATE openvino::util LevelZero::LevelZero)
+    target_include_directories(${TARGET_NAME}
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+
+    ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+        INSTALL_INCLUDE_DIRECTORIES
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+    ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+endif()
