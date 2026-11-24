@@ -33,6 +33,7 @@
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -40,6 +41,7 @@
 #include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/stateless_kv.hpp"
 #include "primitive_type.h"
+#include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
@@ -1018,6 +1020,207 @@ TEST(alias_analysis, A9_view_of_nonzero_port_has_nonzero_port_root) {
     const auto owner = program_helpers::resolve_buffer_owner(prog->get_node("R"), program_helpers::view_resolution::settled_only);
     EXPECT_EQ(owner.owner, &prog->get_node("arg_max"));
     EXPECT_EQ(owner.owner_port, 1);
+}
+
+// ==============================================================================================================================
+// A9b-A9e (P1-PORT). The settled owner walk and the class edges are port-aware: a view reached through output port k of a multi-output
+// node steps to the input that port k aliases at runtime (view_source_of_port), not unconditionally to input 0.
+// ==============================================================================================================================
+namespace {
+// dynamic_quantize (asymmetric, planar: data, scale, zp) with one reorder per output and a reorder in front of it.
+program::ptr make_dq_hand(engine& eng) {
+    dynamic_quantize::Attributes cfg;
+    cfg.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    cfg.quantization_dt = data_types::i8;
+    cfg.scale_dt = data_types::f16;
+    cfg.zp_dt = data_types::f16;
+    cfg.group_sizes = {1, 1, 32};
+    cfg.scales_zp_output_order = {0, 1, 2};
+    cfg.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    const ov::PartialShape in_ps{-1, 4, 32};
+    const ov::PartialShape sc_ps{-1, 4, 1};
+    topology t;
+    t.add(input_layout("input", layout{in_ps, data_types::f32, format::bfyx}));
+    t.add(reorder("reorder_1", input_info("input"), layout{in_ps, data_types::f16, format::bfyx}));
+    t.add(dynamic_quantize("dq", input_info("reorder_1"), cfg));
+    t.add(reorder("reorder_data", input_info("dq", 0), layout{in_ps, data_types::f16, format::bfyx}));
+    t.add(reorder("reorder_scale", input_info("dq", 1), layout{sc_ps, data_types::f16, format::bfyx}));
+    t.add(reorder("reorder_zp", input_info("dq", 2), layout{sc_ps, data_types::f16, format::bfyx}));
+    auto prog = make_hand(eng, t, {"reorder_data", "reorder_scale", "reorder_zp"});
+    // settled flags as the pipeline leaves them: the reorders and dq are views / skippable
+    for (const char* id : {"reorder_1", "reorder_data", "reorder_scale", "reorder_zp"}) {
+        prog->get_node(id).can_be_optimized(true);
+    }
+    prog->get_node("dq").set_runtime_skippable(true);
+    return prog;
+}
+}  // namespace
+
+TEST(alias_analysis, A9b_dynamic_quantize_ports_1_2_are_not_views_of_input) {
+    auto& eng = get_test_engine();
+    auto prog = make_dq_hand(eng);
+    auto& dq = prog->get_node("dq");
+    ASSERT_GE(dq.get_outputs_count(), 3u);
+    const auto mode = program_helpers::view_resolution::settled_only;
+    const auto o_scale = program_helpers::resolve_buffer_owner(prog->get_node("reorder_scale"), mode);
+    EXPECT_EQ(o_scale.owner, &dq);
+    EXPECT_EQ(o_scale.owner_port, 1);
+    const auto o_zp = program_helpers::resolve_buffer_owner(prog->get_node("reorder_zp"), mode);
+    EXPECT_EQ(o_zp.owner, &dq);
+    EXPECT_EQ(o_zp.owner_port, 2);
+    // port-0 guard: the data output still resolves through dq to reorder_1 (and further to the input_layout)
+    const auto o_data = program_helpers::resolve_buffer_owner(prog->get_node("reorder_data"), mode);
+    EXPECT_EQ(o_data.owner, &prog->get_node("input"));
+    EXPECT_EQ(program_helpers::view_source_of_port(dq, 0, mode), 0);
+    EXPECT_EQ(program_helpers::view_source_of_port(dq, 1, mode), -1);
+
+    auto aa = alias_analysis::build(*prog);  // runs the Debug owner/class consistency assertion
+    const alias_class* c_scale = aa.class_of(prog->get_node("reorder_scale"), 0);
+    ASSERT_NE(c_scale, nullptr) << dump_aa(aa);
+    EXPECT_EQ(c_scale, aa.class_of(dq, 1)) << dump_aa(aa);
+    EXPECT_EQ(aa.class_of(prog->get_node("reorder_zp"), 0), aa.class_of(dq, 2)) << dump_aa(aa);
+    EXPECT_NE(c_scale, aa.class_of(prog->get_node("reorder_1"), 0)) << dump_aa(aa);
+    EXPECT_EQ(aa.class_of(prog->get_node("reorder_data"), 0), aa.class_of(prog->get_node("reorder_1"), 0)) << dump_aa(aa);
+}
+
+TEST(alias_analysis, A9c_nms_gather_output_k_aliases_input_k) {
+    auto& eng = get_test_engine();
+    auto boxes = eng.allocate_memory({data_types::f32, format::bfyx, {1, 8, 4, 1}});
+    topology t;
+    t.add(input_layout("boxes", layout{ov::PartialShape{1, 8, 4}, data_types::f32, format::bfyx}));
+    t.add(input_layout("scores", layout{ov::PartialShape{1, 2, 8}, data_types::f32, format::bfyx}));
+    t.add(cldnn::data("num_per_class", eng.allocate_memory({data_types::i32, format::bfyx, {1, 1, 1, 1}})));
+    t.add(cldnn::data("iou_threshold", eng.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}})));
+    t.add(cldnn::data("score_threshold", eng.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}})));
+    auto nms = non_max_suppression("nms", input_info("boxes"), input_info("scores"), 16, false, true, "num_per_class", "iou_threshold",
+                                   "score_threshold", "", "", "", 3);
+    nms.output_data_types = {optional_data_type{}, optional_data_type{data_types::f32}, optional_data_type{}};
+    nms.output_paddings = {padding(), padding(), padding()};
+    t.add(nms);
+    t.add(non_max_suppression_gather("nms_gather", {input_info("nms", 0), input_info("nms", 1), input_info("nms", 2)}, 3));
+    t.add(reorder("view1", input_info("nms_gather", 1), format::bfyx, data_types::f32));
+    t.add(reorder("out0", input_info("nms_gather", 0), format::bfyx, data_types::i32));
+    t.add(reorder("out1", input_info("view1"), format::bfyx, data_types::f32));
+    t.add(reorder("out2", input_info("nms_gather", 2), format::bfyx, data_types::i32));
+    auto prog = make_hand(eng, t, {"out0", "out1", "out2"});
+    auto& gather = prog->get_node("nms_gather");
+    ASSERT_TRUE(gather.can_be_optimized() || gather.is_runtime_skippable());
+    prog->get_node("view1").can_be_optimized(true);
+    const auto mode = program_helpers::view_resolution::settled_only;
+    for (int32_t k = 0; k < 3; ++k) {
+        EXPECT_EQ(program_helpers::view_source_of_port(gather, k, mode), k);
+    }
+    EXPECT_EQ(program_helpers::view_source_of_port(gather, 3, mode), -1);
+    const auto o = program_helpers::resolve_buffer_owner(prog->get_node("view1"), mode);
+    EXPECT_EQ(o.owner, &prog->get_node("nms"));
+    EXPECT_EQ(o.owner_port, 1);
+
+    auto aa = alias_analysis::build(*prog);
+    for (int32_t k = 0; k < 3; ++k) {
+        const alias_class* g = aa.class_of(gather, k);
+        ASSERT_NE(g, nullptr) << dump_aa(aa);
+        EXPECT_EQ(g, aa.class_of(prog->get_node("nms"), k)) << "port " << k << "\n" << dump_aa(aa);
+    }
+}
+
+TEST(alias_analysis, A9d_resolve_buffer_owner_start_port) {
+    auto& eng = get_test_engine();
+    auto prog = make_dq_hand(eng);
+    auto& dq = prog->get_node("dq");
+    const auto mode = program_helpers::view_resolution::settled_only;
+    const auto p1 = program_helpers::resolve_buffer_owner(dq, mode, false, 1);
+    EXPECT_EQ(p1.owner, &dq);
+    EXPECT_EQ(p1.owner_port, 1);
+    const auto p0 = program_helpers::resolve_buffer_owner(dq, mode, false, 0);
+    EXPECT_EQ(p0.owner, &prog->get_node("input"));
+    EXPECT_EQ(p0.owner_port, 0);
+    const auto pd = program_helpers::resolve_buffer_owner(dq, mode, true, 2);
+    EXPECT_EQ(pd.path.size(), 1u);
+}
+
+// NOTE: this asserts the INTENDED port-aware semantics, which the runtime does not implement: a multi-output predecessor in an in-place
+// concat is already broken at runtime (concatenation.cpp ~:162 replaces all predecessor outputs with the concat's vector,
+// primitive_inst.cpp ~:1126 binds port 0, and prepare_buffer_fusing's match (~:136-200) has no port guard). See
+// DISABLED_multi_output_predecessor_in_place_concat (MO cluster).
+TEST(alias_analysis, A9e_concat_slot_on_one_port_does_not_capture_a_view_of_another_port) {
+    auto& eng = get_test_engine();
+    const int32_t top_k = 2;
+    auto input_mem = eng.allocate_memory({data_types::f32, format::bfyx, {2, 4, 2, 2}});
+    auto top_k_input = eng.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    topology t;
+    t.add(input_layout("input", input_mem->get_layout()));
+    t.add(cldnn::data("const", {top_k_input}));
+    auto arg = arg_max_min("arg_max", {input_info("input"), input_info("const")}, ov::op::TopKMode::MAX, top_k, 0, ov::op::TopKSortType::SORT_VALUES,
+                           false, false, data_types::f32, 2);
+    arg.output_paddings = {padding(), padding()};
+    arg.output_data_types = {optional_data_type{data_types::f32}, optional_data_type{data_types::f32}};
+    t.add(arg);
+    t.add(activation("A", input_info("arg_max", 0), activation_func::abs));
+    t.add(concatenation("C", {input_info("arg_max", 0), input_info("A")}, 0));
+    t.add(activation("R", input_info("arg_max", 1), activation_func::abs));
+    t.add(activation("O", input_info("R"), activation_func::abs));
+    auto prog = make_hand(eng, t, {"O", "C"});
+    ASSERT_EQ(prog->get_node("arg_max").get_outputs_count(), 2u);
+    prog->get_node("C").can_be_optimized(true);
+    prog->get_node("R").can_be_optimized(true);
+    const auto mode = program_helpers::view_resolution::settled_only;
+    const auto& am = prog->get_node("arg_max");
+    EXPECT_EQ(program_helpers::in_place_concat_holder_of(am, 0), &prog->get_node("C"));
+    EXPECT_EQ(program_helpers::in_place_concat_holder_of(am, 1), nullptr);
+    const auto o = program_helpers::resolve_buffer_owner(prog->get_node("R"), mode);
+    EXPECT_NE(o.owner, &prog->get_node("C"));
+    EXPECT_EQ(o.owner, &am);
+    EXPECT_EQ(o.owner_port, 1);
+    auto aa = alias_analysis::build(*prog);
+    EXPECT_NE(aa.class_of(prog->get_node("R"), 0), aa.class_of(prog->get_node("C"), 0)) << dump_aa(aa);
+}
+
+TEST(alias_analysis, A9g_moe_mask_gen_reshape_output_k_aliases_input_k) {
+    auto& eng = get_test_engine();
+    topology t;
+    t.add(input_layout("topk", layout{ov::PartialShape{16, 2}, data_types::i32, format::bfyx}));
+    t.add(moe_mask_gen("moe", input_info("topk"), 32, 2, true));
+    t.add(moe_mask_gen_reshape("moe_r", input_info("moe", 0), input_info("moe", 1), input_info("moe", 2), input_info("moe", 3), input_info("moe", 4)));
+    t.add(reorder("v0", input_info("moe_r", 0), format::bfyx, data_types::f32));
+    t.add(reorder("v1", input_info("moe_r", 1), format::bfyx, data_types::f32));
+    t.add(reorder("v2", input_info("moe_r", 2), format::bfyx, data_types::f32));
+    t.add(reorder("v3", input_info("moe_r", 3), format::bfyx, data_types::f32));
+    program::ptr prog;
+    try {
+        prog = make_hand(eng, t, {"v0", "v1", "v2", "v3"});
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << "moe_mask_gen hand graph cannot be built in this environment (uncovered): " << e.what();
+    }
+    auto& moe_r = prog->get_node("moe_r");
+    ASSERT_TRUE(moe_r.can_be_optimized());
+    const auto mode = program_helpers::view_resolution::settled_only;
+    for (int32_t k = 0; k < 4; ++k) {
+        EXPECT_EQ(program_helpers::view_source_of_port(moe_r, k, mode), k);
+    }
+    EXPECT_EQ(program_helpers::view_source_of_port(moe_r, 5, mode), -1);
+    prog->get_node("v1").can_be_optimized(true);
+    const auto o = program_helpers::resolve_buffer_owner(prog->get_node("v1"), mode);
+    EXPECT_EQ(o.owner, &prog->get_node("moe"));
+    EXPECT_EQ(o.owner_port, 1);
+    auto aa = alias_analysis::build(*prog);
+    for (int32_t k = 0; k < 4; ++k) {
+        const alias_class* c = aa.class_of(moe_r, k);
+        ASSERT_NE(c, nullptr) << dump_aa(aa);
+        EXPECT_EQ(c, aa.class_of(prog->get_node("moe"), k)) << "port " << k << "\n" << dump_aa(aa);
+    }
+}
+
+// MO cluster (characterization): an in-place concat whose predecessor is a multi-output node should only take the concat slot on the port
+// that is actually a dependency of the concat; the runtime binds every output of the predecessor to the concat buffer (port-agnostic).
+TEST(alias_analysis, DISABLED_multi_output_predecessor_in_place_concat) {
+    GTEST_SKIP() << "MO cluster: prepare_buffer_fusing accepts a multi-output predecessor without a port guard and the runtime rebinds all of "
+                    "its outputs; body intentionally empty (the failing behaviour needs an executing network comparison)";
+}
+
+// F27 (candidate, characterization only): selective_ssm re-points _outputs[1] to input 5 on an empty sequence (selective_ssm.cpp ~:104-116)
+// without any alias edge in alias_analysis; the class partition does not know that output 1 may live in input 5's buffer.
+TEST(alias_analysis, DISABLED_selective_ssm_empty_seq_alias_edge) {
+    GTEST_SKIP() << "F27: expected alias edge (selective_ssm,1) -> input 5 is absent; body intentionally empty";
 }
 
 // ==============================================================================================================================

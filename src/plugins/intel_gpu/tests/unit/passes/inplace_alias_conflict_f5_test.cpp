@@ -21,6 +21,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/data.hpp"
@@ -1303,5 +1304,158 @@ TEST(inplace_alias_conflict_f5, T14c_reason6_isolated_writer_concat_slot) {
 // byte size, which prepare_primitive_fusing does not fuse as an outer dependency on the available primitives. The decision function
 // covers it (frozen_sum_downgrade_reason, reason 4) and the Debug assertion in primitive_inst::rebind_reused_eltw_output makes the case
 // loud if it ever becomes reachable.
+
+
+// =============================================================================================================================
+// P1-PORT. Multi-output producers. M = arg_max_min with two f16 {32,16} outputs (values on port 0, "indices" on port 1).
+//   (1) the sum dependency is reached at port k > 0;
+//   (2) F11: the writer reads another port of the same producer that the sum dependency comes from (the owner equality is node-only, the
+//       start_port makes the owner walk follow the port the consumer actually reads);
+//   (3) C2: another port of the sum dependency's producer is an in-place concat slot (the runtime ignores ports for concat slots).
+// In every case the four sides must agree; here all of them must say "binary_add" (no in-place sum).
+// =============================================================================================================================
+namespace {
+
+void add_multi_output_producer(engine& eng, topology& t, const std::string& id, const std::string& in) {
+    auto k = eng.allocate_memory(layout{ov::PartialShape{1}, data_types::i32, format::bfyx});
+    set_values<int32_t>(k, {16});
+    t.add(cldnn::data(id + "_k", k));
+    auto arg = arg_max_min(id, {input_info(in), input_info(id + "_k")}, ov::op::TopKMode::MAX, 16, 1, ov::op::TopKSortType::SORT_VALUES,
+                           false, false, data_types::f16, 2);
+    arg.output_paddings = {padding(), padding()};
+    arg.output_data_types = {optional_data_type{data_types::f16}, optional_data_type{data_types::f16}};
+    t.add(arg);
+}
+
+f5_graph build_multi_output(engine& eng, int variant) {
+    f5_graph g;
+    auto& t = g.t;
+    t.add(input_layout("in1", layout{kShape, data_types::f16, format::bfyx}));
+    t.add(input_layout("in3", layout{kShape, data_types::f16, format::bfyx}));
+    g.inputs = {{"in1", layout{kShape, data_types::f16, format::bfyx}}, {"in3", layout{kShape, data_types::f16, format::bfyx}}};
+    add_multi_output_producer(eng, t, "M", "in3");
+    t.add(data("wW", make_fc_weights(eng, 16, 16, 0)));
+    // variant 1: sum dependency (M,1); variant 2: sum dependency (M,0) while W reads (M,1); variant 3: sum dependency (M,0), (M,1) is a concat slot
+    if (variant != 2) {
+        t.add(fully_connected("W", input_info("in1"), "wW"));
+    }
+    if (variant == 2) {
+        // W reads (M,1) through the no-op view V1 and sums into (M,0): F11 must still see that the writer reads the dependency's owner M
+        t.add(strided_slice("V1", input_info("M", 1), {0, 0}, {32, 16}, {1, 1}, {}, {1, 1}, {}, {}, {}, ov::Shape{32, 16}));
+        t.add(fully_connected("W2", input_info("V1"), "wW"));
+        t.add(eltwise("S", {input_info("W2"), input_info("M", 0)}, eltwise_mode::sum));
+        g.forced.emplace("W2", impl_desc(impl_types::onednn));
+    } else {
+        if (variant == 3) {
+            // the sum dependency is a single-user no-op view V of (M,0); (M,1) is the concat slot
+            t.add(strided_slice("V", input_info("M", 0), {0, 0}, {32, 16}, {1, 1}, {}, {1, 1}, {}, {}, {}, ov::Shape{32, 16}));
+            t.add(eltwise("S", {input_info("W"), input_info("V")}, eltwise_mode::sum));
+        } else {
+            t.add(eltwise("S", {input_info("W"), input_info("M", 1)}, eltwise_mode::sum));
+        }
+    }
+    if (variant == 3) {
+        t.add(data("wX", make_fc_weights(eng, 16, 16, 1)));
+        t.add(fully_connected("X", input_info("in1"), "wX"));
+        t.add(concatenation("C", {input_info("M", 1), input_info("X")}, 0));
+        t.add(reorder("out_C", input_info("C"), format::bfyx, data_types::f32));
+        g.forced.emplace("X", impl_desc(impl_types::ocl));
+        g.forced.emplace("C", impl_desc(impl_types::ocl));
+        g.outs.push_back("out_C");
+    }
+    // the writer must not feed the network output directly (F6: a sum into a user-visible buffer is rejected for that reason alone)
+    t.add(data("wZ", make_fc_weights(eng, 16, 16, 2)));
+    t.add(fully_connected("Z", input_info("S"), "wZ"));
+    g.forced.emplace("Z", impl_desc(impl_types::ocl));
+    t.add(reorder("out_S", input_info("Z"), format::bfyx, data_types::f32));
+    g.outs.push_back("out_S");
+    if (variant != 2) {
+        g.forced.emplace("W", impl_desc(impl_types::onednn));
+    }
+    return g;
+}
+
+// the node that carries the fused sum
+std::string sum_writer(program& p, const f5_graph& g) {
+    (void)g;
+    // the fused node can take the id of a fused output reorder, so search by content
+    for (auto* n : p.get_processing_order()) {
+        if (n->is_type<fully_connected>() && fused_op_of_mode(*n, eltwise_mode::sum) != nullptr) {
+            return n->id();
+        }
+    }
+    return {};
+}
+
+void check_multi_output_case(int variant) {
+    F5_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto g = build_multi_output(eng, variant);
+    // variant 3: the pipeline never makes a multi-output predecessor an in-place concat slot (padding support), so the concat is turned into
+    // an in-place one by hand AFTER the oneDNN freeze (the frozen decision is a sum), before post_optimize_graph / the F5 re-freeze.
+    bool frozen_sum_before = false;
+    hook_t hook;
+    if (variant == 3) {
+        hook = [&](program& p) {
+            for (auto* n : p.get_processing_order()) {
+                if (n->is_type<fully_connected>() && fused_op_of_mode(*n, eltwise_mode::sum) != nullptr) {
+                    const auto* op = fused_op_of_mode(*n, eltwise_mode::sum);
+                    frozen_sum_before = fusing::is_frozen_inplace_post_op(*n, op->outer_dep_start_idx, eltwise_mode::sum);
+                    // the live predicate before the divergence: sum (so the rejection below is attributable to the concat slot)
+                    EXPECT_EQ(fusing::get_add_fusing_type(*n, *op), add_fusing_type::sum) << "vacuity: sum before C becomes in-place";
+                }
+            }
+            p.get_node("C").can_be_optimized(true);
+        };
+    }
+    auto prog = build_staged(eng, g, hook);
+    const std::string flags = dump_flags(*prog);
+    const std::string w_id = sum_writer(*prog, g);
+    if (w_id.empty() && variant == 2) {
+        GTEST_SKIP() << "the eltwise is not fused when the FC reads the same multi-output producer (fusing refuses): F11 port case uncovered\n" << flags;
+    }
+    ASSERT_FALSE(w_id.empty()) << "vacuity: the eltwise sum must be fused into an FC\n" << flags;
+    auto& w = prog->get_node(w_id);
+    const auto* op = fused_op_of_mode(w, eltwise_mode::sum);
+    ASSERT_NE(op, nullptr);
+    if (variant == 3) {
+        ASSERT_TRUE(prog->get_node("C").can_be_optimized()) << "vacuity: C must be an in-place concat\n" << flags;
+        ASSERT_TRUE(frozen_sum_before) << "vacuity: the freeze must have chosen sum\n" << flags;
+        // the F5 re-freeze downgraded it with the live reason
+        EXPECT_NE(fusing::frozen_sum_downgrade_reason(w, op->outer_dep_start_idx), reason_t::none);
+    }
+    // exact live predicate rejects the in-place sum, and all four sides agree on "not in place"
+    if (variant == 1) {
+        // the structural predicate does not look at the port; the F5 re-freeze rejects a sum whose dependency is read at port k>0
+        EXPECT_EQ(fusing::frozen_sum_downgrade_reason(w, op->outer_dep_start_idx), reason_t::dep_port_not_zero) << flags;
+    } else {
+        EXPECT_NE(fusing::get_add_fusing_type(w, *op), add_fusing_type::sum) << flags;
+    }
+    expect_inplace_consistent(*prog, nullptr, w_id, op->outer_dep_start_idx, /*expect_inplace=*/false);
+    if (variant == 3) {
+        return;  // the manually forced in-place concat is not executable: program-level checks only
+    }
+    auto net = std::make_shared<network>(prog, 0);
+    auto res = run_net(*net, eng, g);
+    auto g_ref = build_multi_output(eng, variant);  // fresh topology: the optimized program above may rewrite shared primitives
+    auto ref = run_reference(eng, g_ref);
+    expect_match(res, ref, "P1PORT" + std::to_string(variant));
+}
+
+}  // namespace
+
+TEST(inplace_alias_conflict_f5, P1PORT_1_sum_dependency_at_nonzero_port_is_not_in_place) {
+    check_multi_output_case(1);
+}
+
+TEST(inplace_alias_conflict_f5, P1PORT_2_f11_writer_reads_other_port_of_dependency_producer) {
+    check_multi_output_case(2);
+}
+
+// C2: with the port-aware owner walk the dependency (M,0) resolves to M, which is not a concat; the in-place concat slot sits on port 1 of M.
+// get_add_fusing_type must still reject (conservative: multi-output node that is a slot of an in-place concat on any port).
+TEST(inplace_alias_conflict_f5, P1PORT_3_c2_other_port_is_concat_slot_rejects_sum) {
+    check_multi_output_case(3);
+}
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

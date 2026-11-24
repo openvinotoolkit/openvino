@@ -117,7 +117,11 @@ void basic_memory_dependencies::run(program& p) {
                 // marking is kept so that no node becomes poolable (neutral transition).
                 // SUNSET: P1-C deletes the old walk above and keeps only this owner-based marking.
                 program_node* owner = const_cast<program_node*>(
-                    program_helpers::resolve_buffer_owner(eltw_node, program_helpers::view_resolution::settled_only).owner);
+                    program_helpers::resolve_buffer_owner(eltw_node,
+                                                         program_helpers::view_resolution::settled_only,
+                                                         /*collect_path=*/false,
+                                                         /*start_port=*/node->get_dependency_with_port(static_cast<size_t>(reused_idx)).second)
+                        .owner);
                 if (owner != root) {
                     ++owner_diff_count;
 #ifdef ALIAS_B4_DEBUG_CHECKS

@@ -257,13 +257,17 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
             }
         }
 
-        // view of input 0 (settled flags only)
-        if (program_helpers::is_buffer_view_of_input0(n, program_helpers::view_resolution::settled_only)) {
-            const auto dep = n.get_dependency_with_port(0);
+        // view of an input (settled flags only): output port k aliases input view_source_of_port(n, k)
+        for (size_t k = 0; k < nports[i]; ++k) {
+            const int32_t src = program_helpers::view_source_of_port(n, static_cast<int32_t>(k), program_helpers::view_resolution::settled_only);
+            if (src < 0) {
+                continue;
+            }
+            const auto dep = n.get_dependency_with_port(static_cast<size_t>(src));
             auto d = idx_of.find(dep.first);
             if (d != idx_of.end()) {
                 const offset_tag off = (n.is_type<crop>() && n.can_be_optimized()) ? offset_tag::STATIC_BYTES : offset_tag::ZERO;
-                add_edge(i, 0, alias_kind::MUST_VIEW, off, tensor_of(d->second, dep.second));
+                add_edge(i, static_cast<int32_t>(k), alias_kind::MUST_VIEW, off, tensor_of(d->second, dep.second));
             }
         }
 
@@ -535,7 +539,8 @@ alias_analysis alias_analysis::build(const program& p, const decision_source& sr
 
 #ifndef NDEBUG
     // The class partition must contain every owner the settled walk of program_helpers finds (single-port nodes; multi-port
-    // consumers of a slot read a specific port and are covered by the per-port edges above).
+    // consumers of a slot read a specific port and are covered by the per-port edges above). The walk is port-aware
+    // (program_helpers::view_source_of_port), matching the per-port view edges built above.
     for (size_t i = 0; i < nodes.size(); ++i) {
         if (nports[i] != 1) {
             continue;

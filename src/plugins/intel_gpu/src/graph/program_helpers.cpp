@@ -19,6 +19,8 @@
 #include "loop_inst.h"
 #include "input_layout_inst.h"
 #include "lora_inst.h"
+#include "non_max_suppression_inst.h"
+#include "moe_mask_gen_inst.h"
 #include "mutable_data_inst.h"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include <algorithm>
@@ -199,6 +201,35 @@ bool program_helpers::is_buffer_view_of_input0(const program_node& n, view_resol
     return false;
 }
 
+int32_t program_helpers::view_source_of_port(const program_node& n, int32_t port, view_resolution mode) {
+    if (port < 0 || !is_buffer_view_of_input0(n, mode)) {
+        return -1;
+    }
+    // Runtime sources of output ports of a view node:
+    //  - non_max_suppression_gather aliases output k to input k (non_max_suppression_gather_inst::update_output_memory);
+    //  - moe_mask_gen_reshape (always can_be_optimized) re-points _outputs[k] to input_memory(k) for k = 0..3 (moe_mask_gen.cpp);
+    //  - every other view (crop, reorder, runtime-skippable nodes, e.g. dynamic_quantize which re-points only output 0)
+    //    aliases only output 0 to input 0.
+    if (n.is_type<non_max_suppression_gather>() || n.is_type<moe_mask_gen_reshape>()) {
+        return static_cast<size_t>(port) < n.get_dependencies().size() ? port : -1;
+    }
+    return port == 0 ? 0 : -1;
+}
+
+const program_node* program_helpers::in_place_concat_holder_of(const program_node& n, int32_t port) {
+    for (const auto* u : n.get_users()) {
+        if (!u->is_type<concatenation>() || !u->can_be_optimized()) {
+            continue;
+        }
+        for (const auto& d : u->get_dependencies()) {
+            if (d.first == &n && d.second == port) {
+                return u;
+            }
+        }
+    }
+    return nullptr;
+}
+
 const program_node* program_helpers::in_place_concat_holder_of(const program_node& n) {
     for (const auto* u : n.get_users()) {
         if (u->is_type<concatenation>() && u->can_be_optimized()) {
@@ -228,24 +259,29 @@ bool program_helpers::is_external_buffer_root(const program_node& n) {
            n.is_type<stateless_kv>() || n.is_constant();
 }
 
-program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path) {
+program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path, int32_t start_port) {
     buffer_owner res;
     // Backward view steps followed by forward slot steps; concat is never a view and settled views cannot be concat
     // predecessors, so the walk is finite. The bound is a safety net only.
     const size_t bound = n.get_program().get_processing_order().size();
     size_t steps = 0;
     const program_node* cur = &n;
-    int32_t cur_port = 0;
+    int32_t cur_port = start_port;
     if (collect_path) {
         res.path.push_back(cur);
     }
     res.path_has_output = is_or_becomes_output(*cur);
+    // summary of "a multi-output node on the walk is a concat slot on any port" (the runtime ignores ports for concat slots)
+    auto note_multi_output_slot = [&](const program_node& x) {
+        res.path_has_multi_output_slot = res.path_has_multi_output_slot || (x.get_outputs_count() > 1 && in_place_concat_holder_of(x) != nullptr);
+    };
+    note_multi_output_slot(*cur);
     while (true) {
-        if (const auto* holder = in_place_concat_holder_of(*cur)) {
+        if (const auto* holder = in_place_concat_holder_of(*cur, cur_port)) {
             cur = holder;  // slot step takes precedence
             cur_port = 0;
-        } else if (is_buffer_view_of_input0(*cur, mode)) {
-            const auto dep = cur->get_dependency_with_port(0);
+        } else if (const int32_t src = view_source_of_port(*cur, cur_port, mode); src >= 0) {
+            const auto dep = cur->get_dependency_with_port(static_cast<size_t>(src));
             cur = dep.first;
             cur_port = dep.second;
         } else {
@@ -256,6 +292,7 @@ program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const progra
             res.path.push_back(cur);
         }
         res.path_has_output = res.path_has_output || is_or_becomes_output(*cur);
+        note_multi_output_slot(*cur);
     }
     res.owner = cur;
     res.owner_port = cur_port;
@@ -318,7 +355,8 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     auto dep_owner = [&]() -> const program_helpers::buffer_owner& {
         if (!dep_owner_cache) {
             dep_owner_cache = program_helpers::resolve_buffer_owner(
-                dep_node, program_helpers::view_resolution::include_post_freeze_candidates, /*collect_path=*/false);
+                dep_node, program_helpers::view_resolution::include_post_freeze_candidates, /*collect_path=*/false,
+                /*start_port=*/p_node.get_dependency_with_port(static_cast<size_t>(desc.outer_dep_start_idx)).second);
         }
         return *dep_owner_cache;
     };
@@ -336,8 +374,11 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
             // appear after the freeze (static no-op resample/strided_slice, reorders) are included, so the freeze
             // and the post-freeze callers resolve identically.
             if (q == add_fusing_query::exact) {
-                if (program_helpers::resolve_buffer_owner(
-                        in, program_helpers::view_resolution::include_post_freeze_candidates).owner == dep_owner().owner)
+                if (program_helpers::resolve_buffer_owner(in,
+                                                          program_helpers::view_resolution::include_post_freeze_candidates,
+                                                          /*collect_path=*/false,
+                                                          /*start_port=*/p_node.get_dependency_with_port(i).second)
+                        .owner == dep_owner().owner)
                     return true;
             }
         }
@@ -354,7 +395,14 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
             return false;
         }
         const auto* owner = dep_owner().owner;
-        return owner->is_type<concatenation>() && owner->can_be_optimized() && concat_slots_have_other_readers(*owner);
+        if (owner->is_type<concatenation>() && owner->can_be_optimized() && concat_slots_have_other_readers(*owner)) {
+            return true;
+        }
+        // The port-aware owner walk resolves (M, a) to M even when a different port b of the multi-output node M is an in-place
+        // concat slot. The runtime ignores ports for concat slots (concatenation.cpp replaces all predecessor outputs with the
+        // concat's vector, primitive_inst.cpp binds port 0), so the dst could overlap the concat buffer. Stay conservative: reject
+        // when any node on the dependency walk is a multi-output slot of an optimized concat on ANY port.
+        return dep_owner().path_has_multi_output_slot;
     };
 
     // F6/F13: the dst of the sum is dep_node's buffer, so it must be neither an externally owned buffer (input_layout is

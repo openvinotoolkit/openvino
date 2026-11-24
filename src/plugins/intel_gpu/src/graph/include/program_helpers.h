@@ -130,11 +130,16 @@ struct program_helpers {
         const program_node* owner = nullptr;          // node whose own allocation backs the queried node's output
         int32_t owner_port = 0;                       // output port of owner that backs it (view step: port of the dependency; slot step: 0)
         std::vector<const program_node*> path;        // queried node .. owner, in walk order (only if collect_path)
+        bool path_has_multi_output_slot = false;      // some node on the walk has several outputs and is a slot of an optimized concat on any port
         bool path_has_output = false;                 // some node on the walk (start and owner included) is_or_becomes_output
     };
     static bool is_buffer_view_of_input0(const program_node& n, view_resolution mode);
     // the optimized concat user of n (n is one of its slots) or nullptr
     static const program_node* in_place_concat_holder_of(const program_node& n);
+    // the optimized concat user that has (n, port) as a dependency, or nullptr
+    static const program_node* in_place_concat_holder_of(const program_node& n, int32_t port);
+    // the input index whose buffer output `port` of the view node n aliases, or -1 if that port is not a view
+    static int32_t view_source_of_port(const program_node& n, int32_t port, view_resolution mode);
     // n's buffer is user-visible, or becomes so before prepare_memory_dependencies: n is an output, or (recursively) a
     // mutable_data user of n is. A superset of the one-level propagation in basic_memory_dependencies.
     static bool is_or_becomes_output(const program_node& n);
@@ -144,7 +149,8 @@ struct program_helpers {
     // Exact add-fusing queries can run per inference (static can_be_optimized resample users re-bind their sum dst via
     // rebind_onednn_reuse_optimized_dst_if_needed -> get_reused_eltwmem_idx), so the walk is allocation-free unless
     // collect_path == true. path_has_output is always computed. collect_path is kept for F4/F17 diagnostics.
-    static buffer_owner resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path = false);
+    // start_port: the output port of n the query is about (the port through which a consumer reaches n); the walk is port-aware.
+    static buffer_owner resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path = false, int32_t start_port = 0);
 };
 
 struct onednn_eltwise_fusing_helpers {
