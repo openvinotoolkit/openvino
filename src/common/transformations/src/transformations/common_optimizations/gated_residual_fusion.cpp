@@ -45,9 +45,8 @@ namespace ov::pass {
 
 namespace {
 
-/// True when the single-element `constant` holds `expected` rounded to its own element type (1/3 stored as bf16 is not
-/// 1/3): |value - rounded| <= 1e-5 * max(1, |rounded|), rounded = Convert(expected, type of `constant`). This one value
-/// cannot be a pattern predicate: it depends on C, which the pattern only learns from shapes.
+/// True when the single-element `constant` equals `expected` rounded to the constant's type (1/3 as bf16 is not 1/3),
+/// within 1e-5 relative (absolute below 1). Not a pattern predicate: C is only known from shapes.
 bool holds_value(const ov::Output<ov::Node>& constant, float expected) {
     const auto c = ov::as_type_ptr<ov::op::v0::Constant>(constant.get_node_shared_ptr());
     OPENVINO_ASSERT(c, "GatedResidualFusion: a scale matched as a Constant is expected to be a Constant");
@@ -79,10 +78,9 @@ bool same_dimension(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     return lhs.is_static() == rhs.is_static() && (lhs.is_dynamic() || lhs == rhs);
 }
 
-/// Rows of the two inputs of a node are one row count, with the same rank: equal when static, the same symbol when
-/// dynamic. Two unrelated dynamic dimensions are never assumed equal: one of them may be 1 at runtime, which the
-/// eltwise would broadcast but the row-wise WRITE does not model. This requires symbols propagated through the model
-/// (e.g. SymbolicOptimizations). `tail` is the number of trailing non-row dimensions.
+/// Rows of the node's two inputs match: equal when static, the same symbol when dynamic (needs symbol propagation,
+/// e.g. SymbolicOptimizations). Unrelated dynamic dimensions may broadcast at runtime, which the row-wise WRITE does
+/// not model. `tail` is the number of trailing non-row dimensions.
 auto same_rows(size_t tail) {
     return [tail](const ov::Output<ov::Node>& out) {
         const auto& lhs = out.get_node()->get_input_partial_shape(0);
@@ -372,9 +370,9 @@ bool fuse_read(ov::pass::pattern::Matcher& m,
         return false;
     }
 
-    // Both 1/C scalings are model semantics: the one of the down projection is a Multiply or folded into W_down, the
-    // one of the mix a Multiply (ReduceSum form) or implicit in a ReduceMean. The op applies them itself, so it needs
-    // the unscaled W_down. The scales are compared with C, which the pattern only learns from shapes.
+    // Both 1/C scalings are model semantics: the down one is a Multiply or folded into W_down, the mix one a Multiply
+    // (ReduceSum) or implicit in ReduceMean. The op applies them itself, so W_down must be unscaled. Their values
+    // depend on C, known only from shapes.
     const float inv_c = 1.0F / static_cast<float>(C);
     const bool low_is_divided = pm.count(p.low_divided) != 0;
     const bool explicit_low_scale = pm.count(p.low_multiplied) != 0 || low_is_divided;
@@ -531,9 +529,9 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
     using namespace ov::pass;
     using namespace ov::pass::pattern;
 
-    // The gate is [..., C] and broadcasts as [..., C, 1], Y is [..., D] and broadcasts as [..., 1, D]; equal names are
-    // equal sizes. Both views look alike, so the shapes tell the commutative Multiply which operand is which.
-    // The op takes one rank for the residual, Y and the gate: every view keeps the rows of its source.
+    // The gate [..., C] broadcasts as [..., C, 1], Y [..., D] as [..., 1, D]; equal names mean equal sizes. The shapes
+    // tell the commutative Multiply its operands apart. Every view keeps the rows of its source, as the op takes one
+    // rank for residual, Y and gate.
     auto write_gate = any_input(shape_matches("[..., C]") && last_dims_static(1));
     auto gate_3d =
         wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()},

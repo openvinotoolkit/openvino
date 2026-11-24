@@ -138,8 +138,9 @@ ov::Output<ov::Node> make_compressed_weight(size_t n,
     auto weights_const = std::make_shared<v0::Constant>(weight);
     ov::Output<ov::Node> decompressed = std::make_shared<v0::Convert>(weights_const, data_type);
     if (spec.has_zero_points) {
-        ov::Tensor zp(spec.weights_precision, ov::Shape{n, groups, 1});
-        std::vector<int32_t> zp_values(n * groups);
+        const ov::Shape zp_shape = spec.scalar_zero_point ? ov::Shape{1} : ov::Shape{n, groups, 1};
+        ov::Tensor zp(spec.weights_precision, zp_shape);
+        std::vector<int32_t> zp_values(ov::shape_size(zp_shape));
         for (auto& z : zp_values) {
             z = q_dist(rng);
         }
@@ -307,6 +308,9 @@ std::string GatedResidualLayerCPUTest::getTestCaseName(const testing::TestParamI
     if (compression.compressed) {
         result << "_Wcompressed=" << compression.weights_precision;
         result << "_ZP=" << compression.has_zero_points;
+        if (compression.scalar_zero_point) {
+            result << "_ScalarZP";
+        }
         result << "_GS=" << compression.group_size;
         result << "_SP=" << compression.scale_precision;
     }
@@ -460,13 +464,12 @@ TEST_P(GatedResidualLayerCPUTest, Inference) {
             }
         }
         if (compression.compressed) {
-            // The weights keep their stored width up to the node: 4-bit ones are not widened to 8-bit by
-            // ConvertPrecision. The sign may change (a symmetric u4 becomes i4), so compare widths.
+            // The weights keep their stored type up to the node: 4-bit ones are not widened to 8-bit by
+            // ConvertPrecision, and the conversion keeps the stored constants.
             for (const auto& node : runtime_model->get_ordered_ops()) {
                 if (node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "GatedResidual") {
                     const size_t w_down = 2;
-                    EXPECT_EQ(node->get_input_element_type(w_down).bitwidth(),
-                              compression.weights_precision.bitwidth());
+                    EXPECT_EQ(node->get_input_element_type(w_down), compression.weights_precision);
                 }
             }
         }

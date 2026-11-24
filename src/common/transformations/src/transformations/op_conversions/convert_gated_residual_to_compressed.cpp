@@ -27,18 +27,15 @@ using ov::pass::pattern::op::CompressedWeightsBlock;
 /// A compressed weight of an [N, K] matrix, laid out as the op takes it.
 struct CompressedWeight {
     std::shared_ptr<ov::Node> weights;  // i4/u4/i8/u8 [N, K]
-    std::shared_ptr<ov::Node> scale;    // floating point [N, G]
-    std::shared_ptr<ov::Node> zp;       // weight type [N, G]; null without zero points
+    std::shared_ptr<ov::Node> scale;    // floating point [N, G] or one element
+    std::shared_ptr<ov::Node> zp;       // weight type [N, G] or one element; null without zero points
 };
 
-/// Prepares the weight matched by `block` for the op with the processing FC and the other compressed ops share, else
-/// nullopt when the stored constants are not what the op takes: [N, K] weights (a Transpose in the decompression is not
-/// expected: the plugin fuses it into the MatMul before), [N, G] floating-point scales, and zero points of the weight
-/// type with the shape of the scales.
+/// Prepares the weight matched by `block` with the processing FC and the other compressed ops share; nullopt if the
+/// decompression has a Transpose (the plugin fuses it into the MatMul before, so it is not expected). The shapes and
+/// types of the stored constants are checked by the op.
 std::optional<CompressedWeight> prepare_compressed_weight(const std::shared_ptr<CompressedWeightsBlock>& block,
                                                           const ov::pass::pattern::PatternValueMap& pm,
-                                                          size_t N,
-                                                          size_t K,
                                                           ov::NodeVector& result_nodes) {
     if (block->get_anchor("transpose", pm)) {
         return std::nullopt;
@@ -46,19 +43,8 @@ std::optional<CompressedWeight> prepare_compressed_weight(const std::shared_ptr<
     const auto weights = block->get_anchor("weights", pm).value();
     const auto scale = block->get_anchor("mul_const", pm).value();
     const auto zp = block->get_anchor("sub_const", pm);
-    const auto& weights_shape = weights.get_shape();
-    const auto& scale_shape = scale.get_shape();
-
-    // Grouped weights are stored [N, G, K / G] with [N, G, 1] scales, the others [N, K] with [N, 1] ones.
-    const bool grouped = weights_shape.size() == 3;
-    const bool layout_ok = grouped ? weights_shape[0] == N && weights_shape[1] != 0 &&
-                                         weights_shape[1] * weights_shape[2] == K &&
-                                         scale_shape == ov::Shape{N, weights_shape[1], 1}
-                                   : weights_shape == ov::Shape{N, K} && scale_shape == ov::Shape{N, 1};
-    if (!layout_ok || !scale.get_element_type().is_real() ||
-        (zp && (zp->get_element_type() != weights.get_element_type() || zp->get_shape() != scale_shape))) {
-        return std::nullopt;
-    }
+    // Grouped weights are stored [N, G, K / G], the others [N, K].
+    const bool grouped = weights.get_shape().size() == 3;
 
     const auto [prepared_weights, prepared_scale, prepared_zp] =
         ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
@@ -110,13 +96,10 @@ ConvertGatedResidualToCompressed::ConvertGatedResidualToCompressed(
         const bool with_gate = pm.count(gated_residual_with_gate) != 0;
 
         const auto& gr_config = gr->get_config();
-        const size_t C = gr_config.hc_count;
-        const size_t CD = C * gr_config.hidden_size;
-        const size_t L = gr_config.lowrank;
         ov::NodeVector result_nodes;
-        const auto down = prepare_compressed_weight(w_down, pm, L, CD, result_nodes);
-        const auto up = prepare_compressed_weight(w_up, pm, CD, L, result_nodes);
-        const auto inject = with_gate ? prepare_compressed_weight(w_inject, pm, C, CD, result_nodes) : std::nullopt;
+        const auto down = prepare_compressed_weight(w_down, pm, result_nodes);
+        const auto up = prepare_compressed_weight(w_up, pm, result_nodes);
+        const auto inject = with_gate ? prepare_compressed_weight(w_inject, pm, result_nodes) : std::nullopt;
         if (!down || !up || (with_gate && !inject)) {
             return false;
         }
@@ -142,6 +125,7 @@ ConvertGatedResidualToCompressed::ConvertGatedResidualToCompressed(
                 inputs.push_back(inject->zp);
             }
         }
+        // The op validates the stored layout (shapes and types of weights, scales and zero points).
         auto compressed = std::make_shared<ov::op::internal::GatedResidual>(inputs, gr_config);
         if (supports_config && !supports_config(compressed)) {
             return false;

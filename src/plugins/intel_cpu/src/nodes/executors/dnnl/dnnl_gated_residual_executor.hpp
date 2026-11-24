@@ -56,11 +56,9 @@ private:
     bool m_norm_gain_plus_one = true;
     bool m_produce_write_gate = false;
 
-    // Element type of the ports.
+    // Element type of the ports and of the projection GEMM inputs. The node's type mapping already runs compressed bf16
+    // without native bf16 in f32.
     ov::element::Type m_precision = ov::element::f32;
-    // Element type of the projection GEMM inputs and of T: m_precision, except f32 for compressed weights where oneDNN
-    // cannot decompress at that precision (as in the FC node).
-    ov::element::Type m_gemm_precision = ov::element::f32;
 
     bool m_weights_compressed = false;
     bool m_weights_have_zero_points = false;

@@ -20,10 +20,9 @@ using Mode = ov::op::internal::GatedResidual::Mode;
 
 const GatedResidualWeightCompression kNoCompression{};
 
-// Dynamic rows [rows, C*D], successive inferences through one compiled model. The tile size follows the thread count,
-// so these rows cover the partial-tile buckets (<= 16 and round-up-to-16: 1 and 17, a plain bucket: 100) and, when the
-// tile is smaller, several tiles with a remainder (513, 1100); the repeated 1 is a prefill -> decode flip. The cases
-// that need one particular tile fix the thread count.
+// Dynamic rows [rows, C*D], successive inferences of one compiled model: 1 is decode (repeated for a prefill -> decode
+// flip), 17/100 and 513/1100 fall into different row buckets, and with a small tile the last two are several tiles
+// plus a remainder.
 const ov::test::InputShape kDynRows{{-1}, {{1}, {17}, {100}, {513}, {1100}, {1}}};
 
 // The compressed cases need fewer row counts: the same buckets, without the plain one.
@@ -37,9 +36,8 @@ const ov::test::InputShape kDynBatchSeq{{-1, -1}, {{2, 3}, {4, 1}, {3, 7}, {2, 1
 // prefill-sized chunk first, then decode.
 const ov::test::InputShape kDynLargeRows{{-1}, {{33}, {1}, {1}}};
 
-// The tile of rows follows the thread count: with one channel chunk in the down projection (L <= 64) and 9 threads it
-// is 1152 rows. A remainder of 1029 rows buckets to 1280, past the tile, and 1153 is a full tile and one row, the
-// switch between the two GEMM sizes.
+// With L <= 64 (one channel chunk) and 9 threads the tile is 1152 rows: a 1029-row remainder buckets to 1280, past the
+// tile, and 1153 is a full tile plus one row.
 const ov::test::InputShape kDynTileRows{{-1}, {{1029}, {1}, {1153}, {1}}};
 
 std::vector<ov::AnyMap> inference_precision_configs() {
@@ -114,6 +112,13 @@ const Compression i4_per_channel_f16{true, ov::element::i4, false, 0, ov::elemen
 const Compression i4_grouped_zp{true, ov::element::i4, true, 16, ov::element::f32};
 const Compression i4_grouped_nozp{true, ov::element::i4, false, 16, ov::element::f16};  // symmetric i4 (no zero point)
 const Compression u4_grouped_zp{true, ov::element::u4, true, 16, ov::element::f16};     // asymmetric u4 (zero point)
+const Compression u4_grouped_scalar_zp{true,
+                                       ov::element::u4,
+                                       true,
+                                       16,
+                                       ov::element::f16,
+                                       true};  // u4 with a per-tensor zero point
+const Compression u8_per_channel_scalar_zp{true, ov::element::u8, true, 0, ov::element::f32, true};
 const Compression u4_per_channel_zp{true, ov::element::u4, true, 0, ov::element::f32};
 const Compression u4_grouped_zp_gs32{true, ov::element::u4, true, 32, ov::element::f16};   // CD = L = 64 -> G = 2
 const Compression u4_grouped_zp_gs16{true, ov::element::u4, true, 16, ov::element::bf16};  // CD = L = 48 -> G = 3
@@ -130,6 +135,8 @@ const std::vector<GatedResidualShapeParams> compressed_shapes_with_inject{
     {4, 16, 64, ov::element::f16, i4_grouped_nozp},
     {4, 16, 64, ov::element::f16, u4_grouped_zp},
     {4, 8, 16, ov::element::f32, u4_per_channel_zp},
+    {4, 16, 64, ov::element::f16, u4_grouped_scalar_zp},
+    {4, 8, 16, ov::element::f32, u8_per_channel_scalar_zp},
     {4, 16, 64, ov::element::f16, u4_grouped_zp_gs32},  // G = 2 for w_down/w_inject (K = 64) and w_up (K = 64)
     {4, 12, 48, ov::element::f16, u4_grouped_zp_gs16},  // G = 3 for all three projections (K = 48)
 };

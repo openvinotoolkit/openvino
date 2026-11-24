@@ -49,9 +49,7 @@ struct ModelOptions {
     Zp zp = Zp::PerGroup;
     Zp up_zp = Zp::PerGroup;  // the zero point form of W_up when `different_forms`
     bool different_forms = false;
-    bool compressed = true;  // false: the weights are plain constants
-    // The stored type of the scales; anything but `data_type` is converted to it in the graph.
-    element::Type scale_type = element::dynamic;
+    bool compressed = true;         // false: the weights are plain constants
     bool per_tensor_scale = false;  // a [1, 1] scale instead of one per channel (`groups` == 1 only)
     bool transposed = false;        // the weights are stored [K, N] and transposed back (`groups` == 1 only)
     bool with_gate = false;
@@ -106,9 +104,6 @@ Output<Node> compressed_weight(size_t n, size_t k, const ModelOptions& opt, Zp z
         value = std::make_shared<op::v1::Subtract>(value, std::make_shared<op::v0::Convert>(zp_const, opt.data_type));
     }
     Output<Node> scale = float_constant(opt.data_type, scale_shape, 0.02F);
-    if (opt.scale_type != element::dynamic) {
-        scale = std::make_shared<op::v0::Convert>(float_constant(opt.scale_type, scale_shape, 2.0F), opt.data_type);
-    }
     Output<Node> result = std::make_shared<op::v1::Multiply>(value, scale);
     if (opt.transposed) {
         result = std::make_shared<op::v1::Transpose>(result, op::v0::Constant::create(element::i64, Shape{2}, {1, 0}));
@@ -139,13 +134,13 @@ std::shared_ptr<Model> getModel(const ModelOptions& opt) {
     return std::make_shared<Model>(results, ParameterVector{residual, gain});
 }
 
-// The model the pass must produce: the stored constants, [N, G] scales and zero points.
+// The model the pass must produce: the stored constants, scales and zero points ([N, G] or the stored single element).
 std::shared_ptr<Model> getModelRef(const ModelOptions& opt) {
     auto residual = std::make_shared<op::v0::Parameter>(opt.data_type, PartialShape{-1, static_cast<int64_t>(CD)});
     auto gain = std::make_shared<op::v0::Parameter>(opt.data_type, Shape{CD});
     const element::Type type = opt.weights_type;
     const uint8_t byte = weights_byte(type);
-    const bool with_zp = opt.zp == Zp::PerGroup;
+    const bool with_zp = opt.zp != Zp::None;
 
     struct Parts {
         Output<Node> weights;
@@ -156,9 +151,9 @@ std::shared_ptr<Model> getModelRef(const ModelOptions& opt) {
         Parts p;
         p.weights = bytes_constant(type, Shape{n, k}, byte);
         set_weightless_attr(p.weights.get_node_shared_ptr(), n, k, opt);
-        p.scale = float_constant(opt.data_type, Shape{n, opt.groups}, 0.02F);
+        p.scale = float_constant(opt.data_type, opt.per_tensor_scale ? Shape{1, 1} : Shape{n, opt.groups}, 0.02F);
         if (with_zp) {
-            p.zp = bytes_constant(opt.weights_type, Shape{n, opt.groups}, 0x33);
+            p.zp = bytes_constant(opt.weights_type, opt.zp == Zp::Scalar ? Shape{1} : Shape{n, opt.groups}, 0x33);
         }
         return p;
     };
@@ -213,7 +208,7 @@ class ConvertGatedResidualToCompressedParamTests : public testing::WithParamInte
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertParams>& info) {
         const auto& [type, groups, zp, with_gate] = info.param;
-        const char* zp_name = zp == Zp::PerGroup ? "ZeroPoint" : "NoZeroPoint";
+        const char* zp_name = zp == Zp::PerGroup ? "ZeroPoint" : zp == Zp::Scalar ? "ScalarZeroPoint" : "NoZeroPoint";
         return type.to_string() + "_G" + std::to_string(groups) + "_" + zp_name + (with_gate ? "_WriteGate" : "");
     }
 };
@@ -233,7 +228,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertGatedResidualToCompressed,
                          ConvertGatedResidualToCompressedParamTests,
                          ::testing::Combine(::testing::Values(element::u4, element::u8),
                                             ::testing::Values(size_t{1}, size_t{2}),
-                                            ::testing::Values(Zp::PerGroup, Zp::None),
+                                            ::testing::Values(Zp::PerGroup, Zp::Scalar, Zp::None),
                                             ::testing::Bool()),
                          ConvertGatedResidualToCompressedParamTests::getTestCaseName);
 
@@ -285,18 +280,14 @@ TEST_F(ConvertGatedResidualToCompressedTests, WriteGateWeightsOfAnotherFormAreNo
     model = getModel(opt);
 }
 
-// The op takes floating-point scales; an integer one kept behind a Convert is not a compressed form it can run.
-TEST_F(ConvertGatedResidualToCompressedTests, IntegerScalesAreNotConverted) {
-    ModelOptions opt;
-    opt.scale_type = element::i8;
-    model = getModel(opt);
-}
-
-// The zero points of the op have the shape of the scales; a scalar one is not converted.
-TEST_F(ConvertGatedResidualToCompressedTests, ScalarZeroPointIsNotConverted) {
+// A single-element zero point (per-tensor, e.g. the legacy symmetric u4 with zp = 8) is kept as it is, as by the
+// FullyConnected conversion.
+TEST_F(ConvertGatedResidualToCompressedTests, SingleElementZeroPointIsKept) {
     ModelOptions opt;
     opt.zp = Zp::Scalar;
+    opt.with_gate = true;
     model = getModel(opt);
+    model_ref = getModelRef(opt);
 }
 
 // The stored weights are consumed as [N, K]: a Transpose in the decompression is not expected (the plugin fuses it into
@@ -309,13 +300,14 @@ TEST_F(ConvertGatedResidualToCompressedTests, TransposedWeightsAreNotConverted) 
     model = getModel(opt);
 }
 
-// One scale for the whole tensor is not the [N, G] scales of the op.
-TEST_F(ConvertGatedResidualToCompressedTests, PerTensorScaleIsNotConverted) {
+// One scale for the whole tensor is kept as it is.
+TEST_F(ConvertGatedResidualToCompressedTests, PerTensorScaleIsKept) {
     ModelOptions opt;
     opt.groups = 1;
-    opt.zp = Zp::None;
+    opt.zp = Zp::Scalar;
     opt.per_tensor_scale = true;
     model = getModel(opt);
+    model_ref = getModelRef(opt);
 }
 
 class ConvertGatedResidualToCompressedUnsupportedTypeTests : public ConvertGatedResidualToCompressedTests {

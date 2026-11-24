@@ -12,30 +12,17 @@ namespace ov::pass {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Replaces the Gated Residual READ / MIX pattern (optionally with its write-gate branch) with
- * ov::op::internal::GatedResidual in Mode::READ.
+ * @brief Fuses the Gated Residual READ / MIX pattern, with its write gate if any, into
+ * ov::op::internal::GatedResidual (Mode::READ).
  *
- * Canonical sub-graph (token-major [T, C*D] activations):
- *   r3    = Reshape(R,   [T, C, D])
- *   n3    = RMS(r3, gamma, eps)                 // or the decomposed Power/ReduceMean/Add/Sqrt/Divide/Multiply form
- *   rbar  = Reshape(n3,  [T, C*D])
- *   low   = MatMul(rbar, W_down, transpose_b)   // W_down: [L, C*D]
- *   act   = Swish(low * 1/C)
- *   up    = MatMul(act,  W_up,   transpose_b)   // W_up:   [C*D, L]
- *   wm    = Sigmoid(up) * rbar
- *   mixed = ReduceSum(Reshape(wm, [T, C, D]), axis=1) * 1/C
+ *   rbar  = Reshape(RMS(Reshape(R, [T, C, D]), gamma, eps), [T, C*D])    // or the decomposed RMS form
+ *   act   = Swish(MatMul(rbar, W_down, transpose_b) / C)
+ *   mixed = ReduceSum(Reshape(Sigmoid(MatMul(act, W_up, transpose_b)) * rbar, [T, C, D]), axis=1) / C
+ *   S     = 2 * Sigmoid(MatMul(rbar, W_inject, transpose_b) / C)         // optional write gate
+ *   ==>  mixed [, S] = GatedResidual(R, gain, W_down, W_up [, W_inject])
  *
- * Replaced by (the write gate S = 2 * Sigmoid(MatMul(rbar, W_inject, transpose_b) / C) found on the same rbar is
- * fused as the second output):
- *   mixed [, S] = GatedResidual(R, gain, W_down, W_up [, W_inject])   // 1/C of both scalings applied by the op
- *
- * The normalization is matched in one of its forms (fused RMS, gamma-less RMS, decomposed), each by a matcher of its
- * own. The write gate is a branch outside the match, which the fused op replaces, so the pass is a ModelPass: the
- * branches are recorded first, then the READ matchers run. The callback is asked about the fused op; returning true
- * keeps the matched sub-graph (a READ with a rejected write gate is retried without it). The weights are fed to the op
- * as they are, a decompression subgraph of compressed ones included; a backend that runs them compressed converts the
- * op afterwards (ConvertGatedResidualToCompressed). The graph stays untouched unless the per-branch norm, the
- * branch-axis reduction and both 1/C scalings are proven.
+ * Left untouched unless the norm, the branch reduction and both 1/C scalings are proven. The pass callback may veto
+ * the fused op.
  */
 class TRANSFORMATIONS_API GatedResidualReadFusion : public ov::pass::ModelPass {
 public:
@@ -45,15 +32,12 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Replaces the Gated Residual WRITE pattern with ov::op::internal::GatedResidual in Mode::WRITE.
+ * @brief Fuses the Gated Residual WRITE pattern into ov::op::internal::GatedResidual (Mode::WRITE).
  *
- * Canonical sub-graph:
- *   R'   = Reshape(Reshape(R, [T,C,D]) + Reshape(S,[T,C,1]) * Reshape(Y,[T,1,D]), [T, C*D])
+ *   R' = Reshape(Reshape(R, [T,C,D]) + Reshape(S,[T,C,1]) * Reshape(Y,[T,1,D]), [T, C*D])
  *
- * The gate S is an opaque [*, C] input; the `2 * Sigmoid(...)` that produces it stays outside. The residual, Y and the
- * gate must have the same rows: equal static sizes or the same symbol, so the symbols have to be propagated through
- * the model first (e.g. by SymbolicOptimizations); unrelated dynamic dimensions may broadcast at runtime and are not
- * fused.
+ * The gate S is an opaque [*, C] input. R, Y and S must have the same rows: equal static sizes or the same symbol
+ * (propagate symbols first, e.g. with SymbolicOptimizations); unrelated dynamic dimensions are not fused.
  */
 class TRANSFORMATIONS_API GatedResidualWriteFusion : public ov::pass::MatcherPass {
 public:
@@ -63,15 +47,13 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Sinks the Reshape of the Gated Residual WRITE pattern below the residual Add, so the Add sits next to the
- * Multiply and a backend can fuse the two as one broadcasting eltwise.
+ * @brief Sinks the Reshape of the Gated Residual WRITE pattern below the residual Add, so a backend can fuse the Add
+ * and the Multiply as one eltwise.
  *
  *   Add(R, Reshape(S[.., C, 1] * Y[.., 1, D], [.., C*D]))
  *     -> Reshape(Add(Reshape(R, [.., C, D]), S[.., C, 1] * Y[.., 1, D]), [.., C*D])
  *
- * The gate S is an opaque [*, C] input; the `2 * Sigmoid(...)` that produces it stays outside. The callback is asked
- * about the matched Add; returning true keeps the original graph. The alternative to GatedResidualWriteFusion for
- * backends that run the chain as plain eltwise: disable one of the two.
+ * The pass callback may veto the match. Alternative to GatedResidualWriteFusion: a backend disables one of the two.
  */
 class TRANSFORMATIONS_API GatedResidualWriteSinkReshape : public ov::pass::MatcherPass {
 public:

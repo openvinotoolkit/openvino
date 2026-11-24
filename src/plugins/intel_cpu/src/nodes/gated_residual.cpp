@@ -35,7 +35,6 @@
 #include "openvino/op/gated_residual.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "shape_inference/shape_inference_status.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -45,65 +44,16 @@ namespace {
 
 using Mode = ov::op::internal::GatedResidual::Mode;
 
-struct GatedResidualShapeConfig {
-    size_t hc_count = 0;
-    size_t hidden_size = 0;
-    bool produce_write_gate = false;
-};
-
-// Output shapes follow the residual shape alone: the last dimension is D for READ / FINAL_MIX, C for the write gate.
-// Needing no input data keeps the node from being a sync point.
-class GatedResidualShapeInfer : public ShapeInferEmptyPads {
-public:
-    explicit GatedResidualShapeInfer(const GatedResidualShapeConfig& config) : m_config(config) {}
-
-    Result infer([[maybe_unused]] const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        // The residual is the first input of every form.
-        const auto& residual = input_shapes[0].get();
-        std::vector<VectorDims> out(m_config.produce_write_gate ? 2U : 1U, residual);
-        out[0].back() = m_config.hidden_size;
-        if (m_config.produce_write_gate) {
-            out[1].back() = m_config.hc_count;
-        }
-        return {std::move(out), ShapeInferStatus::success};
-    }
-
-    [[nodiscard]] port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    GatedResidualShapeConfig m_config;
-};
-
-class GatedResidualShapeInferFactory : public ShapeInferFactory {
-public:
-    explicit GatedResidualShapeInferFactory(const std::shared_ptr<ov::Node>& op) {
-        const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
-        OPENVINO_ASSERT(gr, "Expected GatedResidual node");
-        const auto& config = gr->get_config();
-        m_config = {config.hc_count, config.hidden_size, config.produce_write_gate};
-    }
-
-    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<GatedResidualShapeInfer>(m_config);
-    }
-
-private:
-    GatedResidualShapeConfig m_config;
-};
-
 }  // namespace
 
 GatedResidual::GatedResidual(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, GatedResidualShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
-    OPENVINO_ASSERT(gr, "Expected GatedResidual node");
+    CPU_NODE_ASSERT(gr, "expected GatedResidual node");
     const auto& config = gr->get_config();
     m_attrs.hc_count = config.hc_count;
     m_attrs.hidden_size = config.hidden_size;
@@ -112,7 +62,7 @@ GatedResidual::GatedResidual(const std::shared_ptr<ov::Node>& op, const GraphCon
     m_attrs.norm_gain_plus_one = config.norm_gain_plus_one;
     m_attrs.produce_write_gate = config.produce_write_gate;
     const auto layout = gr->get_read_layout();
-    OPENVINO_ASSERT(layout.has_value(), "GatedResidual (READ/FINAL_MIX) has an unexpected number of inputs");
+    CPU_NODE_ASSERT(layout.has_value(), "has an unexpected number of inputs");
     m_attrs.read_layout = *layout;
 }
 
@@ -207,7 +157,7 @@ void GatedResidual::createPrimitive() {
 }
 
 void GatedResidual::prepareParams() {
-    OPENVINO_ASSERT(m_executor->update(m_memory), "GatedResidual executor update failed");
+    CPU_NODE_ASSERT(m_executor->update(m_memory), "executor update failed");
     getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
 }
 
@@ -261,10 +211,11 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 }
             }
 
-            // The scale is [N, G]; the op guarantees that G divides K, so any static group count is valid.
+            // The scale is [N, G] or one element (one group); the op guarantees that G divides K, so any static group
+            // count is valid.
             const auto groups_static = [&](size_t scale_port) {
                 const auto& ps = op->get_input_partial_shape(scale_port);
-                return ps.rank().is_static() && ps[1].is_static();
+                return ps.is_static() && (ov::shape_size(ps.to_shape()) == 1 || ps.size() == 2);
             };
             if (!groups_static(layout->scale_down) || !groups_static(layout->scale_up) ||
                 (layout->write_gate && !groups_static(layout->scale_inject))) {
@@ -347,7 +298,8 @@ bool GatedResidual::isSupportedCompressedOperation(const std::shared_ptr<const o
             const auto& weights_shape = op->get_input_shape(weights_port);
             const size_t N = weights_shape[0];
             const size_t K = weights_shape[1];
-            const size_t G = op->get_input_shape(scale_port)[1];
+            const auto& scale_shape = op->get_input_shape(scale_port);
+            const size_t G = ov::shape_size(scale_shape) == 1 ? 1 : scale_shape[1];
             return G != 0 && K % G == 0 && K / G >= 4 && N != 1;
         };
         return supported(layout->w_down, layout->scale_down) && supported(layout->w_up, layout->scale_up) &&

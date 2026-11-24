@@ -16,25 +16,14 @@ namespace ov::pass {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Feeds ov::op::internal::GatedResidual (READ / FINAL_MIX) its weights compressed: the decompression subgraphs
- * of W_down, W_up and W_inject are replaced by the stored constants, scales and zero points.
+ * @brief Feeds GatedResidual compressed weights, replacing the decompression subgraphs by stored constants, scales
+ * and zero points.
  *
- * Each weight is a decompression subgraph of a stored constant Wq (a type from `supported_weights_types`), an optional
- * zero point zp and a scale s:
+ *   Wq [N, K | N, G, K/G] -> Convert -> [Subtract(zp)] -> Multiply(s) [-> Reshape]
+ *     =>  Wq [N, K], s [N, G] [, zp [N, G]]   (inputs: ov::op::internal::GatedResidual::ReadLayout)
  *
- *   Before:                                        After:
- *
- *   Wq -> Convert -> [Subtract(zp)] -> Multiply(s) [-> Reshape]     Wq [N, K], s [N, G], [zp [N, G]]
- *                          |                                                 |
- *   residual, gain, W_down, W_up [, W_inject]            residual, gain, Wq_down, Wq_up, s_down, s_up
- *                          |                                [, zp_down, zp_up] [, Wq_inject, s_inject [, zp_inject]]
- *                    GatedResidual                                     GatedResidual (compressed form)
- *
- * The stored constants are taken as they are. The op is converted only if every weight is a compressed one of the same
- * type, its zero point (if any) has the shape of its scale, and all of them have zero points or none do (the zero
- * points of the op are all-or-nothing). The op is kept as it is when its weights are not compressed or are transposed
- * (a Transpose of the weights is fused into the MatMul before, so it is not expected), or when the backend rejects the
- * compressed op.
+ * Converted only if all weights are compressed, not transposed, of one type, with zero points on all or none, and the
+ * backend accepts the op. Single-element scales and zero points are kept as they are.
  */
 class TRANSFORMATIONS_API ConvertGatedResidualToCompressed : public ov::pass::MatcherPass {
 public:

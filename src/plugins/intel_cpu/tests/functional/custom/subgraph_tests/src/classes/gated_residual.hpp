@@ -27,6 +27,8 @@ struct GatedResidualWeightCompression {
     bool has_zero_points = false;
     size_t group_size = 0;  // 0 == per-output-channel (G = 1, K/G = K)
     ov::element::Type scale_precision = ov::element::f16;
+    // One zero point for the whole tensor (needs has_zero_points); the pass keeps it as it is.
+    bool scalar_zero_point = false;
 };
 
 // Shape, precision and compression are bundled because they are not freely combinable: a group size must divide C*D and

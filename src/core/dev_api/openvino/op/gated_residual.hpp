@@ -17,14 +17,13 @@ namespace ov::op::internal {
 /// \brief Gated Residual (hyper connection) operation. The residual is [B,T,C*D], i.e. [B,T,C,D] flattened.
 ///
 /// READ / FINAL_MIX (branch merge):
-///   Rbar_c = rms_norm(R_c) * gain_c           (per-branch RMSNorm over D, not over C*D)
+///   Rbar_c = rms_norm(R_c) * gain_c           (per-branch RMSNorm over D)
 ///   G      = sigmoid(W_up * SiLU(W_down * Rbar / C))
 ///   mixed  = (1/C) * sum_c G_c (*) Rbar_c
 ///   S      = 2 * sigmoid(W_inject * Rbar / C) (optional, only with produce_write_gate)
 /// WRITE (branch update): R'_c = R_c + S_c * Y
 ///
-/// The 1/C factors are model semantics. The read gate is per (branch, channel), the write gate per branch.
-/// `gain = 1 + w` when `norm_gain_plus_one` is set.
+/// The 1/C factors are model semantics; `gain = 1 + w` when `norm_gain_plus_one` is set.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatedResidual : public ov::op::Op {
@@ -37,13 +36,12 @@ public:
         FINAL_MIX = 2,  ///< model-tail mixer: READ without write-gate generation
     };
 
-    /// @brief Input form of a READ / FINAL_MIX node and the position of each input in it. The write-gate inputs come
-    /// last, so their positions depend on the form:
+    /// @brief Input form of a READ / FINAL_MIX node; the write-gate inputs come last, so their positions depend on it:
     ///   floating-point weights:        residual, norm, w_down, w_up [, w_inject]
     ///   compressed, no zero points:    residual, norm, w_down, w_up, scale_down, scale_up [, w_inject, scale_inject]
     ///   compressed with zero points:   ... scale_up, zp_down, zp_up [, w_inject, scale_inject, zp_inject]
-    /// Zero points are all-or-nothing; without them they are 0. Compressed weights are i4/u4/i8/u8; scale and zero
-    /// point are [N, G]: N output channels, G groups along K.
+    /// Compressed weights are i4/u4/i8/u8; scale and zero point are [N, G] (G groups along K) or one element. Zero
+    /// points are all-or-nothing.
     struct ReadLayout {
         bool compressed = false;
         bool has_zp = false;
