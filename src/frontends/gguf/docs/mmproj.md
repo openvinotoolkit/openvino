@@ -16,7 +16,7 @@ audio branch. Built-in entries come from `projector_catalog` in
 | Vision | `gemma3`, `idefics3`, `janus_pro` | SigLIP; fused QKV and legacy FFN names |
 | Vision | `mlp` | CLIP feature layers; normalized variant detected from tensors |
 | Vision | `internvl` | InternViT, class token, pixel-shuffle merge |
-| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 |
+| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045; dimension-gated legacy FFN weight/bias names |
 | Vision | `gemma3nv` | MobileNet stem, UIR, attention and multiscale feature branches; vision-only support |
 | Vision | `minicpmv4_6` | window attention, two-stage merging |
 | Vision | `minicpmv4_7` | window-attention and direct 2x2 merging; packed-patch GenAI layout |
@@ -36,6 +36,9 @@ audio branch. Built-in entries come from `projector_catalog` in
 | Generated audio | `qwen3tts_gen` | code predictor and streaming codec |
 | Generated audio | `lfm3a_gen` | depthformer, feedback and codec components |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
+
+For `resampler`, legacy FFN names are swapped only when the dimensions distinguish the layout;
+square FFNs keep the canonical order.
 
 The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
 
@@ -113,6 +116,11 @@ Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds derived val
 `<modality>.projector`, `<modality>.merge`, `vision.patch_size` and `vision.genai_layout`. Values
 are strings: numeric arrays are comma-separated, and string arrays use `length:value` entries
 flagged by a `<key>.encoding` companion. The metadata survives IR serialization and adaptation.
+
+Learned `v.image_newline`, `v.view_seperator` and `model.image_newline` weights, when present, are
+also preserved as comma-separated values under their source tensor names in `gguf_mmproj`.
+Consumers can use them to assemble image features outside the graph; DeepSeek OCR encoders already
+incorporate their separators into the native graph.
 
 ## Using the encoders and a language model
 

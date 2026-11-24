@@ -1450,6 +1450,24 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, ExplicitSharedVocabularyIsUsedWithO
     EXPECT_EQ(shifts.lm_head, 2u);
 }
 
+// NPU37XX (MTL) lowers the asymmetric weights-as-inputs LM head to SHAVE-only DynamicDequantize even with a
+// new compiler, so the shared vocabulary is off there by default. An explicit YES is kept.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedOnNpu37xxEvenWithNewCompiler) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("3720", 1, ONEAPI_MAKE_VERSION(8, 6));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, ExplicitSharedVocabularyIsUsedOnNpu37xx) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("3720", 1, ONEAPI_MAKE_VERSION(8, 6));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({{"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}});
+    EXPECT_EQ(shifts.lm_head, 2u);
+}
+
 // The compiler that matters is the one of the final LM head config, not the top-level one: the plugin
 // compiler is new (8.5), the driver compiler is old (8.2).
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedIfHeadOverridesCompilerWithOldOne) {

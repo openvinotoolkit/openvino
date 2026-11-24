@@ -179,6 +179,15 @@ bool compiler_supports_dynamic_zp_decomposition(const int64_t compiler_ver) {
     return compiler_ver >= ONEAPI_MAKE_VERSION(8, 5);
 }
 
+// NPU37XX (Meteor Lake) compiles the weights-as-inputs LM head with an asymmetric vocabulary to SHAVE-only
+// DynamicDequantize: its zero point decomposition does not handle the 3D MatMul the head becomes there, regardless
+// of the compiler version (about 1300 ms instead of about 30 ms per token with the shared vocabulary).
+bool platform_supports_shared_vocab(const std::string& arch) {
+    const auto platform =
+        arch != ov::intel_npu::Platform::AUTO_DETECT ? ov::intel_npu::Platform::standardize(arch) : arch;
+    return platform != ov::intel_npu::Platform::NPU3720;
+}
+
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                               const ov::AnyMap& config) {
     if (!plugin->get_core()) {
@@ -1682,6 +1691,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                            : int64_t{0};
         const bool compiler_supports =
             !npudesc.has_value() || set_by_user || compiler_supports_dynamic_zp_decomposition(head_compiler_ver);
+        const bool platform_supports =
+            !npudesc.has_value() || set_by_user || platform_supports_shared_vocab(npudesc->arch);
         const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
                                                     vocab_is_closure(generate_config) &&
                                                     (lm_head_model && vocab_is_closure(lm_head_config));
@@ -1690,6 +1701,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             // matches the quantized host gather (hidden size 2048 or more), the partitioner uses it for the whole
             // model and does not run ConvertDQVocab, so the Sub128 shifts of the LM head reach the compiler.
             LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_LLM_SHARED_HEAD.");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else if (!platform_supports) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: the NPU37XX compiler keeps the LM head dequantization "
+                     "on SHAVE.");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
         } else if (!compiler_supports) {
             LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer for the LM head, "
