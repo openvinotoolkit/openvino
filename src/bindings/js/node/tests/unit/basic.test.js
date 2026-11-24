@@ -119,6 +119,10 @@ describe("ov basic tests.", () => {
     it("getVersions() throws with non string coercable arg.", () => {
       assert.throws(() => core.getVersions({ deviceName: "CPU" }));
     });
+
+    it("getVersions() throws for an invalid device list", () => {
+      assert.throws(() => core.getVersions("BATCH:CPU,GPU"), /BATCH accepts only one device/);
+    });
   });
 
   describe("ov.getOpenvinoVersion()", () => {
@@ -301,6 +305,23 @@ describe("ov basic tests.", () => {
         assert.strictEqual(obj.output().anyName, "fc_out");
       });
     });
+
+    it("output() throws for unknown tensor name or out of range index", () => {
+      modelLike.forEach((obj) => {
+        assert.throws(() => obj.output("nonexistent_output"), /nonexistent_output/);
+        assert.throws(() => obj.output(1e9), Error);
+        assert.throws(() => obj.output(-1), Error);
+      });
+    });
+
+    it("output() throws for invalid arguments", () => {
+      modelLike.forEach((obj) => {
+        assert.throws(() => obj.output({}), Error);
+        assert.throws(() => obj.output(0, 1), Error);
+      });
+      assert.throws(() => model.output({}), /method called with incorrect parameters/);
+      assert.throws(() => model.output(0, 1), /Invalid number of arguments -> 2/);
+    });
   });
 
   describe("ov.Model/ov.CompiledModel input()", () => {
@@ -324,6 +345,32 @@ describe("ov basic tests.", () => {
 
         assert.deepStrictEqual(obj.input(0).shape, testModelFP32.inputShape);
         assert.deepStrictEqual(obj.input(0).getShape(), testModelFP32.inputShape);
+      });
+    });
+
+    it("input() throws for unknown tensor name or out of range index", () => {
+      modelLike.forEach((obj) => {
+        assert.throws(() => obj.input("nonexistent_input"), /nonexistent_input/);
+        assert.throws(() => obj.input(1e9), Error);
+        assert.throws(() => obj.input(-1), Error);
+      });
+    });
+
+    it("input() throws for invalid arguments", () => {
+      modelLike.forEach((obj) => {
+        assert.throws(() => obj.input({}), Error);
+        assert.throws(() => obj.input(0, 1), Error);
+      });
+      assert.throws(() => model.input({}), /method called with incorrect parameters/);
+      assert.throws(() => model.input(0, 1), /Invalid number of arguments -> 2/);
+    });
+
+    it("input().shape throws for a dynamic shape", () => {
+      model.reshape("[?,3,32,32]");
+      const dynamicCompiledModel = core.compileModelSync(model, "CPU");
+      [model, dynamicCompiledModel].forEach((obj) => {
+        assert.throws(() => obj.input().shape, /dynamic shape/);
+        assert.throws(() => obj.input().getShape(), /dynamic shape/);
       });
     });
   });
