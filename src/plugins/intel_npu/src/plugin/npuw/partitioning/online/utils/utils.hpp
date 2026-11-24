@@ -45,6 +45,8 @@ struct PassContext {
     std::vector<Isolate> isolates;
     std::vector<std::string> nofolds;
     bool fuse_unfolded = false;
+    // Only HFA understands a [B,S,H,D] past KV transposed in front of the attention Concat.
+    bool allow_transposed_past_kv = false;
     std::vector<std::string> fold_only_tags;
     const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns = nullptr;
 };
