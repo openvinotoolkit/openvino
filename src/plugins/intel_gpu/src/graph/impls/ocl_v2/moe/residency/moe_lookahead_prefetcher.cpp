@@ -374,7 +374,7 @@ struct ExpertPrefetcher::State {
                                 break;
                             }
                             load = binding->cache->reserve_speculative(expert, binding->config.top_k,
-                                [this] { return make_ready_event(); });
+                                [this] { return make_ready_event(); }, experts);
                         }
                         if (load) {
                             watch(load->last_use_event);
