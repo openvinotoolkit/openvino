@@ -764,99 +764,115 @@ TEST(HsmReaderTest, decode_all_any_device_id_overload_matches_the_explicit_any_d
     EXPECT_EQ(decoded[0], "compiled-model-bytes");
 }
 
-// --- section(SectionTagReserved)/decode(SectionTagReserved): allows retrieving or decoding a section identified by the
-// given tag, reserved bytes included -----------------------------------------------------------------------------
+// --- section_if/sections_if/decode_if/decode_all_if: allows retrieving or decoding sections based on the given
+// predicate ---------------------------------------------------------------------------------------------------
 
-// TEST(HsmReaderTest, tag_reserved_multiple_entries_have_same_reserved_but_different_tag) {
-//     std::array<uint8_t, 4> target_reserved_bytes{0xFF, 0xFF, 0xFF, 0xFF};
-//     std::vector<uint8_t> target_content{0xBB, 0xBB, 0xBB, 0xBB};
-//     auto blob = make_container({
-//         {make_inline_entry(hsm::any_device_id,
-//                            hsm::SectionTag::make(hsm::compiled_options, true),
-//                            {0xAA, 0xAA, 0xAA, 0xAA},
-//                            target_reserved_bytes),
-//          {}},
-//         {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, target_content, target_reserved_bytes), {}},
-//         {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag, target_reserved_bytes), "payload1"},
-//         {make_pointer_entry(hsm::any_device_id, hsm::model_tag, target_reserved_bytes), "payload2"},
-//     });
+TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_reserved_but_different_tag) {
+    std::array<uint8_t, 4> target_reserved_bytes{0xFF, 0xFF, 0xFF, 0xFF};
+    std::vector<uint8_t> target_content{0xBB, 0xBB, 0xBB, 0xBB};
+    auto blob = make_container({
+        {make_inline_entry(hsm::any_device_id,
+                           hsm::SectionTag::make(hsm::compile_options, true),
+                           {0xAA, 0xAA, 0xAA, 0xAA},
+                           target_reserved_bytes),
+         {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, target_content, target_reserved_bytes), {}},
+        {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag, target_reserved_bytes), "payload1"},
+        {make_pointer_entry(hsm::any_device_id, hsm::model_tag, target_reserved_bytes), "payload2"},
+    });
 
-//     const auto reader = hsm::Reader::open(blob.data(), blob.size());
-//     ASSERT_TRUE(reader.has_value());
+    const auto model_id_predicate = [&](const hsm::ManifestEntry& e) {
+        return e.device == hsm::any_device_id && e.tag.id() == hsm::model_id_tag.id() &&
+               e.tag_reserved == target_reserved_bytes;
+    };
+    const auto model_predicate = [&](const hsm::ManifestEntry& e) {
+        return e.device == hsm::any_device_id && e.tag.id() == hsm::model_tag.id() &&
+               e.tag_reserved == target_reserved_bytes;
+    };
 
-//     // First test the "section" method
-//     const auto model_id = reader->section(hsm::any_device_id, {hsm::model_id_tag, target_reserved_bytes});
-//     ASSERT_TRUE(model_id.has_value());
-//     const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
-//     ASSERT_EQ(model_id_view.size(), 24u);
-//     EXPECT_EQ(std::memcmp(model_id_view.data(), target_content.data(), target_content.size()), 0);
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
 
-//     const auto model = reader->section(hsm::any_device_id, {hsm::model_tag, target_reserved_bytes});
-//     ASSERT_TRUE(model.has_value());
-//     EXPECT_TRUE(to_string(*model) == "payload2");
+    // First test the "section" method
+    const auto model_id = reader->section_if(model_id_predicate);
+    ASSERT_TRUE(model_id.has_value());
+    const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
+    ASSERT_EQ(model_id_view.size(), 24u);
+    EXPECT_EQ(std::memcmp(model_id_view.data(), target_content.data(), target_content.size()), 0);
 
-//     // Then the "decode" one
-//     const hsm::SectionDecoder<std::vector<std::byte>> section_decoder =
-//         [](const hsm::Section& section) -> std::optional<std::vector<std::byte>> {
-//         return section.to_bytes();
-//     };
-//     auto decode_result =
-//         reader->decode(hsm::any_device_id, {hsm::model_id_tag, target_reserved_bytes}, section_decoder);
-//     ASSERT_TRUE(decode_result.has_value());
-//     ASSERT_EQ(decode_result->size(), 24u);
-//     EXPECT_EQ(std::memcmp(decode_result->data(), target_content.data(), target_content.size()), 0);
+    const auto model = reader->section_if(model_predicate);
+    ASSERT_TRUE(model.has_value());
+    EXPECT_TRUE(to_string(*model) == "payload2");
 
-//     decode_result = reader->decode(hsm::any_device_id, {hsm::model_tag, target_reserved_bytes}, section_decoder);
-//     ASSERT_TRUE(decode_result.has_value());
-//     EXPECT_TRUE(to_string(*decode_result) == "payload2");
-// }
+    // Then the "decode" one
+    const hsm::SectionDecoder<std::vector<std::byte>> section_decoder =
+        [](const hsm::Section& section) -> std::optional<std::vector<std::byte>> {
+        return section.to_bytes();
+    };
+    auto decode_result = reader->decode_if(model_id_predicate, section_decoder);
+    ASSERT_TRUE(decode_result.has_value());
+    ASSERT_EQ(decode_result->size(), 24u);
+    EXPECT_EQ(std::memcmp(decode_result->data(), target_content.data(), target_content.size()), 0);
 
-// TEST(HsmReaderTest, section_tag_reserved_multiple_entries_have_same_tag_and_reserved) {
-//     std::array<uint8_t, 4> target_reserved_bytes{0xFF, 0xFF, 0xFF, 0xFF};
-//     std::vector<uint8_t> target_content_1{0xBB, 0xBB, 0xBB, 0xBB};
-//     std::vector<uint8_t> target_content_2{0xCC, 0xCC, 0xCC, 0xCC};
-//     auto blob = make_container({
-//         {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {0xAA, 0xAA, 0xAA, 0xAA}), {}},
-//         {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, target_content_1, target_reserved_bytes), {}},
-//         {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, target_content_2, target_reserved_bytes), {}},
-//         {make_pointer_entry(hsm::any_device_id, hsm::model_tag), "payload1"},
-//         {make_pointer_entry(hsm::any_device_id, hsm::model_tag, target_reserved_bytes), "payload2"},
-//         {make_pointer_entry(hsm::any_device_id, hsm::model_tag, target_reserved_bytes), "payload3"},
-//     });
+    decode_result = reader->decode_if(model_predicate, section_decoder);
+    ASSERT_TRUE(decode_result.has_value());
+    EXPECT_TRUE(to_string(*decode_result) == "payload2");
+}
 
-//     const auto reader = hsm::Reader::open(blob.data(), blob.size());
-//     ASSERT_TRUE(reader.has_value());
+TEST(HsmReaderTest, predicate_methods_multiple_entries_have_same_tag_and_reserved) {
+    std::array<uint8_t, 4> target_reserved_bytes{0xFF, 0xFF, 0xFF, 0xFF};
+    std::vector<uint8_t> target_content_1{0xBB, 0xBB, 0xBB, 0xBB};
+    std::vector<uint8_t> target_content_2{0xCC, 0xCC, 0xCC, 0xCC};
+    auto blob = make_container({
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {0xAA, 0xAA, 0xAA, 0xAA}), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, target_content_1, target_reserved_bytes), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, target_content_2, target_reserved_bytes), {}},
+        {make_pointer_entry(hsm::any_device_id, hsm::model_tag), "payload1"},
+        {make_pointer_entry(hsm::any_device_id, hsm::model_tag, target_reserved_bytes), "payload2"},
+        {make_pointer_entry(hsm::any_device_id, hsm::model_tag, target_reserved_bytes), "payload3"},
+    });
 
-//     // First test the "section" method
-//     const auto model_id = reader->section(hsm::any_device_id, {hsm::model_id_tag, target_reserved_bytes});
-//     ASSERT_TRUE(model_id.has_value());
-//     const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
-//     ASSERT_EQ(model_id_view.size(), 24u);
-//     EXPECT_TRUE(std::memcmp(model_id_view.data(), target_content_1.data(), target_content_1.size()) == 0 ||
-//                 std::memcmp(model_id_view.data(), target_content_2.data(), target_content_2.size()) == 0);
+    const auto model_id_predicate = [&](const hsm::ManifestEntry& e) {
+        return e.device == hsm::any_device_id && e.tag.id() == hsm::model_id_tag.id() &&
+               e.tag_reserved == target_reserved_bytes;
+    };
+    const auto model_predicate = [&](const hsm::ManifestEntry& e) {
+        return e.device == hsm::any_device_id && e.tag.id() == hsm::model_tag.id() &&
+               e.tag_reserved == target_reserved_bytes;
+    };
 
-//     const auto model = reader->section(hsm::any_device_id, {hsm::model_tag, target_reserved_bytes});
-//     ASSERT_TRUE(model.has_value());
-//     auto extracted_payload = to_string(*model);
-//     EXPECT_TRUE(extracted_payload == "payload2" || extracted_payload == "payload3");
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
 
-//     // Then the "decode" one
-//     const hsm::SectionDecoder<std::vector<std::byte>> section_decoder =
-//         [](const hsm::Section& section) -> std::optional<std::vector<std::byte>> {
-//         return section.to_bytes();
-//     };
-//     auto decode_result =
-//         reader->decode(hsm::any_device_id, {hsm::model_id_tag, target_reserved_bytes}, section_decoder);
-//     ASSERT_TRUE(decode_result.has_value());
-//     ASSERT_EQ(decode_result->size(), 24u);
-//     EXPECT_TRUE(std::memcmp(decode_result->data(), target_content_1.data(), target_content_1.size()) == 0 ||
-//                 std::memcmp(decode_result->data(), target_content_2.data(), target_content_2.size()) == 0);
+    // First test the "section" method
+    const auto model_id = reader->section_if(model_id_predicate);
+    ASSERT_TRUE(model_id.has_value());
+    const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
+    ASSERT_EQ(model_id_view.size(), 24u);
+    EXPECT_TRUE(std::memcmp(model_id_view.data(), target_content_1.data(), target_content_1.size()) == 0 ||
+                std::memcmp(model_id_view.data(), target_content_2.data(), target_content_2.size()) == 0);
 
-//     decode_result = reader->decode(hsm::any_device_id, {hsm::model_tag, target_reserved_bytes}, section_decoder);
-//     ASSERT_TRUE(decode_result.has_value());
-//     extracted_payload = to_string(*decode_result);
-//     EXPECT_TRUE(extracted_payload == "payload2" || extracted_payload == "payload3");
-// }
+    const auto model = reader->section_if(model_predicate);
+    ASSERT_TRUE(model.has_value());
+    auto extracted_payload = to_string(*model);
+    EXPECT_TRUE(extracted_payload == "payload2");
+
+    // Then the "decode" one
+    const hsm::SectionDecoder<std::vector<std::byte>> section_decoder =
+        [](const hsm::Section& section) -> std::optional<std::vector<std::byte>> {
+        return section.to_bytes();
+    };
+    auto decode_result = reader->decode_if(model_id_predicate, section_decoder);
+    ASSERT_TRUE(decode_result.has_value());
+    ASSERT_EQ(decode_result->size(), 24u);
+    EXPECT_TRUE(std::memcmp(decode_result->data(), target_content_1.data(), target_content_1.size()) == 0 ||
+                std::memcmp(decode_result->data(), target_content_2.data(), target_content_2.size()) == 0);
+
+    decode_result = reader->decode_if(model_predicate, section_decoder);
+    ASSERT_TRUE(decode_result.has_value());
+    extracted_payload = to_string(*decode_result);
+    EXPECT_TRUE(extracted_payload == "payload2");
+}
 
 // --- Negative tests (Story 2 DoD: invalid header, invalid manifest, invalid offsets, unsupported
 // runtime requirements all reject at Reader::open(), before any section can be read) ------------------
