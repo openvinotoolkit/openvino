@@ -53,6 +53,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/group_normalization.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_cell.hpp"
@@ -250,6 +251,7 @@
 #include "openvino/op/reverse_sequence.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/grouped_matmul_compressed.hpp"
+#include "ov_ops/rms.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
@@ -990,7 +992,9 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
         //   (b) other arithmetic with max|Z| > 64 on data that no layer scaled by ScaleDownSingleLayer feeds (heuristic
         //       bound: for an unscaled x, the error first exceeds the 0.02 test tolerance at |Z| = 100).
         // Data that depends on such a layer carries a scale-up, whose zero point is the bias of an activation, which f16
-        // rounds as coarsely in the original graph. A branch without a zero point only rescales x.
+        // rounds as coarsely in the original graph. A normalization consumes the scale-up (EliminateScalarMul); past
+        // other ops that it cannot move through, e.g. Softmax, the dependency is a heuristic. A branch without a zero
+        // point only rescales x.
         // ActivationsScaling runs its LPT pass with a copy of this PassConfig, so the callback applies there.
         const auto depends_on_scaled_layer = [](const ov::Output<ov::Node>& data) {
             bool found = false;
@@ -1001,9 +1005,11 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
                 [&found](ov::Node* node) {
                     found = found || ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Convolution, ov::op::internal::MOECompressed>(node);
                 },
-                // A shape carries no activation values.
+                // Shapes, integer data and the output of a normalization carry no scale-up.
                 [&found](ov::Node* node) {
-                    return found || ov::is_type<ov::op::util::ShapeOfBase>(node);
+                    return found ||
+                           ov::is_type_any_of<ov::op::util::ShapeOfBase, ov::op::internal::RMS, ov::op::v6::MVN, ov::op::v12::GroupNormalization>(node) ||
+                           (ov::is_type<ov::op::v0::Convert>(node) && !node->get_input_element_type(0).is_real());
                 });
             return found;
         };

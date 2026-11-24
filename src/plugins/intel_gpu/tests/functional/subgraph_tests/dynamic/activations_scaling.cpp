@@ -449,8 +449,8 @@ TEST_F(ActivationsScalingFakeQuantizeSDPA, smoke_Inference) {
     run();
 }
 
-// (floating-point attention mask input, value of the masked keys)
-using MaskWithPositionBiasParams = std::tuple<bool, float>;
+// (floating-point attention mask input, value of the masked keys, mask normalized after a MatMul)
+using MaskWithPositionBiasParams = std::tuple<bool, float, bool>;
 
 // T5 adds an integer attention mask, turned into (1 - Convert(mask)) * lowest, to the relative position bias and feeds
 // the sum to SDPA as the attention mask. The activations scaling LPT run sees the mask arithmetic as a dequantization
@@ -458,11 +458,13 @@ using MaskWithPositionBiasParams = std::tuple<bool, float>;
 // (bias - 65504) / 65504 in f16 and is lost, so every attention layer runs without it. The test parameters select a
 // floating-point attention mask input instead (no Convert), whose arithmetic LPT takes for the same dequantization, and
 // -4096 instead of lowest for the masked keys: the scale of the mask is then 8^4, a power of the activations scale
-// factor like a composed scale-up, but no scaled layer feeds the mask.
+// factor like a composed scale-up, but no scaled layer feeds the mask. The floating-point mask can also pass a MatMul
+// that repeats each mask value in a row and an RMS normalization of the rows, which gives the mask back: a scaled layer
+// then feeds the mask, but the RMS consumes its scale-up.
 //
 //          input                       bucket        attention_mask
 //            |                           |                 |
-//     +------+------+          Gather(bias table)      Convert
+//     +------+------+          Gather(bias table)  [Convert or MatMul + RMS]
 //     |      |      |                    |                 |
 //  MatMul  MatMul  MatMul            Transpose       Subtract(1, x)
 //     |      |      |                    |                 |
@@ -481,8 +483,11 @@ class ActivationsScalingSDPAMaskWithPositionBias : public testing::WithParamInte
                                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MaskWithPositionBiasParams>& obj) {
-        const auto& [float_mask, masked_value] = obj.param;
-        const std::string name = float_mask ? "float_mask" : "integer_mask";
+        const auto& [float_mask, masked_value, normalized_mask] = obj.param;
+        std::string name = float_mask ? "float_mask" : "integer_mask";
+        if (normalized_mask) {
+            name += "_after_rms";
+        }
         return masked_value == std::numeric_limits<float>::lowest() ? name : name + "_" + std::to_string(static_cast<int>(-masked_value));
     }
 
@@ -493,6 +498,7 @@ protected:
     static constexpr int64_t num_buckets = 32;
     static constexpr size_t seq_len = 16;
     static constexpr size_t valid_len = 5;
+    static constexpr size_t mask_row_size = 16;
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
@@ -504,7 +510,7 @@ protected:
 
         const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
         const auto bucket = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
-        const auto& [float_mask, masked_value] = GetParam();
+        const auto& [float_mask, masked_value, normalized_mask] = GetParam();
         const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(float_mask ? ov::element::f32 : ov::element::i64, inputDynamicShapes[2]);
 
         int seed = 1;
@@ -529,7 +535,24 @@ protected:
         const auto position_bias = std::make_shared<ov::op::v0::Unsqueeze>(bias_heads, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
 
         // Extended attention mask [batch, 1, 1, seq_len]: 0 for tokens to attend to, masked_value for padding
-        const auto unsqueezed_mask = std::make_shared<ov::op::v0::Unsqueeze>(attention_mask, ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 2}));
+        std::shared_ptr<ov::Node> mask_values = attention_mask;
+        if (normalized_mask) {
+            // [batch, seq_len, 2] (the mask twice) x halves [2, mask_row_size], then x / sqrt(mean(x^2) + eps) over the
+            // rows, which the GPU plugin fuses into RMS: a row of ones becomes 1 up to eps, a row of zeros stays 0. The
+            // masked value is -4096 here: with lowest, the eps left in the reference mask would mask the attended keys.
+            const auto column = std::make_shared<ov::op::v0::Unsqueeze>(attention_mask, ov::op::v0::Constant::create(ov::element::i64, {1}, {2}));
+            const auto pair = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{column, column}, 2);
+            const auto halves = ov::op::v0::Constant::create(ov::element::f32, {2, mask_row_size}, std::vector<float>(2 * mask_row_size, 0.5f));
+            const auto rows = std::make_shared<ov::op::v0::MatMul>(pair, halves, false, false);
+            const auto square = std::make_shared<ov::op::v1::Power>(rows, ov::op::v0::Constant::create(ov::element::f32, {}, {2.f}));
+            const auto mean = std::make_shared<ov::op::v1::ReduceMean>(square, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), true);
+            const auto mean_eps = std::make_shared<ov::op::v1::Add>(mean, ov::op::v0::Constant::create(ov::element::f32, {}, {1e-6f}));
+            const auto normalized = std::make_shared<ov::op::v1::Divide>(rows, std::make_shared<ov::op::v0::Sqrt>(mean_eps));
+            mask_values = std::make_shared<ov::op::v8::Gather>(normalized,
+                                                               ov::op::v0::Constant::create(ov::element::i64, {}, {0}),
+                                                               ov::op::v0::Constant::create(ov::element::i64, {}, {2}));
+        }
+        const auto unsqueezed_mask = std::make_shared<ov::op::v0::Unsqueeze>(mask_values, ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 2}));
         const std::shared_ptr<ov::Node> mask =
             float_mask ? unsqueezed_mask : std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(unsqueezed_mask, ov::element::f32));
         const auto inverted = std::make_shared<ov::op::v1::Subtract>(ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}), mask);
@@ -584,9 +607,10 @@ TEST_P(ActivationsScalingSDPAMaskWithPositionBias, Inference) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScalingSDPAMaskWithPositionBias,
                          ActivationsScalingSDPAMaskWithPositionBias,
-                         ::testing::Values(MaskWithPositionBiasParams{false, std::numeric_limits<float>::lowest()},
-                                           MaskWithPositionBiasParams{true, std::numeric_limits<float>::lowest()},
-                                           MaskWithPositionBiasParams{true, -4096.f}),
+                         ::testing::Values(MaskWithPositionBiasParams{false, std::numeric_limits<float>::lowest(), false},
+                                           MaskWithPositionBiasParams{true, std::numeric_limits<float>::lowest(), false},
+                                           MaskWithPositionBiasParams{true, -4096.f, false},
+                                           MaskWithPositionBiasParams{true, -4096.f, true}),
                          ActivationsScalingSDPAMaskWithPositionBias::getTestCaseName);
 
 // gamma * data / sqrt(mean(data^2) + eps) over the last axis, which the GPU plugin fuses into RMS
