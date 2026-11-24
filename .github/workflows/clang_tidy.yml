@@ -171,7 +171,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [OCL, ZE, COMBINED, ZE-no-oneDNN]
+        mode: [COMBINED, ZE-no-oneDNN]
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
