@@ -54,7 +54,7 @@ public:
     }
 
 protected:
-    explicit MLIRGpuProgram(InputOrders input_orders = {}) : input_orders(std::move(input_orders)) {}
+    explicit MLIRGpuProgram(InputOrders input_orders) : input_orders(std::move(input_orders)) {}
 
 private:
     // Describes physical memory order for certain memref inputs of the compiled MLIR program.
