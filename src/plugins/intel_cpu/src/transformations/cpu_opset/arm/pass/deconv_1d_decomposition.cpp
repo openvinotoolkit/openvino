@@ -322,6 +322,7 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
         }
         decomp_nodes.push_back(weights_4d.get_node_shared_ptr());
         decomp_nodes.push_back(weights_transposed);
+        decomp_nodes.push_back(reverse_axes);
         decomp_nodes.push_back(weights_reversed.get_node_shared_ptr());
 
         ov::Strides conv_strides = {1, 1};
