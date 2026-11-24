@@ -1627,7 +1627,7 @@ TEST(dynamic_concat_holder_pool_onednn, tda3c_aliased_predecessor_gets_its_own_b
         GTEST_SKIP() << "supports_immad is false: the oneDNN driven runtime rejection is NOT covered";
     }
     // NOTE: the order avoids the mirrored LEGACY state (rejected round followed by a fused round with the same, zero, paddings: the predecessor keeps its
-    // own buffer while the fused holder reads the holder block; the switch-off network is wrong there too, see P1BD-O3 below)
+    // own buffer while the fused holder reads the holder block; the switch-off network is wrong there too, see the DISABLED P1BD-O3/O4 tests below)
     const std::vector<round_t> rounds = {{s3(0, 4), 1}, {s3(9, 4), 2}, {s3(4, 4), 3}, {s3(0, 4), 4}, {s3(9, 4), 5}, {s3(4, 4), 6}};
     std::vector<int> fused_log;
     check_rounds(eng, []() { return topo_onednn(); }, onednn_sw(BOTH), rounds, ref_onednn(), [&](network& net, size_t i) {
@@ -1645,6 +1645,41 @@ TEST(dynamic_concat_holder_pool_onednn, tda3c_aliased_predecessor_gets_its_own_b
     if (std::count(fused_log.begin(), fused_log.end(), 0) == 0) {
         GTEST_SKIP() << "O1: the runtime rejection could not be triggered: NOT covered";
     }
+}
+
+// TD-A3d (mirrored B1). Sequences in which a rejected round is followed by a fused round with unchanged predecessor layouts (case a/b) and the
+// rejected round in which the holder keeps its block (case c, round 4). Sub-switch ON only: each round is compared with the REFERENCE (the switch-off
+// network is wrong in these states: P1BD-O3/O4, characterised by the DISABLED tests below). The holder block is poisoned by NaN before every round.
+namespace {
+void run_mirror_sequence(const std::vector<round_t>& rounds, const char* tag, bool expect_rejection) {
+    auto& eng = get_test_engine();
+    if (!onednn_available(eng)) {
+        GTEST_SKIP() << "supports_immad is false: the oneDNN driven runtime rejection is NOT covered";
+    }
+    std::vector<int> fused_log;
+    check_rounds(eng, []() { return topo_onednn(); }, onednn_sw(BOTH), rounds, ref_onednn(), [&](network& net, size_t) { fused_log.push_back(is_fused(net) ? 1 : 0); },
+                 [&](network& net, size_t) { fill_nan(net, "C"); }, onednn_sw(OFF), /*compare_off=*/false);
+    std::cout << "[" << tag << "] fused per round:";
+    for (int f : fused_log) {
+        std::cout << " " << f;
+    }
+    std::cout << "\n";
+    if (expect_rejection && std::count(fused_log.begin(), fused_log.end(), 0) == 0) {
+        GTEST_SKIP() << "O1: the runtime rejection could not be triggered: NOT covered";
+    }
+}
+}  // namespace
+
+TEST(dynamic_concat_holder_pool_onednn, tda3d_case_a_rejected_then_fused) {
+    run_mirror_sequence({{s3(0, 4), 1}, {s3(9, 4), 2}, {s3(0, 4), 3}}, "TD-A3d a", true);
+}
+
+TEST(dynamic_concat_holder_pool_onednn, tda3d_case_b_rejected_then_fused_holder_keeps_its_block) {
+    run_mirror_sequence({{s3(0, 16), 1}, {s3(9, 4), 2}, {s3(0, 4), 3}}, "TD-A3d b", true);
+}
+
+TEST(dynamic_concat_holder_pool_onednn, tda3d_case_c_rejected_holder_keeps_its_block) {
+    run_mirror_sequence({{s3(0, 4), 1}, {s3(9, 4), 2}, {s3(4, 4), 3}, {s3(0, 4), 4}, {s3(9, 4), 5}}, "TD-A3d c", true);
 }
 
 // C4. A dynamic reader forced to the cpu impl is "maybe CPU" (has_impl_for returns true for forced impls): the class carries fb_maybe_cpu and is rejected.
@@ -1743,12 +1778,43 @@ TEST(dynamic_concat_holder_pool, DISABLED_never_fused_dynamic_concat_preds_stay_
     }
 }
 
-// P1BD-O3 (candidate, LEGACY half of B1, switch OFF). Round 0 (P1 empty, P2 16 features) is fused: P2 aliases the holder block. Round 1 (P1 9 features,
-// P2 4 features) is rejected at runtime (P2 oneDNN loses its 64 byte alignment) while the holder keeps its block: P2 keeps writing into the holder block
-// at [0, b) and the concat kernel reads it from there while writing [0, 9 + b) of the same buffer in one kernel: read/write overlap. (With a block change
-// the predecessor keeps its own old DIRECT block, which should be correct.) Not a P1-B-D regression; characterisation only. Observed while writing
-// TD-A3c: the switch-OFF network gives a wrong P2 part (first diff at the P2 slot of the (9,4) round after the (0,4) round) even though the holder
-// changes its block there, i.e. the 'correct with a block change' half does not hold on this device either (TD-A3c compares only the switch-on output).
+// P1BD-O3 / O4 (candidate, LEGACY = switch OFF; characterisation only, registered, not fixed). The predecessor P2 of the dynamic concat is forced to a
+// oneDNN preferred impl behind a P1 with 9 features (288 bytes: not 64 byte aligned): the runtime match() rejects. Two states are wrong with the switches
+// off (traces of the investigation; buffers are shortened, SC/IC = SHAPE_CHANGED/IMPL_CHANGED of the predecessor):
+//
+// (mirror) DISABLED_legacy_rejected_then_fused_predecessor_keeps_own_buffer, rounds (0,16), (9,4), (0,4):
+//   round | concat match | P2                                          | holder C                 | output
+//   0     | 1 (fused)    | SC=IC=1, buf A (= holder block)             | cbo=1, buf A             | ok
+//   1     | 0 (rejected) | SC=IC=1, own buf B                          | cbo=0, buf A (kept)      | ok
+//   2     | 1 (fused)    | SC=0 IC=0 (padding 0/0 as in round 1), buf B| cbo=1, buf A             | WRONG from index 0 (P2 writes B, the concat is read from A)
+//   The buffer binding is not part of the layout, so the layout comparison of the accepted branch of do_runtime_in_place_concat raises no flag and
+//   realloc_outputs() (which would bind the predecessor to the holder) is never reached. Not the same class as P1BD-O1 (the concat shape changes here).
+TEST(dynamic_concat_holder_pool_onednn, DISABLED_legacy_rejected_then_fused_predecessor_keeps_own_buffer) {
+    auto& eng = get_test_engine();
+    if (!onednn_available(eng)) {
+        GTEST_SKIP() << "supports_immad is false";
+    }
+    auto t = topo_onednn();
+    auto net = make_net(eng, t, onednn_sw(OFF));
+    const std::vector<round_t> rounds = {{s3(0, 16), 1}, {s3(9, 4), 2}, {s3(0, 4), 3}};
+    for (size_t i = 0; i < rounds.size(); ++i) {
+        const auto got = run_round(*net, eng, rounds[i].s, rounds[i].seed);
+        EXPECT_EQ(got, ref_onednn()(rounds[i].s, rounds[i].seed)) << "round " << i << " fused=" << is_fused(*net);
+        if (i == 1) {
+            EXPECT_FALSE(is_fused(*net)) << "the runtime rejection did not trigger";
+        }
+    }
+}
+
+// (overlap) DISABLED_legacy_rejected_runtime_concat_predecessor_aliases_holder_block, rounds (0,4), (9,4), (4,4), (0,4), (9,4):
+//   round | concat match | P2                                           | holder C                         | output
+//   0     | 1            | alloc, buf A (= holder block)                | cbo=1, buf A                     | ok
+//   1     | 0            | SC=IC=0, keeps A (holder moved to B: valid)  | cbo=0, new buf B                 | ok
+//   2     | 1            | padlo1 0 -> 4: SC=IC=1, bound to holder      | fused, B                         | ok
+//   3     | 1            | padlo1 4 -> 0: SC=IC=1, bound to holder      | fused, B                         | ok
+//   4     | 0 (rejected) | SC=IC=0, buf B = the HOLDER block, cnt 0     | cbo=0, buf B (kept, cnt 208 >= 13 features) | WRONG at index 144 (P2 slot) of 208
+//   In round 4 the holder keeps its block: P2 writes [0, 4 features) of it while the rejected concat kernel reads P2 from there and writes
+//   [0, 13 features) of the same buffer in one kernel (read/write overlap). The ~:1130 same-buffer clear is inside realloc_outputs(), not reached.
 TEST(dynamic_concat_holder_pool_onednn, DISABLED_legacy_rejected_runtime_concat_predecessor_aliases_holder_block) {
     auto& eng = get_test_engine();
     if (!onednn_available(eng)) {
@@ -1756,13 +1822,9 @@ TEST(dynamic_concat_holder_pool_onednn, DISABLED_legacy_rejected_runtime_concat_
     }
     auto t = topo_onednn();
     auto net = make_net(eng, t, onednn_sw(OFF));
-    const std::vector<round_t> rounds = {{s3(0, 16), 1}, {s3(9, 4), 2}, {s3(0, 4), 3}};  // round 2: the mirrored state (rejected -> fused, paddings equal)
+    const std::vector<round_t> rounds = {{s3(0, 4), 1}, {s3(9, 4), 2}, {s3(4, 4), 3}, {s3(0, 4), 4}, {s3(9, 4), 5}};
     for (size_t i = 0; i < rounds.size(); ++i) {
         const auto got = run_round(*net, eng, rounds[i].s, rounds[i].seed);
         EXPECT_EQ(got, ref_onednn()(rounds[i].s, rounds[i].seed)) << "round " << i << " fused=" << is_fused(*net);
-        if (i == 1) {  // (round 2 is the mirrored state: the output differs from the reference in the switch-off network as well)
-            EXPECT_FALSE(is_fused(*net)) << "the runtime rejection did not trigger";
-            EXPECT_NE(buf_of(*net, "P2"), buf_of(*net, "C")) << "the rejected-round predecessor must not alias the holder block";
-        }
     }
 }

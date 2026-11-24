@@ -1770,8 +1770,9 @@ void primitive_inst::rebind_concat_slots(const memory::ptr& old_block) {
                 // A4 (all builds): the holder block must not change after a non-SKIP predecessor was enqueued in this round: its data would stay in
                 // the old block. Unreachable by construction (F9 puts the predecessors right before the concat, the first non-SKIP predecessor's
                 // realloc_outputs triggers the holder allocation before its own enqueue); a violation is reported instead of silently re-pointing.
-                OPENVINO_ASSERT(!changed || p->get_flag(ExecutionFlags::SKIP) || !p->_enqueued_this_round,
-                                "[GPU] P1-B-D A4: holder ", id(), " changed its block after predecessor ", p->id(), " was enqueued in this round");
+                // (also when the holder block did not change: a late re-point of an enqueued predecessor means its data is in another buffer)
+                OPENVINO_ASSERT(p->get_flag(ExecutionFlags::SKIP) || !p->_enqueued_this_round,
+                                "[GPU] P1-B-D A4: holder ", id(), " re-points predecessor ", p->id(), " after it was enqueued in this round (holder block changed: ", changed, ")");
                 po = cur;
                 p->set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
@@ -2506,6 +2507,29 @@ void primitive_inst::do_runtime_in_place_concat() {
     }
     concat_inst->_impl_params->output_layouts[0] =
         concat_layout;  // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
+
+    // P1-B-D (mirrored B1): a predecessor of a promoted holder that was last bound to its OWN buffer (a rejected round) and whose layout did not change
+    // (the runtime padding is back to the same values, the buffer binding is not part of the layout) gets no flag from the padding update above and would
+    // keep writing into its own buffer while the fused holder is read from the holder block. Drop the binding now, before any predecessor of the round is
+    // enqueued (first predecessor's prepare): it takes the re-acquire path, realloc_outputs() binds it to the holder and triggers the holder allocation
+    // before its own enqueue. Empty (SKIP) predecessors are re-pointed by rebind_concat_slots.
+    if (concat_inst->is_dynamic_pool_class_holder()) {
+        auto& eng = concat_inst->get_network().get_engine();
+        const memory::ptr holder_mem = concat_inst->_outputs.empty() ? nullptr : concat_inst->_outputs[0];
+        size_t k = 0;
+        for (auto& dep : concat_inst->_deps) {
+            primitive_inst* p = dep.first;
+            const auto& pl = preds_layouts[k++];
+            if (p == nullptr || p->_outputs.empty() || !p->_outputs[0] || !pl.is_static() || pl.count() == 0) {
+                continue;
+            }
+            if (!holder_mem || !eng.is_the_same_buffer(*p->_outputs[0], *holder_mem)) {
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << p->id() << " is not bound to the holder block of the accepted concat: re-acquire" << std::endl;
+                p->clear_output_memory();
+                p->set_flag(ExecutionFlags::MEMORY_CHANGED);
+            }
+        }
+    }
 
     concat_inst->set_can_be_optimized(true);
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
