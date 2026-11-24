@@ -1096,6 +1096,49 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryPartialRoPE) {
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryRejectsNonEquivalentMultiTokenReshape) {
+    QueryOptions options{"split_rope_non_equivalent_multi_token_reshape"};
+    options.split_rope = true;
+    options.single_token_head_first = true;
+    options.with_norm = false;
+    options.absorb_norm = false;
+    auto graph = make_query_graph<op_internal::PagedQSAIndexer>(options);
+    model = graph.model;
+
+    const auto query = ov::as_type_ptr<v0::Parameter>(graph.raw_query.get_node_shared_ptr());
+    ASSERT_NE(query, nullptr);
+    query->set_partial_shape({-1, 2, query_heads, head_size});
+
+    const auto concat = ov::as_type_ptr<v0::Concat>(graph.rotated.get_node_shared_ptr());
+    ASSERT_NE(concat, nullptr);
+    const auto rope = ov::as_type_ptr<op_internal::RoPE>(concat->get_input_node_shared_ptr(0));
+    ASSERT_NE(rope, nullptr);
+    const auto split = ov::as_type_ptr<v1::VariadicSplit>(rope->get_input_node_shared_ptr(0));
+    ASSERT_NE(split, nullptr);
+    const auto input_reshape = ov::as_type_ptr<v1::Reshape>(split->get_input_node_shared_ptr(0));
+    ASSERT_NE(input_reshape, nullptr);
+    input_reshape->input(1).replace_source_output(i64({0, query_heads, 2, head_size}));
+    input_reshape->validate_and_infer_types();
+
+    for (const auto input : {PagedQSAIndexerInputIdx::ROPE_COS, PagedQSAIndexerInputIdx::ROPE_SIN}) {
+        const auto rows_reshape = ov::as_type_ptr<v1::Reshape>(graph.inputs[input].get_node_shared_ptr());
+        ASSERT_NE(rows_reshape, nullptr);
+        const auto rows = ov::as_type_ptr<v0::Parameter>(rows_reshape->get_input_node_shared_ptr(0));
+        ASSERT_NE(rows, nullptr);
+        rows->set_partial_shape({-1, 2, rotary_dim});
+    }
+    graph.model->validate_nodes_and_infer_types();
+
+    auto config = graph.indexer->get_config();
+    config.query_norm = options.indexer_query_norm;
+    config.query_rope = options.indexer_query_rope;
+    replace_query_indexer(graph, options, graph.query, config);
+    model = graph.model;
+    model->validate_nodes_and_infer_types();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
 class FusePagedQSAIndexerQueryNonLastSplitAxisTest : public TransformationTestsF,
                                                      public testing::WithParamInterface<int64_t> {};
 

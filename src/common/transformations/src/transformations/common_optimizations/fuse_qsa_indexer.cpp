@@ -415,8 +415,10 @@ public:
 
         const auto p_query = any_input();
         // With a single position per row, TransposeToReshape turns the 0213 transposes into Reshapes and the
-        // output one is merged into the query flattening.
-        const auto p_input_reshape = wrap_type<v1::Reshape>({p_query, any_input()});
+        // output one is merged into the query flattening. Reshape preserves the element count, so equal H and D imply
+        // equal batch dimensions without requiring symbols.
+        const auto p_input_reshape =
+            wrap_type<v1::Reshape>({any_input(shape_matches("?, 1, H, D")), any_input()}, shape_matches("?, H, 1, D"));
         const auto p_input_transpose =
             wrap_type<v1::Transpose>({p_query, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))}) | p_input_reshape;
         const auto p_rope_cos = any_input();
