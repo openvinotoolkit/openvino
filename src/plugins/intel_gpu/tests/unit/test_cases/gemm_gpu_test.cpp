@@ -855,6 +855,68 @@ public:
         execute_and_check(input1_2, 4, {-8.f, 30.f, -24.f, -10.f});
     }
 
+    void test_dynamic_multi_inference_different_shape_onednn_bias(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+#ifndef ENABLE_ONEDNN_FOR_GPU
+        GTEST_SKIP() << "oneDNN support is disabled in this build";
+#endif
+        if (!engine.get_device_info().supports_immad)
+            GTEST_SKIP() << "oneDNN GEMM is not supported on this device";
+
+        const auto data_type = data_types::f16;
+        auto input1_dyn_layout = layout{ov::PartialShape{1, 1, ov::Dimension(1, 10), 4}, data_type, format::bfyx};
+        auto input1_layout1 = layout{ov::PartialShape{1, 1, 3, 4}, data_type, format::bfyx};
+        auto input1_layout2 = layout{ov::PartialShape{1, 1, 2, 4}, data_type, format::bfyx};
+        auto input2_layout = layout{ov::PartialShape{4, 2}, data_type, format::bfyx};
+        auto bias_layout = layout{ov::PartialShape{1, 2}, data_type, format::bfyx};
+
+        auto input1_1 = engine.allocate_memory(input1_layout1);
+        auto input1_2 = engine.allocate_memory(input1_layout2);
+        auto input2 = engine.allocate_memory(input2_layout);
+        auto bias1 = engine.allocate_memory(bias_layout);
+        auto bias2 = engine.allocate_memory(bias_layout);
+
+        set_values(input1_1, std::vector<ov::float16>{1.f, 2.f, 0.f, -1.f, 2.f, 0.f, 1.f, 3.f, -1.f, 1.f, 2.f, 0.f});
+        set_values(input1_2, std::vector<ov::float16>{0.f, 1.f, 2.f, 1.f, 1.f, -1.f, 0.f, 2.f});
+        set_values(input2, std::vector<ov::float16>{1.f, 2.f, 0.f, 1.f, -1.f, 0.f, 2.f, -1.f});
+        set_values(bias1, std::vector<ov::float16>{1.f, 2.f});
+        set_values(bias2, std::vector<ov::float16>{-3.f, 4.f});
+
+        topology topology;
+        topology.add(input_layout("input1", input1_dyn_layout),
+                     input_layout("input2", input2_layout),
+                     input_layout("bias", bias_layout),
+                     gemm("gemm", {input_info("input1"), input_info("input2"), input_info("bias")}, data_type, false, false, 1.0f, 0.0f, 4, 2));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"gemm", {format::bfyx, "", impl_types::onednn}}}));
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        auto execute_and_check = [&](const memory::ptr& input1, const memory::ptr& bias, const std::vector<float>& expected) {
+            network->set_input_data("input1", input1);
+            network->set_input_data("input2", input2);
+            network->set_input_data("bias", bias);
+            auto outputs = network->execute();
+
+            auto impl = network->get_primitive("gemm")->get_impl();
+            ASSERT_NE(impl, nullptr);
+            ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+            ASSERT_TRUE(impl->is_dynamic());
+
+            auto output = outputs.at("gemm").get_memory();
+            mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+            ASSERT_EQ(output_ptr.size(), expected.size());
+            for (size_t i = 0; i < expected.size(); ++i)
+                ASSERT_NEAR(static_cast<float>(output_ptr[i]), expected[i], 0.01f);
+        };
+
+        execute_and_check(input1_1, bias1, {0.f, 7.f, 8.f, 3.f, -2.f, 1.f});
+        execute_and_check(input1_2, bias2, {-3.f, 4.f, 2.f, 3.f});
+    }
+
     void test_dynamic_multi_inference_different_shape(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -2053,6 +2115,16 @@ TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_f16_onednn_cached
 TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_bf16_onednn_cached) {
     this->test_dynamic_multi_inference_different_shape_onednn<ov::bfloat16>(true, data_types::bf16);
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_f16_onednn_bias) {
+    this->test_dynamic_multi_inference_different_shape_onednn_bias(false);
+}
+
+TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_f16_onednn_bias_cached) {
+    this->test_dynamic_multi_inference_different_shape_onednn_bias(true);
+}
+#endif
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_1d_f16) {
     this->test_transpose_matmul_f16(1, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
