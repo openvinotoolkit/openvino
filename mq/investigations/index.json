@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 499,
+  "total": 500,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5422,6 +5422,15 @@
       "category": "Flaky Test",
       "signature_hash": "184bee2aff548cb1",
       "pr_number": "39030"
+    },
+    {
+      "investigation_id": "2026-11-24-14-07-28-000-45397046760",
+      "run_id": "45397046760",
+      "timestamp": "2026-11-24T14:07:28Z",
+      "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+      "category": "Flaky Test",
+      "signature_hash": "a284d27dfee44614",
+      "pr_number": "39751"
     }
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-24-14-07-28-000-45397046760",
+  "timestamp": "2026-11-24T14:07:28Z",
+  "run_id": "45397046760",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45397046760",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39751",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39751",
+  "author": "yathAg",
+  "category": "Flaky Test",
+  "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_keras_lstm_flags_float32[units=3,dropouts=(0.1,0.3),use_bias=False,activation=relu] fails numeric comparison vs TF framework on CPU"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the TensorFlow Layer Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED install\\tests\\layer_tests\\tensorflow2_keras_tests\\test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[... dropouts: (0.1, 0.3), units: 3, activation: 'relu', use_bias: False, recurrent_activation: 'tanh', flags: True] - AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[0., 0.05568786, -0.], [-0., -0.28093964, 0.21926537], [16.095222, 11.140991, -3.1392617], [-10.104135, -0.6720145, 0.]])}; framework_res=tf.Tensor([[0., 0.0561212, -0.], [-0., -0.27962676, 0.21912184], [16.097897, 11.129977, -2.971273], [-10.101557, -0.67210436, 0.]])",
+    "= 1 failed, 2113 passed, 111 skipped, 6 xfailed, 27 xpassed, 241 warnings in 628.94s (0:10:28) =",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The TF2 Keras LSTM test with stochastic Dropout layers (dropouts=(0.1, 0.3)) compares OpenVINO CPU inference output against TensorFlow's reference output. Dropout is non-deterministic between the TF reference pass and the OpenVINO execution unless both share an identical, seeded RNG state, so small numeric divergences accumulate through the LSTM recurrence and occasionally exceed the comparison epsilon (5e-2 for non-FP32 precision here). This is a long-standing, previously catalogued flaky test (pattern a284d27dfee44614, first seen 2026-08-27, now recorded 12 times) unrelated to the PR under test (#39751, a GPU-only fix to intel_gpu's prepare_primitive_fusing pass) or to the 'ci/gha_overall_status_windows' aggregate job, which simply reports the TensorFlow Layer Tests job's failure.",
+  "reproduction_steps": "Run locally (flaky, may require multiple attempts to reproduce): pytest install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k \"dropouts\" -v (requires an OpenVINO install tree and the TensorFlow 2 layer test environment). The test uses TF's internal Dropout RNG so each run exercises a different dropout mask, so failures are not perfectly reproducible from static seeds.",
+  "recommended_actions": [
+    "Mark test_keras_lstm_flags_float32 parameterizations that combine dropouts with flags=True as xfail/flaky-retry in the TF2 Keras LSTM layer test suite, or set tf.random.set_seed()/fixed dropout masks so both the TF reference and the IR inference see the same stochastic dropout pattern.",
+    "Alternatively, loosen framework_eps specifically for dropout-enabled LSTM cases, or disable dropout in the accuracy-comparison test and cover dropout behavior with a separate deterministic unit test.",
+    "No action needed on PR #39751 itself; this failure is unrelated to the GPU prepare_primitive_fusing change and the merge-queue run should simply be retried."
+  ],
+  "prevention_strategies": "Avoid asserting bit-for-bit/close-epsilon numerical equality for test code paths that rely on framework-side randomness (Dropout, random augmentation) unless the test pins and shares the RNG seed/state between the OpenVINO and reference TensorFlow executions. Track known-flaky parametrizations in the CI skip/xfail config.",
+  "historical_context": "This exact signature (a284d27dfee44614) has recurred 11 times before this run (first seen 2026-08-27T01:46:06Z, most recently 2026-11-23T07:19:26Z), across many unrelated PRs (#37654, #38168, #39121, #39286, #39341, #39270, #39742, #39559, #39291, #40019), confirming it is an intermittent test issue, not caused by any specific change. A related, narrower pattern 134f01149f41adcc was also recorded earlier (2026-06-26 to 2026-07-01, count 3) for the same test."
+}

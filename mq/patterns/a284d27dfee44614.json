@@ -4,10 +4,11 @@
   "signature_hash": "a284d27dfee44614",
   "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
   "category": "Flaky Test",
-  "count": 11,
+  "count": 12,
   "first_seen": "2026-08-27T01:46:06Z",
-  "last_seen": "2026-11-23T07:19:26Z",
+  "last_seen": "2026-11-24T14:07:28Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/45397046760",
     "https://github.com/openvinotoolkit/openvino/actions/runs/45119446646",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44443009668",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44305133956",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/41778802313",
     "https://github.com/openvinotoolkit/openvino/actions/runs/41721476029",
     "https://github.com/openvinotoolkit/openvino/actions/runs/39971999429",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/35655862357",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/35317134422"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35655862357"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39751",
     "https://github.com/openvinotoolkit/openvino/pull/40019",
     "https://github.com/openvinotoolkit/openvino/pull/39291",
     "https://github.com/openvinotoolkit/openvino/pull/39559",
@@ -28,11 +29,10 @@
     "https://github.com/openvinotoolkit/openvino/pull/39341",
     "https://github.com/openvinotoolkit/openvino/pull/39286",
     "https://github.com/openvinotoolkit/openvino/pull/39121",
-    "https://github.com/openvinotoolkit/openvino/pull/38168",
-    "https://github.com/openvinotoolkit/openvino/pull/37654"
+    "https://github.com/openvinotoolkit/openvino/pull/38168"
   ],
   "recent_timestamps": [
-    "2026-11-23T07:19:26Z"
+    "2026-11-24T14:07:28Z"
   ],
   "rerun_search_string": null
 }
