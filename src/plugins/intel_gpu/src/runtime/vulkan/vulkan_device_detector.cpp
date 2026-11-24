@@ -68,7 +68,7 @@ std::map<std::string, device::ptr> vulkan_device_detector::get_available_devices
                                                                                  void* user_device,
                                                                                  int ctx_device_id,
                                                                                  int target_tile_id,
-                                                                                 bool initialize_devices) const {
+                                                                                 bool initialize_devices) {
     OPENVINO_ASSERT(user_context == nullptr && user_device == nullptr, "[GPU][Vulkan] External Vulkan context/device import is not supported");
     OPENVINO_ASSERT(ctx_device_id == 0, "[GPU][Vulkan] A context device index is valid only with an imported context");
     OPENVINO_ASSERT(target_tile_id == -1, "[GPU][Vulkan] Sub-device/tile selection is not supported");

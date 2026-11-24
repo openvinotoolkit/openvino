@@ -59,20 +59,8 @@ VkPhysicalDevice vulkan_engine::get_physical_device() const {
     return get_vulkan_device_object_impl()->get_physical_device();
 }
 
-VkQueue vulkan_engine::get_compute_queue() const {
-    return get_vulkan_device_object_impl()->get_compute_queue();
-}
-
-uint32_t vulkan_engine::get_compute_queue_family() const {
-    return get_vulkan_device_object_impl()->get_compute_queue_family();
-}
-
 VkDeviceSize vulkan_engine::get_non_coherent_atom_size() const {
     return get_vulkan_device_object_impl()->get_non_coherent_atom_size();
-}
-
-std::mutex& vulkan_engine::get_queue_mutex() const {
-    return get_vulkan_device_object_impl()->get_queue_mutex();
 }
 
 std::shared_ptr<vulkan_device> vulkan_engine::get_vulkan_device_object() const {
@@ -80,6 +68,7 @@ std::shared_ptr<vulkan_device> vulkan_engine::get_vulkan_device_object() const {
 }
 
 memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
+    OPENVINO_ASSERT(layout.data_type != ov::element::string, "[GPU][Vulkan] String tensors are unsupported");
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU][Vulkan] Cannot allocate an unbounded dynamic layout");
     OPENVINO_ASSERT(!layout.format.is_image(), "[GPU][Vulkan] Image allocations are not supported");
     OPENVINO_ASSERT(type == allocation_type::device_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
@@ -100,7 +89,7 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     return result;
 }
 
-memory_ptr vulkan_engine::reinterpret_handle(const layout&, shared_mem_params) {
+memory_ptr vulkan_engine::reinterpret_handle(const layout& /*layout*/, shared_mem_params /*params*/) {
     OPENVINO_THROW("[GPU][Vulkan] External GPU handles are unsupported");
 }
 
@@ -112,11 +101,11 @@ memory_ptr vulkan_engine::create_subbuffer(const memory& memory, const layout& l
     return std::make_shared<vulkan_buffer>(this, layout, source->get_region(), source->get_view_offset() + byte_offset, source->get_mem_tracker());
 }
 
-memory_ptr vulkan_engine::create_hostbuffer(void*, size_t, allocation_type, const layout) {
+memory_ptr vulkan_engine::create_hostbuffer(void* /*address*/, size_t /*size*/, allocation_type /*type*/, layout /*layout*/) {
     OPENVINO_THROW("[GPU][Vulkan] External host buffers are unsupported");
 }
 
-memory_ptr vulkan_engine::create_hostbuffer(const void*, size_t, allocation_type, const layout, bool) {
+memory_ptr vulkan_engine::create_hostbuffer(const void* /*address*/, size_t /*size*/, allocation_type /*type*/, layout /*layout*/, bool /*host_read_only*/) {
     OPENVINO_THROW("[GPU][Vulkan] External host buffers are unsupported");
 }
 
@@ -131,7 +120,7 @@ memory_ptr vulkan_engine::reinterpret_buffer(const memory& memory, const layout&
     return result;
 }
 
-memory_ptr vulkan_engine::import_buffer(const layout&, ov::intel_gpu::os_handle_param) {
+memory_ptr vulkan_engine::import_buffer(const layout& /*layout*/, ov::intel_gpu::os_handle_param /*external_handle*/) {
     OPENVINO_THROW("[GPU][Vulkan] External GPU buffers are unsupported");
 }
 
@@ -156,7 +145,7 @@ stream_ptr vulkan_engine::create_stream(const ExecutionConfig& config) const {
     return std::make_shared<vulkan_stream>(*this, config);
 }
 
-stream_ptr vulkan_engine::create_stream(const ExecutionConfig&, void*) const {
+stream_ptr vulkan_engine::create_stream(const ExecutionConfig& /*config*/, void* /*handle*/) const {
     OPENVINO_THROW("[GPU][Vulkan] External Vulkan queues are not supported");
 }
 

@@ -111,7 +111,6 @@ public:
 
 private:
     friend class vulkan_memory_allocator;
-    friend class vulkan_buffer;
 
     vulkan_buffer_region(std::weak_ptr<vulkan_memory_allocator> owner, vulkan_buffer_allocation::ptr allocation, VkDeviceSize offset, VkDeviceSize size);
 
@@ -119,7 +118,6 @@ private:
     vulkan_buffer_allocation::ptr _allocation;
     VkDeviceSize _offset = 0;
     VkDeviceSize _size = 0;
-    std::mutex _staging_write_mutex;
 };
 
 class vulkan_memory_allocator final : public std::enable_shared_from_this<vulkan_memory_allocator> {
@@ -201,7 +199,7 @@ private:
     bool can_access_mapping(size_t offset, size_t size) const;
     void* mapped_data() const;
     vulkan_buffer_allocation::ptr allocate_staging(size_t size) const;
-    event::ptr write_staged(const vulkan_stream& queue, size_t offset, size_t size, bool blocking, const std::function<void(unsigned char*)>& write);
+    event::ptr write_staged(const vulkan_stream& queue, size_t offset, size_t size, const std::function<void(unsigned char*)>& write);
 
     vulkan_buffer_region::ptr _region;
     VkDeviceSize _view_offset = 0;

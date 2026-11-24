@@ -16,12 +16,15 @@ namespace cldnn {
 namespace vulkan {
 
 class vulkan_engine;
+class vulkan_device;
 class vulkan_buffer_allocation;
 
 class vulkan_stream final : public stream {
 public:
     explicit vulkan_stream(const vulkan_engine& engine);
     vulkan_stream(const vulkan_engine& engine, const ExecutionConfig& config);
+    vulkan_stream(const vulkan_stream&) = delete;
+    vulkan_stream& operator=(const vulkan_stream&) = delete;
     ~vulkan_stream() override;
 
     void flush() const override;
@@ -37,7 +40,7 @@ public:
     event::ptr enqueue_marker(const std::vector<event::ptr>& dependencies, bool is_output_event = false) override;
     void enqueue_barrier(const std::vector<event::ptr>& dependencies = {}) override;
     event::ptr group_events(const std::vector<event::ptr>& dependencies) override;
-    void wait_for_events(const std::vector<event::ptr>& events) override;
+    void wait_for_events(const std::vector<event::ptr>& dependencies) override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr>& memory) const override;
@@ -45,16 +48,12 @@ public:
                                    VkDeviceSize source_offset,
                                    const std::shared_ptr<vulkan_buffer_allocation>& destination,
                                    VkDeviceSize destination_offset,
-                                   VkDeviceSize size,
-                                   bool blocking,
-                                   std::vector<std::shared_ptr<const void>> lifetimes) const;
+                                   VkDeviceSize size) const;
     event::ptr enqueue_buffer_fill(const std::shared_ptr<vulkan_buffer_allocation>& destination,
                                    VkDeviceSize destination_offset,
                                    VkDeviceSize size,
                                    uint32_t pattern,
-                                   std::shared_ptr<const void> lifetime,
-                                   const std::vector<event::ptr>& dependencies,
-                                   bool blocking) const;
+                                   const std::vector<event::ptr>& dependencies) const;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
@@ -63,7 +62,7 @@ public:
 private:
     void submit(const std::function<void(VkCommandBuffer)>& record) const;
 
-    const vulkan_engine& _engine;
+    std::shared_ptr<vulkan_device> _device;
     VkCommandPool _pool = VK_NULL_HANDLE;
     VkCommandBuffer _commands = VK_NULL_HANDLE;
     VkFence _completion = VK_NULL_HANDLE;

@@ -5,9 +5,11 @@
 #include "vulkan_stream.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <condition_variable>
 #include <limits>
 #include <mutex>
+#include <thread>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -19,6 +21,10 @@ namespace {
 
 void check(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed: ", result);
+}
+
+bool submission_completed(VkResult result) {
+    return result == VK_SUCCESS || result == VK_ERROR_DEVICE_LOST;
 }
 
 void wait_for(const std::vector<event::ptr>& dependencies) {
@@ -99,11 +105,11 @@ vulkan_stream::vulkan_stream(const vulkan_engine& engine) : vulkan_stream(engine
 
 vulkan_stream::vulkan_stream(const vulkan_engine& engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), SyncMethods::events),
-      _engine(engine) {
-    const auto device = _engine.get_device_handle();
+      _device(engine.get_vulkan_device_object()) {
+    const VkDevice device = _device->get_device();
     VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    pool_info.queueFamilyIndex = _engine.get_compute_queue_family();
+    pool_info.queueFamilyIndex = _device->get_compute_queue_family();
     check(vkCreateCommandPool(device, &pool_info, nullptr, &_pool), "vkCreateCommandPool");
     try {
         VkCommandBufferAllocateInfo buffer_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
@@ -119,14 +125,15 @@ vulkan_stream::vulkan_stream(const vulkan_engine& engine, const ExecutionConfig&
 }
 
 vulkan_stream::~vulkan_stream() {
-    const auto device = _engine.get_device_handle();
+    const VkDevice device = _device->get_device();
     vkDestroyFence(device, _completion, nullptr);
     vkDestroyCommandPool(device, _pool, nullptr);
 }
 
 void vulkan_stream::submit(const std::function<void(VkCommandBuffer)>& record) const {
-    const std::lock_guard<std::mutex> lock(_engine.get_queue_mutex());
-    const auto device = _engine.get_device_handle();
+    const std::lock_guard<std::mutex> lock(_device->get_queue_mutex());
+    const VkDevice device = _device->get_device();
+    const VkQueue queue = _device->get_compute_queue();
     check(vkResetCommandPool(device, _pool, 0), "vkResetCommandPool");
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -140,8 +147,15 @@ void vulkan_stream::submit(const std::function<void(VkCommandBuffer)>& record) c
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &_commands;
     check(vkResetFences(device, 1, &_completion), "vkResetFences");
-    check(vkQueueSubmit(_engine.get_compute_queue(), 1, &submit_info, _completion), "vkQueueSubmit");
-    check(vkWaitForFences(device, 1, &_completion, VK_TRUE, std::numeric_limits<uint64_t>::max()), "vkWaitForFences");
+    check(vkQueueSubmit(queue, 1, &submit_info, _completion), "vkQueueSubmit");
+    const auto result = vkWaitForFences(device, 1, &_completion, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    if (!submission_completed(result)) {
+        // Keep the caller's buffers alive until the submission can be safely retired.
+        while (!submission_completed(vkQueueWaitIdle(queue)) && !submission_completed(vkGetFenceStatus(device, _completion))) {
+            std::this_thread::sleep_for(std::chrono::milliseconds{1});
+        }
+    }
+    check(result, "vkWaitForFences");
 }
 
 // Transfers wait for the fence before returning.
@@ -149,15 +163,19 @@ void vulkan_stream::flush() const {}
 void vulkan_stream::finish() const {}
 void vulkan_stream::wait() {}
 
-void vulkan_stream::set_arguments(kernel&, const kernel_arguments_desc&, const kernel_arguments_data&) {
+void vulkan_stream::set_arguments(kernel& /*kernel*/, const kernel_arguments_desc& /*descriptor*/, const kernel_arguments_data& /*data*/) {
     OPENVINO_THROW("[GPU][Vulkan] Kernel dispatch is unavailable");
 }
 
-event::ptr vulkan_stream::enqueue_kernel(kernel&, const kernel_arguments_desc&, const kernel_arguments_data&, const std::vector<event::ptr>&, bool) {
+event::ptr vulkan_stream::enqueue_kernel(kernel& /*kernel*/,
+                                         const kernel_arguments_desc& /*descriptor*/,
+                                         const kernel_arguments_data& /*data*/,
+                                         const std::vector<event::ptr>& /*dependencies*/,
+                                         bool /*is_output_event*/) {
     OPENVINO_THROW("[GPU][Vulkan] Kernel dispatch is unavailable");
 }
 
-event::ptr vulkan_stream::enqueue_marker(const std::vector<event::ptr>& dependencies, bool) {
+event::ptr vulkan_stream::enqueue_marker(const std::vector<event::ptr>& dependencies, bool /*is_output_event*/) {
     wait_for(dependencies);
     return create_user_event(true);
 }
@@ -182,7 +200,7 @@ event::ptr vulkan_stream::create_base_event() {
     return create_user_event(false);
 }
 
-std::unique_ptr<surfaces_lock> vulkan_stream::create_surfaces_lock(const std::vector<memory::ptr>&) const {
+std::unique_ptr<surfaces_lock> vulkan_stream::create_surfaces_lock(const std::vector<memory::ptr>& /*memory*/) const {
     return std::make_unique<surfaces_lock>();
 }
 
@@ -190,9 +208,9 @@ event::ptr vulkan_stream::enqueue_buffer_copy(const std::shared_ptr<vulkan_buffe
                                               VkDeviceSize source_offset,
                                               const std::shared_ptr<vulkan_buffer_allocation>& destination,
                                               VkDeviceSize destination_offset,
-                                              VkDeviceSize size,
-                                              bool,
-                                              std::vector<std::shared_ptr<const void>>) const {
+                                              VkDeviceSize size) const {
+    OPENVINO_ASSERT(source->device == _device->get_device() && destination->device == _device->get_device(),
+                    "[GPU][Vulkan] Buffer copy requires allocations from the stream's device");
     if (size > 0) {
         const VkBufferCopy range{source_offset, destination_offset, size};
         submit([&](VkCommandBuffer commands) {
@@ -206,9 +224,8 @@ event::ptr vulkan_stream::enqueue_buffer_fill(const std::shared_ptr<vulkan_buffe
                                               VkDeviceSize destination_offset,
                                               VkDeviceSize size,
                                               uint32_t pattern,
-                                              std::shared_ptr<const void>,
-                                              const std::vector<event::ptr>& dependencies,
-                                              bool) const {
+                                              const std::vector<event::ptr>& dependencies) const {
+    OPENVINO_ASSERT(destination->device == _device->get_device(), "[GPU][Vulkan] Buffer fill requires an allocation from the stream's device");
     wait_for(dependencies);
     if (size > 0) {
         submit([&](VkCommandBuffer commands) {

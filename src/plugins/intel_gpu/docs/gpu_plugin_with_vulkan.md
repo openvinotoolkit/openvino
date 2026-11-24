@@ -8,14 +8,14 @@ compute-capable queue and `synchronization2`.
 The GPU plugin can enumerate devices and create a default remote context.
 Use that context to allocate a remote tensor and copy data between host and
 device tensors. This runtime supports linear buffers and synchronous
-transfers.
+transfers for fixed-size element types.
 
 Model compilation, model import, and external GPU handle interop are
 unavailable in this runtime.
 
-Set `-DOV_GPU_VULKAN_SMOKE_TESTS=ON` to build and run the runtime smoke test.
+Set `-DOV_GPU_VULKAN_SMOKE_TESTS=ON` to build and run the runtime and memory smoke tests.
 
 ```sh
-cmake --build build --target ov_gpu_vulkan_runtime_smoke
-ctest --test-dir build/src/plugins/intel_gpu/tests/vulkan -R '^ov_gpu_vulkan_runtime_smoke$' --output-on-failure
+cmake --build build --target ov_gpu_vulkan_runtime_smoke ov_gpu_vulkan_memory_smoke
+ctest --test-dir build -R '^ov_gpu_vulkan_.*_smoke$' --output-on-failure
 ```

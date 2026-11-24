@@ -27,7 +27,6 @@ namespace ov::intel_gpu {
 using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully_connected>::get_implementations() {
-#if OV_GPU_WITH_OCL
     static const auto ocl_supports_weights_layout = [](const program_node& node) {
         const auto& prim = node.as<fully_connected>().get_primitive();
         return prim->weights_transposed && prim->weights_layout != ov::intel_gpu::op::FcWeightsLayout::GNK;
@@ -36,7 +35,6 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
     static const auto no_hadamard_input = [](const program_node& node) {
         return node.as<fully_connected>().get_primitive()->hadamard_block == 0;
     };
-#endif
 
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)

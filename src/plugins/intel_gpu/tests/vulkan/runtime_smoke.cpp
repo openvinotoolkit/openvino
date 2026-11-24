@@ -24,6 +24,7 @@ int main() {
         OPENVINO_ASSERT(gpu != devices.end(), "No Vulkan GPU detected");
         const auto runtime = core.get_property(*gpu, "GPU_RUNTIME_TYPE").as<std::string>();
         OPENVINO_ASSERT(runtime == "VULKAN", "Expected the Vulkan runtime");
+        OPENVINO_ASSERT(core.get_property(*gpu, ov::device::capabilities).empty(), "Vulkan must not advertise model execution or caching");
 
         const auto tracked_buffer_bytes = [&] {
             const auto statistics = core.get_property(*gpu, ov::intel_gpu::memory_statistics);
@@ -35,8 +36,8 @@ int main() {
 
         auto context = core.get_default_context(*gpu);
         OPENVINO_ASSERT(tracked_buffer_bytes() == 0, "Vulkan reported device-buffer bytes before tensor creation");
-        for (const size_t count : {256, 257}) {
-            const ov::Shape shape{count};
+        for (const auto& shape : {ov::Shape{}, ov::Shape{256}, ov::Shape{257}}) {
+            const auto count = ov::shape_size(shape);
             ov::Tensor input(ov::element::u8, shape);
             ov::Tensor output(ov::element::u8, shape);
             auto* bytes = input.data<uint8_t>();
@@ -53,6 +54,38 @@ int main() {
             }
             OPENVINO_ASSERT(tracked_buffer_bytes() == 0, "Vulkan reported device-buffer bytes after tensor release");
             OPENVINO_ASSERT(std::equal(bytes, bytes + count, output.data<const uint8_t>()), "Vulkan buffer round trip changed the data");
+        }
+
+        bool string_rejected = false;
+        try {
+            context.create_tensor(ov::element::string, {1});
+        } catch (const ov::Exception& error) {
+            string_rejected = std::string_view(error.what()).find("String tensors are unsupported") != std::string_view::npos;
+        }
+        OPENVINO_ASSERT(string_rejected, "Vulkan must reject string tensors");
+
+        {
+            const ov::Shape original_shape{3};
+            auto remote = context.create_tensor(ov::element::u8, original_shape);
+            ov::Tensor input(ov::element::u8, original_shape);
+            std::fill_n(input.data<uint8_t>(), input.get_size(), 42);
+            remote.copy_from(input);
+            const auto limit = core.get_property(*gpu, ov::intel_gpu::device_max_alloc_mem_size);
+            bool resize_rejected = false;
+            try {
+                remote.set_shape({static_cast<size_t>(limit + 1)});
+            } catch (const ov::Exception&) {
+                resize_rejected = true;
+            }
+            OPENVINO_ASSERT(resize_rejected, "Vulkan must reject a resize beyond the allocation limit");
+            OPENVINO_ASSERT(remote.get_shape() == original_shape, "Rejected resize changed the tensor shape");
+            remote.set_shape(original_shape);
+            ov::Tensor output(ov::element::u8, original_shape);
+            remote.copy_to(output);
+            OPENVINO_ASSERT(std::equal(input.data<uint8_t>(), input.data<uint8_t>() + input.get_size(), output.data<uint8_t>()),
+                            "Rejected resize changed the tensor contents");
+            remote.set_shape({5});
+            OPENVINO_ASSERT(remote.get_shape() == ov::Shape{5}, "Vulkan tensor did not grow after a rejected resize");
         }
 
         const ov::Shape shape{257};

@@ -200,13 +200,16 @@ void vulkan_device::initialize() {
     device_create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
     device_create_info.ppEnabledExtensionNames = enabled_extensions.empty() ? nullptr : enabled_extensions.data();
 
-    check_vk_result(vkCreateDevice(_physical_device, &device_create_info, nullptr, &_device), "vkCreateDevice");
-    vkGetDeviceQueue(_device, _compute_queue_family, 0, &_compute_queue);
-    if (_compute_queue == VK_NULL_HANDLE) {
-        vkDestroyDevice(_device, nullptr);
-        _device = VK_NULL_HANDLE;
+    VkDevice device = VK_NULL_HANDLE;
+    check_vk_result(vkCreateDevice(_physical_device, &device_create_info, nullptr, &device), "vkCreateDevice");
+    VkQueue queue = VK_NULL_HANDLE;
+    vkGetDeviceQueue(device, _compute_queue_family, 0, &queue);
+    if (queue == VK_NULL_HANDLE) {
+        vkDestroyDevice(device, nullptr);
         OPENVINO_THROW("[GPU][Vulkan] vkGetDeviceQueue returned a null compute queue");
     }
+    _device = device;
+    _compute_queue = queue;
 }
 
 bool vulkan_device::is_initialized() const {

@@ -65,7 +65,7 @@ std::optional<vulkan_memory_type_selection> find_memory_type(const VkPhysicalDev
 vulkan_buffer_allocation::ptr detail::allocate_vulkan_buffer(vulkan_engine& engine, size_t requested_size, vulkan_buffer_memory_usage usage) {
     const VkDeviceSize buffer_size = std::max<VkDeviceSize>(requested_size, 1);
     auto allocation = std::make_shared<vulkan_buffer_allocation>(engine.get_vulkan_device_object(), buffer_size);
-    const auto device = allocation->device;
+    const VkDevice device = allocation->device;
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

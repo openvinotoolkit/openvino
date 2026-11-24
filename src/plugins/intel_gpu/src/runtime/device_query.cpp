@@ -77,8 +77,8 @@ device_query::device_query(engine_types engine_type,
 #ifdef OV_GPU_WITH_VULKAN_RT
     case runtime_types::vulkan: {
         OPENVINO_ASSERT(engine_type == engine_types::vulkan);
-        vulkan::vulkan_device_detector detector;
-        _available_devices = detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
+        _available_devices =
+            vulkan::vulkan_device_detector::get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
         break;
     }
 #endif

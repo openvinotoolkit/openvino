@@ -14,15 +14,17 @@
 #include <tuple>
 #include <vector>
 
-#include "common_utils/parallel_mem_streambuf.hpp"
-#include "common_utils/prefetch_streambuf.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/transformations_pipeline.hpp"
-#include "plugin/ops/moe_offload_constant.hpp"
+#ifndef OV_GPU_WITH_VULKAN_RT
+#    include "common_utils/parallel_mem_streambuf.hpp"
+#    include "common_utils/prefetch_streambuf.hpp"
+#    include "intel_gpu/plugin/compiled_model.hpp"
+#    include "intel_gpu/plugin/transformations_pipeline.hpp"
+#    include "plugin/ops/moe_offload_constant.hpp"
+#endif
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/dispatch_probe.hpp"
@@ -61,12 +63,15 @@
 #undef DEVICE_TYPE
 #endif
 
+#ifndef OV_GPU_WITH_VULKAN_RT
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
 thread_local const size_t* g_current_tensor_base = nullptr;
+#endif
 
 namespace ov::intel_gpu {
 
+#ifndef OV_GPU_WITH_VULKAN_RT
 namespace {
 
 ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& config) {
@@ -98,6 +103,7 @@ void Plugin::register_primitives() {
 #include "intel_gpu/plugin/primitives_list.hpp"
 #undef REGISTER_FACTORY
 }
+#endif
 
 std::string Plugin::get_device_id_from_config(const ov::AnyMap& config) {
     std::string id;
@@ -115,6 +121,7 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
+#ifndef OV_GPU_WITH_VULKAN_RT
 bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) {
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
 
@@ -238,6 +245,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     }
     return cloned_model;
 }
+#endif
 
 // weak map to hold singleton default contexts
 // Weak singleton map is used to share contexts between multiple plugin(or Core) instances.
@@ -274,7 +282,9 @@ Plugin::Plugin() {
     ov::intel_gpu::mlir::register_mlir_gpu_runtime();
 #endif
     set_device_name("GPU");
+#ifndef OV_GPU_WITH_VULKAN_RT
     register_primitives();
+#endif
 
     cldnn::device_query device_query;
     m_device_map = device_query.get_available_devices();
@@ -292,7 +302,7 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
 #ifdef OV_GPU_WITH_VULKAN_RT
     OPENVINO_THROW("[GPU][Vulkan] Model compilation is unavailable");
-#endif
+#else
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
     auto context = get_default_context(device_id);
@@ -319,6 +329,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context);
     }
+#endif
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -326,7 +337,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::SoPtr<ov::IRemoteContext>& context) const {
 #ifdef OV_GPU_WITH_VULKAN_RT
     OPENVINO_THROW("[GPU][Vulkan] Model compilation is unavailable");
-#endif
+#else
     auto context_impl = get_context_impl(context);
     context_impl->initialize();
 
@@ -352,6 +363,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
 
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context);
+#endif
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
@@ -401,14 +413,19 @@ void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_ma
 }
 
 void Plugin::set_property(const ov::AnyMap &config) {
+#ifdef OV_GPU_WITH_VULKAN_RT
+    OPENVINO_ASSERT(!config.contains(ov::intel_gpu::config_file.name()), "[GPU][Vulkan] Custom layer configuration is unavailable");
+#endif
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
         config.set_user_property(user_config, OptionVisibility::RELEASE);
+#ifndef OV_GPU_WITH_VULKAN_RT
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
             auto custom_layers_config = user_config.at(ov::intel_gpu::config_file.name()).as<std::string>();
             CustomLayer::LoadFromFile(custom_layers_config, custom_layers, custom_layers_config.empty());
         }
+#endif
     };
 
     auto rest = config;
@@ -441,7 +458,7 @@ void Plugin::set_property(const ov::AnyMap &config) {
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
 #ifdef OV_GPU_WITH_VULKAN_RT
     return {};
-#endif
+#else
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::query_model");
     ov::SupportedOpsMap res;
     std::string device_id = get_device_id(orig_config);
@@ -473,13 +490,18 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     return res;
+#endif
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
+#ifdef OV_GPU_WITH_VULKAN_RT
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+#else
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
     GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     return import_model(model, { context, nullptr }, config);
+#endif
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
@@ -487,7 +509,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::AnyMap& orig_config) const {
 #ifdef OV_GPU_WITH_VULKAN_RT
     OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
-#endif
+#else
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
 
     auto context_impl = get_context_impl(context);
@@ -553,13 +575,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache, weight_sharing_context);
+#endif
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::AnyMap& config) const{
+#ifdef OV_GPU_WITH_VULKAN_RT
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+#else
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
     return import_model(model, { context, nullptr }, config);
+#endif
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
@@ -567,16 +594,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
                                                          const ov::AnyMap& config) const{
 #ifdef OV_GPU_WITH_VULKAN_RT
     OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
-#endif
+#else
     // Store tensor base in thread-local storage
     g_current_tensor_base = static_cast<const size_t*>(model.data());
     std::unique_ptr<std::streambuf> buf;
-#ifdef _WIN32
+#    ifdef _WIN32
     // TODO: CVS-198510 enable on Windows once prefetch shows a compile-time gain there.
     const bool use_prefetch = false;
-#else
+#    else
     const bool use_prefetch = static_cast<bool>(ov::get_memory_hints(model));
-#endif
+#    endif
     if (!use_prefetch) {
         // Memory without hints (e.g. user provided), keep the pread path for user file mappings.
         buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
@@ -596,6 +623,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     }
 
     return compiled_model;
+#endif
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -759,9 +787,11 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         }
         return decltype(ov::intel_gpu::uarch_version)::value_type {s.str()};
     }
+#ifndef OV_GPU_WITH_VULKAN_RT
     if (name == ov::optimal_batch_size) {
         return decltype(ov::optimal_batch_size)::value_type {get_optimal_batch_size(options)};
     }
+#endif
     if (name == ov::device::uuid) {
         return decltype(ov::device::uuid)::value_type {device_info.uuid};
     }
@@ -774,7 +804,11 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::device::full_name)::value_type {deviceName};
     }
     if (name == ov::device::capabilities) {
+#ifdef OV_GPU_WITH_VULKAN_RT
+        return decltype(ov::device::capabilities)::value_type{};
+#else
         return decltype(ov::device::capabilities)::value_type {get_device_capabilities(device_info)};
+#endif
     }
     if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
@@ -805,9 +839,11 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         }
         return decltype(ov::intel_gpu::memory_statistics)::value_type{ctx->get_engine().get_memory_statistics()};
     }
+#ifndef OV_GPU_WITH_VULKAN_RT
     if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
     }
+#endif
     if (name == ov::intel_gpu::runtime_type) {
         return decltype(ov::intel_gpu::runtime_type)::value_type {std::string(cldnn::get_runtime_cache_tag())};
     }
@@ -844,6 +880,9 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             static_cast<decltype(ov::internal::cache_header_alignment)::value_type>(ov::util::get_system_page_size())};
     }
     if (name == ov::compatibility_check) {
+#ifdef OV_GPU_WITH_VULKAN_RT
+        return ov::CompatibilityCheck::UNSUPPORTED;
+#else
         if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
             const auto& requirements = it->second.as<std::string>();
             if (!requirements.empty()) {
@@ -854,6 +893,7 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             }
         }
         return ov::CompatibilityCheck::NOT_APPLICABLE;
+#endif
     }
     OPENVINO_THROW("Unsupported metric key ", name);
 }
@@ -881,8 +921,10 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
         ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
         ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
         ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
+#ifndef OV_GPU_WITH_VULKAN_RT
         ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
+#endif
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
@@ -929,7 +971,9 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
+#ifndef OV_GPU_WITH_VULKAN_RT
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
+#endif
     };
 
     return supported_properties;
@@ -974,6 +1018,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
     return capabilities;
 }
 
+#ifndef OV_GPU_WITH_VULKAN_RT
 uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
@@ -1182,6 +1227,8 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 
     return batch;
 }
+
+#endif
 
 }  // namespace ov::intel_gpu
 

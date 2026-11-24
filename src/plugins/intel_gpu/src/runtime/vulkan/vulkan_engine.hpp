@@ -53,10 +53,7 @@ public:
 
     VkDevice get_device_handle() const;
     VkPhysicalDevice get_physical_device() const;
-    VkQueue get_compute_queue() const;
-    uint32_t get_compute_queue_family() const;
     VkDeviceSize get_non_coherent_atom_size() const;
-    std::mutex& get_queue_mutex() const;
     std::shared_ptr<vulkan_device> get_vulkan_device_object() const;
     std::shared_ptr<vulkan_buffer_region> allocate_buffer_region(size_t size);
 

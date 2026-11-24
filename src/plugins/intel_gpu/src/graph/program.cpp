@@ -277,9 +277,7 @@ void program::init_primitives() {
     static bool is_initialized = false;
     if (!is_initialized) {
         common::register_implementations();
-#ifndef OV_GPU_WITH_VULKAN_RT
         ocl::register_implementations();
-#endif
         cpu::register_implementations();
         is_initialized = true;
     }

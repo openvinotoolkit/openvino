@@ -14,11 +14,11 @@ namespace vulkan {
 
 class vulkan_device_detector {
 public:
-    std::map<std::string, device::ptr> get_available_devices(void* user_context,
-                                                             void* user_device,
-                                                             int ctx_device_id,
-                                                             int target_tile_id,
-                                                             bool initialize_devices) const;
+    static std::map<std::string, device::ptr> get_available_devices(void* user_context,
+                                                                    void* user_device,
+                                                                    int ctx_device_id,
+                                                                    int target_tile_id,
+                                                                    bool initialize_devices);
 };
 
 }  // namespace vulkan

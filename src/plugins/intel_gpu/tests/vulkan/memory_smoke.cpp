@@ -142,6 +142,27 @@ void check_strided_rows(cldnn::memory& buffer, cldnn::stream& stream) {
     OPENVINO_ASSERT((boundaries == std::array<uint8_t, 2>{}), "Staged upload changed adjacent bytes");
 }
 
+void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
+    using cldnn::vulkan::vulkan_buffer;
+    for (const size_t count : {256, 257}) {
+        auto source = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::device_buffer, false);
+        auto destination = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::device_buffer, false);
+        unmap_for_staging(static_cast<vulkan_buffer&>(*source).get_allocation());
+        unmap_for_staging(static_cast<vulkan_buffer&>(*destination).get_allocation());
+        destination->fill(stream, 0xA5);
+
+        std::vector<uint8_t> expected(count + 4, 0xA5);
+        for (size_t i = 0; i < count; ++i) {
+            expected[i + 2] = static_cast<uint8_t>(i);
+        }
+        source->copy_from(stream, expected.data() + 2, 0, 1, count, true);
+        source->copy_to(stream, *destination, 1, 2, count, true);
+        std::vector<uint8_t> result(expected.size());
+        destination->copy_to(stream, result.data(), 0, 0, result.size(), true);
+        OPENVINO_ASSERT(result == expected, "Device copy changed the payload or adjacent bytes");
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -155,6 +176,7 @@ int main() {
         buffer->fill(stream);
         check_disjoint_locks(*engine, *buffer, stream);
         check_strided_rows(*buffer, stream);
+        check_device_copies(*engine, stream);
         auto& vulkan_engine = static_cast<cldnn::vulkan::vulkan_engine&>(*engine);
         check_mapped_non_coherent_locks(vulkan_engine, stream);
         check_padded_allocation_fallbacks(vulkan_engine, stream);

@@ -114,9 +114,6 @@ bool kernels_cache::is_cache_enabled() const {
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
-#ifdef OV_GPU_WITH_VULKAN_RT
-    OPENVINO_ASSERT(kernels_source_code.empty(), "[GPU][Vulkan] Kernel source processing is unavailable");
-#endif
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
     for (const auto& k : kernels_source_code) {
@@ -188,7 +185,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto options = c.first;
         auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
-#ifndef OV_GPU_WITH_VULKAN_RT
             auto find_and_remove_includes = [](const std::string& code, std::vector<std::string>& required_headers) {
                 std::regex include_regex(R"(#include\s+\"([^\"]+)\")");
                 std::string processed_kernel;
@@ -242,7 +238,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM) {
                 process_batch_includes(b);
             }
-#endif
 
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;

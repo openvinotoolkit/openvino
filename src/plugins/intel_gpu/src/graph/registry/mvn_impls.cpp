@@ -12,7 +12,6 @@ namespace ov::intel_gpu {
 
 using namespace cldnn;
 
-#if OV_GPU_WITH_OCL
 namespace {
 
 struct MvnImplementationManager : public ImplementationManagerLegacy<mvn> {
@@ -75,14 +74,11 @@ std::shared_ptr<ImplementationManager> get_mvn_implementation(shape_types shape_
 }
 
 }  // namespace
-#endif
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<mvn>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-#if OV_GPU_WITH_OCL
         get_mvn_implementation(shape_types::static_shape),
         get_mvn_implementation(shape_types::dynamic_shape),
-#endif
     };
 
     return impls;

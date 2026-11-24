@@ -97,6 +97,7 @@ private:
     void update_hash();
     void update_strides();
     void update_properties();
+    AnyMap get_memory_properties(const cldnn::memory& memory, TensorType mem_type) const;
 
     static TensorType allocation_type_to_tensor_type(cldnn::allocation_type t);
 };
