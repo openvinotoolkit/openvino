@@ -31,6 +31,18 @@ from openvino.frontend.pytorch.vmap_lowering import lower_vmap_regions
 logger = logging.getLogger(__name__)
 
 
+def spec_children(spec):
+    # children() replaces the deprecated children_specs in newer torch versions
+    return list(spec.children()) if hasattr(spec, "children") else list(spec.children_specs)
+
+
+def _real_dtype_from_meta(node):
+    value = node.meta.get("val")
+    if isinstance(value, torch.Tensor) and not value.is_complex():
+        return pt_to_ov_type_map.get(str(value.dtype))
+    return None
+
+
 class IndexedNodes:
     """The nodes of an FX graph, with a constant-time reverse lookup.
 
@@ -535,17 +547,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         Container arguments (list, tuple, dict) are flattened into several inputs, so the forward parameter names
         do not line up with the input indices. Returns None if the input spec of the module is not available.
         """
-        def children(spec):
-            # children() replaces the deprecated children_specs in newer torch versions
-            return list(spec.children()) if hasattr(spec, "children") else list(spec.children_specs)
-
         in_spec = getattr(self.pt_module, "_in_spec", None)
-        if in_spec is None or in_spec.num_leaves != len(placeholder_names) or len(children(in_spec)) != 2:
+        if in_spec is None or in_spec.num_leaves != len(placeholder_names) or len(spec_children(in_spec)) != 2:
             return None
-        args_spec, kwargs_spec = children(in_spec)
-        argument_specs = list(zip(self._input_signature, children(args_spec)))
+        args_spec, kwargs_spec = spec_children(in_spec)
+        argument_specs = list(zip(self._input_signature, spec_children(args_spec)))
         if kwargs_spec.num_leaves:
-            argument_specs += list(zip(kwargs_spec.context, children(kwargs_spec)))
+            argument_specs += list(zip(kwargs_spec.context, spec_children(kwargs_spec)))
         names = []
         is_container_leaf = []
         for name, spec in argument_specs:
@@ -686,9 +694,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         output = self._raw_output(index)
         if isinstance(self.pt_module, torch.fx.GraphModule) and isinstance(output, torch.fx.Node):
             # Graph outputs report the dtype recorded by export, e.g. for bodies of autocast regions.
-            value = output.meta.get("val")
-            if isinstance(value, torch.Tensor) and not value.is_complex() and str(value.dtype) in pt_to_ov_type_map:
-                return OVAny(pt_to_ov_type_map[str(value.dtype)])
+            ov_type = _real_dtype_from_meta(output)
+            if ov_type is not None:
+                return OVAny(ov_type)
         return self.get_type_for_value(output)
 
     def get_shape_for_value(self, value):
@@ -699,10 +707,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     def get_attribute(self, name):
         if name == "__openvino_fx_output_dtype" and isinstance(self.pt_module, torch.fx.Node):
-            value = self.pt_module.meta.get("val")
-            if isinstance(value, torch.Tensor) and not value.is_complex() and str(value.dtype) in pt_to_ov_type_map:
-                return OVAny(pt_to_ov_type_map[str(value.dtype)])
-            return OVAny(None)
+            return OVAny(_real_dtype_from_meta(self.pt_module))
         if name == "__openvino_legacy_op_type":
             return OVAny(self.get_legacy_op_type())
         if name in self.pt_module.kwargs:

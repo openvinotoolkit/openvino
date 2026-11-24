@@ -19,6 +19,12 @@ import pytest
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino import PartialShape, Type
 import openvino.opset10 as ops
+
+
+def _save_exported_program(program, tmp_path):
+    path = tmp_path / "model.pt2"
+    torch.export.save(program, path)
+    return path
 import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
@@ -2905,9 +2911,7 @@ class TestConvertModelDynamo:
             model, example,
             dynamic_shapes=({"first": {0: Dim("first_batch", min=3, max=7)}, "second": None},))
         if as_file:
-            path = tmp_path / "model.pt2"
-            torch.export.save(program, path)
-            program = path
+            program = _save_exported_program(program, tmp_path)
 
         requested_shape = PartialShape([Dimension(3, 7), 3])
         converted = convert_model(program, example_input=example, input={"first": requested_shape})
@@ -2942,9 +2946,7 @@ class TestConvertModelDynamo:
             kwargs={"values": values} if export_as_kwargs else None,
             dynamic_shapes={"values": shapes} if export_as_kwargs else (shapes,))
         if as_file:
-            path = tmp_path / "model.pt2"
-            torch.export.save(program, path)
-            program = path
+            program = _save_exported_program(program, tmp_path)
 
         reordered = {"b": b, "a": a, "scale": 2}
         example = {"values": reordered} if example_as_kwargs else (reordered,)
@@ -2976,9 +2978,7 @@ class TestConvertModelDynamo:
         a, b = torch.ones(3), torch.arange(3, dtype=torch.float32)
         program = torch.export.export(Model(), ([a, b],))
         if as_file:
-            path = tmp_path / "model.pt2"
-            torch.export.save(program, path)
-            program = path
+            program = _save_exported_program(program, tmp_path)
         converted = convert_model(program, example_input=([a, b],))
         result = compile_model(converted, "CPU", default_cfg)([a.numpy(), b.numpy()])[0]
         np.testing.assert_array_equal(result, (a - b).numpy())
@@ -3015,9 +3015,7 @@ class TestConvertModelDynamo:
         example = torch.ones(3, 2)
         program = torch.export.export(Model(), (example,))
         if as_file:
-            path = tmp_path / "model.pt2"
-            torch.export.save(program, path)
-            program = path
+            program = _save_exported_program(program, tmp_path)
         for options in ({}, {"example_input": example}, {"example_input": example, "input": [("x", Type.f32)]}):
             ov_model = convert_model(program, **options)
             assert ov_model.input(0).get_partial_shape() == PartialShape([3, 2])
@@ -3447,9 +3445,7 @@ class TestConvertModelDynamo:
             model, example,
             dynamic_shapes=({0: Dim("a_batch", min=3, max=7)}, None, {0: Dim("b_batch", min=8, max=12)}))
         if as_file:
-            path = tmp_path / "model.pt2"
-            torch.export.save(program, path)
-            program = path
+            program = _save_exported_program(program, tmp_path)
 
         converted = convert_model(program, dynamo=True)
         assert converted.input("a").get_partial_shape() == PartialShape([Dimension(3, 7), 3])

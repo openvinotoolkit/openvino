@@ -5,7 +5,7 @@ import logging as log
 import pathlib
 import re
 import sys
-from collections import Counter
+from collections import Counter, deque
 
 import numpy as np
 
@@ -148,8 +148,7 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None, input_alia
         [canonical_name(path) for path, _ in flat_paths], [len(path) > 1 for path, _ in flat_paths])
     assigned = [None] * len(flat_leaves)
     remaining = set(range(len(input_specs)))
-    for j in sorted(remaining):
-        spec = input_specs[j]
+    for j, spec in enumerate(input_specs):
         if spec is None or spec.name is None or not spec.name.isdecimal():
             continue
         leaf_idx = (input_aliases or {}).get(spec.name)
@@ -169,14 +168,10 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None, input_alia
                     raise Error(f"Input '{name}' is specified more than once.")
                 assigned[i] = matches[0]
                 remaining.remove(matches[0])
+    unnamed = deque(j for j, spec in enumerate(input_specs) if spec is None or spec.name is None)
     for i, leaf in enumerate(flat_leaves):
-        if assigned[i] is not None or not isinstance(leaf, torch.Tensor):
-            continue
-        match = next((j for j in sorted(remaining)
-                      if input_specs[j] is None or input_specs[j].name is None), None)
-        if match is not None:
-            assigned[i] = match
-            remaining.remove(match)
+        if unnamed and assigned[i] is None and isinstance(leaf, torch.Tensor):
+            assigned[i] = unnamed.popleft()
     flat_dim_specs = []
     for i, leaf in enumerate(flat_leaves):
         spec = input_specs[assigned[i]] if assigned[i] is not None else None
@@ -233,16 +228,21 @@ def get_pytorch_decoder(model, example_inputs, args):
     if TorchFXPythonDecoder is not None:
         decoder_types += (TorchFXPythonDecoder,)
     if not isinstance(model, decoder_types):
-        if TorchFXPythonDecoder is not None and isinstance(model, torch.export.ExportedProgram):
+        if is_exported:
             decoder = TorchFXPythonDecoder.from_exported_program(model, shared_memory=args.get("share_weights", True))
             if args.get("input") is not None and example_inputs is None:
                 _validate_exported_input_shapes(decoder, _input_specs_for_validation(args["input"]))
         elif use_dynamo:
             import inspect
             from torch.utils._pytree import tree_flatten
+            # Extract user-provided input shape specs to constrain dynamic dims.
+            # Normalize raw user input (PartialShape, list, etc.) to list of _InputCutInfo
+            # because _build_dynamic_shapes expects _InputCutInfo objects with .shape attribute.
+            raw_input = args.get('input', None) or None
+            input_specs = input_to_input_cut_info(raw_input) if raw_input is not None else None
+            signature = inspect.signature(model.forward) if input_specs or isinstance(inputs, dict) else None
             if isinstance(inputs, dict):
-                ordered_inputs = {name: inputs[name] for name in inspect.signature(model.forward).parameters
-                                  if name in inputs}
+                ordered_inputs = {name: inputs[name] for name in signature.parameters if name in inputs}
                 ordered_inputs.update({name: value for name, value in inputs.items() if name not in ordered_inputs})
                 inputs = ordered_inputs
             leaves, _ = tree_flatten(inputs)
@@ -250,14 +250,8 @@ def get_pytorch_decoder(model, example_inputs, args):
             if len(tensor_ids) != len(set(tensor_ids)):
                 raise Error("example_input contains the same tensor in multiple positions; torch.export can "
                             "specialize these inputs as aliases. Provide separate tensors or use dynamo=False.")
-            # Extract user-provided input shape specs to constrain dynamic dims.
-            # Normalize raw user input (PartialShape, list, etc.) to list of _InputCutInfo
-            # because _build_dynamic_shapes expects _InputCutInfo objects with .shape attribute.
-            raw_input = args.get('input', None) or None
-            input_specs = input_to_input_cut_info(raw_input) if raw_input is not None else None
             input_names = None
             shape_inputs = inputs
-            signature = inspect.signature(model.forward) if input_specs else None
             if input_specs and any(spec.name for spec in input_specs):
                 input_names = [param.name for param in signature.parameters.values()
                                if param.kind in (inspect.Parameter.POSITIONAL_ONLY,
@@ -529,9 +523,10 @@ def add_dynamo_hint(error):
 
 
 def _validate_exported_input_shapes(model, input_specs):
-    shapes = [model.get_input_shape(i) for i in range(len(model.inputs()))]
+    input_ids = model.inputs()
+    shapes = [model.get_input_shape(i) for i in range(len(input_ids))]
     by_name = {}
-    for i, tensor_id in enumerate(model.inputs()):
+    for i, tensor_id in enumerate(input_ids):
         by_name.setdefault(str(tensor_id), shapes[i])
         by_name.setdefault(model.get_input_signature_name(i), shapes[i])
     for i, desc in enumerate(input_specs):
@@ -579,9 +574,10 @@ def extract_input_info_from_example(args, inputs):
     input_names = input_names or []
     if is_exported:
         from torch.utils._pytree import tree_unflatten
+        from openvino.frontend.pytorch.fx_decoder import spec_children
 
         spec = args.input_model.pt_module._in_spec
-        args_spec, kwargs_spec = list(spec.children())
+        args_spec, kwargs_spec = spec_children(spec)
         positional_names = input_names[:args_spec.num_children]
         keyword_names = kwargs_spec.context
         expected_names = positional_names + list(keyword_names)

@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cmath>
 #include <random>
 
 #include "openvino/frontend/common/random_normal_helper.hpp"
@@ -44,6 +45,15 @@ OutputVector make_random_normal(const NodeContext& context,
     return res;
 }
 
+// Largest value below 1 representable in the type, so that rounding never produces 1.
+float max_below_one(element::Type type) {
+    if (type == element::f16)
+        return 1.0f - 0x1p-11f;
+    if (type == element::bf16)
+        return 1.0f - 0x1p-8f;
+    return std::nextafter(1.0f, 0.0f);
+}
+
 OutputVector translate_random_fx(const NodeContext& context, bool like, bool normal) {
     num_inputs_check(context, 1, 1);
     auto input = context.get_input(0);
@@ -67,10 +77,12 @@ OutputVector translate_random_fx(const NodeContext& context, bool like, bool nor
     }
 
     auto dtype = element::dynamic;
-    if (context.has_attribute("dtype") && !context.get_attribute_as_any("dtype").is<type::PyNone>()) {
-        dtype = context.get_attribute<element::Type>("dtype");
-    } else if (context.has_attribute("__openvino_fx_output_dtype")) {
-        dtype = context.get_attribute<element::Type>("__openvino_fx_output_dtype");
+    const auto dtype_attr = context.get_attribute_as_any("dtype");
+    const auto output_dtype_attr = context.get_attribute_as_any("__openvino_fx_output_dtype");
+    if (!dtype_attr.empty() && !dtype_attr.is<type::PyNone>()) {
+        dtype = dtype_attr.as<element::Type>();
+    } else if (!output_dtype_attr.empty()) {
+        dtype = output_dtype_attr.as<element::Type>();
     } else if (like) {
         dtype = input.get_element_type();
     }
@@ -87,7 +99,7 @@ OutputVector translate_random_fx(const NodeContext& context, bool like, bool nor
     } else {
         auto low = context.mark_node(v0::Constant::create(generation_type, Shape{1}, {0}));
         // Avoid rounding a value below 1 to 1 when converting to a narrower type.
-        const float max_value = dtype == element::f16 ? 0.99951171875f : dtype == element::bf16 ? 0.99609375f : 1.0f;
+        const float max_value = dtype == element::f16 || dtype == element::bf16 ? max_below_one(dtype) : 1.0f;
         auto high = context.mark_node(v0::Constant::create(generation_type, Shape{1}, {max_value}));
         result = context.mark_node(std::make_shared<v8::RandomUniform>(generation_sizes, low, high, generation_type));
     }
@@ -99,9 +111,9 @@ OutputVector translate_random_fx(const NodeContext& context, bool like, bool nor
                 return context.mark_node(std::make_shared<v1::ConvertLike>(constant, input));
             };
             const auto one = limit_like(1.0f);
-            const auto half_max = limit_like(0.99951171875f);
-            const auto bfloat_max = limit_like(0.99609375f);
-            const auto float_max = limit_like(0.9999999403953552f);
+            const auto half_max = limit_like(max_below_one(element::f16));
+            const auto bfloat_max = limit_like(max_below_one(element::bf16));
+            const auto float_max = limit_like(max_below_one(element::f32));
             const auto is_bfloat = context.mark_node(std::make_shared<v1::Equal>(half_max, one));
             const auto is_narrow = context.mark_node(std::make_shared<v1::Equal>(float_max, one));
             const auto narrow_max = context.mark_node(std::make_shared<v1::Select>(is_bfloat, bfloat_max, half_max));
