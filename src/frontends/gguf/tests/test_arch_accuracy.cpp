@@ -1319,8 +1319,16 @@ TEST(GGUFMultimodalBackboneAdaptation, Lfm3RejectsMissingRequiredMetadataAndWeig
 }
 
 TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
-    for (const auto* family :
-         {"llama-embed", "llama-embed-noncausal", "llama-embed-mean", "llama-embed-cls", "llama-embed-last"}) {
+    for (const auto* family : {"llama-embed",
+                               "llama-embed-noncausal",
+                               "llama-embed-mean",
+                               "llama-embed-cls",
+                               "llama-embed-last",
+                               "lfm2-encoder",
+                               "lfm2-embed-mean",
+                               "lfm2-embed-cls",
+                               "lfm2-embed-last",
+                               "lfm2-colbert"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -1364,7 +1372,7 @@ TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
             request.infer();
             auto output = request.get_tensor("embeddings");
             const auto& expected = ov_gguf_test::npz_array(arrays, "embeddings");
-            const bool pooled = std::string(family) != "llama-embed" && std::string(family) != "llama-embed-noncausal";
+            const bool pooled = expected.shape.front() == 1;
             ASSERT_EQ(output.get_shape(), (ov::Shape{pooled ? 1 : count, expected.shape.back()}));
             if (compare_reference || std::string(family) == "llama-embed") {
                 ov_gguf_test::expect_nmse_below(
@@ -1377,6 +1385,53 @@ TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
         infer(2, false);
         infer(3, true);
     }
+}
+
+TEST(GGUFArchitectureAccuracy, Lfm3D1WholePromptMatchesLlamaCPU) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/lfm3-d1.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(temporary.path));
+    for (const auto mode : {ov::frontend::gguf::pass::AdaptToGenAI::InputMode::IDS_TO_LOGITS,
+                            ov::frontend::gguf::pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}) {
+        ov::frontend::gguf::pass::AdaptToGenAI adapter(mode);
+        EXPECT_FALSE(adapter.run_on_model(model));
+    }
+    const auto& expected = ov_gguf_test::npz_array(arrays, "logits");
+    ASSERT_EQ(expected.shape.size(), 2);
+    const size_t count = expected.shape[0];
+    const size_t vocab = expected.shape[1];
+    ASSERT_EQ(count, 6);
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::hint::dynamic_quantization_group_size(0));
+    auto request = compiled.create_infer_request();
+    EXPECT_TRUE(request.query_state().empty());
+    for (const auto& input : compiled.inputs()) {
+        const auto name = input.get_any_name();
+        if (name == "self_kq_mask_swa") {
+            // The fixture's window is 2: sliding layers stay causal, full-attention layers are bidirectional.
+            ov::Tensor mask(ov::element::f32, {1, 1, count, count});
+            for (size_t q = 0; q < count; ++q)
+                for (size_t k = 0; k < count; ++k)
+                    mask.data<float>()[q * count + k] = k <= q && q - k < 2 ? 0.f : -INFINITY;
+            request.set_tensor(name, mask);
+        } else {
+            ASSERT_TRUE(name == "inp_tokens" || name == "inp_pos" || name == "inp_out_ids") << name;
+            ov::Tensor values(ov::element::i32, {1, 1, 1, count});
+            for (size_t i = 0; i < count; ++i)
+                values.data<int32_t>()[i] = static_cast<int32_t>(i) + (name == "inp_tokens" ? 1 : 0);
+            request.set_tensor(name, values);
+        }
+    }
+    request.infer();
+    auto output = request.get_output_tensor(0);
+    ASSERT_EQ(output.get_size(), count * vocab);
+    ov_gguf_test::expect_nmse_below(
+        ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+        1e-5);
 }
 
 TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {

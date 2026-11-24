@@ -91,6 +91,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "minicpmv4_7", EncoderTopology::MINICPM46, 0, ProjectorLayout::PackedPatches},
     {"audio", "qwen3a", EncoderTopology::QWEN3_AUDIO},
     {"audio", "qwen3tts_spkenc", EncoderTopology::QWEN3_SPEAKER},
+    {"vision", "minicpm_ocr_1_0", EncoderTopology::MINICPM46},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN, ProjectorLayout::Image},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
