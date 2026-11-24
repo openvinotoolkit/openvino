@@ -389,6 +389,7 @@ TEST(test_select_preferred_formats, dynamic_compressed_fc_keeps_fbyx_scale_and_z
     ASSERT_EQ(fc_node.get_preferred_input_fmt(3), format::fbyx);
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(test_select_preferred_formats, onednn_dyn_conv_fp16_preferred_format) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
@@ -497,6 +498,7 @@ TEST(test_select_preferred_formats, onednn_dyn_conv_16ch_reduce_mean_uses_onednn
     ASSERT_NE(reduce_impl, nullptr);
     EXPECT_TRUE(reduce_impl->is_onednn()) << "Expected oneDNN reduction, got: " << reduce_impl->get_kernel_name();
 }
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 TEST(test_select_preferred_formats, get_convolution_channel_count_grouped_dynamic_channels) {
     auto& engine = get_test_engine();
@@ -539,6 +541,7 @@ TEST(test_select_preferred_formats, get_convolution_channel_count_grouped_dynami
             << "groups=" << tc.groups << ", grouped_weights=" << tc.grouped_weights;
     }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
     if (engine.get_device_info().supports_immad) {
         auto weights = engine.allocate_memory({ov::PartialShape{64, 1, 1, 3, 3}, data_types::f16, format::bfzyx});
         topology topo;
@@ -560,4 +563,5 @@ TEST(test_select_preferred_formats, get_convolution_channel_count_grouped_dynami
         EXPECT_EQ(conv_node.get_input_layout(0).format, format::b_fs_yx_fsv16);
         EXPECT_EQ(conv_node.get_output_layout(0).format, format::b_fs_yx_fsv16);
     }
+#endif  // ENABLE_ONEDNN_FOR_GPU
 }
