@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/major_minor_version.hpp"
+#include "major_minor_version.hpp"
 
 #include <gtest/gtest.h>
 

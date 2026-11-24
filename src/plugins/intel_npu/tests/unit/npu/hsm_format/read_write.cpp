@@ -10,7 +10,7 @@
 #include "hsm_format/batch_size_section.hpp"
 #include "hsm_format/compiler_version_section.hpp"
 #include "hsm_format/io_layouts_section.hpp"
-#include "intel_npu/common/hsm_format/runtime_requirements.hpp"
+#include "hsm_format/runtime_requirements.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "utils.hpp"

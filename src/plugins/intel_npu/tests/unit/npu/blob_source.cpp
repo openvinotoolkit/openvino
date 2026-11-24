@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/blob_source.hpp"
+#include "blob_source.hpp"
 
 #include <gtest/gtest.h>
 

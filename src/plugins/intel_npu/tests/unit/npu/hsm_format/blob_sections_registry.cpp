@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/hsm_format/blob_sections_registry.hpp"
+#include "hsm_format/blob_sections_registry.hpp"
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "hsm_format/batch_size_section.hpp"
 #include "hsm_format/compiler_version_section.hpp"
-#include "intel_npu/common/hsm_format/runtime_requirements.hpp"
+#include "hsm_format/runtime_requirements.hpp"
 #include "utils.hpp"
 
 using namespace intel_npu;

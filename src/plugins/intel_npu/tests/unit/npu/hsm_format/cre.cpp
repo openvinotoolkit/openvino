@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/hsm_format/cre.hpp"
+#include "hsm_format/cre.hpp"
 
 #include <gtest/gtest.h>
 
@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "intel_npu/common/hsm_format/isection_type_evaluator.hpp"
-#include "intel_npu/common/hsm_format/section_type.hpp"
+#include "hsm_format/isection_type_evaluator.hpp"
+#include "hsm_format/section_type.hpp"
 #include "utils.hpp"
 
 using namespace intel_npu;

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "intel_npu/common/hsm_format/isection.hpp"
-#include "intel_npu/common/hsm_format/isection_instance_evaluator.hpp"
-#include "intel_npu/common/hsm_format/isection_type_evaluator.hpp"
-#include "intel_npu/common/hsm_format/section_type.hpp"
+#include "hsm_format/isection.hpp"
+#include "hsm_format/isection_instance_evaluator.hpp"
+#include "hsm_format/isection_type_evaluator.hpp"
+#include "hsm_format/section_type.hpp"
 #include "openvino/runtime/hsm_writer.hpp"
 
 namespace intel_npu {

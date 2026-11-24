@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "intel_npu/common/hsm_format/section_type.hpp"
+#include "hsm_format/section_type.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "utils.hpp"
