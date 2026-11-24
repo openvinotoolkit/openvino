@@ -38,6 +38,8 @@ ELFMainScheduleSection::ELFMainScheduleSection(
       m_encryption_callback(encryption_callback),
       m_logger("ELFMainScheduleSection", Logger::global().level()) {
     OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
+    // The dynamic schedule section is a decorator over this class, so the kind can also be dynamic
+    OPENVINO_ASSERT(graph->get_kind() == GraphKind::Weightful || graph->get_kind() == GraphKind::Dynamic);
 }
 
 ELFMainScheduleSection::ELFMainScheduleSection(
@@ -87,6 +89,7 @@ void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) c
 
 void ELFMainScheduleSection::set_graph(const std::shared_ptr<IGraph>& graph) {
     OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
+    OPENVINO_ASSERT(graph->get_kind() == GraphKind::Weightful || graph->get_kind() == GraphKind::Dynamic);
     OPENVINO_ASSERT(std::holds_alternative<ov::Tensor>(m_graph_or_schedule), INVALID_STATE_MESSAGE);
     m_graph_or_schedule = graph;
 }
@@ -152,13 +155,14 @@ std::optional<std::string> ELFMainScheduleSection::get_individual_runtime_requir
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(
-    const std::shared_ptr<WeightlessGraph>& weightless_graph,
+    const std::shared_ptr<IGraph>& weightless_graph,
     const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::ELF_INIT_SCHEDULES, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedules(weightless_graph),
       m_encryption_callback(encryption_callback),
       m_logger("ELFInitSchedulesSection", Logger::global().level()) {
     OPENVINO_ASSERT(weightless_graph, NULL_GRAPH_MESSAGE);
+    OPENVINO_ASSERT(weightless_graph->get_kind() == GraphKind::Weightless);
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(
@@ -178,7 +182,7 @@ std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_cre_tokens(
 
 void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::encode");
-    const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);
+    const auto* weightless_graph = std::get_if<std::shared_ptr<IGraph>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(weightless_graph, INVALID_STATE_MESSAGE);
 
     const uint16_t number_of_inits = (*weightless_graph)->get_number_of_inits();
@@ -215,8 +219,9 @@ void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) 
     sink({reinterpret_cast<const std::byte*>(&number_of_inits), sizeof(number_of_inits)});
 }
 
-void ELFInitSchedulesSection::set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph) {
+void ELFInitSchedulesSection::set_graph(const std::shared_ptr<IGraph>& weightless_graph) {
     OPENVINO_ASSERT(weightless_graph, NULL_GRAPH_MESSAGE);
+    OPENVINO_ASSERT(weightless_graph->get_kind() == GraphKind::Weightless);
     OPENVINO_ASSERT(std::holds_alternative<std::vector<ov::Tensor>>(m_graph_or_schedules), INVALID_STATE_MESSAGE);
     m_graph_or_schedules = weightless_graph;
 }
@@ -324,11 +329,14 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
 };
 
 DynamicScheduleSection::DynamicScheduleSection(
-    const std::shared_ptr<DynamicGraph>& graph,
+    const std::shared_ptr<IGraph>& graph,
     const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_impl(std::static_pointer_cast<IGraph>(graph), encryption_callback),
-      m_logger("DynamicScheduleSection", Logger::global().level()) {}
+      m_logger("DynamicScheduleSection", Logger::global().level()) {
+    OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
+    OPENVINO_ASSERT(graph->get_kind() == GraphKind::Dynamic);
+}
 
 DynamicScheduleSection::DynamicScheduleSection(
     ov::Tensor&& main_schedule,
@@ -351,7 +359,9 @@ void DynamicScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) c
     m_impl.encode(sink);
 }
 
-void DynamicScheduleSection::set_graph(const std::shared_ptr<DynamicGraph>& graph) {
+void DynamicScheduleSection::set_graph(const std::shared_ptr<IGraph>& graph) {
+    OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
+    OPENVINO_ASSERT(graph->get_kind() == GraphKind::Dynamic);
     m_impl.set_graph(std::static_pointer_cast<IGraph>(graph));
 }
 

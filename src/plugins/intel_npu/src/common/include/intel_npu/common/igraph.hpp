@@ -48,7 +48,14 @@ public:
      * is not possible.
      * @return The total size written into the stream
      */
-    virtual uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const = 0;
+    virtual uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const;
+
+    /**
+     * @brief Can be overriden to export the weights initialization schedules into the given sink.
+     */
+    virtual std::vector<uint64_t> export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const;
+
+    virtual size_t get_number_of_inits() const;
 
     /**
      * @brief Turns raw, driver-queried profiling bytes into per-layer records.

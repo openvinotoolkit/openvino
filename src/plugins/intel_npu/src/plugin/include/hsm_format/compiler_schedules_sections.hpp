@@ -6,11 +6,9 @@
 
 #include <optional>
 
-#include "dynamic_graph.hpp"
-#include "graph.hpp"
 #include "intel_npu/common/hsm_format/isection.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "weightless_graph.hpp"
 
 namespace intel_npu {
 
@@ -116,7 +114,7 @@ public:
      * @note A page alignment value is stored as attribute. This value will be handed over to the HSM writer, and this
      * writer will take care of adding the necessary padding.
      */
-    ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
+    ELFInitSchedulesSection(const std::shared_ptr<IGraph>& weightless_graph,
                             const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     /**
@@ -150,7 +148,7 @@ public:
      * @note This method is intended to be called once the blob ownership responsability is transferred to the "graph"
      * object.
      */
-    void set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph);
+    void set_graph(const std::shared_ptr<IGraph>& weightless_graph);
 
     /**
      * @brief Sets the encryption callback to be used once serialization via @ref encode is requested.
@@ -184,7 +182,7 @@ private:
     /**
      * @brief Where the compiler schedules are found. Either the graph or the current class handles ownership.
      */
-    std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
+    std::variant<std::shared_ptr<IGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
     /**
      * @brief Used to encrypt the schedules before writing it if available.
      * @note Encryption will happen only if this attribute is not null.
@@ -205,7 +203,7 @@ public:
      * @note A page alignment value is stored as attribute. This value will be handed over to the HSM writer, and this
      * writer will take care of adding the necessary padding.
      */
-    DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
+    DynamicScheduleSection(const std::shared_ptr<IGraph>& graph,
                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     /**
@@ -237,7 +235,7 @@ public:
      * @note This method is intended to be called once the blob ownership responsability is transferred to the "graph"
      * object.
      */
-    void set_graph(const std::shared_ptr<DynamicGraph>& graph);
+    void set_graph(const std::shared_ptr<IGraph>& graph);
 
     /**
      * @brief Sets the encryption callback to be used once serialization via @ref encode is requested.

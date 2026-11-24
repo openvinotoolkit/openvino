@@ -45,12 +45,9 @@ public:
                     const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
                     const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
-    /**
-     * @brief The weights initialization schedules are exported into the given sink.
-     */
-    std::vector<uint64_t> export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const;
+    std::vector<uint64_t> export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const override;
 
-    size_t get_number_of_inits() const;
+    size_t get_number_of_inits() const override;
 
     GraphKind get_kind() const override {
         return GraphKind::Weightless;

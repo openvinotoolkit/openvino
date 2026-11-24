@@ -129,14 +129,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
         !_blobSectionsRegistry.has_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE)) {
         switch (graph->get_kind()) {
         case GraphKind::Weightless:
-            _blobSectionsRegistry.register_section(
-                std::make_shared<ELFInitSchedulesSection>(std::dynamic_pointer_cast<WeightlessGraph>(graph)));
+            _blobSectionsRegistry.register_section(std::make_shared<ELFInitSchedulesSection>(graph));
+            // break omitted on purpose, since in the weightless case we also need to register a main schedule
         case GraphKind::Weightful:
             _blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(graph));
             break;
         case GraphKind::Dynamic:
-            _blobSectionsRegistry.register_section(
-                std::make_shared<DynamicScheduleSection>(std::dynamic_pointer_cast<DynamicGraph>(graph)));
+            _blobSectionsRegistry.register_section(std::make_shared<DynamicScheduleSection>(graph));
             break;
         default:
             OPENVINO_THROW("Unknown GraphKind");

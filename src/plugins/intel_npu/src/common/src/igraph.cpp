@@ -9,7 +9,15 @@
 namespace intel_npu {
 
 uint64_t IGraph::export_main_blob(const ov::runtime::hsm::SectionSink&) const {
-    OPENVINO_THROW("export_blob not implemented");
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::vector<uint64_t> IGraph::export_init_blobs(const ov::runtime::hsm::SectionSink&) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+size_t IGraph::get_number_of_inits() const {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::vector<ov::ProfilingInfo> IGraph::process_profiling_output(const std::vector<uint8_t>&) const {

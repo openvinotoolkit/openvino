@@ -43,7 +43,6 @@ constexpr std::string_view DECRYPTING_PAYLOAD_MESSAGE = "Decrypting the compiler
 constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "The compiler payload has been copied into a new, page aligned buffer";
 constexpr std::string_view MISSING_MAIN_SCHEDULE_MESSAGE = "The compiler main schedule is missing";
-constexpr std::string_view GRAPH_CLASS_MISMATCH_MESSAGE = "The blob type doesn't match the type of \"Graph\"";
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
@@ -205,11 +204,9 @@ public:
         OPENVINO_ASSERT(m_graph, "Invalid state");
         OPENVINO_ASSERT(m_graph->get_kind() == GraphKind::Weightful,
                         "Only standard, weightful compiler schedules are supported as \"raw blobs\"");
-        auto graph = std::dynamic_pointer_cast<Graph>(m_graph);
-        OPENVINO_ASSERT(graph, GRAPH_CLASS_MISMATCH_MESSAGE);
 
         BlobSectionsRegistry blob_sections_registry;
-        blob_sections_registry.register_section(std::make_shared<ELFMainScheduleSection>(graph));
+        blob_sections_registry.register_section(std::make_shared<ELFMainScheduleSection>(m_graph));
         return blob_sections_registry;
     }
 
@@ -315,24 +312,18 @@ public:
 
         switch (m_graph->get_kind()) {
         case GraphKind::Dynamic: {
-            auto dynamic_graph = std::dynamic_pointer_cast<DynamicGraph>(m_graph);
-            OPENVINO_ASSERT(dynamic_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_sections_registry.register_section(
-                std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callback));
+                std::make_shared<DynamicScheduleSection>(m_graph, encryption_callback));
             break;
         }
         case GraphKind::Weightless: {
-            auto weightless_graph = std::dynamic_pointer_cast<WeightlessGraph>(m_graph);
-            OPENVINO_ASSERT(weightless_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_sections_registry.register_section(
-                std::make_shared<ELFInitSchedulesSection>(weightless_graph, encryption_callback));
+                std::make_shared<ELFInitSchedulesSection>(m_graph, encryption_callback));
             // break omitted on purpose, since in the weightless case we also need to register a main schedule
         }
         case GraphKind::Weightful: {
-            auto graph = std::dynamic_pointer_cast<Graph>(m_graph);
-            OPENVINO_ASSERT(graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_sections_registry.register_section(
-                std::make_shared<ELFMainScheduleSection>(graph, encryption_callback));
+                std::make_shared<ELFMainScheduleSection>(m_graph, encryption_callback));
             break;
         }
         default: {
@@ -507,12 +498,12 @@ public:
 
             elf_main_schedule_section->set_graph(m_graph);
             if (init_schedules_section) {
-                init_schedules_section->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(m_graph));
+                init_schedules_section->set_graph(m_graph);
             }
         } else {
             auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
                 m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE));
-            dynamic_schedule_section->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
+            dynamic_schedule_section->set_graph(m_graph);
         }
 
         return m_blob_sections_registry;
