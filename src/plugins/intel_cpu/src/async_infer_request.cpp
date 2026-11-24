@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "config.h"
+#include "cpu_streams_calculation.hpp"
 #include "infer_request.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/visibility.hpp"
@@ -45,6 +46,11 @@ public:
             ov::intel_cpu::denormals_as_zero(false);
         }
         // DO_Keep: leave this thread's current FTZ/DAZ bits untouched, matching compile_model()'s own behavior.
+#endif
+#if OV_THREAD == OV_THREAD_OMP
+        // Reapplies the forced thread count on every entry; Stream's own lazy omp_set_num_threads()
+        // (cpu_streams_executor.cpp) only fires on the first execute() call per thread.
+        omp_set_num_threads(ov::intel_cpu::MULTI_APP_THREAD_SYNC_THREADS_PER_STREAM);
 #endif
     }
 
@@ -103,13 +109,27 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     : ov::IAsyncInferRequest(request, task_executor, callback_executor),
       m_internal_request(request) {
     static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
-    if (is_optimized_single_stream || run_sync_in_caller_thread) {
+    // CPU_MULTI_APP_THREAD_SYNC_EXECUTION dispatch: takes priority over is_optimized_single_stream below.
+    if (run_sync_in_caller_thread) {
         if (auto stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor)) {
             m_sync_pipeline = {
                 {std::make_shared<CallerThreadStageExecutor>(std::move(stream_executor), denormals_opt_mode), [this]() {
                      m_internal_request->infer();
                  }}};
         }
+    }
+
+    m_stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor);
+    m_infer_func = [this]() {
+        ov::IAsyncInferRequest::infer();
+    };
+    if (is_optimized_single_stream && !run_sync_in_caller_thread) {
+        m_infer_func = [this]() {
+            check_tensors();
+            m_stream_executor->execute([this]() {
+                m_internal_request->infer();
+            });
+        };
     }
 }
 
@@ -118,6 +138,10 @@ ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
         m_sub_infer_requests.clear();
     }
     stop_and_wait();
+}
+
+void ov::intel_cpu::AsyncInferRequest::infer() {
+    m_infer_func();
 }
 
 void ov::intel_cpu::AsyncInferRequest::throw_if_canceled() const {

@@ -1388,6 +1388,20 @@ int get_model_prefer_threads(const int num_streams,
     return config.modelPreferThreads;
 }
 
+// Rewrites every row's threads-per-stream, since IStreamsExecutor::Config reads it from the table.
+// Rows with NUMBER_OF_STREAMS == 0 only describe splitting a multi-core-type stream and are dropped.
+static void force_single_thread_per_stream(std::vector<std::vector<int>>& streams_info_table) {
+    streams_info_table.erase(std::remove_if(streams_info_table.begin(),
+                                            streams_info_table.end(),
+                                            [](const std::vector<int>& row) {
+                                                return row[NUMBER_OF_STREAMS] == 0;
+                                            }),
+                             streams_info_table.end());
+    for (auto& row : streams_info_table) {
+        row[THREADS_PER_STREAM] = MULTI_APP_THREAD_SYNC_THREADS_PER_STREAM;
+    }
+}
+
 std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                    const int input_numa_node_id,
                                                    const std::shared_ptr<ov::Model>& model,
@@ -1435,6 +1449,17 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                 config.changedCpuPinning,
                                                 config.enableCpuReservation,
                                                 streams_info_table);
+
+    // Same gating as CompiledModel::m_run_sync_in_caller_thread: runs unpinned on app threads, so intra-op
+    // threads would only add contention.
+    const bool has_sub_streams = config.numSubStreams > 0 ||
+                                 std::any_of(streams_info_table.begin(), streams_info_table.end(), [](const auto& row) {
+                                     return row[NUMBER_OF_STREAMS] < 0;
+                                 });
+    if (config.multiAppThreadSyncExecution && !config.exclusiveAsyncRequests && !has_sub_streams) {
+        force_single_thread_per_stream(streams_info_table);
+        config.threadsPerStream = MULTI_APP_THREAD_SYNC_THREADS_PER_STREAM;
+    }
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,

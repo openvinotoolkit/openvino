@@ -20,6 +20,10 @@
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
+
+// Forced per-stream thread budget under CPU_MULTI_APP_THREAD_SYNC_EXECUTION.
+constexpr int MULTI_APP_THREAD_SYNC_THREADS_PER_STREAM = 1;
+
 /**
  * @brief      Generate streams information table according to processors type table.
  * @param[in]  input_streams is the targeted number of streams set by user via ov::num_streams or the default value.

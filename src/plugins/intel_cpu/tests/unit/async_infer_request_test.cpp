@@ -10,10 +10,12 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
@@ -40,6 +42,9 @@ struct ControllableOpState {
     std::atomic<bool> released{true};  // default: evaluate() does not block
     std::atomic<bool> should_throw{false};
     std::atomic<std::thread::id> executing_thread_id{};
+    // parallel_get_max_threads() as observed from inside evaluate(), i.e. the intra-op thread budget
+    // node execution actually ran with (OpenMP ICV or TBB arena concurrency, depending on the backend).
+    std::atomic<int> max_threads_during_evaluate{-1};
 
     // Blocks the calling (test) thread until some evaluate() call has started.
     void wait_until_entered() {
@@ -98,6 +103,7 @@ public:
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
         m_state->executing_thread_id = std::this_thread::get_id();
+        m_state->max_threads_during_evaluate = parallel_get_max_threads();
         {
             std::lock_guard<std::mutex> lock(m_state->mutex);
             m_state->entered = true;
@@ -185,12 +191,6 @@ float GetOutput(ov::InferRequest& request, const ov::Output<const ov::Node>& por
     return *request.get_tensor(port).data<float>();
 }
 
-// 1 stream, 1 thread: yields is_optimized_single_stream == true without requesting
-// CPU_MULTI_APP_THREAD_SYNC_EXECUTION at all.
-ov::AnyMap OptimizedSingleStreamProperties() {
-    return {ov::num_streams(1), ov::inference_num_threads(1)};
-}
-
 // 4 streams with multi_app_thread_sync_execution=true (pinning off, since the plugin rejects that
 // combination with pinning resolved to true).
 ov::AnyMap ExplicitMultiAppThreadSyncProperties() {
@@ -201,17 +201,6 @@ ov::AnyMap ExplicitMultiAppThreadSyncProperties() {
 }
 
 }  // namespace
-
-TEST(AsyncInferRequestTest, UsesCallerThreadForOptimizedSingleStream) {
-    auto ctx = CreateTestInferRequest(OptimizedSingleStreamProperties());
-    SetInput(ctx.infer_request, ctx.compiled_model.input(), 11.0F);
-
-    const auto caller_thread_id = std::this_thread::get_id();
-    ASSERT_NO_THROW(ctx.infer_request.infer());
-
-    ASSERT_EQ(ctx.state->executing_thread_id.load(), caller_thread_id);
-    ASSERT_FLOAT_EQ(GetOutput(ctx.infer_request, ctx.compiled_model.output()), 11.0F);
-}
 
 TEST(AsyncInferRequestTest, UsesCallerThreadForExplicitMultiAppThreadSync) {
     auto ctx = CreateTestInferRequest(ExplicitMultiAppThreadSyncProperties());
@@ -224,6 +213,144 @@ TEST(AsyncInferRequestTest, UsesCallerThreadForExplicitMultiAppThreadSync) {
     ASSERT_EQ(ctx.state->executing_thread_id.load(), caller_thread_id);
     ASSERT_FLOAT_EQ(GetOutput(ctx.infer_request, ctx.compiled_model.output()), 22.0F);
 }
+
+namespace {
+
+// multi_app_thread_sync_execution with num_streams deliberately smaller than inference_num_threads, so that
+// without the force-to-1 in generate_stream_info() each stream would get threads / streams (floored) threads.
+ov::AnyMap MultiAppThreadSyncProperties(int streams, int threads) {
+    return {ov::num_streams(streams),
+            ov::inference_num_threads(threads),
+            ov::hint::enable_cpu_pinning(false),
+            ov::intel_cpu::multi_app_thread_sync_execution(true)};
+}
+
+// Runs infer() twice on one genuinely fresh application thread (never seen by the model's executor): the 1st
+// call hits CPUStreamsExecutor's lazy per-thread Stream construction, the 2nd one does not. The intra-op thread
+// budget seen inside node execution must be exactly 1 for both, and results must stay correct.
+void RunFreshThreadForcedSingleThreadScenario(int streams, int threads) {
+    auto ctx = CreateTestInferRequest(MultiAppThreadSyncProperties(streams, threads));
+
+    // The executor config itself resolves to 1 thread per stream, whatever was requested.
+    ASSERT_EQ(ctx.compiled_model.get_property(ov::num_streams), streams);
+    ASSERT_EQ(ctx.compiled_model.get_property(ov::inference_num_threads), streams);
+
+    constexpr int kCalls = 2;
+    std::vector<int> observed_threads;
+    std::vector<float> observed_outputs;
+    std::vector<std::thread::id> executing_threads;
+    std::string failure;
+    std::thread::id fresh_thread_id;
+
+    std::thread fresh_thread([&] {
+        fresh_thread_id = std::this_thread::get_id();
+        try {
+            for (int call = 0; call < kCalls; ++call) {
+                ctx.state->max_threads_during_evaluate = -1;
+                SetInput(ctx.infer_request, ctx.compiled_model.input(), static_cast<float>(call + 1));
+                ctx.infer_request.infer();
+                observed_threads.push_back(ctx.state->max_threads_during_evaluate.load());
+                executing_threads.push_back(ctx.state->executing_thread_id.load());
+                observed_outputs.push_back(GetOutput(ctx.infer_request, ctx.compiled_model.output()));
+            }
+        } catch (const std::exception& ex) {
+            failure = ex.what();
+        }
+    });
+    fresh_thread.join();
+
+    ASSERT_TRUE(failure.empty()) << failure;
+    ASSERT_EQ(observed_threads.size(), static_cast<size_t>(kCalls));
+    for (int call = 0; call < kCalls; ++call) {
+        EXPECT_EQ(observed_threads[call], 1) << "call #" << call + 1 << " on the fresh thread (requested " << streams
+                                             << " streams / " << threads << " threads)";
+        EXPECT_EQ(executing_threads[call], fresh_thread_id) << "call #" << call + 1;
+        EXPECT_FLOAT_EQ(observed_outputs[call], static_cast<float>(call + 1)) << "call #" << call + 1;
+    }
+}
+
+}  // namespace
+
+// Regression for the OpenMP-oversubscription review finding, fixed at the config level instead of in the
+// caller-thread guard: the per-stream thread budget must be exactly 1 for every call ordinal on a thread
+// (including the very first one, where Stream's lazy ctor runs), and independent of how requested threads
+// divide among streams.
+TEST(AsyncInferRequestTest, MultiAppThreadSyncForcesSingleThreadWhenThreadsDivideEvenlyAmongStreams) {
+    RunFreshThreadForcedSingleThreadScenario(2, 8);  // would be 4 threads/stream without the force
+}
+
+TEST(AsyncInferRequestTest, MultiAppThreadSyncForcesSingleThreadWhenThreadsDoNotDivideEvenlyAmongStreams) {
+    RunFreshThreadForcedSingleThreadScenario(2, 7);  // would floor to 3 threads/stream (6 of 7 threads used)
+}
+
+// The force must be scoped to multi_app_thread_sync_execution: the same streams/threads configuration without
+// it keeps its real, multi-threaded per-stream budget.
+TEST(AsyncInferRequestTest, RegularPathKeepsMultipleThreadsPerStream) {
+    constexpr int kStreams = 2;
+    constexpr int kThreads = 8;
+#if OV_THREAD == OV_THREAD_SEQ
+    GTEST_SKIP() << "SEQ threading never executes on worker threads, so it cannot resolve multiple threads per "
+                    "stream regardless of configuration";
+#endif
+    if (std::thread::hardware_concurrency() < kThreads) {
+        GTEST_SKIP() << "needs at least " << kThreads << " hardware threads to resolve " << kThreads / kStreams
+                     << " threads per stream";
+    }
+    auto ctx = CreateTestInferRequest(
+        {ov::num_streams(kStreams), ov::inference_num_threads(kThreads), ov::hint::enable_cpu_pinning(false)});
+    ASSERT_FALSE(ctx.compiled_model.get_property(ov::intel_cpu::multi_app_thread_sync_execution.name()).as<bool>());
+    ASSERT_EQ(ctx.compiled_model.get_property(ov::inference_num_threads), kThreads);
+
+    SetInput(ctx.infer_request, ctx.compiled_model.input(), 5.0F);
+    ASSERT_NO_THROW(ctx.infer_request.infer());
+    ASSERT_NE(ctx.state->executing_thread_id.load(), std::this_thread::get_id());
+    ASSERT_EQ(ctx.state->max_threads_during_evaluate.load(), kThreads / kStreams);
+    ASSERT_FLOAT_EQ(GetOutput(ctx.infer_request, ctx.compiled_model.output()), 5.0F);
+}
+
+#if OV_THREAD == OV_THREAD_OMP
+// OpenMP-only: CallerThreadStateGuard must (a) force the active OMP thread count to 1 for every single
+// infer() call on the caller thread -- not just the first, where Stream's lazy omp_set_num_threads() would
+// have happened to do it anyway -- and (b) put the caller thread's own omp_get_max_threads() back afterwards.
+// (Not built in TBB configurations, where there is no per-thread OpenMP state to force or restore.)
+TEST(AsyncInferRequestOpenMPStateTest, RestoresCallerOmpThreadsAfterCallerThreadSyncCalls) {
+    constexpr int kAppThreadOmpThreads = 3;
+    auto ctx = CreateTestInferRequest(MultiAppThreadSyncProperties(2, 8));
+
+    int first_call_threads = -1;
+    int second_call_threads = -1;
+    int omp_after_first = -1;
+    int omp_after_second = -1;
+    std::string failure;
+    std::thread fresh_thread([&] {
+        try {
+            omp_set_num_threads(kAppThreadOmpThreads);
+            SetInput(ctx.infer_request, ctx.compiled_model.input(), 1.0F);
+            ctx.infer_request.infer();
+            first_call_threads = ctx.state->max_threads_during_evaluate.load();
+            omp_after_first = omp_get_max_threads();
+
+            // Stream's lazy omp_set_num_threads() (cpu_streams_executor.cpp) only runs once per thread,
+            // on the first execute() call -- it does not refire here. Without the guard reapplying
+            // omp_set_num_threads(1) on every entry, this second call would run with omp_after_first
+            // (the restored, pre-infer caller value) instead of 1.
+            ctx.state->max_threads_during_evaluate = -1;
+            ctx.infer_request.infer();
+            second_call_threads = ctx.state->max_threads_during_evaluate.load();
+            omp_after_second = omp_get_max_threads();
+        } catch (const std::exception& ex) {
+            failure = ex.what();
+        }
+    });
+    fresh_thread.join();
+
+    ASSERT_TRUE(failure.empty()) << failure;
+    EXPECT_EQ(first_call_threads, 1);
+    EXPECT_EQ(second_call_threads, 1);
+    EXPECT_EQ(omp_after_first, kAppThreadOmpThreads);
+    EXPECT_EQ(omp_after_second, kAppThreadOmpThreads);
+}
+#endif
 
 TEST(AsyncInferRequestTest, KeepsExecutorDispatchForSyncInferWhenCallerThreadModeIsDisabled) {
     // Same stream count as ExplicitMultiAppThreadSyncProperties, but without the property set, so
@@ -265,10 +392,6 @@ void RunExceptionThenRecoveryScenario(const ov::AnyMap& properties) {
 
 }  // namespace
 
-TEST(AsyncInferRequestExceptionRecoveryTest, RecoversAfterExceptionForOptimizedSingleStream) {
-    RunExceptionThenRecoveryScenario(OptimizedSingleStreamProperties());
-}
-
 TEST(AsyncInferRequestExceptionRecoveryTest, RecoversAfterExceptionForExplicitMultiAppThreadSync) {
     RunExceptionThenRecoveryScenario(ExplicitMultiAppThreadSyncProperties());
 }
@@ -302,11 +425,6 @@ void RunDestroyThenReuseSameExecutorScenario(const ov::AnyMap& properties) {
 }
 
 }  // namespace
-
-TEST(AsyncInferRequestExceptionRecoveryTest,
-     DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForOptimizedSingleStream) {
-    RunDestroyThenReuseSameExecutorScenario(OptimizedSingleStreamProperties());
-}
 
 TEST(AsyncInferRequestExceptionRecoveryTest,
      DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForExplicitMultiAppThreadSync) {
