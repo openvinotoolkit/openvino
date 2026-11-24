@@ -674,23 +674,18 @@ bool feeds_only_sdpa_qkv(const ov::Output<ov::Node>& output) {
         return ov::is_type<ov::op::v13::ScaledDotProductAttention>(in.get_node()) && in.get_index() < 3;
     };
     const auto& consumers = output.get_target_inputs();
-    if (consumers.empty()) {
-        return false;
-    }
-    for (const auto& in : consumers) {
+    const auto is_sdpa_qkv_or_scaled = [&](const ov::Input<ov::Node>& in) {
         if (is_sdpa_qkv(in)) {
-            continue;
+            return true;
         }
-        auto mul = ov::as_type<ov::op::v1::Multiply>(in.get_node());
-        if (!mul || !is_scalar_const(mul->input_value(1 - in.get_index()))) {
+        auto* mul = ov::as_type<ov::op::v1::Multiply>(in.get_node());
+        if (mul == nullptr || !is_scalar_const(mul->input_value(1 - in.get_index()))) {
             return false;
         }
         const auto& mul_consumers = mul->get_output_target_inputs(0);
-        if (mul_consumers.empty() || !std::all_of(mul_consumers.begin(), mul_consumers.end(), is_sdpa_qkv)) {
-            return false;
-        }
-    }
-    return true;
+        return !mul_consumers.empty() && std::all_of(mul_consumers.begin(), mul_consumers.end(), is_sdpa_qkv);
+    };
+    return !consumers.empty() && std::all_of(consumers.begin(), consumers.end(), is_sdpa_qkv_or_scaled);
 }
 
 // True if `node` only removes the axis `axis` of its input, which is statically 1: Squeeze(axis),
