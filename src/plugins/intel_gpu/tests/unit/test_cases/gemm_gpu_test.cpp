@@ -887,7 +887,7 @@ public:
         topology.add(input_layout("input1", input1_dyn_layout),
                      input_layout("input2", input2_layout),
                      input_layout("bias", bias_layout),
-                     gemm("gemm", {input_info("input1"), input_info("input2"), input_info("bias")}, data_type, false, false, 1.0f, 0.0f, 4, 2));
+                     gemm("gemm", {input_info("input1"), input_info("input2"), input_info("bias")}, data_type, false, false, 1.0f, 1.0f, 4, 2));
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
