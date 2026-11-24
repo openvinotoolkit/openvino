@@ -5,7 +5,6 @@
 #pragma once
 
 #include <mutex>
-#include <optional>
 
 #include "compiled_model_property_manager.hpp"
 #include "intel_npu/common/hsm_format/blob_sections_registry.hpp"
