@@ -524,6 +524,12 @@ Out decompose_sparse_attention(Builder& b,
                     "ConvertSparseAttentionToDense: attention sinks of ",
                     node->get_friendly_name(),
                     " are not supported");
+    OPENVINO_ASSERT(node->get_query_block_size() == 1,
+                    "ConvertSparseAttentionToDense: ",
+                    node->get_friendly_name(),
+                    " has query_block_size ",
+                    node->get_query_block_size(),
+                    ", only 1 is supported");
     const int64_t r = node->get_key_block_size();
     const auto query = node->input_value(0);
     const auto& query_type = query.get_element_type();
@@ -537,17 +543,11 @@ Out decompose_sparse_attention(Builder& b,
     const auto num_kv_heads = b.dim(key, 1), num_positions = b.dim(key, 2);
     const auto num_selection_heads = b.dim(block_indices, 1), block_topk = b.dim(block_indices, 3);
 
-    if (node->get_query_block_size() != 1) {
-        const auto rows = b.div(b.range(zero, query_length), b.i64(node->get_query_block_size()));
-        block_indices = b.gather(block_indices, rows, 2, 0);
-        block_count = b.gather(block_count, rows, 2, 0);
-    }
-
     // block mask [N, Hs, L, nB + 2]: the invalid entries -> column nB, the masked keys -> column nB + 1 (never set)
     const auto num_key_blocks = b.div(b.add(num_positions, b.i64(r - 1)), ratio);
     Out block_mask;
     const auto selected = selected_blocks.find(node->input_value(3));
-    if (selected != selected_blocks.end() && node->get_query_block_size() == 1) {
+    if (selected != selected_blocks.end()) {
         // the indexer has the mask of the selected blocks, [N, Hs, L, nB + 1]: add the column nB + 1
         block_mask = b.make<op::v12::Pad>(selected->second,
                                           b.i64v({0, 0, 0, 0}),
