@@ -24,9 +24,9 @@
 // -> StatelessKV + SDPA or the explicit attention chain), against the TEMPLATE plugin. transpose_v: the model keeps its V cache
 // as [B, kv_heads, head_size, S] (past_value -> Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value). Covers
 // that layout reaching SDPA as value order {0,1,3,2} (sdpa_ocl's transposed-V readers on Xe2+, f16 and the fused per-channel
-// i8 cache; on xe_hpg f16, read by its PREFILL kernel and the opt single-token stage; a Transpose elsewhere), and
-// StatelessKV -> Transpose -> Result on the explicit attention / quantized KV paths,
-// which the runtime rejects. The plain [B, kv_heads, S, head_size] layout is the control.
+// i8 cache; on xe_hpg f16, read by its PREFILL kernel and the opt single-token stage; a Transpose elsewhere), and the
+// explicit attention chain (softcap / qk_output), which takes the common decomposition. The plain [B, kv_heads, S,
+// head_size] layout is the control.
 namespace {
 
 using QKOutput = ov::op::internal::GroupQueryAttentionQKOutput;
@@ -58,6 +58,14 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAVCacheParams& p) {
     auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, p.transpose_v ? ov::PartialShape{1, KVH, D, -1} : ov::PartialShape{1, KVH, -1, D});
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
+    // Named like a model read from a file (the frontends name every Parameter tensor).
+    query->output(0).set_names({"query"});
+    key->output(0).set_names({"key"});
+    value->output(0).set_names({"value"});
+    past_key->output(0).set_names({"past_key"});
+    past_value->output(0).set_names({"past_value"});
+    seqlens_k->output(0).set_names({"seqlens_k"});
+    total_sequence_length->output(0).set_names({"total_sequence_length"});
 
     const auto transpose_v_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
     ov::OutputVector inputs(14);

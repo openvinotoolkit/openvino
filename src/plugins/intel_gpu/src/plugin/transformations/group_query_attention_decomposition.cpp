@@ -163,13 +163,16 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const bool query_seqlens = node->has_query_seqlens();
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0F || need_qk_output;
+    bool can_fuse_transpose_v = m_sdpa_support_immad && !use_explicit_attention;
     // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
     if (!use_explicit_attention) {
         // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively
         metadata.should_broadcast_kv = false;
         if (node->is_kv_quantized()) {
-            // On failure the K/V are dequantized before the attention instead (should_dequantize_kv stays set).
-            prepare_compressed_kv(node, past_key.get_element_type(), past_value.get_element_type(), past_key.get_partial_shape(), metadata);
+            if (!prepare_compressed_kv(node, past_key.get_element_type(), past_value.get_element_type(), past_key.get_partial_shape(), metadata)) {
+                // when failed to fuse compressed kv, should not fuse transpose_v, dequantized K/V expects original layout.
+                can_fuse_transpose_v = false;
+            }
         }
     }
 
@@ -218,11 +221,15 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         return transpose;
     };
 
-    std::shared_ptr<v1::Transpose> past_value_transpose = find_value_transpose(node->input_value(4).get_node_shared_ptr());
+    std::shared_ptr<v1::Transpose> past_value_transpose;
     std::shared_ptr<v1::Transpose> present_value_transpose;
-    if (node->output(2).get_target_inputs().size() == 1) {
-        const auto target = *node->output(2).get_target_inputs().begin();
-        present_value_transpose = find_value_transpose(target.get_node()->shared_from_this());
+    // explicit attention hard-coded layout so don't fuse
+    if (can_fuse_transpose_v) {
+        past_value_transpose = find_value_transpose(node->input_value(4).get_node_shared_ptr());
+        if (node->output(2).get_target_inputs().size() == 1) {
+            const auto target = *node->output(2).get_target_inputs().begin();
+            present_value_transpose = find_value_transpose(target.get_node()->shared_from_this());
+        }
     }
     if (past_value_transpose && present_value_transpose) {
         OPENVINO_ASSERT(!present_value);
@@ -261,45 +268,43 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const auto key_cache = make_stateless_kv(past_key, key, 2);
     key_cache->set_friendly_name(present_key->get_friendly_name() + "_stateless");
 
-    // The attention reads the full cache (output 0) when it also has to emit the QK scores, else output 1.
-    const size_t attention_kv_output = need_qk_output ? 0 : 1;
     std::shared_ptr<op::StatelessKV> value_cache;
-    ov::Output<ov::Node> attention_value;
+    bool transpose_sdpa_value = false;
     if (past_value_transpose && present_value_transpose) {
-        // The model stores its V cache as [B, KVH, head_size, S]. StatelessKV has to feed the present Result directly
-        // (realloc_outputs_for_stateless_kv() asserts it), so the cache keeps the model's layout and the output Transpose
-        // is bypassed.
+        // SDPA reads the cache as value order {0,1,3,2} only where sdpa_ocl has a transposed-V reader for it
+        // (m_fuse_transposed_v: f16 or the 8-bit per-channel cache, head size %8 up to 256); elsewhere V reaches SDPA back
+        // as [B, KVH, S, head_size] through an explicit Transpose of the cache.
+        const auto& value_shape = value.get_partial_shape();
+        const auto& head_dim = value_shape.rank().is_static() && value_shape.size() == 4 ? value_shape[3] : ov::Dimension::dynamic();
+        const bool head_ok = head_dim.is_static() && head_dim.get_length() % 8 == 0 && head_dim.get_length() <= 256;
+        if (m_fuse_transposed_v && head_ok && (!node->is_kv_quantized() || node->get_kv_cache_bit_width() == 8)) {
+            metadata.transpose_v_order = transpose_v_order;
+        } else {
+            transpose_sdpa_value = true;
+        }
         // Before: past_value -> Transpose -> GQA cache -> Transpose -> present_value.
         // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
-        //         current_value -> Transpose ----------^           |
-        //                                                         +-> (Transpose) -> attention V
-        // SDPA reads that cache directly as value order {0,1,3,2} where a transposed-V reader serves it
-        // (m_fuse_transposed_v: an f16 SDPA, uncompressed or with the fused 8-bit per-channel cache, a head size they
-        // cover). Everywhere else the attention gets V back as [B, KVH, S, head_size] through an explicit Transpose: the
-        // other SDPA kernels, the explicit chain, the KV dequantization and a packed 4-bit cache expect the default layout.
+        //         current_value -> Transpose ----------^      (the output Transpose is bypassed)
         const auto transposed_value = register_new_node<v1::Transpose>(value, value_transpose_order);
         value_cache = make_stateless_kv(past_value_transpose->input_value(0), transposed_value, 3);
         present_value_transpose->output(0).replace(value_cache->output(0));
-        const auto& head_dim =
-            value.get_partial_shape().rank().is_static() && value.get_partial_shape().size() == 4 ? value.get_partial_shape()[3] : ov::Dimension::dynamic();
-        const bool head_ok = head_dim.is_static() && head_dim.get_length() % 8 == 0 && head_dim.get_length() <= 256;
-        const bool v_readable = !node->is_kv_quantized() || (metadata.compressed_kv.has_value() && node->get_kv_cache_bit_width() == 8);
-        if (m_fuse_transposed_v && !use_explicit_attention && v_readable && head_ok) {
-            metadata.transpose_v_order = transpose_v_order;
-            attention_value = value_cache->output(attention_kv_output);
-        } else {
-            attention_value = register_new_node<v1::Transpose>(value_cache->output(attention_kv_output), value_transpose_order)->output(0);
-        }
     } else {
         value_cache = make_stateless_kv(past_value, value, 2);
-        attention_value = value_cache->output(attention_kv_output);
     }
     value_cache->set_friendly_name(present_value->get_friendly_name() + "_stateless");
 
     outputs.present_key = key_cache->output(0);
     outputs.present_value = value_cache->output(0);
-    outputs.sdpa_key = key_cache->output(attention_kv_output);
-    outputs.sdpa_value = attention_value;
+    if (need_qk_output) {
+        outputs.sdpa_key = key_cache->output(0);
+        outputs.sdpa_value = value_cache->output(0);
+    } else {
+        outputs.sdpa_key = key_cache->output(1);
+        outputs.sdpa_value = value_cache->output(1);
+    }
+    if (transpose_sdpa_value) {
+        outputs.sdpa_value = register_new_node<v1::Transpose>(outputs.sdpa_value, value_transpose_order);
+    }
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     if (sliding_window) {

@@ -3965,6 +3965,36 @@ on `sdpa_micro` and does not compile the 4-bit model on DG2 ("No layout format a
   V prefill against b22077e399 and, at 1023 / 1024 tokens, master, the 4-bit prefill against b22077e399, the small
   shapes' prefill against master.
 
+### GQA transposed V: master's fusion conditions back (2026-11-24)
+
+"GQA with a transposed V cache (2026-11-02)" made `GroupQueryAttentionDecomposition` keep the `[B, kv_heads, head_size,
+S]` cache layout on every path, because master's unfused paths (softcap, `qk_output`, a compressed cache that does not
+fuse, no XMX) left `StatelessKV -> Transpose -> Result`, which the runtime rejected. On master 619890384b (B70) those
+paths take the common decomposition instead and pass, for models whose Parameters carry tensor names (every model a
+frontend reads): `smoke_GQATransposedVCache` with named Parameters 16 / 16. With unnamed Parameters master still throws in
+`StatelessKVFusion` (`get_any_name()`), a master issue left alone. So that part was a fix of a master problem and is
+reverted.
+
+- The pass uses master's conditions again (`can_fuse_transpose_v`: XMX, no explicit chain, the compressed cache fused);
+  elsewhere master's common decomposition.
+- Kept, because `sdpa_ocl` replaced `sdpa_micro`: in the fused cache, SDPA gets value order `{0,1,3,2}` only where
+  `fuse_transposed_v` and the cache is f16 or 8-bit with a head that is a static multiple of 8 up to 256; otherwise an
+  explicit `Transpose{0,1,3,2}` of the cache in front of SDPA (master hands all of them to `sdpa_micro` as `{0,1,3,2}`).
+  Also kept: the `prepare_compressed_kv()` limits (static head up to 256, i8 storage for 8-bit) and the pipeline gate.
+- Tests: `GQADecompositionTest` is master's again plus `transpose_v_without_reader_transposes_sdpa_value` and
+  `i8_per_channel_kv_with_transpose_v_is_fused`; `int4_per_channel_kv_with_transpose_v_is_fused` expects the default V
+  order (no reader for a packed 4-bit cache). `smoke_GQATransposedVCache` names its Parameters.
+- Results (B70): `GQADecompositionTest` 32 / 32; with the gate forced on, the two no-reader cases fail.
+  `smoke_GQATransposedVCache` 16 / 16. With `OV_GPU_ENABLE_SDPA_MICRO=0` the 12 cases without i8 pass, and the i8
+  per-channel cases GPU-fault (`CL_OUT_OF_RESOURCES`) with the plain layout as well. That is the per-channel compressed op
+  under `OV_GPU_ENABLE_SDPA_MICRO=0` ("Per-channel compressed KV on xe_hpg (2026-11-23)"), not the transposed layout. The
+  ONNX repro (`test/gqa_tv_master/run_repro.sh`, head 64 / 128, both layouts, 2-4 query rows, softcap,
+  `OV_GPU_ENABLE_SDPA_MICRO=0`) gives cosine 1.000000 on every step (0.999999 under `=0`), where master's transposed
+  layout gives 0.02-0.08 on the 2-4 row steps and on every `=0` step. The kernel trace shows: default, SDPA reads the cache
+  (no permute in front); `=0`, a permute of the cache in front of SDPA; softcap, the common decomposition.
+- Not checked: DG2 (the gate there is unchanged); timing of the paths that now take master's common decomposition
+  instead of the fused cache plus a Transpose (a compressed cache that does not fuse, the explicit chain, no XMX).
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
