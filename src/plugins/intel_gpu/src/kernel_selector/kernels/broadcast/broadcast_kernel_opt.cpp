@@ -92,6 +92,9 @@ OptChoices PickStaticChoices(const broadcast_params& p) {
 // to the X-broadcast splat once Y and X are swapped, so it can take the vectorized splat path.
 // The splat path runs one work-group per row, while the ref kernel spreads the long Y axis over many
 // work-items, so the swap is only taken when there are enough rows to occupy every compute unit.
+// Rows that miss the block-write path (short or not 4-byte aligned) are also faster on the ref kernel.
+broadcast_params SwapYXForSplat(const broadcast_params& p);
+
 bool IsSwappableYSplat(const broadcast_params& p) {
     if (p.has_dynamic_tensors() || p.is_explicit_mode) {
         return false;
@@ -105,7 +108,10 @@ bool IsSwappableYSplat(const broadcast_params& p) {
         return false;
     }
     const size_t num_rows = output.Batch().v * output.Feature().v;
-    return input.X().v == 1 && output.X().v == 1 && input.Y().v == 1 && output.Y().v > 1 && num_rows >= p.engineInfo.computeUnitsCount;
+    if (input.X().v != 1 || output.X().v != 1 || input.Y().v != 1 || output.Y().v <= 1 || num_rows < p.engineInfo.computeUnitsCount) {
+        return false;
+    }
+    return PickStaticChoices(SwapYXForSplat(p)).x_broadcast_block_write;
 }
 
 // The swapped params have output Y == 1, so they never match IsSwappableYSplat again.
