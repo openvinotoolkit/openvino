@@ -3,6 +3,8 @@
 //
 
 // clang-format off
+#include <algorithm>
+
 #include "gather_matmul_gen_micro.hpp"
 #include "gathermatmul_sort_gen.hpp"
 #include "gathermatmul_gather_gen.hpp"
@@ -19,8 +21,7 @@
 #include "gather_matmul_inst.h"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#    include <algorithm>
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #    include <cstdlib>
 #    include <memory>
 #    include <oneapi/dnnl/dnnl.hpp>
@@ -32,7 +33,7 @@
 
 namespace ov::intel_gpu::ocl {
 namespace {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 inline bool is_prefill_stage(const RuntimeParams& params) {
     const auto& input_shape = params.input_layouts[0].get_partial_shape();
     const auto n_tokens = input_shape[1];
@@ -42,19 +43,16 @@ inline bool is_prefill_stage(const RuntimeParams& params) {
     return n_tokens.get_length() > 1;
 }
 
-static constexpr int32_t BATCHED_PREFILL_THRESHOLD = 16;
+constexpr int32_t BATCHED_PREFILL_THRESHOLD = 16;
 
 inline bool use_batched_prefill(const GatherMatmulRuntimeParams* rtp) {
     return rtp->n_tokens > BATCHED_PREFILL_THRESHOLD;
 }
 
 inline bool has_fused_swiglu(const kernel_impl_params& params) {
-    for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>()) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(params.fused_desc.begin(), params.fused_desc.end(), [](const auto& fd) {
+        return fd.template is_type<swiglu>();
+    });
 }
 
 // Local to avoid an ocl_v2 → onednn link dependency.
@@ -104,7 +102,7 @@ enum GatherMatmulInternalBufferIdx {
 class GatherMatmulOCLImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GatherMatmulOCLImpl)
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     static constexpr bool prefill = true;
 
     // Per-token stages
@@ -122,7 +120,7 @@ public:
 #endif
 
     explicit GatherMatmulOCLImpl() : PrimitiveImplOCL(GatherMatmulImpl::get_type_info_static()) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // GATHER_MATMUL_USE_ONEDNN_PREFILL gates the dnnl-grouped large-prefill path (default off).
         _use_onednn_grouped = std::getenv("GATHER_MATMUL_USE_ONEDNN_PREFILL") != nullptr;
 #endif
@@ -131,7 +129,7 @@ public:
         auto params = impl_param;
         GPU_DEBUG_TRACE_DETAIL << "GatherMatmul create stages for dynamic = " << params.is_dynamic() << "\n";
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // Non-u4/i4 weights have no functional OCL path; force onednn-grouped.
         const bool need_onednn_for_weights = weights_need_onednn_grouped(params);
         if (need_onednn_for_weights) {
@@ -191,7 +189,7 @@ public:
         // 7: expert_offsets — cumulative exclusive ends per expert.
         descs.emplace_back(n_all_experts, ov::element::i32);
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // OR: env-var doesn't survive clone(), but execute() dispatches on dtype directly.
         if (_use_onednn_grouped || weights_need_onednn_grouped(params)) {
             // 8: packed dnnl::matmul output [total_tokens, N], unfused N.
@@ -225,7 +223,7 @@ public:
     }
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
         update_rt_params(instance);
@@ -268,7 +266,7 @@ public:
     }
 
 private:
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     // One entry per total_tokens; carries the wrappers we need at execute() time.
     struct OnednnGroupedKernel {
         dnnl::matmul::primitive_desc pd;
@@ -303,6 +301,8 @@ private:
         auto a_dt = convert_data_type(input_layout.data_type);
         auto out_dt = convert_data_type(output_layout.data_type);
         auto w_dt = convert_data_type(weights_layout.data_type);
+        // Zero points can be wider than the weights (e.g. u4 weights with u8 zero points).
+        auto zp_dt = desc->has_zp ? convert_data_type(impl_params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT_ZP].data_type) : w_dt;
 
         const dnnl::memory::dim num_experts = static_cast<dnnl::memory::dim>(wshape[0]);
         const dnnl::memory::dim N = static_cast<dnnl::memory::dim>(wshape[1]);
@@ -345,13 +345,13 @@ private:
                 // per-expert(0) × per-K-group(1) × per-N-channel(2)
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {weight_group_size, 1}, dnnl::memory::data_type::f16);
                 if (desc->has_zp) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {weight_group_size, 1}, w_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {weight_group_size, 1}, zp_dt);
                 }
             } else {
                 // per-expert(0) × per-N-channel(2), no K-grouping
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, dnnl::memory::data_type::f16);
                 if (desc->has_zp) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, w_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
                 }
             }
         }
@@ -386,12 +386,12 @@ private:
                 const dnnl::memory::dim num_k_groups = K / weight_group_size;
                 gk->scale_md = dnnl::memory::desc({num_experts, num_k_groups, N}, s_dt, dnnl::memory::format_tag::abc);
                 if (gk->has_zp) {
-                    gk->zp_md = dnnl::memory::desc({num_experts, num_k_groups, N}, w_dt, dnnl::memory::format_tag::abc);
+                    gk->zp_md = dnnl::memory::desc({num_experts, num_k_groups, N}, zp_dt, dnnl::memory::format_tag::abc);
                 }
             } else {
                 gk->scale_md = dnnl::memory::desc({num_experts, N}, s_dt, dnnl::memory::format_tag::ab);
                 if (gk->has_zp) {
-                    gk->zp_md = dnnl::memory::desc({num_experts, N}, w_dt, dnnl::memory::format_tag::ab);
+                    gk->zp_md = dnnl::memory::desc({num_experts, N}, zp_dt, dnnl::memory::format_tag::ab);
                 }
             }
         }

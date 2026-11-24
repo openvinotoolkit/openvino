@@ -190,14 +190,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#198014 -->
-    <skip_config>
-        <message>MODEL_PTR is reported as RW but cannot be set outside compiled model import</message>
-        <filters>
-            <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#116575 -->
     <skip_config>
         <message>NPU fails for `OVIterationChaining.Simple` tests</message>
@@ -430,38 +422,31 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#239219 -->
+    <!-- E#243678 -->
     <skip_config>
-        <message>HostCompile cannot compile the dynamic MaxPool model because CopyOpTiling cannot compute allocation size for dynamic shapes without bounds.</message>
-        <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
-        </enable_rules>
+        <message>The prebuilt NPU compiler cannot compile an attention model with unbounded dimensions in HostCompile_Interpreter mode. Remove once the compiler pinned in download_compiler_libs.cmake supports it.</message>
         <filters>
-            <filter>.*InferWithDefaultHostCompileTests.CompileDynamicModelWithNoHostCompileMode.*model=MaxPool_NCHW_targetPlatform.*</filter>
+            <filter>.*InferWithHostCompileUnboundedTests.*</filter>
         </filters>
     </skip_config>
 
+    <!-- C#199570  -->
     <skip_config>
-        <message>Random accuracy issue for multithread test.</message>
-        <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
-            <device>6010</device>
-        </enable_rules>
+        <message>Tests with abnomally large durations</message>
         <filters>
-            <filter>.*InferWithHostCompileMultithreadTests.MT_ConcurrentInferThenSetPriorityAndInfer.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.*</filter>
+            <filter>.*InferWithHostCompileTests.*</filter>
         </filters>
     </skip_config>
 
-    <!-- C#195015 -->
+    <!-- E#239359 -->
     <skip_config>
-        <message>samePlatformProduceTheSameBlobCacheEnabled will be removed as functionality should be tested by driver</message>
-        <enable_rules>
-             <operating_system>linux</operating_system>
-        </enable_rules>
+        <message>Command list destroyed in an unnexpected way, according to Driver</message>
         <filters>
-            <filter>.*samePlatformProduceTheSameBlobCacheEnabled.*</filter>
+            <filter>.*ZeroGraphTest.DontDestroyZeroGraph.*</filter>
+            <filter>.*ZeroWrappersTests.DontDestroyZeroCommand.*</filter>
+            <filter>.*ZeroWrappersTests.DontDestroyZeroFence.*</filter>
+            <filter>.*ZeroWrappersTests.DontDestroyZeroEvent.*</filter>
         </filters>
     </skip_config>
 
