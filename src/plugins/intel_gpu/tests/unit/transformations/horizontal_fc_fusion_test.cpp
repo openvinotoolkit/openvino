@@ -36,6 +36,55 @@ namespace ov {
 namespace test {
 namespace intel_gpu {
 
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_different_output_ports_no_fusion) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+    auto lengths = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis, lengths);
+    ov::OutputVector outputs;
+    for (size_t expert = 0; expert < 3; ++expert) {
+        auto weights = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{8, 256}, {1});
+        auto scales = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{8, 2}, {0.125f});
+        auto bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        outputs.push_back(std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(split->output(expert), weights, bias, scales));
+    }
+    model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input, lengths});
+    model_ref = model->clone();
+    manager.register_pass<FullyConnectedHorizontalFusion>();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_same_nonzero_output_port) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+    auto lengths = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis, lengths);
+    auto pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, -1});
+    ov::OutputVector outputs;
+    for (size_t width : {8, 16, 24}) {
+        auto weights = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{width, 256}, {1});
+        auto scales = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{width, 2}, {0.125f});
+        auto bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(split->output(1), weights, bias, scales);
+        outputs.push_back(std::make_shared<ov::op::v1::Reshape>(fc, pattern, true));
+    }
+    model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input, lengths});
+    auto weights = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{48, 256}, {1});
+    auto scales = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{48, 2}, {0.125f});
+    auto bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(split->output(1), weights, bias, scales);
+    auto output_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto output_lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {8, 16, 24});
+    auto output_split = std::make_shared<ov::op::v1::VariadicSplit>(fused, output_axis, output_lengths);
+    ov::OutputVector reference_outputs;
+    for (const auto& output : output_split->outputs()) {
+        reference_outputs.push_back(std::make_shared<ov::op::v1::Reshape>(output, pattern, true));
+    }
+    model_ref = std::make_shared<ov::Model>(reference_outputs, ov::ParameterVector{input, lengths})->clone();
+    manager.register_pass<FullyConnectedHorizontalFusion>();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
 TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_no_bias_no_zp) {
     std::vector<int64_t> pattern = {7, -1};
     {

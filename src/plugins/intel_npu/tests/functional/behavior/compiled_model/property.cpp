@@ -867,97 +867,6 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
                  ov::Exception);  // Expect to throw due to unsupported property
 }
 
-using CheckCpuPinning = ClassExecutableNetworkGetPropertiesTestNPU;
-
-TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
-    std::string logs;
-    std::mutex logs_mutex;
-    ov::Core core;
-    ov::CompiledModel compiled_model;
-
-    ov::test::utils::LoggerLevelGuard logGuard(ov::log::Level::WARNING);
-    core.set_property(deviceName, ov::log::level(ov::log::Level::WARNING));
-
-    // Keep this std::function alive while logging is active.
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    {
-        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
-        OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::enable_cpu_pinning(true)));
-        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
-    }
-
-    bool enable_cpu_pinning = false;
-    OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
-    ASSERT_TRUE(enable_cpu_pinning);
-
-    std::vector<ov::PropertyName> core_supported_properties;
-    OV_ASSERT_NO_THROW(core_supported_properties = core.get_property(deviceName, ov::supported_properties));
-    ASSERT_EQ(std::find(core_supported_properties.cbegin(),
-                        core_supported_properties.cend(),
-                        ov::hint::enable_cpu_pinning.name()),
-              core_supported_properties.cend());
-
-    std::vector<ov::PropertyName> compiled_supported_properties;
-    OV_ASSERT_NO_THROW(compiled_supported_properties = compiled_model.get_property(ov::supported_properties));
-    ASSERT_EQ(std::find(compiled_supported_properties.cbegin(),
-                        compiled_supported_properties.cend(),
-                        ov::hint::enable_cpu_pinning.name()),
-              compiled_supported_properties.cend());
-
-    ASSERT_NE(logs.find("The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin."),
-              std::string::npos);
-}
-
-TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
-    std::string logs;
-    std::mutex logs_mutex;
-    ov::Core core;
-    ov::CompiledModel compiled_model;
-
-    ov::test::utils::LoggerLevelGuard logGuard(ov::log::Level::WARNING);
-
-    // Keep this std::function alive while logging is active.
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    {
-        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
-        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(
-                               model,
-                               deviceName,
-                               {ov::hint::enable_cpu_pinning(true), ov::log::level(ov::log::Level::WARNING)}));
-    }
-
-    bool enable_cpu_pinning = false;
-    OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
-    ASSERT_TRUE(enable_cpu_pinning);
-
-    std::vector<ov::PropertyName> core_supported_properties;
-    OV_ASSERT_NO_THROW(core_supported_properties = core.get_property(deviceName, ov::supported_properties));
-    ASSERT_EQ(std::find(core_supported_properties.cbegin(),
-                        core_supported_properties.cend(),
-                        ov::hint::enable_cpu_pinning.name()),
-              core_supported_properties.cend());
-
-    std::vector<ov::PropertyName> compiled_supported_properties;
-    OV_ASSERT_NO_THROW(compiled_supported_properties = compiled_model.get_property(ov::supported_properties));
-    ASSERT_EQ(std::find(compiled_supported_properties.cbegin(),
-                        compiled_supported_properties.cend(),
-                        ov::hint::enable_cpu_pinning.name()),
-              compiled_supported_properties.cend());
-
-    ASSERT_NE(logs.find("The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin."),
-              std::string::npos);
-}
-
 using CheckSecureCompilationFlag = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckSecureCompilationFlag, EncryptionCallbacksForOlderDriverThrows) {
@@ -979,6 +888,39 @@ TEST_P(CheckSecureCompilationFlag, EncryptionCallbacksForOlderDriverThrows) {
         core.set_property(deviceName, configuration);
         OV_ASSERT_NO_THROW(core.compile_model(model, deviceName, {}));
     }
+}
+
+using CheckWriteOnlyPropertiesAreEmpty = ClassExecutableNetworkGetPropertiesTestNPU;
+
+// Write-only properties cannot be handed back to the user (e.g. the Python bindings have no Any -> object conversion
+// for ov::EncryptionCallbacks), so reading them must succeed and return an empty ov::Any.
+TEST_P(CheckWriteOnlyPropertiesAreEmpty, AllSupportedWriteOnlyPropertiesReturnEmptyAny) {
+    // Encryption callbacks require L0 graph ext version >= 1.17
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 17);
+
+    // Write-only properties are only reported by the compiled model if they were provided through the configuration
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = ie.compile_model(model, deviceName, {{configKey, configValue}}));
+
+    std::vector<ov::PropertyName> supported_properties;
+    OV_ASSERT_NO_THROW(supported_properties = compiled_model.get_property(ov::supported_properties));
+
+    size_t write_only_count = 0;
+    for (const auto& property : supported_properties) {
+        if (property.get_mutability() != ov::PropertyMutability::WO) {
+            continue;
+        }
+        ++write_only_count;
+
+        ov::Any value;
+        OV_ASSERT_NO_THROW(value = compiled_model.get_property(property));
+        EXPECT_TRUE(value.empty()) << "Write-only property " << property << " must return an empty ov::Any";
+    }
+
+    // The property provided through the configuration must have been reported as write-only
+    ASSERT_GT(write_only_count, 0u);
+    ASSERT_NE(std::find(supported_properties.cbegin(), supported_properties.cend(), configKey),
+              supported_properties.cend());
 }
 
 }  // namespace
@@ -1134,12 +1076,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
                                             ::testing::ValuesIn(valid_device_ids)),
                          CheckCompilerPropertyWhenImporting::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
-                         CheckCpuPinning,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(valid_device_ids)),
-                         CheckCpuPinning::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerVersion,
                          CheckCompilerVersionProperty,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
@@ -1151,5 +1087,11 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CheckSecureCompilatio
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(exe_network_public_mutable_properties)),
                          CheckSecureCompilationFlag::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckWriteOnlyPropertiesAreEmpty,
+                         CheckWriteOnlyPropertiesAreEmpty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(exe_network_public_mutable_properties)),
+                         CheckWriteOnlyPropertiesAreEmpty::getTestCaseName);
 
 }  // namespace

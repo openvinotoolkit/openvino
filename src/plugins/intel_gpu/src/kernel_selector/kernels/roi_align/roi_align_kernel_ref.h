@@ -13,7 +13,7 @@ struct roi_align_params : public base_params {
     roi_align_params() : base_params{KernelType::ROI_ALIGN} {}
 
     int sampling_ratio = 0;
-    float spatial_scale = 1.f;
+    float spatial_scale = 1.F;
     PoolType pooling_mode = PoolType::MAX;
     roi_aligned_mode aligned_mode = roi_aligned_mode::ASYMMETRIC;
     bool rotated_mode = false;
@@ -36,7 +36,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
 
 protected:
     JitConstants GetJitConstants(const roi_align_params& params) const;

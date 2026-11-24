@@ -12,6 +12,7 @@
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -672,6 +673,89 @@ TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedSelectiveSSMIndependent
     EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_ssm->get_input_node_shared_ptr(5)));
     EXPECT_EQ(selective_ssm_state_table->get_element_type(), ov::element::f16);
     EXPECT_EQ(paged_ssm->get_output_element_type(0), element::f32);
+}
+
+// PagedSparseAttention caches get the same precision and padded shapes as PagedAttentionExtension, and the op
+// stays valid with the padded shapes.
+TEST(ConvertPagedAttnInputsSparseTest, PagedSparseAttentionQuantizedCaches) {
+    constexpr size_t num_heads = 4;
+    constexpr size_t num_kv_heads = 2;
+    constexpr size_t key_head_size = 32;
+    constexpr size_t value_head_size = 16;
+    constexpr size_t key_block_size = 32;
+    constexpr size_t value_block_size = 32;
+
+    auto query = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, num_heads * key_head_size});
+    auto key = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, num_kv_heads * key_head_size});
+    auto value = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, num_kv_heads * value_head_size});
+    auto key_cache = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic(4));
+    auto value_cache = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic(4));
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto selected_block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, 1, 8});
+    auto selected_block_count = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, 1});
+    auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, 0.5f);
+    auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
+    auto psa = std::make_shared<op::internal::PagedSparseAttention>(OutputVector{query,
+                                                                                 key,
+                                                                                 value,
+                                                                                 key_cache,
+                                                                                 value_cache,
+                                                                                 past_lens,
+                                                                                 subsequence_begins,
+                                                                                 block_indices,
+                                                                                 block_indices_begins,
+                                                                                 selected_block_indices,
+                                                                                 selected_block_count,
+                                                                                 scale,
+                                                                                 sinks},
+                                                                    4);
+    psa->get_rt_info()["num_k_heads"] = num_kv_heads;
+    psa->get_rt_info()["k_head_size"] = key_head_size;
+    psa->get_rt_info()["num_v_heads"] = num_kv_heads;
+    psa->get_rt_info()["v_head_size"] = value_head_size;
+    auto model = std::make_shared<ov::Model>(OutputVector{psa},
+                                             ParameterVector{query,
+                                                             key,
+                                                             value,
+                                                             key_cache,
+                                                             value_cache,
+                                                             past_lens,
+                                                             subsequence_begins,
+                                                             block_indices,
+                                                             block_indices_begins,
+                                                             selected_block_indices,
+                                                             selected_block_count});
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = element::f32;
+    cacheConfig.keyCachePrecision = element::u8;
+    cacheConfig.valueCachePrecision = element::u8;
+    cacheConfig.keyCacheBlockSize = key_block_size;
+    cacheConfig.valueCacheBlockSize = value_block_size;
+    // u8 by-token: scale and zero point are appended to the head size.
+    auto update_shape = [](const ov::element::Type& precision, const bool, const size_t, int64_t& head_size, int64_t&) {
+        if (precision == ov::element::u8) {
+            head_size += 2 * sizeof(float);
+        }
+    };
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_shape);
+    manager.run_passes(model);
+
+    EXPECT_EQ(key_cache->get_element_type(), element::u8);
+    EXPECT_EQ(value_cache->get_element_type(), element::u8);
+    EXPECT_EQ(key_cache->get_partial_shape(),
+              (PartialShape{-1, num_kv_heads, key_block_size, key_head_size + 2 * sizeof(float)}));
+    EXPECT_EQ(value_cache->get_partial_shape(),
+              (PartialShape{-1, num_kv_heads, value_block_size, value_head_size + 2 * sizeof(float)}));
+
+    // The padded caches must still validate against the unpadded key/value widths.
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(psa->get_output_partial_shape(0), (PartialShape{-1, num_heads * value_head_size}));
 }
 
 }  // namespace

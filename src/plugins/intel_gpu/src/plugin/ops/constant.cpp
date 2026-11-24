@@ -23,6 +23,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/loop.hpp"
@@ -160,25 +161,26 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
                           << weight_sharing::Extension::get_constant_source_id(*op)
                           << ", constant ID: " << weight_sharing::Extension::get_constant_id(*op)
-                          << ", ptr: " << static_cast<void*>(weight_sharing_constant_buffer_view->get_ptr())
+                          << ", ptr: " << weight_sharing_constant_buffer_view->get_ptr()
                           << ", size: " << weight_sharing_constant_buffer_view->size()
                           << ", layout: " << constLayout.to_short_string() << std::endl;
             return;
         }
-        auto partial_upload = try_prepare_partial_upload(p.get_engine(),
-                                 p.get_config(),
-                                 op,
-                                 const_shape,
-                                 out_dtype,
-                                 constFormat,
-                                 constLayout);
-
-
+        auto partial_upload = try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, constFormat, constLayout);
 
         if (partial_upload.enabled) {
             mem = partial_upload.memory;
         } else if (constLayout.bytes_count() > 0) {
-            mem = p.get_engine().allocate_memory(constLayout, false);
+            // Allocating in usm_device right away avoids holding a host copy of every constant until
+            // program::transfer_memory_to_device() runs at the end of the build. Integrated GPUs keep the host
+            // allocation: there the per-constant uploads and the host reads cost more compile time than they save.
+            auto& engine = p.get_engine();
+            const bool is_image = constLayout.format.is_image_2d();
+            const bool is_dgpu = engine.get_device_info().dev_type == cldnn::device_type::discrete_gpu;
+            const auto alloc_type = engine.keeps_constants_in_device_memory() && is_dgpu && !is_image
+                                        ? cldnn::allocation_type::usm_device
+                                        : engine.get_lockable_preferred_memory_allocation_type(is_image);
+            mem = engine.allocate_memory(constLayout, alloc_type, false);
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
@@ -192,8 +194,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
         if (!partial_upload.enabled) {
             auto& stream = p.get_engine().get_service_stream();
-            cldnn::mem_lock<char> lock{mem, stream};
-            auto* buf = lock.data();
             auto bufSize = constLayout.bytes_count();
             auto upload_count = ov::shape_size(const_shape);
 
@@ -201,10 +201,23 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             // instead. Convert the data in that case, otherwise just copy it.
             const auto src_et = op->get_output_element_type(0);
             const auto dst_et = ov::element::Type(out_dtype);
-            if (src_et == dst_et) {
-                std::memcpy(&buf[0], &data[0], bufSize);
+            if (mem->get_allocation_type() == cldnn::allocation_type::usm_device) {
+                // A lock of usm_device memory would copy it to the host first, so upload with one copy instead
+                if (src_et == dst_et) {
+                    mem->copy_from(stream, data, 0, 0, bufSize, true);
+                } else {
+                    std::vector<char> converted(bufSize);
+                    convert_and_copy(data, src_et, converted.data(), dst_et, upload_count, constLayout);
+                    mem->copy_from(stream, converted.data(), 0, 0, bufSize, true);
+                }
             } else {
-                convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
+                cldnn::mem_lock<char> lock{mem, stream};
+                auto* buf = lock.data();
+                if (src_et == dst_et) {
+                    std::memcpy(&buf[0], &data[0], bufSize);
+                } else {
+                    convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
+                }
             }
         }
         ov::wsh::Extension::hint_evict(*op);
@@ -295,10 +308,13 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         } else if (((is_binary_eltwise(outOp) || ov::is_type<ov::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
                    is_convert_into_binary_eltwise(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) || ov::is_type<ov::op::v8::Gather>(outOp) ||
-                   ov::is_type<ov::op::v5::GatherND>(outOp) || ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v1::Split>(outOp) ||
-                   ov::is_type<ov::op::v1::VariadicSplit>(outOp) || ov::is_type<ov::op::util::ScatterBase>(outOp) ||
-                   ov::is_type<ov::op::util::ScatterElementsUpdateBase>(outOp) || ov::is_type<ov::op::util::ScatterNDBase>(outOp)) {
+        } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) ||
+                   ov::is_type<ov::op::v8::Gather>(outOp) || ov::is_type<ov::op::v5::GatherND>(outOp) ||
+                   ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v6::GatherElements>(outOp) ||
+                   ov::is_type<ov::op::v1::Split>(outOp) || ov::is_type<ov::op::v1::VariadicSplit>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterBase>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterElementsUpdateBase>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterNDBase>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy

@@ -77,16 +77,16 @@ bool is_fusion_candidate(const std::shared_ptr<op::FullyConnectedCompressed>& fc
         return ov::as_type_ptr<op::Placeholder>(node);
     };
 
-    const auto& input = fc->get_input_node_shared_ptr(0);
+    const auto input = fc->input_value(0);
     if (!fc->get_input_partial_shape(0).is_dynamic()) {
         return false;
     }
     size_t user_fc_count = 0;
     int32_t nodes_with_bias = 0;
     int32_t nodes_with_zp = 0;
-    for (const auto& u : input->get_users()) {
+    for (const auto& u : input.get_node_shared_ptr()->get_users()) {
         const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
-        if (!fc_user) {
+        if (!fc_user || fc_user->input_value(0) != input) {
             continue;
         }
 
@@ -183,14 +183,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto m_fc = pattern_map.at(target_fc).get_node_shared_ptr();
-        auto input_node = m_fc->get_input_node_shared_ptr(0);
+        const auto input = m_fc->input_value(0);
+        auto input_node = input.get_node_shared_ptr();
         auto* const scheduler = current_scheduler->get();
         // Release the group's weights on every exit, including when the fusion is declined before reading them:
         // otherwise they would occupy the prefetch window for the rest of the pass.
         std::vector<std::shared_ptr<ov::Node>> group_sources;
         if (scheduler) {
             for (const auto& user : input_node->get_users()) {
-                if (const auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(user)) {
+                if (const auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(user); fc && fc->input_value(0) == input) {
                     collect_fc_sources(*fc, group_sources);
                 }
             }
@@ -205,7 +206,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         int32_t bias_rank = -1;
         for (auto user : input_node->get_users()) {
             auto fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(user);
-            if (fc_user) {
+            if (fc_user && fc_user->input_value(0) == input) {
                 OPENVINO_ASSERT(fc_user->inputs().size() >= 4, "Compressed FC should have at least 4 inputs");
                 fc_nodes.push_back(fc_user);
                 fc_nodes_vec.push_back(fc_user);
@@ -254,7 +255,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return false;
             }
             if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
-                transpose_b_zp != fc->get_transpose_b_zp()) {
+                transpose_b_zp != fc->get_transpose_b_zp() || fc->get_weights_layout() == op::FcWeightsLayout::GNK) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
@@ -426,10 +427,10 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
         }
 
-        // Create new fc with merged weights, bias, scale, zp
+        // Create new fc with merged weights, bias, scale, zp. GNK FCs are rejected above, so the default NK / KN layout is correct.
         std::shared_ptr<ov::Node> new_fc;
         if (fused_zps) {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input,
                                                                     fused_weight,
                                                                     fused_bias,
                                                                     fused_scale,
@@ -439,7 +440,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                                                                     fc_nodes[0]->get_transpose_b_scale(),
                                                                     fc_nodes[0]->get_transpose_b_zp());
         } else {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input,
                                                                     fused_weight,
                                                                     fused_bias,
                                                                     fused_scale,

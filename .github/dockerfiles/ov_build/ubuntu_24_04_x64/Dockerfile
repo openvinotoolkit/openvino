@@ -19,35 +19,38 @@ RUN apt-get update && \
     apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
+    add-apt-repository --yes --no-update ppa:kobuk-team/intel-graphics && \
     apt-get update && \
     apt-get install \
-        curl \
-        git \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Pythons
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
-        python3.12-dev \
-        python3.12-venv \
-        python3.13-dev \
-        python3.13-venv \
-        python3-dev \
-        python3-venv \
-        python3-pip \
-        python3-full \
-        python3.14-nogil \
-        python3.14-venv \
-        python3.14-dev \
-        # For Java API
-        default-jdk \
-        # For clang-tidy validation
-        clang-format-18 \
-        clang-tidy-18 \
-        && \
+    libze-dev \
+    libze1 \
+    curl \
+    git \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Pythons
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils \
+    python3.12-dev \
+    python3.12-venv \
+    python3.13-dev \
+    python3.13-venv \
+    python3-dev \
+    python3-venv \
+    python3-pip \
+    python3-full \
+    python3.14-nogil \
+    python3.14-venv \
+    python3.14-dev \
+    # For Java API
+    default-jdk \
+    # For clang-tidy validation
+    clang-format-18 \
+    clang-tidy-18 \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -57,7 +60,7 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sccache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
@@ -85,4 +88,3 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 # Install newer ninja (apt ships 1.10.1 on 22.04 / 1.11.1 on 24.04; pin for consistency)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
-
