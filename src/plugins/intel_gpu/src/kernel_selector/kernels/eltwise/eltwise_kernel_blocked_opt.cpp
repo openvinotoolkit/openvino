@@ -150,9 +150,11 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
         }
         for (const auto& fused_op : ewParams.fused_ops) {
             for (const auto& t : fused_op.tensors) {
-                // Planar fused feature vectors are read with vloadN, so they must be dense and hold whole vectors
-                const bool partial_planar_vector = t.SimpleLayout() && t.Feature().v != 1 && (HasPadding(t) || t.Feature().v % vec_size != 0);
-                if (t.is_dynamic() || t.has_dynamic_pad() || partial_planar_vector) {
+                // Fused feature vectors are read with vloadN: planar ones must be dense whole vectors and blocked ones must stay in one block
+                const bool vector_load = t.Feature().v != 1;
+                const bool partial_planar_vector = t.SimpleLayout() && (HasPadding(t) || t.Feature().v % vec_size != 0);
+                const bool misaligned_vector = t.Feature().pad.before % vec_size != 0;
+                if (t.is_dynamic() || t.has_dynamic_pad() || (vector_load && (partial_planar_vector || misaligned_vector))) {
                     DO_NOT_USE_THIS_KERNEL(params.layerID);
                 }
             }

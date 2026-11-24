@@ -5497,7 +5497,7 @@ kernel_selector::DataTensor make_blocked_opt_fsv16_tensor(size_t channels, size_
 }
 }  // namespace
 
-TEST(eltwise_gpu, blocked_opt_dynamic_rejects_partial_planar_fused_vector) {
+TEST(eltwise_gpu, blocked_opt_dynamic_rejects_unaligned_fused_vector) {
     namespace ks = kernel_selector;
     const auto make_params = [](size_t channels, const ks::DataTensor& fused_tensor) {
         ks::eltwise_params params;
@@ -5531,6 +5531,9 @@ TEST(eltwise_gpu, blocked_opt_dynamic_rejects_partial_planar_fused_vector) {
                                        ks::DataLayout::bfyx,
                                        1);
     ASSERT_FALSE(kernel.Validate(make_params(16, padded_planar)));
+    // A lower feature pad of 4 makes the second vector of a blocked fused tensor cross into the next feature block
+    ASSERT_FALSE(kernel.Validate(make_params(16, make_blocked_opt_fsv16_tensor(16, 4, 0))));
+    ASSERT_TRUE(kernel.Validate(make_params(16, make_blocked_opt_fsv16_tensor(16, 8, 0))));
 }
 
 TEST(eltwise_gpu, blocked_opt_dynamic_rejects_feature_padded_output) {
