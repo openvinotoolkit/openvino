@@ -103,8 +103,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         if (in_layout.is_dynamic()) {
             auto in_shape = in_layout.get<ShapeType>();
             auto r = (in_shape.rank().is_static())? in_shape.size() : 1;
-            return { layout{ShapeType::dynamic(r),
-                    in_layout.data_type, in_layout.format.adjust_to_rank(in_layout.format, r)} };
+            return {layout{ShapeType::dynamic(r), in_layout.data_type, format::adjust_to_rank(in_layout.format, r)}};
         }
 
         const auto& ref_in_sizes = desc->reference_input;

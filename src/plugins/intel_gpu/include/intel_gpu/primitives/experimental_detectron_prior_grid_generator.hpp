@@ -40,8 +40,8 @@ struct experimental_detectron_prior_grid_generator
     bool flatten = false;
     uint64_t h = 0;
     uint64_t w = 0;
-    float stride_x = 0.0f;
-    float stride_y = 0.0f;
+    float stride_x = 0.0F;
+    float stride_y = 0.0F;
     uint64_t featmap_height = 0;
     uint64_t featmap_width = 0;
     uint64_t image_height = 0;

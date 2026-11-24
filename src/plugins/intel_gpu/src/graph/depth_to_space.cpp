@@ -101,9 +101,12 @@ std::string depth_to_space_inst::to_string(depth_to_space_node const& node) {
     json_composite depth_to_space_info;
     depth_to_space_info.add("input id", input.id());
     depth_to_space_info.add("block size", desc->block_size);
-    const char* mode = desc->mode == depth_to_space_mode::blocks_first ? "blocks_first"
-                       : desc->mode == depth_to_space_mode::depth_first ? "depth_first"
-                       : "grouped_depth_first";
+    const char* mode = "grouped_depth_first";
+    if (desc->mode == depth_to_space_mode::blocks_first) {
+        mode = "blocks_first";
+    } else if (desc->mode == depth_to_space_mode::depth_first) {
+        mode = "depth_first";
+    }
     depth_to_space_info.add("mode", mode);
     if (desc->mode == depth_to_space_mode::grouped_depth_first) {
         depth_to_space_info.add("factor_t", desc->factor_t);
