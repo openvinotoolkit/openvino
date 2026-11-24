@@ -119,6 +119,30 @@ private:
                      std::vector<IODescriptor>& outputs) const;
 
     /**
+     * @brief Adds the descriptor of an argument queried through "pfnGetArgumentProperties4" (graph ext 1.20+).
+     * @param name The name of the argument, as already queried for finding its IR metadata.
+     * @param metadata The IR metadata of the argument, from which the rank is taken.
+     */
+    void getMetadataFromProperties4(ze_graph_handle_t graphHandle,
+                                    uint32_t indexUsedByDriver,
+                                    std::string name,
+                                    const ze_graph_argument_metadata_t& metadata,
+                                    std::vector<IODescriptor>& inputs,
+                                    std::vector<IODescriptor>& outputs) const;
+
+    /**
+     * @brief Adds the descriptor of an argument queried through "pfnGetArgumentProperties3", which is limited to 5
+     * dimensions.
+     * @param readTensorNames Whether to read the associated tensor names from the fixed-size array of the structure.
+     * They are left empty otherwise.
+     */
+    void getMetadataFromProperties3(ze_graph_handle_t graphHandle,
+                                    uint32_t indexUsedByDriver,
+                                    bool readTensorNames,
+                                    std::vector<IODescriptor>& inputs,
+                                    std::vector<IODescriptor>& outputs) const;
+
+    /**
      * @brief Queries the whole answer of "pfnGetArgumentNames" (graph ext 1.20+), whatever its content.
      */
     std::vector<char> queryArgumentNames(ze_graph_handle_t graphHandle,

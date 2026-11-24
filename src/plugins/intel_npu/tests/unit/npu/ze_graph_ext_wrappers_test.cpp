@@ -288,7 +288,7 @@ TEST(ZeGraphExtWrappersTest, Properties4RejectsMetadataRankBelowDimensionsReport
 
     OV_EXPECT_THROW_HAS_SUBSTRING(createDescriptor4(arg, metadata),
                                   ov::Exception,
-                                  "metadata shape_size 2 does not match the rank 3");
+                                  "metadata shape_size 2 is below the rank 3 implied by the dimensions");
 }
 
 TEST(ZeGraphExtWrappersTest, Properties4RejectsMetadataRankAboveAbiLimit) {
@@ -312,17 +312,19 @@ TEST(ZeGraphExtWrappersTest, Properties4AcceptsMetadataWithFullAbiRank) {
     EXPECT_EQ(*descriptor.shapeFromIRModel, ov::PartialShape({1, 2, 3, 4, 5, 6, 7, ov::Dimension(1, 8)}));
 }
 
-TEST(ZeGraphExtWrappersTest, Properties4ReportsDynamicStridesSupportWhateverTheRank) {
+TEST(ZeGraphExtWrappersTest, Properties4ReportsDynamicStridesSupportOnlyUpToTheStridesAbiRank) {
     ze_graph_argument_property_strides_t supportsStrides = {};
     supportsStrides.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES;
 
+    // "userStrides" has room for ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE entries, whatever the driver reports
     for (const uint32_t rank : std::initializer_list<uint32_t>{ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE, kMaxRank}) {
         auto arg = makeArgument4(rank);
         arg.pNext = &supportsStrides;
         const auto metadata = makeMetadata4(arg, rank);
+        const bool fitsUserStrides = rank <= ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE;
 
         supportsStrides.supportsDynamicStrides = true;
-        EXPECT_TRUE(createDescriptor4(arg, metadata).supportsStridedLayout) << "rank " << rank;
+        EXPECT_EQ(createDescriptor4(arg, metadata).supportsStridedLayout, fitsUserStrides) << "rank " << rank;
 
         supportsStrides.supportsDynamicStrides = false;
         EXPECT_FALSE(createDescriptor4(arg, metadata).supportsStridedLayout) << "rank " << rank;
