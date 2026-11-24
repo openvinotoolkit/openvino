@@ -473,6 +473,19 @@ TEST_F(moe_les_upload, split_demand_returns_ready_pairs_before_upload_finishes) 
     compute->flush();
 }
 
+TEST_F(moe_les_upload, topk_readback_barrier_preserves_input_dependencies) {
+    auto compute = lane();
+    auto indices = get_test_engine().allocate_memory(
+        layout{data_types::i32, format::bfyx, {1, 1, 1, 4}}, allocation_type::usm_device, false);
+    const std::array<uint32_t, 4> expected{149, 236, 139, 245};
+    const auto producer = indices->copy_from(*compute, expected.data(), false);
+    compute->enqueue_barrier({producer});
+    compute->enqueue_barrier({compute->enqueue_marker({}, true)});
+    std::array<uint32_t, 4> actual{};
+    indices->copy_to(*compute, actual.data(), true);
+    EXPECT_EQ(actual, expected);
+}
+
 TEST_F(moe_les_upload, current_demand_does_not_wait_for_next_prediction) {
     write(std::vector<uint8_t>(128, 11));
     MOECompressed::Config config{};
