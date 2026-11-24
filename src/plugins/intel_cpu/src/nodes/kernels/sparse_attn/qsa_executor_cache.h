@@ -20,8 +20,8 @@ struct QsaExecutorKey {
     bool operator==(const QsaExecutorKey& rhs) const;
 };
 
-/// @brief The score kernels of `config` from the params cache: empty where this CPU, the precision or the head counts
-/// have no brgemm scoring.
+/// @brief The score kernels of `config` from the params cache, for the brgemm scorer of an executor: empty where this
+/// CPU, the precision or the head counts have no brgemm scoring.
 ov::Extensions::Cpu::qsa::ScoreKernels getScoreKernels(const MultiCachePtr& cache,
                                                        const ov::Extensions::Cpu::qsa::Config& config);
 

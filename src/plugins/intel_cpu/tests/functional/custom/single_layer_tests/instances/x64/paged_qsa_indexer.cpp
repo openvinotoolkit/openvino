@@ -22,9 +22,6 @@ InputShape calls(const std::vector<size_t>& new_tokens_per_call) {
     return InputShape{ov::PartialShape{-1}, target_shapes};
 }
 
-const auto f32 = ov::element::f32;
-const auto f16 = ov::element::f16;
-const auto bf16 = ov::element::bf16;
 const auto reference = PagedQSAIndexerScenario::kReference;
 const std::vector<QSAIndexerQueryFusionType> all_fusion_types{QSAIndexerQueryFusionType::kNormAndRope,
                                                               QSAIndexerQueryFusionType::kNormOnly,
@@ -99,41 +96,66 @@ std::vector<PagedQSAIndexerLayerTestParams> combine(size_t h_iq,
 }  // namespace
 
 // H_iq == H_ik, h_sel == 1: every index-query head contributes to the single selection head.
-INSTANTIATE_TEST_SUITE_P(
-    smoke_PagedQSAIndexer_CPU_Hsel1,
-    PagedQSAIndexerLayerCPUTest,
-    testing::ValuesIn(combine(2, 2, 1, {calls({7})}, {f32, f16, bf16}, all_fusion_types, {reference})),
-    PagedQSAIndexerLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Hsel1,
+                         PagedQSAIndexerLayerCPUTest,
+                         testing::ValuesIn(combine(2,
+                                                   2,
+                                                   1,
+                                                   {calls({7})},
+                                                   {ov::element::f32, ov::element::f16, ov::element::bf16},
+                                                   all_fusion_types,
+                                                   {reference})),
+                         PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // H_iq = 2 * H_ik, h_sel == H_ik: exercises the grouped per-selection-head scoring path.
-INSTANTIATE_TEST_SUITE_P(
-    smoke_PagedQSAIndexer_CPU_HselEqualsHik,
-    PagedQSAIndexerLayerCPUTest,
-    testing::ValuesIn(combine(4, 2, 2, {calls({7})}, {f32, f16, bf16}, all_fusion_types, {reference})),
-    PagedQSAIndexerLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_HselEqualsHik,
+                         PagedQSAIndexerLayerCPUTest,
+                         testing::ValuesIn(combine(4,
+                                                   2,
+                                                   2,
+                                                   {calls({7})},
+                                                   {ov::element::f32, ov::element::f16, ov::element::bf16},
+                                                   all_fusion_types,
+                                                   {reference})),
+                         PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // A decode step (1 token) and a 20-token chunk (more blocks than block_topk), with one and two sequences.
-INSTANTIATE_TEST_SUITE_P(
-    smoke_PagedQSAIndexer_CPU_Lengths,
-    PagedQSAIndexerLayerCPUTest,
-    testing::ValuesIn(combine(4, 2, 2, {calls({1}), calls({20})}, {f32, bf16}, all_fusion_types, {reference})),
-    PagedQSAIndexerLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Lengths,
+                         PagedQSAIndexerLayerCPUTest,
+                         testing::ValuesIn(combine(4,
+                                                   2,
+                                                   2,
+                                                   {calls({1}), calls({20})},
+                                                   {ov::element::f32, ov::element::bf16},
+                                                   all_fusion_types,
+                                                   {reference})),
+                         PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
-// Long sequences over many pages: the 32-block scoring runs over two pages; 16-bit caches flip a few near-tied
-// selections, so compare() allows a small mismatch share.
-INSTANTIATE_TEST_SUITE_P(
-    smoke_PagedQSAIndexer_CPU_LongSequences,
-    PagedQSAIndexerLayerCPUTest,
-    testing::ValuesIn(combine(4, 2, 2, {calls({1}), calls({300})}, {f32, bf16}, all_fusion_types, {reference})),
-    PagedQSAIndexerLayerCPUTest::getTestCaseName);
+// Long sequences over many pages: the 32-block scoring chunks span four 8-slot pages; 16-bit caches flip a few
+// near-tied selections, so compare() allows a small mismatch share.
+INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_LongSequences,
+                         PagedQSAIndexerLayerCPUTest,
+                         testing::ValuesIn(combine(4,
+                                                   2,
+                                                   2,
+                                                   {calls({1}), calls({300})},
+                                                   {ov::element::f32, ov::element::bf16},
+                                                   all_fusion_types,
+                                                   {reference})),
+                         PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
-// Several calls over the same caches: a prefill, decode steps, then a chunk; the 16-bit types check that the bound
+// Several calls over the same caches: a prefill, decode steps, then a chunk; every call checks that the bound
 // caches are updated, not a copy.
-INSTANTIATE_TEST_SUITE_P(
-    smoke_PagedQSAIndexer_CPU_MultiCall,
-    PagedQSAIndexerLayerCPUTest,
-    testing::ValuesIn(combine(4, 2, 2, {calls({7, 1, 1, 1, 5, 1})}, {f32, f16, bf16}, all_fusion_types, {reference})),
-    PagedQSAIndexerLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_MultiCall,
+                         PagedQSAIndexerLayerCPUTest,
+                         testing::ValuesIn(combine(4,
+                                                   2,
+                                                   2,
+                                                   {calls({7, 1, 1, 1, 5, 1})},
+                                                   {ov::element::f32, ov::element::f16, ov::element::bf16},
+                                                   all_fusion_types,
+                                                   {reference})),
+                         PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // Degenerate scores (NaN keys, overflow to Inf / NaN, tiny differences) over 40 blocks: no reference, the selection
 // invariants are checked.
@@ -146,7 +168,7 @@ std::vector<PagedQSAIndexerLayerTestParams> degenerate_cases() {
                                    2,
                                    h_sel,
                                    {calls({160})},
-                                   {f32, f16, bf16},
+                                   {ov::element::f32, ov::element::f16, ov::element::bf16},
                                    {QSAIndexerQueryFusionType::kNormAndRope},
                                    {PagedQSAIndexerScenario::kNaNScores},
                                    {2, 4})) {
@@ -156,7 +178,7 @@ std::vector<PagedQSAIndexerLayerTestParams> degenerate_cases() {
                                    2,
                                    h_sel,
                                    {calls({160})},
-                                   {f32, bf16},
+                                   {ov::element::f32, ov::element::bf16},
                                    {QSAIndexerQueryFusionType::kNormAndRope},
                                    {PagedQSAIndexerScenario::kOverflowScores, PagedQSAIndexerScenario::kTinyScores},
                                    {2, 4})) {
@@ -188,8 +210,8 @@ std::vector<PagedQSAIndexerLayerTestParams> inference_precision_cases() {
                                       calls_of_test,
                                       QSAIndexerQueryFusionType::kNormAndRope,
                                       reference,
-                                      f32,
-                                      bf16));
+                                      ov::element::f32,
+                                      ov::element::bf16));
         }
     }
     return cases;

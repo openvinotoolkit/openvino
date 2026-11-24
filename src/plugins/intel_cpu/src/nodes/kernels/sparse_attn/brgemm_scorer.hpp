@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
@@ -39,6 +40,7 @@
 #    include <functional>
 #    include <utility>
 
+#    include "nodes/kernels/sparse_attn/qsa_executor_cache.h"
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/parallel.hpp"
@@ -55,7 +57,6 @@ using ov::Extensions::Cpu::qsa::kScoreBlockRows;
 using ov::Extensions::Cpu::qsa::kScoreMaxCols;
 using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
 using ov::Extensions::Cpu::qsa::score_tokens_per_call;
-using ov::Extensions::Cpu::qsa::ScoreKernels;
 using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
@@ -361,9 +362,10 @@ class BrgemmScorer {
 public:
     using Args = typename Source::Args;
 
-    // The scorer of `config` on the kernels the node built, nullptr if it built none: the CPU, the precision or the
-    // head counts of the configuration have no brgemm scoring (see getScoreKernels() in nodes/qsa_executor_cache.cpp).
-    static std::unique_ptr<BrgemmScorer> create(const Config& config, const ScoreKernels& kernels) {
+    // The scorer of `config` on the brgemm kernels of `cache`, nullptr if there are none: the CPU, the precision or the
+    // head counts of the configuration have no brgemm scoring (see getScoreKernels() in qsa_executor_cache.cpp).
+    static std::unique_ptr<BrgemmScorer> create(const Config& config, const ov::intel_cpu::MultiCachePtr& cache) {
+        const auto kernels = ov::intel_cpu::node::getScoreKernels(cache, config);
         if (!kernels.q_k || !kernels.k_q) {
             return nullptr;
         }
@@ -400,7 +402,7 @@ public:
 
 private:
     // What a call adds to the configuration: the sizes that follow from its lengths. A handful of numbers computed per
-    // call by plan(), the scratch (of `shared_bytes` and `thread_bytes` per worker thread) is the caller's.
+    // call by make_plan(), the scratch (of `shared_bytes` and `thread_bytes` per worker thread) is the caller's.
     struct Plan {
         size_t batch = 0;
         int64_t max_q_len = 0;        // the most tokens of a batch entry / sequence in the call
@@ -565,7 +567,7 @@ private:
         int64_t blocks;      // complete blocks visible to its last token
         BrgemmKernel* kernel;
         uint8_t* query;        // its query tile, [K head][query_rows][D]
-        bool is_single_token;  // one token (decode): the k.q kernel, the blocks are the A matrix (see get_score_kernel)
+        bool is_single_token;  // one token (decode): the k.q kernel, the blocks are the A matrix (see getScoreKernel)
     };
 
     [[nodiscard]] float* tile_scores(const Context& ctx, size_t tile, size_t b) const {
@@ -911,14 +913,15 @@ private:
 
 #else  // HAVE_AVX512F
 
-// A build without AVX-512 has no scorer, whatever the CPU runs: the executors check the runtime CPU only, and fall back
-// to the scoring of their stages on nullptr.
+// A variant without AVX-512 has no scorer, whatever the CPU runs (a build without AVX-512 included): create() builds
+// no kernels and the executors fall back to the scoring of their stages on nullptr.
 template <typename Source>
 class BrgemmScorer {
 public:
     using Args = typename Source::Args;
 
-    static std::unique_ptr<BrgemmScorer> create(const Config& /*config*/, const ScoreKernels& /*kernels*/) {
+    static std::unique_ptr<BrgemmScorer> create(const Config& /*config*/,
+                                                const ov::intel_cpu::MultiCachePtr& /*cache*/) {
         return nullptr;
     }
     // Never called: there is no scorer to call it on.

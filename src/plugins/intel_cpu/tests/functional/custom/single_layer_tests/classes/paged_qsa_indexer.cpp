@@ -383,7 +383,7 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
     auto p_block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{n_phys});
     auto p_block_indices_begins =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_num_sequences + 1});
-    // The caches are typed by ConvertPagedAttnInputs (the inference precision) and their number of pages and page size
+    // The caches are typed by ConvertPagedAttnInputs (the indexer data type) and their number of pages and page size
     // are dynamic, as in a real pipeline (the page size is known when the model runs).
     const auto cache_dim = static_cast<ov::Dimension::value_type>(-1);
     auto p_raw_k_cache = std::make_shared<ov::op::v0::Parameter>(
@@ -485,8 +485,8 @@ void PagedQSAIndexerLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
                                                        ov::Shape{m_num_sequences * L, h * m_indexer_head_dim},
                                                        ov::test::utils::InputGenerateData(-1, 2, 10000, seed));
     };
-    // The caches are bound to the precision the compiled model settled on for them (the inference precision), which
-    // can differ from the data precision.
+    // The caches are bound to the precision the compiled model gave them: the data precision, whatever the inference
+    // precision hint is.
     const auto make_zeros = [this](size_t input_idx, const ov::Shape& shape) {
         ov::Tensor t(compiledModel.input(input_idx).get_element_type(), shape);
         std::memset(t.data(), 0, t.get_byte_size());
@@ -512,8 +512,8 @@ void PagedQSAIndexerLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
     tensors[InputIdx::INDEX_QUERY] = make_seq_data(m_h_iq, 1 + call_seed);
     tensors[InputIdx::RAW_INDEX_KEYS] = make_seq_data(m_h_ik, 2 + call_seed);
     if (m_scenario == PagedQSAIndexerScenario::kNaNScores) {
-        // one NaN in the keys of a few tokens of every sequence: the summaries of their blocks (blocks 1, 2 and 8) are
-        // NaN, and so are their scores
+        // one NaN in the keys of a few tokens of every sequence: the summaries of their blocks (blocks 1, 2 and 8 of
+        // the first sequence) are NaN, and so are their scores
         auto k_values = read_tensor_to_f32(tensors[InputIdx::RAW_INDEX_KEYS]);
         for (size_t s = 0; s < m_num_sequences; s++) {
             for (const size_t token : {6UL, 9UL, 34UL}) {

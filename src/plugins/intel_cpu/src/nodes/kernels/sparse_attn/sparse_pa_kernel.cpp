@@ -9,10 +9,10 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
-#include <numeric>
 #include <type_traits>
 #include <utility>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
@@ -191,13 +191,30 @@ struct WorkList {
     size_t kv_chunks = 1;           ///< slices of the selected blocks of a SIMD item (a decode of few items is split)
 };
 
+// The most bytes of dequantized pages a call may take from the scratch: the scratch only grows, so its peak stays
+// allocated. A call above it dequantizes row by row.
+constexpr size_t kMaxDequantizedBytes = size_t{256} << 20;
+
+// The pages of a compressed cache that a call dequantizes.
+struct DequantizedPlan {
+    size_t entries = 0;  ///< block_indices entries the page table covers, 0: no dequantized pages (per-row path)
+    size_t pages = 0;    ///< pages dequantized: those of the prefill sequences only
+    size_t bytes = 0;    ///< of the key and value rows of those pages
+};
+
+// The bytes of the key and value rows of `pages` pages.
+size_t dequantized_page_bytes(size_t pages, const SparsePATensors& t, const SparsePAConfig& cfg) {
+    const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
+    return pages * cfg.num_kv_heads * page_size * (cfg.k_head_size + cfg.v_head_size) * cfg.data_precision.size();
+}
+
 // A compressed cache is dequantized once per call for prefill sequences when their tokens gather at least as many rows
-// as their pages hold, so a row many tokens select is not dequantized per token. Returns the block_indices entries
-// covered (0: per-row path).
-size_t dequantized_cache_pages(const SparsePATensors& t, const SparsePAConfig& cfg) {
+// as their pages hold, so a row many tokens select is not dequantized per token. The decode sequences keep to the
+// per-row path and take no pages.
+DequantizedPlan plan_dequantized_pages(const SparsePATensors& t, const SparsePAConfig& cfg) {
     if (!cfg.brgemm.handle().enabled() || !cfg.causal || !is_quantized_cache(cfg.key_spec) ||
         t.query.get_precision() != cfg.brgemm.handle().prec) {
-        return 0;
+        return {};
     }
     const auto* begins = t.subsequence_begins.ptr<int32_t>();
     const auto* blocks = t.block_indices_begins.ptr<int32_t>();
@@ -212,24 +229,27 @@ size_t dequantized_cache_pages(const SparsePATensors& t, const SparsePAConfig& c
         }
     }
     const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
-    return pages > 0 && tokens * t.sel_indices.size(2) * cfg.key_block_size >= pages * page_size
-               ? static_cast<size_t>(blocks[sequences])
-               : 0;
+    const size_t bytes = dequantized_page_bytes(pages, t, cfg);
+    if (pages == 0 || tokens * t.sel_indices.size(2) * cfg.key_block_size < pages * page_size ||
+        bytes > kMaxDequantizedBytes) {
+        return {};
+    }
+    return {static_cast<size_t>(blocks[sequences]), pages, bytes};
 }
 
-// Where the dequantized pages of `entries` block_indices entries lie in their region of the scratch: the identity page
-// table, then the key rows and the value rows ([entries, Hkv, page_size, head size] each).
+// Where the dequantized pages lie in their region of the scratch: the page table (one entry per block_indices entry),
+// then the key rows and the value rows of the pages ([pages, Hkv, page_size, head size] each).
 struct DequantizedLayout {
     size_t table = 0;  ///< byte offsets in the region
     size_t key = 0;
     size_t value = 0;
     size_t bytes = 0;
 
-    DequantizedLayout(size_t entries, const SparsePATensors& t, const SparsePAConfig& cfg) {
+    DequantizedLayout(const DequantizedPlan& plan, const SparsePATensors& t, const SparsePAConfig& cfg) {
         const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
-        const size_t page_rows = entries * cfg.num_kv_heads * page_size;
+        const size_t page_rows = plan.pages * cfg.num_kv_heads * page_size;
         ScratchPartition region;
-        table = region.reserve(entries * sizeof(int32_t));
+        table = region.reserve(plan.entries * sizeof(int32_t));
         key = region.reserve(page_rows * cfg.k_head_size * cfg.data_precision.size());
         value = region.reserve(page_rows * cfg.v_head_size * cfg.data_precision.size());
         bytes = region.bytes();
@@ -244,15 +264,15 @@ struct SparsePAScratch {
     size_t token_ids = 0;  ///< int32[tokens]
     size_t partials =
         0;  ///< float[num_threads, max_pack * (v_head_size + 2)]: the partial softmax states of a split decode
-    size_t dequantized = 0;          ///< the pages of DequantizedLayout
-    size_t dequantized_entries = 0;  ///< block_indices entries they cover, 0: none
+    size_t dequantized = 0;  ///< the pages of DequantizedLayout
+    DequantizedPlan dequantized_plan;
     DequantizedLayout dequantized_layout;
     size_t total = 0;
 
     SparsePAScratch(const SparsePAConfig& cfg, const SparsePATensors& t, size_t num_threads, size_t block_bytes)
         : thread_bytes(block_bytes),
-          dequantized_entries(dequantized_cache_pages(t, cfg)),
-          dequantized_layout(dequantized_entries, t, cfg) {
+          dequantized_plan(plan_dequantized_pages(t, cfg)),
+          dequantized_layout(dequantized_plan, t, cfg) {
         const size_t max_pack = max_q_head_pack_size(cfg.num_heads, cfg.num_kv_heads, cfg.num_selection_heads);
         ScratchPartition scratch;
         threads = scratch.reserve(num_threads * thread_bytes);
@@ -331,14 +351,15 @@ struct PagedRowSource {
 // The pages of the compressed caches that a call dequantized: views of the scratch pad memory, which they share the
 // ownership of.
 struct DequantizedPages {
-    PlainTensor key;  // [entries, Hkv, page_size, k_head_size] in the data type, page i = the page of block_indices[i]
-    PlainTensor value;  // [entries, Hkv, page_size, v_head_size]
-    PlainTensor table;  // [entries] identity page table: the pages are packed in block_indices order, so the page of
-                        // entry i is i (the physical block ids of block_indices index the compressed cache, not these)
+    PlainTensor key;    // [pages, Hkv, page_size, k_head_size] in the data type
+    PlainTensor value;  // [pages, Hkv, page_size, v_head_size]
+    PlainTensor table;  // [entries] page table: the page of entry i of block_indices (the physical block ids of
+                        // block_indices index the compressed cache, not these pages)
 };
 
 // Dequantizes the pages of prefill sequences into their region of the scratch (see SparsePAScratch) and sets the views
-// of them in `pages`.
+// of them in `pages`. The pages are packed in block_indices order; the table maps an entry of block_indices to its
+// page (-1: an entry of a sequence that does not use the pages).
 template <typename T>
 void build_dequantized_pages(const SparsePAConfig& cfg,
                              const SparsePATensors& t,
@@ -347,44 +368,46 @@ void build_dequantized_pages(const SparsePAConfig& cfg,
                              DequantizedPages& pages,
                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const auto& region = parts.dequantized_layout;
-    const size_t entries = parts.dequantized_entries;
+    const size_t entries = parts.dequantized_plan.entries;
+    const size_t page_count = parts.dequantized_plan.pages;
     const size_t k_head_num = t.key_cache.size(1);
     const size_t page_size = cfg.page_size ? cfg.page_size : t.key_cache.size(2);
     pages.table.resize_view<int32_t>({entries}, scratch_memory, parts.dequantized + region.table);
-    pages.key.resize_view<T>({entries, k_head_num, page_size, cfg.k_head_size},
+    pages.key.resize_view<T>({page_count, k_head_num, page_size, cfg.k_head_size},
                              scratch_memory,
                              parts.dequantized + region.key);
-    pages.value.resize_view<T>({entries, k_head_num, page_size, cfg.v_head_size},
+    pages.value.resize_view<T>({page_count, k_head_num, page_size, cfg.v_head_size},
                                scratch_memory,
                                parts.dequantized + region.value);
     auto* table = pages.table.ptr<int32_t>();
-    std::iota(table, table + entries, 0);
+    std::fill_n(table, entries, -1);
     const auto* begins = t.subsequence_begins.ptr<int32_t>();
     const auto* blocks = t.block_indices_begins.ptr<int32_t>();
     const size_t sequences = t.subsequence_begins.size(0) - 1;
-    cpu_parallel->parallel_for2d(entries, k_head_num, [&](size_t entry, size_t hk) {
-        const int32_t phys_block = t.block_indices.ptr<int32_t>()[entry];
-        const auto seq = static_cast<size_t>(
-            std::upper_bound(blocks, blocks + sequences + 1, static_cast<int32_t>(entry)) - blocks - 1);
-        if (phys_block < 0 || seq >= sequences || begins[seq + 1] - begins[seq] <= 1) {
-            return;  // an unused page, or one of a sequence that does not use the dequantized pages
+    int32_t next_page = 0;
+    for (size_t seq = 0; seq < sequences; seq++) {
+        if (begins[seq + 1] - begins[seq] > 1) {
+            for (int32_t entry = blocks[seq]; entry < blocks[seq + 1]; entry++) {
+                table[entry] = next_page++;
+            }
         }
-        dequant_k_rows<T>(cfg,
-                          t.key_cache,
-                          static_cast<size_t>(phys_block),
-                          hk,
-                          0,
-                          page_size,
-                          cfg.k_head_size,
-                          pages.key.ptr<T>(entry, hk));
+    }
+    OPENVINO_ASSERT(static_cast<size_t>(next_page) == page_count, "[CPU] sparse_pa: dequantized page count mismatch");
+    cpu_parallel->parallel_for2d(entries, k_head_num, [&](size_t entry, size_t hk) {
+        if (table[entry] < 0) {
+            return;  // an entry of a sequence that does not use the dequantized pages
+        }
+        const auto page = static_cast<size_t>(table[entry]);
+        const auto phys_block = static_cast<size_t>(t.block_indices.ptr<int32_t>()[entry]);
+        dequant_k_rows<T>(cfg, t.key_cache, phys_block, hk, 0, page_size, cfg.k_head_size, pages.key.ptr<T>(page, hk));
         dequant_v_rows<T>(cfg,
                           t.value_cache,
-                          static_cast<size_t>(phys_block),
+                          phys_block,
                           hk,
                           0,
                           page_size,
                           cfg.v_head_size,
-                          pages.value.ptr<T>(entry, hk));
+                          pages.value.ptr<T>(page, hk));
     });
 }
 
@@ -431,7 +454,8 @@ private:
         const size_t tokens = t.key.size(0);
         m_slot_mapping.resize<int32_t>({tokens});
         size_t idx = 0;
-        for (size_t seq = 0; seq < past_lens.size(0); seq++) {
+        const size_t sequences = subsequence_begins.size(0) - 1;
+        for (size_t seq = 0; seq < sequences; seq++) {
             const int32_t q_len = subsequence_begins.ptr<int32_t>()[seq + 1] - subsequence_begins.ptr<int32_t>()[seq];
             const int32_t past = past_lens.ptr<int32_t>()[seq];
             const int32_t first_block = block_indices_begins.ptr<int32_t>()[seq];
@@ -502,8 +526,8 @@ private:
         OPENVINO_ASSERT(t.subsequence_begins.size(0) >= 1, "[CPU] sparse_pa: subsequence_begins must be non-empty");
 
         // The work list: the tokens of sequences with several new tokens first (brgemm items when the brgemm kernels
-        // are enabled), then the rest (SIMD items); both id lists share the `token_ids` region at the end of the
-        // scratch (one id per token).
+        // are enabled), then the rest (SIMD items); both id lists share the `token_ids` region of the scratch
+        // (one id per token).
         const size_t max_pack_size =
             max_q_head_pack_size(m_cfg.num_heads, m_cfg.num_kv_heads, m_cfg.num_selection_heads);
         const auto* begins = t.subsequence_begins.ptr<int32_t>();
@@ -789,7 +813,7 @@ private:
         DequantizedPages dequantized;
         [[maybe_unused]] const DequantizedPages* pages = nullptr;  // only the AMX items read them
         if constexpr (!std::is_same_v<T, float>) {
-            if (parts.dequantized_entries > 0 && work.brgemm_tokens > 0) {
+            if (parts.dequantized_plan.entries > 0 && work.brgemm_tokens > 0) {
                 build_dequantized_pages<T>(m_cfg, t, parts, scratch_memory, dequantized, cpu_parallel);
                 pages = &dequantized;
             }
@@ -862,8 +886,24 @@ private:
 }  // namespace
 
 std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> make_sparse_pa_executor(
-    const ov::Extensions::Cpu::SparsePAConfig& config) {
-    return std::make_shared<PaExecutor>(config);
+    const ov::Extensions::Cpu::SparsePAConfig& config,
+    const ov::intel_cpu::MultiCachePtr& cache) {
+    auto executor_config = config;
+    executor_config.brgemm = {};
+    // The AMX items are compiled in the AVX-512 variant only: other variants build no kernels, so the work split and
+    // the scratch plan no brgemm items, whatever the CPU runs.
+#if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
+    const auto precision = config.data_precision;
+    const size_t pack = max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads);
+    if (TileBrgemmKernels::amx_type(precision) == precision && config.causal &&
+        TileBrgemmKernels::supports_pack(pack)) {
+        executor_config.brgemm =
+            TileBrgemmKernels::get(cache, pack, config.k_head_size, config.v_head_size, kGatherTileRows, precision);
+    }
+#else
+    static_cast<void>(cache);
+#endif
+    return std::make_shared<PaExecutor>(executor_config);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH

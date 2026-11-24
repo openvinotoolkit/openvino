@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
@@ -33,8 +34,8 @@ struct SparsePAConfig {
     /// selected blocks merge up to a page), key_block_size when the page size is unknown. It sizes the scores and the
     /// dequantized-row buffers.
     size_t max_attend_kv_rows = 0;
-    /// The AMX prefill kernels; empty when the executor is not eligible. The config owns them, so an executor that
-    /// copies the config keeps them alive.
+    /// The AMX prefill kernels; empty when the executor is not eligible. make_*_executor() fills it (the node leaves it
+    /// empty). The config owns them, so an executor that copies the config keeps them alive.
     TileBrgemmKernels brgemm;
 };
 
@@ -70,6 +71,7 @@ public:
 namespace ov::Extensions::Cpu::XARCH {
 
 std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> make_sparse_pa_executor(
-    const ov::Extensions::Cpu::SparsePAConfig& config);
+    const ov::Extensions::Cpu::SparsePAConfig& config,
+    const ov::intel_cpu::MultiCachePtr& cache);
 
 }  // namespace ov::Extensions::Cpu::XARCH

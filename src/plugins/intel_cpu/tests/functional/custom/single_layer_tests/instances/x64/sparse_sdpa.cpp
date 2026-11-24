@@ -12,10 +12,7 @@ namespace ov::test {
 
 namespace {
 
-const auto f32 = ov::element::f32;
-const auto f16 = ov::element::f16;
-const auto bf16 = ov::element::bf16;
-const std::vector<ov::element::Type> all_precisions{f32, f16, bf16};
+const std::vector<ov::element::Type> all_precisions{ov::element::f32, ov::element::f16, ov::element::bf16};
 
 // The small shape of the smoke tests (L == S == 40, up to 10 selected blocks, adjacent blocks) is the default of the
 // arguments, the other cases set what they exercise.
@@ -70,7 +67,7 @@ std::vector<SparseSDPALayerTestParams> selection_head_cases() {
 // differs from the key one.
 std::vector<SparseSDPALayerTestParams> head_layout_cases() {
     std::vector<SparseSDPALayerTestParams> cases;
-    for (const auto precision : {f32, bf16}) {
+    for (const auto precision : {ov::element::f32, ov::element::bf16}) {
         for (const size_t h_sel : {1, 2}) {
             const auto layout = [&](size_t num_q_heads, size_t num_kv_heads, size_t v_head_size) {
                 return make_case(precision,
@@ -102,7 +99,7 @@ std::vector<SparseSDPALayerTestParams> amx_cases() {
     std::vector<SparseSDPALayerTestParams> cases;
     for (const bool causal : {true, false}) {
         for (const size_t k_head_size : {32, 256}) {
-            cases.push_back(make_case(bf16, 1, causal, 1, k_head_size, 4));
+            cases.push_back(make_case(ov::element::bf16, 1, causal, 1, k_head_size, 4));
         }
     }
     return cases;
@@ -112,13 +109,13 @@ std::vector<SparseSDPALayerTestParams> amx_cases() {
 // padding (4). The last set has an AMX-eligible shape.
 std::vector<SparseSDPALayerTestParams> padded_cases() {
     std::vector<SparseSDPALayerTestParams> cases;
-    for (const auto precision : {f32, bf16}) {
+    for (const auto precision : {ov::element::f32, ov::element::bf16}) {
         for (const bool causal : {true, false}) {
             cases.push_back(make_case(precision, 1, causal, 4, 16, 2, {40, 37, 32, 4}));
         }
     }
     for (const bool causal : {true, false}) {
-        cases.push_back(make_case(bf16, 1, causal, 4, 32, 4, {40, 37, 32, 4}));
+        cases.push_back(make_case(ov::element::bf16, 1, causal, 4, 32, 4, {40, 37, 32, 4}));
     }
     return cases;
 }
@@ -127,7 +124,7 @@ std::vector<SparseSDPALayerTestParams> padded_cases() {
 // query head, and prefill lengths around 32 and 128 rows.
 std::vector<SparseSDPALayerTestParams> packed_cases() {
     const auto packed = [](size_t h_sel, size_t k_head_size, size_t seq_len, size_t max_blocks, size_t block_step) {
-        return make_case(bf16, h_sel, true, 1, k_head_size, 4, {}, seq_len, max_blocks, block_step);
+        return make_case(ov::element::bf16, h_sel, true, 1, k_head_size, 4, {}, seq_len, max_blocks, block_step);
     };
     return {packed(/*h_sel=*/1, /*k_head_size=*/256, /*seq_len=*/40, /*max_blocks=*/10, /*block_step=*/2),
             packed(/*h_sel=*/4, /*k_head_size=*/32, /*seq_len=*/40, /*max_blocks=*/10, /*block_step=*/1),
@@ -145,14 +142,17 @@ std::vector<SparseSDPALayerTestParams> shuffled_cases() {
         for (const bool causal : {true, false}) {
             for (const size_t batch : {1, 2}) {
                 for (const size_t k_head_size : {32, 256}) {
-                    cases.push_back(make_case(bf16, h_sel, causal, batch, k_head_size, 4, {}, 40, 10, 1, true));
-                    cases.push_back(make_case(bf16, h_sel, causal, batch, k_head_size, 4, {}, 40, 10, 2, true));
-                    cases.push_back(make_case(bf16, h_sel, causal, batch, k_head_size, 4, {}, 96, 20, 1, true));
+                    cases.push_back(
+                        make_case(ov::element::bf16, h_sel, causal, batch, k_head_size, 4, {}, 40, 10, 1, true));
+                    cases.push_back(
+                        make_case(ov::element::bf16, h_sel, causal, batch, k_head_size, 4, {}, 40, 10, 2, true));
+                    cases.push_back(
+                        make_case(ov::element::bf16, h_sel, causal, batch, k_head_size, 4, {}, 96, 20, 1, true));
                 }
             }
         }
     }
-    for (const auto precision : {f32, f16}) {
+    for (const auto precision : {ov::element::f32, ov::element::f16}) {
         for (const bool causal : {true, false}) {
             for (const size_t batch : {1, 2}) {
                 cases.push_back(make_case(precision, 1, causal, batch, 32, 4, {}, 96, 20, 1, true));
@@ -160,7 +160,7 @@ std::vector<SparseSDPALayerTestParams> shuffled_cases() {
         }
     }
     for (const bool causal : {true, false}) {
-        cases.push_back(make_case(bf16, 1, causal, 2, 32, 4, {96, 70}, 96, 20, 1, true));
+        cases.push_back(make_case(ov::element::bf16, 1, causal, 2, 32, 4, {96, 70}, 96, 20, 1, true));
     }
     return cases;
 }

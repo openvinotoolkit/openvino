@@ -225,6 +225,8 @@ const char* invalid_name(ov::test::SparsePAInvalid invalid) {
         return "BlockIdOutOfRange";
     case ov::test::SparsePAInvalid::kNegativeBlockId:
         return "NegativeBlockId";
+    case ov::test::SparsePAInvalid::kSubsequenceBeginsShort:
+        return "SubsequenceBeginsShort";
     default:
         return "None";
     }
@@ -340,7 +342,8 @@ void SparsePALayerCPUTest::SetUp() {
     abs_threshold = 1e-4F;
     configuration.insert(ov::hint::inference_precision(m_inference_precision));
     // A prefill runs as AMX products at any thread count; a decode packs heads only with enough work items (mixed: 2
-    // threads). An invalid case needs 2 threads: the single-thread path drops the exception.
+    // threads). An invalid case needs 2 threads: with 1 thread and 1 stream the plugin drops a node's exception
+    // (CPUStreamsExecutor::execute() catches it).
     configuration[ov::inference_num_threads.name()] =
         (m_cfg.mixed_lengths || m_cfg.invalid != SparsePAInvalid::kNone) ? 2 : 1;
     if (m_inference_precision == ov::element::bf16) {
@@ -380,7 +383,8 @@ void SparsePALayerCPUTest::SetUp() {
     const auto declared_cache_shape = [&](bool is_key) {
         const auto shape = cache_shape(is_key);
         if (m_cfg.invalid == SparsePAInvalid::kNone || m_cfg.invalid == SparsePAInvalid::kBlockIdOutOfRange ||
-            m_cfg.invalid == SparsePAInvalid::kNegativeBlockId) {
+            m_cfg.invalid == SparsePAInvalid::kNegativeBlockId ||
+            m_cfg.invalid == SparsePAInvalid::kSubsequenceBeginsShort) {
             return ov::PartialShape(shape);
         }
         return ov::PartialShape{dim(shape[0]), dyn, dyn, dyn};
@@ -609,6 +613,9 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
         subsequence_begins[s] = static_cast<int32_t>(begins[s]);
         block_indices_begins[s] = static_cast<int32_t>(s * m_pages_per_sequence);
     }
+    if (m_cfg.invalid == SparsePAInvalid::kSubsequenceBeginsShort) {
+        subsequence_begins[B]--;
+    }
     tensors[6] = make_i32(subsequence_begins);
     tensors[7] = make_i32(block_indices);
     tensors[8] = make_i32(block_indices_begins);
@@ -780,9 +787,12 @@ TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
             // A tensor of a wrong cache shape is already refused when it is set (the plugin pins the cache shapes of
             // the model), the page table by the node.
             const std::string what = ex.what();
-            const bool is_page_table =
-                invalid == SparsePAInvalid::kBlockIdOutOfRange || invalid == SparsePAInvalid::kNegativeBlockId;
-            EXPECT_NE(what.find(is_page_table ? "block id" : "incompatible"), std::string::npos) << what;
+            const std::string expected =
+                invalid == SparsePAInvalid::kSubsequenceBeginsShort ? "must cover the tokens"
+                : invalid == SparsePAInvalid::kBlockIdOutOfRange || invalid == SparsePAInvalid::kNegativeBlockId
+                    ? "block id"
+                    : "incompatible";
+            EXPECT_NE(what.find(expected), std::string::npos) << what;
         }
         return;
     }

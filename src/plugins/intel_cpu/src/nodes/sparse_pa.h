@@ -23,7 +23,7 @@ namespace ov::intel_cpu::node {
 /// Writes the current-step K/V into the caller-owned paged KV caches, addressed through the shared PagedAttention page
 /// table (validated on every call), then runs the same online-softmax attention over the selected blocks and the causal
 /// tail as the dense SparseSDPA node, with every K/V read resolved through the page table. The attention is the
-/// SparsePAExecutor of the kernels (SIMD, or AMX brgemm for bf16 / f16 prefill and large selections). SCALE is a
+/// SparsePAExecutor of the kernels (SIMD, or AMX brgemm for the bf16 / f16 prefill). SCALE is a
 /// runtime input; sinks are not supported (SINKS must be an empty tensor). The op has one query per selection row, so
 /// the per-sequence selection row offsets are subsequence_begins. Runs of adjacent selected blocks are capped at
 /// physical page boundaries, since only blocks of the same page are contiguous in memory.
@@ -55,8 +55,8 @@ public:
     [[nodiscard]] bool needPrepareParams() const override {
         return false;
     }
-    // Only the token-major inputs gate execution: SINKS (and the optional SELECTED_BLOCK_MASK) is an
-    // empty tensor when unused, which must not make the node skip.
+    // Only the token-major inputs gate execution: SINKS is an empty tensor when
+    // unused, which must not make the node skip.
     [[nodiscard]] bool neverExecute() const override {
         const auto* pd = getSelectedPrimitiveDescriptor();
         return pd->hasZeroInputDimsAtPort(InputIdx::QUERY) || pd->hasZeroInputDimsAtPort(InputIdx::KEY) ||
@@ -75,8 +75,8 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    /// @brief Kernel parameters derived from the static input shapes. The key/value widths are used for the head
-    /// sizes rather than the cache shapes, whose last two dims are padded when the caches are quantized.
+    /// @brief Kernel parameters: the head counts and sizes come from the runtime info of the op (the cache shapes
+    /// are padded when the caches are quantized), the widths and the selection heads from the static input shapes.
     using Config = ov::Extensions::Cpu::SparsePAConfig;
     static bool deriveConfig(const ov::op::internal::PagedSparseAttention& op, Config& config, std::string& reason);
     /// @brief Validates the cache layout against the plugin's KV-cache quantization settings and fills the cache specs

@@ -387,14 +387,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_F16Cache,
                          SparsePALayerCPUTest::getTestCaseName);
 
 // Invalid cache layouts and page tables the op must reject with an exception: a value cache with a smaller page or head
-// size, a wrong KV head count, and block ids outside the cache.
+// size, a wrong KV head count, block ids outside the cache, and a subsequence_begins that does not cover the tokens.
 static std::vector<SparsePALayerTestParams> invalid_cases() {
     std::vector<SparsePALayerTestParams> cases;
     for (const auto invalid : {SparsePAInvalid::kValueCachePageSize,
                                SparsePAInvalid::kValueCacheHeadSize,
                                SparsePAInvalid::kKvHeadCount,
                                SparsePAInvalid::kBlockIdOutOfRange,
-                               SparsePAInvalid::kNegativeBlockId}) {
+                               SparsePAInvalid::kNegativeBlockId,
+                               SparsePAInvalid::kSubsequenceBeginsShort}) {
         auto cfg = plain_config(/*sel_heads=*/1, /*key_block_size=*/2, /*page_size=*/32, /*max_blocks=*/4, kRecent);
         cfg.invalid = invalid;
         cases.push_back(make_case(ov::element::f32, /*head_size=*/16, Batch::kSingle, cfg));

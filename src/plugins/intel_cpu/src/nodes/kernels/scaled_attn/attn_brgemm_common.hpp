@@ -42,8 +42,8 @@ inline size_t weights_row_stride(size_t tile_rows) {
     return 2 * tile_rows;
 }
 
-/// @brief The brgemm kernels of the prefill path (BrgemmKernel instances owned by the node) whose M is the query-head
-/// pack. Null when the node did not build them (no AMX, data type other than bf16/f16, pack of one head).
+/// @brief Non-owning handle to the brgemm kernels of a TileBrgemmKernels (the prefill path), whose M is the query-head
+/// pack. Null when none were built (no AMX, data type other than bf16/f16, pack outside 2..31 heads).
 struct TileBrgemm {
     void* qk = nullptr;  ///< scores[pack, row block] = query[pack, k_head_size] x keys[row block, k_head_size]^T
     void* pv_overwrite =
@@ -144,7 +144,8 @@ struct TileBrgemmLayout {
 
 #ifdef OPENVINO_ARCH_X86_64
 /// @brief The brgemm kernels of one node, built once per set of parameters and shared (read-only by the worker threads)
-/// through the graph context's params cache. The only way to get one is get().
+/// through the graph context's params cache. get() builds or fetches the kernels; a default-constructed object is
+/// empty.
 class TileBrgemmKernels {
 public:
     /// @brief The matrix type of the AMX products for data of precision `data_prec`: bf16 / f16 data on a CPU with the

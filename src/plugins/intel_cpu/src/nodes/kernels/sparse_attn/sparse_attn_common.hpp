@@ -59,8 +59,8 @@ private:
     size_t m_bytes = 0;
 };
 
-/// @brief Number of rows of [kpos0, kpos0 + n) a query may attend: the rows from `first_valid` (the start of the real
-/// history of a left-padded sequence) up to `valid_end` (exclusive).
+/// @brief Number of rows of [kpos0, kpos0 + n) a query may attend, up to `valid_end` (exclusive); 0 when the range
+/// starts before `first_valid` (the start of the real history of a left-padded sequence: callers start at or after it).
 inline int64_t visible_rows(int64_t kpos0, int64_t n, int64_t first_valid, int64_t valid_end) {
     return kpos0 < first_valid ? 0 : std::max<int64_t>(std::min(n, valid_end - kpos0), 0);
 }

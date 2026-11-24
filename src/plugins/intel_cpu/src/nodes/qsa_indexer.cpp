@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -21,8 +22,8 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
+#include "nodes/kernels/sparse_attn/qsa_executor_cache.h"
 #include "nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp"
-#include "nodes/qsa_executor_cache.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -50,12 +51,60 @@ public:
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const auto& q_dims = input_shapes[InputIdx::INDEX_QUERY].get();
+        const auto& k_dims = input_shapes[InputIdx::RAW_INDEX_KEYS].get();
         const auto& cache_dims = input_shapes[InputIdx::BLOCK_INDEX_KEYS_CACHE].get();
         const size_t batch = q_dims[0];
+        const size_t window = q_dims[1];
+        const size_t head_dim = m_config.indexer_head_dim;
+        const size_t rotary_dim = m_config.indexer_rotary_dim;
+        const size_t key_heads = k_dims[2];
+        // The kernels index every tensor with the batch of the query and the sizes of the config, without bounds
+        // checks, and the core op checks the shapes only at compile time, when the batch is dynamic.
+        const auto same_dims = [&](size_t idx, std::initializer_list<size_t> expected) {
+            return std::equal(input_shapes[idx].get().begin(),
+                              input_shapes[idx].get().end(),
+                              expected.begin(),
+                              expected.end());
+        };
+        const auto rope_ok = [&](size_t idx) {
+            const auto& dims = input_shapes[idx].get();
+            return dims.size() == 3 && (dims[0] == batch || dims[0] == 1) && dims[1] == window && dims[2] == rotary_dim;
+        };
+        const size_t key_length_count = input_shapes[InputIdx::KEY_LENGTH].get()[0];
+        OPENVINO_ASSERT(q_dims[3] == head_dim && k_dims.size() == 4 && k_dims[0] == batch && k_dims[1] == window &&
+                            k_dims[3] == head_dim,
+                        "QSAIndexer: index_query and raw_index_keys must be [B, L, H, ",
+                        head_dim,
+                        "] with the same batch and window");
+        OPENVINO_ASSERT(rope_ok(InputIdx::ROPE_COS) && rope_ok(InputIdx::ROPE_SIN),
+                        "QSAIndexer: rope_cos and rope_sin must be [B or 1, L, ",
+                        rotary_dim,
+                        "]");
+        OPENVINO_ASSERT(input_shapes[InputIdx::KEY_LENGTH].get().size() == 1 &&
+                            (key_length_count == 1 || key_length_count == batch),
+                        "QSAIndexer: key_length must have 1 or B entries");
+        OPENVINO_ASSERT(
+            same_dims(InputIdx::Q_NORM_WEIGHT, {head_dim}) && same_dims(InputIdx::K_NORM_WEIGHT, {head_dim}),
+            "QSAIndexer: the norm weights must be [",
+            head_dim,
+            "]");
+        OPENVINO_ASSERT(
+            same_dims(InputIdx::PAST_INCOMPLETE_RAW_K, {batch, key_heads, m_config.key_block_size - 1, head_dim}),
+            "QSAIndexer: past_incomplete_raw_k must be [B, H_ik, key_block_size - 1, ",
+            head_dim,
+            "]");
+        OPENVINO_ASSERT(same_dims(InputIdx::PAST_INCOMPLETE_ROPE, {batch, 2 * rotary_dim}),
+                        "QSAIndexer: past_incomplete_rope must be [B, 2 * ",
+                        rotary_dim,
+                        "]");
+        OPENVINO_ASSERT(
+            cache_dims.size() == 4 && cache_dims[0] == batch && cache_dims[1] == key_heads && cache_dims[3] == head_dim,
+            "QSAIndexer: block_index_keys_cache must be [B, H_ik, blocks, ",
+            head_dim,
+            "]");
         const auto& key_length = data_dependency.at(InputIdx::KEY_LENGTH);
         const auto* key_length_p = key_length->getDataAs<const int32_t>();
         // key_length is [batch] or [1] (the same length for all the rows)
-        const size_t key_length_count = input_shapes[InputIdx::KEY_LENGTH].get()[0];
         int64_t longest = 0;
         for (size_t b = 0; b < key_length_count; b++) {
             longest = std::max<int64_t>(longest, key_length_p[b]);
@@ -102,7 +151,7 @@ QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto qsa_indexer = ov::as_type_ptr<const ov::op::internal::QSAIndexer>(op);
-    OPENVINO_ASSERT(qsa_indexer, "Expected QSAIndexer node");
+    CPU_NODE_ASSERT(qsa_indexer, "Expected QSAIndexer node");
     m_config = qsa_indexer->get_config();
     // Fixed by the model (isSupportedOperation checked they are static).
     m_index_query_heads = qsa_indexer->get_index_query_heads();
@@ -153,9 +202,9 @@ void QSAIndexer::createPrimitive() {
     const auto cache = context->getParamsCache();
     [[maybe_unused]] const auto [qsa_indexer_executor, lookup_status] =
         cache->getOrCreate(QsaExecutorKey{config}, [&cache](const QsaExecutorKey& key) {
-            return ov::Extensions::Cpu::XARCH::make_indexer_executor(key.config, getScoreKernels(cache, key.config));
+            return ov::Extensions::Cpu::XARCH::make_indexer_executor(key.config, cache);
         });
-    OPENVINO_ASSERT(qsa_indexer_executor, "QSAIndexer executor creation fails");
+    CPU_NODE_ASSERT(qsa_indexer_executor, "executor creation fails");
     m_executor = qsa_indexer_executor;
     Node::createPrimitive();
     getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->impl_type());

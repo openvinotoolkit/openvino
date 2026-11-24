@@ -66,6 +66,8 @@ const char* scenario_name(QSAIndexerScenario scenario) {
         return "OverflowScores";
     case QSAIndexerScenario::kTinyScores:
         return "TinyScores";
+    case QSAIndexerScenario::kStateBatchMismatch:
+        return "StateBatchMismatch";
     }
     return "";
 }
@@ -98,8 +100,8 @@ ov::Tensor make_zero_tensor(const ov::element::Type& precision, const ov::Shape&
     return t;
 }
 
-// Host-vector reference of one call, from qsa-prepare-17.rst: all the outputs follow from the inputs of the call,
-// the state included (the previous call's outputs).
+// Host-vector reference of one call, from the QSAPrepare / SparseAttentionIndexer op specs: all the outputs follow from
+// the inputs of the call, the state included (the previous call's outputs).
 std::vector<ov::Tensor> calculate_qsa_indexer_refs(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs,
                                                    const std::shared_ptr<ov::Model>& function,
                                                    size_t block_topk,
@@ -416,6 +418,11 @@ void QSAIndexerSubgraphTest::SetUp() {
         configuration.insert(ov::hint::inference_precision(data_precision));
     }
 
+    if (scenario == QSAIndexerScenario::kStateBatchMismatch) {
+        // 2 threads: with 1 thread and 1 stream the plugin drops a node's exception (CPUStreamsExecutor::execute()).
+        configuration[ov::inference_num_threads.name()] = 2;
+    }
+
     OPENVINO_ASSERT(key_block_size > 1 && rotary_dim <= indexer_head_dim && rotary_dim % 2 == 0);
     OPENVINO_ASSERT(key_lengths.size() == new_tokens.second.size(), "key_lengths of every call");
     m_calls.clear();
@@ -626,6 +633,11 @@ void QSAIndexerSubgraphTest::generate_inputs(const std::vector<ov::Shape>& targe
             state = ov::Tensor(previous.get_element_type(), previous.get_shape());
             previous.copy_to(state);
         }
+        if (m_scenario == QSAIndexerScenario::kStateBatchMismatch && state_inputs[i] == kPastRope) {
+            auto shape = state.get_shape();
+            shape[0]++;
+            state = make_zero_tensor(m_data_precision, shape);
+        }
         tensors[state_inputs[i]] = state;
         m_state_inputs.push_back(state);
         ov::Tensor snapshot(state.get_element_type(), state.get_shape());
@@ -712,6 +724,12 @@ void QSAIndexerSubgraphTest::check_fusion() const {
 
 TEST_P(QSAIndexerSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (expects_state_batch_rejection()) {
+        compile_model();
+        generate_inputs(targetStaticShapes.at(0));
+        EXPECT_ANY_THROW(infer());
+        return;
+    }
     run();
     check_fusion();
 }

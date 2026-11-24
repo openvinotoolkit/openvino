@@ -29,11 +29,9 @@
 #include "memory_state.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
-#include "nodes/kernels/sparse_attn/sparse_attn_common.hpp"
 #include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/dimension.hpp"
@@ -169,27 +167,12 @@ struct ExecutorKey {
     }
 };
 
-// The executor of a configuration, with the AMX kernels its prefill path uses (the config owns them).
-std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> makeExecutor(const MultiCachePtr& cache,
-                                                                      ov::Extensions::Cpu::SparseSdpaConfig config) {
-    config.brgemm = {};
-    // The matrix type of the AMX prefill: bf16 / f16 when the data is natively that type and the CPU has the matching
-    // AMX. Prefill over packs of query heads (brgemm products, whose M is the pack) needs it and a causal op.
-    const ov::element::Type amx_type = ov::Extensions::Cpu::TileBrgemmKernels::amx_type(config.data_precision);
-    if (amx_type != ov::element::dynamic && config.causal) {
-        const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(config.num_heads,
-                                                                      config.num_kv_heads,
-                                                                      config.num_selection_heads);
-        if (ov::Extensions::Cpu::TileBrgemmKernels::supports_pack(pack)) {
-            config.brgemm = ov::Extensions::Cpu::TileBrgemmKernels::get(cache,
-                                                                        pack,
-                                                                        config.k_head_size,
-                                                                        config.v_head_size,
-                                                                        ov::Extensions::Cpu::kGatherTileRows,
-                                                                        amx_type);
-        }
-    }
-    return ov::Extensions::Cpu::XARCH::make_sparse_sdpa_executor(config);
+// The executor of a configuration; it builds the AMX kernels of its prefill path (through the params cache) when its
+// variant has them.
+std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> makeExecutor(
+    const MultiCachePtr& cache,
+    const ov::Extensions::Cpu::SparseSdpaConfig& config) {
+    return ov::Extensions::Cpu::XARCH::make_sparse_sdpa_executor(config, cache);
 }
 
 }  // namespace
@@ -261,7 +244,7 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
         m_causal = kv_op->get_config().causal;
     } else {
         const auto sparse_attention = ov::as_type_ptr<const SparseAttentionOp>(op);
-        OPENVINO_ASSERT(sparse_attention, "Expected SparseAttention node");
+        CPU_NODE_ASSERT(sparse_attention, "Expected SparseAttention node");
         m_base_inputs = op->get_input_size();
         m_key_block_size = static_cast<size_t>(sparse_attention->get_key_block_size());
         m_causal = sparse_attention->get_causal();
@@ -303,7 +286,7 @@ void SparseSDPA::createPrimitive() {
         cache->getOrCreate(ExecutorKey{config}, [&cache](const ExecutorKey& key) {
             return makeExecutor(cache, key.config);
         });
-    OPENVINO_ASSERT(sparse_sdpa_executor, "SparseSDPA executor creation fails");
+    CPU_NODE_ASSERT(sparse_sdpa_executor, "executor creation fails");
     m_executor = sparse_sdpa_executor;
 }
 

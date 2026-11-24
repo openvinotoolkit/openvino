@@ -12,10 +12,7 @@ namespace ov::test {
 
 namespace {
 
-const auto f32 = ov::element::f32;
-const auto f16 = ov::element::f16;
-const auto bf16 = ov::element::bf16;
-const std::vector<ov::element::Type> all_precisions{f32, f16, bf16};
+const std::vector<ov::element::Type> all_precisions{ov::element::f32, ov::element::f16, ov::element::bf16};
 const std::vector<QSAIndexerQueryFusionType> all_fusion_types{QSAIndexerQueryFusionType::kNormAndRope,
                                                               QSAIndexerQueryFusionType::kNormOnly,
                                                               QSAIndexerQueryFusionType::kRopeOnly,
@@ -128,7 +125,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_Subgraph_DegenerateScores_OverflowAndT
                                                    {QSAIndexerQueryFusionType::kNormAndRope},
                                                    {QSAIndexerScenario::kOverflowScores,
                                                     QSAIndexerScenario::kTinyScores},
-                                                   {f32, bf16})),
+                                                   {ov::element::f32, ov::element::bf16})),
+                         QSAIndexerSubgraphTest::getTestCaseName);
+
+// A state with another batch than the query: the node rejects it (the kernels index every tensor by the query batch).
+INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_Subgraph_StateBatchMismatch,
+                         QSAIndexerSubgraphTest,
+                         testing::ValuesIn(combine({2},
+                                                   {worked_example},
+                                                   {QSAIndexerQueryFusionType::kNormAndRope},
+                                                   {QSAIndexerScenario::kStateBatchMismatch},
+                                                   {ov::element::f32})),
                          QSAIndexerSubgraphTest::getTestCaseName);
 
 }  // namespace ov::test

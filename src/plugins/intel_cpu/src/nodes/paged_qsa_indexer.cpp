@@ -20,7 +20,7 @@
 #include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
-#include "nodes/qsa_executor_cache.h"
+#include "nodes/kernels/sparse_attn/qsa_executor_cache.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -52,7 +52,7 @@ PagedQSAIndexer::PagedQSAIndexer(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto paged_qsa_indexer = ov::as_type_ptr<const ov::op::internal::PagedQSAIndexer>(op);
-    OPENVINO_ASSERT(paged_qsa_indexer, "Expected PagedQSAIndexer node");
+    CPU_NODE_ASSERT(paged_qsa_indexer, "Expected PagedQSAIndexer node");
     m_config = paged_qsa_indexer->get_config();
     // Fixed by the model (isSupportedOperation checked they are static).
     m_index_query_heads = paged_qsa_indexer->get_index_query_heads();
@@ -102,11 +102,9 @@ void PagedQSAIndexer::createPrimitive() {
     const auto cache = context->getParamsCache();
     [[maybe_unused]] const auto [paged_qsa_indexer_executor, lookup_status] =
         cache->getOrCreate(QsaExecutorKey{config}, [&cache](const QsaExecutorKey& key) {
-            // The brgemm kernels of the scorer come from the cache too, the cross-compiled executor only keeps them.
-            return ov::Extensions::Cpu::XARCH::make_paged_indexer_executor(key.config,
-                                                                           getScoreKernels(cache, key.config));
+            return ov::Extensions::Cpu::XARCH::make_paged_indexer_executor(key.config, cache);
         });
-    OPENVINO_ASSERT(paged_qsa_indexer_executor, "PagedQSAIndexer executor creation fails");
+    CPU_NODE_ASSERT(paged_qsa_indexer_executor, "executor creation fails");
     m_executor = paged_qsa_indexer_executor;
     Node::createPrimitive();
     getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->impl_type());

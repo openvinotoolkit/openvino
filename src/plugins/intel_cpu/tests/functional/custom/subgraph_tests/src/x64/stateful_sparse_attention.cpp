@@ -449,7 +449,9 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
 
 // The cache group size follows ScaledDotProductAttention: it must divide the head size of a compressed cache. A plain
 // cache has no groups, and a TurboQuant request leaves the caches plain.
-TEST_P(StatefulSparseAttentionTest, GroupSizeThatDoesNotDivideTheHeadIsRejected) {
+class StatefulSparseAttentionGroupSizeTest : public StatefulSparseAttentionTest {};
+
+TEST_P(StatefulSparseAttentionGroupSizeTest, GroupSizeThatDoesNotDivideTheHeadIsRejected) {
     const auto& param = GetParam();
     const auto prec = std::get<0>(param);
     const auto cache_prec = std::get<1>(param);
@@ -489,6 +491,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention,
                                             ::testing::Values(4, 16),
                                             ::testing::Values(1, 2),
                                             ::testing::Values(false)),
+                         StatefulSparseAttentionTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention_GroupSize,
+                         StatefulSparseAttentionGroupSizeTest,
+                         ::testing::Combine(::testing::Values(ov::element::f32, ov::element::bf16),
+                                            ::testing::Values(ov::element::f32, ov::element::u8, ov::element::u4),
+                                            ::testing::Values(false),
+                                            ::testing::Values(1),
+                                            ::testing::Values(32),
+                                            ::testing::Values(4),
+                                            ::testing::Values(1),
+                                            ::testing::Values(false, true)),
                          StatefulSparseAttentionTest::getTestCaseName);
 
 // keys quantized by channel (u8 only); the values are quantized by token

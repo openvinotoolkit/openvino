@@ -16,9 +16,10 @@ namespace ov::intel_cpu {
 /// @brief Validates the PagedAttention-style page table of a call once, in O(sequences + page table entries), so that
 /// the kernels can index the caches without bounds checks.
 ///
-/// Checked: past_lens >= 0; subsequence_begins and block_indices_begins start at >= 0, never decrease and stay within
-/// the tokens / the block_indices tensor; every sequence fits the pages it owns (past + q <= pages * page_size); every
-/// used block id is below `num_pages`.
+/// Checked: past_lens >= 0; subsequence_begins starts at 0, never decreases and ends at `num_tokens` (every token
+/// belongs to a sequence); block_indices_begins starts at >= 0, never decreases and stays within the block_indices
+/// tensor; every sequence fits the pages it owns (past + q <= pages * page_size); every used block id is below
+/// `num_pages`.
 ///
 /// @param num_tokens  tokens of the call (the rows of the per-token inputs)
 /// @param page_size   tokens per page of the caches
@@ -40,8 +41,7 @@ inline void check_paged_page_table(const PlainTensor& past_lens,
     const auto* token_begins = subsequence_begins.ptr<int32_t>();
     const auto* page_begins = block_indices_begins.ptr<int32_t>();
     const auto* pages = block_indices.ptr<int32_t>();
-    OPENVINO_ASSERT(token_begins[0] >= 0 && page_begins[0] >= 0,
-                    "[CPU] paged attention: subsequence_begins and block_indices_begins must start at >= 0");
+    OPENVINO_ASSERT(page_begins[0] >= 0, "[CPU] paged attention: block_indices_begins must start at >= 0");
     for (size_t seq = 0; seq < num_seq; seq++) {
         const int64_t q_len = static_cast<int64_t>(token_begins[seq + 1]) - token_begins[seq];
         const int64_t seq_pages = static_cast<int64_t>(page_begins[seq + 1]) - page_begins[seq];
@@ -57,8 +57,8 @@ inline void check_paged_page_table(const PlainTensor& past_lens,
                         seq_pages,
                         " cache pages");
     }
-    OPENVINO_ASSERT(static_cast<size_t>(token_begins[num_seq]) <= num_tokens,
-                    "[CPU] paged attention: subsequence_begins exceeds the number of tokens");
+    OPENVINO_ASSERT(token_begins[0] == 0 && static_cast<size_t>(token_begins[num_seq]) == num_tokens,
+                    "[CPU] paged attention: subsequence_begins must cover the tokens of the call");
     OPENVINO_ASSERT(static_cast<size_t>(page_begins[num_seq]) <= block_indices.size(0),
                     "[CPU] paged attention: block_indices_begins exceeds the size of block_indices");
     constexpr uint64_t kMaxPages = uint64_t{1} << 31;

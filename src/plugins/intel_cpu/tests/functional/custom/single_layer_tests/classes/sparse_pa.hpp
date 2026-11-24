@@ -27,11 +27,12 @@ enum class SparsePASelection {
 // An invalid input the op must reject; such caches are declared with dynamic page / head dims, as in a real model.
 enum class SparsePAInvalid {
     kNone,
-    kValueCachePageSize,  // the value cache has fewer rows per page than the key cache
-    kValueCacheHeadSize,  // the value cache rows are narrower than v_head_size
-    kKvHeadCount,         // both caches have one KV head too few
-    kBlockIdOutOfRange,   // a block id equal to the number of cache pages
-    kNegativeBlockId,     // a block id of -1
+    kValueCachePageSize,      // the value cache has fewer rows per page than the key cache
+    kValueCacheHeadSize,      // the value cache rows are narrower than v_head_size
+    kKvHeadCount,             // both caches have one KV head too few
+    kBlockIdOutOfRange,       // a block id equal to the number of cache pages
+    kNegativeBlockId,         // a block id of -1
+    kSubsequenceBeginsShort,  // subsequence_begins ends before the last token
 };
 
 // Everything about the op that is not carried by the step shapes.

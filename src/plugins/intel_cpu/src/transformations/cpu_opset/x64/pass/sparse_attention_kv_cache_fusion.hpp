@@ -19,7 +19,7 @@ namespace ov::intel_cpu {
 ///
 /// This is the sparse counterpart of StatefulSDPAFusion. The fused op keeps the cache in the plugin's KV cache
 /// states (see MatchSparseSdpaKvCache), so the history is not copied by the Concat on every step. Only the
-/// canonical layout is handled: key/value are [N, Hkv, S, E] and are concatenated along axis 2.
+/// canonical layout is handled: key/value are [N, Hkv, S, E] and are concatenated along axis 2 (or -2).
 ///
 /// It is a ModelPass because the fusion replaces the outputs of the Concats for consumers outside of the matched
 /// pattern (the Assign sinks of the states and the ShapeOf), and it remembers the fused Variables across the matches.

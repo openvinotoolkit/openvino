@@ -11,6 +11,7 @@
 #include <limits>
 #include <memory>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
@@ -449,8 +450,9 @@ private:
     }
 #endif
 
-    // SIMD path: decode (one query) and prefill on AVX2 / without AMX, over items (batch, pack, query, kv chunk). K/V
-    // rows are read once per pack. Few items split the blocks into kv_chunks that merge afterwards.
+    // SIMD path: decode (one query), non-causal prefill, and prefill on AVX2 / without AMX, over items (batch, pack,
+    // query, kv chunk). K/V rows are read once per pack. Few items split the blocks into kv_chunks that merge
+    // afterwards.
     template <typename T>
     void attention_simd(const SparseSdpaTensors& t,
                         uint8_t* scratch,
@@ -618,8 +620,24 @@ private:
 }  // namespace
 
 std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> make_sparse_sdpa_executor(
-    const ov::Extensions::Cpu::SparseSdpaConfig& config) {
-    return std::make_shared<SdpaExecutor>(config);
+    const ov::Extensions::Cpu::SparseSdpaConfig& config,
+    const ov::intel_cpu::MultiCachePtr& cache) {
+    auto executor_config = config;
+    executor_config.brgemm = {};
+    // The AMX items are compiled in the AVX-512 variant only: other variants build no kernels, whatever the CPU runs.
+#if defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX512F)
+    // The matrix type of the AMX prefill: bf16 / f16 when the data is natively that type and the CPU has the matching
+    // AMX. Prefill over packs of query heads (brgemm products, whose M is the pack) needs it and a causal op.
+    const auto amx_type = TileBrgemmKernels::amx_type(config.data_precision);
+    const size_t pack = max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads);
+    if (amx_type != ov::element::dynamic && config.causal && TileBrgemmKernels::supports_pack(pack)) {
+        executor_config.brgemm =
+            TileBrgemmKernels::get(cache, pack, config.k_head_size, config.v_head_size, kGatherTileRows, amx_type);
+    }
+#else
+    static_cast<void>(cache);
+#endif
+    return std::make_shared<SdpaExecutor>(executor_config);
 }
 
 void sparse_kv_dequantize_rows(const ov::intel_cpu::PlainTensor& cache,

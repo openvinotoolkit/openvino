@@ -26,7 +26,9 @@ enum class QSAIndexerScenario {
     // query norm weights that overflow the scores to +-Inf and NaN
     kOverflowScores,
     // query norm weights that make the scores of a row differ by less than 256 / FLT_MAX
-    kTinyScores
+    kTinyScores,
+    // the incomplete-rope state has one row more than the batch: the node must throw instead of writing out of bounds
+    kStateBatchMismatch
 };
 
 // Public QSAPrepare + SparseAttentionIndexer with the query RMSNorm / RoPE in front, fused by the plugin into
@@ -57,6 +59,9 @@ protected:
     void validate() override;
     // The plugin has to run the model as the fused QSAIndexer, without the query RMS / RoPE in front of it.
     void check_fusion() const;
+    [[nodiscard]] bool expects_state_batch_rejection() const {
+        return m_scenario == QSAIndexerScenario::kStateBatchMismatch;
+    }
 
 private:
     [[nodiscard]] bool is_degenerate_scores_scenario() const;

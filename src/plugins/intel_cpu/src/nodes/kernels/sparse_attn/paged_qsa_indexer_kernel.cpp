@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "cache/multi_cache.h"
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/sparse_attn/brgemm_scorer.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
@@ -34,8 +35,6 @@ namespace {
 using ov::Extensions::Cpu::qsa::Config;
 using ov::Extensions::Cpu::qsa::PagedIndexerArgs;
 using ov::Extensions::Cpu::qsa::PagedQSAIndexerExecutor;
-using ov::Extensions::Cpu::qsa::ScoreKernels;
-using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
 using ov::intel_cpu::rnd_up;
@@ -278,11 +277,11 @@ void select_blocks(const PagedIndexerArgs& call, const Config& c, const Scratch<
 template <typename T>
 class PagedExecutorImpl final : public PagedQSAIndexerExecutor {
 public:
-    // The scorer on brgemm is built on the kernels of the node: none where the CPU, the precision or the head counts do
-    // not allow it.
-    PagedExecutorImpl(const Config& config, const ScoreKernels& score_kernels)
+    // The scorer on brgemm gets its kernels from `cache`: none where the variant, the CPU, the precision or the head
+    // counts do not allow it.
+    PagedExecutorImpl(const Config& config, const ov::intel_cpu::MultiCachePtr& cache)
         : m_config(config),
-          m_brgemm_scorer(BrgemmScorer::create(config, score_kernels)) {}
+          m_brgemm_scorer(BrgemmScorer::create(config, cache)) {}
 
     [[nodiscard]] ov::intel_cpu::impl_desc_type impl_type() const override {
         return m_brgemm_scorer ? m_brgemm_scorer->impl_type() : qsa_kernel_impl_type();
@@ -370,16 +369,16 @@ private:
 
 std::shared_ptr<ov::Extensions::Cpu::qsa::PagedQSAIndexerExecutor> make_paged_indexer_executor(
     const ov::Extensions::Cpu::qsa::Config& config,
-    const ov::Extensions::Cpu::qsa::ScoreKernels& score_kernels) {
+    const ov::intel_cpu::MultiCachePtr& cache) {
     // The precision of the summary blocks: the one the block scoring works in.
     if (config.precision == ov::element::f32) {
-        return std::make_shared<PagedExecutorImpl<float>>(config, score_kernels);
+        return std::make_shared<PagedExecutorImpl<float>>(config, cache);
     }
     if (config.precision == ov::element::f16) {
-        return std::make_shared<PagedExecutorImpl<ov::float16>>(config, score_kernels);
+        return std::make_shared<PagedExecutorImpl<ov::float16>>(config, cache);
     }
     if (config.precision == ov::element::bf16) {
-        return std::make_shared<PagedExecutorImpl<ov::bfloat16>>(config, score_kernels);
+        return std::make_shared<PagedExecutorImpl<ov::bfloat16>>(config, cache);
     }
     OPENVINO_THROW("PagedQSAIndexer: unsupported summary precision ", config.precision);
 }

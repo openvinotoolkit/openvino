@@ -40,10 +40,10 @@ struct Config {
     bool query_rope = true;          ///< the op applies the RoPE to the query (else it is done in front of the op)
 };
 
-// The cache key of an executor and the cache of the brgemm kernels are the nodes' (nodes/qsa_executor_cache.h): the
-// kernels are built there and handed to the cross-compiled factories, which only keep them.
+// The cache key of an executor and the cache of the brgemm kernels are in qsa_executor_cache.h: the executor asks
+// for its kernels there.
 
-/// @brief The blocks one brgemm call scores: the M of the score kernel.
+/// @brief The blocks one brgemm call scores: the M of the k.q kernel, the N of the q.k kernel.
 inline constexpr size_t kScoreBlockRows = 32;
 /// @brief Rows of the query tile of a call: (tokens x heads of a K head) up to this many.
 inline constexpr size_t kScoreMaxCols = 128;
@@ -53,8 +53,8 @@ constexpr size_t score_tokens_per_call(size_t heads_per_key) {
     return std::max<size_t>(1, kScoreMaxCols / heads_per_key);
 }
 
-/// @brief The brgemm kernels of the block scorer, built by the node; empty where this CPU or the configuration has no
-/// brgemm scoring (the stages of the executor score then).
+/// @brief The brgemm kernels of the block scorer, got by the executor from the params cache; empty where this CPU or
+/// the configuration has no brgemm scoring (the stages of the executor score then).
 struct ScoreKernels {
     std::shared_ptr<ov::intel_cpu::BrgemmKernel> q_k;  ///< several tokens: C[tokens x heads, 32] = Q . K^T
     std::shared_ptr<ov::intel_cpu::BrgemmKernel> k_q;  ///< one token (decode):  C[32, heads] = K . Q^T
@@ -93,8 +93,8 @@ struct PagedIndexerArgs {
     ov::intel_cpu::PlainTensor sel_indices, sel_count;                          ///< [tokens, H_sel, K], [tokens, H_sel]
 };
 
-/// @brief The executor of a QSA node: `prepare` the caches, then score the tokens with the stages or the brgemm scorer.
-/// It is stateless and shared through the params cache.
+/// @brief The executor of a QSA node: prepare the caches (summaries, state), then score the tokens with the stages or
+/// the brgemm scorer. It is stateless and shared through the params cache.
 template <typename Call>
 class IndexerExecutor {
 public:
