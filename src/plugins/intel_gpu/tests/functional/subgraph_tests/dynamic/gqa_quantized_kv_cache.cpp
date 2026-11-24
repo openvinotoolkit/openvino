@@ -265,7 +265,7 @@ std::vector<GQAQuantParams> make_params() {
             }
             params.push_back({bits, head_size, 1, true});
         }
-        // Larger heads: 256 is the largest the decomposition fuses, 512 stays unfused (dequantized before SDPA).
+        // Larger heads, fused up to 512 (sdpa_ocl's heads).
         for (const size_t head_size : {256, 512}) {
             params.push_back({bits, head_size, 1, false});
         }

@@ -4029,6 +4029,35 @@ of 8 up to 256 (the heads the 2026-11-20 tests covered); any other head kept the
 - Not checked: xe_hpg (the PREFILL kernel and the opt single-token stage at heads 384 / 512, the generic SG8 kernel at 100 /
   36 / 33), the timing at head 384.
 
+### Per-channel compressed KV at heads up to 512 (2026-11-24)
+
+`prepare_compressed_kv()` fused the GQA decomposition's per-channel cache into SDPA up to head 256: head 512 was read right
+by `sdpa_ocl` but its per-channel kernels spill ("Per-channel compressed KV (2026-11-02)"), so it stayed dequantized before
+SDPA. Master's pass has no head limit. The limit is now 512, `sdpa_ocl`'s heads (above it, or a dynamic head, the op would
+land on `sdpa_ref`); the i8-only rule for an 8-bit cache stays.
+
+- With a transposed V the 8-bit cache at head 384 / 512 is read by `v_t_i8_read()` (fused since the entry above); a 4-bit one
+  keeps the explicit Transpose.
+- Tests: `sdpa_gpu_transposed_v_i8` +6 (heads 512 / 384: prefill, decode, the 2D read, padded rows, dynamic);
+  `smoke_GQAQuantizedKVCache` head 512 now fused. B70: the transposed-V, per-channel, `gqa_decomp` and decomposition unit
+  suites 147 / 147, `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` 62 / 62. The ONNX repro at head 512
+  (`test/gqa_g4/gqa_tv_q.py`, GPU against CPU, 8-bit and 4-bit, both layouts) gives cosine 0.99999 or more on every step,
+  the transposed layout bit for bit the plain one's output, SDPA on the compressed cache.
+- Cost, B70 at 1800 MHz pinned, one GQA layer (16 heads, 4 KV heads, head 512; `test/gqa_g6/perf/run_arms.sh`, a copy of
+  `tv_cost.py` that also builds the 4-bit cache; method as in the entry above), this change / the branch before it:
+
+  | cache | decode 4096 / 16384 keys | prefill 1024 / 2048 | chunk of 512 on 4000 |
+  |---|---|---|---|
+  | i8, plain V | 0.56 / 0.53 | 1.45 / 1.70 | 1.90 |
+  | i8, transposed V | 0.29 / 0.26 | 1.36 / 1.58 | 1.16 |
+  | 4-bit, plain V | 0.48 / 0.52 | 1.14 / 1.26 | 1.19 |
+  | 4-bit, transposed V | 0.38 / 0.42 | 1.15 / 1.25 | 0.99 |
+
+  Decode drops the dequantization of the whole cache every step. The prefill and chunk are slower: the per-channel SDPA
+  at head 512 spills (i8 prefill of 2048: 3417 against 1117 us for the f16 SDPA after the dequantization; 4-bit 2531).
+  Kept so that the pass comes closer to master; the spill is a follow-up.
+- Not checked: xe_hpg, Xe3.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each

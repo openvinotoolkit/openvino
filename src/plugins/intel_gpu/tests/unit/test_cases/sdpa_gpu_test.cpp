@@ -3709,6 +3709,25 @@ TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_17q_40kv_d33) {
 TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d100) {
     run_sdpa_transposed_v_i8({1, 8, 2, 100, {{33, 33}, {1, 34}, {17, 51}, {1, 52}}, true});
 }
+// Heads above 256 (384, 512).
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_17q_41kv_d512_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 512, {{17, 41}}, false, true});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_1q_1025kv_d512) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 512, {{1, 1025}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_1q_1024kv_d512_2d) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 512, {{1, 1024}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_pad_8q_2kv_300q_600kv_d512_2d) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 512, {{300, 600}}, false, false, 24});
+}
+TEST(sdpa_gpu_transposed_v_i8, static_8q_2kv_33q_193kv_d384) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 384, {{33, 193}}});
+}
+TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d512) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 512, {{300, 300}, {1, 301}, {1, 302}, {64, 366}, {1, 367}}, true});
+}
 TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d64) {
     run_sdpa_transposed_v_i8({1, 8, 2, 64, {{17, 17}, {1, 18}, {1, 19}, {40, 59}, {1, 60}, {4, 64}, {1, 65}}, true});
 }
