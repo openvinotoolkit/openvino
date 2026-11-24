@@ -221,8 +221,15 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             auto computed_is_last_nonzero = rg.make<v1::Greater>(computed_last_chunk_size, const_0_nodim);
             auto computed_chunks = rg.make<v1::Divide>(input_size, computed_chunk_size, true);
 
-            auto is_slice_normal_size = rg.make<v1::Less>(getitem_index, computed_chunks);
-            auto is_slice_not_normal_size = rg.make<v1::GreaterEqual>(getitem_index, computed_chunks);
+            auto computed_is_last_nonzero_int = rg.make<v0::Convert>(computed_is_last_nonzero, element::i64);
+            auto num_chunks = rg.make<v1::Add>(computed_chunks, computed_is_last_nonzero_int);
+            auto is_index_negative = rg.make<v1::Less>(getitem_index, const_0_nodim);
+            auto is_index_negative_int = rg.make<v0::Convert>(is_index_negative, element::i64);
+            auto negative_index_offset = rg.make<v1::Multiply>(is_index_negative_int, num_chunks);
+            auto normalized_getitem_index = rg.make<v1::Add>(getitem_index, negative_index_offset);
+
+            auto is_slice_normal_size = rg.make<v1::Less>(normalized_getitem_index, computed_chunks);
+            auto is_slice_not_normal_size = rg.make<v1::GreaterEqual>(normalized_getitem_index, computed_chunks);
             auto is_slice_normal_size_int = rg.make<v0::Convert>(is_slice_normal_size, element::i64);
             auto is_slice_not_normal_size_int = rg.make<v0::Convert>(is_slice_not_normal_size, element::i64);
 
@@ -230,7 +237,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             auto slice_size_rhs = rg.make<v1::Multiply>(is_slice_not_normal_size_int, computed_last_chunk_size);
             auto slice_size = rg.make<v1::Add>(slice_size_lhs, slice_size_rhs);
 
-            auto slice_begin = rg.make<v1::Multiply>(getitem_index, computed_chunk_size);
+            auto slice_begin = rg.make<v1::Multiply>(normalized_getitem_index, computed_chunk_size);
             auto slice_end = rg.make<v1::Add>(slice_begin, slice_size);
 
             auto sliced_chunk = rg.make<v8::Slice>(input_tensor, slice_begin, slice_end, const_1, dim);

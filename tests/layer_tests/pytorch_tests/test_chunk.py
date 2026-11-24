@@ -139,7 +139,7 @@ class TestChunk(PytorchLayerTest):
             output_chunks = dim_shape // chunk_size
             output_chunks += 1 if dim_shape % chunk_size > 0 else 0
 
-            for idx in [0, 1, output_chunks - 1]:
+            for idx in [0, 1, output_chunks - 1, -1, -output_chunks]:
                 self._test(aten_chunk_getitem(chunks, dim, idx, unsafe),
                            "aten::unsafe_chunk" if unsafe else "aten::chunk",
                            ie_device, precision, ir_version)
