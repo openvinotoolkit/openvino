@@ -46,6 +46,7 @@
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/selective_ssm.hpp"
 #include "intel_gpu/primitives/shape_of.hpp"
 #include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -1220,7 +1221,30 @@ TEST(alias_analysis, DISABLED_multi_output_predecessor_in_place_concat) {
 // F27 (candidate, characterization only): selective_ssm re-points _outputs[1] to input 5 on an empty sequence (selective_ssm.cpp ~:104-116)
 // without any alias edge in alias_analysis; the class partition does not know that output 1 may live in input 5's buffer.
 TEST(alias_analysis, DISABLED_selective_ssm_empty_seq_alias_edge) {
-    GTEST_SKIP() << "F27: expected alias edge (selective_ssm,1) -> input 5 is absent; body intentionally empty";
+    auto& eng = get_test_engine();
+    const int64_t heads = 2, groups = 1, head_dim = 4, state_size = 8;
+    topology t;
+    t.add(input_layout("A", layout{ov::PartialShape{heads}, data_types::f32, format::bfyx}));
+    t.add(input_layout("dt", layout{ov::PartialShape{-1, -1, heads}, data_types::f32, format::bfyx}));
+    t.add(input_layout("B", layout{ov::PartialShape{-1, -1, groups, state_size}, data_types::f32, format::bfyx}));
+    t.add(input_layout("x", layout{ov::PartialShape{-1, -1, heads, head_dim}, data_types::f32, format::bfyx}));
+    t.add(input_layout("C", layout{ov::PartialShape{-1, -1, groups, state_size}, data_types::f32, format::bfyx}));
+    t.add(input_layout("state_in", layout{ov::PartialShape{-1, heads, head_dim, state_size}, data_types::f32, format::bfyx}));
+    t.add(activation("state", input_info("state_in"), activation_func::relu));
+    t.add(selective_ssm("selective_ssm", {input_info("A"), input_info("dt"), input_info("B"), input_info("x"), input_info("C"), input_info("state")}));
+    t.add(reorder("output", input_info("selective_ssm", 0), format::bfyx, data_types::f32));
+    t.add(reorder("state_output", input_info("selective_ssm", 1), format::bfyx, data_types::f32));
+    std::shared_ptr<program> prog;
+    try {
+        prog = make_hand(eng, t, {"output", "state_output"});
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << "selective_ssm hand graph cannot be built here: " << e.what();
+    }
+    auto aa = alias_analysis::build(*prog);
+    const alias_class* c1 = aa.class_of(prog->get_node("selective_ssm"), 1);
+    ASSERT_NE(c1, nullptr);
+    // selective_ssm.cpp re-points _outputs[1] to input 5 on an empty sequence: the analysis must know that port 1 may live in the buffer of "state"
+    EXPECT_EQ(c1, aa.class_of(prog->get_node("state"), 0)) << "F27: expected alias edge (selective_ssm,1) -> input 5 is absent\n" << dump_aa(aa);
 }
 
 // ==============================================================================================================================

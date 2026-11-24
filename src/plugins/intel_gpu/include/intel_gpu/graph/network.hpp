@@ -34,6 +34,9 @@ struct MLIRGpuRuntime;
 
 namespace cldnn {
 
+struct alias_oracle_report;
+class exec_axis;
+
 /// @brief Represents network output returned by @ref network::get_output().
 struct network_output {
     /// @brief Returns @ref event associated with the output.
@@ -198,6 +201,14 @@ public:
 #endif
     }
     bool is_internal() const { return _internal; }
+
+    // Phase 0.5b: runtime oracle of the alias analysis (report only). nullptr when enable_alias_shadow_validation is off.
+    const alias_oracle_report* get_alias_oracle_report() const { return _alias_oracle_report.get(); }
+    // Test hooks: sample the oracle again at any time (no first-round flag; exceptions propagate), optionally against an injected axis,
+    // and make the next oracle run throw once (to prove that execute() survives it and still resets its per-round flags).
+    void run_alias_oracle_for_test(const exec_axis* axis_override = nullptr) { run_alias_oracle(axis_override); }
+    void set_alias_oracle_fault_for_test(bool inject) { _alias_oracle_fault_for_test = inject; }
+
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
     size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
@@ -276,6 +287,11 @@ private:
     stream::ptr _stream;
     record_replay_session::ptr _record_replay_session = nullptr;
     std::unique_ptr<memory_pool> _memory_pool;
+    // Phase 0.5b: not serialized. The oracle samples once, at the end of the first execute() (see network::execute_impl).
+    bool _alias_oracle_pending = false;
+    bool _alias_oracle_fault_for_test = false;
+    std::unique_ptr<alias_oracle_report> _alias_oracle_report;
+    void run_alias_oracle(const exec_axis* axis_override);   // defined in alias_oracle.cpp
     bool _internal;
     bool _is_primary_stream;
     bool _is_dynamic = false;

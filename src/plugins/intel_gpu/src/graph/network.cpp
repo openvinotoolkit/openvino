@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/graph/network.hpp"
+#include "alias_oracle.h"
 
 #include <algorithm>
 #include <fstream>
@@ -293,6 +294,20 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
         _gc_runtime = ov::intel_gpu::mlir::MLIRGpuRuntime::create(*_stream, _engine);
     }
 #endif
+    // Phase 0.5b: arm the runtime alias oracle (report only). Imported programs have no analysis and are skipped with a reason.
+    if (_program->get_config().get_enable_alias_shadow_validation()) {
+        _alias_oracle_report = std::make_unique<alias_oracle_report>();
+        const auto* vr = _program->get_alias_validation_report();
+        if (_internal) {
+            _alias_oracle_report->skipped_reason = "internal";
+        } else if (_program->is_body_program()) {
+            _alias_oracle_report->skipped_reason = "body";
+        } else if (_program->get_alias_analysis() == nullptr || vr == nullptr || !vr->ran) {
+            _alias_oracle_report->skipped_reason = "no_analysis";
+        } else {
+            _alias_oracle_pending = true;
+        }
+    }
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -1385,6 +1400,22 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+    // Phase 0.5b: alias oracle, once, here: the SKIP flags of this round are still set. The pending flag is cleared first, so an oracle that
+    // fails is not retried, and nothing may leave this block: the flags below have to be reset (B1).
+    if (_alias_oracle_pending) {
+        _alias_oracle_pending = false;
+        try {
+            run_alias_oracle(nullptr);
+        } catch (const std::exception& e) {
+            _alias_oracle_report = std::make_unique<alias_oracle_report>();
+            _alias_oracle_report->skipped_reason = std::string("exception: ") + e.what();
+            GPU_DEBUG_LOG << "[alias_oracle] " << _alias_oracle_report->skipped_reason << std::endl;
+        } catch (...) {
+            _alias_oracle_report = std::make_unique<alias_oracle_report>();
+            _alias_oracle_report->skipped_reason = "exception: unknown";
+        }
+    }
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {
