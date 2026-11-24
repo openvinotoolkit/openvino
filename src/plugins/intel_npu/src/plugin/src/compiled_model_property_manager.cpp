@@ -242,7 +242,7 @@ void CompiledModelPropertyManager::registerProperties() {
             }
         }
     );
-    register_property(ov::intel_npu::export_raw_blob.name(), true, ov::PropertyMutability::RW,
+    register_property(ov::intel_npu::export_raw_blob.name(), false, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::intel_npu::export_raw_blob.name());
         },
