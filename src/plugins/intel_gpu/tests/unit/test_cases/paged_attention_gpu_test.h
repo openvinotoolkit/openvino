@@ -155,7 +155,7 @@ struct PagedAttentionManager {
                           bool has_xattention,
                           CacheRotationDescriptor rotation_config,
                           ov::element::Type kv_cache_precision = ov::element::dynamic,
-                          ov::element::Type qkv_precision = ov::element::dynamic)
+                          ov::element::Type qkv_precision = ov::element::f16)
         : num_heads(num_heads),
           num_kv_heads(num_kv_heads),
           k_head_size(k_head_size),
@@ -165,7 +165,7 @@ struct PagedAttentionManager {
           kv_cache_compression(kv_cache_compression),
           key_cache_quant_mode(key_cache_quant_mode),
           kv_cache_precision(kv_cache_precision),
-          qkv_precision(qkv_precision == ov::element::dynamic ? ov::element::f16 : qkv_precision),
+          qkv_precision(qkv_precision),
           has_score_aggregation(has_score_aggregation),
           rotation_config(rotation_config),
           subsequence_descs(subsequence_descs),
@@ -1822,7 +1822,7 @@ public:
                     p.has_xattention,
                     p.rotation_config,
                     p.kv_cache_precision,
-                    p.qkv_precision);
+                    p.qkv_precision == ov::element::dynamic ? ov::element::f16 : p.qkv_precision);
 
         if (p.zero_key_data) {
             for (auto& sequence_key_data : pam->key_data) {
