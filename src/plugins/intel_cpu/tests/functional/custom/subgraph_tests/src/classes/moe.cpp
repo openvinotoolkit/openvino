@@ -206,7 +206,7 @@ void MoECompressedWeightsSubgraphTest::SetUp() {
         rel_threshold = 0.05f;
         abs_threshold = 0.05f;
         }
-    // Quantizing the activations adds a small noise on top of u3's 8-level weights,
+    // Quantizing the activations adds a small noise on top of u3's 8-level (and u2's 4-level) weights,
     // so such dynamic quantization path gets a slightly looser threshold.
     const bool is_bf16 = itr != configuration.end() && itr->second == ov::element::bf16;
     const auto dq_itr = configuration.find(ov::hint::dynamic_quantization_group_size.name());
@@ -214,7 +214,7 @@ void MoECompressedWeightsSubgraphTest::SetUp() {
     const bool dyn_quant =
         dq_group_size != 0 && dq_group_size % 32 == 0 &&
         (decompression_group_size == -1 || static_cast<uint64_t>(decompression_group_size) % dq_group_size == 0);
-    if (weights_precision == ov::element::u3 && !is_bf16 && dyn_quant &&
+    if ((weights_precision == ov::element::u3 || weights_precision == ov::element::u2) && !is_bf16 && dyn_quant &&
         (ov::with_cpu_x86_avx2_vnni() || ov::with_cpu_x86_avx512_core_vnni())) {
         rel_threshold = 0.05f;
         abs_threshold = 0.05f;
