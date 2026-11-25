@@ -239,8 +239,9 @@ Bank::BufferOwners Bank::split_owners_and_views(const Candidates& candidates, Vi
             continue;
         }
         auto& source_owners = owners[source];
+        const auto meta = lt.eval_meta();
         const auto iter_owner = std::find_if(source_owners.begin(), source_owners.end(), [&](int64_t owner_uid) {
-            return same_buffer_layout(lt.eval_meta(), candidates.at(owner_uid).eval_meta());
+            return same_buffer_layout(meta, candidates.at(owner_uid).eval_meta());
         });
         if (iter_owner == source_owners.end()) {
             source_owners.push_back(uid);

@@ -66,6 +66,9 @@ public:
     static std::vector<layout> calc_output_layouts(deconvolution_node const& node, const kernel_impl_params& impl_param);
     static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
+    // Returns the padding added to the beginning of each spatial axis (primitive `pad`) for the actual shapes.
+    // SAME_UPPER/SAME_LOWER padding can't be calculated at compile time if spatial dims are dynamic.
+    static ov::CoordinateDiff get_pads_begin(const kernel_impl_params& impl_param);
 
     bool need_reset_input_memory(size_t idx = 0) const override {
         if (idx != 0) {

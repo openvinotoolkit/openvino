@@ -1745,7 +1745,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_uninitialized) {
     EXPECT_EQ(var, res);
 }
 
-TEST(SerializationTest, LlmHeaderAcceptsPreviousAndCurrentVersions) {
+TEST(SerializationTest, LlmHeaderRejectsAmbiguousPreviousVersions) {
     std::stringstream serialized;
     ov::npuw::s11n::write_header(serialized, NPUW_LLM_COMPILED_MODEL_INDICATOR);
     auto current = serialized.str();
@@ -1756,7 +1756,30 @@ TEST(SerializationTest, LlmHeaderAcceptsPreviousAndCurrentVersions) {
 
     current.replace(version_pos, std::strlen(NPUW_LLM_SERIALIZATION_VERSION), NPUW_SERIALIZATION_VERSION);
     std::stringstream legacy_stream(current);
-    EXPECT_NO_THROW(ov::npuw::s11n::read_and_check_header(legacy_stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLM"));
+    EXPECT_THROW(ov::npuw::s11n::read_and_check_header(legacy_stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLM"),
+                 ov::Exception);
+
+    current.replace(version_pos, std::strlen(NPUW_SERIALIZATION_VERSION), "0.36");
+    std::stringstream older_stream(current);
+    EXPECT_THROW(ov::npuw::s11n::read_and_check_header(older_stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLM"),
+                 ov::Exception);
+}
+
+TEST(SerializationTest, NonLlmHeaderUsesUpstreamVersion) {
+    std::stringstream serialized;
+    ov::npuw::s11n::write_header(serialized, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+    auto current = serialized.str();
+    const auto version_pos = current.rfind(NPUW_SERIALIZATION_VERSION);
+    ASSERT_NE(version_pos, std::string::npos);
+    std::stringstream current_stream(current);
+    EXPECT_NO_THROW(
+        ov::npuw::s11n::read_and_check_header(current_stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR, "batched"));
+
+    current.replace(version_pos, std::strlen(NPUW_SERIALIZATION_VERSION), NPUW_LLM_SERIALIZATION_VERSION);
+    std::stringstream mismatched_stream(current);
+    EXPECT_THROW(
+        ov::npuw::s11n::read_and_check_header(mismatched_stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR, "batched"),
+        ov::Exception);
 }
 
 TEST(SerializationTest, OVTypes_LazyTensor_const_roundtrip) {

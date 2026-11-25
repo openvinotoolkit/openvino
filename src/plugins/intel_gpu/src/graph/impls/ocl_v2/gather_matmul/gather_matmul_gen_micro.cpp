@@ -4,6 +4,8 @@
 
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 // clang-format off
+#include <algorithm>
+
 #include "gather_matmul_gen_micro.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -23,12 +25,9 @@ void entryObserver(const gemmstone::kcatalog::Entry* entry, double score, gemmst
 }  // anonymous namespace
 
 static bool has_fused_swiglu(const kernel_impl_params& params) {
-    for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>()) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(params.fused_desc.begin(), params.fused_desc.end(), [](const auto& fd) {
+        return fd.template is_type<swiglu>();
+    });
 }
 
 static size_t get_subgroup_size(gpu_arch arch) {
@@ -139,7 +138,8 @@ JitConstants GatherMatmulMicroGenerator::get_jit_constants(const kernel_impl_par
                 jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
                 jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u8));
             } else {
-                jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::f16));
+                // Must match the micro-GEMM ZP type: expert_gemm_compute.cl strides the per-expert ZP pointer with it.
+                jit.make("WEIGHT_ZP_DT", to_ocl_type(zp_layout.data_type));
             }
         }
     } else {

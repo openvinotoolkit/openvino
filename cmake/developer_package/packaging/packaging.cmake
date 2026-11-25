@@ -74,6 +74,35 @@ macro(ov_install_pdb target)
     endif()
 endmacro()
 
+#
+# ov_keep_debug_info_in_pdb(<target>...)
+#
+# When ENABLE_STATIC_LIBS_PDB is ON and embedded debug information (/Z7) is requested via
+# CMAKE_MSVC_DEBUG_INFORMATION_FORMAT, keeps the given targets and the object libraries archived
+# into them on a separate PDB (/Zi). Otherwise, the debug information format is left unchanged.
+#
+function(ov_keep_debug_info_in_pdb)
+    if(NOT ENABLE_STATIC_LIBS_PDB OR NOT MSVC OR NOT CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
+        return()
+    endif()
+
+    string(REPLACE "Embedded" "ProgramDatabase" debug_info_format "${CMAKE_MSVC_DEBUG_INFORMATION_FORMAT}")
+
+    foreach(target IN LISTS ARGN)
+        set(targets ${target})
+        get_target_property(sources ${target} SOURCES)
+        foreach(source IN LISTS sources)
+            if(source MATCHES "\\$<TARGET_OBJECTS:([^>]+)>")
+                if(TARGET "${CMAKE_MATCH_1}")
+                    list(APPEND targets "${CMAKE_MATCH_1}")
+                endif()
+            endif()
+        endforeach()
+
+        set_target_properties(${targets} PROPERTIES MSVC_DEBUG_INFORMATION_FORMAT "${debug_info_format}")
+    endforeach()
+endfunction()
+
 # Increments the global visited-epoch used by _ov_collect_static_deps_impl so
 # that per-target _OV_SDEP_SEEN_EPOCH flags from previous traversals are
 # implicitly invalidated without having to clear them.

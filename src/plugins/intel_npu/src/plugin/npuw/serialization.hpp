@@ -56,9 +56,10 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATO
 const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICATOR =
     {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.36";
-// LLM 0.37 adds view references to the bank payload; the reader also accepts 0.36.
-const constexpr char* NPUW_LLM_SERIALIZATION_VERSION = "0.37";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.37";
+// LLM 0.37 was used by both the older PR layout and upstream's incompatible HFA layout.
+// LLM 0.38 includes both the current HFA layout and weights-bank view references.
+const constexpr char* NPUW_LLM_SERIALIZATION_VERSION = "0.38";
 
 // Forward declaration
 namespace intel_npu {
@@ -172,8 +173,9 @@ struct WeightsContext {
     // NOTE: This constructor should only be used when exporting blobs.
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
-    // NOTE: This constructor is used on blob import to carry the resolved weight source
-    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
+    // NOTE: This constructor is used on blob import to carry the resolved weight
+    // source (embedded weights, mmap'ed weights file, or model-backed constants
+    // cache).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
@@ -198,7 +200,8 @@ struct WeightsContext {
 
 // Context for deserializing submodels with dynamic attention mechanisms
 // (Pyramid Attention, Host Flash Attention, etc.)
-// Provides plugin, device, and compiled model reference for proper deserialization
+// Provides plugin, device, and compiled model reference for proper
+// deserialization
 struct SubmodelDeserializeCtx {
     SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
                            const std::string& _device,
