@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdlib>
+#include <filesystem>
 #include <optional>
 #include <pugixml.hpp>
 #include <vector>
@@ -28,11 +29,12 @@ namespace ov::frontend::ir {
 namespace {
 
 std::shared_ptr<ov::util::WeightsProvider> make_buffer_weights_provider(
-    const std::shared_ptr<ov::AlignedBuffer>& weights) {
+    const std::shared_ptr<ov::AlignedBuffer>& weights,
+    std::filesystem::path origin_path = {}) {
     if (!weights) {
         return nullptr;
     }
-    return std::make_shared<ov::util::BufferWeightsProvider>(weights);
+    return std::make_shared<ov::util::BufferWeightsProvider>(weights, std::move(origin_path));
 }
 
 size_t get_ir_version(const pugi::xml_document& doc) {
@@ -172,24 +174,16 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return exts;
     };
 
-    auto create_input_model = [&](std::filesystem::path weights_path) -> std::shared_ptr<InputModel> {
+    auto create_input_model = [&]() -> std::shared_ptr<InputModel> {
         if (provided_model_stream) {
-            return std::make_shared<InputModel>(*provided_model_stream,
-                                                weights_provider,
-                                                create_extensions_map(),
-                                                std::move(weights_path));
+            return std::make_shared<InputModel>(*provided_model_stream, weights_provider, create_extensions_map());
         } else if (local_model_stream.is_open()) {
-            auto input_model = std::make_shared<InputModel>(local_model_stream,
-                                                            weights_provider,
-                                                            create_extensions_map(),
-                                                            std::move(weights_path));
+            auto input_model =
+                std::make_shared<InputModel>(local_model_stream, weights_provider, create_extensions_map());
             local_model_stream.close();
             return input_model;
         } else if (model_buf) {
-            return std::make_shared<InputModel>(model_buf,
-                                                weights_provider,
-                                                create_extensions_map(),
-                                                std::move(weights_path));
+            return std::make_shared<InputModel>(model_buf, weights_provider, create_extensions_map());
         }
         return nullptr;
     };
@@ -237,7 +231,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                 auto weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
                                                                                                  mapped_memory->size(),
                                                                                                  mapped_memory);
-                weights_provider = make_buffer_weights_provider(weights);
+                weights_provider = make_buffer_weights_provider(weights, weights_path);
             } else if (std::ifstream bin_stream(weights_path, std::ios::binary); bin_stream.is_open()) {
                 bin_stream.seekg(0, std::ios::end);
                 size_t file_size = bin_stream.tellg();
@@ -254,7 +248,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                         std::hash<std::decay_t<decltype(weights_path.native())>>{}(weights_path.native()),
                         0,
                         aligned_weights_buffer));
-                weights_provider = make_buffer_weights_provider(weights);
+                weights_provider = make_buffer_weights_provider(weights, weights_path);
 
             } else {
                 OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
@@ -262,7 +256,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
 
-    return create_input_model(std::move(weights_path));
+    return create_input_model();
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {

@@ -13,6 +13,9 @@
 #include <intel_gpu/primitives/data.hpp>
 
 #include "deconvolution_inst.h"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -3288,7 +3291,148 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_extended, deconvolution_random_test, testing::
     .add_all_3d(data_types::u8, data_types::i8, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16)
 ), deconvolution_random_test_params::print_params);
 
+using deconvolution_dynamic_auto_pad_params = std::tuple<ov::op::PadType,  // auto_pad
+                                                         size_t,           // kernel size
+                                                         size_t,           // stride
+                                                         bool,             // output spatial shape is a runtime input
+                                                         impl_types>;
+
+// SAME_UPPER/SAME_LOWER pads depend on the input and output spatial dims. If the spatial dims are dynamic, the pads
+// are calculated at runtime and must be the same as the pads of a static ov::op::v1::ConvolutionBackpropData.
+class deconvolution_dynamic_auto_pad_test : public testing::TestWithParam<deconvolution_dynamic_auto_pad_params> {
+public:
+    static std::string print_params(const testing::TestParamInfo<deconvolution_dynamic_auto_pad_params>& info) {
+        const auto& [auto_pad, kernel, stride, runtime_output_shape, impl_type] = info.param;
+        std::ostringstream name;
+        name << auto_pad << "_k" << kernel << "_s" << stride << (runtime_output_shape ? "_runtime" : "_const")
+             << "_output_shape_" << (impl_type == impl_types::onednn ? "onednn" : "ocl");
+        return name.str();
+    }
+};
+
+TEST_P(deconvolution_dynamic_auto_pad_test, same_as_static_with_explicit_pads) {
+    auto& engine = get_test_engine();
+    const auto& [auto_pad, kernel, stride, runtime_output_shape, impl_type] = GetParam();
+    if (impl_type == impl_types::onednn && !engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
+    const auto data_type = impl_type == impl_types::onednn ? data_types::f16 : data_types::f32;
+    const int64_t ifm = 8;
+    const int64_t ofm = 16;
+    const auto k = static_cast<int64_t>(kernel);
+    const auto s = static_cast<int64_t>(stride);
+    const ov::Strides strides{stride, stride};
+    const ov::Strides dilations{1, 1};
+    const ov::CoordinateDiff zero_pads{0, 0};
+    // The output spatial shape is the same for both inputs, so the pads change with the input spatial dims
+    const std::vector<int64_t> output_spatial_shape{6 * s + 1, 6 * s + 2};
+    const std::vector<ov::PartialShape> input_shapes{{1, ifm, 7, 7}, {1, ifm, 6, 9}};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto allocate_random_memory = [&](const layout& l) {
+        auto mem = engine.allocate_memory(l);
+        auto values = rg.generate_random_1d<float>(l.count(), -1, 1);
+        if (l.data_type == data_types::f16) {
+            set_values(mem, std::vector<ov::float16>(values.begin(), values.end()));
+        } else {
+            set_values(mem, values);
+        }
+        return mem;
+    };
+    auto weights_mem = allocate_random_memory(layout{ov::PartialShape{ofm, ifm, k, k}, data_type, format::oiyx});
+
+    auto create_topology = [&](const layout& in_layout,
+                               ov::op::PadType pad_type,
+                               const ov::CoordinateDiff& pads_begin,
+                               const ov::CoordinateDiff& pads_end,
+                               bool output_shape_input) {
+        auto deconv_prim = deconvolution("deconv", input_info("input"), "weights", "", 1, strides, pads_begin, dilations,
+                                         pads_begin, pads_end, zero_pads, false);
+        deconv_prim.auto_pad = pad_type;
+        topology topology(input_layout("input", in_layout), data("weights", weights_mem));
+        if (output_shape_input) {
+            topology.add(input_layout("output_shape", layout{ov::PartialShape{2}, data_types::i64, format::bfyx}));
+            deconv_prim.output_shape_id = input_info("output_shape");
+        } else {
+            deconv_prim.output_partial_shape = ov::PartialShape{output_spatial_shape[0], output_spatial_shape[1]};
+        }
+        topology.add(deconv_prim);
+        topology.add(reorder("output", input_info("deconv"), format::bfyx, data_types::f32));
+        return topology;
+    };
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc deconv_impl = {format::bfyx, "", impl_type};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"deconv", deconv_impl}}));
+
+    const layout dynamic_layout{ov::PartialShape{1, ifm, -1, -1}, data_type, format::bfyx};
+    network network_dynamic(engine, create_topology(dynamic_layout, auto_pad, zero_pads, zero_pads, runtime_output_shape), config);
+
+    for (const auto& input_shape : input_shapes) {
+        const auto filters = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ifm, ofm, k, k});
+        const auto ref_op = std::make_shared<ov::op::v1::ConvolutionBackpropData>(
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape),
+            filters,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, output_spatial_shape),
+            strides,
+            zero_pads,
+            zero_pads,
+            dilations,
+            auto_pad);
+
+        const layout static_layout{input_shape, data_type, format::bfyx};
+        auto input_mem = allocate_random_memory(static_layout);
+        network network_static(engine,
+                               create_topology(static_layout, ov::op::PadType::EXPLICIT, ref_op->get_pads_begin(), ref_op->get_pads_end(), false),
+                               config);
+        network_static.set_input_data("input", input_mem);
+        auto output_static = network_static.execute().at("output").get_memory();
+
+        network_dynamic.set_input_data("input", input_mem);
+        if (runtime_output_shape) {
+            auto output_shape_mem = engine.allocate_memory(layout{ov::PartialShape{2}, data_types::i64, format::bfyx});
+            set_values(output_shape_mem, output_spatial_shape);
+            network_dynamic.set_input_data("output_shape", output_shape_mem);
+        }
+        auto output_dynamic = network_dynamic.execute().at("output").get_memory();
+
+        const ov::PartialShape expected_shape{1, ofm, output_spatial_shape[0], output_spatial_shape[1]};
+        ASSERT_EQ(output_static->get_layout().get_partial_shape(), expected_shape);
+        ASSERT_EQ(output_dynamic->get_layout().get_partial_shape(), expected_shape);
+
+        const float tolerance = data_type == data_types::f16 ? 1e-2f : 1e-5f;
+        cldnn::mem_lock<float, mem_lock_type::read> static_ptr(output_static, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> dynamic_ptr(output_dynamic, get_test_stream());
+        for (size_t i = 0; i < output_static->count(); ++i) {
+            ASSERT_NEAR(static_ptr[i], dynamic_ptr[i], tolerance)
+                << "i = " << i << ", input shape " << input_shape << ", pads_begin " << ref_op->get_pads_begin();
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         deconvolution_dynamic_auto_pad_test,
+                         testing::Combine(testing::Values(ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER),
+                                          testing::Values(3, 4),
+                                          testing::Values(1, 2),
+                                          testing::Bool(),
+                                          testing::Values(impl_types::ocl)),
+                         deconvolution_dynamic_auto_pad_test::print_params);
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
+INSTANTIATE_TEST_SUITE_P(smoke_onednn,
+                         deconvolution_dynamic_auto_pad_test,
+                         testing::Combine(testing::Values(ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER),
+                                          testing::Values(3, 4),
+                                          testing::Values(1, 2),
+                                          testing::Bool(),
+                                          testing::Values(impl_types::onednn)),
+                         deconvolution_dynamic_auto_pad_test::print_params);
+
+
 TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     //  Filter : 1x1
     //  Input  : 2x2
