@@ -12,8 +12,8 @@
 static const size_t vec_size = 8;
 
 namespace kernel_selector {
-static inline int GetInnerFeatureBlockSize(const DataTensor&);
-static inline int GetInnerBatchBlockSize(const DataTensor&);
+static inline int GetInnerFeatureBlockSize(const DataTensor& /*tensor*/);
+static inline int GetInnerBatchBlockSize(const DataTensor& /*tensor*/);
 static inline size_t CalculateTotalWorkItemCount(const quantize_params& params);
 
 ParamsKey QuantizeKernelScaleShift_vload8::GetSupportedKey() const {

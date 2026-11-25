@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/util/common_util.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -24,6 +29,7 @@ struct QuantizationParams {
     std::vector<size_t> fqConstShapes;                // fq constant shapes
     element::Type expectedPrecision;                  // convolution expected precision
     bool perChannelWeightsScale;                      // use per-channel scale on weights
+    double absoluteThreshold = 1e-2;
 };
 
 typedef std::tuple<InputShape,          // input shape
@@ -62,9 +68,24 @@ public:
 
 protected:
     void SetUp() override {
-        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] =
-            this->GetParam();
-        abs_threshold = 1e-2f;
+        const auto& quantizationParams = std::get<QuantizationParams>(GetParam());
+        const auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
+        const auto scales = quantizationParams.perChannelWeightsScale
+                                ? op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.02F, 0.025F, 0.03F, 0.035F})
+                                : op::v0::Constant::create(element::f32, {1, 1, 1, 1}, {0.625F});
+        std::shared_ptr<Node> bias;
+        if (std::get<3>(GetParam())) {
+            bias = std::make_shared<op::v0::Convert>(utils::make_constant(element::f16, {1, 4, 1, 1}), element::f32);
+        }
+        buildModel(weights, scales, bias, true);
+    }
+
+    void buildModel(const std::shared_ptr<Node>& weights,
+                    const std::shared_ptr<Node>& scales,
+                    const std::shared_ptr<Node>& bias,
+                    bool withMatMul) {
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = GetParam();
+        abs_threshold = quantizationParams.absoluteThreshold;
         targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         init_input_shapes({inputShape});
@@ -84,19 +105,8 @@ protected:
                                                              inputIntervals[2],
                                                              inputIntervals[3]);
 
-        auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-
-        std::shared_ptr<ov::Node> multiply;
-        if (quantizationParams.perChannelWeightsScale) {
-            multiply = std::make_shared<op::v1::Multiply>(
-                convert,
-                op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.02f, 0.025f, 0.03f, 0.035f}));
-        } else {
-            multiply =
-                std::make_shared<op::v1::Multiply>(convert,
-                                                   op::v0::Constant::create(element::f32, {1, 1, 1, 1}, {0.625f}));
-        }
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, scales);
 
         std::shared_ptr<Node> conv;
         {
@@ -120,11 +130,8 @@ protected:
         }
 
         auto fqInput = conv;
-        if (withBias) {
-            auto bias = ov::test::utils::make_constant(ov::element::f16, ov::Shape({1, 4, 1, 1}));
-            auto convertBias = std::make_shared<op::v0::Convert>(bias, element::f32);
-            auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, convertBias);
-            fqInput = convBiasAdd;
+        if (bias) {
+            fqInput = std::make_shared<op::v1::Add>(conv, bias);
         }
         if (withSwish) {
             fqInput = ov::test::utils::make_activation(fqInput,
@@ -142,6 +149,11 @@ protected:
                                                             {outputIntervals[1][0]},
                                                             {outputIntervals[2][0]},
                                                             {outputIntervals[3][0]});
+
+        if (!withMatMul) {
+            function = create_ov_model(inputPrecision, input_params, fq_after, "ConvFQ");
+            return;
+        }
 
         auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
         auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
@@ -164,24 +176,20 @@ protected:
             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
-    void checkConvolutionPrecision(ov::element::Type expectedPrecision) {
-        const auto runtime_model = compiledModel.get_runtime_model();
-        for (auto& op : runtime_model->get_ops()) {
-            if (op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "Convolution") {
-                EXPECT_EQ(op->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(),
-                          expectedPrecision);
-            }
-        }
+    void runAndCheckConvolution() {
+        run();
+        const auto expectedPrecision = std::get<QuantizationParams>(GetParam()).expectedPrecision;
+        const auto convolutions = GetNodesWithTypes(compiledModel.get_runtime_model(), {"Convolution"});
+        ASSERT_EQ(convolutions.size(), 1u);
+        EXPECT_EQ(convolutions.front()->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<element::Type>(),
+                  expectedPrecision);
+        CheckPluginRelatedResults(compiledModel, "Convolution");
     }
 };
 
 TEST_P(ConvAndFQ, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    run();
-
-    const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = this->GetParam();
-    checkConvolutionPrecision(quantizationParams.expectedPrecision);
-    CheckPluginRelatedResults(compiledModel, "Convolution");
+    runAndCheckConvolution();
 }
 
 namespace {
@@ -198,6 +206,51 @@ const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
 
 const std::vector<std::vector<float>> signedIntervals{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}};
 const std::vector<std::vector<float>> unsignedIntervals{{0.f}, {2.55f}, {0.f}, {2.55f}};
+
+#if defined(OPENVINO_ARCH_ARM64)
+class ConvAndFQZeroPointRounding : public ConvAndFQ {
+protected:
+    void SetUp() override {
+        const auto weights =
+            op::v0::Constant::create(element::i8, {4, 4, 1, 1}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1});
+        const auto scales = op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.012F, 0.011F, 0.014F, 0.017F});
+        const auto bias = op::v0::Constant::create(element::f32, {1, 4, 1, 1}, {0.012F, -0.018F, 0.032F, -0.041F});
+        buildModel(weights, scales, bias, false);
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto input = function->input();
+        ov::Tensor tensor(input.get_element_type(), targetInputStaticShapes[0]);
+        std::fill_n(tensor.data<float>(), tensor.get_size(), 0.0F);
+        inputs.insert({input.get_node_shared_ptr(), tensor});
+    }
+};
+
+TEST_P(ConvAndFQZeroPointRounding, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    runAndCheckConvolution();
+}
+
+// Nudge the ResNeXt upper bound so -255 * low / (high - low) is just below 128 in float.
+// Truncating the fused destination zero point to 127 shifts the output by one quantization bin.
+const QuantizationParams zeroPointRoundingParams{{{0.F}, {0.64194745F}, {0.F}, {0.64194745F}},
+                                                 {{-0.78389084F}, {0.777767F}, {-0.78389084F}, {0.777767F}},
+                                                 {},
+                                                 element::u8,
+                                                 true,
+                                                 1e-3};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQZeroPointRounding_CPU,
+                         ConvAndFQZeroPointRounding,
+                         ::testing::Combine(::testing::Values(InputShape{{}, {{1, 4, 4, 4}}}),
+                                            ::testing::Values(element::f32),
+                                            ::testing::Values(zeroPointRoundingParams),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQZeroPointRounding::getTestCaseName);
+#endif
 
 std::vector<QuantizationParams> quantizationParams{
     {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},        // i8 -> i8, per-tensor
