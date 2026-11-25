@@ -679,7 +679,7 @@ jobs:
     name: GPU unit tests
     needs: [ Build, Smart_CI ]
     if: ${{ github.event_name != 'merge_group' && fromJSON(needs.smart_ci.outputs.affected_components).GPU }}
-    timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
+    timeout-minutes: 240 # to be adjusted when the stage is marked as required for merge
     defaults:
       run:
         shell: powershell
@@ -694,6 +694,8 @@ jobs:
       GTEST_PARALLEL_SCRIPT: "${{ github.workspace }}\\gtest-parallel\\gtest_parallel.py"
       NEO_CACHE_MAX_SIZE: 0 # unlimited
       NEO_CACHE_PERSISTENT: 1
+      NEO_CACHE_DIR: 'C:\neo_cache'
+      NEO_CACHE_STATS: 1
     steps:    
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
