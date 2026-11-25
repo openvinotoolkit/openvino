@@ -46,6 +46,8 @@ public:
     const std::vector<cldnn::program::les_router_link>& links() const { return m_links; }
 
     void enter(const cldnn::primitive_id& id);
+    const cldnn::primitive_inst* dense_source() const { return m_dense_source; }
+    void predict_first();
     void demand_partitioned(const cldnn::primitive_id& id);
     void pause_for_prefill();
     std::shared_ptr<IExpertWeightProvider> bind(const cldnn::primitive_id& id,
@@ -73,6 +75,8 @@ private:
     std::unordered_map<cldnn::primitive_id, uint32_t> m_layer_indices;
     std::unordered_map<cldnn::primitive_id, size_t> m_source_links;
     std::vector<LookaheadLayerDesc> m_layers;
+    cldnn::primitive_inst* m_dense_source = nullptr;
+    bool m_dense_started_epoch = false;
     std::unordered_map<const cldnn::primitive_inst*, size_t> m_moe_to_next_index;
     uint64_t m_epoch = 0;
     std::optional<uint32_t> m_cursor;
