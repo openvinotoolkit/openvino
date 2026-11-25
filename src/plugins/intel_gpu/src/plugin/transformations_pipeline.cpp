@@ -1076,7 +1076,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::TransposeMatMul>();
 
         // Without immad or oneDNN, GroupedMatMul has no native implementation and is decomposed into MatMuls.
-        // 2Dx3D ones with splittable 4-bit weights are decomposed here, before MarkDequantization, so that each expert
+        // 2Dx3D ones with splittable compressed weights are decomposed here, before MarkDequantization, so that each expert
         // keeps compressed weights; the rest are decomposed later by register_grouped_matmul_decomposition(), as before.
         if ((!device_info.supports_immad || !config.get_use_onednn()) && !GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
             manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>(true);

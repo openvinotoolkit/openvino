@@ -282,27 +282,24 @@ TEST(TransformationTests, ConvertGroupedMatMulToMatMul_2Dx3D_SplitWeightsShareOr
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(QuantizedExperts,
-                         ConvertGroupedMatMulToMatMulCompressed,
-                         testing::Combine(testing::Values(ov::element::u4, ov::element::i4),
-                                          testing::Values(std::vector<int32_t>{3},
-                                                          std::vector<int32_t>{1, 3},
-                                                          std::vector<int32_t>{1, 3, 6, 10},
-                                                          std::vector<int32_t>{0, 2, 2, 10}),
-                                          testing::Bool()));
+INSTANTIATE_TEST_SUITE_P(
+    QuantizedExperts,
+    ConvertGroupedMatMulToMatMulCompressed,
+    testing::Combine(testing::Values(ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8),
+                     testing::Values(std::vector<int32_t>{3},
+                                     std::vector<int32_t>{1, 3},
+                                     std::vector<int32_t>{1, 3, 6, 10},
+                                     std::vector<int32_t>{0, 2, 2, 10}),
+                     testing::Bool()));
 
-TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_OnlyCompressedSplit_SkipsNotSplittableWeights) {
+TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_OnlyCompressedSplit_SkipsUncompressedWeights) {
     constexpr size_t groups = 2, width = 8, channels = 256;
     const std::vector<int32_t> ends{3, 8};
-    auto packed = v0::Constant::create(ov::element::u8, ov::Shape{groups, width, channels}, {1});
-    auto converted = std::make_shared<v0::Convert>(packed, ov::element::f16);
-    auto scales = v0::Constant::create(ov::element::f16, ov::Shape{groups, width, 1}, {0.125f});
-    auto scaled = std::make_shared<v1::Multiply>(converted, scales);
-    auto weights = std::make_shared<v0::Convert>(scaled, f32);
+    auto weights = v0::Constant::create(f32, ov::Shape{groups, width, channels}, {0.5f});
     auto activations = std::make_shared<v0::Parameter>(f32, ov::Shape{static_cast<size_t>(ends.back()), channels});
     auto offsets = v0::Constant::create(i32, ov::Shape{groups}, ends);
     auto grouped = std::make_shared<v17::GroupedMatMul>(activations, weights, offsets);
     model = std::make_shared<ov::Model>(ov::OutputVector{grouped}, ov::ParameterVector{activations});
     manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>(true);
-    // No model_ref: u8 weights are not split, so the GroupedMatMul is left for the regular decomposition.
+    // No model_ref: uncompressed weights are not split, so the GroupedMatMul is left for the regular decomposition.
 }

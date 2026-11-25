@@ -32,7 +32,7 @@ public:
 ///         out          = Concat(out_0, ..., out_{G-1}, axis=0)     // [T, N]
 ///     Requires the group dimension G (mat_b.shape[0]) to be static so that a
 ///     fixed number of MatMuls can be generated.
-///     With only_compressed_split, only GroupedMatMuls whose 4-bit compressed weights can be split per group are
+///     With only_compressed_split, only GroupedMatMuls whose compressed weights can be split per group are
 ///     decomposed; the others are left for a later regular decomposition.
 class TRANSFORMATIONS_API ConvertGroupedMatMul2Dx3DToMatMul : public ov::pass::MatcherPass {
 public:

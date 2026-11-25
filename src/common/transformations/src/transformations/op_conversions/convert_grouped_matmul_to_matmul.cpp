@@ -53,9 +53,10 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
         has_decompression |= ov::is_type<v1::Multiply>(source);
         source = source->input_value(0).get_node_shared_ptr();
     }
+    const auto weight_type = source->get_output_element_type(0);
     if (!has_decompression || !ov::is_type<v0::Constant>(source) || num_groups <= 0 ||
-        (source->get_output_element_type(0) != ov::element::u4 &&
-         source->get_output_element_type(0) != ov::element::i4)) {
+        (weight_type != ov::element::u4 && weight_type != ov::element::i4 && weight_type != ov::element::u8 &&
+         weight_type != ov::element::i8)) {
         return {};
     }
 
