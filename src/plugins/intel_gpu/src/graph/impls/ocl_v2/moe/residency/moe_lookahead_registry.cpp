@@ -1,6 +1,5 @@
 #include "impls/ocl_v2/primitive_ocl_base.hpp"
 #include "moe_lookahead_registry.hpp"
-#include "les_dense_prediction.hpp"
 #include <limits>
 
 namespace ov::intel_gpu::ocl::moe {
@@ -21,7 +20,6 @@ LookaheadContext::~LookaheadContext() {
 }
 
 void LookaheadContext::pause_for_prefill() {
-    m_dense_started_epoch = false;
     m_compute_stream->flush();
     m_prefetcher->advance(++m_epoch, std::numeric_limits<uint32_t>::max());
     m_prefetcher->drain();
@@ -99,34 +97,6 @@ void LookaheadContext::build_once(cldnn::network& network) {
             }
         }
         if (predictor_model) {
-            if (!m_layers.empty()) {
-                auto& first = m_layers.front();
-                const auto layer = les_layer_of(first.moe_inst->id());
-                if (layer && *layer > 0 && predictor_model->heads.count(*layer)) {
-                    const auto scope = "layers." + std::to_string(*layer - 1) + ".";
-                    for (const auto& id : network.get_executed_primitive_ids()) {
-                        if (id.find(scope + "mlp.gate_proj/") == std::string::npos) {
-                            continue;
-                        }
-                        auto& gate = network.get_program()->get_node(id);
-                        if (gate.get_dependencies().empty()) {
-                            continue;
-                        }
-                        const auto& input = gate.get_dependency(0);
-                        const auto& source = input.id().find("dynamicquantize:") == 0 && !input.get_dependencies().empty()
-                                                 ? input.get_dependency(0).id() : input.id();
-                        if (source.find("rms:") == 0 && source.find(scope + "post_attention_layernorm/") != std::string::npos) {
-                            m_dense_source = network.get_primitive(source).get();
-                            const auto& config = first.moe_inst->get_typed_desc<cldnn::moe_3gemm_fused_compressed>()->_config;
-                            first.hidden_size = config.hidden_size;
-                            first.num_experts = config.num_expert;
-                            first.is_supported = true;
-                            m_predictor_layers.emplace(first.moe_inst->id(), *layer);
-                            break;
-                        }
-                    }
-                }
-            }
             for (const auto& [id, layer] : m_predictor_layers) {
                 const auto& head = predictor_model->heads.at(layer);
                 const auto& target = m_layers[m_layer_indices.at(id)];
@@ -157,12 +127,9 @@ void LookaheadContext::enter(const cldnn::primitive_id& id) {
         return;
     }
     if (!m_cursor || found->second <= *m_cursor) {
-        if (!m_dense_started_epoch) {
-            ++m_epoch;
-        }
+        ++m_epoch;
         m_prefetcher->advance(m_epoch, 0);
     }
-    m_dense_started_epoch = false;
     m_cursor = found->second;
 }
 
@@ -209,29 +176,6 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
     }();
     state = {hidden, ready, result.indices, result.weights, result.ready,
              std::make_shared<std::atomic<bool>>(true), false, result.cpu_indices};
-}
-
-void LookaheadContext::predict_first() {
-    const auto& first = m_layers.front();
-    const auto hidden = m_dense_source->output_memory_ptr();
-    const auto& layout = hidden->get_layout();
-    if (layout.data_type != cldnn::data_types::f16 || layout.format != cldnn::format::bfyx ||
-        layout.count() != first.hidden_size || layout.get_linear_size() != layout.count()) {
-        return;
-    }
-    auto& stream = m_network.get_stream();
-    ++m_epoch;
-    m_dense_started_epoch = true;
-    predict(first, hidden, stream.enqueue_marker({}, true));
-    stream.enqueue_barrier({m_predictions.at(first.moe_inst->id()).prediction_ready});
-}
-
-DensePredictionTrigger get_dense_prediction_trigger(cldnn::network& network) {
-    auto context = LookaheadRegistry::acquire(network);
-    if (!context || !context->dense_source()) {
-        return {};
-    }
-    return {context->dense_source(), [context] { context->predict_first(); }};
 }
 
 LesPredictor::Head* LookaheadContext::predictor_head(const cldnn::primitive_id& id) {

@@ -42,7 +42,6 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "kv_cache_inst.h"
-#include "les_dense_prediction.hpp"
 #include "mutable_data_inst.h"
 #include "openvino/util/env_util.hpp"
 #include "paged_attention_inst.h"
@@ -1161,11 +1160,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         const bool needs_flushing = _is_dynamic;
         const size_t flush_frequency = needs_flushing ? 16 : 0;
         size_t executed_prims = 0;
-        ov::intel_gpu::ocl::moe::DensePredictionTrigger first_head;
-        if (get_config().get_moe_lookahead_prefetch() && !get_config().get_les_predictor().empty() &&
-            !get_program()->get_les_moe_links().empty()) {
-            first_head = ov::intel_gpu::ocl::moe::get_dense_prediction_trigger(*this);
-        }
 
         for (auto& inst : _exec_order) {
             NODE_DEBUG(*inst);
@@ -1182,10 +1176,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
             inst->prepare_primitive();
             inst->execute();
-
-            if (inst.get() == first_head.source) {
-                first_head.predict();
-            }
 
             executed_prims++;
             if (needs_flushing && executed_prims % flush_frequency == 0) {
