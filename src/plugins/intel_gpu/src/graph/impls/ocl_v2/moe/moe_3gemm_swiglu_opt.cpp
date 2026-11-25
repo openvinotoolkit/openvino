@@ -1882,7 +1882,8 @@ public:
     cldnn::event::ptr exec_batched_gemv(const std::vector<cldnn::event::ptr>& events,
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch,
-                                        size_t token_num) {
+                                        size_t token_num,
+                                        bool predict) {
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -1895,14 +1896,14 @@ public:
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
-        const bool split_les = _les_owner && token_num == 1 && _weight_provider->is_offloaded() &&
+        const bool split_les = _les_owner && predict && _weight_provider->is_offloaded() &&
                        _weight_provider->resident_capacity() > 0;
         std::vector<uint32_t> experts;
         if (split_les) {
             stream.finish();
         }
-        if (token_num == 1) {
-            enqueue_lookahead_prediction(events, instance);
+        if (predict) {
+            enqueue_lookahead_prediction(events, instance, token_num);
         }
         if (split_les) {
             experts.resize(token_num * static_cast<size_t>(max_topk));
@@ -1924,7 +1925,7 @@ public:
             if (!batch_mem_ptr) {
                 return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
             }
-            if (_lookahead && token_num == 1) {
+            if (predict) {
                 _lookahead->demand_partitioned(instance.id());
                 _lookahead->prefetch(&instance);
             }
@@ -2034,7 +2035,7 @@ public:
                 OPENVINO_ASSERT(provider, "Lookahead requires an offload provider");
                 auto& prefetcher = _lookahead->prefetcher();
                 prefetcher.rethrow_if_failed();
-                const size_t wave_capacity = provider->resident_capacity();
+                const size_t wave_capacity = std::min<size_t>(provider->resident_capacity(), max_topk);
                 const size_t wave_count = (pair_count + wave_capacity - 1) / wave_capacity;
                 if (_les_decode_metadata.size() < wave_count * 3) {
                     _les_decode_metadata.resize(wave_count * 3);
@@ -2063,19 +2064,24 @@ public:
                     }
                     std::vector<int32_t> slots(pair_count, 0);
                     std::copy(partition->slots.begin(), partition->slots.end(), slots.begin() + first_pair);
-                    std::vector<int32_t> ready_mask(compute_experts, 0);
-                    std::vector<int32_t> pending_mask(compute_experts, 0);
+                    std::vector<int32_t> ready_mask(token_num * compute_experts, 0);
+                    std::vector<int32_t> pending_mask(token_num * compute_experts, 0);
+                    auto mask_index = [&](size_t pair) {
+                        pair += first_pair;
+                        return pair / max_topk * compute_experts + pair % max_topk;
+                    };
                     for (auto pair : partition->ready_pairs) {
-                        ready_mask[first_pair + pair] = 1;
+                        ready_mask[mask_index(pair)] = 1;
                     }
                     for (auto pair : partition->inflight_pairs) {
-                        pending_mask[first_pair + pair] = 1;
+                        pending_mask[mask_index(pair)] = 1;
                     }
                     for (auto pair : partition->missing_pairs) {
-                        pending_mask[first_pair + pair] = 1;
+                        pending_mask[mask_index(pair)] = 1;
                     }
                     if (_has_shared_expert && wave == 0) {
-                        ready_mask[max_topk] = 1;
+                        for (size_t token = 0; token < token_num; ++token)
+                            ready_mask[token * compute_experts + max_topk] = 1;
                     }
                     auto upload = [&](const std::vector<int32_t>& values, size_t index) {
                         auto& memory = _les_decode_metadata[wave * 3 + index];
@@ -3368,13 +3374,13 @@ public:
         }
     }
 
-    void enqueue_lookahead_prediction(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) {
+    void enqueue_lookahead_prediction(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t tokens) {
         if (_lookahead) {
             auto& stream = instance.get_network().get_stream();
             auto hidden = instance.input_memory_ptr(0);
             const auto& layout = hidden->get_layout();
             if (layout.data_type == data_types::f16 && layout.format == format::bfyx &&
-                layout.count() == layout.get_shape().back() && layout.get_linear_size() == layout.count()) {
+                layout.count() == tokens * layout.get_shape().back() && layout.get_linear_size() == layout.count()) {
                 _lookahead->enter(instance.id());
                 auto ready = stream.enqueue_marker(events, true);
                 if (const auto* next_layer = _lookahead->get_next_layer(&instance)) {
@@ -3420,11 +3426,12 @@ public:
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         const MoeGemmImpl impl = select_impl(token_num);
-        if (_lookahead && (token_num != 1 || impl != MoeGemmImpl::batched_gemv)) {
+        const bool predict = _lookahead && impl == MoeGemmImpl::batched_gemv && _lookahead->prediction_enabled(ins.id(), token_num);
+        if (_lookahead && !predict) {
             _lookahead->pause_for_prefill();
         }
         if (impl == MoeGemmImpl::batched_gemv) {
-            return exec_batched_gemv(events, instance, scratch, token_num);
+            return exec_batched_gemv(events, instance, scratch, token_num, predict);
         }
         if (impl == MoeGemmImpl::int3_batched_gemv) {
             return exec_int3_batched_gemv(events, instance, scratch, token_num);

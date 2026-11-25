@@ -62,7 +62,8 @@ public:
         }
     }
 
-    Result enqueue(const cldnn::memory::ptr& hidden, const cldnn::event::ptr& ready) {
+    Result enqueue(const cldnn::memory::ptr& hidden, const cldnn::event::ptr& ready,
+                   std::shared_ptr<std::vector<uint32_t>> cpu_indices = {}, size_t offset = 0) {
         OPENVINO_ASSERT(hidden && ready && hidden->count() == m_input_layout.count() &&
                             hidden->get_layout().data_type == m_input_layout.data_type &&
                             !hidden->get_layout().data_padding,
@@ -84,13 +85,16 @@ public:
             inputs.push_back(m_router_instance->input_memory_ptr(index));
         const auto routed = m_router(inputs, {m_weights, m_indices}, {projected});
         const auto top_k = m_router_instance->get_typed_desc<cldnn::moe_router_fused>()->_config.top_k;
-        auto cpu_indices = std::make_shared<std::vector<uint32_t>>(top_k);
+        if (!cpu_indices)
+            cpu_indices = std::make_shared<std::vector<uint32_t>>(top_k);
+        OPENVINO_ASSERT(offset <= cpu_indices->size() && top_k <= cpu_indices->size() - offset,
+                        "Invalid lookahead readback range");
         auto& stream = dynamic_cast<cldnn::ocl::ocl_stream&>(*m_stream);
         auto& queue = stream.get_cl_queue();
         auto wait_list = cldnn::ocl::utils::get_cl_events({routed});
         cl::Event readback;
         try {
-            stream.get_usm_helper().enqueue_memcpy(queue, cpu_indices->data(), m_indices->buffer_ptr(),
+            stream.get_usm_helper().enqueue_memcpy(queue, cpu_indices->data() + offset, m_indices->buffer_ptr(),
                                                   top_k * sizeof(uint32_t), false, &wait_list, &readback);
             wait_list = {readback};
             cl::Event complete;

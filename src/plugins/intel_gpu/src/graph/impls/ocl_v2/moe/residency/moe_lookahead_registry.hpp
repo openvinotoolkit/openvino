@@ -47,6 +47,7 @@ public:
     const std::vector<cldnn::program::les_router_link>& links() const { return m_links; }
 
     void enter(const cldnn::primitive_id& id);
+    bool prediction_enabled(const cldnn::primitive_id& id, size_t tokens);
     void record_recall(const cldnn::primitive_id& id, const std::vector<uint32_t>& actual);
     void demand_partitioned(const cldnn::primitive_id& id);
     void pause_for_prefill();
@@ -82,6 +83,9 @@ private:
     std::unordered_map<cldnn::primitive_id, std::unique_ptr<LookaheadRouter>> m_routers;
     std::unique_ptr<LesPredictor> m_predictor;
     cldnn::primitive_id m_previous_input;
+    cldnn::primitive_id m_past_lens_input;
+    std::optional<uint32_t> m_last_checked_layer;
+    bool m_has_past = false;
     std::unordered_map<size_t, size_t> m_previous_rows;
     cldnn::network::ptr m_previous_converter;
     cldnn::memory::ptr m_previous_values;

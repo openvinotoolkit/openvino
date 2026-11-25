@@ -34,6 +34,12 @@ void LookaheadContext::pause_for_prefill() {
 
 void LookaheadContext::build_once(cldnn::network& network) {
     std::call_once(m_init_flag, [&] {
+        for (const auto& id : network.get_input_ids()) {
+            if (id == "parameter:past_lens") {
+                m_past_lens_input = id;
+                break;
+            }
+        }
         m_links = network.get_program()->get_les_router_links();
         for (const auto& id : network.get_executed_primitive_ids()) {
             auto instance = network.get_primitive(id);
@@ -145,6 +151,27 @@ const LookaheadLayerDesc* LookaheadContext::get_next_layer(const cldnn::primitiv
     return descriptor.is_supported ? &descriptor : nullptr;
 }
 
+bool LookaheadContext::prediction_enabled(const cldnn::primitive_id& id, size_t tokens) {
+    if (m_past_lens_input.empty()) {
+        return tokens == 1 && !m_previous_converter;
+    }
+    const auto layer = m_layer_indices.at(id);
+    if (!m_last_checked_layer || layer <= *m_last_checked_layer) {
+        const auto past = m_network.get_primitive(m_past_lens_input)->output_memory_ptr();
+        m_has_past = false;
+        if (past && past->get_layout().count() == 1 && past->get_layout().data_type == cldnn::data_types::i32) {
+            cldnn::mem_lock<int32_t, cldnn::mem_lock_type::read> lengths(past, *m_compute_stream);
+            m_has_past = lengths[0] > 0;
+        }
+    }
+    m_last_checked_layer = layer;
+    if (!m_has_past || !m_previous_converter) {
+        return m_has_past && tokens == 1;
+    }
+    const auto input = m_network.get_primitive(m_previous_input)->output_memory_ptr();
+    return input && input->get_layout().get_shape().at(1) == 1;
+}
+
 void LookaheadContext::enter(const cldnn::primitive_id& id) {
     m_prefetcher->rethrow_if_failed();
     auto found = m_layer_indices.find(id);
@@ -215,8 +242,18 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
                 auto previous = head->input->copy_from(stream, *m_previous_values, row * bytes, bytes, bytes, false);
                 stream.enqueue_barrier({previous});
             }
-            const auto copied = head->input->copy_from(stream, *hidden, 0, 0, size_t{head->hidden} * sizeof(ov::float16), false);
-            return head->router->enqueue(head->input, copied);
+            const size_t bytes = size_t{head->hidden} * sizeof(ov::float16);
+            const size_t tokens = hidden->get_layout().count() / head->hidden;
+            const auto top_k = m_predictor->top_k();
+            auto indices = std::make_shared<std::vector<uint32_t>>(tokens * top_k);
+            LookaheadRouter::Result result;
+            for (size_t token = 0; token < tokens; ++token) {
+                if (token)
+                    stream.enqueue_barrier({result.ready});
+                const auto copied = head->input->copy_from(stream, *hidden, token * bytes, 0, bytes, false);
+                result = head->router->enqueue(head->input, copied, indices, token * top_k);
+            }
+            return result;
         }
         return m_routers.at(target)->enqueue(hidden, ready);
     }();
@@ -235,8 +272,13 @@ void LookaheadContext::record_recall(const cldnn::primitive_id& id, const std::v
     const auto& predicted = *prediction->second.cpu_indices;
     auto& recall = m_recall[layer->second];
     recall.selections += actual.size();
-    for (auto expert : actual) {
-        recall.matched += std::find(predicted.begin(), predicted.end(), expert) != predicted.end();
+    const size_t predicted_k = m_predictor->top_k();
+    const size_t tokens = predicted.size() / predicted_k;
+    OPENVINO_ASSERT(tokens && actual.size() % tokens == 0, "Invalid LES recall row count");
+    const size_t actual_k = actual.size() / tokens;
+    for (size_t index = 0; index < actual.size(); ++index) {
+        const auto first = predicted.begin() + index / actual_k * predicted_k;
+        recall.matched += std::find(first, first + predicted_k, actual[index]) != first + predicted_k;
     }
 }
 
