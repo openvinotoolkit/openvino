@@ -59,6 +59,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "quant/gguf.hpp"
 #include "transformations/paged_attention/prune_shared_kv_rows.hpp"
@@ -1113,17 +1114,37 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedLogitsMatchUnprunedStatefulMo
     compare({5, 4}, {0, 1, 1, 1, 1, 1, 1, 1}, {2, 3}, {1, 0});
 }
 
+// Mirrors GenAI, which gathers the sampled rows before the LM head after SDPAToPagedAttention.
+static void add_sampled_tokens_indices(const std::shared_ptr<ov::Model>& model) {
+    auto output = model->output("logits").get_node()->input_value(0);
+    std::shared_ptr<ov::op::v0::MatMul> lm_head;
+    while (!(lm_head = ov::as_type_ptr<ov::op::v0::MatMul>(output.get_node_shared_ptr())))
+        output = output.get_node()->input_value(0);
+    auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    indices->set_friendly_name("sampled_tokens_indices");
+    indices->output(0).set_names({"sampled_tokens_indices"});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    lm_head->input(0).replace_source_output(
+        std::make_shared<ov::op::v8::Gather>(lm_head->input_value(0), indices, axis));
+    model->add_parameters({indices});
+    model->validate_nodes_and_infer_types();
+}
+
+static std::shared_ptr<ov::Model> to_paged_attention(std::shared_ptr<ov::Model> model, bool prune) {
+    if (!prune)
+        model->get_rt_info().erase(ov::pass::shared_kv_row_selection_key);
+    ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(model);
+    add_sampled_tokens_indices(model);
+    return model;
+}
+
 TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnprunedLogits) {
-    using namespace ov::frontend::gguf;
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    FrontEnd frontend;
-    frontend.add_extension(std::make_shared<GenAIExtension>());
-    auto optimized = frontend.convert(frontend.load(temporary.path));
-    auto reference = optimized->clone();
-    reference->get_rt_info().erase(ov::pass::shared_kv_row_selection_key);
-    ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(optimized);
-    ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(reference);
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto optimized = to_paged_attention(frontend.convert(frontend.load(temporary.path)), true);
+    auto reference = to_paged_attention(frontend.convert(frontend.load(temporary.path)), false);
     size_t shared_sliding_layers = 0;
     for (const auto& node : optimized->get_ordered_ops()) {
         const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
@@ -1147,6 +1168,17 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
     };
     auto optimized_compiled = compile(optimized);
     auto reference_compiled = compile(reference);
+    // The CPU pipeline prunes only the marked model, deriving its kept rows with Bucketize.
+    const auto has_bucketize = [](const ov::CompiledModel& compiled) {
+        const auto ops = compiled.get_runtime_model()->get_ops();
+        return std::any_of(ops.begin(), ops.end(), [](const auto& node) {
+            const auto& info = node->get_rt_info();
+            const auto type = info.find(ov::exec_model_info::LAYER_TYPE);
+            return type != info.end() && type->second.template as<std::string>() == "Bucketize";
+        });
+    };
+    EXPECT_TRUE(has_bucketize(optimized_compiled));
+    EXPECT_FALSE(has_bucketize(reference_compiled));
     const auto initialize_cache = [](const ov::CompiledModel& compiled, ov::InferRequest& request) {
         for (const auto& input : compiled.inputs()) {
             const auto name = input.get_any_name();
@@ -1173,9 +1205,7 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
                              const std::vector<int32_t>& past,
                              const std::vector<int32_t>& begins,
                              const std::vector<int32_t>& block_begins,
-                             const std::vector<int64_t>& selected,
-                             const std::vector<int32_t>& shared_past,
-                             const std::vector<int32_t>& shared_begins,
+                             const std::vector<int64_t>& sampled,
                              int32_t max_context) {
         for (auto* request : {&actual, &expected}) {
             set_vector(*request, "input_ids", ov::element::i64, ids);
@@ -1184,122 +1214,61 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
             set_vector(*request, "subsequence_begins", ov::element::i32, begins);
             set_vector(*request, "block_indices", ov::element::i32, std::vector<int32_t>{0, 1});
             set_vector(*request, "block_indices_begins", ov::element::i32, block_begins);
+            set_vector(*request, "sampled_tokens_indices", ov::element::i64, sampled);
             ov::Tensor maximum(ov::element::i32, {});
             *maximum.data<int32_t>() = max_context;
             request->set_tensor("max_context_len", maximum);
+            request->infer();
         }
-        set_vector(actual, "shared_kv_tokens_indices", ov::element::i64, selected);
-        set_vector(actual, "shared_kv_past_lens", ov::element::i32, shared_past);
-        set_vector(actual, "shared_kv_subsequence_begins", ov::element::i32, shared_begins);
-        actual.infer();
-        expected.infer();
         const auto actual_logits = actual.get_tensor("logits");
         const auto expected_logits = expected.get_tensor("logits");
-        ASSERT_EQ(expected_logits.get_size() % ids.size(), 0);
-        const auto vocab = expected_logits.get_size() / ids.size();
-        ASSERT_EQ(actual_logits.get_size(), selected.size() * vocab);
-        std::vector<float> selected_logits;
-        const auto* expected_data = expected_logits.data<const float>();
-        for (const auto index : selected) {
-            ASSERT_GE(index, 0);
-            ASSERT_LT(static_cast<size_t>(index), ids.size());
-            const auto* row = expected_data + static_cast<size_t>(index) * vocab;
-            selected_logits.insert(selected_logits.end(), row, row + vocab);
-        }
-        ov_gguf_test::expect_nmse_below(
-            ov_gguf_test::nmse(actual_logits.data<const float>(), selected_logits.data(), selected_logits.size()),
-            1e-5);
+        ASSERT_EQ(actual_logits.get_shape(), expected_logits.get_shape());
+        ASSERT_GT(actual_logits.get_size(), 0u);
+        ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(actual_logits.data<const float>(),
+                                                           expected_logits.data<const float>(),
+                                                           actual_logits.get_size()),
+                                        1e-5);
     };
     auto actual = optimized_compiled.create_infer_request();
     auto expected = reference_compiled.create_infer_request();
     initialize_cache(optimized_compiled, actual);
     initialize_cache(reference_compiled, expected);
-    compare(actual,
-            expected,
-            {1, 2, 3, 4, 5},
-            {0, 1, 2, 0, 1},
-            {0, 0},
-            {0, 3, 5},
-            {0, 1, 2},
-            {1, 2, 4},
-            {1, 1},
-            {0, 2, 3},
-            3);
-    compare(actual, expected, {6, 7, 8}, {3, 4, 2}, {3, 2}, {0, 2, 3}, {0, 1, 2}, {1, 2}, {4, 2}, {0, 1, 2}, 5);
+    const std::vector<int64_t> prompt{1, 2, 3, 4, 5};
+    const std::vector<int64_t> positions{0, 1, 2, 0, 1};
+    // Last rows, a speculative-decoding suffix, a sequence with no sampled rows, all rows (echo),
+    // and rows that do not form a suffix.
+    for (const auto& sampled : std::vector<std::vector<int64_t>>{{2, 4}, {1, 2, 4}, {4}, {0, 1, 2, 3, 4}, {0, 2, 4}})
+        compare(actual, expected, prompt, positions, {0, 0}, {0, 3, 5}, {0, 1, 2}, sampled, 3);
+    compare(actual, expected, {6, 7, 8}, {3, 4, 2}, {3, 2}, {0, 2, 3}, {0, 1, 2}, {1, 2}, 5);
 }
 
-TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionUsesSharedKvRowInputs) {
-    using namespace ov::frontend::gguf;
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionKeepsGenAIInputs) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    FrontEnd frontend;
-    frontend.add_extension(std::make_shared<GenAIExtension>());
-    auto model = frontend.convert(frontend.load(temporary.path));
-
-    ASSERT_NO_THROW(
-        ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(model));
-
-    std::set<std::string> input_names;
-    for (const auto& parameter : model->get_parameters()) {
-        input_names.insert(parameter->get_friendly_name());
-    }
-    EXPECT_FALSE(input_names.count("sampled_tokens_indices"));
-    EXPECT_TRUE(input_names.count("shared_kv_tokens_indices"));
-    EXPECT_TRUE(input_names.count("shared_kv_past_lens"));
-    EXPECT_TRUE(input_names.count("shared_kv_subsequence_begins"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = to_paged_attention(frontend.convert(frontend.load(temporary.path)), true);
+    const auto parameters = model->get_parameters();
+    ASSERT_TRUE(ov::pass::PruneSharedKVRows().run_on_model(model));
+    EXPECT_EQ(model->get_parameters(), parameters);
 
     size_t shared_kv_attention_count = 0;
     for (const auto& node : model->get_ops()) {
         const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
-        if (!pa)
+        if (!pa || pa->get_write_kv_cache())
             continue;
-        if (pa->input_value(5).get_node()->get_friendly_name() == "shared_kv_past_lens") {
-            ++shared_kv_attention_count;
-            EXPECT_EQ(pa->input_value(6).get_node()->get_friendly_name(), "shared_kv_subsequence_begins");
-        }
+        ++shared_kv_attention_count;
+        EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(pa->get_input_node_ptr(5)));
+        EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(pa->get_input_node_ptr(6)));
+        for (const auto input_index : {1, 2})
+            EXPECT_TRUE(ov::is_type<ov::op::v8::Gather>(pa->get_input_node_ptr(input_index)));
     }
     EXPECT_GT(shared_kv_attention_count, 0);
-
     ASSERT_NO_THROW(model->reshape({{"input_ids", {128}},
                                     {"position_ids", {128}},
-                                    {"shared_kv_tokens_indices", {2}},
-                                    {"shared_kv_past_lens", {1}},
-                                    {"shared_kv_subsequence_begins", {2}}}));
-    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
-    auto head_output = model->get_results().front()->input_value(0);
-    std::shared_ptr<ov::op::v0::MatMul> lm_head;
-    for (size_t depth = 0; depth < 8; ++depth) {
-        const auto node = head_output.get_node_shared_ptr();
-        if ((lm_head = ov::as_type_ptr<ov::op::v0::MatMul>(node))) {
-            break;
-        }
-        if (node->get_input_size() == 0) {
-            break;
-        }
-        head_output = node->input_value(0);
-    }
-    ASSERT_NE(lm_head, nullptr);
-    const auto& lm_head_input_shape = lm_head->get_input_partial_shape(0);
-    ASSERT_TRUE(lm_head_input_shape.rank().is_static());
-    ASSERT_EQ(lm_head_input_shape.rank().get_length(), 3);
-    EXPECT_EQ(lm_head_input_shape[0].get_length(), 2);
-    EXPECT_EQ(lm_head_input_shape[1].get_length(), 1);
-    EXPECT_EQ(lm_head->get_output_partial_shape(0)[0].get_length(), 2);
-    size_t compacted_kv_inputs = 0;
-    for (const auto& node : model->get_ops()) {
-        const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
-        if (pa && pa->input_value(5).get_node()->get_friendly_name() == "shared_kv_past_lens") {
-            for (const auto input_index : {1, 2}) {
-                const auto gather =
-                    ov::as_type_ptr<ov::op::v8::Gather>(pa->input_value(input_index).get_node_shared_ptr());
-                ASSERT_NE(gather, nullptr);
-                EXPECT_EQ(gather->get_input_partial_shape(0)[0].get_length(), 128);
-                EXPECT_EQ(gather->get_output_partial_shape(0)[0].get_length(), 2);
-                ++compacted_kv_inputs;
-            }
-        }
-    }
-    EXPECT_GT(compacted_kv_inputs, 0);
+                                    {"past_lens", {2}},
+                                    {"subsequence_begins", {3}},
+                                    {"sampled_tokens_indices", {2}}}));
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionSkipsSharedKvPruningWithTokenTypeIds) {
@@ -1315,13 +1284,8 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionSkipsSharedKvPruningW
     model->add_parameters({token_type_ids});
     ASSERT_NO_THROW(
         ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(model));
-
-    for (const auto& parameter : model->get_parameters()) {
-        EXPECT_NE(parameter->get_friendly_name(), "sampled_tokens_indices");
-        EXPECT_NE(parameter->get_friendly_name(), "shared_kv_tokens_indices");
-        EXPECT_NE(parameter->get_friendly_name(), "shared_kv_past_lens");
-        EXPECT_NE(parameter->get_friendly_name(), "shared_kv_subsequence_begins");
-    }
+    add_sampled_tokens_indices(model);
+    EXPECT_FALSE(ov::pass::PruneSharedKVRows().run_on_model(model));
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionSkipsSharedKvPruningWithQueryBias) {
@@ -1336,13 +1300,11 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionSkipsSharedKvPruningW
         ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, true, false).run_on_model(model));
 
     bool has_query_bias = false;
-    for (const auto& parameter : model->get_parameters()) {
+    for (const auto& parameter : model->get_parameters())
         has_query_bias |= parameter->get_friendly_name() == "qq_bias";
-        EXPECT_NE(parameter->get_friendly_name(), "shared_kv_tokens_indices");
-        EXPECT_NE(parameter->get_friendly_name(), "shared_kv_past_lens");
-        EXPECT_NE(parameter->get_friendly_name(), "shared_kv_subsequence_begins");
-    }
     EXPECT_TRUE(has_query_bias);
+    add_sampled_tokens_indices(model);
+    EXPECT_FALSE(ov::pass::PruneSharedKVRows().run_on_model(model));
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, Lfm3SupportsBatchesAndBeamReordering) {
@@ -1395,15 +1357,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         manager.register_pass<ov::pass::SDPAToPagedAttention>();
         ASSERT_NO_THROW(manager.run_passes(model));
         // Multiple tokens expose accidental [tokens,tokens,...] M-RoPE broadcasts.
-        if (std::string(family) == "gemma4-ple") {
-            model->reshape({{"input_ids", {5}},
-                            {"position_ids", {5}},
-                            {"shared_kv_tokens_indices", {5}},
-                            {"shared_kv_past_lens", {1}},
-                            {"shared_kv_subsequence_begins", {2}}});
-        } else {
-            model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
-        }
+        model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
         const bool gemma = std::string(family).find("gemma4") == 0;
         size_t attention = 0, recurrent = 0;
         size_t sliding_attention = 0;

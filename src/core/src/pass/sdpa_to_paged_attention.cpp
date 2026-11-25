@@ -29,7 +29,6 @@
 #include "transformations/paged_attention/paged_sparse_attention_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
-#include "transformations/paged_attention/prune_shared_kv_rows.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
 #include "transformations/paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
@@ -196,7 +195,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
     manager.register_pass<PositionIDsReplacerGranite>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen3_5>(unsqueezed_position_ids);
-    manager.register_pass<PruneSharedKVRows>(m_params);
     manager.run_passes(model);
 
     OPENVINO_ASSERT(ssm_fusion->get_fused_count() == paged_ssm_fusion->get_fused_count(),

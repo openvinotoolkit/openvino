@@ -161,12 +161,12 @@ Do not add `DecoderConfig` flags for non-decoder families such as encoders; writ
 
 For Gemma4 text decoding with `GenAIExtension`, when `AdaptToGenAI` selects one output row it applies
 that selection before the first shared-KV layer, including positions, query masks and per-layer
-embeddings. PagedAttention adds `shared_kv_tokens_indices`, `shared_kv_past_lens` and
-`shared_kv_subsequence_begins` inputs; its runtime must supply consistent per-sequence trailing
-row selections and lengths. Plain conversion and `GGUFMakeStateful` keep all token rows and
-preserve arbitrary `inp_out_ids` selection. PagedAttention requires a runtime that supports these
-inputs (the corresponding GenAI change is needed). Models with query-to-query bias or
-`token_type_ids` are not pruned by the PagedAttention pass.
+embeddings. Plain conversion and `GGUFMakeStateful` keep all token rows and preserve arbitrary
+`inp_out_ids` selection. Under PagedAttention the selection keeps all rows until compilation: when
+the model has the `sampled_tokens_indices` input that GenAI adds before the LM head, the CPU and GPU
+plugins run `PruneSharedKVRows`, which computes the shared-KV layers only for the sampled rows of
+each sequence (or its last row when none is sampled). Models with query-to-query bias or
+`token_type_ids` are not pruned.
 
 ## Write a custom builder
 
