@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <optional>
+#include <set>
 #include <string>
 
 #include "openvino/frontend/gguf/builder/value.hpp"
@@ -26,6 +29,10 @@ public:
 
     // Check presence without emitting a graph node.
     bool has(const std::string& gguf_name) const;
+
+    // Original on-disk GGUF type IDs, before conversion or weight repacking.
+    std::optional<uint32_t> source_type(const std::string& gguf_name) const;
+    std::set<uint32_t> source_types() const;
 
     // Weight of layer `il` by suffix: layer(3, "attn_norm.weight") -> "blk.3.attn_norm.weight".
     GgufValue layer(int il, const std::string& suffix) const;
