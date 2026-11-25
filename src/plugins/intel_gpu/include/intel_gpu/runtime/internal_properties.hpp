@@ -150,9 +150,9 @@ static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECOR
  * @brief [EXPERIMENTAL] Enables MLIR-based Graph Compiler execution for supported subgraphs.
  * When on, matching subgraphs (matmul, elementwise, SDPA, reduction, etc.) are compiled through the
  * MLIR/Graph-Compiler pipeline and executed as a single fused GPU kernel via cldnn::mlir_primitive.
- * Requires the plugin to be built with -DENABLE_MLIR_FOR_GPU=ON (which in turn requires
- * ENABLE_GPU_DEBUG_CAPS); setting this to true on a plugin built without Graph Compiler support
- * raises an exception at compile_model() time.
+ * Requires the plugin to be built with -DENABLE_MLIR_FOR_GPU=ON; enabling this option on a plugin
+ * built without Graph Compiler support raises an exception at compile_model() time.
+ * The option is RELEASE_INTERNAL: it can be set via the OV_GPU_ENABLE_MLIR env variable only.
  *
  * This is an experimental, not production-ready feature: the set of supported subgraphs, the
  * property itself and the resulting accuracy/performance are all subject to change, so it must
@@ -171,7 +171,7 @@ static constexpr Property<std::string, PropertyMutability::RW> mlir_patterns{"GP
 
 /**
  * @brief Enables verbose logging of the MLIR/Graph-Compiler pipeline: matched subgraphs, generated
- * MLIR modules and the lowering steps are printed to stdout.
+ * MLIR modules and the lowering steps are printed to stderr. Available in builds with debug caps only.
  */
 static constexpr Property<bool, PropertyMutability::RW> mlir_debug{"GPU_MLIR_DEBUG"};
 
