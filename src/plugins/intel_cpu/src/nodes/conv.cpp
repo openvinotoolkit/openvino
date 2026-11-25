@@ -54,9 +54,28 @@
 #include "shape_inference/custom/convolution.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+#    include "cpu/aarch64/cpu_isa_traits.hpp"
+#endif
+
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
+
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+static bool isSmallSVEConvolution(const Shape& weightsShape) {
+    if (!weightsShape.isStatic() || weightsShape.getRank() != 4 ||
+        !dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve)) {
+        return false;
+    }
+
+    const auto& dims = weightsShape.getStaticDims();
+    const auto [oc, ic] = std::pair{dims[0], dims[1]};
+    // oneDNN's ACL GEMM dispatch leaves these channel counts to its SVE kernels.
+    constexpr size_t maxChannelProduct = 2048;
+    return ic != 0 && oc != 0 && oc <= maxChannelProduct / ic;
+}
+#endif
 
 class Convolution::FusedSubgraph {
 public:
@@ -321,6 +340,23 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref_any,
         impl_desc_type::ref,
     };
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+    if (isSmallSVEConvolution(getInputShapeAtPort(WEIGHTS))) {
+        static const std::vector<impl_desc_type> prioritiesSVE = {
+            impl_desc_type::dw_acl,
+            impl_desc_type::winograd_acl,
+            impl_desc_type::gemm_acl,
+            impl_desc_type::acl,
+            parse_impl_name("brgconv_1x1:sve_128"),
+            parse_impl_name("jit_1x1:sve_128"),
+            impl_desc_type::brgconv,
+            impl_desc_type::jit,
+            impl_desc_type::ref_any,
+            impl_desc_type::ref,
+        };
+        return prioritiesSVE;
+    }
+#endif
     // WA heuristic to avoid regressions introduced by avx2 brgconv.
     const bool isBrgConvAvailable = ov::with_cpu_x86_avx2() && !useJitPlanar;
     if (isBrgConvAvailable) {
@@ -482,6 +518,21 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     m_attrs.postOps = getPostOps(fusedWith, sumType);
 
     auto [srcDescs, dstDesc] = initMemoryDescriptors(dstType);
+
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+    if (!isDynamicNode() && !withSum && !m_attrs.isGrouped && dstType == element::f16 &&
+        srcDescs[DATA]->getPrecision() == element::f16 && srcDescs[WEIGHTS]->getPrecision() == element::f16 &&
+        isSmallSVEConvolution(srcDescs[WEIGHTS]->getShape())) {
+        // The SVE convolution kernels for these shapes support FP32. Request FP32
+        // descriptors here to let the graph insert precision conversions at the edges.
+        srcDescs[DATA] = srcDescs[DATA]->cloneWithNewPrecision(element::f32);
+        srcDescs[WEIGHTS] = srcDescs[WEIGHTS]->cloneWithNewPrecision(element::f32);
+        if (m_attrs.withBias) {
+            srcDescs[BIAS] = srcDescs[BIAS]->cloneWithNewPrecision(element::f32);
+        }
+        dstDesc = dstDesc->cloneWithNewPrecision(element::f32);
+    }
+#endif
 
     MemoryDescArgs descs{
         {ARG_SRC, srcDescs[DATA]},
