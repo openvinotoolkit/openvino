@@ -258,13 +258,6 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     ov_set_threading_interface_for(${MODULE_NAME})
     ov_gpu_set_runtime_interface_for(${MODULE_NAME} RUNTIME ${RT_TYPE})
 
-    if(RT_TYPE STREQUAL "VULKAN" AND BUILD_SHARED_LIBS AND APPLE)
-        get_filename_component(vulkan_loader "${Vulkan_LIBRARY}" REALPATH)
-        install(FILES "${vulkan_loader}" DESTINATION "${OV_CPACK_PLUGINSDIR}"
-                RENAME libvulkan.1.dylib COMPONENT gpu)
-        set_property(TARGET ${MODULE_NAME} APPEND PROPERTY INSTALL_RPATH "@loader_path")
-    endif()
-
     set_target_properties(${MODULE_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
     # Workaround to avoid warnings during LTO build

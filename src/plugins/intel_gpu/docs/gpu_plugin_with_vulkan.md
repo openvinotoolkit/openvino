@@ -22,6 +22,25 @@ the Vulkan implementation and SPIR-V generation. The compilation plan uses
 compatible OpenCL C kernel sources as inputs to CLSPV. The Vulkan build will
 select its own graph implementation sources and link the Vulkan loader.
 
+## macOS runtime dependencies
+
+Vulkan Loader and MoltenVK are runtime dependencies on macOS. Provide both
+through the application's package dependencies or include them in the app
+bundle. Configure the application to resolve `libvulkan.1.dylib`. For a
+self-contained bundle, ship MoltenVK with its driver manifest and use
+paths relative to the bundle.
+[Vulkan SDK deployment on macOS](https://vulkan.lunarg.com/doc/view/1.4.341.1/mac/getting_started.html)
+
+For development from a shell, set `VULKAN_SDK` to the private SDK's `macOS`
+directory. Set these variables before launching OpenVINO from that shell.
+
+```sh
+export DYLD_LIBRARY_PATH="$VULKAN_SDK/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+export VK_DRIVER_FILES="$VULKAN_SDK/share/vulkan/icd.d/MoltenVK_icd.json"
+```
+
+## Smoke tests
+
 Set `-DOV_GPU_VULKAN_SMOKE_TESTS=ON` to build and run the runtime and memory smoke tests.
 
 ```sh
