@@ -2023,42 +2023,53 @@ TEST_F(GGUFShards, RejectsUnrelatedModelsAndEmptyLists) {
     OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{}), ov::Exception, testing::HasSubstr("empty"));
 }
 
-class GGUFQ8Projection : public GGUFShards {
+class GGUFProjection : public GGUFShards {
+protected:
+    std::string write_projection_model(uint32_t width, GgufTensorType type, const std::vector<uint8_t>& payload);
+};
+
+std::string GGUFProjection::write_projection_model(uint32_t width,
+                                                   GgufTensorType type,
+                                                   const std::vector<uint8_t>& payload) {
+    GgufWriter writer;
+    writer.kv_str("general.architecture", "qwen3");
+    writer.kv_u32("qwen3.block_count", 1);
+    writer.kv_u32("qwen3.embedding_length", width);
+    writer.kv_u32("qwen3.attention.head_count", 2);
+    writer.kv_u32("qwen3.attention.head_count_kv", 1);
+    writer.kv_u32("qwen3.rope.dimension_count", width / 2);
+    writer.kv_u32("qwen3.context_length", 32);
+    writer.kv_f32("qwen3.attention.layer_norm_rms_epsilon", 1e-5f);
+    const std::vector<std::pair<std::string, std::vector<uint64_t>>> tensors{
+        {"token_embd.weight", {width, 16}}, {"output_norm.weight", {width}},
+        {"blk.0.attn_norm.weight", {width}}, {"blk.0.attn_k.weight", {width, width / 2}},
+        {"blk.0.attn_v.weight", {width, width / 2}}, {"blk.0.attn_output.weight", {width, width}},
+        {"blk.0.attn_q_norm.weight", {width / 2}}, {"blk.0.attn_k_norm.weight", {width / 2}},
+        {"blk.0.ffn_norm.weight", {width}}, {"blk.0.ffn_gate.weight", {width, 12}},
+        {"blk.0.ffn_up.weight", {width, 12}}, {"blk.0.ffn_down.weight", {12, width}},
+    };
+    for (const auto& [name, shape] : tensors) {
+        writer.filled_tensor(name, shape, name.find("norm") != std::string::npos);
+    }
+    writer.raw_tensor("blk.0.attn_q.weight", {width, width}, type, payload);
+    const auto model_path = m_base + ".gguf";
+    m_paths.push_back(model_path);
+    return writer.write(model_path) ? model_path : std::string{};
+}
+
+class GGUFQ8Projection : public GGUFProjection {
 protected:
     std::string write_projection_model();
 };
 
 std::string GGUFQ8Projection::write_projection_model() {
-    GgufWriter writer;
-    writer.kv_str("general.architecture", "qwen3");
-    writer.kv_u32("qwen3.block_count", 1);
-    writer.kv_u32("qwen3.embedding_length", 32);
-    writer.kv_u32("qwen3.attention.head_count", 2);
-    writer.kv_u32("qwen3.attention.head_count_kv", 1);
-    writer.kv_u32("qwen3.rope.dimension_count", 16);
-    writer.kv_u32("qwen3.context_length", 32);
-    writer.kv_f32("qwen3.attention.layer_norm_rms_epsilon", 1e-5f);
-    const std::vector<std::pair<std::string, std::vector<uint64_t>>> tensors{
-        {"token_embd.weight", {32, 16}}, {"output_norm.weight", {32}},
-        {"blk.0.attn_norm.weight", {32}}, {"blk.0.attn_k.weight", {32, 16}},
-        {"blk.0.attn_v.weight", {32, 16}}, {"blk.0.attn_output.weight", {32, 32}},
-        {"blk.0.attn_q_norm.weight", {16}}, {"blk.0.attn_k_norm.weight", {16}},
-        {"blk.0.ffn_norm.weight", {32}}, {"blk.0.ffn_gate.weight", {32, 12}},
-        {"blk.0.ffn_up.weight", {32, 12}}, {"blk.0.ffn_down.weight", {12, 32}},
-    };
-    for (const auto& [name, shape] : tensors) {
-        writer.filled_tensor(name, shape, name.find("norm") != std::string::npos);
-    }
     std::vector<uint8_t> payload(32 * 34, 1);
     for (size_t block = 0; block < 32; ++block) {
         payload[block * 34] = static_cast<uint8_t>(block);
         payload[block * 34 + 1] = 0x3c;
         payload[block * 34 + 2] = static_cast<uint8_t>(240 + block);
     }
-    writer.raw_tensor("blk.0.attn_q.weight", {32, 32}, GGUF_TYPE_Q8_0, payload);
-    const auto model_path = m_base + ".gguf";
-    m_paths.push_back(model_path);
-    return writer.write(model_path) ? model_path : std::string{};
+    return GGUFProjection::write_projection_model(32, GGUF_TYPE_Q8_0, payload);
 }
 
 TEST_F(GGUFQ8Projection, NativeWeightsPropertyIsScopedToEachLoad) {
@@ -2246,12 +2257,26 @@ TEST_F(GGUFQ8Projection, SharedModelCompilesInEitherDeviceOrder) {
                 const auto scale = static_cast<float>(ov::float16::from_bits(static_cast<uint16_t>(0x3c00 + channel)));
                 EXPECT_NEAR(output.data<const float>()[channel], (15.f + static_cast<float>(channel)) * scale, 1e-4f);
             }
-#ifdef GGUF_GPU_NATIVE_TESTS
+#if defined(GGUF_GPU_NATIVE_TESTS) || defined(GGUF_GPU_RAW_OCL_TESTS)
             if (std::string(device) == "GPU") {
                 const auto ops = compiled.get_runtime_model()->get_ordered_ops();
-                EXPECT_TRUE(std::any_of(ops.begin(), ops.end(), [](const auto& op) {
-                    return op->get_rt_info().count("gguf_last_executed_kernels") != 0;
-                }));
+                std::vector<std::string> native_kernels;
+                for (const auto& op : ops) {
+                    const auto& info = op->get_rt_info();
+                    const auto precision = info.find("weights_precision");
+                    const auto kernels = info.find("gguf_last_executed_kernels");
+                    if (kernels != info.end()) {
+                        ASSERT_NE(precision, info.end());
+                        EXPECT_EQ(precision->second.as<std::string>(), ov::element::gguf_q8_0.get_type_name());
+                        native_kernels.push_back(kernels->second.as<std::string>());
+                    }
+                }
+                ASSERT_EQ(native_kernels.size(), 1u);
+                EXPECT_FALSE(native_kernels.front().empty());
+#ifdef GGUF_GPU_RAW_OCL_TESTS
+                EXPECT_EQ(native_kernels.front().find("fc_gguf_opt"), 0u);
+#endif
+                RecordProperty("gpu_native_kernels", native_kernels.front());
             }
 #endif
             EXPECT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), fc);
@@ -2260,6 +2285,85 @@ TEST_F(GGUFQ8Projection, SharedModelCompilesInEitherDeviceOrder) {
         }
     }
 }
+
+#ifdef GGUF_GPU_RAW_OCL_TESTS
+TEST_F(GGUFProjection, Q4KFileExecutesRawOclAtMultipleRowCounts) {
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "GPU") == devices.end()) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    constexpr size_t width = 256;
+    const auto blocks = load_npy<uint8_t>("q4_k_qbytes");
+    const auto decoded = load_npy<float>("q4_k_deq");
+    ASSERT_EQ(blocks.size(), 4 * 144);
+    ASSERT_EQ(decoded.size(), 4 * width);
+    std::vector<uint8_t> payload;
+    for (size_t group = 0; group < width / 4; ++group) {
+        payload.insert(payload.end(), blocks.begin(), blocks.end());
+    }
+    const auto path = write_projection_model(width, GGUF_TYPE_Q4_K, payload);
+    ASSERT_FALSE(path.empty());
+    const auto native = [&] {
+        FrontEnd frontend;
+        return frontend.convert(frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+    }();
+    std::shared_ptr<ov::op::internal::FullyConnectedCompressed> projection;
+    for (const auto& node : native->get_ordered_ops()) {
+        const auto candidate = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+        if (candidate && candidate->get_input_element_type(1) == ov::element::gguf_q4_k) {
+            projection = candidate;
+            break;
+        }
+    }
+    ASSERT_TRUE(projection);
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(projection->get_input_node_shared_ptr(1));
+    ASSERT_TRUE(weights);
+    ASSERT_EQ(weights->get_byte_size(), payload.size());
+    ASSERT_EQ(std::memcmp(weights->get_data_ptr(), payload.data(), payload.size()), 0);
+    const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, width});
+    auto inputs = projection->input_values();
+    inputs[0] = activation;
+    const auto fc = projection->clone_with_new_inputs(inputs);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+    auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32),
+                                       ov::enable_profiling(true));
+    auto request = compiled.create_infer_request();
+    for (size_t rows : {1u, 33u, 1u}) {
+        SCOPED_TRACE(rows);
+        ov::Tensor input(ov::element::f32, {rows, width});
+        std::fill_n(input.data<float>(), input.get_size(), 0.f);
+        for (size_t row = 0; row < rows; ++row) {
+            input.data<float>()[row * width + (7 * row + 13) % width] = 1.f;
+        }
+        request.set_input_tensor(input);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_shape(), (ov::Shape{rows, width}));
+        ASSERT_EQ(output.get_element_type(), ov::element::f32);
+        for (size_t row = 0; row < rows; ++row) {
+            for (size_t channel = 0; channel < width; ++channel) {
+                const auto expected = decoded[(channel % 4) * width + (7 * row + 13) % width];
+                EXPECT_NEAR(output.data<const float>()[row * width + channel], expected, 1e-4f);
+            }
+        }
+        std::vector<std::string> executed;
+        for (const auto& op : compiled.get_runtime_model()->get_ordered_ops()) {
+            const auto& info = op->get_rt_info();
+            const auto kernels = info.find("gguf_last_executed_kernels");
+            if (kernels != info.end()) {
+                EXPECT_EQ(info.at("weights_precision").as<std::string>(), "gguf_q4_k");
+                executed.push_back(kernels->second.as<std::string>());
+            }
+        }
+        ASSERT_EQ(executed.size(), 1u);
+        EXPECT_EQ(executed.front().find("fc_gguf_opt_gguf_q4_k_"), 0u);
+        RecordProperty("kernel_m" + std::to_string(rows), executed.front());
+        EXPECT_EQ(fc->get_input_node_shared_ptr(1), weights);
+        EXPECT_EQ(std::memcmp(weights->get_data_ptr(), payload.data(), payload.size()), 0);
+    }
+}
+#endif
 
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
     GgufWriter complete;
