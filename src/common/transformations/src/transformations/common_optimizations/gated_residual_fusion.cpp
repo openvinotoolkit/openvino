@@ -544,7 +544,8 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
     auto scaled = wrap_type<ov::op::v1::Multiply>({gate_3d, y_3d}, same_rows(2));
 
     // Case A: Add in the split [*, C, D] domain, one trailing Reshape back to [*, C*D] (the root).
-    auto residual_a = any_input(shape_matches("[..., CD]"));
+    // The op takes a real residual of rank >= 2, shared by Y and the gate.
+    auto residual_a = any_input(shape_matches("[..., CD]") && rank_more_than(1) && is_real_type);
     auto residual_3d =
         wrap_type<ov::op::v1::Reshape>({residual_a, any_input()}, shape_matches("[..., C, D]") && adds_dimension);
     auto updated_a = wrap_type<ov::op::v1::Add>({residual_3d, scaled}, same_rows(2));
@@ -555,7 +556,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
     // left alone.
     auto scaled_flat =
         wrap_type<ov::op::v1::Reshape>({scaled, any_input()}, shape_matches("[..., CD]") && merges_last_two);
-    auto residual_flat = any_input(shape_matches("[..., CD]"));
+    auto residual_flat = any_input(shape_matches("[..., CD]") && rank_more_than(1) && is_real_type);
     auto updated_b = wrap_type<ov::op::v1::Add>({residual_flat, scaled_flat}, same_rows(1));
 
     auto root_pattern = result_a | updated_b;
@@ -572,12 +573,6 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         const ov::Output<ov::Node> y_out = pm.at(y_src);
         const ov::Output<ov::Node> gate_out = pm.at(write_gate);
         const ov::Output<ov::Node> residual_out = pm.count(result_a) != 0 ? pm.at(residual_a) : pm.at(residual_flat);
-
-        // The op constructor throws on these: it needs a real type and rank >= 2 (residual, Y and gate share both).
-        const auto& residual_ps = residual_out.get_partial_shape();
-        if (!is_real_type(residual_out) || residual_ps.rank().is_dynamic() || residual_ps.size() < 2) {
-            return false;
-        }
 
         auto gr = std::make_shared<ov::op::internal::GatedResidual>(
             ov::OutputVector{residual_out, y_out, gate_out},

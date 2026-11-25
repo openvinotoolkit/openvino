@@ -23,7 +23,8 @@ namespace ov::pass {
  *     =>  Wq [N, K], s [N, G] [, zp [N, G]]   (inputs: ov::op::internal::GatedResidual::ReadLayout)
  *
  * Converted only if all weights are compressed, not transposed, of one type, with zero points on all or none, and the
- * backend accepts the op. Single-element scales and zero points are kept as they are.
+ * backend accepts the op. The scales must be floating point, [N, G] or one element; the zero points of the weight type,
+ * shaped like the scale or one element. Single-element scales and zero points are kept as they are.
  */
 class TRANSFORMATIONS_API ConvertGatedResidualToCompressed : public ov::pass::MatcherPass {
 public:
