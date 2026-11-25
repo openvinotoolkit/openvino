@@ -6,12 +6,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -236,6 +238,47 @@ TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_MarkedDequantiza
         auto offsets = v0::Constant::create(i32, ov::Shape{groups}, ends);
         auto expected = ref_2dx3d_decomposition(activations, make_weights(false), offsets, groups);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{expected}, ov::ParameterVector{activations});
+    }
+}
+
+TEST(TransformationTests, ConvertGroupedMatMulToMatMul_2Dx3D_SplitWeightsShareOriginalData) {
+    constexpr size_t groups = 3, width = 8, channels = 256;
+    const std::vector<int32_t> ends{2, 5, 8};
+    std::vector<uint8_t> packed_values(groups * width * channels / 2);
+    for (size_t i = 0; i < packed_values.size(); ++i) {
+        packed_values[i] = static_cast<uint8_t>(i % 251);
+    }
+    auto packed =
+        std::make_shared<v0::Constant>(ov::element::u4, ov::Shape{groups, width, channels}, packed_values.data());
+    packed->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+        ov::WeightlessCacheAttribute(packed->get_byte_size(), 0, ov::element::u4);
+    auto converted = std::make_shared<v0::Convert>(packed, ov::element::f16);
+    auto scales = v0::Constant::create(ov::element::f16, ov::Shape{groups, width, 1}, {0.125f});
+    auto scaled = std::make_shared<v1::Multiply>(converted, scales);
+    auto weights = std::make_shared<v0::Convert>(scaled, f32);
+    auto activations = std::make_shared<v0::Parameter>(f32, ov::Shape{static_cast<size_t>(ends.back()), channels});
+    auto offsets = v0::Constant::create(i32, ov::Shape{groups}, ends);
+    auto grouped = std::make_shared<v17::GroupedMatMul>(activations, weights, offsets);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{grouped}, ov::ParameterVector{activations});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+    manager.run_passes(model);
+
+    const auto* original = static_cast<const uint8_t*>(packed->get_data_ptr());
+    const size_t expert_bytes = width * channels / 2;
+    std::vector<const uint8_t*> expert_ptrs;
+    for (const auto& op : model->get_ops()) {
+        auto constant = ov::as_type_ptr<v0::Constant>(op);
+        if (constant && constant->get_element_type() == ov::element::u4) {
+            expert_ptrs.push_back(static_cast<const uint8_t*>(constant->get_data_ptr()));
+            EXPECT_EQ(constant->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()), 0);
+        }
+    }
+    ASSERT_EQ(expert_ptrs.size(), groups);
+    std::sort(expert_ptrs.begin(), expert_ptrs.end());
+    for (size_t g = 0; g < groups; ++g) {
+        EXPECT_EQ(expert_ptrs[g], original + g * expert_bytes);
     }
 }
 

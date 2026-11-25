@@ -110,7 +110,9 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
                 const auto bytes = ov::shape_size(expert_shape) * value.get_element_type().bitwidth() / 8;
                 const auto index = shape[0] == 1 ? 0 : expert_index;
                 const auto data = static_cast<const uint8_t*>(constant->get_data_ptr()) + index * bytes;
-                result = std::make_shared<v0::Constant>(value.get_element_type(), expert_shape, data);
+                // A view into the original buffer, kept alive by the original constant, so the weights are not copied.
+                // WeightlessCacheAttribute is not copied: it describes the whole constant, not this slice.
+                result = std::make_shared<v0::Constant>(value.get_element_type(), expert_shape, data, constant);
             } else if (ov::is_type<v1::Reshape>(node)) {
                 const std::vector<int64_t> expert_shape(shape.begin() + 1, shape.end());
                 auto pattern = v0::Constant::create(ov::element::i64, ov::Shape{expert_shape.size()}, expert_shape);
