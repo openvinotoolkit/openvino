@@ -747,12 +747,15 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
     const bool autoPadding = attrs.autoPadding != AutoPaddingType::None;
     const bool calculatePadding = undefinedInputShapes && autoPadding;
-    auto [paddingL, paddingR] = calculatePadding ? apply_auto_pad(srcDesc->getShape().getDims(),
-                                                                  weiDesc->getShape().getDims(),
-                                                                  attrs.stride,
-                                                                  attrs.dilation,
-                                                                  attrs.autoPadding)
-                                                 : std::tuple(attrs.paddingL, attrs.paddingR);
+    const auto paddings = calculatePadding ? apply_auto_pad(srcDesc->getShape().getDims(),
+                                                            weiDesc->getShape().getDims(),
+                                                            attrs.stride,
+                                                            attrs.dilation,
+                                                            attrs.autoPadding)
+                                           : std::tuple(attrs.paddingL, attrs.paddingR);
+    // Use regular references in the lambda because Clang 14 cannot capture structured bindings.
+    const auto& paddingL = std::get<0>(paddings);
+    const auto& paddingR = std::get<1>(paddings);
 
     const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc)->getDnnlDesc();
     const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc)->getDnnlDesc();
