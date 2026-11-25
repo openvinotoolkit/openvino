@@ -67,6 +67,8 @@ void VariableStateIndirectKVCache::set_state(const ov::SoPtr<ov::ITensor>& state
     cldnn::layout bt_layout(get_beam_table_shape(state->get_shape()), ov::element::i32, cldnn::format::bfyx);
     m_hidden_states[1]->reset();
     m_hidden_states[1]->set_layout(bt_layout);
+    // Otherwise the next ReadValue takes the cache as unset and overwrites it with its initial value.
+    set();
 }
 
 template<typename T>

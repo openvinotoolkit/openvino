@@ -2859,13 +2859,12 @@ std::shared_ptr<ov::Model> make_exported_indexer_model(const split_dims& d, bool
 
 /// The block index key cache of a stateful indexer is a kv_cache the indexer updates in place
 /// (QSAIndexerBlockCacheFusionMatcher), and its query and keys are in-place crops of one projection, which must reach the
-/// indexer unpadded. Over prompts shorter than a block, block-boundary-crossing decodes, prefills that outgrow the
-/// preallocated cache and a reset, every call selects what the functional indexer (separate inputs, states fed back by
-/// hand) selects, and the states hold what the functional ones hold.
-TEST(qsa_ops_gpu_test, stateful_indexer_block_cache_is_updated_in_place) {
-    if (!qsa_ops_available()) {
-        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
-    }
+/// indexer unpadded. Runs `q_lens` (0: reset) over `batch` rows of equal length: every call must select what the functional
+/// indexer (separate inputs, states fed back by hand) selects, and the states must hold what the functional ones hold.
+/// Then the states are restored into a new request by set_state, which must continue as the original one would. The
+/// restored request runs alone: requests of one compiled model that run stateful steps in turn share the kv_cache
+/// primitive state, which the GPU plugin does not support yet for any KV cache.
+void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens) {
     const split_dims d;
     const auto f32 = ov::element::f32;
     ov::Core core;
@@ -2887,15 +2886,111 @@ TEST(qsa_ops_gpu_test, stateful_indexer_block_cache_is_updated_in_place) {
     };
     std::vector<ov::Tensor> ref_states;
     const auto reset_reference = [&] {
-        ref_states = {zeros({1, 0, d.Di}), zeros({1, d.r - 1, d.Di}), zeros({1, 2 * d.rotary})};
+        ref_states = {zeros({batch, 0, d.Di}), zeros({batch, d.r - 1, d.Di}), zeros({batch, 2 * d.rotary})};
     };
     reset_reference();
 
     constexpr size_t max_positions = 2048;
     const auto table = make_rotary_table(max_positions, d.rotary);
-    size_t past = 0;
+    std::vector<int32_t> identity(batch);
+    std::iota(identity.begin(), identity.end(), 0);
     uint32_t seed = 1;
-    const std::vector<size_t> q_lens{3, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 600, 700, 1, 1, 1, 0, 9, 1};  // 0: reset
+    const std::vector<std::string> state_names{"block_keys", "incomplete_keys", "incomplete_rope"};
+
+    // Feeds one call of L new tokens after `past` to the stateful requests and the reference, then checks them.
+    const auto run_step = [&](const std::vector<ov::InferRequest*>& requests, size_t past, size_t L, const std::string& tag) {
+        const size_t total = past + L;
+        ASSERT_LE(total, max_positions);
+        std::vector<int32_t> positions;
+        for (size_t b = 0; b < batch; b++) {
+            for (size_t t = past; t < total; t++) {
+                positions.push_back(static_cast<int32_t>(t));
+            }
+        }
+        const auto [rope_cos, rope_sin] = rope_rows(table, d.rotary, positions);
+        ov::Tensor mask(ov::element::i64, {batch, total});
+        std::fill_n(mask.data<int64_t>(), batch * total, int64_t{1});
+        const auto query = lcg_vec(batch * L * d.Hiq * d.Di, seed++);
+        const auto keys = lcg_vec(batch * L * d.Di, seed++);
+        std::vector<float> projection;
+        for (size_t t = 0; t < batch * L; t++) {
+            projection.insert(projection.end(), query.begin() + t * d.Hiq * d.Di, query.begin() + (t + 1) * d.Hiq * d.Di);
+            projection.insert(projection.end(), keys.begin() + t * d.Di, keys.begin() + (t + 1) * d.Di);
+        }
+        const std::vector<ov::Tensor> shared{make_tensor(f32, {batch, L, d.rotary}, rope_cos), make_tensor(f32, {batch, L, d.rotary}, rope_sin), mask};
+        for (auto* req : requests) {
+            req->set_tensor(stateful.input(0), make_tensor(f32, {batch, L, (d.Hiq + 1) * d.Di}, projection));
+            for (size_t i = 0; i < shared.size(); i++) {
+                req->set_tensor(stateful.input(1 + i), shared[i]);
+            }
+            req->set_tensor(stateful.input(1 + shared.size()), make_i32_tensor({batch}, identity));
+            ASSERT_NO_THROW(req->infer()) << tag;
+        }
+        reference.set_tensor(ref_inputs[0], make_tensor(f32, {batch, L, d.Hiq, d.Di}, query));
+        reference.set_tensor(ref_inputs[1], make_tensor(f32, {batch, L, d.Di}, keys));
+        for (size_t i = 0; i < shared.size(); i++) {
+            reference.set_tensor(ref_inputs[2 + i], shared[i]);
+        }
+        for (size_t i = 0; i < ref_states.size(); i++) {
+            reference.set_tensor(ref_inputs[2 + shared.size() + i], ref_states[i]);
+        }
+        ASSERT_NO_THROW(reference.infer()) << tag;
+        for (size_t i = 0; i < ref_states.size(); i++) {
+            const auto out = reference.get_output_tensor(2 + i);
+            ref_states[i] = ov::Tensor(out.get_element_type(), out.get_shape());
+            out.copy_to(ref_states[i]);
+        }
+
+        const auto ref_count = reference.get_output_tensor(1);
+        const auto ref_selected = reference.get_output_tensor(0);
+        const auto blocks = total / d.r;
+        for (auto* req : requests) {
+            const auto count = req->get_output_tensor(1);
+            const auto selected = req->get_output_tensor(0);
+            ASSERT_EQ(count.get_shape(), (ov::Shape{batch, 1, L})) << tag;
+            ASSERT_EQ(ref_count.get_shape(), count.get_shape()) << tag;
+            for (size_t row = 0; row < batch * L; row++) {
+                const auto n = count.data<int32_t>()[row];
+                ASSERT_EQ(n, ref_count.data<int32_t>()[row]) << tag << " row " << row;
+                for (int32_t k = 0; k < n; k++) {
+                    ASSERT_EQ(selected.data<int32_t>()[row * d.block_topk + k], ref_selected.data<int32_t>()[row * d.block_topk + k])
+                        << tag << " row " << row << " slot " << k;
+                }
+            }
+            for (auto& variable : req->query_state()) {
+                const auto it = std::find(state_names.begin(), state_names.end(), variable.get_name());
+                ASSERT_NE(it, state_names.end()) << variable.get_name();
+                const auto& ref_state = ref_states[static_cast<size_t>(it - state_names.begin())];
+                const auto state = variable.get_state();
+                if (it == state_names.begin() && blocks == 0) {
+                    // No block was appended yet: the cache variable is still unset.
+                    EXPECT_EQ(state.get_size(), 0u) << tag;
+                    continue;
+                }
+                if (it == state_names.begin()) {
+                    ASSERT_EQ(state.get_shape(), (ov::Shape{batch, blocks, d.Di})) << tag;
+                }
+                ASSERT_EQ(ref_state.get_shape(), state.get_shape()) << tag << " " << *it;
+                // Only the staged keys and, with an incomplete block, its RoPE row are read again: the other rows are left
+                // as they come, which after a reset is the Gather of an empty state.
+                const size_t row_size = state.get_size() / batch;
+                size_t compared = row_size;
+                if (*it == "incomplete_keys") {
+                    compared = (total % d.r) * d.Di;
+                } else if (*it == "incomplete_rope" && total % d.r == 0) {
+                    compared = 0;
+                }
+                for (size_t b = 0; b < batch; b++) {
+                    for (size_t i = 0; i < compared; i++) {
+                        ASSERT_EQ(state.data<float>()[b * row_size + i], ref_state.data<float>()[b * row_size + i])
+                            << tag << " " << *it << " row " << b << " element " << i;
+                    }
+                }
+            }
+        }
+    };
+
+    size_t past = 0;
     for (size_t step = 0; step < q_lens.size(); step++) {
         const size_t L = q_lens[step];
         if (L == 0) {
@@ -2904,94 +2999,69 @@ TEST(qsa_ops_gpu_test, stateful_indexer_block_cache_is_updated_in_place) {
             past = 0;
             continue;
         }
-        const size_t total = past + L;
-        ASSERT_LE(total, max_positions);
-        std::vector<int32_t> positions(L);
-        std::iota(positions.begin(), positions.end(), static_cast<int32_t>(past));
-        const auto [rope_cos, rope_sin] = rope_rows(table, d.rotary, positions);
-        ov::Tensor mask(ov::element::i64, {1, total});
-        std::fill_n(mask.data<int64_t>(), total, int64_t{1});
-        const auto query = lcg_vec(L * d.Hiq * d.Di, seed++);
-        const auto keys = lcg_vec(L * d.Di, seed++);
-        std::vector<float> projection;
-        for (size_t t = 0; t < L; t++) {
-            projection.insert(projection.end(), query.begin() + t * d.Hiq * d.Di, query.begin() + (t + 1) * d.Hiq * d.Di);
-            projection.insert(projection.end(), keys.begin() + t * d.Di, keys.begin() + (t + 1) * d.Di);
+        run_step({&request}, past, L, "step " + std::to_string(step));
+        if (::testing::Test::HasFatalFailure()) {
+            return;
         }
-        const std::vector<ov::Tensor> shared{make_tensor(f32, {1, L, d.rotary}, rope_cos), make_tensor(f32, {1, L, d.rotary}, rope_sin), mask};
-        request.set_tensor(stateful.input(0), make_tensor(f32, {1, L, (d.Hiq + 1) * d.Di}, projection));
-        reference.set_tensor(ref_inputs[0], make_tensor(f32, {1, L, d.Hiq, d.Di}, query));
-        reference.set_tensor(ref_inputs[1], make_tensor(f32, {1, L, d.Di}, keys));
-        for (size_t i = 0; i < shared.size(); i++) {
-            request.set_tensor(stateful.input(1 + i), shared[i]);
-            reference.set_tensor(ref_inputs[2 + i], shared[i]);
-        }
-        request.set_tensor(stateful.input(1 + shared.size()), make_i32_tensor({1}, {0}));
-        for (size_t i = 0; i < ref_states.size(); i++) {
-            reference.set_tensor(ref_inputs[2 + shared.size() + i], ref_states[i]);
-        }
-        ASSERT_NO_THROW(request.infer()) << "step " << step;
-        ASSERT_NO_THROW(reference.infer()) << "step " << step;
-
-        const auto count = request.get_output_tensor(1);
-        const auto ref_count = reference.get_output_tensor(1);
-        ASSERT_EQ(count.get_shape(), (ov::Shape{1, 1, L}));
-        ASSERT_EQ(ref_count.get_shape(), count.get_shape());
-        const auto selected = request.get_output_tensor(0);
-        const auto ref_selected = reference.get_output_tensor(0);
-        for (size_t l = 0; l < L; l++) {
-            const auto n = count.data<int32_t>()[l];
-            ASSERT_EQ(n, ref_count.data<int32_t>()[l]) << "step " << step << " row " << l;
-            for (int32_t k = 0; k < n; k++) {
-                ASSERT_EQ(selected.data<int32_t>()[l * d.block_topk + k], ref_selected.data<int32_t>()[l * d.block_topk + k])
-                    << "step " << step << " row " << l << " slot " << k;
-            }
-        }
-
-        for (size_t i = 0; i < ref_states.size(); i++) {
-            const auto out = reference.get_output_tensor(2 + i);
-            ref_states[i] = ov::Tensor(out.get_element_type(), out.get_shape());
-            out.copy_to(ref_states[i]);
-        }
-        const auto blocks = total / d.r;
-        const std::vector<std::string> state_names{"block_keys", "incomplete_keys", "incomplete_rope"};
-        for (auto& variable : request.query_state()) {
-            const auto it = std::find(state_names.begin(), state_names.end(), variable.get_name());
-            ASSERT_NE(it, state_names.end()) << variable.get_name();
-            const auto& ref_state = ref_states[static_cast<size_t>(it - state_names.begin())];
-            const auto state = variable.get_state();
-            if (it == state_names.begin() && blocks == 0) {
-                // No block was appended yet: the cache variable is still unset.
-                EXPECT_EQ(state.get_size(), 0u) << "step " << step;
-                continue;
-            }
-            if (it == state_names.begin()) {
-                ASSERT_EQ(state.get_shape(), (ov::Shape{1, blocks, d.Di})) << "step " << step;
-            }
-            ASSERT_EQ(ref_state.get_shape(), state.get_shape()) << "step " << step << " " << *it;
-            // Only the staged keys and, with an incomplete block, its RoPE row are read again: the other rows are left as
-            // they come, which after a reset is the Gather of an empty state.
-            size_t compared = state.get_size();
-            if (*it == "incomplete_keys") {
-                compared = (total % d.r) * d.Di;
-            } else if (*it == "incomplete_rope" && total % d.r == 0) {
-                compared = 0;
-            }
-            for (size_t i = 0; i < compared; i++) {
-                ASSERT_EQ(state.data<float>()[i], ref_state.data<float>()[i]) << "step " << step << " " << *it << " element " << i;
-            }
-        }
-        past = total;
+        past += L;
     }
 
-    // The cache is read without the beam table, so beam search is rejected.
+    // A request restored by set_state continues as the original one would.
+    auto restored = stateful.create_infer_request();
+    for (auto& variable : request.query_state()) {
+        const auto state = variable.get_state();
+        for (auto& target : restored.query_state()) {
+            if (target.get_name() == variable.get_name()) {
+                target.set_state(state);
+            }
+        }
+    }
+    for (size_t step = 0; step < 6; step++) {
+        run_step({&restored}, past, 1, "restored step " + std::to_string(step));
+        if (::testing::Test::HasFatalFailure()) {
+            return;
+        }
+        past += 1;
+    }
+}
+
+TEST(qsa_ops_gpu_test, stateful_indexer_block_cache_is_updated_in_place) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    // Prompts shorter than a block, block-boundary-crossing decodes, prefills that outgrow the preallocated cache, a decode
+    // long enough to fill it up block by block, and a reset.
+    std::vector<size_t> q_lens{3, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 600, 700};
+    q_lens.insert(q_lens.end(), 600, 1);
+    q_lens.insert(q_lens.end(), {0, 9, 1});
+    run_stateful_indexer_chain(1, q_lens);
+}
+
+TEST(qsa_ops_gpu_test, batched_stateful_indexer_block_cache_is_updated_in_place) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    std::vector<size_t> q_lens{5, 300};
+    q_lens.insert(q_lens.end(), 600, 1);
+    run_stateful_indexer_chain(2, q_lens);
+}
+
+/// The block index key cache is read without its beam table, so beam search is rejected.
+TEST(qsa_ops_gpu_test, stateful_indexer_rejects_beam_search) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    const split_dims d;
+    const auto f32 = ov::element::f32;
+    ov::Core core;
+    auto stateful = core.compile_model(make_exported_indexer_model(d, true), "GPU", ov::hint::inference_precision(ov::element::f16));
     auto batched = stateful.create_infer_request();
     constexpr size_t batch = 2;
     constexpr size_t L = 4;
-    const auto [rope_cos, rope_sin] = rope_rows(table, d.rotary, {0, 1, 2, 3, 0, 1, 2, 3});
+    const auto [rope_cos, rope_sin] = rope_rows(make_rotary_table(L, d.rotary), d.rotary, {0, 1, 2, 3, 0, 1, 2, 3});
     ov::Tensor mask(ov::element::i64, {batch, L});
     std::fill_n(mask.data<int64_t>(), batch * L, int64_t{1});
-    batched.set_tensor(stateful.input(0), make_tensor(f32, {batch, L, (d.Hiq + 1) * d.Di}, lcg_vec(batch * L * (d.Hiq + 1) * d.Di, seed++)));
+    batched.set_tensor(stateful.input(0), make_tensor(f32, {batch, L, (d.Hiq + 1) * d.Di}, lcg_vec(batch * L * (d.Hiq + 1) * d.Di, 1)));
     batched.set_tensor(stateful.input(1), make_tensor(f32, {batch, L, d.rotary}, rope_cos));
     batched.set_tensor(stateful.input(2), make_tensor(f32, {batch, L, d.rotary}, rope_sin));
     batched.set_tensor(stateful.input(3), mask);
