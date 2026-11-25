@@ -4,6 +4,7 @@
 
 #include "fully_connected_kernel_bf_tiled.h"
 
+#include <algorithm>
 #include <functional>
 #include <vector>
 
@@ -153,7 +154,12 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
 bool should_dynamic_quantize(const fully_connected_params& params) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
-    if (params.inputs[0].GetFirstElementOffset() != 0 || params.inputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].has_dynamic_pad()) {
+    const auto& input0 = params.inputs[0];
+    const auto& dims = input0.GetDims();
+    const bool has_pad = std::any_of(dims.begin(), dims.end(), [](const auto& d) {
+        return d.pad.is_dynamic || d.pad.Total() != 0;
+    });
+    if (input0.GetFirstElementOffset() != 0 || input0.PitchesDifferFromLogicalDims() || has_pad) {
         GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: input has non-zero offset or padding" << std::endl;
         return false;
     }
@@ -603,35 +609,26 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
             // so all non-XMX GPUs (including 128-GRF Xe-LP) stay well within register occupancy headroom.
             // Pick the largest dispatch_bsv <= 16 dividing CeilDiv(batch, 8) (exact or prime batch)
             // to maximize L3 weight reuse across consecutive workgroups.
-            selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case([&](const fully_connected_params&) -> tune_params {
-                    const unsigned int tile_b = 8;
-                    const unsigned int tile_ofm = std::min(max_tile_ofm, 2U);
-                    const size_t ofm_tiles = CeilDiv(output_f, static_cast<size_t>(tile_ofm) * simd);
-                    const unsigned int dispatch_fsv = (ofm_tiles % 2 == 0) ? 2 : 1;
-                    if (batch % tile_b == 0) {
-                        const size_t batch_tiles = batch / tile_b;
-                        unsigned int dispatch_bsv = 16;
-                        while (batch_tiles % dispatch_bsv != 0) {
-                            dispatch_bsv--;
-                        }
-                        return tune_params(tile_b, tile_ofm, 1, 2, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED);
-                    }
-                    size_t tile = simd;
-                    while (batch % tile != 0) {
-                        tile--;
-                    }
-                    if (batch > 1 && tile == 1) {
-                        const size_t batch_tiles = CeilDiv(batch, static_cast<size_t>(tile_b));
-                        unsigned int dispatch_bsv = 16;
-                        while (batch_tiles % dispatch_bsv != 0) {
-                            dispatch_bsv--;
-                        }
-                        return tune_params(tile_b, tile_ofm, 1, 2, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED);
-                    }
+            selector.Case([&](const fully_connected_params&) -> tune_params {
+                const unsigned int tile_b = 8;
+                const unsigned int tile_ofm = std::min(max_tile_ofm, 2U);
+                size_t tile = simd;
+                while (batch % tile != 0) {
+                    tile--;
+                }
+                const bool use_tile8 = (batch % tile_b == 0) || (batch > 1 && tile == 1);
+                if (!use_tile8) {
                     return tune_params(tile_b, tile_ofm, 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED);
-                });
+                }
+                const size_t batch_tiles = CeilDiv(batch, static_cast<size_t>(tile_b));
+                unsigned int dispatch_bsv = 16;
+                while (batch_tiles % dispatch_bsv != 0) {
+                    dispatch_bsv--;
+                }
+                const size_t ofm_tiles = CeilDiv(output_f, static_cast<size_t>(tile_ofm) * simd);
+                const unsigned int dispatch_fsv = (dispatch_bsv > 1 && ofm_tiles % 2 == 0) ? 2 : 1;
+                return tune_params(tile_b, tile_ofm, 1, 2, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED);
+            });
         } else if (dtype == Datatype::F32) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 16, 2, EXE_MODE_AGE_BASED))
@@ -883,8 +880,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     // for 3d output we are treating spatial as features
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         auto tile_in_b_pitch = (params.inputs[0].Feature().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Feature().pitch;
-        bool input_has_feature_pad = params.is_shape_agnostic || params.inputs[0].PitchesDifferFromLogicalDims() ||
-                                     params.inputs[0].Feature().pad.Total() != 0 || params.inputs[0].has_dynamic_pad();
+        bool input_has_feature_pad = params.is_shape_agnostic || params.inputs[0].has_dynamic_pad() ||
+                                     params.inputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].Feature().pad.Total() != 0;
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Y().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Y().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));

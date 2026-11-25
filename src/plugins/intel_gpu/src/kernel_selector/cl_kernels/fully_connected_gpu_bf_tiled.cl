@@ -1483,27 +1483,24 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
     // =====================================================================================================================================
     // Write results
-    uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
+    uint output_f_offset = out_f * TILE_OUT_F_PITCH;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define WRITE_OUTPUT(bi) do {                                       \
-                if (bi + out_b < BATCH_SIZE)                                \
-                    OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                if (bi + out_b < BATCH_SIZE)                                                                    \
+                    OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]); \
             } while (false)
 #else
-        #define WRITE_OUTPUT(bi) do {                                       \
-                OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]);     \
             } while (false)
 #endif
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
-        output_offset += sglid;
-
         for (uint bi = 0; bi < TILE_B; ++bi) {
+            uint output_offset = output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi) + sglid;
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
 #if IS_DYNAMIC || BATCH_LEFTOVER
@@ -1516,7 +1513,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 }
                 output_offset += SIMD;
             }
-            output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)

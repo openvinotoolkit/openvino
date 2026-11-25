@@ -125,7 +125,9 @@ inline void (DYN_B_FUNC_NAME)(
         }
         input_k_offset += TILE_IFM * SIMD;
 
+#if DECOMPRESSION_SCALE_POST_OP
         ACCUMULATOR_VEC_TYPE acc_tmp[FORCED_TILE_B] = { };
+#endif
 
         // Inner K loop: load/unpack INT4 weights, decompress, multiply-accumulate
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
@@ -175,11 +177,19 @@ inline void (DYN_B_FUNC_NAME)(
                 unroll_for(uint bi = 0; bi < FORCED_TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+#if DECOMPRESSION_SCALE_POST_OP
                         #if TILE_OFM > 1
                             ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                         #else
                             acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                         #endif
+#else
+                        #if TILE_OFM > 1
+                            ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
+                        #else
+                            acc[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
+                        #endif
+#endif
                     }
                 }
             }
@@ -229,11 +239,6 @@ inline void (DYN_B_FUNC_NAME)(
                     acc_tmp[bi] = 0;
                 #endif
             }
-        }
-#endif
-#if !DECOMPRESSION_SCALE_POST_OP
-        unroll_for(uint bi = 0; bi < FORCED_TILE_B; ++bi) {
-            acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
         }
 #endif
     } // end ni loop
