@@ -89,6 +89,15 @@ struct ReduceImplementationManager : public ImplementationManager {
             return false;
         }
 
+        // Plain descriptors use unpadded dimensions, so feature padding would
+        // make their strides disagree with the input or output buffer layout.
+        if (in_layout.data_padding._lower_size[1] != 0 ||
+            in_layout.data_padding._upper_size[1] != 0 ||
+            out_layout.data_padding._lower_size[1] != 0 ||
+            out_layout.data_padding._upper_size[1] != 0) {
+            return false;
+        }
+
         // Destination must remain plain (no blocked layout), but does not need
         // to be restricted to nchw/ncdhw-style ordering.
         if (!format::is_simple_data_format(out_layout.format)) {

@@ -2432,7 +2432,7 @@ TEST(reduce_gpu, onednn_reduce_dynamic_node_static_fallback_spatial_axis) {
 }
 
 #if defined(OV_GPU_VENDOR_NVIDIA)
-static bool is_nvidia_onednn_reduce_valid(const layout& input_lay, reduce_mode mode) {
+static bool is_nvidia_onednn_reduce_valid(const layout& input_lay, reduce_mode mode, const padding& output_padding = {}) {
     auto& engine = get_test_engine();
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::use_onednn(true));
@@ -2444,6 +2444,10 @@ static bool is_nvidia_onednn_reduce_valid(const layout& input_lay, reduce_mode m
     auto& reduce_node = prog.get_or_create(reduce_prim);
     program_wrapper::add_connection(prog, input_node, reduce_node);
     reduce_node.recalc_output_layout();
+
+    auto output_lay = reduce_node.get_output_layout();
+    output_lay.data_padding = output_padding;
+    reduce_node.set_output_layout(output_lay, false);
 
     onednn::ReduceImplementationManager manager(shape_types::static_shape);
     return manager.validate_impl(reduce_node);
@@ -2486,6 +2490,26 @@ TEST(reduce_gpu_nvidia, onednn_rejects_unsupported_data_type) {
 
 TEST(reduce_gpu_nvidia, onednn_rejects_blocked_input_format) {
     EXPECT_FALSE(is_nvidia_onednn_reduce_valid({data_types::f16, format::b_fs_yx_fsv16, {1, 16, 2, 2}}, reduce_mode::sum));
+}
+
+TEST(reduce_gpu_nvidia, onednn_rejects_feature_padding) {
+    const layout plain_layout{data_types::f32, format::bfyx, {2, 1, 2, 1}};
+    ASSERT_TRUE(is_nvidia_onednn_reduce_valid(plain_layout, reduce_mode::sum));
+
+    for (bool lower : {false, true}) {
+        SCOPED_TRACE(lower ? "lower feature padding" : "upper feature padding");
+        padding feature_padding;
+        if (lower) {
+            feature_padding._lower_size[1] = 1;
+        } else {
+            feature_padding._upper_size[1] = 1;
+        }
+
+        auto padded_layout = plain_layout;
+        padded_layout.data_padding = feature_padding;
+        EXPECT_FALSE(is_nvidia_onednn_reduce_valid(padded_layout, reduce_mode::sum));
+        EXPECT_FALSE(is_nvidia_onednn_reduce_valid(plain_layout, reduce_mode::sum, feature_padding));
+    }
 }
 
 TEST(reduce_gpu_nvidia, onednn_rejects_sum_square) {
