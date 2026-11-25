@@ -38,6 +38,7 @@
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "quant/weights.hpp"
+#include "transformations/utils/gguf_weights.hpp"
 
 using namespace ov_gguf_test;
 
@@ -2022,7 +2023,12 @@ TEST_F(GGUFShards, RejectsUnrelatedModelsAndEmptyLists) {
     OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{}), ov::Exception, testing::HasSubstr("empty"));
 }
 
-TEST_F(GGUFShards, NativeWeightsPropertyIsScopedToEachLoad) {
+class GGUFQ8Projection : public GGUFShards {
+protected:
+    std::string write_projection_model();
+};
+
+std::string GGUFQ8Projection::write_projection_model() {
     GgufWriter writer;
     writer.kv_str("general.architecture", "qwen3");
     writer.kv_u32("qwen3.block_count", 1);
@@ -2045,29 +2051,148 @@ TEST_F(GGUFShards, NativeWeightsPropertyIsScopedToEachLoad) {
     }
     std::vector<uint8_t> payload(32 * 34, 1);
     for (size_t block = 0; block < 32; ++block) {
-        payload[block * 34] = 0;
+        payload[block * 34] = static_cast<uint8_t>(block);
         payload[block * 34 + 1] = 0x3c;
+        payload[block * 34 + 2] = static_cast<uint8_t>(240 + block);
     }
     writer.raw_tensor("blk.0.attn_q.weight", {32, 32}, GGUF_TYPE_Q8_0, payload);
     const auto model_path = m_base + ".gguf";
     m_paths.push_back(model_path);
-    ASSERT_TRUE(writer.write(model_path));
-    FrontEnd frontend;
-    for (bool enabled : {false, true, false}) {
-        const auto model = frontend.convert(frontend.load(model_path, ov::AnyMap{ov::hint::gguf_native_weights(enabled)}));
+    return writer.write(model_path) ? model_path : std::string{};
+}
+
+TEST_F(GGUFQ8Projection, NativeWeightsPropertyIsScopedToEachLoad) {
+    const auto model_path = write_projection_model();
+    ASSERT_FALSE(model_path.empty());
+    std::vector<uint8_t> payload(32 * 34, 1);
+    for (size_t block = 0; block < 32; ++block) {
+        payload[block * 34] = static_cast<uint8_t>(block);
+        payload[block * 34 + 1] = 0x3c;
+        payload[block * 34 + 2] = static_cast<uint8_t>(240 + block);
+    }
+    constexpr std::array<bool, 3> native_modes{false, true, false};
+    const auto models = [&] {
+        FrontEnd frontend;
+        std::array<std::shared_ptr<ov::Model>, native_modes.size() + 1> converted;
+        for (size_t index = 0; index < native_modes.size(); ++index) {
+            converted[index] = frontend.convert(frontend.load(
+                model_path, ov::AnyMap{ov::hint::gguf_native_weights(native_modes[index])}));
+        }
+        converted.back() = frontend.convert(frontend.load(model_path));
+        return converted;
+    }();
+    const auto check_model = [&](const std::shared_ptr<ov::Model>& model, bool enabled) {
         size_t raw_constants = 0;
         for (const auto& node : model->get_ordered_ops()) {
             if (node->get_output_size() && node->get_output_element_type(0).is_gguf_block()) {
-                EXPECT_TRUE(ov::is_type<ov::op::v0::Constant>(node));
-                EXPECT_EQ(node->get_output_element_type(0), ov::element::gguf_q8_0);
+                const auto weight = ov::as_type_ptr<ov::op::v0::Constant>(node);
+                ASSERT_NE(weight, nullptr);
+                EXPECT_EQ(weight->get_element_type(), ov::element::gguf_q8_0);
+                EXPECT_EQ(weight->get_shape(), (ov::Shape{32, 32}));
+                ASSERT_EQ(weight->get_byte_size(), payload.size());
+                EXPECT_EQ(std::memcmp(weight->get_data_ptr(), payload.data(), payload.size()), 0);
+                const auto consumers = weight->output(0).get_target_inputs();
+                ASSERT_EQ(consumers.size(), 1);
+                ASSERT_TRUE(ov::is_type<ov::op::internal::FullyConnectedCompressed>(consumers.begin()->get_node()));
+                EXPECT_EQ(consumers.begin()->get_index(), 1);
                 ++raw_constants;
             }
         }
         EXPECT_EQ(raw_constants, enabled ? 1u : 0u);
+    };
+    for (size_t index = 0; index < native_modes.size(); ++index) {
+        ASSERT_NO_FATAL_FAILURE(check_model(models[index], native_modes[index]));
     }
-    EXPECT_NO_THROW(frontend.convert(frontend.load(model_path)));
+    ASSERT_NO_FATAL_FAILURE(check_model(models.back(), false));
+    FrontEnd frontend;
     EXPECT_THROW(frontend.load(model_path, ov::AnyMap{{"GGUF_NATIVE_WEIGHTS", "invalid"}}), ov::Exception);
     EXPECT_THROW(frontend.load(model_path, ov::AnyMap{{"UNKNOWN_GGUF_PROPERTY", true}}), ov::Exception);
+}
+
+TEST_F(GGUFQ8Projection, NativeFCMatchesCompatibleCPU) {
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "CPU") == devices.end()) {
+        GTEST_SKIP() << "CPU device unavailable";
+    }
+    const auto model_path = write_projection_model();
+    ASSERT_FALSE(model_path.empty());
+    FrontEnd frontend;
+    const auto legacy = frontend.convert(frontend.load(model_path));
+    const auto native = frontend.convert(frontend.load(model_path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+    const auto constants = [](const std::shared_ptr<ov::Model>& model) {
+        std::vector<std::shared_ptr<ov::op::v0::Constant>> result;
+        for (const auto& node : model->get_ordered_ops()) {
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            if (constant && ((constant->get_element_type() == ov::element::i8 &&
+                              constant->get_shape() == ov::Shape{32, 1, 32}) ||
+                             (constant->get_element_type() == ov::element::f16 &&
+                              constant->get_shape() == ov::Shape{32, 1, 1}))) {
+                result.push_back(constant);
+            }
+        }
+        return result;
+    };
+    std::shared_ptr<ov::op::internal::FullyConnectedCompressed> fc;
+    for (const auto& node : native->get_ordered_ops()) {
+        const auto candidate = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+        if (candidate && candidate->get_input_element_type(1) == ov::element::gguf_q8_0) {
+            fc = candidate;
+        }
+    }
+    ASSERT_NE(fc, nullptr);
+    const auto compatible = ov::util::make_gguf_q8_0_fc_compatible(*fc);
+    ASSERT_NE(compatible, nullptr);
+    const auto actual = constants(std::make_shared<ov::Model>(ov::OutputVector{compatible}, native->get_parameters()));
+    const auto expected = constants(legacy);
+    ASSERT_EQ(actual.size(), 2);
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t index = 0; index < actual.size(); ++index) {
+        EXPECT_EQ(actual[index]->get_element_type(), expected[index]->get_element_type());
+        EXPECT_EQ(actual[index]->get_shape(), expected[index]->get_shape());
+        ASSERT_EQ(actual[index]->get_byte_size(), expected[index]->get_byte_size());
+        EXPECT_EQ(std::memcmp(actual[index]->get_data_ptr(), expected[index]->get_data_ptr(), actual[index]->get_byte_size()), 0);
+    }
+    auto reference = core.compile_model(legacy, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto compiled = core.compile_model(native, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto reference_request = reference.create_infer_request();
+    auto native_request = compiled.create_infer_request();
+    for (const auto& port : reference.inputs()) {
+        const auto shape = port.get_partial_shape();
+        ASSERT_TRUE(shape.rank().is_static());
+        auto concrete = shape.get_min_shape();
+        for (size_t dim = 0; dim < concrete.size(); ++dim) {
+            if (shape[dim].is_dynamic() && concrete[dim] == 0) {
+                concrete[dim] = 1;
+            }
+        }
+        ov::Tensor input(port.get_element_type(), concrete);
+        std::memset(input.data(), 0, input.get_byte_size());
+        reference_request.set_tensor(port.get_any_name(), input);
+        native_request.set_tensor(port.get_any_name(), input);
+    }
+    reference_request.infer();
+    native_request.infer();
+    ASSERT_EQ(compiled.outputs().size(), reference.outputs().size());
+    for (size_t port = 0; port < reference.outputs().size(); ++port) {
+        SCOPED_TRACE(port);
+        const auto reference_output = reference_request.get_output_tensor(port);
+        const auto native_output = native_request.get_output_tensor(port);
+        ASSERT_EQ(native_output.get_shape(), reference_output.get_shape());
+        const auto type = native_output.get_element_type();
+        ASSERT_EQ(type, reference_output.get_element_type());
+        ASSERT_TRUE(type == ov::element::f32 || type == ov::element::f16);
+        const auto value_at = [type](const ov::Tensor& tensor, size_t index) {
+            return type == ov::element::f32 ? tensor.data<const float>()[index]
+                                            : static_cast<float>(tensor.data<const ov::float16>()[index]);
+        };
+        for (size_t index = 0; index < native_output.get_size(); ++index) {
+            EXPECT_NEAR(value_at(native_output, index), value_at(reference_output, index), 1e-5f);
+        }
+    }
+    const auto nodes = native->get_ordered_ops();
+    EXPECT_NE(std::find(nodes.begin(), nodes.end(), fc), nodes.end());
+    EXPECT_EQ(fc->get_input_element_type(1), ov::element::gguf_q8_0);
 }
 
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {

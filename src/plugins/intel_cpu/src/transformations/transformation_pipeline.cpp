@@ -23,6 +23,7 @@
 #include "nodes/fullyconnected.h"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "transformations/utils/gguf_weights.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
@@ -442,6 +443,17 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
 }
 
 void Transformations::UpToLpt() {
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+        if (!fc) {
+            continue;
+        }
+        if (const auto compatible = ov::util::make_gguf_q8_0_fc_compatible(*fc)) {
+            ov::copy_runtime_info(node, compatible);
+            ov::replace_node_update_name(node, compatible);
+        }
+    }
+
     using namespace ov::pass::low_precision;
     static const std::set<levels>& supported_fq_levels = {levels::int4,
                                                           levels::int4_narrow_range,

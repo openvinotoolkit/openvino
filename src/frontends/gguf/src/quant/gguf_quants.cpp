@@ -16,6 +16,7 @@
 #include "gguf.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "transformations/utils/gguf_weights.hpp"
 #include "weights.hpp"
 
 namespace ov::frontend::gguf {
@@ -293,16 +294,7 @@ void fill_q4_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
 // Q8_0 symmetric: block = |f16 scale|32x i8 weights|. Weights are stored as i8 on disk.
 // No zero-point. Output: i8 weights (direct copy) + f16 scales.
 void fill_q8_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
-    const uint64_t weights_per_block = 32;
-    const uint64_t bytes_per_block = 34;  // 2 bytes scale, 32x1 byte weights (i8)
-    auto data = static_cast<const uint8_t*>(tensor.weights_data);
-    auto weights = static_cast<int8_t*>(weights_arr.data());
-    auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
-    ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
-        const uint8_t* block_data = data + i * bytes_per_block;
-        scales[i] = ov::float16::from_bits(*(uint16_t*)block_data);
-        std::memcpy(weights + i * weights_per_block, block_data + 2, weights_per_block);
-    });
+    ov::util::unpack_gguf_q8_0(tensor.weights_data, tensor.bsize, weights_arr, scales_arr);
 }
 
 void fill_q8_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
