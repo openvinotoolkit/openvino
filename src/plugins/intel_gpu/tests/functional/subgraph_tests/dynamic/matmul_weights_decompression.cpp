@@ -204,6 +204,13 @@ protected:
 
         if (activations_precision == ov::element::f16) {
             abs_threshold = abs_threshold_f16;
+        } else if (activations_precision == ov::element::bf16) {
+            const auto capabilities = core->get_property(targetDevice, ov::device::capabilities);
+            if (std::find(capabilities.begin(), capabilities.end(), ov::device::capability::BF16) == capabilities.end()) {
+                GTEST_SKIP() << "Device does not support BF16";
+            }
+            configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+            abs_threshold = abs_threshold_f16;
         } else {
             abs_threshold = 1e-4f;
         }
@@ -437,6 +444,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_precomputed_redu
                                             ::testing::Values(false),
                                             ::testing::Values(128),
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
+                         MatmulWeightsDecompression::get_test_case_name);
+
+// bf16 activations: dyn_quan runs for 1024 tokens and is skipped (keeping bf16) for a single token
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_bf16,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1024, 1, 1024}, {1, 1, 1024}, {1024, 1, 1024}}},
+                                                                            {1024, 1024}, 128}),  // shape
+                                            ::testing::Values(ov::element::u8, ov::element::u4),
+                                            ::testing::Values(ov::element::bf16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(decompression_sub_no_scalar),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(128),
+                                            ::testing::Values(4.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_unaligned,     // dyn_quan is turned off because of innermost-shape
