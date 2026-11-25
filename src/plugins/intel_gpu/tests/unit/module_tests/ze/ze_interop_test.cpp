@@ -7,12 +7,116 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "ze/ze_engine.hpp"
 #include "ze/ze_memory.hpp"
+#include "ze/ze_stream.hpp"
 #include "ze/ze_ocl_interop.hpp"
 
 #include <vector>
 
 using namespace cldnn;
 using namespace ze_tests;
+
+namespace {
+
+struct cl_event_guard {
+    cl_event event = nullptr;
+    ~cl_event_guard() {
+        if (event != nullptr) {
+            clReleaseEvent(event);
+        }
+    }
+};
+
+}  // namespace
+
+class ze_ocl_interop_tests : public testing::Test {
+protected:
+    void SetUp() override {
+        ctx = create_ze_test_context();
+        if (!ctx.ze_test_engine->get_device_info().supports_leo) {
+            GTEST_SKIP() << "Level Zero - OpenCL interoperability not supported";
+        }
+        engine = std::dynamic_pointer_cast<ze::ze_engine>(ctx.ze_test_engine);
+        ASSERT_NE(engine, nullptr);
+        interop = &ze::ze_ocl_interop::get_instance();
+        ze_device = engine->get_device().handle();
+        ocl_device = interop->find_ocl_device(ze_device);
+    }
+
+    ze_test_context ctx;
+    std::shared_ptr<ze::ze_engine> engine;
+    ze::ze_ocl_interop* interop = nullptr;
+    ze_device_handle_t ze_device = nullptr;
+    cl_device_id ocl_device = nullptr;
+};
+
+TEST_F(ze_ocl_interop_tests, finds_matching_device_and_driver) {
+    EXPECT_TRUE(interop->check_support(ze_device));
+    EXPECT_EQ(interop->get_ze_device(ocl_device), ze_device);
+    EXPECT_EQ(interop->find_ze_driver(ocl_device), engine->get_driver().handle());
+    EXPECT_EQ(interop->find_ocl_device(ze_device), ocl_device);
+}
+
+TEST_F(ze_ocl_interop_tests, creates_cl_context_and_queries_ze_context) {
+    ze::ocl_context_args args{};
+    args.device = ocl_device;
+
+    cl_context context = interop->create_cl_context(engine->get_context().handle(), args);
+    ASSERT_NE(context, nullptr);
+    ze::ocl_owner<ze::ocl_resource_type::context> context_owner(context);
+    EXPECT_EQ(interop->get_ze_context(context), engine->get_context().handle());
+}
+
+TEST_F(ze_ocl_interop_tests, creates_cl_queue_and_queries_command_list) {
+    auto stream = std::dynamic_pointer_cast<ze::ze_stream>(ctx.ze_test_stream);
+    ASSERT_NE(stream, nullptr);
+
+    ze::ocl_queue_args args{};
+    args.context = static_cast<cl_context>(engine->get_user_context(runtime_types::ocl));
+    args.device = ocl_device;
+    auto command_list = stream->get_immediate_command_list().handle();
+
+    cl_command_queue queue = interop->create_cl_queue(command_list, args);
+    ASSERT_NE(queue, nullptr);
+    ze::ocl_owner<ze::ocl_resource_type::command_queue> queue_owner(queue);
+    EXPECT_EQ(interop->get_ze_cmd_list(queue), command_list);
+}
+
+TEST_F(ze_ocl_interop_tests, queries_ze_event_from_cl_event) {
+    auto stream = std::dynamic_pointer_cast<ze::ze_stream>(ctx.ze_test_stream);
+    ASSERT_NE(stream, nullptr);
+
+    ze::ocl_queue_args args{};
+    args.context = static_cast<cl_context>(engine->get_user_context(runtime_types::ocl));
+    args.device = ocl_device;
+    auto command_list = stream->get_immediate_command_list().handle();
+    cl_command_queue queue = interop->create_cl_queue(command_list, args);
+    ASSERT_NE(queue, nullptr);
+    ze::ocl_owner<ze::ocl_resource_type::command_queue> queue_owner(queue);
+
+    cl_event_guard event;
+    ASSERT_EQ(clEnqueueMarkerWithWaitList(queue, 0, nullptr, &event.event), CL_SUCCESS);
+    ASSERT_NE(event.event, nullptr);
+    ASSERT_EQ(clFinish(queue), CL_SUCCESS);
+    EXPECT_NE(interop->get_ze_event(event.event), nullptr);
+}
+
+TEST_F(ze_ocl_interop_tests, creates_cl_buffer_and_queries_ze_usm_pointer) {
+    const layout buffer_layout{{1, 1, 64, 1}, data_types::u8, format::bfyx};
+    auto memory = ctx.ze_test_engine->allocate_memory(buffer_layout, allocation_type::usm_device);
+    ASSERT_NE(memory, nullptr);
+    auto ze_ptr = memory->get_internal_params(runtime_types::ze).mem;
+    ASSERT_NE(ze_ptr, nullptr);
+
+    ze::ocl_buffer_args args{};
+    args.context = static_cast<cl_context>(engine->get_user_context(runtime_types::ocl));
+    args.flags = CL_MEM_READ_WRITE;
+    args.size = memory->size();
+
+    cl_mem buffer = interop->create_cl_buffer(ze_ptr, args);
+    ASSERT_NE(buffer, nullptr);
+    ze::ocl_owner<ze::ocl_resource_type::mem_object> buffer_owner(buffer);
+    EXPECT_EQ(interop->get_ze_usm(buffer), ze_ptr);
+}
 
 class ze_image_interop_tests : public testing::Test {
 protected:
