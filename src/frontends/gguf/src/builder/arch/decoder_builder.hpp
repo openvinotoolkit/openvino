@@ -54,6 +54,9 @@ private:
 
     // Final norm, lm_head, and the optional logit scale / soft-cap.
     std::string build_head(const std::string& cur);
+    std::string build_gemma3n(const std::string& embeddings);
+    std::string build_eagle3(const std::string& embeddings);
+    std::string build_dflash(const std::string& embeddings);
     bool prunes_shared_kv_rows() const {
         return m_genai_adaptation && m_cfg.shared_kv_layers > 0 && !m_cfg.embedding_model;
     }

@@ -34,7 +34,7 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
     const auto& rt_info = op->get_rt_info();
     const auto fused_rms = rt_info.find(fuse_rms_rope_epsilon_key);
     const bool fuse_rms_norm = fused_rms != rt_info.end();
-    float rms_epsilon = 0.0f;
+    float rms_epsilon = 0.0F;
     if (fuse_rms_norm) {
         OPENVINO_ASSERT(inputs.size() == 4 && gather_rank == 0, "[GPU] Invalid fused RMSNorm and RoPE inputs");
         rms_epsilon = fused_rms->second.as<float>();
