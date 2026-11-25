@@ -45,7 +45,7 @@ def select_cpu_platform():
 
 
 def new_openvino_llm(**overrides):
-    """Build a bf16 OV-backend TinyLlama; each test builds and deletes its own, as a shared one OOMed CI.
+    """Build a bf16 OV-backend TinyLlama; tests build their own or share one per module, never two at once.
 
     block_size=32 is required by the OV CPU PagedAttention kernel.
     """

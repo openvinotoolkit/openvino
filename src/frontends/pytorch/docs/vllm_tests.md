@@ -32,7 +32,8 @@ OV_LAZY_KVCACHE=1 python -m pytest tests/vllm_tests -m precommit -v
 | File | Kind | Covers |
 |---|---|---|
 | `test_run.py` | End to end | OpenVINO backend output vs vLLM eager |
-| `test_advanced_features.py` | End to end | logprobs, prompt-length changes and continuous batching, grammar, beam search, speculative decoding, prefix caching, logits processors |
+| `test_advanced_features.py` | End to end | logprobs, prompt-length changes and continuous batching, grammar, beam search, prefix caching, logits processors, on one shared LLM |
+| `test_speculative_decoding.py` | End to end | n-gram speculative decoding |
 | `test_tiny_models.py` | End to end | Tiny random-weight MoE and Gated DeltaNet models vs eager |
 | `test_reload_weights.py`, `test_lm_head_reload.py` | End to end | The OV model and lm_head pick up weights changed after load |
 | `test_attention_support.py` | Unit | Refusing attention features the PagedAttention rewrite can't express |
