@@ -42,9 +42,7 @@ std::string attention(GraphEmitter& e,
                       int il,
                       const std::string& attn_norm,
                       const std::string& positions,
-                      const std::string& mask,
-                      const std::string& swa_mask,
-                      bool use_input_mask) {
+                      bool last_query_rows) {
     const std::string p = "blk." + std::to_string(il) + ".";
 
     // Per-layer hyperparameters (SWA vs global head size / rope / scale; per-layer KV heads).
@@ -228,14 +226,14 @@ std::string attention(GraphEmitter& e,
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     std::vector<std::string> attn_in = {q, k, v};
     if (!cfg.embedding_model || cfg.causal_attention)
-        attn_in.emplace_back(is_swa_layer ? swa_mask : mask);
+        attn_in.emplace_back(is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask");
     if (cfg.has_sinks) {
         e.add_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
-    if (use_input_mask)
-        attn_attrs["use_input_mask"] = true;
+    if (last_query_rows)
+        attn_attrs["last_query_rows"] = true;
     if (cfg.embedding_model)
         attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f)

@@ -900,17 +900,10 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunesRowsAtFirstSharedKvLayer) {
 
     expect_rows("shared_kv_inp", "");
     expect_rows("inp_pos_shared_rows", "inp_pos_as_rows");
-    const auto expect_last_query_row = [&](const std::string& name, const std::string& input) {
-        const auto* op = find_node(name);
-        ASSERT_NE(op, nullptr) << name;
-        EXPECT_EQ(op->op_type, "GGML_OP_GET_ROWS");
-        EXPECT_EQ(op->op_case, 11);
-        ASSERT_EQ(op->input_names.size(), 1);
-        EXPECT_EQ(op->input_names[0], input);
-    };
-    expect_last_query_row("self_kq_mask_shared", "self_kq_mask");
-    if (config.has_swa) {
-        expect_last_query_row("self_kq_mask_swa_shared", "self_kq_mask_swa");
+    for (int il = 0; il < config.n_layer; ++il) {
+        const auto* attention = find_node("blk." + std::to_string(il) + ".kqv");
+        ASSERT_NE(attention, nullptr) << il;
+        EXPECT_EQ(attention->attributes.count("last_query_rows"), il >= first_shared ? 1u : 0u) << il;
     }
     const auto* shared_kv_batch_major = find_node("shared_kv_inp_batch_major");
     ASSERT_NE(shared_kv_batch_major, nullptr);
@@ -1008,6 +1001,16 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
     reference->get_rt_info().erase(ov::pass::shared_kv_row_selection_key);
     ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(optimized);
     ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(reference);
+    size_t shared_sliding_layers = 0;
+    for (const auto& node : optimized->get_ordered_ops()) {
+        const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
+        if (!pa || pa->get_write_kv_cache())
+            continue;
+        const auto window = ov::util::get_constant_from_source(pa->input_value(10));
+        ASSERT_NE(window, nullptr);
+        shared_sliding_layers += window->cast_vector<int32_t>().at(0) != 0;
+    }
+    EXPECT_GT(shared_sliding_layers, 0u);
 
     ov::Core core;
     const auto compile = [&](const std::shared_ptr<ov::Model>& model) {

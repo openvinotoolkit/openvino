@@ -283,9 +283,7 @@ std::string DecoderBuilder::build_layer(int il,
                                              il,
                                              attn_norm,
                                              attention_inputs.positions,
-                                             attention_inputs.mask,
-                                             attention_inputs.swa_mask,
-                                             attention_inputs.use_input_mask);
+                                             attention_inputs.last_query_rows);
 
     // MiniCPM scales the attention sublayer output before the residual add.
     if (m_cfg.residual_scale != 1.0f) {
@@ -427,13 +425,7 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
                                                        {positions_as_rows},
                                                        6,
                                                        {{"reshape_target", std::vector<int64_t>{-1, 1, 1, 1}}});
-
-            attention_inputs.mask = m_emit.add_op("GGML_OP_GET_ROWS", "self_kq_mask_shared", {"self_kq_mask"}, 11);
-            attention_inputs.use_input_mask = true;
-            if (m_cfg.has_swa) {
-                attention_inputs.swa_mask =
-                    m_emit.add_op("GGML_OP_GET_ROWS", "self_kq_mask_swa_shared", {"self_kq_mask_swa"}, 11);
-            }
+            attention_inputs.last_query_rows = true;
         }
         cur = build_layer(il, cur, full_token_ref, attention_inputs);
     }

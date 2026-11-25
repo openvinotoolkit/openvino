@@ -58,13 +58,6 @@ std::shared_ptr<v1::Reshape> row_selection_indices(Node* node) {
     return as_type_ptr<v1::Reshape>(gather->get_input_node_shared_ptr(1));
 }
 
-std::shared_ptr<v0::Parameter> make_parameter(const char* name, element::Type type) {
-    auto parameter = std::make_shared<v0::Parameter>(type, PartialShape{-1});
-    parameter->set_friendly_name(name);
-    parameter->output(0).get_tensor().set_names({name});
-    return parameter;
-}
-
 }  // namespace
 
 bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& model) {
@@ -73,11 +66,8 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
     if (!model->get_rt_info().count(shared_kv_row_selection_key))
         return false;
 
-    for (const auto& parameter : model->get_parameters()) {
-        const auto& names = parameter->output(0).get_names();
-        if (names.count("token_type_ids") || names.count("qq_bias") || names.count("shared_kv_tokens_indices") ||
-            parameter->get_friendly_name() == "token_type_ids" || parameter->get_friendly_name() == "qq_bias" ||
-            parameter->get_friendly_name() == "shared_kv_tokens_indices")
+    for (const auto* name : {"token_type_ids", "qq_bias", "shared_kv_tokens_indices"}) {
+        if (m_params.exists(name))
             return false;
     }
 
@@ -120,9 +110,9 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
     }
     OPENVINO_ASSERT(!selections.empty(), "Shared-KV pruning has no row selections");
 
-    auto tokens = make_parameter("shared_kv_tokens_indices", element::i64);
-    auto past_lens = make_parameter("shared_kv_past_lens", element::i32);
-    auto subsequence_begins = make_parameter("shared_kv_subsequence_begins", element::i32);
+    auto tokens = m_params.add("shared_kv_tokens_indices", element::i64, PartialShape{-1});
+    auto past_lens = m_params.add("shared_kv_past_lens", element::i32, PartialShape{-1});
+    auto subsequence_begins = m_params.add("shared_kv_subsequence_begins", element::i32, PartialShape{-1});
     auto selected_ids =
         std::make_shared<v1::Reshape>(tokens, v0::Constant::create(element::i64, Shape{3}, {1, -1, 1}), false);
     copy_runtime_info(selections.front(), {tokens, selected_ids});
@@ -142,7 +132,5 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
         pa->input(5).replace_source_output(past_lens);
         pa->input(6).replace_source_output(subsequence_begins);
     }
-    model->add_parameters({tokens, past_lens, subsequence_begins});
-    model->validate_nodes_and_infer_types();
     return true;
 }

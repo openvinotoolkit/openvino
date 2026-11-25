@@ -120,11 +120,22 @@ std::shared_ptr<Model> getModelRef() {
     return std::make_shared<Model>(OutputVector{second->output(0)}, i.params);
 }
 
+class RunPruneSharedKVRows : public pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("RunPruneSharedKVRows");
+    bool run_on_model(const std::shared_ptr<Model>& model) override {
+        pass::paged_attention::PaParams pa_params{model->get_parameters()};
+        const bool changed = pass::PruneSharedKVRows(pa_params).run_on_model(model);
+        model->add_parameters(pa_params.items());
+        return changed;
+    }
+};
+
 class PruneSharedKVRowsTest : public TransformationTestsF {
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        manager.register_pass<pass::PruneSharedKVRows>();
+        manager.register_pass<RunPruneSharedKVRows>();
     }
 };
 
@@ -176,7 +187,7 @@ TEST_F(PruneSharedKVRowsTest, KeepsSelectionsBeforeAttentionUnchanged) {
 
 TEST(PruneSharedKVRowsIdempotency, RepeatedRunLeavesModelUnchanged) {
     const auto model = getModel(true, true);
-    pass::PruneSharedKVRows pass;
+    RunPruneSharedKVRows pass;
     EXPECT_TRUE(pass.run_on_model(model));
     EXPECT_FALSE(pass.run_on_model(model));
 }

@@ -38,8 +38,6 @@ std::string attention(GraphEmitter& e,
                       int il,
                       const std::string& attn_norm,
                       const std::string& positions = "inp_pos",
-                      const std::string& mask = "self_kq_mask",
-                      const std::string& swa_mask = "self_kq_mask_swa",
-                      bool use_input_mask = false);
+                      bool last_query_rows = false);
 
 }  // namespace ov::frontend::gguf::blocks

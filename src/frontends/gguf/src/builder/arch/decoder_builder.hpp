@@ -28,9 +28,7 @@ public:
 private:
     struct AttentionInputs {
         std::string positions = "inp_pos";
-        std::string mask = "self_kq_mask";
-        std::string swa_mask = "self_kq_mask_swa";
-        bool use_input_mask = false;
+        bool last_query_rows = false;
     };
 
     // Model inputs shared by every layer (tokens, positions, masks, KV update index).

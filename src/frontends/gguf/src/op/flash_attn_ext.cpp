@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -142,11 +144,10 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     // builder identifies it by the mask input's name (self_kq_mask_swa).
     if (has_mask) {
         auto mask = context.get_input(3);
-        const auto& mask_input_name = context.get_input_names()[3];
-        const bool is_swa =
-            context.get_attribute<bool>("is_swa", false) || mask_input_name.find("swa") != std::string::npos;
+        const bool is_swa = context.get_attribute<bool>("is_swa", false) ||
+                            context.get_input_names()[3].find("swa") != std::string::npos;
         const std::string mask_name = is_swa ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
-        if (context.has_input(mask_name) && !context.get_attribute<bool>("use_input_mask", false)) {
+        if (context.has_input(mask_name)) {
             mask_sliced = context.get_input(mask_name);
         } else {
             auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
@@ -154,6 +155,14 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
             auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
             auto token_len = get_dimensions(q, {op_case == 100 ? 1 : 2});
             mask_sliced = std::make_shared<ov::op::v8::Slice>(mask, zero, token_len, one, two);
+        }
+        if (context.get_attribute<bool>("last_query_rows", false)) {
+            // The query keeps only its trailing rows, so take the matching mask rows.
+            auto start = std::make_shared<ov::op::v0::Negative>(get_dimensions(q, {op_case == 100 ? 1 : 2}));
+            auto stop = ov::op::v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+            mask_sliced = std::make_shared<ov::op::v8::Slice>(mask_sliced, start, stop, one, two);
         }
 
         if (mask_sliced.get_element_type() != sdpa_type) {

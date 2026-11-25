@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov::pass {
@@ -18,10 +19,10 @@ inline constexpr char shared_kv_row_selection_key[] = "shared_kv_row_selection";
  * When a shared-cache query follows a common row selection after an earlier attention,
  * the pass replaces the selection indices with a runtime input, gathers the current
  * K/V rows, and uses compacted per-sequence lengths for the affected PA layers.
- * The model must declare shared_kv_row_selection in its runtime info. The runtime
- * must provide the three shared_kv_* inputs: selected rows must be contiguous
- * suffixes within each packed sequence, with corresponding past and subsequence
- * lengths. Models with token_type_ids, query-to-query bias, or ambiguous
+ * The model must declare shared_kv_row_selection in its runtime info. The pass adds
+ * three shared_kv_* inputs to pa_params; the runtime must provide them. Selected rows
+ * must be contiguous suffixes within each packed sequence, with corresponding past
+ * and subsequence lengths. Models with token_type_ids, query-to-query bias, or ambiguous
  * selections are left unchanged.
  *
  * Before: full rows -> Gather -> shared PA(Q, full K/V, lengths)
@@ -31,7 +32,11 @@ inline constexpr char shared_kv_row_selection_key[] = "shared_kv_row_selection";
 class TRANSFORMATIONS_API PruneSharedKVRows : public ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("PruneSharedKVRows");
+    explicit PruneSharedKVRows(paged_attention::PaParams& pa_params) : m_params(pa_params) {}
     bool run_on_model(const std::shared_ptr<Model>& model) override;
+
+private:
+    paged_attention::PaParams& m_params;
 };
 
 }  // namespace ov::pass
