@@ -409,11 +409,6 @@ Known Issues
 | Description:
 | The yolo26s-obb model in INT8 may fail on GPU on Intel® Core™ Ultra Processors (Series 3, Series 2), and Intel® Arc™ A-Series Graphics on Ubuntu 24 and Ubuntu 26 when using OpenVINO 2026.5.
 
-| **Component: GenAI NPU**
-| ID: 200077
-| Description:
-| The qwen3-tts-12hz-0.6b-base model may fail on NPU when a 4D float attention_mask is used with chunked prefill. To work around this, disable chunked prefill by setting NPUW_LLM_PREFILL_HINT=STATIC or setting NPUW_LLM_PREFILL_CHUNK_SIZE to at least NPUW_LLM_MAX_PROMPT_LEN.
-
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
