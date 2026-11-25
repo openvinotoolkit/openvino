@@ -4,6 +4,7 @@
 
 #include "fc_horizontal_fusion.hpp"
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -12,9 +13,9 @@
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/model.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/multiply.hpp"
@@ -29,170 +30,102 @@ namespace ov::intel_gpu {
 
 namespace {
 
-/// @brief Resolves a FullyConnected weight/scale/zp input to the node actually holding the data.
+/// @brief Resolves a FullyConnected weight/scale/zp/bias input to the node actually holding the data.
 std::shared_ptr<ov::Node> data_source_of(const ov::Output<ov::Node>& output) {
     auto node = output.get_node_shared_ptr();
     if (ov::is_type<ov::op::v0::Constant>(node)) {
         return node;
     }
-    if ((ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Transpose>(node)) &&
-        node->get_input_size() > 0) {
+    if ((ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Transpose>(node)) && node->get_input_size() > 0) {
         return node->get_input_node_shared_ptr(0);
     }
     return nullptr;
 }
 
-/// @brief Collects the data inputs of @p fc in the order the fusion reads them.
-void collect_fc_sources(const op::FullyConnectedCompressed& fc, std::vector<std::shared_ptr<ov::Node>>& sources) {
-    const auto append = [&](size_t input_idx) {
-        if (input_idx < fc.get_input_size()) {
-            if (auto source = data_source_of(fc.input_value(input_idx))) {
-                sources.push_back(std::move(source));
-            }
-        }
-    };
-    append(1);  // weights
-    append(3);  // scale
-    append(4);  // zero point, optional
-}
-
-/// @brief Tells whether @p fc belongs to a group this pass is going to fuse.
-bool is_fusion_candidate(const std::shared_ptr<op::FullyConnectedCompressed>& fc, size_t min_num_fcs_to_fuse) {
-    const int max_num_fcs_to_fuse = 3;
-    // Currently this pass targets only compressed FCs (QKV) on dynamic generative models
-    // inputs: input, weight, bias, scale, [zp]
-    // Bias/scale/zp are constant or none
-    // if it is not constant, the only allowed cases are Constant => convert
-    // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
-    auto is_constant = [](const std::shared_ptr<ov::Node> node) {
-        if (ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-            return true;
-        }
-        if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0))) {
-            return true;
-        }
-        return ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
-    };
-    auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
-        return ov::as_type_ptr<op::Placeholder>(node);
-    };
-
-    const auto input = fc->input_value(0);
-    if (!fc->get_input_partial_shape(0).is_dynamic()) {
-        return false;
-    }
-    size_t user_fc_count = 0;
-    int32_t nodes_with_bias = 0;
-    int32_t nodes_with_zp = 0;
-    for (const auto& u : input.get_node_shared_ptr()->get_users()) {
-        const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
-        if (!fc_user || fc_user->input_value(0) != input) {
-            continue;
-        }
-
-        // Skip horizontal fusion when the weight is not a constant. The fused-weight Concat
-        // created during fusion relies on constant-folding at compile time; with a non-constant
-        // weight (e.g. weights provided as runtime inputs) it cannot fold, survives to program
-        // build, and may hit formats/types without a Concat implementation. Even when a Concat
-        // impl exists, concatenating weights on every inference is pure overhead with no benefit.
-        if (!is_constant(fc_user->get_input_node_shared_ptr(1))) {
-            return false;
-        }
-
-        auto num_inputs = fc_user->inputs().size();
-        if (num_inputs >= 5) {
-            nodes_with_zp++;
-        }
-        for (size_t i = 2; i < num_inputs; ++i) {
-            const auto& fc_input = fc_user->get_input_node_shared_ptr(i);
-            if (!is_constant(fc_input) && !is_placeholder(fc_input)) {
-                return false;
-            }
-            if (i == 2 && !is_placeholder(fc_input)) {
-                nodes_with_bias++;
-            }
-        }
-        user_fc_count++;
-    }
-    return (user_fc_count >= min_num_fcs_to_fuse) && (user_fc_count <= max_num_fcs_to_fuse) &&
-           (nodes_with_bias == static_cast<int32_t>(user_fc_count) || nodes_with_bias == 0) &&
-           (nodes_with_zp == static_cast<int32_t>(user_fc_count) || nodes_with_zp == 0);
-}
-
-/// @brief Lists the constants the fusion is going to read, in consumption order.
-std::vector<std::shared_ptr<ov::Node>> collect_prefetch_candidates(const ov::Model& model,
-                                                                   size_t min_num_fcs_to_fuse) {
-    std::vector<std::shared_ptr<ov::Node>> candidates;
-    for (const auto& op : model.get_ordered_ops()) {
-        if (const auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(op);
-            fc && is_fusion_candidate(fc, min_num_fcs_to_fuse)) {
-            collect_fc_sources(*fc, candidates);
-        }
-    }
-    return candidates;
-}
-
-/// @brief Releases the given nodes from the scheduler when going out of scope.
-struct ScopedRelease {
-    ov::util::IPrefetchScheduler* scheduler;
-    const std::vector<std::shared_ptr<ov::Node>>& nodes;
-
-    ~ScopedRelease() {
-        if (scheduler) {
-            for (const auto& node : nodes) {
-                scheduler->release(*node);
-            }
-        }
-    }
-};
-
-/// @brief Restores the enclosing model's scheduler on scope exit: GraphRewrite runs run_on_model() recursively for subgraphs.
-struct ScopedSchedulerRestore {
-    std::unique_ptr<ov::util::OrderedPrefetchScheduler>& slot;
-    std::unique_ptr<ov::util::OrderedPrefetchScheduler> saved = std::move(slot);
-
-    ~ScopedSchedulerRestore() {
-        slot = std::move(saved);
-    }
-};
-
 }  // namespace
 
-FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool prefetch_weights) : m_prefetch_weights(prefetch_weights) {
+FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool prefetch_weights) {
     using namespace ov::pass::pattern;
 
+    // Three FCs connected to the same input
+    size_t min_num_fcs_to_fuse = 3;
     // Note:
-    // General case - three FCs connected to same input
     // For cldnn, two fcs in mlp will be fused at horizontal fc fusion, and then swiglu will be fused at prepare_primitive_fusion
     // i.e., eltwise((fc + swish), fc) => fused_fc + swiglu => fused_fc_swilgu
     // Onednn gemms are to be handled in a different way (TBD)
-    m_min_num_fcs_to_fuse = fuse_mlp_swiglu ? 2 : 3;
+    if (fuse_mlp_swiglu) {
+        min_num_fcs_to_fuse = 2;
+    }
+    auto is_target_pattern = [min_num_fcs_to_fuse](const Output<Node>& output) {
+        const int max_num_fcs_to_fuse = 3;
+        // Currently this pass targets only compressed FCs (QKV) on dynamic generative models
+        // inputs: input, weight, bias, scale, [zp]
+        // Bias/scale/zp are constant or none
+        // if it is not constant, the only allowed cases are Constant => convert
+        // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
+        auto is_constant = [](const std::shared_ptr<ov::Node> node) {
+            if (ov::as_type_ptr<ov::op::v0::Constant>(node)) {
+                return true;
+            }
+            if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0))) {
+                return true;
+            }
+            return ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
+        };
+        auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
+            return ov::as_type_ptr<op::Placeholder>(node);
+        };
 
-    auto is_target_pattern = [min_num_fcs_to_fuse = m_min_num_fcs_to_fuse](const Output<Node>& output) {
-        return is_fusion_candidate(ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr()),
-                                   min_num_fcs_to_fuse);
+        const auto& fc = ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
+        const auto input = fc->input_value(0);
+        if (!fc->get_input_partial_shape(0).is_dynamic()) {
+            return false;
+        }
+        size_t user_fc_count = 0;
+        int32_t nodes_with_bias = 0;
+        int32_t nodes_with_zp = 0;
+        for (const auto& u : input.get_node_shared_ptr()->get_users()) {
+            const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
+            if (!fc_user || fc_user->input_value(0) != input) {
+                continue;
+            }
+
+            // Skip horizontal fusion when the weight is not a constant. The fused-weight Concat
+            // created during fusion relies on constant-folding at compile time; with a non-constant
+            // weight (e.g. weights provided as runtime inputs) it cannot fold, survives to program
+            // build, and may hit formats/types without a Concat implementation. Even when a Concat
+            // impl exists, concatenating weights on every inference is pure overhead with no benefit.
+            if (!is_constant(fc_user->get_input_node_shared_ptr(1))) {
+                return false;
+            }
+
+            auto num_inputs = fc_user->inputs().size();
+            if (num_inputs >= 5) {
+                nodes_with_zp++;
+            }
+            for (size_t i = 2; i < num_inputs; ++i) {
+                const auto& fc_input = fc_user->get_input_node_shared_ptr(i);
+                if (!is_constant(fc_input) && !is_placeholder(fc_input)) {
+                    return false;
+                }
+                if (i == 2 && !is_placeholder(fc_input)) {
+                    nodes_with_bias++;
+                }
+            }
+            user_fc_count++;
+        }
+        return (user_fc_count >= min_num_fcs_to_fuse) && (user_fc_count <= max_num_fcs_to_fuse) &&
+               (nodes_with_bias == static_cast<int32_t>(user_fc_count) || nodes_with_bias == 0) &&
+               (nodes_with_zp == static_cast<int32_t>(user_fc_count) || nodes_with_zp == 0);
     };
 
     auto target_fc = wrap_type<op::FullyConnectedCompressed>(is_target_pattern);
 
-    auto* const current_scheduler = &m_scheduler;
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto m_fc = pattern_map.at(target_fc).get_node_shared_ptr();
         const auto input = m_fc->input_value(0);
         auto input_node = input.get_node_shared_ptr();
-        auto* const scheduler = current_scheduler->get();
-        // Release the group's weights on every exit, including when the fusion is declined before reading them:
-        // otherwise they would occupy the prefetch window for the rest of the pass.
-        std::vector<std::shared_ptr<ov::Node>> group_sources;
-        if (scheduler) {
-            for (const auto& user : input_node->get_users()) {
-                if (const auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(user); fc && fc->input_value(0) == input) {
-                    collect_fc_sources(*fc, group_sources);
-                }
-            }
-        }
-        const ScopedRelease release_group_sources{scheduler, group_sources};
         std::vector<std::shared_ptr<op::FullyConnectedCompressed>> fc_nodes;
         ov::NodeVector fc_nodes_vec;
         ov::OutputVector weight_nodes;
@@ -256,10 +189,26 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
         }
+
+        // Folding below is what reads the weights from the mapped file. The scheduler loads this group's constants
+        // ahead, in the order the folds read them, and evicts each one once folded. It is local to the group,
+        // so whatever the callback declines or skips does not affect other groups.
+        std::optional<ov::util::OrderedPrefetchScheduler> scheduler;
+        if (prefetch_weights) {
+            std::vector<std::shared_ptr<ov::Node>> sources;
+            for (const auto* outputs : {&weight_nodes, &scale_nodes, &zp_nodes, &bias_nodes}) {
+                for (const auto& output : *outputs) {
+                    if (auto source = data_source_of(output)) {
+                        sources.push_back(std::move(source));
+                    }
+                }
+            }
+            scheduler.emplace(sources);
+        }
         // Concatenates and folds the given constant-like nodes into a Constant right away, instead of relying on ConstantFolding pass:
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
-        auto concat_and_fold = [scheduler](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
+        auto concat_and_fold = [&scheduler](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
             const auto& reference_shape = outputs.front().get_partial_shape();
             if (!reference_shape.is_static() || axis < 0 || axis >= reference_shape.rank().get_length()) {
                 return nullptr;
@@ -275,17 +224,25 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                     }
                 }
             }
-            // Folding the concat below is what actually reads the weights from the mapped file.
-            // They are released when the callback exits.
-            if (scheduler) {
+            const auto for_each_source = [&outputs](const auto& action) {
                 for (const auto& output : outputs) {
                     if (const auto source = data_source_of(output)) {
-                        scheduler->acquire(*source);
+                        action(*source);
                     }
                 }
+            };
+            if (scheduler) {
+                for_each_source([&scheduler](const ov::Node& source) {
+                    scheduler->acquire(source);
+                });
             }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
             auto folded = ov::util::get_constant_from_source(concat);
+            if (scheduler) {
+                for_each_source([&scheduler](const ov::Node& source) {
+                    scheduler->release(source);
+                });
+            }
             if (!folded) {
                 GPU_DEBUG_TRACE_DETAIL << "FullyConnectedHorizontalFusion: failed to constant-fold the concat of " << name_suffix << std::endl;
                 return nullptr;
@@ -538,15 +495,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(target_fc, "FullyConnectedHorizontalFusion");
-    add_matcher(std::make_shared<ov::pass::MatcherPass>(m, callback));
-}
-
-bool FullyConnectedHorizontalFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    ScopedSchedulerRestore restore_enclosing{m_scheduler};
-    if (m_prefetch_weights) {
-        m_scheduler = std::make_unique<ov::util::OrderedPrefetchScheduler>(collect_prefetch_candidates(*model, m_min_num_fcs_to_fuse));
-    }
-    return ov::pass::GraphRewrite::run_on_model(model);
+    this->register_matcher(m, callback);
 }
 
 }  // namespace ov::intel_gpu
