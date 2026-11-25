@@ -263,8 +263,10 @@ ov::Output<ov::Node> qsa_indexer_rope_rows_with_head_axis(const ov::Output<ov::N
     const auto unsqueeze = wrap_type<v0::Unsqueeze>({rows, wrap_type<v0::Constant>(value_matches("1"))});
     const auto reshape = wrap_type<v1::Reshape>({rows, wrap_const()}, [](const ov::Output<ov::Node>& output) {
         const auto& shape = output.get_node()->get_input_partial_shape(0);
-        return shape.rank() == 3 && shape[1].is_static() && shape[1].get_length() > 0 && shape[2].is_static() &&
-               shape[2].get_length() > 0 &&
+        // A nonzero static batch or length and width make the remaining dimension unambiguous.
+        return shape.rank() == 3 && shape[2].is_static() && shape[2].get_length() > 0 &&
+               ((shape[0].is_static() && shape[0].get_length() > 0) ||
+                (shape[1].is_static() && shape[1].get_length() > 0)) &&
                output.get_partial_shape() == ov::PartialShape{shape[0], 1, shape[1], shape[2]};
     });
     return unsqueeze | reshape;
