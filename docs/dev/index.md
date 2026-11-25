@@ -1,8 +1,8 @@
 # OpenVINO™ Developer Documentation
 
-Welcome to the OpenVINO™ Developer Documentation. This documentation helps deeper understand the OpenVINO architecture and gives detailed information on the concepts and ideas used inside.
+Welcome to the OpenVINO™ Developer Documentation. This documentation helps you better understand the OpenVINO architecture and gives detailed information about the concepts and ideas used in it.
 
-The OpenVINO™ provides a functionality to load models from different frameworks and run them on different accelerators.
+OpenVINO™ provides functionality for loading models from different frameworks and running them on different accelerators.
 
 ```mermaid
 flowchart LR
