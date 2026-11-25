@@ -337,6 +337,8 @@ void run_static_rejected(dep_kind kind, const std::string& tag, QueueTypes queue
 
     auto& W = prog->get_node("W");
     ASSERT_EQ(W.get_preferred_impl_type(), impl_types::onednn) << flags;
+    // T-OOOQ: oneDNN forces the in-order queue even when out_of_order was requested
+    EXPECT_EQ(prog->get_config().get_queue_type(), QueueTypes::in_order) << "oneDNN must force the in-order queue\n" << flags;
     const auto* desc = fused_prod(W);
     ASSERT_NE(desc, nullptr) << "W has no fused eltwise prod\n" << flags;
     auto& DEP = W.get_dependency(desc->outer_dep_start_idx);
@@ -426,8 +428,37 @@ TEST(inplace_alias_conflict_f17, T6a_static_dep_is_mutable_data) {
 TEST(inplace_alias_conflict_f17, T7_static_dep_is_in_place_concat) {
     run_static_rejected(dep_kind::concat_holder, "T7");
 }
-TEST(inplace_alias_conflict_f17, T11_ooo_queue_dep_is_input_layout) {
+// T-OOOQ (design 17 §4): T11 depends on oneDNN (W is forced onednn, binary_mul_inplace is a oneDNN post-op), and oneDNN forces the in-order
+// queue, so the old "OOOQ" variant was an in_order run. The request is kept; run_static_rejected asserts the queue was forced to in_order.
+TEST(inplace_alias_conflict_f17, T11_oooq_request_is_forced_in_order_with_onednn_dep_is_input_layout) {
     run_static_rejected(dep_kind::input, "T11", QueueTypes::out_of_order);
+}
+// T11b: a genuine out-of-order queue (use_onednn(false) as a user property): no oneDNN impl, so no binary_mul_inplace and no reused
+// eltwise dependency; the result matches the reference. Does not need a oneDNN device.
+TEST(inplace_alias_conflict_f17, T11b_true_oooq_without_onednn_has_no_mul_inplace) {
+    auto& engine = get_test_engine();
+    auto md_mem = make_f16(engine, kShape, 3);
+    auto g = build_static(engine, dep_kind::input, md_mem);
+    g.forced["W"] = impl_desc(impl_types::ocl);
+    auto cfg = opt_config(engine, g.forced, g.custom_outputs, QueueTypes::out_of_order);
+    cfg.set_user_property({ov::intel_gpu::use_onednn(false)}, ov::OptionVisibility::RELEASE_INTERNAL);
+    auto prog = program::build_program(engine, g.t, cfg);
+    ASSERT_EQ(prog->get_config().get_queue_type(), QueueTypes::out_of_order) << "construction not formed: queue was not kept out_of_order";
+    auto& W = prog->get_node("W");
+    ASSERT_NE(W.get_preferred_impl_type(), impl_types::onednn);
+    EXPECT_FALSE(frozen_has_mul_inplace(W));
+    EXPECT_EQ(fusing::get_reused_eltwmem_idx(W), -1);
+    network net(prog, 0);
+    memmap in;
+    int v = 1;
+    for (const auto& i : g.inputs) {
+        in[i.first] = make_f16(engine, i.second, v++);
+    }
+    auto res = run_net(net, in, g.outs);
+    auto rmd = make_f16(engine, kShape, 3);
+    auto gref = build_static(engine, dep_kind::input, rmd);
+    network net_ref(engine, gref.t, ref_config(engine, gref.custom_outputs));
+    expect_match(res, run_net(net_ref, in, gref.outs), "T11b");
 }
 
 // T6b: dep is a read_value. Structural only (no variable set up): the freeze and the live predicate must both reject.

@@ -1055,25 +1055,63 @@ TEST(inplace_alias_conflict_f5, T10a_control_group_in_order) {
     expect_inplace_consistent(*prog, net.get(), "W", dep, true);
 }
 
-TEST(inplace_alias_conflict_f5, T10b_out_of_order_control_and_downgrade) {
+// T-OOOQ (design 17 §4): ExecutionConfig::finalize_impl forces the in-order queue whenever oneDNN is on, so a oneDNN sum never meets an
+// out-of-order queue. The OOOQ *request* below is therefore forced back to in_order; the behaviour must equal the in_order variant.
+TEST(inplace_alias_conflict_f5, T10b_oooq_request_is_forced_in_order_with_onednn) {
     F5_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     auto g = build_base(eng);
     int32_t dep = -1;
-    {
+    size_t entries_in_order = 0;
+    for (const auto q : {QueueTypes::in_order, QueueTypes::out_of_order}) {
         std::shared_ptr<network> net;
         auto prog = run_and_compare(eng, g, [&](program& p) { dep = fused_sum_op(p.get_node("W"))->outer_dep_start_idx; }, "T10b_ctl",
-                                    QueueTypes::out_of_order, {}, &net);
+                                    q, {}, &net);
+        EXPECT_EQ(prog->get_config().get_queue_type(), QueueTypes::in_order) << "oneDNN forces the in-order queue (requested "
+                                                                                << (q == QueueTypes::in_order ? "in_order" : "out_of_order") << ")";
         expect_inplace_consistent(*prog, net.get(), "W", dep, true);
+        const size_t n_entries = count_inplace_entries(prog->get_node("W"));
+        if (q == QueueTypes::in_order) {
+            entries_in_order = n_entries;
+        } else {
+            EXPECT_EQ(n_entries, entries_in_order) << "forced-in_order result differs from the in_order variant";
+        }
     }
-    {
+    size_t downgraded_in_order = 0;
+    for (const auto q : {QueueTypes::in_order, QueueTypes::out_of_order}) {
         std::shared_ptr<network> net;
         auto prog = run_and_compare(eng, g, [&](program& p) {
             dep = fused_sum_op(p.get_node("W"))->outer_dep_start_idx;
             p.get_node("X").set_output(true);
-        }, "T10b_downgrade", QueueTypes::out_of_order, {"X"}, &net);
+        }, "T10b_downgrade", q, {"X"}, &net);
+        EXPECT_EQ(prog->get_config().get_queue_type(), QueueTypes::in_order);
         expect_inplace_consistent(*prog, net.get(), "W", dep, false);
+        const size_t n_entries = count_inplace_entries(prog->get_node("W"));
+        if (q == QueueTypes::in_order) {
+            downgraded_in_order = n_entries;
+        } else {
+            EXPECT_EQ(n_entries, downgraded_in_order);
+        }
     }
+}
+
+// A genuine out-of-order queue needs use_onednn(false) set as a *user* property (see finalize_impl). Then no oneDNN impl exists, hence no
+// frozen in-place sum / mul entry anywhere, and the result still matches the reference. Does not need a oneDNN device.
+TEST(inplace_alias_conflict_f5, T10c_true_oooq_without_onednn_has_no_inplace_sum) {
+    auto& eng = get_test_engine();
+    auto g = build_base(eng);
+    g.forced["W"] = impl_desc(impl_types::ocl);
+    auto cfg = opt_config(eng, g.forced, g.custom_outputs, QueueTypes::out_of_order, g.new_shape_infer);
+    cfg.set_user_property({ov::intel_gpu::use_onednn(false)}, ov::OptionVisibility::RELEASE_INTERNAL);
+    auto prog = program::build_program(eng, g.t, cfg);
+    ASSERT_EQ(prog->get_config().get_queue_type(), QueueTypes::out_of_order) << "construction not formed: queue was not kept out_of_order";
+    for (auto* n : prog->get_processing_order()) {
+        EXPECT_EQ(count_inplace_entries(*n), 0u) << n->id();
+        EXPECT_FALSE(n->get_selected_impl() && n->get_selected_impl()->is_onednn()) << n->id();
+    }
+    network net(prog, 0);
+    auto res = run_net(net, eng, g);
+    expect_match(res, run_reference(eng, g), "T10c");
 }
 
 // =============================================================================================================================

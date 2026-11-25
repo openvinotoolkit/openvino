@@ -177,6 +177,7 @@ struct sum_case_opts {
     QueueTypes queue = QueueTypes::in_order;
     bool legacy_shape_infer = false;  // do not force allow_new_shape_infer (conv/resample topologies)
     bool expect_same_buffer = true;  // sum cases: W.out must alias dep.out right after construction
+    bool expect_forced_in_order = false;  // oneDNN forces the in-order queue: assert the queue of the built program is in_order
 };
 
 // W (oneDNN) has a fused sum whose outer dep is `dep_id`. Returns via ASSERT_*.
@@ -188,6 +189,9 @@ void run_sum_case(const f19_graph& g, const std::string& tag, const std::string&
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(false));
     }
     auto prog = program::build_program(engine, g.t, cfg);
+    if (o.expect_forced_in_order) {
+        EXPECT_EQ(prog->get_config().get_queue_type(), QueueTypes::in_order) << "oneDNN must force the in-order queue (T-OOOQ)";
+    }
     network net(prog, 0);
     const std::string flags = dump_flags(*prog);
     std::cout << "[" << tag << "]\n" << flags;
@@ -477,13 +481,38 @@ TEST(inplace_alias_conflict_f19, F19_crop_view_dep) {
     expect_match(res, run_net(net_ref, engine, g), "F19_crop");
 }
 
-// 7. Case 1 topology on an out-of-order queue.
-TEST(inplace_alias_conflict_f19, F19_oooq_variant) {
+// 7. T-OOOQ (design 17 §4). ExecutionConfig::finalize_impl forces the in-order queue whenever oneDNN is on, so a oneDNN sum never meets an
+// out-of-order queue: requesting OOOQ must still give the in_order behaviour (sum formed, I-F19-1, output equals the reference).
+TEST(inplace_alias_conflict_f19, F19_oooq_request_is_forced_in_order_with_onednn) {
     SKIP_IF_NO_IMMAD();
     auto g = build_base(get_test_engine());
     sum_case_opts o;
     o.queue = QueueTypes::out_of_order;
-    run_sum_case(g, "F19_oooq", "W", "V", o);
+    o.expect_forced_in_order = true;
+    run_sum_case(g, "F19_oooq_request", "W", "V", o);
+}
+
+// 7b. A genuine out-of-order queue needs use_onednn(false) as a user property: no oneDNN impl, no frozen in-place sum / mul entry, and the
+// output still matches the reference. Does not need a oneDNN device.
+TEST(inplace_alias_conflict_f19, F19_true_oooq_without_onednn_has_no_inplace_sum) {
+    auto& engine = get_test_engine();
+    auto g = build_base(engine);
+    g.forced["W"] = impl_desc(impl_types::ocl);
+    auto cfg = opt_config(engine, g.forced, g.custom_outputs, QueueTypes::out_of_order);
+    cfg.set_user_property({ov::intel_gpu::use_onednn(false)}, ov::OptionVisibility::RELEASE_INTERNAL);
+    auto prog = program::build_program(engine, g.t, cfg);
+    ASSERT_EQ(prog->get_config().get_queue_type(), QueueTypes::out_of_order) << "construction not formed: queue was not kept out_of_order";
+    for (auto* n : prog->get_processing_order()) {
+        EXPECT_FALSE(n->get_selected_impl() && n->get_selected_impl()->is_onednn()) << n->id();
+        for (const auto& e : n->get_fused_primitives_onednn()) {
+            EXPECT_TRUE(e.op_type != onednn_post_op_type::sum && e.op_type != onednn_post_op_type::optimized_sum &&
+                        e.op_type != onednn_post_op_type::binary_mul_inplace) << n->id();
+        }
+    }
+    network net(prog, 0);
+    auto res = run_net(net, engine, g);
+    network net_ref(engine, g.t, ref_config(engine, g.custom_outputs));
+    expect_match(res, run_net(net_ref, engine, g), "F19_true_oooq");
 }
 
 // 8. F19-b: a static view whose owner is a dynamic node. At construction the owner has no memory (dep_memory_ptr == nullptr),
