@@ -38,8 +38,11 @@ def spec_children(spec):
 
 def _real_dtype_from_meta(node):
     value = node.meta.get("val")
-    if isinstance(value, torch.Tensor) and not value.is_complex():
-        return pt_to_ov_type_map.get(str(value.dtype))
+    if not isinstance(value, torch.Tensor):
+        value = node.meta.get("tensor_meta")
+    dtype = getattr(value, "dtype", None)
+    if isinstance(dtype, torch.dtype) and not dtype.is_complex:
+        return pt_to_ov_type_map.get(str(dtype))
     return None
 
 

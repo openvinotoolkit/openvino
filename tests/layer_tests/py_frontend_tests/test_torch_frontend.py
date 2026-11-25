@@ -2968,7 +2968,8 @@ class TestConvertModelDynamo:
             convert_model(program, example_input={"values": {"a": a, "b": b, "wrong": 2}})
 
     @pytest.mark.parametrize("as_file", [False, True])
-    def test_exported_program_nested_list_example(self, as_file, tmp_path):
+    @pytest.mark.parametrize("as_keyword", [False, True])
+    def test_exported_program_nested_list_example(self, as_file, as_keyword, tmp_path):
         from openvino import compile_model, convert_model
 
         class Model(torch.nn.Module):
@@ -2979,7 +2980,10 @@ class TestConvertModelDynamo:
         program = torch.export.export(Model(), ([a, b],))
         if as_file:
             program = _save_exported_program(program, tmp_path)
-        converted = convert_model(program, example_input=([a, b],))
+        example = {"values": [a, b]} if as_keyword else ([a, b],)
+        converted = convert_model(program, example_input=example)
+        if as_keyword:
+            assert isinstance(example["values"], list)
         result = compile_model(converted, "CPU", default_cfg)([a.numpy(), b.numpy()])[0]
         np.testing.assert_array_equal(result, (a - b).numpy())
 

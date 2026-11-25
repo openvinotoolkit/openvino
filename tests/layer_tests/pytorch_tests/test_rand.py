@@ -146,6 +146,39 @@ class TestStatistics():
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["rand", "randn"])
+    @pytest.mark.parametrize("stripped_meta,expected", [(("val",), "f64"), (("val", "tensor_meta"), "f32")])
+    def test_export_random_omitted_dtype(self, operation, stripped_meta, expected, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+        class Model(torch.nn.Module):
+            def forward(self):
+                return getattr(torch, operation)(2, 3)
+
+        default_dtype = torch.get_default_dtype()
+        torch.set_default_dtype(torch.float64)
+        try:
+            graph = torch.export.export(Model(), ()).module()
+        finally:
+            torch.set_default_dtype(default_dtype)
+        for node in graph.graph.nodes:
+            assert "dtype" not in node.kwargs
+            for key in stripped_meta:
+                node.meta.pop(key, None)
+        decoder = TorchFXPythonDecoder(graph)
+        frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+        converted = frontend.convert(frontend.load(decoder))
+        assert converted.output(0).get_element_type() == getattr(ov.Type, expected)
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        result = ov.Core().compile_model(converted, ie_device, config)()[0]
+        assert result.shape == (2, 3)
+        assert np.isfinite(result).all()
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("operation", ["rand", "randn", "rand_like", "randn_like"])
     def test_export_random_scalar(self, operation, ie_device, precision):
         import numpy as np

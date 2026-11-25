@@ -85,6 +85,8 @@ OutputVector translate_random_fx(const NodeContext& context, bool like, bool nor
         dtype = output_dtype_attr.as<element::Type>();
     } else if (like) {
         dtype = input.get_element_type();
+    } else {
+        dtype = element::f32;
     }
     const bool convert_like = like && dtype.is_dynamic();
     PYTORCH_OP_CONVERSION_CHECK(convert_like || (dtype.is_static() && dtype.is_real()),

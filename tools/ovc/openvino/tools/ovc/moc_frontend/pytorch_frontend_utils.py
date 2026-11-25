@@ -431,7 +431,9 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     if isinstance(exported_program, torch.export.ExportedProgram):
         argv.input_model = TorchFXPythonDecoder.from_exported_program(
             exported_program, shared_memory=args.get("share_weights", True))
-        if example_inputs is None:
+        if example_inputs is not None:
+            argv.example_input = prepare_torch_inputs(example_inputs, preserve_lists=True)
+        else:
             input_specs = getattr(argv, "input", None)
             if input_specs is None:
                 input_specs = args.get("input")
@@ -700,10 +702,10 @@ def prepare_torch_inputs(example_inputs, preserve_lists=False):
             inputs = [to_torch_tensor(x, preserve_lists=preserve_lists) for x in inputs]
             inputs = tuple(inputs)
         elif isinstance(inputs, dict):
-            for name, tensor in inputs.items():
+            for name in inputs:
                 assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
                                               " values are tensors. Got key of type {}".format(type(name))
-                inputs[name] = to_torch_tensor(tensor, preserve_lists=preserve_lists)
+            inputs = {name: to_torch_tensor(tensor, preserve_lists=preserve_lists) for name, tensor in inputs.items()}
         else:
             inputs = to_torch_tensor(inputs, preserve_lists=preserve_lists)
     else:
