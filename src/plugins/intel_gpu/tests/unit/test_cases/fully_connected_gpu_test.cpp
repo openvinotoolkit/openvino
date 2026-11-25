@@ -1485,7 +1485,25 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
     set_values<int64_t>(axis_mem, {1});
     set_values<int64_t>(splits_mem, {feature_offset, feature_num});
 
-    for (int ofm_num : {64, 256}) {
+    const bool is_igpu = engine.get_device_info().dev_type == device_type::integrated_gpu;
+    // On integrated GPUs, bf_tiled attaches dyn_b as a sub-kernel alongside its iGPU-only SLM kernel.
+    // Test standalone fully_connected_gpu_bf_tiled_dyn_b on all GPUs (including dGPUs such as DG2)
+    // and additionally verify bf_tiled's integrated dyn_b dispatch on integrated GPUs.
+    struct CaseCfg {
+        int ofm_num;
+        std::string forced_impl;
+        bool expect_dyn_b;
+    };
+    std::vector<CaseCfg> cases = {
+        {64, "fully_connected_gpu_bf_tiled", false},
+        {256, "fully_connected_gpu_bf_tiled_dyn_b", true},
+    };
+    if (is_igpu) {
+        cases.push_back({256, "fully_connected_gpu_bf_tiled", true});
+    }
+
+    for (const auto& tc : cases) {
+        const int ofm_num = tc.ofm_num;
         auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
         auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
         auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
@@ -1510,7 +1528,7 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
-        ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
+        ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, tc.forced_impl, impl_types::ocl};
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
 
         ExecutionConfig ref_config = get_test_default_config(engine);
@@ -1551,7 +1569,7 @@ TEST(fully_connected_gpu, bf_tiled_dynamic_int4_3d_crop_forced_tile_and_dyn_b) {
             auto fc_inst = test_net.get_primitive("fc_prim");
             EXPECT_EQ(fc_inst->get_intermediates_memories().size(), 0U) << "Dynamic quantize must be disabled on dynamically padded input";
             const auto kernels = fc_inst->get_impl()->get_kernels_dump_info(*fc_inst->get_impl_params()).get_entries();
-            if (ofm_num == 256 && batch_num == 2) {
+            if (tc.expect_dyn_b && batch_num == 2) {
                 EXPECT_NE(kernels.find("fully_connected_gpu_bf_tiled_dyn_b"), std::string::npos) << "Expected dyn_b kernel, got: " << kernels;
             } else {
                 EXPECT_NE(kernels.find("fully_connected_gpu_bf_tiled"), std::string::npos) << "Expected bf_tiled kernel, got: " << kernels;
