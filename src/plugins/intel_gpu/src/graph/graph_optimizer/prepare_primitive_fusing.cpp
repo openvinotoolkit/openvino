@@ -361,7 +361,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 const auto oiyx_weights = weights_layout.convert_to_weights_layout(deconv.get_primitive()->grouped_weights_shape);
                 const auto out_features = oiyx_weights.group() * oiyx_weights.ofm();
                 const auto& const_layout = eltw_node.get_dependency(const_dep_idx.value()).get_output_layout();
-                if (const_layout.feature() != out_features || const_layout.count() != static_cast<size_t>(out_features)) {
+                // NUMPY broadcasting right-aligns a lower rank constant, so its dim 1 would not be the channel axis
+                if (const_layout.get_partial_shape().size() != deconv.get_output_layout().get_partial_shape().size() ||
+                    const_layout.feature() != out_features || const_layout.count() != static_cast<size_t>(out_features)) {
                     continue;
                 }
             } else if (!eltw_node.get_dependency(non_const_dep_idx).is_type<convolution>()) {
@@ -424,6 +426,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         };
 
         auto recalculate_biases = [&](data_node& original_node, data_node& second_node) -> bool {
+            // The sum is attached to original_node, so its other users would see it as well
+            if (original_node.get_users().size() != 1) {
+                return false;
+            }
             auto original_mem = original_node.get_attached_memory_ptr();
             auto second_mem = second_node.get_attached_memory_ptr();
             if (original_mem->count() != second_mem->count() || original_mem->get_layout().data_type != second_mem->get_layout().data_type) {

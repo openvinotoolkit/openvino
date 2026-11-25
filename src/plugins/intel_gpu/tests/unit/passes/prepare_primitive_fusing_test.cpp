@@ -1244,6 +1244,45 @@ TEST(prepare_primitive_fusing, fuse_bias_to_dynamic_deconvolution) {
 
     ASSERT_TRUE(bias_is_fused(ov::PartialShape{1, 16, 1, 1}));
     ASSERT_FALSE(bias_is_fused(ov::PartialShape{1, 16, 16, 16}));
+    // NUMPY broadcasting aligns [1, 16] with the last dims, so it is a per-x addend
+    ASSERT_FALSE(bias_is_fused(ov::PartialShape{1, 16}));
+}
+
+TEST(prepare_primitive_fusing, dont_combine_biases_shared_with_other_users) {
+    auto& engine = get_test_engine();
+
+    auto weights = engine.allocate_memory({ov::PartialShape{4, 4, 2, 2}, data_types::f32, format::bfyx});
+    auto bias1 = engine.allocate_memory({ov::PartialShape{1, 4, 1, 1}, data_types::f32, format::bfyx});
+    auto bias2 = engine.allocate_memory({ov::PartialShape{1, 4, 1, 1}, data_types::f32, format::bfyx});
+    const std::vector<float> bias1_values = {1.f, 2.f, 3.f, 4.f};
+    set_values(bias1, bias1_values);
+    set_values(bias2, {10.f, 20.f, 30.f, 40.f});
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape{-1, 4, 8, 8}, data_types::f32, format::bfyx}));
+    topology.add(input_layout("input2", layout{ov::PartialShape{1, 4, 1, 1}, data_types::f32, format::bfyx}));
+    topology.add(data("weights", weights));
+    topology.add(data("bias1", bias1));
+    topology.add(data("bias2", bias2));
+    topology.add(deconvolution("deconv", input_info("input"), "weights", "", 1, {2, 2}, {0, 0}, {1, 1}, {0, 0}, {0, 0}, {0, 0}, false));
+    topology.add(eltwise("eltw1", {input_info("deconv"), input_info("bias1")}, eltwise_mode::sum));
+    topology.add(eltwise("eltw2", {input_info("eltw1"), input_info("bias2")}, eltwise_mode::sum));
+    topology.add(eltwise("other", {input_info("input2"), input_info("bias1")}, eltwise_mode::prod));
+    topology.add(reorder("reorder", input_info("eltw2"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder_other", input_info("other"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+
+    ASSERT_TRUE(prog->get_node("deconv").as<deconvolution>().bias_term());
+    auto bias1_mem = prog->get_node("bias1").as<data>().get_attached_memory_ptr();
+    mem_lock<float, mem_lock_type::read> bias1_ptr(bias1_mem, get_test_stream());
+    for (size_t i = 0; i < bias1_values.size(); ++i) {
+        ASSERT_EQ(bias1_ptr[i], bias1_values[i]) << "i = " << i;
+    }
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
