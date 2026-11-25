@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,14 @@ namespace kernel_selector {
 namespace {
 
 bool IsFeatureBroadcast(const DataTensor& input, const DataTensor& output) {
-    if (input.GetLayout() != DataLayout::bfyx || output.GetLayout() != DataLayout::bfyx)
+    if (input.GetLayout() != DataLayout::bfyx || output.GetLayout() != DataLayout::bfyx) {
         return false;
+    }
 
     if (input.PitchesDifferFromLogicalDims() || output.PitchesDifferFromLogicalDims() || input.GetFirstElementOffset() != 0 ||
-        output.GetFirstElementOffset() != 0)
+        output.GetFirstElementOffset() != 0) {
         return false;
+    }
 
     const size_t feature_plane_size = input.Y().v * input.X().v;
     return input.Batch().v == output.Batch().v && input.Feature().v == 1 && output.Feature().v > 1 && input.Y().v == output.Y().v &&
@@ -51,8 +53,9 @@ JitConstants EltwiseKernel_vload8::GetJitConstants(const eltwise_params& params)
 std::string EltwiseKernel_vload8::GetVload8InputIndex(const eltwise_params& params, size_t input_idx) const {
     const auto& input = params.inputs[input_idx];
     const auto& output = params.outputs[0];
-    if (params.is_shape_agnostic || !IsFeatureBroadcast(input, output))
+    if (params.is_shape_agnostic || !IsFeatureBroadcast(input, output)) {
         return EltwiseKernelBase::GetVload8InputIndex(params, input_idx);
+    }
 
     // The output is flattened as [batch][feature][y*x]. Ignore the output
     // feature coordinate and reuse the single input feature plane.

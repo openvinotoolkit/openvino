@@ -19,6 +19,7 @@ set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_C
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include"
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
+      "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/src/vm_runtime/vm_runtime/src/utils"
 )
 
 list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_compiler_adapter
@@ -55,6 +56,7 @@ ov_add_test_target(
   openvino::reference
   openvino::runtime
   openvino::npu_al
+  openvino::intel_npu_vm_runtime
   CHECK_SOURCES_LISTED)
 
 if(ENABLE_INTEL_CPU)
@@ -67,7 +69,7 @@ if(WIN32)
 endif()
 
 set_target_properties(
-  ${TARGET_NAME} PROPERTIES CXX_STANDARD 17)
+  ${TARGET_NAME} PROPERTIES CXX_STANDARD ${CMAKE_CXX_STANDARD})
 
 if(MSVC)
   # Enforce standards conformance on MSVC

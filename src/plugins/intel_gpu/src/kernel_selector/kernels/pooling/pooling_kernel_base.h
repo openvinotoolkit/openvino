@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,13 +56,13 @@ public:
     };
 
 protected:
-    bool Validate(const Params&) const override;
-    virtual JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const;
+    bool Validate(const Params& /*unused*/) const override;
+    virtual JitConstants GetJitConstants(const pooling_params& pp, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const pooling_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
-    Datatype GetAccumulatorType(const pooling_params& p) const;
-    Datatype GetActivationType(const pooling_params& params) const;
-    bool NeedsBoundaryCheck(const pooling_params& params) const;
-    bool EnableRound(const pooling_params& params) const;
+    static Datatype GetAccumulatorType(const pooling_params& p);
+    static Datatype GetActivationType(const pooling_params& params);
+    static bool NeedsBoundaryCheck(const pooling_params& pp);
+    static bool EnableRound(const pooling_params& params);
 };
 }  // namespace kernel_selector
