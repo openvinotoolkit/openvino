@@ -1908,6 +1908,9 @@ public:
             experts.resize(token_num * static_cast<size_t>(max_topk));
             stream.enqueue_barrier({stream.enqueue_marker({}, true)});
             scratch.topk_id->copy_to(stream, experts.data(), 0, 0, experts.size() * sizeof(uint32_t), true);
+            if (_lookahead && moe_otd::les_prediction_compare_enabled()) {
+                _lookahead->record_recall(instance.id(), experts);
+            }
             for (auto expert : experts) {
                 OPENVINO_ASSERT(expert < static_cast<uint32_t>(cur_moe->_config.num_expert),
                                 "Lookahead TopK readback outside expert range: layer=", instance.id(),

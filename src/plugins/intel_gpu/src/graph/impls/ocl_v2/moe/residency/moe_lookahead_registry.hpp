@@ -35,6 +35,7 @@ public:
         std::shared_ptr<std::atomic<bool>> consumed;
         bool submitted = false;
         std::shared_ptr<std::vector<uint32_t>> cpu_indices;
+        uint64_t epoch = 0;
     };
 
     explicit LookaheadContext(cldnn::network& network);
@@ -46,6 +47,7 @@ public:
     const std::vector<cldnn::program::les_router_link>& links() const { return m_links; }
 
     void enter(const cldnn::primitive_id& id);
+    void record_recall(const cldnn::primitive_id& id, const std::vector<uint32_t>& actual);
     void demand_partitioned(const cldnn::primitive_id& id);
     void pause_for_prefill();
     std::shared_ptr<IExpertWeightProvider> bind(const cldnn::primitive_id& id,
@@ -81,6 +83,11 @@ private:
     std::unique_ptr<LesPredictor> m_predictor;
     std::unordered_map<cldnn::primitive_id, size_t> m_predictor_layers;
     std::unordered_map<cldnn::primitive_id, Prediction> m_predictions;
+    struct Recall {
+        uint64_t matched = 0;
+        uint64_t selections = 0;
+    };
+    std::unordered_map<size_t, Recall> m_recall;
     std::unique_ptr<ExpertPrefetcher> m_prefetcher;
 };
 

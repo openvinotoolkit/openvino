@@ -72,6 +72,7 @@ struct CacheItemExtended {
 class LRUCache {
 public:
     explicit LRUCache(size_t max_total_experts);
+    ~LRUCache();
 
     struct Load {
         uint32_t expert_id;
@@ -149,7 +150,15 @@ private:
         size_t expert;
         size_t lru_expert_no;
         CacheItemExtended state{};
+        bool unused_prefetch = false;
     };
+
+    uint64_t prefetch_resident = 0;
+    uint64_t prefetch_loads = 0;
+    uint64_t prefetch_used = 0;
+    uint64_t demand_ready = 0;
+    uint64_t demand_inflight = 0;
+    uint64_t demand_missing = 0;
 
     size_t m_max_total_experts;
     size_t m_total_experts;

@@ -1,5 +1,6 @@
 #include "impls/ocl_v2/primitive_ocl_base.hpp"
 #include "moe_lookahead_registry.hpp"
+#include <cstdio>
 #include <limits>
 
 namespace ov::intel_gpu::ocl::moe {
@@ -11,6 +12,10 @@ LookaheadContext::LookaheadContext(cldnn::network& network)
 }
 
 LookaheadContext::~LookaheadContext() {
+    for (const auto& item : m_recall) {
+        std::fprintf(stderr, "LES_PREDICTOR_RECALL layer=%zu matched=%llu selections=%llu\n", item.first,
+                     static_cast<unsigned long long>(item.second.matched), static_cast<unsigned long long>(item.second.selections));
+    }
     m_prefetcher.reset();
     try {
         m_compute_stream->finish();
@@ -175,7 +180,23 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
         return m_routers.at(target)->enqueue(hidden, ready);
     }();
     state = {hidden, ready, result.indices, result.weights, result.ready,
-             std::make_shared<std::atomic<bool>>(true), false, result.cpu_indices};
+             std::make_shared<std::atomic<bool>>(true), false, result.cpu_indices, m_epoch};
+}
+
+void LookaheadContext::record_recall(const cldnn::primitive_id& id, const std::vector<uint32_t>& actual) {
+    const auto layer = m_predictor_layers.find(id);
+    const auto prediction = m_predictions.find(id);
+    if (layer == m_predictor_layers.end() || prediction == m_predictions.end() || prediction->second.epoch != m_epoch ||
+        !prediction->second.cpu_indices) {
+        return;
+    }
+    prediction->second.prediction_ready->wait();
+    const auto& predicted = *prediction->second.cpu_indices;
+    auto& recall = m_recall[layer->second];
+    recall.selections += actual.size();
+    for (auto expert : actual) {
+        recall.matched += std::find(predicted.begin(), predicted.end(), expert) != predicted.end();
+    }
 }
 
 LesPredictor::Head* LookaheadContext::predictor_head(const cldnn::primitive_id& id) {

@@ -3,6 +3,9 @@
 //
 
 #include "lru_cache.hpp"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <algorithm>
 #include <unordered_set>
 #include "openvino/core/except.hpp"
@@ -173,6 +176,24 @@ void LRUCache::move_to_end(std::list<Node>::iterator it) {
     m_list.splice(m_list.end(), m_list, it);
 }
 
+static bool metrics_enabled() {
+    static const bool enabled = [] {
+        const char* value = std::getenv("OV_GPU_LES_CACHE_METRICS");
+        return value && std::strcmp(value, "1") == 0;
+    }();
+    return enabled;
+}
+
+LRUCache::~LRUCache() {
+    if (metrics_enabled()) {
+        std::fprintf(stderr, "LES_CACHE_METRICS prefetch_resident=%llu prefetch_loads=%llu prefetch_used=%llu "
+                     "demand_ready=%llu demand_inflight=%llu demand_missing=%llu\n",
+                     static_cast<unsigned long long>(prefetch_resident), static_cast<unsigned long long>(prefetch_loads),
+                     static_cast<unsigned long long>(prefetch_used), static_cast<unsigned long long>(demand_ready),
+                     static_cast<unsigned long long>(demand_inflight), static_cast<unsigned long long>(demand_missing));
+    }
+}
+
 std::optional<LRUCache::Partition> LRUCache::partition_3way(const std::vector<uint32_t>& topk_ids,
                                                         const EventFactory& make_event,
                                                         bool allow_pending_reuse) {
@@ -258,8 +279,17 @@ std::optional<LRUCache::Partition> LRUCache::partition_3way(const std::vector<ui
             result.wait_events.push_back(node->state.ready_event);
         }
         node->state.status = SlotStatus::PINNED;
+        if (node->unused_prefetch) {
+            ++prefetch_used;
+            node->unused_prefetch = false;
+        }
         node->state.demanded = true;
         move_to_end(node);
+    }
+    if (metrics_enabled()) {
+        demand_ready += result.ready_pairs.size();
+        demand_inflight += result.inflight_pairs.size();
+        demand_missing += result.missing_pairs.size();
     }
     return result;
 }
@@ -269,7 +299,11 @@ std::optional<LRUCache::Load> LRUCache::reserve_speculative(uint32_t expert_id,
                                                          const EventFactory& make_event,
                                                          const std::vector<uint32_t>& predicted_experts) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (top_k >= m_max_total_experts || m_map.count(Key{expert_id})) {
+    const auto existing = m_map.find(Key{expert_id});
+    if (metrics_enabled() && existing != m_map.end() && m_filled_list[existing->second->lru_expert_no]) {
+        ++prefetch_resident;
+    }
+    if (top_k >= m_max_total_experts || existing != m_map.end()) {
         return std::nullopt;
     }
     const auto quota = std::min({top_k, m_max_total_experts / 4, m_max_total_experts - top_k});
@@ -310,6 +344,10 @@ std::optional<LRUCache::Load> LRUCache::reserve_speculative(uint32_t expert_id,
     }
     Load load{expert_id, slot, ++m_generation, ready, last_use};
     m_list.push_back(Node{expert_id, slot, {SlotStatus::PENDING_LOAD, ready, last_use, load.generation, true}});
+    if (metrics_enabled()) {
+        ++prefetch_loads;
+        m_list.back().unused_prefetch = true;
+    }
     m_map.emplace(Key{expert_id}, std::prev(m_list.end()));
     m_filled_list[slot] = false;
     ++m_total_experts;
@@ -432,12 +470,22 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t expert) {
         auto new_it = std::prev(m_list.end());
         m_map[key] = new_it;
         ++m_total_experts;
+        if (metrics_enabled()) {
+            ++demand_missing;
+        }
         return {to_filled_no, false};
     }
     OPENVINO_ASSERT(!it->second->state.loading && it->second->state.status != SlotStatus::PINNED,
                     "Synchronous OTD cannot acquire an active lookahead slot");
     move_to_end(it->second);
     const bool is_hit = m_filled_list[it->second->lru_expert_no];
+    if (metrics_enabled()) {
+        is_hit ? ++demand_ready : ++demand_missing;
+        if (is_hit && it->second->unused_prefetch) {
+            ++prefetch_used;
+            it->second->unused_prefetch = false;
+        }
+    }
     return {it->second->lru_expert_no, is_hit};
 }
 
