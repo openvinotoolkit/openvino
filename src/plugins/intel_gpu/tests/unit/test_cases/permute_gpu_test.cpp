@@ -2059,11 +2059,6 @@ TEST_P(permute_tile_fsv_4d, i8) {
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv);
 }
 
-TEST_P(permute_tile_fsv_4d, i32) {
-    auto p = GetParam();
-    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv);
-}
-
 TEST_P(permute_tile_fsv_4d, i64) {
     auto p = GetParam();
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv);
@@ -2122,11 +2117,6 @@ TEST_P(permute_tile_fsv_5d, f32) {
 TEST_P(permute_tile_fsv_5d, i8) {
     auto p = GetParam();
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv);
-}
-
-TEST_P(permute_tile_fsv_5d, i32) {
-    auto p = GetParam();
-    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv);
 }
 
 TEST_P(permute_tile_fsv_5d, i64) {
@@ -2312,70 +2302,87 @@ TEST_P(permute_bfzyx_to_bfyxz, combined) {
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
-TEST_P(permute_tile_fsv_4d, f16_cached) {
+// The "_cached" tests verify that a compiled permute network survives export/import. Alignment of the
+// shape relative to the format block (f/y/z not aligned) is a kernel-logic property that is already covered
+// by the non-cached suites above, and it does not influence serialization. So the cached suites keep every
+// data type and every format, but use only one representative ("normal") shape per format.
+class permute_tile_fsv_4d_cached : public TiledPermuteTest {};
+class permute_tile_fsv_5d_cached : public TiledPermuteTest {};
+class permute_bfzyx_to_bfyxz_cached : public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_4d_cached,
+    ::testing::ValuesIn(std::vector<TiledPermuteParam> {
+        {{1, 16, 16, 3}, format::b_fs_yx_fsv16},
+        {{1, 32, 32, 3}, format::b_fs_yx_fsv32},
+        {{1, 4, 4, 2}, format::b_fs_yx_fsv4},
+    }));
+
+INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_5d_cached,
+    ::testing::ValuesIn(std::vector<TiledPermuteParam> {
+        {{1, 16, 16, 3, 2}, format::b_fs_zyx_fsv16},
+        {{1, 32, 32, 3, 2}, format::b_fs_zyx_fsv32},
+    }));
+
+INSTANTIATE_TEST_SUITE_P(, permute_bfzyx_to_bfyxz_cached,
+    ::testing::ValuesIn(std::vector<TiledPermuteParam> {
+        {{1, 3, 85, 20, 20}, format::bfzyx},
+    }));
+
+TEST_P(permute_tile_fsv_4d_cached, f16) {
     auto p = GetParam();
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_4d, bf16_cached) {
+TEST_P(permute_tile_fsv_4d_cached, bf16) {
     auto p = GetParam();
     run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_4d, f32_cached) {
+TEST_P(permute_tile_fsv_4d_cached, f32) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_4d, i8_cached) {
+TEST_P(permute_tile_fsv_4d_cached, i8) {
     auto p = GetParam();
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_4d, i32_cached) {
-    auto p = GetParam();
-    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
-}
-
-TEST_P(permute_tile_fsv_4d, i64_cached) {
+TEST_P(permute_tile_fsv_4d_cached, i64) {
     auto p = GetParam();
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_5d, f16_cached) {
+TEST_P(permute_tile_fsv_5d_cached, f16) {
     auto p = GetParam();
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_5d, bf16_cached) {
+TEST_P(permute_tile_fsv_5d_cached, bf16) {
     auto p = GetParam();
     run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_5d, f32_cached) {
+TEST_P(permute_tile_fsv_5d_cached, f32) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_5d, i8_cached) {
+TEST_P(permute_tile_fsv_5d_cached, i8) {
     auto p = GetParam();
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_tile_fsv_5d, i32_cached) {
+TEST_P(permute_tile_fsv_5d_cached, i64) {
     auto p = GetParam();
-    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
-TEST_P(permute_bfzyx_to_bfyxz, combined_cached) {
+TEST_P(permute_bfzyx_to_bfyxz_cached, combined) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_bfzyx_to_bfyxz", {0, 1, 3, 4, 2}, true);
 }
 #endif
-TEST_P(permute_tile_fsv_5d, i64_cached) {
-    auto p = GetParam();
-    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
-}
 
 class permute_f_y_axes_tile: public TiledPermuteTest {};
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <set>
 #include <vector>
 
 #include "intel_gpu/primitives/grid_sample.hpp"
@@ -655,6 +656,20 @@ std::vector<grid_sample_test_inputs<TD, TG>> getParamsToCheckLogic() {
     return all;
 }
 
+// Model caching (export/import) does not depend on data shapes, padding or align_corners, so the cached variants
+// keep one case per interpolation mode only.
+template <class P>
+std::vector<P> getFirstCasePerInterpolationMode(const std::vector<P>& params) {
+    std::vector<P> result;
+    std::set<GridSampleOp::InterpolationMode> seen;
+    for (const auto& param : params) {
+        if (seen.insert(param.attributes.mode).second) {
+            result.push_back(param);
+        }
+    }
+    return result;
+}
+
 template <class TD, class TG>
 std::vector<grid_sample_test_inputs<TD, TG>> getBorderComparisonParams() {
     auto params = getBilinearParamsOddDimensionsInnerGrids<TD, TG>();
@@ -772,14 +787,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare,
                          grid_sample_border_compare_float,
                          testing::Combine(testing::ValuesIn(getBorderComparisonParams<float, float>()),
                                           testing::Values(format::bfyx, format::b_fs_yx_fsv16),
-                                          testing::Values(RUN_CACHING_TEST)),
+                                          testing::Values(false)),
+                         grid_sample_border_compare_float::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare_cached,
+                         grid_sample_border_compare_float,
+                         testing::Combine(testing::ValuesIn(getFirstCasePerInterpolationMode(getBorderComparisonParams<float, float>())),
+                                          testing::Values(format::bfyx, format::b_fs_yx_fsv16),
+                                          testing::Values(true)),
                          grid_sample_border_compare_float::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare,
                          grid_sample_border_compare_half,
                          testing::Combine(testing::ValuesIn(getBorderComparisonParams<ov::float16, ov::float16>()),
                                           testing::Values(format::bfyx, format::b_fs_yx_fsv16),
-                                          testing::Values(RUN_CACHING_TEST)),
+                                          testing::Values(false)),
+                         grid_sample_border_compare_half::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare_cached,
+                         grid_sample_border_compare_half,
+                         testing::Combine(testing::ValuesIn(getFirstCasePerInterpolationMode(getBorderComparisonParams<ov::float16, ov::float16>())),
+                                          testing::Values(format::bfyx, format::b_fs_yx_fsv16),
+                                          testing::Values(true)),
                          grid_sample_border_compare_half::PrintToStringParamName);
 
 const std::vector<format::type> layout_formats = {
@@ -805,31 +834,44 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_float_float,
                          grid_sample_gpu_test_float_float,
                          testing::Combine(testing::ValuesIn(getParamsToCheckLayouts<float, float>()),
                                           testing::ValuesIn(layout_formats),
-                                          testing::Values(RUN_CACHING_TEST)),
+                                          testing::Values(false)),
+                         grid_sample_gpu_test_float_float::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_float_float_cached,
+                         grid_sample_gpu_test_float_float,
+                         testing::Combine(testing::ValuesIn(getFirstCasePerInterpolationMode(getParamsToCheckLayouts<float, float>())),
+                                          testing::ValuesIn(layout_formats),
+                                          testing::Values(true)),
                          grid_sample_gpu_test_float_float::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
                          testing::Combine(testing::ValuesIn(getParamsToCheckLogic<ov::float16, ov::float16>()),
                                           testing::Values(format::bfyx),
-                                          testing::Values(RUN_CACHING_TEST)),
+                                          testing::Values(false)),
+                         grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
+                         grid_sample_gpu_test_FLOAT16_FLOAT16,
+                         testing::Combine(testing::ValuesIn(getFirstCasePerInterpolationMode(getParamsToCheckLogic<ov::float16, ov::float16>())),
+                                          testing::Values(format::bfyx),
+                                          testing::Values(true)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_layouts,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
                          testing::Combine(testing::ValuesIn(getParamsToCheckLayouts<ov::float16, ov::float16>()),
                                           testing::ValuesIn(layout_formats),
-                                          testing::Values(RUN_CACHING_TEST)),
+                                          testing::Values(false)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 
-#ifndef RUN_ALL_MODEL_CACHING_TESTS
-INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_layouts_cached,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
-                         testing::Combine(testing::ValuesIn(getNearestParamsOddDimensionsOuterGrids<ov::float16, ov::float16>()),
-                                          testing::Values(format::bfyx),
+                         testing::Combine(testing::ValuesIn(getFirstCasePerInterpolationMode(getParamsToCheckLayouts<ov::float16, ov::float16>())),
+                                          testing::ValuesIn(layout_formats),
                                           testing::Values(true)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
-#endif
+
 
 class grid_sample_gpu_dynamic : public ::testing::TestWithParam<grid_sample_test_params<float, float>> {};
 TEST_P(grid_sample_gpu_dynamic, basic) {

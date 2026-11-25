@@ -188,19 +188,34 @@ TEST_P(SDPAOptimizationTestsP, PassesSequence) {
 }
 
 const std::vector<bool> with_rearrange_v = {true, false};
-const std::vector<bool> with_mask_v = {true, false};
+// The scale input is only added to the model together with the mask, so with_mask=false/with_scale=true
+// builds exactly the same model as with_mask=false/with_scale=false.
 const std::vector<bool> with_scale_v = {true, false};
 const std::vector<bool> causal_v = {true, false};
 const std::vector<ov::Dimension> batch_v = {-1, 1, 8};
-const std::vector<ov::element::Type> dt_v = {ov::element::f16, ov::element::f32};
+// The transformations only check that the element type is real and consistent between the nodes, so f16 and f32
+// are matched identically.
+const std::vector<ov::element::Type> dt_v = {ov::element::f16};
 const std::vector<size_t> num_groups_v = {1, 2};
 const std::vector<std::vector<int64_t>> qkv_order_v = {{0, 1, 2, 3}, {0, 2, 1, 3}};
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          SDPAOptimizationTestsP,
                          testing::Combine(::testing::ValuesIn(with_rearrange_v),
-                                          ::testing::ValuesIn(with_mask_v),
+                                          ::testing::Values(true),
                                           ::testing::ValuesIn(with_scale_v),
+                                          ::testing::ValuesIn(causal_v),
+                                          ::testing::ValuesIn(batch_v),
+                                          ::testing::ValuesIn(dt_v),
+                                          ::testing::ValuesIn(num_groups_v),
+                                          ::testing::ValuesIn(qkv_order_v)),
+                         SDPAOptimizationTestsP::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_no_mask,
+                         SDPAOptimizationTestsP,
+                         testing::Combine(::testing::ValuesIn(with_rearrange_v),
+                                          ::testing::Values(false),
+                                          ::testing::Values(false),
                                           ::testing::ValuesIn(causal_v),
                                           ::testing::ValuesIn(batch_v),
                                           ::testing::ValuesIn(dt_v),

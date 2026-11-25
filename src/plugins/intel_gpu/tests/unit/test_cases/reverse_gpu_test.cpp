@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <set>
 #include <cstddef>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -424,50 +425,126 @@ INSTANTIATE_TEST_SUITE_P(smoke_reverse_f16_index,
                          PrintToStringParamName());
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
-TEST_P(reverse_gpu_test_int32_mask, reverse_i32_mask_cached) {
+// The "_cached" tests verify that a compiled reverse network survives export/import. The axes values are
+// runtime inputs and the tensor values do not influence serialization, so the cached suites keep every
+// data type, every mode (mask/index) and every format, but only one case per (format, number of axes).
+template <typename ParamsVec>
+ParamsVec selectOnePerFormatAndRank(const ParamsVec& all) {
+    ParamsVec selected;
+    std::set<std::pair<int, size_t>> seen;
+    for (const auto& p : all) {
+        if (seen.emplace(static_cast<int>(p.input_format), p.axis.size()).second) {
+            selected.push_back(p);
+        }
+    }
+    return selected;
+}
+
+struct reverse_gpu_test_int32_mask_cached : public reverse_gpu_test_int32_mask {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_i32_mask_cached,
+                         reverse_gpu_test_int32_mask_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateMaskParams<int32_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_int32_mask_cached, reverse_i32_mask) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_int32_index, reverse_i32_index_cached) {
+struct reverse_gpu_test_int64_mask_cached : public reverse_gpu_test_int64_mask {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_i64_mask_cached,
+                         reverse_gpu_test_int64_mask_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateMaskParams<int64_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_int64_mask_cached, reverse_i64_mask) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_int64_mask, reverse_i64_mask_cached) {
+struct reverse_gpu_test_float_mask_cached : public reverse_gpu_test_float_mask {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_float_mask_cached,
+                         reverse_gpu_test_float_mask_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateMaskParams<float>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_float_mask_cached, reverse_float_mask) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_int64_index, reverse_i64_index_cached) {
+struct reverse_gpu_test_int8_mask_cached : public reverse_gpu_test_int8_mask {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_int8_mask_cached,
+                         reverse_gpu_test_int8_mask_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateMaskParams<int8_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_int8_mask_cached, reverse_int8_mask) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_float_mask, reverse_float_mask_cached) {
+struct reverse_gpu_test_uint8_mask_cached : public reverse_gpu_test_uint8_mask {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_uint8_mask_cached,
+                         reverse_gpu_test_uint8_mask_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateMaskParams<uint8_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_uint8_mask_cached, reverse_uint8_mask) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_float_index, reverse_float_index_cached) {
+struct reverse_gpu_test_f16_mask_cached : public reverse_gpu_test_f16_mask {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_f16_mask_cached,
+                         reverse_gpu_test_f16_mask_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateMaskParams<ov::float16>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_f16_mask_cached, reverse_f16_mask) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_int8_mask, reverse_int8_mask_cached) {
+struct reverse_gpu_test_int32_index_cached : public reverse_gpu_test_int32_index {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_i32_index_cached,
+                         reverse_gpu_test_int32_index_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateIndexParams<int32_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_int32_index_cached, reverse_i32_index) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_int8_index, reverse_int8_index_cached) {
+struct reverse_gpu_test_int64_index_cached : public reverse_gpu_test_int64_index {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_i64_index_cached,
+                         reverse_gpu_test_int64_index_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateIndexParams<int64_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_int64_index_cached, reverse_i64_index) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_uint8_mask, reverse_uint8_mask_cached) {
+struct reverse_gpu_test_float_index_cached : public reverse_gpu_test_float_index {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_float_index_cached,
+                         reverse_gpu_test_float_index_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateIndexParams<float>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_float_index_cached, reverse_float_index) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_uint8_index, reverse_uint8_index_cached) {
+struct reverse_gpu_test_int8_index_cached : public reverse_gpu_test_int8_index {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_int8_index_cached,
+                         reverse_gpu_test_int8_index_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateIndexParams<int8_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_int8_index_cached, reverse_int8_index) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST_P(reverse_gpu_test_f16_mask, reverse_f16_mask_cached) {
+struct reverse_gpu_test_uint8_index_cached : public reverse_gpu_test_uint8_index {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_uint8_index_cached,
+                         reverse_gpu_test_uint8_index_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateIndexParams<uint8_t>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_uint8_index_cached, reverse_uint8_index) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+struct reverse_gpu_test_f16_index_cached : public reverse_gpu_test_f16_index {};
+INSTANTIATE_TEST_SUITE_P(smoke_reverse_f16_index_cached,
+                         reverse_gpu_test_f16_index_cached,
+                         ::testing::ValuesIn(selectOnePerFormatAndRank(generateIndexParams<ov::float16>())),
+                         PrintToStringParamName());
+TEST_P(reverse_gpu_test_f16_index_cached, reverse_f16_index) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 #endif
-TEST_P(reverse_gpu_test_f16_index, reverse_f16_index_cached) {
-    ASSERT_NO_FATAL_FAILURE(test(true));
-}
