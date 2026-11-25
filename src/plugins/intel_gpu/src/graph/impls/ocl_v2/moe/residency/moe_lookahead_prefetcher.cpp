@@ -442,13 +442,14 @@ ExpertPrefetcher::ExpertPrefetcher(cldnn::engine& engine, const cldnn::Execution
 
 ExpertPrefetcher::~ExpertPrefetcher() = default;
 
-void ExpertPrefetcher::wait_for_uploads_on_shared_queue(const std::vector<cldnn::event::ptr>& events) const {
+bool ExpertPrefetcher::wait_for_uploads_on_shared_queue(const std::vector<cldnn::event::ptr>& events) const {
     if (m_state->shares_compute_queue && !events.empty()) {
         m_state->dma->flush();
         for (const auto& event : events) {
             event->wait();
         }
     }
+    return m_state->shares_compute_queue;
 }
 
 void ExpertPrefetcher::bind(const std::shared_ptr<OffloadExpertWeightProvider>& provider) {

@@ -2090,7 +2090,7 @@ public:
                     auto pending_memory = upload(pending_mask, 2);
                     auto dependencies = wave == 0 ? events : std::vector<event::ptr>{ret_event};
                     if (!partition->ready_pairs.empty() || (_has_shared_expert && wave == 0)) {
-                        if (!partition->ready_events.empty()) {
+                        if (!prefetcher.wait_for_uploads_on_shared_queue(partition->ready_events)) {
                             dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(partition->ready_events);
                         }
                         pass_a = true;
@@ -2106,8 +2106,9 @@ public:
                     }
                     if (!partition->inflight_pairs.empty() || !partition->missing_pairs.empty()) {
                         {
-                            prefetcher.wait_for_uploads_on_shared_queue(copy_events);
-                            dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(copy_events);
+                            if (!prefetcher.wait_for_uploads_on_shared_queue(copy_events)) {
+                                dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(copy_events);
+                            }
                         }
                         pass_a = false;
                         {

@@ -34,7 +34,7 @@ class ExpertPrefetcher {
 public:
     ExpertPrefetcher(cldnn::engine& engine, const cldnn::ExecutionConfig& config, cldnn::stream::ptr compute_stream = {});
     ~ExpertPrefetcher();
-    void wait_for_uploads_on_shared_queue(const std::vector<cldnn::event::ptr>& events) const;
+    bool wait_for_uploads_on_shared_queue(const std::vector<cldnn::event::ptr>& events) const;
     ExpertPrefetcher(const ExpertPrefetcher&) = delete;
     ExpertPrefetcher& operator=(const ExpertPrefetcher&) = delete;
 
