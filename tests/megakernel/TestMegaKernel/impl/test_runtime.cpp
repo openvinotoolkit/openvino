@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "test_runtime.h"
 
 #include <CL/cl_ext.h>
