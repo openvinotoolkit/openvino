@@ -46,6 +46,18 @@ static std::ostream& operator<<(std::ostream& os, GatherScaleShape scale_shape) 
     return os;
 }
 
+static Shape get_scale_shape(GatherScaleShape scale_shape, const Shape& weights_shape) {
+    switch (scale_shape) {
+    case GatherScaleShape::PER_ROW:
+        return {weights_shape[0], 1};
+    case GatherScaleShape::PER_COLUMN:
+        return {1, weights_shape[1]};
+    case GatherScaleShape::SCALAR:
+        return {1, 1};
+    }
+    return {1, 1};
+}
+
 using DisableGatherCompressedForQuantizedModelParams =
     std::tuple<element::Type, InputShape, InputShape, GatherScaleShape>;
 class DisableGatherCompressedForQuantizedModel : public testing::WithParamInterface<DisableGatherCompressedForQuantizedModelParams>,
@@ -81,9 +93,7 @@ protected:
         auto weights_shape = Shape{64, 64};
         auto weights = utils::make_constant(weight_prec, weights_shape, utils::InputGenerateData(-1, 2, 32768));
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        const auto scale_const_shape = scale_shape == GatherScaleShape::PER_ROW      ? Shape{weights_shape[0], 1}
-                                       : scale_shape == GatherScaleShape::PER_COLUMN ? Shape{1, weights_shape[1]}
-                                                                                     : Shape{1, 1};
+        const auto scale_const_shape = get_scale_shape(scale_shape, weights_shape);
         auto scale = scale_shape == GatherScaleShape::SCALAR
                          ? op::v0::Constant::create(type, scale_const_shape, {0.625})
                          : utils::make_constant(type, scale_const_shape, utils::InputGenerateData(1, 1, 1000));
@@ -109,11 +119,13 @@ protected:
         const auto runtime_model = compiledModel.get_runtime_model();
         const auto matmul = runtime_model->get_result()->get_input_node_shared_ptr(0);
 
+        std::shared_ptr<const ov::Node> gather = nullptr;
         bool have_gather = false;
         bool have_gather_compressed = false;
         for (const auto& n : runtime_model->get_ordered_ops()) {
             const auto type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
             if (type == "Gather") {
+                gather = n;
                 // Gather has >=4 inputs means it is GatherCompressed.
                 if (n->get_input_size() >= 4) {
                     have_gather_compressed = true;
@@ -123,14 +135,28 @@ protected:
             }
         }
 
+        const auto matmul_runtime_precision =
+            matmul->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>();
         if (scale_shape == GatherScaleShape::PER_ROW) {
+            // LPT can't move a per-row scale through Gather with non-constant indices, so GatherCompressed
+            // dequantizes the compressed weights itself and MatMul gets f32 weights.
             EXPECT_TRUE(have_gather_compressed);
             EXPECT_FALSE(have_gather);
+            ASSERT_NE(gather, nullptr);
+            EXPECT_EQ(gather->get_input_element_type(0), compressed_weights_precision);
+            EXPECT_EQ(matmul->get_input_element_type(1), element::f32);
+            EXPECT_EQ(matmul_runtime_precision, element::f32);
             return;
         }
         if (scale_shape == GatherScaleShape::PER_COLUMN) {
+            // LPT moves the dequantization after Gather, so Gather works on the compressed weights. The per-column
+            // scale is along the MatMul reduction axis, so LPT keeps it before MatMul, which runs in f32.
             EXPECT_TRUE(have_gather);
             EXPECT_FALSE(have_gather_compressed);
+            ASSERT_NE(gather, nullptr);
+            EXPECT_EQ(gather->get_output_element_type(0), compressed_weights_precision);
+            EXPECT_EQ(matmul->get_input_element_type(1), element::f32);
+            EXPECT_EQ(matmul_runtime_precision, element::f32);
             return;
         }
 
