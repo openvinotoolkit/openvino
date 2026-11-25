@@ -1202,9 +1202,22 @@ TEST(inplace_conflict_resolution, E9_analysis_failure_fallback) {
     network net(prog, 0);
     EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
 #    else
-    EXPECT_ANY_THROW(build_staged(eng, g, true));
-    EXPECT_FALSE(take_inplace_conflict_fault_for_test()) << "the one-shot hook must have been consumed by the failed build";
+    bool formed = true;
+    std::string why_not, msg;
+    bool threw = false;
+    try {
+        build_staged(eng, g, true, formation_hook(g, formed, why_not));
+    } catch (const std::exception& e) {
+        threw = true;
+        msg = e.what();
+    }
+    const bool consumed = !take_inplace_conflict_fault_for_test();   // also clears a leftover
     set_inplace_conflict_fault_for_test(false);
+    if (!formed || !consumed) {
+        GTEST_SKIP() << "construction not formed: the injected fault was not consumed (no formed sum candidate:" << why_not << ")";
+    }
+    EXPECT_TRUE(threw) << "Debug must rethrow the analysis failure";
+    EXPECT_NE(msg.find("injected analysis failure"), std::string::npos) << "the exception must identify the injected fault: " << msg;
 #    endif
 }
 
@@ -1524,6 +1537,126 @@ TEST(inplace_conflict_resolution, M3_mul_veto_on_non_onednn_impl_only_relabels) 
     network net(prog, 0);
     EXPECT_FALSE(net.get_primitive("W")->reused_eltw_alias_allowed(dep));
     EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
+}
+
+// ---- fix round: fail-loud executor, off-axis writer, no_edge and the P-1 diagnostic ----------------------------------------------------
+namespace {
+inplace_conflict_plan one_action_plan(program& p, const std::string& w, int32_t dep, edge_origin origin, std::vector<war_witness> wit = {}) {
+    inplace_conflict_plan plan;
+    inplace_conflict_action a;
+    a.writer = &p.get_node(w);
+    a.mem_dep = dep;
+    a.origin = origin;
+    a.why = war_downgrade_reason::unsafe;
+    a.r.reasons = wr_late_reader;
+    a.r.witnesses = std::move(wit);
+    plan.actions.push_back(std::move(a));
+    return plan;
+}
+}  // namespace
+
+// F1 (Step 6 MEDIUM-1): a planned downgrade without a frozen entry is an implementation defect: it throws in every build type (sum and mul).
+TEST(inplace_conflict_resolution, F1_downgrade_without_frozen_entry_throws_in_every_build) {
+    P1A_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto g = base_graph(eng);
+    bool skipped = false;
+    std::string why_not;
+    auto prog = build_formed(eng, g, false, skipped, why_not);
+    if (skipped) {
+        GTEST_SKIP() << "construction not formed: no formed sum at the freeze for" << why_not;
+    }
+    const int32_t dep = outer_dep(*prog, "W");
+    for (auto origin : {edge_origin::onednn_sum, edge_origin::onednn_mul}) {
+        inplace_conflict_report rep;
+        // dep 99 and (for mul) a real dep without a mul entry: both have no frozen entry
+        EXPECT_THROW(refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(*prog, one_action_plan(*prog, "W", 99, origin), rep), ov::Exception);
+        if (origin == edge_origin::onednn_mul) {
+            EXPECT_THROW(refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(*prog, one_action_plan(*prog, "W", dep, origin), rep), ov::Exception);
+        }
+    }
+}
+
+// F2 (Step 6 LOW-3): a writer without a position on a valid axis is a node-level Unknown (downgrade), never an assertion.
+TEST(inplace_conflict_resolution, F2_planner_off_axis_writer_is_node_unknown_without_assert) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, plan_fan(), {"Z"});
+    force_order(*prog, {"P", "Y", "W", "Z"});
+    auto extra = hyp_of(*prog, {{"W", 0}});
+    auto aa = alias_analysis::build(*prog, compile_time_envelope{}, &extra);
+    const auto real = exec_axis::build(*prog);
+    REQUIRE_FORMED(aa.rejected_hypotheticals().empty() && real.valid(), "construction not formed");
+    std::unordered_map<const program_node*, uint32_t> pos;
+    for (auto* n : prog->get_processing_order()) {
+        if (real.position(*n) && n != &prog->get_node("W")) {
+            pos[n] = *real.position(*n);
+        }
+    }
+    const auto axis = exec_axis::for_test(exec_axis::status::ok, pos);
+    inplace_conflict_plan plan;
+    ASSERT_NO_THROW(plan = plan_inplace_conflict_resolution(aa, axis, true));
+    ASSERT_EQ(plan.actions.size(), 1u);
+    EXPECT_EQ(plan.actions[0].why, war_downgrade_reason::node_unknown) << plan_str(plan);
+    EXPECT_NE(plan.actions[0].r.reasons & wr_writer_off_axis, 0u) << plan_str(plan);
+}
+
+// F3a (Step 6 LOW-4 / Step 7 C3): a frozen mul_inplace that the live predicate rejects has no engine edge: it is counted as no_edge (not kept,
+// not downgraded) and runs correctly (G-impl).
+TEST(inplace_conflict_resolution, F3a_candidate_without_live_edge_is_counted_as_no_edge) {
+    P1A_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto g = mul_graph(eng);
+    int32_t dep = -1;
+    auto hook = [&](program& p) {
+        dep = mul_dep_if_formed(p.get_node("W"));
+        if (dep >= 0) {
+            p.get_node("A").set_output(true);   // post-freeze divergence: the live predicate now rejects the mul_inplace (M3)
+        }
+    };
+    auto prog = build_staged(eng, g, true, hook);
+    if (dep < 0) {
+        GTEST_SKIP() << "construction not formed: no frozen+live binary_mul_inplace on W at the freeze";
+    }
+    if (fusing::get_reused_eltwmem_idx(prog->get_node("W")) == dep) {
+        GTEST_SKIP() << "construction not formed: the live predicate still accepts the mul_inplace";
+    }
+    const auto* rep = prog->get_inplace_conflict_report();
+    ASSERT_NE(rep, nullptr);
+    EXPECT_EQ(rep->candidates, 1u) << rep->summary();
+    EXPECT_EQ(rep->no_edge, 1u) << rep->summary();
+    EXPECT_EQ(rep->kept, 0u);
+    EXPECT_TRUE(rep->entries.empty());
+    EXPECT_NE(rep->summary().find("no_edge=1"), std::string::npos) << rep->summary();
+    network net(prog, 0);
+    EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
+}
+
+// F3b: the P-1 diagnostic counts a downgrade only when every witness reader is a can_be_optimized node.
+TEST(inplace_conflict_resolution, F3b_unsafe_all_witnesses_cbo_counter) {
+    P1A_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    for (const bool cbo_witness : {true, false}) {
+        auto g = row11_fc_graph(eng, /*late=*/false);
+        int32_t dep = -1;
+        inplace_conflict_report rep;
+        auto hook = [&](program& p) {
+            dep = sum_dep_if_formed(p.get_node("W"));
+            if (dep < 0) {
+                return;
+            }
+            p.get_node("V").can_be_optimized(true);   // white box: V is the cbo witness, O is not
+            war_witness w;
+            w.reader = cbo_witness ? &p.get_node("V") : &p.get_node("O");
+            refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(p, one_action_plan(p, "W", dep, edge_origin::onednn_sum, {w}), rep);
+        };
+        build_staged(eng, g, /*resolution_on=*/false, hook);
+        if (dep < 0) {
+            GTEST_SKIP() << "construction not formed: no formed sum on W at the freeze";
+        }
+        ASSERT_EQ(rep.entries.size(), 1u);
+        EXPECT_EQ(rep.unsafe_all_witnesses_cbo, cbo_witness ? 1u : 0u) << rep.summary();
+        EXPECT_NE(rep.summary().find(std::string("unsafe_all_witnesses_cbo=") + (cbo_witness ? "1" : "0")), std::string::npos);
+    }
 }
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

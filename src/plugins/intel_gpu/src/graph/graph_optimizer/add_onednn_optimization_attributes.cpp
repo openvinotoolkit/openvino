@@ -173,12 +173,18 @@ void refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(program& p, c
             changed = onednn ? n.downgrade_onednn_sum_to_binary_add(static_cast<size_t>(a.mem_dep))
                              : n.relabel_frozen_sum_as_binary_add(static_cast<size_t>(a.mem_dep));
         }
-        OPENVINO_DEBUG_ASSERT(changed, "[GPU] 1a: no frozen in-place entry for ", n.id(), " dep ", a.mem_dep);
+        // The planner and the frozen list must agree (every action comes from a frozen entry): fail loudly in Release too.
+        OPENVINO_ASSERT(changed, "[GPU] 1a: no frozen in-place entry to downgrade for ", n.id(), " dep ", a.mem_dep, " origin ", to_string(a.origin));
         GPU_DEBUG_LOG << "[1a] downgrade " << n.id() << " dep " << a.mem_dep << " origin " << to_string(a.origin) << " why " << to_string(a.why)
                       << " reasons " << a.r.reasons << std::endl;
         if (changed) {
             if (onednn && std::find(rebuild.begin(), rebuild.end(), &n) == rebuild.end()) {
                 rebuild.push_back(&n);
+            }
+            // P-1 diagnostic (read-only, from the existing witnesses): every witness reader is itself a can_be_optimized node
+            if (!a.r.witnesses.empty() &&
+                std::all_of(a.r.witnesses.begin(), a.r.witnesses.end(), [](const war_witness& w) { return w.reader != nullptr && w.reader->can_be_optimized(); })) {
+                ++rep.unsafe_all_witnesses_cbo;
             }
             inplace_conflict_report::entry e;
             e.writer_id = n.id();
@@ -295,6 +301,17 @@ void refreeze_onednn_inplace_post_ops::run(program& p) {
                 plan = downgrade_all(candidates, war_downgrade_reason::no_axis);
             } else {
                 plan = plan_inplace_conflict_resolution(aa, axis);
+                // a candidate without a live in-place edge is not planned (frozen list and live graph disagree, e.g. a frozen mul_inplace that
+                // the live predicate rejects: only G-impl keeps it from aliasing): count and log it instead of skipping silently
+                for (const auto& c : candidates) {
+                    const bool planned = std::any_of(plan.actions.begin(), plan.actions.end(),
+                                                     [&](const inplace_conflict_action& a) { return a.writer == c.node && a.mem_dep == c.mem_dep; });
+                    if (!planned) {
+                        ++report->no_edge;
+                        GPU_DEBUG_LOG << "[1a] no live in-place edge for candidate " << c.node->id() << " dep " << c.mem_dep << " origin "
+                                      << to_string(c.origin) << std::endl;
+                    }
+                }
             }
         } catch (...) {
 #    ifndef NDEBUG

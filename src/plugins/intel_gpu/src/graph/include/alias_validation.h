@@ -156,7 +156,11 @@ std::vector<inplace_conflict_action> find_unsafe_surviving_inplace_writers(const
 // Log / counter record of one resolve_inplace_conflicts run. Not serialized; entries hold node ids, never node pointers.
 struct inplace_conflict_report {
     std::string skipped_reason;   // "" | "disabled" | "no_candidates" | "internal" | "body" | "oooq"
+    // NOTE: candidates != kept + entries.size(): a candidate with no live in-place edge (no_edge) is neither kept nor downgraded, and a
+    // program-level skip (program_level_skipped) plans nothing at all.
     size_t candidates = 0, kept = 0, program_level_skipped = 0, via_upstream_after_downgrade = 0;
+    size_t no_edge = 0;                   // candidates (frozen in-place post-op) without a live in-place edge in the engine
+    size_t unsafe_all_witnesses_cbo = 0;  // P-1 diagnostic: downgrades whose witnesses are all can_be_optimized nodes (possible over-reporting)
     struct entry {
         std::string writer_id;
         int32_t mem_dep = -1;

@@ -826,9 +826,9 @@ inplace_conflict_plan plan_inplace_conflict_resolution(const alias_analysis& aa,
         } else if (a.r.verdict == war_verdict::Unsafe) {
             a.why = war_downgrade_reason::unsafe;
         } else {
-            // The caller excludes the program-level causes; seeing one here is an implementation defect (Debug), Release degrades to the
-            // node-level conservative answer. wr_bad_query / wr_writer_off_axis cannot happen for a static oneDNN writer either.
-            OPENVINO_DEBUG_ASSERT((a.r.reasons & (war_program_level_mask | wr_bad_query | wr_writer_off_axis)) == 0,
+            // The caller excludes the program-level causes; seeing one (or a malformed query) here is an implementation defect (Debug assert).
+            // A writer without a position on a valid axis is a legitimate node-level Unknown: downgraded, no assert.
+            OPENVINO_DEBUG_ASSERT((a.r.reasons & (war_program_level_mask | wr_bad_query)) == 0,
                                   "[GPU] 1a planner: program-level or malformed verdict for ", a.writer->id(), " reasons (decimal) ", a.r.reasons);
             a.why = war_downgrade_reason::node_unknown;
         }
@@ -907,7 +907,8 @@ std::string inplace_conflict_report::summary() const {
     std::ostringstream os;
     os << "[inplace_conflict] skipped=" << (skipped_reason.empty() ? "-" : skipped_reason) << " candidates=" << candidates << " kept=" << kept
        << " downgraded=" << entries.size() << " program_level_skipped=" << program_level_skipped
-       << " via_upstream_after_downgrade=" << via_upstream_after_downgrade;
+       << " via_upstream_after_downgrade=" << via_upstream_after_downgrade << " no_edge=" << no_edge
+       << " unsafe_all_witnesses_cbo=" << unsafe_all_witnesses_cbo;
     for (const auto& kv : downgrade_bits) {
         int bit = 0;
         while (bit < 31 && !((kv.first >> bit) & 1u)) {
