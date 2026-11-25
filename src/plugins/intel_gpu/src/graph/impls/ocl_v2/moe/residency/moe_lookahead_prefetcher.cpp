@@ -64,6 +64,18 @@ void consume(PrefetchTask& task) {
     }
 }
 
+size_t worker_count() {
+    const auto* value = std::getenv("MOE_LES_WORKERS");
+    if (!value || std::string_view(value) == "1") {
+        return 1;
+    }
+    if (std::string_view(value) == "4") {
+        return 4;
+    }
+    OPENVINO_ASSERT(std::string_view(value) == "8", "MOE_LES_WORKERS must be 1, 4 or 8");
+    return 8;
+}
+
 }
 
 struct ExpertPrefetcher::State {
@@ -90,7 +102,9 @@ struct ExpertPrefetcher::State {
         std::unique_ptr<moe_otd::ParallelWeightReader> reader;
     };
     struct Batch {
-        size_t remaining;
+        Batch(size_t count, cldnn::event::ptr event) : remaining(count), ready(std::move(event)) {}
+
+        std::atomic<size_t> remaining;
         cldnn::event::ptr ready;
     };
     struct Job {
@@ -100,38 +114,60 @@ struct ExpertPrefetcher::State {
         uint64_t generation = 0;
         uint32_t layer = 0;
     };
+    struct Worker {
+        cldnn::stream::ptr dma;
+        moe_otd::LookaheadStagingPool staging;
+        std::thread thread;
+    };
 
     State(cldnn::engine& engine, const cldnn::ExecutionConfig& config, cldnn::stream::ptr compute_stream)
         : context(dynamic_cast<cldnn::ocl::ocl_engine&>(engine).get_cl_context()) {
         const auto* use_new_stream = std::getenv("MOE_LES_USE_NEW_STREAM");
-        if (!compute_stream || (use_new_stream && std::string_view(use_new_stream) == "1")) {
-            dma = moe_otd::create_copy_stream(engine, config);
-        } else {
-            dma = std::move(compute_stream);
-            shares_compute_queue = true;
+        workers.resize(worker_count());
+        shares_compute_queue = compute_stream &&
+                               !(use_new_stream && std::string_view(use_new_stream) == "1");
+        for (auto& worker : workers) {
+            worker.dma = shares_compute_queue ? compute_stream : moe_otd::create_copy_stream(engine, config);
+            for (auto& chunk : worker.staging.chunks) {
+                chunk.memory = engine.allocate_memory(
+                    cldnn::layout{cldnn::data_types::u8, cldnn::format::bfyx,
+                                  {1, 1, 1, static_cast<int32_t>(moe_otd::LookaheadStagingPool::chunk_bytes)}},
+                    cldnn::allocation_type::usm_host, false);
+            }
         }
-        for (auto& chunk : staging.chunks) {
-            chunk.memory = engine.allocate_memory(
-                cldnn::layout{cldnn::data_types::u8, cldnn::format::bfyx,
-                              {1, 1, 1, static_cast<int32_t>(moe_otd::LookaheadStagingPool::chunk_bytes)}},
-                cldnn::allocation_type::usm_host, false);
+        try {
+            for (auto& worker : workers) {
+                worker.thread = std::thread([this, &worker] { run(worker); });
+            }
+        } catch (...) {
+            stop_workers();
+            throw;
         }
-        worker = std::thread([this] { run(); });
     }
 
     ~State() {
+        stop_workers();
+        if (!shares_compute_queue) {
+            for (auto& worker : workers) {
+                try {
+                    worker.dma->finish();
+                } catch (const std::exception& exception) {
+                    GPU_DEBUG_INFO << "Lookahead DMA teardown failed: " << exception.what() << std::endl;
+                }
+            }
+        }
+    }
+
+    void stop_workers() {
         {
             std::lock_guard<std::mutex> lock(wakeup->mutex);
             stop = true;
         }
         wakeup->notify();
-        worker.join();
-        try {
-            if (!shares_compute_queue) {
-                dma->finish();
+        for (auto& worker : workers) {
+            if (worker.thread.joinable()) {
+                worker.thread.join();
             }
-        } catch (const std::exception& exception) {
-            GPU_DEBUG_INFO << "Lookahead DMA teardown failed: " << exception.what() << std::endl;
         }
     }
 
@@ -191,12 +227,15 @@ struct ExpertPrefetcher::State {
 
     void fail_abandoned() {
         std::vector<Job> jobs;
-        jobs.swap(abandoned);
+        std::vector<cldnn::event::ptr> events;
+        {
+            std::lock_guard<std::mutex> lock(wakeup->mutex);
+            jobs.swap(abandoned);
+            events.swap(abandoned_events);
+        }
         for (auto& job : jobs) {
             finish(job, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
         }
-        std::vector<cldnn::event::ptr> events;
-        events.swap(abandoned_events);
         for (const auto& event : events) {
             signal(event, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
         }
@@ -241,7 +280,8 @@ struct ExpertPrefetcher::State {
         }
     }
 
-    void run() noexcept {
+    void run(Worker& worker) noexcept {
+        bool running_job = false;
         try {
             for (;;) {
                 std::optional<Job> selected;
@@ -256,14 +296,16 @@ struct ExpertPrefetcher::State {
                             observed = wakeup->revision;
                         }
                         if (stop) {
-                            discard_locked();
+                            if (active == 0) {
+                                discard_locked();
+                            }
                             lock.unlock();
                             fail_abandoned();
                             return;
                         }
                         expire_locked();
                         if (!abandoned.empty()) {
-                            active = true;
+                            ++active;
                             break;
                         }
                         std::vector<cldnn::event::ptr> dependencies;
@@ -287,7 +329,7 @@ struct ExpertPrefetcher::State {
                         }
                         expire_locked();
                         if (!abandoned.empty()) {
-                            active = true;
+                            ++active;
                             break;
                         }
                         const auto terminal = [&](const cldnn::event::ptr& event) {
@@ -299,7 +341,7 @@ struct ExpertPrefetcher::State {
                         if (urgent != demand.end()) {
                             selected = *urgent;
                             demand.erase(urgent);
-                            active = true;
+                            ++active;
                             break;
                         }
                         auto hint = std::find_if(predictions.begin(), predictions.end(), [&](const PrefetchTask& task) {
@@ -313,14 +355,14 @@ struct ExpertPrefetcher::State {
                             if (provider && found != bindings.end()) {
                                 binding = found->second;
                             }
-                            active = true;
+                            ++active;
                             break;
                         }
                         auto hint_load = std::find_if(speculative.begin(), speculative.end(), eligible);
                         if (hint_load != speculative.end() && demand.empty()) {
                             selected = *hint_load;
                             speculative.erase(hint_load);
-                            active = true;
+                            ++active;
                             break;
                         }
                         std::unique_lock<std::mutex> notification(wakeup->notification_mutex);
@@ -333,16 +375,17 @@ struct ExpertPrefetcher::State {
                         lock.lock();
                     }
                 }
+                running_job = true;
                 fail_abandoned();
                 if (selected) {
                     try {
                         OPENVINO_ASSERT(event_status(selected->load.last_use_event) == CL_COMPLETE,
                                         "Lookahead consumer event failed");
                         auto& source = *selected->binding;
-                        source.cache->start_load(selected->load);
-                        moe_otd::fill_weights_memory_async(*dma, *source.reader, source.tensors,
+                        OPENVINO_ASSERT(source.cache->start_load(selected->load), "Lookahead slot reservation is stale");
+                        moe_otd::fill_weights_memory_async(*worker.dma, *source.reader, source.tensors,
                                                            {selected->load.expert_id}, {selected->load.slot},
-                                                           nullptr, &staging);
+                                                           nullptr, &worker.staging);
                         finish(*selected, CL_COMPLETE);
                     } catch (...) {
                         finish(*selected, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
@@ -363,10 +406,10 @@ struct ExpertPrefetcher::State {
                                 experts = *prediction->cpu_indices;
                             } else if (prediction->prediction_event_mem->get_allocation_type() == cldnn::allocation_type::usm_host) {
                                 cldnn::mem_lock<uint32_t, cldnn::mem_lock_type::read> indices(prediction->prediction_event_mem,
-                                                                                              *dma);
+                                                                                              *worker.dma);
                                 std::copy(indices.data(), indices.data() + count, experts.begin());
                             } else {
-                                prediction->prediction_event_mem->copy_to(*dma, experts.data(), 0, 0,
+                                prediction->prediction_event_mem->copy_to(*worker.dma, experts.data(), 0, 0,
                                                                          count * sizeof(uint32_t), true);
                             }
                         }
@@ -385,27 +428,35 @@ struct ExpertPrefetcher::State {
                             }
                             load = binding->cache->reserve_speculative(expert, binding->config.top_k,
                                 [this] { return make_ready_event(); }, experts);
+                            if (load) {
+                                speculative.push_back({binding, *load, {}, prediction->generation, prediction->target_layer_idx});
+                            }
                         }
                         if (load) {
                             watch(load->last_use_event);
-                            std::lock_guard<std::mutex> lock(wakeup->mutex);
-                            speculative.push_back({binding, *load, {}, prediction->generation, prediction->target_layer_idx});
                         }
                     }
                 }
                 {
                     std::lock_guard<std::mutex> lock(wakeup->mutex);
-                    active = false;
+                    --active;
+                    running_job = false;
                 }
                 wakeup->notify();
             }
         } catch (...) {
             {
                 std::lock_guard<std::mutex> lock(wakeup->mutex);
-                error = std::current_exception();
+                if (!error) {
+                    error = std::current_exception();
+                }
                 stop = true;
-                active = false;
-                discard_locked();
+                if (running_job) {
+                    --active;
+                }
+                if (active == 0) {
+                    discard_locked();
+                }
             }
             fail_abandoned();
             wakeup->notify();
@@ -413,10 +464,8 @@ struct ExpertPrefetcher::State {
     }
 
     std::shared_ptr<Wakeup> wakeup = std::make_shared<Wakeup>();
-    cldnn::stream::ptr dma;
     bool shares_compute_queue = false;
     cl::Context context;
-    moe_otd::LookaheadStagingPool staging;
     std::unordered_map<OffloadExpertWeightProvider*, std::shared_ptr<Binding>> bindings;
     std::deque<Job> demand;
     std::deque<Job> speculative;
@@ -429,9 +478,9 @@ struct ExpertPrefetcher::State {
     uint64_t generation = 0;
     uint32_t cursor = 0;
     bool stop = false;
-    bool active = false;
+    size_t active = 0;
     std::exception_ptr error;
-    std::thread worker;
+    std::vector<Worker> workers;
 };
 
 ExpertPrefetcher::ExpertPrefetcher(cldnn::engine& engine, const cldnn::ExecutionConfig& config, cldnn::stream::ptr compute_stream)
@@ -441,7 +490,7 @@ ExpertPrefetcher::~ExpertPrefetcher() = default;
 
 bool ExpertPrefetcher::wait_for_uploads_on_shared_queue(const std::vector<cldnn::event::ptr>& events) const {
     if (m_state->shares_compute_queue && !events.empty()) {
-        m_state->dma->flush();
+        m_state->workers.front().dma->flush();
         for (const auto& event : events) {
             event->wait();
         }
@@ -483,7 +532,7 @@ cldnn::event::ptr ExpertPrefetcher::demand_async(OffloadExpertWeightProvider& pr
     if (missing_ids.empty()) {
         return {};
     }
-    auto batch = std::make_shared<State::Batch>(State::Batch{missing_ids.size(), make_ready_event()});
+    auto batch = std::make_shared<State::Batch>(missing_ids.size(), make_ready_event());
     std::vector<LRUCache::Load> loads;
     for (auto expert : missing_ids) {
         auto load = provider.cache().get_pending_load(expert);
@@ -540,7 +589,7 @@ void ExpertPrefetcher::cancel_all() {
 void ExpertPrefetcher::drain() {
     std::unique_lock<std::mutex> lock(m_state->wakeup->mutex);
     m_state->wakeup->cv.wait(lock, [&] {
-        return m_state->stop || (!m_state->active && m_state->demand.empty() &&
+        return m_state->stop || (m_state->active == 0 && m_state->abandoned.empty() && m_state->demand.empty() &&
                                 m_state->speculative.empty() && m_state->predictions.empty());
     });
     if (m_state->error) {

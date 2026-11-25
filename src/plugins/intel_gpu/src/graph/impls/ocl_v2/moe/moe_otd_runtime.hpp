@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -112,15 +113,16 @@ public:
 
 private:
     void ensure_open() {
-        if (!_opened) {
+        std::call_once(_open_once, [this] {
             std::streamoff file_size = 0;
             ov::util::get_file_handle_and_size(_weights_path, 0, _shared_handle, file_size);
             _file_size = static_cast<size_t>(file_size);
             _opened = true;
-        }
+        });
     }
 
     std::filesystem::path _weights_path;
+    std::once_flag _open_once;
     ov::FileHandle _shared_handle{};
     size_t _file_size = 0;
     bool _opened = false;
