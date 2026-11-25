@@ -682,7 +682,7 @@ bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>
 // 2Dx3D GroupedMatMul runs on oneDNN grouped_gemm, which supports only f16 activations, so it is decomposed into MatMuls for
 // other activation types. With dynamic inference precision the activation type is kept as is, so it is checked per node.
 // 3Dx3D GroupedMatMul is lowered to a batched FullyConnected and stays as is. Without immad or oneDNN, every GroupedMatMul
-// is decomposed earlier, before MarkDequantization.
+// is decomposed.
 void register_grouped_matmul_decomposition(ov::pass::Manager& manager,
                                            const cldnn::device_info& device_info,
                                            const ExecutionConfig& config,
@@ -691,6 +691,7 @@ void register_grouped_matmul_decomposition(ov::pass::Manager& manager,
         return;
     }
     if (!device_info.supports_immad || !config.get_use_onednn()) {
+        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
         return;
     }
     if (infer_precision == ov::element::f16) {
@@ -1074,12 +1075,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
-        // Without immad or oneDNN, GroupedMatMul has no native implementation and is always decomposed into MatMuls.
-        // Do it before MarkDequantization, so that 4-bit expert weights are split while still compressed and stay
-        // compressed FCs. The immad non-f16 decomposition stays after it (register_grouped_matmul_decomposition()):
-        // compressed FCs with f32 activations would run on the oneDNN reference implementation there.
+        // Without immad or oneDNN, GroupedMatMul has no native implementation and is decomposed into MatMuls.
+        // 2Dx3D ones with splittable 4-bit weights are decomposed here, before MarkDequantization, so that each expert
+        // keeps compressed weights; the rest are decomposed later by register_grouped_matmul_decomposition(), as before.
         if ((!device_info.supports_immad || !config.get_use_onednn()) && !GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
-            manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+            manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>(true);
         }
 
         manager.register_pass<ov::pass::MarkDequantization>(

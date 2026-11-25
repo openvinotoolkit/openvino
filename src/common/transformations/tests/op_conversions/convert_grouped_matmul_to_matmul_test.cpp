@@ -167,11 +167,12 @@ INSTANTIATE_TEST_SUITE_P(Shapes2Dx3D,
 
 class ConvertGroupedMatMulToMatMulCompressed
     : public TransformationTestsF,
-      public testing::WithParamInterface<std::tuple<ov::element::Type, std::vector<int32_t>>> {};
+      public testing::WithParamInterface<std::tuple<ov::element::Type, std::vector<int32_t>, bool>> {};
 
 TEST_P(ConvertGroupedMatMulToMatMulCompressed, PreservesExpertQuantization) {
     const auto weight_type = std::get<0>(GetParam());
     const auto& ends = std::get<1>(GetParam());
+    const bool only_compressed_split = std::get<2>(GetParam());
     const size_t groups = ends.size();
     constexpr size_t width = 8, channels = 256;
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -200,7 +201,7 @@ TEST_P(ConvertGroupedMatMulToMatMulCompressed, PreservesExpertQuantization) {
     auto weights = dequantize({groups, width, 2, 128}, packed_values);
     auto grouped = std::make_shared<v17::GroupedMatMul>(activations, weights, offsets);
     model = std::make_shared<ov::Model>(ov::OutputVector{grouped}, ov::ParameterVector{activations});
-    manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+    manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>(only_compressed_split);
 
     ov::OutputVector experts;
     for (size_t expert_index = 0; expert_index < groups; ++expert_index) {
@@ -244,4 +245,21 @@ INSTANTIATE_TEST_SUITE_P(QuantizedExperts,
                                           testing::Values(std::vector<int32_t>{3},
                                                           std::vector<int32_t>{1, 3},
                                                           std::vector<int32_t>{1, 3, 6, 10},
-                                                          std::vector<int32_t>{0, 2, 2, 10})));
+                                                          std::vector<int32_t>{0, 2, 2, 10}),
+                                          testing::Bool()));
+
+TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_OnlyCompressedSplit_SkipsNotSplittableWeights) {
+    constexpr size_t groups = 2, width = 8, channels = 256;
+    const std::vector<int32_t> ends{3, 8};
+    auto packed = v0::Constant::create(ov::element::u8, ov::Shape{groups, width, channels}, {1});
+    auto converted = std::make_shared<v0::Convert>(packed, ov::element::f16);
+    auto scales = v0::Constant::create(ov::element::f16, ov::Shape{groups, width, 1}, {0.125f});
+    auto scaled = std::make_shared<v1::Multiply>(converted, scales);
+    auto weights = std::make_shared<v0::Convert>(scaled, f32);
+    auto activations = std::make_shared<v0::Parameter>(f32, ov::Shape{static_cast<size_t>(ends.back()), channels});
+    auto offsets = v0::Constant::create(i32, ov::Shape{groups}, ends);
+    auto grouped = std::make_shared<v17::GroupedMatMul>(activations, weights, offsets);
+    model = std::make_shared<ov::Model>(ov::OutputVector{grouped}, ov::ParameterVector{activations});
+    manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>(true);
+    // No model_ref: u8 weights are not split, so the GroupedMatMul is left for the regular decomposition.
+}

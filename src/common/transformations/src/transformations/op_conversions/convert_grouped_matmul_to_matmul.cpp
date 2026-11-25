@@ -166,7 +166,7 @@ ConvertGroupedMatMul3Dx3DToMatMul::ConvertGroupedMatMul3Dx3DToMatMul() {
     register_matcher(matcher, callback);
 }
 
-ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
+ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul(bool only_compressed_split) {
     MATCHER_SCOPE(ConvertGroupedMatMul2Dx3DToMatMul);
     using namespace ov::pass::pattern;
 
@@ -186,6 +186,10 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
         const auto mat_b = gmm->input_value(1);
 
         const auto num_groups = mat_b.get_partial_shape()[0].get_length();
+        const auto compressed_weights = split_compressed_weights(mat_b, num_groups);
+        if (only_compressed_split && compressed_weights.empty()) {
+            return false;
+        }
 
         using ov::element::i32;
 
@@ -211,7 +215,6 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
 
         auto a_split = rg.make<v1::VariadicSplit>(mat_a, axis_scalar, split_lengths);  // G x [Mg, K]
         auto b_split = rg.make<v1::Split>(mat_b, axis_scalar, num_groups);             // G x [1, N, K]
-        const auto compressed_weights = split_compressed_weights(mat_b, num_groups);
 
         ov::OutputVector group_outputs;
         group_outputs.reserve(static_cast<size_t>(num_groups));
