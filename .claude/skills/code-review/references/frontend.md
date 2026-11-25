@@ -29,16 +29,26 @@ under `src/bindings/python/src/openvino/frontend/` and
   multi-output producer; use the original value or `node->output(i)`.
 - Review Python decoders as conversion logic: preserve types, shapes,
   constants, attributes, input/output order, and framework-object lifetimes.
-- Name-based matching of inputs, outputs, or parameters must handle the names
-  each decoder actually produces, such as TorchScript debug-name suffixes
-  (`x.1`) and renamed aliases. Unmatched names must not silently drop shape or
-  type information.
+- When matching user-provided or framework names to converted tensors, use
+  the names the frontend actually produces, including generated, suffixed,
+  or aliased names. Report an error or fall back explicitly when a match fails;
+  do not silently drop user-specified shapes, types, or values.
+- Handle zero-element tensors of any rank. Detect emptiness from the element
+  count or a zero dimension, not by comparing against one specific shape.
 
 ## Downstream graph consumers
 
-The emitted graph is an input to weight compression, plugin transformations,
-and serialization. A graph that converts and infers correctly can still
-regress compressed accuracy, model size, or performance.
+The emitted graph is consumed by weight compression (NNCF), plugin
+transformations, serialization, the ONNX Runtime OpenVINO Execution Provider
+(OVEP), and OpenVINO GenAI pipelines and tools, including `genai-cli`. A graph
+that converts and infers correctly can still regress compressed accuracy,
+model size, performance, or integration with these consumers.
+
+- Treat model inputs and outputs (count, order, names, element types, and
+  ranks) and model state as an interface. OVEP binds them to the original
+  model's inputs and outputs, and GenAI relies on expected names, state, and
+  runtime information. Flag changes to them, including extra inputs from
+  constants that become parameters.
 
 - When a change alters how weights reach `MatMul`, `Gather`, or `Convolution`
   (constant element type, `Convert` placement, or `Split`, `VariadicSplit`,

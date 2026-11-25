@@ -3,12 +3,6 @@
 Apply to changes under `src/frontends/onnx/`, in addition to the
 [frontend review guidance](frontend.md).
 
-## Conversion
-
-- Detect empty tensors by element count on static shapes
-  (`ov::shape_size(shape) == 0`), not by equality with `[0]`; shapes such as
-  `[1, 31, 0]` are empty too. Keep declared model inputs as parameters.
-
 ## Tests
 
 - C++ conversion tests in `src/frontends/onnx/tests/*.in.cpp` build an
