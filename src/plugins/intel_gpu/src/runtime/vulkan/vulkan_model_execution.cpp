@@ -1,0 +1,61 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "intel_gpu/plugin/plugin.hpp"
+#include "openvino/runtime/properties.hpp"
+
+namespace ov::intel_gpu {
+
+bool Plugin::supports_model_execution() {
+    return false;
+}
+
+void Plugin::register_primitives() {}
+
+void Plugin::validate_custom_layer_config(const ov::AnyMap& /*config*/) {}
+
+// Model-capable implementations use per-device plugin state for batch metrics.
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+ov::Any Plugin::get_model_metric(const std::string& name, const ov::AnyMap& /*options*/, const cldnn::device_info& /*device_info*/) const {
+    if (name == ov::compatibility_check) {
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    }
+    return {};
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& /*model*/, const ov::AnyMap& /*orig_config*/) const {
+    OPENVINO_THROW("[GPU][Vulkan] Model compilation is unavailable");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& /*model*/,
+                                                          const ov::AnyMap& /*orig_config*/,
+                                                          const ov::SoPtr<ov::IRemoteContext>& /*context*/) const {
+    OPENVINO_THROW("[GPU][Vulkan] Model compilation is unavailable");
+}
+
+ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& /*model*/, const ov::AnyMap& /*orig_config*/) const {
+    return {};
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*model*/, const ov::AnyMap& /*config*/) const {
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*model*/,
+                                                         const ov::SoPtr<ov::IRemoteContext>& /*context*/,
+                                                         const ov::AnyMap& /*orig_config*/) const {
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& /*model*/, const ov::AnyMap& /*config*/) const {
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& /*model*/,
+                                                         const ov::SoPtr<ov::IRemoteContext>& /*context*/,
+                                                         const ov::AnyMap& /*config*/) const {
+    OPENVINO_THROW("[GPU][Vulkan] Model import is unavailable");
+}
+
+}  // namespace ov::intel_gpu

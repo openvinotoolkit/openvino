@@ -25,6 +25,14 @@ int main() {
         const auto runtime = core.get_property(*gpu, "GPU_RUNTIME_TYPE").as<std::string>();
         OPENVINO_ASSERT(runtime == "VULKAN", "Expected the Vulkan runtime");
         OPENVINO_ASSERT(core.get_property(*gpu, ov::device::capabilities).empty(), "Vulkan must not advertise model execution or caching");
+        const auto properties = core.get_property(*gpu, ov::supported_properties);
+        for (const auto* name : {ov::optimal_batch_size.name(), ov::max_batch_size.name(), "CONFIG_FILE"}) {
+            OPENVINO_ASSERT(std::find(properties.begin(), properties.end(), name) == properties.end(),
+                            "Vulkan advertised an unsupported model property: ",
+                            name);
+        }
+        OPENVINO_ASSERT(core.get_property(*gpu, ov::compatibility_check) == ov::CompatibilityCheck::UNSUPPORTED,
+                        "Vulkan must report model compatibility as unsupported");
 
         const auto tracked_buffer_bytes = [&] {
             const auto statistics = core.get_property(*gpu, ov::intel_gpu::memory_statistics);

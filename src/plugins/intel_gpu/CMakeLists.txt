@@ -186,7 +186,10 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     add_subdirectory(src/runtime         runtime${SUFFIX})
     if(RT_TYPE STREQUAL "VULKAN")
         # This runtime supports device discovery and remote tensors.
-        set(PLUGIN_SOURCES src/plugin/plugin.cpp ${GPU_PLUGIN_CONTEXT_SOURCES})
+        set(PLUGIN_SOURCES
+            src/plugin/plugin.cpp
+            src/runtime/vulkan/vulkan_model_execution.cpp
+            ${GPU_PLUGIN_VULKAN_CONTEXT_SOURCES})
         set(plugin_backend openvino_intel_gpu_runtime${SUFFIX} openvino::reference)
     else()
         add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})

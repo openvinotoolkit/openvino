@@ -10,7 +10,7 @@ ov_add_test_target(
 
 ov_add_test_target(
     NAME ov_gpu_vulkan_memory_smoke
-    SOURCES memory_smoke.cpp ${GPU_PLUGIN_CONTEXT_SOURCES}
+    SOURCES memory_smoke.cpp ${GPU_PLUGIN_VULKAN_CONTEXT_SOURCES}
     LINK_LIBRARIES openvino_intel_gpu_runtime openvino::reference openvino::runtime openvino::runtime::dev Vulkan::Vulkan)
 ov_gpu_set_runtime_interface_for(ov_gpu_vulkan_memory_smoke RUNTIME VULKAN)
 ov_set_threading_interface_for(ov_gpu_vulkan_memory_smoke)

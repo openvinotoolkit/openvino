@@ -13,6 +13,15 @@ transfers for fixed-size element types.
 Model compilation, model import, and external GPU handle interop are
 unavailable in this runtime.
 
+The Vulkan foundation builds the common plugin entry point and remote tensor
+code. Vulkan sources provide the diagnostics for model operations and
+external contexts.
+
+The execution follow-up will build the common graph and kernel selector with
+the Vulkan implementation and SPIR-V generation. The compilation plan uses
+compatible OpenCL C kernel sources as inputs to CLSPV. The Vulkan build will
+select its own graph implementation sources and link the Vulkan loader.
+
 Set `-DOV_GPU_VULKAN_SMOKE_TESTS=ON` to build and run the runtime and memory smoke tests.
 
 ```sh
