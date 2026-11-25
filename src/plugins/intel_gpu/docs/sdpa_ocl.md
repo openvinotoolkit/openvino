@@ -4240,7 +4240,7 @@ first of them against the branch with the three and the three entries after them
 - Tests: `smoke_sdpa_gpu_compressed_kv_per_channel` +2 rows, the i8 decode with the plain V at heads 512 / 384, which no
   row covered (the transposed one is in `sdpa_gpu_transposed_v_i8`). Negative control (temporary test build): the
   neighbouring channels' V scales swapped in the fused arm fail exactly these 2 (cosine 0.95-0.96). B70: the unit suites
-  168 / 168 (the new rows on `sdpa_ocl_mixed`), the func suites 68 / 68. Not run on DG2 (the opt single-token stage there).
+  168 / 168 (the new rows on `sdpa_ocl_mixed`), the func suites 68 / 68. DG2 (kit `test/gqa_dg2b/`): both pass.
 - Not checked: real models, other head counts, memory use, ARL-H, the jit variant behind each kernel name.
 
 ### Per-channel d_max 512 PREFILL with a plain V on 16 key subgroups (2026-11-25)
@@ -4373,8 +4373,15 @@ count in 8 (f16) or 16 (i8); the others read per lane ("Transposed V read in sdp
 - xe_hpg: the generic SG8 stages that read a transposed V (head 100 in the kit; the head-128 / 512 PREFILL kernel reads
   it with `hpg_v_rows()`, unchanged) take the new code too. `ocloc -device dg2` on the xe_hpg JIT (dumped on the B70
   with the local arch-override patch) builds them without spill, instructions 6221 -> 6380 (f16) and 7576 -> 7627 (i8);
-  the head-128 / 512 programs compile to the same instruction counts. Not run on DG2 ("xe_hpg follow-ups").
-- Not checked: Xe3 (same code, not measured), DG2, real models.
+  the head-128 / 512 programs compile to the same instruction counts.
+- DG2 (A770, Windows driver 32.0.101.9175; kit `test/gqa_dg2b/`, results `test/gqa_dg2b/dg2/RESULT.md`; the gqa_dg2
+  kit's layer, 16 / 4 heads, 2 rounds, arms alternating; this entry's build against `9a89aee595`, which differs from the
+  build before it only in `xe2_tuned()` code): the head-100 f16 transposed-V rows 0.85-0.95 (layer total), cosine
+  unchanged. `V_T_2D` is SG16 only, so on xe_hpg every key count reads per lane, the odd ones on shifted rows. Kernels
+  under cliloader, before -> after (us per call): `sdpa_ocl_mixed` decode on 4096 / 4097 keys 4331 -> 3946 / 4629 ->
+  4276, `sdpa_ocl_prefill` prefill 1024 2083 -> 1894, 16 queries on 4112 4899 -> 4158. The other 91 rows of the kit
+  (heads 128 / 512, plain V, i8 and 4-bit) 0.97-1.02 across the 7 entries up to here; the gtests unchanged.
+- Not checked: Xe3 (same code, not measured), real models, the ISA of the changed kernel on DG2 (offline build only).
 
 ### The 4-bit cache with a transposed V read in place (2026-11-25)
 
@@ -4429,8 +4436,10 @@ fuses it (and builds no 4-bit GQA on these devices: "Per-channel compressed KV a
     on a shifted row (static 1025 keys, dynamic); the old output-shape code fails all 17.
   - B70: the transposed-V, per-channel, `gqa_decomp`, decomposition, predicate and `smoke_sdpa_kv_compressed` unit
     suites 186 / 186; `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` + `smoke_GQASlidingWindow` 72 / 72.
-- Not checked: xe_hpg (keeps the Transpose; the host path that decides it is not run on DG2), Xe3 (same code, not
-  measured), real models with a 4-bit transposed-V cache.
+- DG2 (kit `test/gqa_dg2b/`): the 17 `sdpa_gpu_transposed_v_u4` rows skip, the decomposition row and the 4
+  `int4_*_transposedV` func cases pass (through the Transpose); the kit's rows move by no more than run-to-run noise
+  against "Transposed V per-lane read at any key count" (head-100 f16 rows 0.95-1.03, kernels within 1.3%).
+- Not checked: Xe3 (same code, not measured), real models with a 4-bit transposed-V cache.
 
 ## Known issues
 
@@ -4584,7 +4593,8 @@ re-measures against the opt kernels.
   on `sdpa_ocl_mixed` (1.50x: 4318 us against 2620 + 148 on the opt multi-query kernel). Head-100 decode is slow in either
   layout (plain V: SDPA 5723 us on 4095 keys; the opt single-token kernel takes 181 us at head 512), not analysed. The
   B70 counterparts are the `xe2_tuned()` `d_max` 512 tilings. The head-100 transposed-V stages take the per-lane read
-  of "Transposed V per-lane read at any key count" since 2026-11-25 (dg2 offline build only, not run on DG2).
+  of "Transposed V per-lane read at any key count" since 2026-11-25: kernel 0.85-0.92 of before on DG2; the decode row
+  above 3946 us (4331 before it in the same run), still 1.43x the opt kernel with the Transpose of the earlier run.
 - The 4-bit per-channel cache with a transposed V keeps the explicit Transpose on xe_hpg (`fuse_transposed_v_4bit`):
   none of its kernels reads it in place ("The 4-bit cache with a transposed V read in place"). Readers in the xe_hpg
   PREFILL kernel, the generic SG8 path and the opt single-token stage would let the decomposition drop that flag.
