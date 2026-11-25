@@ -405,11 +405,6 @@ Known Issues
 | OpenVINO Level Zero loader build location - Windows: bin\\intel64\\Release\\ze_loader.dll or bin\\intel64\\Debug\\ze_loader.dll; Linux: bin/intel64/Release/libze_loader.so or bin/intel64/Debug/libze_loader.so.
 
 | **Component: GPU Plugin**
-| ID: 200019, 200020
-| Description:
-| Some Blackmagic DaVinci Resolve models may produce inaccurate results and MotionDeblur models may fail to run on Intel® Core™ Ultra Series 1.
-
-| **Component: GPU Plugin**
 | ID: 199919
 | Description:
 | The yolo26s-obb model in INT8 may fail on GPU on Intel® Core™ Ultra Processors (Series 3, Series 2), and Intel® Arc™ A-Series Graphics on Ubuntu 24 and Ubuntu 26 when using OpenVINO 2026.5.
