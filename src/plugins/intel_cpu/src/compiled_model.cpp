@@ -159,6 +159,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         auto sub_cfg = m_cfg;
         sub_cfg.numSubStreams = 0;
         sub_cfg.enableNodeSplit = true;
+        // Sub-models always pin CPUs; the parent falls back to the regular async pipeline instead.
+        sub_cfg.multiAppThreadSyncExecution = false;
         auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
         auto message = message_manager();
         m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.numSubStreams);

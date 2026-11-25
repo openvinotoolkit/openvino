@@ -200,22 +200,28 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExclusiveAsyncDisablesMult
     ASSERT_FALSE(value);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckTensorParallelRejectsMultiAppThreadSyncExecution) {
+// Tensor-parallel sub-streams are not supported in caller-thread mode: compile must succeed and
+// fall back to the regular async pipeline, reporting the effective value as false.
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckTensorParallelDisablesMultiAppThreadSyncExecution) {
     ov::Core ie;
     std::shared_ptr<ov::Model> tensorParallelModel = ov::test::utils::make_matmul_bias();
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {
         ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
-    // Tensor-parallel sub-streams always pin CPUs and inherit multi_app_thread_sync_execution=true,
-    // so this always hits the pinning-rejection rule and the two features are incompatible.
     ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), modelDistributionPolicy},
                          {ov::intel_cpu::enable_tensor_parallel.name(), true},
                          {ov::num_streams.name(), 1},
                          {ov::inference_num_threads.name(), 1},
+                         {ov::hint::enable_cpu_pinning.name(), false},
                          {ov::intel_cpu::multi_app_thread_sync_execution.name(), true}};
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(ie.compile_model(tensorParallelModel, deviceName, config),
-                                  ov::Exception,
-                                  "multi_app_thread_sync_execution");
+    ov::CompiledModel compiledModel;
+    bool value = true;
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(tensorParallelModel, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
+
+    auto request = compiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(request.infer());
 }
 
 // multi_app_thread_sync_execution=true + CPU pinning must be rejected: running inference on the
