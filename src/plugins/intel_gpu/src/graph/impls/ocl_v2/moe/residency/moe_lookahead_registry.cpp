@@ -1,5 +1,6 @@
 #include "impls/ocl_v2/primitive_ocl_base.hpp"
 #include "moe_lookahead_registry.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include <cstdio>
 #include <limits>
 
@@ -54,6 +55,15 @@ void LookaheadContext::build_once(cldnn::network& network) {
         if (!predictor_path.empty()) {
             // The predictor replaces the next-layer router, so only the plain chain topology is required.
             predictor_model = load_les_predictor_model(predictor_path);
+            for (const auto& id : network.get_input_ids()) {
+                if (id == "parameter:les_prev_hidden" && network.get_program()->get_node(id).get_users().empty()) {
+                    m_previous_input = id;
+                    for (const auto& head : predictor_model->heads) {
+                        m_previous_rows.emplace(head.first, m_previous_rows.size());
+                    }
+                    break;
+                }
+            }
             m_links.clear();
             for (const auto& chain : network.get_program()->get_les_moe_links()) {
                 const auto target = m_layer_indices.find(chain.target_moe);
@@ -110,6 +120,15 @@ void LookaheadContext::build_once(cldnn::network& network) {
                                 target.num_experts, ", hidden ", head.hidden, " vs ", target.hidden_size);
             }
             m_predictor = std::make_unique<LesPredictor>(network, *predictor_model);
+            if (!m_previous_input.empty()) {
+                const ov::PartialShape shape{static_cast<int64_t>(m_previous_rows.size()), 1,
+                                             static_cast<int64_t>(predictor_model->heads.begin()->second.hidden)};
+                cldnn::topology topology;
+                topology.add(cldnn::input_layout("state", {shape, cldnn::data_types::f32, cldnn::format::bfyx}));
+                topology.add(cldnn::reorder("packed", cldnn::input_info("state"), {shape, cldnn::data_types::f16, cldnn::format::bfyx}));
+                auto program = cldnn::program::build_program(network.get_engine(), topology, network.get_config(), true);
+                m_previous_converter = cldnn::network::allocate_network(network.get_stream_ptr(), program, true, true);
+            }
             GPU_DEBUG_INFO << "LES predictor: " << m_predictor->head_count() << " heads, " << m_predictor_layers.size()
                            << " MoE layers mapped, top_k " << m_predictor->top_k() << std::endl;
         }
@@ -174,6 +193,27 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
         if (auto* head = predictor_head(target)) {
             auto& stream = m_network.get_stream();
             stream.enqueue_barrier({ready});
+            if (m_previous_converter) {
+                if (m_previous_epoch != m_epoch) {
+                    const auto input = m_network.get_primitive(m_previous_input)->output_memory_ptr();
+                    const ov::Shape expected{m_previous_rows.size(), 1, head->hidden};
+                    OPENVINO_ASSERT(input && input->get_layout().get_shape() == expected &&
+                                    input->get_layout().data_type == cldnn::data_types::f32,
+                                    "Native LES feedback expects [exported layers, one sequence, hidden] FP32");
+                    m_previous_converter->set_input_data("state", input);
+                    auto converted = m_previous_converter->execute({ready}).at("packed");
+                    m_previous_values = converted.get_memory(false);
+                    m_previous_ready = converted.get_event();
+                    m_previous_epoch = m_epoch;
+                }
+                if (m_previous_ready) {
+                    stream.enqueue_barrier({m_previous_ready});
+                }
+                const size_t bytes = size_t{head->hidden} * sizeof(ov::float16);
+                const auto row = m_previous_rows.at(m_predictor_layers.at(target));
+                auto previous = head->input->copy_from(stream, *m_previous_values, row * bytes, bytes, bytes, false);
+                stream.enqueue_barrier({previous});
+            }
             const auto copied = head->input->copy_from(stream, *hidden, 0, 0, size_t{head->hidden} * sizeof(ov::float16), false);
             return head->router->enqueue(head->input, copied);
         }
@@ -208,7 +248,7 @@ void LookaheadContext::update_previous(const cldnn::primitive_id& id,
                                        const cldnn::memory::ptr& hidden,
                                        const std::vector<cldnn::event::ptr>& ready) {
     auto* head = predictor_head(id);
-    if (!head || !hidden) {
+    if (m_previous_converter || !head || !hidden) {
         return;
     }
     const auto& layout = hidden->get_layout();

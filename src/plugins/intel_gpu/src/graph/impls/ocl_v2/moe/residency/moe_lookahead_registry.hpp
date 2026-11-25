@@ -81,6 +81,12 @@ private:
     std::unordered_map<cldnn::primitive_id, std::shared_ptr<OffloadExpertWeightProvider>> m_providers;
     std::unordered_map<cldnn::primitive_id, std::unique_ptr<LookaheadRouter>> m_routers;
     std::unique_ptr<LesPredictor> m_predictor;
+    cldnn::primitive_id m_previous_input;
+    std::unordered_map<size_t, size_t> m_previous_rows;
+    cldnn::network::ptr m_previous_converter;
+    cldnn::memory::ptr m_previous_values;
+    cldnn::event::ptr m_previous_ready;
+    std::optional<uint64_t> m_previous_epoch;
     std::unordered_map<cldnn::primitive_id, size_t> m_predictor_layers;
     std::unordered_map<cldnn::primitive_id, Prediction> m_predictions;
     struct Recall {
