@@ -427,10 +427,18 @@ public:
 // F5: the single point after which the oneDNN in-place post-ops of a static node are final. Every frozen in-place sum that the live graph
 // no longer supports (or whose impl cannot honour it) is downgraded in place to a binary_add and the oneDNN impl is rebuilt; it never
 // upgrades. Runs at the very end of post_optimize_graph, outside the dry_run gate, for every program (internal and body included).
+//
+// Phase 1a (resolve_inplace_conflicts, design 17): after the F5 structural downgrade the same pass plans (alias_validation.h, pure over
+// war_safe + exec_axis) and applies the WAR downgrade of the surviving oneDNN sum writers. Switch: enable_inplace_conflict_resolution.
+struct inplace_conflict_plan;
+struct inplace_conflict_report;
 class refreeze_onednn_inplace_post_ops : public base_pass {
 public:
     refreeze_onednn_inplace_post_ops() : base_pass("refreeze_onednn_inplace_post_ops") {}
     void run(program& p) override;
+    // Executor: applies the downgrade actions of `plan` (each downgraded oneDNN node gets its impl rebuilt once) and fills `rep`. Public so
+    // that tests can feed a hand-written plan.
+    static void apply_inplace_conflict_plan(program& p, const inplace_conflict_plan& plan, inplace_conflict_report& rep);
 };
 
 class build_implementations : public base_pass {

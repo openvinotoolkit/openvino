@@ -5,6 +5,8 @@
 #include "alias_validation.h"
 
 #include <algorithm>
+#include <atomic>
+#include <limits>
 #include <map>
 #include <set>
 #include <sstream>
@@ -414,6 +416,19 @@ std::vector<war_query> enumerate_inplace_writers(const alias_analysis& aa) {
     return out;
 }
 
+const alias_edge* inplace_edge_of(const alias_analysis& aa, const war_query& q) {
+    if (q.writer == nullptr) {
+        return nullptr;
+    }
+    for (size_t ei : aa.edges_from(*q.writer, q.out_port)) {
+        const auto& e = aa.edges()[ei];
+        if (is_inplace_kind(e.kind) && e.dep_index == q.dep_index) {
+            return &e;
+        }
+    }
+    return nullptr;
+}
+
 const char* to_string(rule_id id) {
     switch (id) {
     case rule_id::R1:
@@ -531,13 +546,9 @@ alias_validation_report validate_alias_rules(const program& p, const alias_analy
         we.q = q;
         alias_kind kind = alias_kind::NONE;
         edge_origin origin = edge_origin::view;
-        for (size_t ei : aa.edges_from(*q.writer, q.out_port)) {
-            const auto& e = aa.edges()[ei];
-            if (is_inplace_kind(e.kind) && e.dep_index == q.dep_index) {
-                kind = e.kind;
-                origin = e.origin;
-                break;
-            }
+        if (const alias_edge* e = inplace_edge_of(aa, q)) {
+            kind = e->kind;
+            origin = e->origin;
         }
         we.kind = kind;
         we.origin = origin;
@@ -750,6 +761,173 @@ alias_validation_report validate_alias_rules(const program& p, const alias_analy
         }
     }
     return rep;
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------
+// Phase 1a planner (design 17 §5.2)
+// ------------------------------------------------------------------------------------------------------------------------------
+namespace {
+
+std::atomic<bool> g_inplace_conflict_fault{false};
+
+// 1a-1: D6 and the executor handle onednn_sum only. Slice 1a-2 flips this to true (mul veto + D6 over onednn_mul).
+constexpr bool k_mul_actions_executed = false;
+
+struct planned_writer {
+    war_query q;
+    edge_origin origin;
+    uint32_t pos;
+};
+
+std::vector<planned_writer> collect_planned_writers(const alias_analysis& aa, const exec_axis& axis, bool include_hypothetical, bool with_mul) {
+    std::vector<planned_writer> w;
+    for (const auto& q : enumerate_inplace_writers(aa)) {
+        const alias_edge* e = inplace_edge_of(aa, q);
+        if (e == nullptr || q.writer == nullptr) {
+            continue;   // persistent copy writers (assign) are not handled in 1a-1/1a-2
+        }
+        const bool ok = e->origin == edge_origin::onednn_sum || (with_mul && e->origin == edge_origin::onednn_mul) ||
+                        (include_hypothetical && e->origin == edge_origin::hypothetical);
+        // a dynamic node: its sum is always not_supported; a dynamic mul_inplace is out of scope (1a-DYN-MUL)
+        if (!ok || q.writer->is_dynamic()) {
+            continue;
+        }
+        const auto pos = axis.position(*q.writer);
+        w.push_back({q, e->origin, pos ? *pos : std::numeric_limits<uint32_t>::max()});
+    }
+    std::sort(w.begin(), w.end(), [](const planned_writer& a, const planned_writer& b) {
+        if (a.pos != b.pos) {
+            return a.pos < b.pos;
+        }
+        if (a.q.writer->get_unique_id() != b.q.writer->get_unique_id()) {
+            return a.q.writer->get_unique_id() < b.q.writer->get_unique_id();
+        }
+        return a.q.dep_index < b.q.dep_index;
+    });
+    return w;
+}
+
+}  // namespace
+
+inplace_conflict_plan plan_inplace_conflict_resolution(const alias_analysis& aa, const exec_axis& axis, bool include_hypothetical) {
+    inplace_conflict_plan plan;
+    // Origin-based filtering: mul actions are planned (and counted) in every slice; whether they are executed is the executor's business.
+    const auto writers = collect_planned_writers(aa, axis, include_hypothetical, /*with_mul=*/true);
+    uint32_t first_downgrade_pos = std::numeric_limits<uint32_t>::max();
+    bool any_downgrade = false;
+    for (const auto& w : writers) {
+        inplace_conflict_action a;
+        a.writer = w.q.writer;
+        a.mem_dep = w.q.dep_index;
+        a.origin = w.origin;
+        a.r = war_safe(aa, axis, w.q);
+        if (a.r.verdict == war_verdict::Safe) {
+            a.why = war_downgrade_reason::none;
+        } else if (a.r.verdict == war_verdict::Unsafe) {
+            a.why = war_downgrade_reason::unsafe;
+        } else {
+            // The caller excludes the program-level causes; seeing one here is an implementation defect (Debug), Release degrades to the
+            // node-level conservative answer. wr_bad_query / wr_writer_off_axis cannot happen for a static oneDNN writer either.
+            OPENVINO_DEBUG_ASSERT((a.r.reasons & (war_program_level_mask | wr_bad_query | wr_writer_off_axis)) == 0,
+                                  "[GPU] 1a planner: program-level or malformed verdict for ", a.writer->id(), " reasons (decimal) ", a.r.reasons);
+            a.why = war_downgrade_reason::node_unknown;
+        }
+        // P-3: an Unsafe verdict that only rests on the external / persistent root reached through an upstream in-place edge, with an
+        // earlier downgrade in the plan (upper bound: the crossed edge is not checked to belong to that writer, audit N5)
+        if (a.why == war_downgrade_reason::unsafe && (a.r.reasons & war_unsafe_mask & ~(wr_external_root | wr_persistent_unregistered)) == 0 &&
+            (a.r.reasons & wr_via_upstream_inplace) != 0 && any_downgrade && first_downgrade_pos < w.pos) {
+            ++plan.via_upstream_after_downgrade;
+        }
+        if (a.why != war_downgrade_reason::none) {
+            any_downgrade = true;
+            first_downgrade_pos = std::min(first_downgrade_pos, w.pos);
+        }
+        plan.actions.push_back(std::move(a));
+    }
+    return plan;
+}
+
+std::vector<inplace_conflict_action> find_unsafe_surviving_inplace_writers(const alias_analysis& aa, const exec_axis& axis, bool include_hypothetical) {
+    std::vector<inplace_conflict_action> out;
+    for (const auto& w : collect_planned_writers(aa, axis, include_hypothetical, /*with_mul=*/k_mul_actions_executed)) {
+        auto r = war_safe(aa, axis, w.q);
+        if (r.verdict == war_verdict::Safe) {
+            continue;
+        }
+        inplace_conflict_action a;
+        a.writer = w.q.writer;
+        a.mem_dep = w.q.dep_index;
+        a.origin = w.origin;
+        a.why = r.verdict == war_verdict::Unsafe ? war_downgrade_reason::unsafe : war_downgrade_reason::node_unknown;
+        a.r = std::move(r);
+        out.push_back(std::move(a));
+    }
+    return out;
+}
+
+const char* to_string(war_downgrade_reason r) {
+    switch (r) {
+    case war_downgrade_reason::none:
+        return "none";
+    case war_downgrade_reason::unsafe:
+        return "unsafe";
+    case war_downgrade_reason::node_unknown:
+        return "node_unknown";
+    case war_downgrade_reason::no_axis:
+        return "no_axis";
+    case war_downgrade_reason::analysis_exception:
+        return "analysis_exception";
+    }
+    return "?";
+}
+
+const char* to_string(edge_origin o) {
+    switch (o) {
+    case edge_origin::concat_slot:
+        return "concat_slot";
+    case edge_origin::view:
+        return "view";
+    case edge_origin::onednn_sum:
+        return "onednn_sum";
+    case edge_origin::onednn_mul:
+        return "onednn_mul";
+    case edge_origin::kv_cache:
+        return "kv_cache";
+    case edge_origin::stateless_kv:
+        return "stateless_kv";
+    case edge_origin::lora:
+        return "lora";
+    case edge_origin::hypothetical:
+        return "hypothetical";
+    }
+    return "?";
+}
+
+std::string inplace_conflict_report::summary() const {
+    std::ostringstream os;
+    os << "[inplace_conflict] skipped=" << (skipped_reason.empty() ? "-" : skipped_reason) << " candidates=" << candidates << " kept=" << kept
+       << " downgraded=" << entries.size() << " program_level_skipped=" << program_level_skipped << " skipped_mul=" << skipped_mul
+       << " via_upstream_after_downgrade=" << via_upstream_after_downgrade;
+    for (const auto& kv : downgrade_bits) {
+        int bit = 0;
+        while (bit < 31 && !((kv.first >> bit) & 1u)) {
+            ++bit;
+        }
+        os << " bit" << bit << "=" << kv.second;
+    }
+    for (const auto& e : entries) {
+        os << "\n  downgrade " << e.writer_id << " dep " << e.mem_dep << " " << to_string(e.origin) << " " << to_string(e.why) << " reasons=0x"
+           << std::hex << e.reasons << std::dec;
+    }
+    return os.str();
+}
+
+void set_inplace_conflict_fault_for_test(bool inject) {
+    g_inplace_conflict_fault.store(inject);
+}
+
+bool take_inplace_conflict_fault_for_test() {
+    return g_inplace_conflict_fault.exchange(false);
 }
 
 }  // namespace cldnn

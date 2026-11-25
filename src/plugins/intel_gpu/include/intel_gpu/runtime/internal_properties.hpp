@@ -134,6 +134,7 @@ static constexpr Property<bool, PropertyMutability::RW> enable_memory_pool{"GPU_
 static constexpr Property<bool, PropertyMutability::RW> enable_concat_holder_pool{"GPU_ENABLE_CONCAT_HOLDER_POOL"};
 static constexpr Property<bool, PropertyMutability::RW> enable_dynamic_concat_holder_pool{"GPU_ENABLE_DYNAMIC_CONCAT_HOLDER_POOL"};
 static constexpr Property<bool, PropertyMutability::RW> enable_alias_shadow_validation{"GPU_ENABLE_ALIAS_SHADOW_VALIDATION"};
+static constexpr Property<bool, PropertyMutability::RW> enable_inplace_conflict_resolution{"GPU_ENABLE_INPLACE_CONFLICT_RESOLUTION"};
 static constexpr Property<bool, PropertyMutability::RW> optimize_data{"GPU_OPTIMIZE_DATA"};
 static constexpr Property<bool, PropertyMutability::RW> allow_static_input_reorder{"GPU_ALLOW_STATIC_INPUT_REORDER"};
 static constexpr Property<bool, PropertyMutability::RW> partial_build_program{"GPU_PARTIAL_BUILD"};

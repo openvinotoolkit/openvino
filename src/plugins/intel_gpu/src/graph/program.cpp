@@ -29,6 +29,13 @@
 #include "class_level_memory_dependencies.h"
 #include "intel_gpu/graph/tensor_conversion.hpp"
 
+// Phase 1a Debug assertion D6 (zero Release cost); I-1a-4 lives in add_onednn_optimization_attributes.cpp under the same macro.
+#ifndef INPLACE_CONFLICT_DEBUG_CHECKS
+#    ifndef NDEBUG
+#        define INPLACE_CONFLICT_DEBUG_CHECKS 1
+#    endif
+#endif
+
 
 #include "allocation_order.hpp"
 #include "layout_optimizer.h"
@@ -828,6 +835,24 @@ void program::prepare_memory_dependencies() {
     // Phase 0.5a: behaviour-neutral. Builds the alias classes once (all queue types: OOOQ classes carry fb_oooq for shadow validation),
     // after every restriction pass and before the restrictions are published. Nothing reads it yet.
     _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
+#ifdef INPLACE_CONFLICT_DEBUG_CHECKS
+    // Phase 1a D6 (Debug): after refreeze_onednn_inplace_post_ops every surviving oneDNN sum writer is war-Safe on the final graph (design 17
+    // §3.2 I-1a-1; lemma 1: the graph does not change between the pass and this point). Slice 1a-1 covers onednn_sum only.
+    if (_config.get_enable_inplace_conflict_resolution() && _config.get_queue_type() == QueueTypes::in_order && !is_internal_program() &&
+        !is_body_program() && _alias_analysis) {
+        const auto axis = exec_axis::build(*this);
+        if (axis.valid()) {
+            const auto unsafe = find_unsafe_surviving_inplace_writers(*_alias_analysis, axis);
+            if (!unsafe.empty()) {
+                std::string msg;
+                for (const auto& a : unsafe) {
+                    msg += " [" + a.writer->id() + " dep " + std::to_string(a.mem_dep) + " reasons " + std::to_string(a.r.reasons) + "]";
+                }
+                OPENVINO_THROW("[GPU] 1a D6: a surviving oneDNN in-place sum is not war-Safe after resolve_inplace_conflicts:", msg);
+            }
+        }
+    }
+#endif
     // P1-B-S: class-level pool identity of static in-place concat holders. No-op unless enable_concat_holder_pool is set (default off).
     apply_opt_pass<class_level_memory_dependencies>();
     // Phase 0.5b: shadow validation of the alias analysis. Report only: it reads the graph and the engine, writes nothing but its own

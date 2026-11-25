@@ -2,10 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "pass_manager.h"
 #include "program_node.h"
 #include "program_helpers.h"
 #include "primitive_type.h"
+#include "primitive_inst.h"
+#include "alias_analysis.h"
+#include "alias_validation.h"
+#include "exec_axis.h"
+#include "intel_gpu/graph/program.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -17,6 +27,13 @@
 using namespace cldnn;
 
 // F5 Debug assertions D1/D2 (zero Release cost). Temporarily define F5_DEBUG_CHECKS to 1 to exercise them in an NDEBUG build.
+// Phase 1a Debug assertion I-1a-4 (zero Release cost); D6 lives in program.cpp under the same macro.
+#ifndef INPLACE_CONFLICT_DEBUG_CHECKS
+#    ifndef NDEBUG
+#        define INPLACE_CONFLICT_DEBUG_CHECKS 1
+#    endif
+#endif
+
 #ifndef F5_DEBUG_CHECKS
 #    ifndef NDEBUG
 #        define F5_DEBUG_CHECKS 1
@@ -47,10 +64,11 @@ std::shared_ptr<dnnl::memory::desc> expected_weights_md(const primitive_impl& im
     return onednn_params->_out_desc;
 }
 
-// Re-creates the oneDNN impl of `node` from the patched attributes. Same impl type only (C4); fails loudly when the new impl expects a
+// Re-creates the oneDNN impl of `node` from the patched attributes. `what` only feeds the error messages (e.g. "downgrading the in-place sum
+// to binary_add"). Same impl type only (C4); fails loudly when the new impl expects a
 // weights layout other than the one the weights dependency was already reordered to (C2: no reorder insertion at this stage, it runs
 // after propagate_constants, so a freshly inserted constant reorder would be neither folded nor given an impl).
-void rebuild_onednn_impl(program& p, program_node& node) {
+void rebuild_onednn_impl(program& p, program_node& node, const char* what) {
     const auto* old_impl = node.get_selected_impl();
     OPENVINO_ASSERT(old_impl != nullptr && old_impl->is_onednn());
     const auto old_manager = old_impl->m_manager;
@@ -69,18 +87,18 @@ void rebuild_onednn_impl(program& p, program_node& node) {
         try {
             new_impl = node.type()->create_impl(node);
         } catch (const std::exception& e) {
-            OPENVINO_THROW("[GPU] F5: cannot re-create the oneDNN impl of ", node.id(), " after downgrading its sum to binary_add: ", e.what());
+            OPENVINO_THROW("[GPU] F5: cannot re-create the oneDNN impl of ", node.id(), " after ", what, ": ", e.what());
         }
     }
     OPENVINO_ASSERT(new_impl && new_impl->is_onednn(),
-                    "[GPU] F5: re-creating the impl of ", node.id(), " after downgrading its sum to binary_add did not give a oneDNN impl");
+                    "[GPU] F5: re-creating the impl of ", node.id(), " after ", what, " did not give a oneDNN impl");
 
     if (!p.is_internal_program()) {
         const auto new_weights_md = expected_weights_md(*new_impl);
         const bool same = (!old_weights_md && !new_weights_md) || (old_weights_md && new_weights_md && *old_weights_md == *new_weights_md);
         OPENVINO_ASSERT(same,
-                        "[GPU] F5: downgrading the in-place sum of ", node.id(),
-                        " to binary_add changes the weights layout the oneDNN impl expects; the weights dependency was reordered for the old impl");
+                        "[GPU] F5: ", what, " (node ", node.id(), ")",
+                        " changes the weights layout the oneDNN impl expects; the weights dependency was reordered for the old impl");
     }
 
     node.set_selected_impl(std::move(new_impl));
@@ -88,11 +106,127 @@ void rebuild_onednn_impl(program& p, program_node& node) {
     auto new_params = node.get_kernel_impl_params();
     p.get_kernels_cache().add_kernels_source(*new_params, impl->get_kernels_source());
 }
+
+// Phase 1a: a frozen in-place oneDNN post-op of a static node (sum or binary_mul_inplace) that survived the F5 structural downgrade.
+struct inplace_candidate {
+    program_node* node = nullptr;
+    int32_t mem_dep = -1;
+    edge_origin origin = edge_origin::onednn_sum;
+};
+
+// Builds a plan that downgrades every candidate (no analysis involved): used when the analysis cannot give a verdict (no usable axis, or an
+// exception in Release). Downgrading is always the safe direction.
+inplace_conflict_plan downgrade_all(const std::vector<inplace_candidate>& cand, war_downgrade_reason why) {
+    inplace_conflict_plan plan;
+    for (const auto& c : cand) {
+        inplace_conflict_action a;
+        a.writer = c.node;
+        a.mem_dep = c.mem_dep;
+        a.origin = c.origin;
+        a.why = why;
+        plan.actions.push_back(std::move(a));
+    }
+    return plan;
+}
+
+// The switch and the program-level gates. Returns the reason the pass is skipped for the whole program ("" = run), design 17 §5.3.
+std::string program_level_skip_reason(const program& p, const std::vector<inplace_candidate>& cand) {
+    if (!p.get_config().get_enable_inplace_conflict_resolution()) {
+        return "disabled";
+    }
+    if (cand.empty()) {
+        return "no_candidates";
+    }
+    if (p.is_internal_program()) {
+        return "internal";   // internal programs (propagate_constants, unfused subgraphs) have no usable network-level time axis
+    }
+    if (p.is_body_program()) {
+        return "body";       // 1a-BODY: body networks have their own order and back edges
+    }
+    if (p.get_config().get_queue_type() != QueueTypes::in_order) {
+        return "oooq";       // unreachable with oneDNN (execution_config forces in_order), kept as the same guard war_safe has
+    }
+    return "";
+}
+
 }  // namespace
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
+void refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(program& p, const inplace_conflict_plan& plan, inplace_conflict_report& rep) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<program_node*> rebuild;
+    for (const auto& a : plan.actions) {
+        if (a.why == war_downgrade_reason::none) {
+            ++rep.kept;
+            continue;
+        }
+        if (a.origin == edge_origin::onednn_mul) {
+            // Slice 1a-1 plans the mul veto but only counts it. Justification (design audit N3): the structural rules M0 (the dependency has
+            // exactly one user) and M1 (the dependency is neither a view nor a concat slot) make the version set of a mul writer exactly {P_m},
+            // so its war verdict cannot be anything but Safe on a real graph; the executor lands in slice 1a-2.
+            ++rep.skipped_mul;
+            continue;
+        }
+        auto& n = p.get_node(a.writer->id());
+        const bool onednn = n.get_selected_impl() != nullptr && n.get_selected_impl()->is_onednn();
+        // origin onednn_sum (hypothetical edges only exist in tests, where they are never applied)
+        const bool changed = onednn ? n.downgrade_onednn_sum_to_binary_add(static_cast<size_t>(a.mem_dep))
+                                    : n.relabel_frozen_sum_as_binary_add(static_cast<size_t>(a.mem_dep));
+        OPENVINO_DEBUG_ASSERT(changed, "[GPU] 1a: no frozen sum entry for ", n.id(), " dep ", a.mem_dep);
+        GPU_DEBUG_LOG << "[1a] downgrade " << n.id() << " dep " << a.mem_dep << " origin " << to_string(a.origin) << " why " << to_string(a.why)
+                      << " reasons " << a.r.reasons << std::endl;
+        if (changed) {
+            if (onednn && std::find(rebuild.begin(), rebuild.end(), &n) == rebuild.end()) {
+                rebuild.push_back(&n);
+            }
+            inplace_conflict_report::entry e;
+            e.writer_id = n.id();
+            e.mem_dep = a.mem_dep;
+            e.origin = a.origin;
+            e.why = a.why;
+            e.reasons = a.r.reasons;
+            rep.entries.push_back(std::move(e));
+            for (uint32_t bit = 1; bit != 0 && bit <= wr_no_other_reader; bit <<= 1) {
+                if (a.r.reasons & bit) {
+                    ++rep.downgrade_bits[bit];
+                }
+            }
+        }
+    }
+    rep.via_upstream_after_downgrade = plan.via_upstream_after_downgrade;
+    // one rebuild per node (a node holds at most one in-place post-op, design H8, so F5 and 1a never both rebuild the same node)
+    for (auto* n : rebuild) {
+        rebuild_onednn_impl(p, *n, "downgrading the in-place sum to binary_add (Phase 1a)");
+    }
+#    ifdef INPLACE_CONFLICT_DEBUG_CHECKS
+    // I-1a-4: the downgraded nodes are consistent again: compiled chain matches the list, and no sum slot remains at the downgraded dependency.
+    for (const auto* n : rebuild) {
+        const auto* impl = n->get_selected_impl();
+        OPENVINO_ASSERT(impl != nullptr && impl->post_op_structure_matches(get_compiled_post_op_slots(n->get_fused_primitives_onednn(), 0, {}).kinds),
+                        "[GPU] 1a I-1a-4: the rebuilt impl of ", n->id(), " does not match its frozen post-op list");
+    }
+    for (const auto& a : plan.actions) {
+        if (a.why == war_downgrade_reason::none || a.origin == edge_origin::onednn_mul) {
+            continue;
+        }
+        const auto& n = p.get_node(a.writer->id());
+        for (const auto& e : n.get_fused_primitives_onednn()) {
+            OPENVINO_ASSERT(!((e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum) &&
+                              e.mem_dep == static_cast<size_t>(a.mem_dep)),
+                            "[GPU] 1a I-1a-4: ", n.id(), " still holds a frozen sum at the downgraded dependency ", a.mem_dep);
+        }
+    }
+#    endif
+#else
+    (void)p;
+    (void)plan;
+    (void)rep;
+#endif  // ENABLE_ONEDNN_FOR_GPU
+}
+
 void refreeze_onednn_inplace_post_ops::run(program& p) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<inplace_candidate> candidates;
     for (const auto& node_ptr : p.get_processing_order()) {
         auto& node = *node_ptr;
         if (node.is_dynamic() || node.get_fused_primitives_onednn().empty()) {
@@ -121,9 +255,52 @@ void refreeze_onednn_inplace_post_ops::run(program& p) {
             }
         }
         if (downgraded && is_onednn_impl) {
-            rebuild_onednn_impl(p, node);
+            rebuild_onednn_impl(p, node, "downgrading the in-place sum to binary_add");
+        }
+        // Phase 1a: what is still in place after F5 is the candidate set of resolve_inplace_conflicts (same traversal, no extra pass)
+        for (const auto& e : node.get_fused_primitives_onednn()) {
+            if (e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum) {
+                candidates.push_back({&node, static_cast<int32_t>(e.mem_dep), edge_origin::onednn_sum});
+            } else if (e.op_type == onednn_post_op_type::binary_mul_inplace) {
+                candidates.push_back({&node, static_cast<int32_t>(e.mem_dep), edge_origin::onednn_mul});
+            }
         }
     }
+
+    // Phase 1a resolve_inplace_conflicts: the single WAR detection point (design 17). Pure plan over war_safe, then one downgrade + rebuild
+    // per node. Only downgrades; never inserts a copy.
+    auto report = std::make_unique<inplace_conflict_report>();
+    report->candidates = candidates.size();
+    report->skipped_reason = program_level_skip_reason(p, candidates);
+    if (!report->skipped_reason.empty()) {
+        if (report->skipped_reason == "internal" || report->skipped_reason == "body" || report->skipped_reason == "oooq") {
+            report->program_level_skipped = candidates.size();
+        }
+    } else {
+        inplace_conflict_plan plan;
+        try {
+            OPENVINO_ASSERT(!take_inplace_conflict_fault_for_test(), "[GPU] 1a: injected analysis failure (test hook)");
+            const auto aa = alias_analysis::build(p);   // compile_time_envelope, no hypothetical edges
+            const auto axis = exec_axis::build(p);
+            if (!axis.valid()) {
+                OPENVINO_DEBUG_ASSERT(false, "[GPU] 1a: in_order program without a normalized exec axis after F9");
+                plan = downgrade_all(candidates, war_downgrade_reason::no_axis);
+            } else {
+                plan = plan_inplace_conflict_resolution(aa, axis);
+            }
+        } catch (...) {
+#    ifndef NDEBUG
+            throw;
+#    else
+            GPU_DEBUG_LOG << "[1a] analysis failed, downgrading every in-place candidate" << std::endl;
+            plan = downgrade_all(candidates, war_downgrade_reason::analysis_exception);
+#    endif
+        }
+        apply_inplace_conflict_plan(p, plan, *report);
+    }
+    GPU_DEBUG_LOG << report->summary() << std::endl;
+    p._inplace_conflict_report = std::move(report);
+
 #    ifdef F5_DEBUG_CHECKS
     // D1: I-F5-1 holds for every static node: a frozen sum survives only on a oneDNN impl and only if the decision function agrees.
     for (const auto& node_ptr : p.get_processing_order()) {

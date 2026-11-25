@@ -32,6 +32,9 @@
 #include "program_node.h"
 #include "program_helpers.h"
 #include "primitive_inst.h"
+#include "alias_validation.h"
+#include "exec_axis.h"
+#include "intel_gpu/runtime/internal_properties.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -389,7 +392,30 @@ TEST(inplace_alias_conflict, row8_noop_strided_slice_concat_dynamic) {
 //   conv1(in1) = X ; V = reshape(X) ; R = relu(X) (other reader of X's ORIGINAL data)
 //   conv3(conv2b(conv2(in2))) with eltwise sum fused, sum-input V.
 // ---------------------------------------------------------------------------------------------
-static void run_row11(format conv_fmt, bool use_resample_view = false, bool late_reader = false) {
+// Phase 1a (E1..E6): the oneDNN sum into a view whose owner has another reader.
+// The construction is probed first with the resolution switch OFF: the sum must really have formed at the end of the pipeline (frozen entry is
+// a sum, live predicate says sum, the view is cbo), otherwise GTEST_SKIP. Reader order is not forced by data in the non-late variants, so the
+// expectation is computed from exec_axis: the sum must be downgraded iff some reader of the owner class runs after the writer.
+// switch_off = E6: the same graph with the switch off must give wrong data for a late reader (otherwise the test proves nothing).
+static void expect_close_f32(const std::map<std::string, network_output>& outs, const std::map<std::string, network_output>& outs_ref,
+                             const std::string& id, stream& stream, size_t* bad_out = nullptr) {
+    const auto got = read_f32(outs.at(id), stream);
+    const auto ref = read_f32(outs_ref.at(id), stream);
+    ASSERT_EQ(got.size(), ref.size()) << id;
+    size_t bad = 0;
+    for (size_t i = 0; i < got.size(); ++i) {
+        if (std::abs(got[i] - ref[i]) > 2e-2f + 0.05f * std::abs(ref[i])) {
+            ++bad;
+        }
+    }
+    if (bad_out != nullptr) {
+        *bad_out += bad;
+    } else {
+        EXPECT_EQ(bad, 0u) << id << ": " << bad << " of " << got.size() << " elements differ beyond the fp16 tolerance";
+    }
+}
+
+static void run_row11(format conv_fmt, bool use_resample_view = false, bool late_reader = false, bool switch_off = false) {
     auto& engine = get_test_engine();
     auto& stream = get_test_stream();
     if (!engine.get_device_info().supports_immad) {
@@ -432,7 +458,12 @@ static void run_row11(format conv_fmt, bool use_resample_view = false, bool late
         t.add(reorder("out_sum", input_info("sum"), format::bfyx, data_types::f32));
         if (late_reader) {
             // reads X (conv1) AFTER the sum result exists: topologically forced to run after conv3
-            t.add(eltwise("late", input_info("conv1"), input_info("sum"), eltwise_mode::prod));
+            if (use_resample_view) {
+                t.add(eltwise("late", input_info("conv1"), input_info("sum"), eltwise_mode::prod));
+            } else {
+                t.add(reshape("sum_back", input_info("sum"), false, std::vector<int64_t>{1, 16, 32, 32}, ov::PartialShape{1, 16, 32, 32}));
+                t.add(eltwise("late", input_info("conv1"), input_info("sum_back"), eltwise_mode::prod));
+            }
             t.add(reorder("out_late", input_info("late"), format::bfyx, data_types::f32));
         }
     };
@@ -440,12 +471,16 @@ static void run_row11(format conv_fmt, bool use_resample_view = false, bool late
     add_topo(test_t); add_topo(ref_t);
 
     ov::intel_gpu::ImplementationDesc od = {conv_fmt, "", impl_types::onednn};
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    ov::intel_gpu::ImplForcingMap forced{{"conv1", od}, {"conv2", od}, {"conv2b", od}, {"conv3", od}};
-    if (use_resample_view)
-        forced.emplace("view", ov::intel_gpu::ImplementationDesc{conv_fmt, "", impl_types::ocl});
-    config.set_property(ov::intel_gpu::force_implementations(forced));
+    auto make_config = [&](bool resolution_on) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplForcingMap forced{{"conv1", od}, {"conv2", od}, {"conv2b", od}, {"conv3", od}};
+        if (use_resample_view)
+            forced.emplace("view", ov::intel_gpu::ImplementationDesc{conv_fmt, "", impl_types::ocl});
+        config.set_property(ov::intel_gpu::force_implementations(forced));
+        config.set_property(ov::intel_gpu::enable_inplace_conflict_resolution(resolution_on));
+        return config;
+    };
     ExecutionConfig config_ref = get_test_default_config(engine);
     config_ref.set_property(ov::intel_gpu::optimize_data(false));
 
@@ -453,47 +488,108 @@ static void run_row11(format conv_fmt, bool use_resample_view = false, bool late
     net_ref.set_input_data("in1", in1); net_ref.set_input_data("in2", in2);
     auto outs_ref = net_ref.execute();
 
-    auto prog = program::build_program(engine, test_t, config);
-    network net(prog, 0);
-    net.set_input_data("in1", in1); net.set_input_data("in2", in2);
-    auto outs = net.execute();
-    dump_flags(*prog, {"conv1", "view", "reader", "conv2", "conv2b", "conv3", "sum", "late"});
-    if (prog->has_node("conv3")) {
-        auto& c3 = prog->get_node("conv3");
+    // probe with the switch off: formation + order
+    auto probe = program::build_program(engine, test_t, make_config(false));
+    bool sum_formed = false;
+    int32_t sum_dep = -1;
+    if (probe->has_node("conv3") && probe->has_node("conv1") && probe->has_node("view")) {
+        auto& c3 = probe->get_node("conv3");
         for (const auto& fd : c3.get_fused_primitives()) {
             if (!fd.is_type<eltwise>() || !fd.has_outer_dep()) continue;
             auto ft = onednn_eltwise_fusing_helpers::get_add_fusing_type(c3, fd);
             std::cout << "[FLAGS] conv3 fused eltwise add_fusing_type=" << static_cast<int>(ft)
                       << " (sum=" << static_cast<int>(onednn_eltwise_fusing_helpers::add_fusing_type::sum) << ")"
                       << " outer_dep=" << c3.get_dependencies()[fd.outer_dep_start_idx].first->id() << std::endl;
+            // the sum must really write into the owner's buffer: the addend resolves (through views) to conv1, not to a reorder copy of it
+            const auto owner = program_helpers::resolve_buffer_owner(*c3.get_dependencies()[fd.outer_dep_start_idx].first,
+                                                                     program_helpers::view_resolution::settled_only).owner;
+            if (ft == onednn_eltwise_fusing_helpers::add_fusing_type::sum &&
+                onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(c3, fd.outer_dep_start_idx, eltwise_mode::sum) &&
+                owner != nullptr && owner->id() == "conv1") {
+                sum_formed = true;
+                sum_dep = fd.outer_dep_start_idx;
+            }
+        }
+        sum_formed = sum_formed && probe->get_node("view").can_be_optimized();
+    }
+    if (!sum_formed) {
+        dump_flags(*probe, {"conv1", "view", "reader", "conv2", "conv2b", "conv3", "sum", "late"});
+        GTEST_SKIP() << "construction not formed: the oneDNN sum into the view (frozen sum, live sum, cbo view whose owner is conv1) was not created by the passes";
+    }
+    const auto axis = exec_axis::build(*probe);
+    if (!axis.valid()) {
+        GTEST_SKIP() << "construction not formed: no valid exec_axis (queue type is not in_order)";
+    }
+    bool late_after = false;
+    const auto pos_w = axis.position(probe->get_node("conv3"));
+    for (const char* rid : {"reader", "late"}) {
+        if (probe->has_node(rid)) {
+            const auto pr = axis.position(probe->get_node(rid));
+            if (pos_w && pr && *pr > *pos_w) late_after = true;
         }
     }
+    std::cout << "[FLAGS] late_after=" << late_after << " sum_dep=" << sum_dep << std::endl;
 
-    EXPECT_EQ(read_f32(outs.at("out_reader"), stream), read_f32(outs_ref.at("out_reader"), stream));
-    EXPECT_EQ(read_f32(outs.at("out_sum"), stream), read_f32(outs_ref.at("out_sum"), stream));
-    if (late_reader) {
-        EXPECT_EQ(read_f32(outs.at("out_late"), stream), read_f32(outs_ref.at("out_late"), stream));
+    auto prog = program::build_program(engine, test_t, make_config(!switch_off));
+    network net(prog, 0);
+    net.set_input_data("in1", in1); net.set_input_data("in2", in2);
+    auto outs = net.execute();
+    dump_flags(*prog, {"conv1", "view", "reader", "conv2", "conv2b", "conv3", "sum", "late"});
+
+    const auto* rep = prog->get_inplace_conflict_report();
+    ASSERT_NE(rep, nullptr);
+    auto& c3 = prog->get_node("conv3");
+    size_t bad = 0;
+    for (const char* id : {"out_reader", "out_sum"}) expect_close_f32(outs, outs_ref, id, stream, switch_off ? &bad : nullptr);
+    if (late_reader) expect_close_f32(outs, outs_ref, "out_late", stream, switch_off ? &bad : nullptr);
+    if (switch_off) {
+        // E6 distinguishing: the switch is off, so the sum is kept; if a reader runs after it the data must be wrong
+        EXPECT_EQ(rep->skipped_reason, "disabled");
+        EXPECT_TRUE(onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(c3, sum_dep, eltwise_mode::sum));
+        if (!late_after) {
+            GTEST_SKIP() << "construction not formed: no reader of the owner runs after the sum in this processing order";
+        }
+        EXPECT_GT(bad, 0u) << "switch off + a reader after the writer must observe the overwritten owner (F4 row 11)";
+        return;
+    }
+    EXPECT_EQ(!rep->entries.empty(), late_after) << "downgrade iff some reader of the owner runs after the sum; " << rep->summary();
+    EXPECT_EQ(onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(c3, sum_dep, eltwise_mode::sum), !late_after);
+    if (late_after) {
+        ASSERT_EQ(rep->entries.size(), 1u) << rep->summary();
+        EXPECT_EQ(rep->entries[0].writer_id, "conv3");
+        EXPECT_EQ(rep->downgrade_bits.count(wr_late_reader), 1u) << rep->summary();
+        EXPECT_NE(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(c3), sum_dep);
     }
 }
 
-// Row 11 tests stay disabled: the oneDNN sum-into-view aliasing issue is not fixed by this change.
-TEST(inplace_alias_conflict, DISABLED_row11_onednn_sum_into_view_with_other_reader_fsv16) {
+// Row 11 (Phase 1a, resolve_inplace_conflicts): enabled. Each test probes the construction first (SKIP if the sum did not form) and expects a
+// downgrade iff a reader of the owner runs after the sum; see run_row11.
+TEST(inplace_alias_conflict, row11_onednn_sum_into_view_with_other_reader_fsv16) {
     run_row11(format::b_fs_yx_fsv16);
 }
 
-TEST(inplace_alias_conflict, DISABLED_row11_onednn_sum_into_view_with_other_reader_bfyx) {
+TEST(inplace_alias_conflict, row11_onednn_sum_into_view_with_other_reader_bfyx) {
     run_row11(format::bfyx);
 }
 
 // Same as above but the "view" is an optimized-out NEAREST resample of identical size (the pattern of the existing
 // optimized_resample_to_onednn_sum_reuse_correctness test) and conv1 (the owner) gets an additional reader.
-TEST(inplace_alias_conflict, DISABLED_row11_onednn_sum_into_resample_view_with_other_reader) {
+TEST(inplace_alias_conflict, row11_onednn_sum_into_resample_view_with_other_reader) {
     run_row11(format::b_fs_yx_fsv16, true);
 }
 
 // As above, plus a second reader of the owner conv1 that is forced (data dependency on the sum result) to run AFTER conv3.
-TEST(inplace_alias_conflict, DISABLED_row11_onednn_sum_into_resample_view_with_late_reader) {
+TEST(inplace_alias_conflict, row11_onednn_sum_into_resample_view_with_late_reader) {
     run_row11(format::b_fs_yx_fsv16, true, true);
+}
+
+// E6: the same constructions with the resolution switch OFF must give wrong data for the late reader (otherwise the downgrade is not needed).
+TEST(inplace_alias_conflict, row11_switch_off_late_reader_is_wrong_resample_view) {
+    run_row11(format::b_fs_yx_fsv16, true, true, /*switch_off=*/true);
+}
+
+TEST(inplace_alias_conflict, row11_switch_off_late_reader_is_wrong_reshape_view) {
+    run_row11(format::b_fs_yx_fsv16, false, true, /*switch_off=*/true);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -503,7 +599,7 @@ TEST(inplace_alias_conflict, DISABLED_row11_onednn_sum_into_resample_view_with_l
 //   A = conv1(in1); R = resample(A) (cbo view, same size); X = conv2(R); C = conv3(X) with sum(A) fused; Y = prod(R, relu(C)).
 // N10: the test first asserts that the sum is really formed; otherwise it reports "construction not formed" with GTEST_SKIP.
 // ---------------------------------------------------------------------------------------------
-TEST(inplace_alias_conflict, DISABLED_row11b_onednn_sum_into_owner_with_late_reader_of_ancestor_view) {
+TEST(inplace_alias_conflict, row11b_onednn_sum_into_owner_with_late_reader_of_ancestor_view) {
     auto& engine = get_test_engine();
     auto& stream = get_test_stream();
     if (!engine.get_device_info().supports_immad) {
@@ -542,10 +638,14 @@ TEST(inplace_alias_conflict, DISABLED_row11b_onednn_sum_into_owner_with_late_rea
     add_topo(test_t);
     add_topo(ref_t);
     ov::intel_gpu::ImplementationDesc od = {format::b_fs_yx_fsv16, "", impl_types::onednn};
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-        {"A", od}, {"X", od}, {"Cc", od}, {"R", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::ocl}}}));
+    auto make_config = [&](bool resolution_on) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"A", od}, {"X", od}, {"Cc", od}, {"R", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::ocl}}}));
+        config.set_property(ov::intel_gpu::enable_inplace_conflict_resolution(resolution_on));
+        return config;
+    };
     ExecutionConfig config_ref = get_test_default_config(engine);
     config_ref.set_property(ov::intel_gpu::optimize_data(false));
 
@@ -553,22 +653,44 @@ TEST(inplace_alias_conflict, DISABLED_row11b_onednn_sum_into_owner_with_late_rea
     net_ref.set_input_data("in1", in1);
     auto outs_ref = net_ref.execute();
 
-    auto prog = program::build_program(engine, test_t, config);
-    // N10: the construction must really contain the sum into A (outer dependency A) and the cbo view R
+    // N10 / C1: probe with the switch OFF: the construction must really contain the formed sum into A (frozen sum AND live sum, outer
+    // dependency A) and the cbo view R
+    auto probe = program::build_program(engine, test_t, make_config(false));
     bool sum_formed = false;
-    if (prog->has_node("Cc") && prog->has_node("A") && prog->has_node("R")) {
-        auto& c3 = prog->get_node("Cc");
+    int32_t sum_dep = -1;
+    if (probe->has_node("Cc") && probe->has_node("A") && probe->has_node("R")) {
+        auto& c3 = probe->get_node("Cc");
         for (const auto& fd : c3.get_fused_primitives()) {
             if (fd.is_type<eltwise>() && fd.has_outer_dep()) {
                 sum_formed = onednn_eltwise_fusing_helpers::get_add_fusing_type(c3, fd) == onednn_eltwise_fusing_helpers::add_fusing_type::sum &&
+                             onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(c3, fd.outer_dep_start_idx, eltwise_mode::sum) &&
                              c3.get_dependencies()[fd.outer_dep_start_idx].first->id() == "A";
+                sum_dep = fd.outer_dep_start_idx;
             }
         }
-        sum_formed = sum_formed && prog->get_node("R").can_be_optimized();
+        sum_formed = sum_formed && probe->get_node("R").can_be_optimized();
     }
     if (!sum_formed) {
-        dump_flags(*prog, {"A", "R", "X", "Cc", "C", "fC", "Y"});
+        dump_flags(*probe, {"A", "R", "X", "Cc", "C", "fC", "Y"});
         GTEST_SKIP() << "construction not formed: the oneDNN sum into A with the cbo view R was not created by the passes";
+    }
+    {
+        // Y consumes relu(C) and reads the view R of A, so it runs after the writer by data dependency
+        const auto axis = exec_axis::build(*probe);
+        if (!axis.valid() || !(axis.position(probe->get_node("Cc")) && axis.position(probe->get_node("Y")) &&
+                               *axis.position(probe->get_node("Cc")) < *axis.position(probe->get_node("Y")))) {
+            GTEST_SKIP() << "construction not formed: Y does not run after the writer on a valid exec_axis";
+        }
+    }
+    auto prog = program::build_program(engine, test_t, make_config(true));
+    {
+        const auto* rep = prog->get_inplace_conflict_report();
+        ASSERT_NE(rep, nullptr);
+        ASSERT_EQ(rep->entries.size(), 1u) << rep->summary();
+        EXPECT_EQ(rep->entries[0].writer_id, "Cc");
+        EXPECT_EQ(rep->downgrade_bits.count(wr_late_reader), 1u) << rep->summary();
+        EXPECT_FALSE(onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(prog->get_node("Cc"), sum_dep, eltwise_mode::sum));
+        EXPECT_NE(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(prog->get_node("Cc")), sum_dep);
     }
     network net(prog, 0);
     net.set_input_data("in1", in1);

@@ -75,6 +75,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_memory_pool, true, "Enab
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_concat_holder_pool, false, "P1-B-S: admit static in-place Concat holders to the memory pool as alias-class roots (class-level restrictions). Not part of the model cache key")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_dynamic_concat_holder_pool, false, "P1-B-D: also admit dynamic in-place Concat holders to the memory pool (only effective together with enable_concat_holder_pool). Not part of the model cache key")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_alias_shadow_validation, OV_GPU_ALIAS_SHADOW_VALIDATION_DEFAULT, "Phase 0.5b: alias shadow validation (report only, never changes allocation). Not part of the model cache key")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_inplace_conflict_resolution, true, "Phase 1a: downgrade oneDNN in-place sum / binary_mul_inplace whose war_safe verdict is not Safe (single detection point at the end of post_optimize_graph). Not part of the model cache key")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_static_input_reorder, false, "Controls if weights tensors can be reordered during model compilation to more friendly layout for specific kernel")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, custom_outputs, std::vector<std::string>{}, "List of output primitive names")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, force_implementations, ImplForcingMap{}, "Specifies the list of forced implementations for the primitives")

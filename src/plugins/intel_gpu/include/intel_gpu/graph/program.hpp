@@ -31,6 +31,7 @@ class layout_optimizer;
 class pass_manager;
 class alias_analysis;
 struct alias_validation_report;
+struct inplace_conflict_report;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
@@ -52,6 +53,7 @@ struct program {
     friend class reorder_inputs;                    // to be removed when possible
     friend class remove_redundant_reorders;         // to be removed when possible
     friend class post_optimize_weights;             // to be removed when possible
+    friend class refreeze_onednn_inplace_post_ops;  // Phase 1a: publishes the inplace_conflict_report
     friend class prepare_primitive_fusing_through;  // to be removed when possible
     friend class reorder_transfer;                  // to be removed when possible
     friend class fuse_constant_transposes;          // to be removed when possible
@@ -171,6 +173,8 @@ public:
     const alias_analysis* get_alias_analysis() const { return _alias_analysis.get(); }
     // Phase 0.5b: shadow validation report (report only). nullptr when enable_alias_shadow_validation is off or prepare_memory_dependencies did not run.
     const alias_validation_report* get_alias_validation_report() const { return _alias_validation_report.get(); }
+    // Phase 1a: record of the last resolve_inplace_conflicts run (counters / log; nullptr before post_optimize_graph ran the pass).
+    const inplace_conflict_report* get_inplace_conflict_report() const { return _inplace_conflict_report.get(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
@@ -340,6 +344,7 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::unique_ptr<alias_analysis> _alias_analysis;
     std::unique_ptr<alias_validation_report> _alias_validation_report;
+    std::unique_ptr<inplace_conflict_report> _inplace_conflict_report;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal = false;
     // Forced oneDNN impls optimization attribute
