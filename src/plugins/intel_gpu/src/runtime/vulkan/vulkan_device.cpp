@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "vulkan_api.hpp"
 #include "vulkan_required_device_profile.hpp"
 
 namespace cldnn {
@@ -20,9 +21,6 @@ namespace vulkan {
 namespace {
 
 constexpr const char* portability_subset_extension_name = "VK_KHR_portability_subset";
-void check_vk_result(VkResult result, const char* operation) {
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
-}
 
 std::string make_driver_version(const VkPhysicalDeviceProperties& properties) {
     std::ostringstream stream;

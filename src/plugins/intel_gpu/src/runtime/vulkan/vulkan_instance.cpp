@@ -8,18 +8,10 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/except.hpp"
 #include "vulkan_api.hpp"
 
 namespace cldnn {
 namespace vulkan {
-namespace {
-
-void check_vk_result(VkResult result, const char* operation) {
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
-}
-
-}  // namespace
 
 vulkan_instance::ptr vulkan_instance::create() {
     uint32_t extension_count = 0;
@@ -58,7 +50,11 @@ vulkan_instance::ptr vulkan_instance::create() {
 
     auto instance = ptr(new vulkan_instance(VK_NULL_HANDLE, has_portability_enumeration));
     VkInstance handle = VK_NULL_HANDLE;
-    check_vk_result(vkCreateInstance(&create_info, nullptr, &handle), "vkCreateInstance");
+    const auto result = vkCreateInstance(&create_info, nullptr, &handle);
+    if (result == VK_ERROR_INCOMPATIBLE_DRIVER || result == VK_ERROR_INITIALIZATION_FAILED) {
+        return {};
+    }
+    check_vk_result(result, "vkCreateInstance");
     instance->_instance = handle;
     return instance;
 }

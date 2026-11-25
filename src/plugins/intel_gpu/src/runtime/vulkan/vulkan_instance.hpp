@@ -15,6 +15,7 @@ class vulkan_instance {
 public:
     using ptr = std::shared_ptr<vulkan_instance>;
 
+    // Returns an empty pointer if the Vulkan implementation is unavailable.
     static ptr create();
 
     vulkan_instance(const vulkan_instance&) = delete;

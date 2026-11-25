@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "openvino/core/except.hpp"
+#include "vulkan_api.hpp"
 #include "vulkan_engine.hpp"
 #include "vulkan_memory.hpp"
 #include "vulkan_memory_internal.hpp"
@@ -21,7 +22,7 @@ namespace {
 class vulkan_bad_alloc final : public std::bad_alloc {
 public:
     vulkan_bad_alloc(const char* operation, VkResult result) noexcept {
-        std::snprintf(_message, sizeof(_message), "[GPU][Vulkan] %s failed with VkResult %d", operation, static_cast<int>(result));
+        std::snprintf(_message, sizeof(_message), "[GPU][Vulkan] %s failed with %s", operation, vk_result_name(result));
     }
 
     const char* what() const noexcept override {
@@ -38,7 +39,7 @@ void detail::check_vulkan_memory_result(VkResult result, const char* operation) 
     if (result == VK_ERROR_OUT_OF_HOST_MEMORY || result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
         throw vulkan_bad_alloc(operation, result);
     }
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
+    check_vk_result(result, operation);
 }
 
 namespace {

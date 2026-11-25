@@ -22,10 +22,6 @@ namespace cldnn {
 namespace vulkan {
 namespace {
 
-void check_vk_result(VkResult result, const char* operation) {
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
-}
-
 std::optional<uint32_t> find_compute_queue_family(VkPhysicalDevice physical_device) {
     uint32_t family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &family_count, nullptr);
@@ -74,6 +70,10 @@ std::map<std::string, device::ptr> vulkan_device_detector::get_available_devices
     OPENVINO_ASSERT(target_tile_id == -1, "[GPU][Vulkan] Sub-device/tile selection is not supported");
 
     const auto instance = vulkan_instance::create();
+    if (!instance) {
+        return {};
+    }
+
     uint32_t physical_device_count = 0;
     check_vk_result(vkEnumeratePhysicalDevices(instance->get(), &physical_device_count, nullptr), "vkEnumeratePhysicalDevices(count)");
 

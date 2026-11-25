@@ -14,13 +14,39 @@
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
-int main() {
+namespace {
+
+bool is_gpu_device(const std::string& device) {
+    return device == "GPU" || device.rfind("GPU.", 0) == 0;
+}
+
+void check_no_driver(ov::Core& core) {
+    OPENVINO_ASSERT(core.get_property("GPU", ov::available_devices).empty(), "Vulkan reported a device without a driver");
+    const auto devices = core.get_available_devices();
+    OPENVINO_ASSERT(std::none_of(devices.begin(), devices.end(), is_gpu_device), "The Core device list contains a GPU without a driver");
+
+    try {
+        core.get_property("GPU", ov::device::full_name);
+    } catch (const ov::Exception& error) {
+        OPENVINO_ASSERT(std::string_view(error.what()).find("no supported devices found") != std::string_view::npos,
+                        "Expected a diagnostic about unavailable GPU devices: ",
+                        error.what());
+        return;
+    }
+    OPENVINO_THROW("A device property query succeeded without a Vulkan device");
+}
+
+}  // namespace
+
+int main(int argc, char* argv[]) {
     try {
         ov::Core core;
+        if (argc == 2 && std::string_view(argv[1]) == "--expect-no-driver") {
+            check_no_driver(core);
+            return 0;
+        }
         const auto devices = core.get_available_devices();
-        const auto gpu = std::find_if(devices.begin(), devices.end(), [](const auto& device) {
-            return device == "GPU" || device.rfind("GPU.", 0) == 0;
-        });
+        const auto gpu = std::find_if(devices.begin(), devices.end(), is_gpu_device);
         OPENVINO_ASSERT(gpu != devices.end(), "No Vulkan GPU detected");
         const auto runtime = core.get_property(*gpu, "GPU_RUNTIME_TYPE").as<std::string>();
         OPENVINO_ASSERT(runtime == "VULKAN", "Expected the Vulkan runtime");

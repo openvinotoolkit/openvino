@@ -13,15 +13,12 @@
 #include <utility>
 
 #include "openvino/core/except.hpp"
+#include "vulkan_api.hpp"
 #include "vulkan_engine.hpp"
 #include "vulkan_memory.hpp"
 
 namespace cldnn::vulkan {
 namespace {
-
-void check(VkResult result, const char* operation) {
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed: ", result);
-}
 
 bool submission_completed(VkResult result) {
     return result == VK_SUCCESS || result == VK_ERROR_DEVICE_LOST;
@@ -110,14 +107,14 @@ vulkan_stream::vulkan_stream(const vulkan_engine& engine, const ExecutionConfig&
     VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     pool_info.queueFamilyIndex = _device->get_compute_queue_family();
-    check(vkCreateCommandPool(device, &pool_info, nullptr, &_pool), "vkCreateCommandPool");
+    check_vk_result(vkCreateCommandPool(device, &pool_info, nullptr, &_pool), "vkCreateCommandPool");
     try {
         VkCommandBufferAllocateInfo buffer_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
         buffer_info.commandPool = _pool;
         buffer_info.commandBufferCount = 1;
-        check(vkAllocateCommandBuffers(device, &buffer_info, &_commands), "vkAllocateCommandBuffers");
+        check_vk_result(vkAllocateCommandBuffers(device, &buffer_info, &_commands), "vkAllocateCommandBuffers");
         const VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        check(vkCreateFence(device, &fence_info, nullptr, &_completion), "vkCreateFence");
+        check_vk_result(vkCreateFence(device, &fence_info, nullptr, &_completion), "vkCreateFence");
     } catch (...) {
         vkDestroyCommandPool(device, _pool, nullptr);
         throw;
@@ -134,20 +131,20 @@ void vulkan_stream::submit(const std::function<void(VkCommandBuffer)>& record) c
     const std::lock_guard<std::mutex> lock(_device->get_queue_mutex());
     const VkDevice device = _device->get_device();
     const VkQueue queue = _device->get_compute_queue();
-    check(vkResetCommandPool(device, _pool, 0), "vkResetCommandPool");
+    check_vk_result(vkResetCommandPool(device, _pool, 0), "vkResetCommandPool");
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    check(vkBeginCommandBuffer(_commands, &begin), "vkBeginCommandBuffer");
+    check_vk_result(vkBeginCommandBuffer(_commands, &begin), "vkBeginCommandBuffer");
     memory_barrier(_commands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT);
     record(_commands);
     memory_barrier(_commands, VK_PIPELINE_STAGE_2_HOST_BIT, VK_ACCESS_2_HOST_READ_BIT);
-    check(vkEndCommandBuffer(_commands), "vkEndCommandBuffer");
+    check_vk_result(vkEndCommandBuffer(_commands), "vkEndCommandBuffer");
 
     VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &_commands;
-    check(vkResetFences(device, 1, &_completion), "vkResetFences");
-    check(vkQueueSubmit(queue, 1, &submit_info, _completion), "vkQueueSubmit");
+    check_vk_result(vkResetFences(device, 1, &_completion), "vkResetFences");
+    check_vk_result(vkQueueSubmit(queue, 1, &submit_info, _completion), "vkQueueSubmit");
     const auto result = vkWaitForFences(device, 1, &_completion, VK_TRUE, std::numeric_limits<uint64_t>::max());
     if (!submission_completed(result)) {
         // Keep the caller's buffers alive until the submission can be safely retired.
@@ -155,7 +152,7 @@ void vulkan_stream::submit(const std::function<void(VkCommandBuffer)>& record) c
             std::this_thread::sleep_for(std::chrono::milliseconds{1});
         }
     }
-    check(result, "vkWaitForFences");
+    check_vk_result(result, "vkWaitForFences");
 }
 
 // Transfers wait for the fence before returning.
