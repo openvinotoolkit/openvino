@@ -426,8 +426,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         };
 
         auto recalculate_biases = [&](data_node& original_node, data_node& second_node) -> bool {
-            // The sum is attached to original_node, so its other users would see it as well
-            if (original_node.get_users().size() != 1) {
+            // The sum is attached to original_node, so its other users or a requested output would see it as well
+            if (original_node.is_output() || original_node.get_users().size() != 1) {
                 return false;
             }
             auto original_mem = original_node.get_attached_memory_ptr();
@@ -518,6 +518,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<deconvolution>()) {
             auto& deconv = replace_candidate.as<deconvolution>();
+            // A requested output must keep the unbiased value
+            if (deconv.is_output()) {
+                continue;
+            }
             auto desc = deconv.get_primitive();
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
