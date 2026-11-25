@@ -1574,8 +1574,10 @@ public:
                 m_small_m_threshold = static_cast<size_t>(value);
             }
         }
+#ifdef ENABLE_ONEDNN_FOR_GPU
         m_prefill_f16 = gguf_prefill_f16_enabled();
         m_use_dq_act = !m_prefill_f16 && gguf_prefill_dq_act_enabled();
+#endif
     }
     FCGGUFOptImpl(const program_node& node, const RuntimeParams& params) : FCGGUFOptImpl() {
         add_stage(gguf_stage, params);
