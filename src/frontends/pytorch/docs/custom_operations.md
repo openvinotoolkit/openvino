@@ -24,7 +24,7 @@ resolves at every step:
 
 * `__pa__<layer>__<field>`: one per attention layer (`make_tagged_parameter`);
 * `__pa__shared__<field>`: one per conversion, reused by every layer (`get_or_make_shared_pa_param`, cached in
-  `TranslateSession::m_shared_pa_params`);
+  `PagedAttentionState::shared_params`);
 * `__pa__gdn__<layer>__<field>` and `__pa__gdn__shared__<field>`: the same for GDN.
 
 These Parameters aren't part of the decoded graph. `NodeContext::add_external_parameter` registers them with the
@@ -58,7 +58,7 @@ The last two arguments are optional for the translator, which accepts 4 to 6 inp
 * The per-layer K/V head geometry (`num_k_heads`, `k_head_size`, `num_v_heads`, `v_head_size`) is attached as
   rt_info of the operation, so `ConvertPagedAttnInputs` can size each layer's cache independently.
 * **KV sharing.** A layer with a non-empty `kv_sharing_target` reuses the target layer's processed K/V, kept in
-  `TranslateSession::m_pa_layer_kv`. vLLM hands such a layer raw K/V, and PagedAttention always writes, so the
+  `PagedAttentionState::layer_kv`. vLLM hands such a layer raw K/V, and PagedAttention always writes, so the
   write must be idempotent. The target is only found within one conversion; the backend refuses graphs where the
   two are in different partitions.
 * Features the operation has no input for (logits soft-capping, non-decoder attention) or that are passed empty

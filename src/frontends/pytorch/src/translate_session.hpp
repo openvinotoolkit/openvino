@@ -15,6 +15,18 @@
 
 namespace ov::frontend::pytorch {
 
+/// vLLM PagedAttention state shared by the PagedAttention translator calls of one translation session.
+struct PagedAttentionState {
+    // Shared PagedAttention side-channel Parameters, keyed by tag.
+    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> shared_params;
+    // Shared PA inputs derived from seq_lens and query_start_loc (past_lens, max_context_len, ...).
+    std::map<std::string, ov::Output<ov::Node>> shared_outputs;
+    // Per-layer PagedAttention key/value by vLLM layer name, reused by the layers sharing that KV cache.
+    std::map<std::string, std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> layer_kv;
+    // PagedAttention calls without a constant layer_name, to give each a distinct tag.
+    size_t unknown_layer_count{0};
+};
+
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, operation translators (including extensions) registered for this
 /// translation session.
@@ -70,14 +82,10 @@ public:
 
     OutputVector convert_node(const NodeContext& context);
 
-    // Shared PagedAttention side-channel Parameters, keyed by tag.
-    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> m_shared_pa_params;
-    // Shared PA inputs derived from seq_lens and query_start_loc (past_lens, max_context_len, ...).
-    std::map<std::string, ov::Output<ov::Node>> m_shared_pa_outputs;
-    // Per-layer PagedAttention key/value by vLLM layer name, reused by the layers sharing that KV cache.
-    std::map<std::string, std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> m_pa_layer_kv;
-    // PagedAttention calls without a constant layer_name, to give each a distinct tag.
-    size_t m_unknown_pa_layer_count{0};
+    /// \brief Returns the vLLM PagedAttention state shared across translator calls of this session
+    PagedAttentionState& get_paged_attention_state() {
+        return m_pa_state;
+    }
 
 private:
     const frontend::InputModel::Ptr m_input_model;
@@ -89,6 +97,7 @@ private:
     std::map<std::string, uint64_t> m_op_statistics;
     // Set per converted graph in convert_pytorch_model; the decoder type never varies within one.
     bool m_is_fx = false;
+    PagedAttentionState m_pa_state;
 };
 
 }  // namespace ov::frontend::pytorch
