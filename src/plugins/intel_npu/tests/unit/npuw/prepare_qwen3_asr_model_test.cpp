@@ -592,8 +592,18 @@ TEST(Qwen3ASRPropertiesTest, ValidatesEncoderCapacityAndUsesDefault) {
     EXPECT_EQ(prefill->model->input("encoder_hidden_states").get_shape(), (ov::Shape{1, 64, 64}));
 }
 
-TEST(Qwen3ASRInferRequestTest, SharedHeadMatchesUnsharedPrefillAndDecode) {
+class Qwen3ASRSharedHeadPrecisionTest : public ::testing::TestWithParam<bool> {};
+
+TEST_P(Qwen3ASRSharedHeadPrecisionTest, SharedHeadMatchesUnsharedPrefillAndDecode) {
     ov::Core core;
+    const bool use_bf16 = GetParam();
+    if (use_bf16) {
+        const auto capabilities = core.get_property("CPU", ov::device::capabilities);
+        if (std::find(capabilities.begin(), capabilities.end(), "BF16") == capabilities.end()) {
+            GTEST_SKIP() << "The CPU does not support BF16";
+        }
+    }
+    const float tolerance = use_bf16 ? 1e-2f : 1e-5f;
     const auto model = make_stateful_qwen_decoder();
     ov::AnyMap properties{{"NPU_USE_NPUW", "YES"},
                           {"NPUW_LLM", "YES"},
@@ -604,7 +614,8 @@ TEST(Qwen3ASRInferRequestTest, SharedHeadMatchesUnsharedPrefillAndDecode) {
                           {"NPUW_LLM_PREFILL_HINT", "STATIC"},
                           {"NPUW_LLM_GENERATE_PYRAMID", "NO"},
                           {"NPUW_ONLINE_PIPELINE", "NONE"},
-                          {"NPUW_DEVICES", "CPU"}};
+                          {"NPUW_DEVICES", "CPU"},
+                          {ov::hint::inference_precision.name(), use_bf16 ? ov::element::bf16 : ov::element::f32}};
     std::vector<ov::InferRequest> requests;
     for (const bool shared_head : {true, false}) {
         SCOPED_TRACE(shared_head);
@@ -640,7 +651,7 @@ TEST(Qwen3ASRInferRequestTest, SharedHeadMatchesUnsharedPrefillAndDecode) {
         ASSERT_EQ(actual.get_element_type(), ov::element::f32);
         for (size_t index = 0; index < actual.get_size(); ++index) {
             ASSERT_TRUE(std::isfinite(actual.data<const float>()[index]));
-            EXPECT_NEAR(actual.data<const float>()[index], expected.data<const float>()[index], 1e-5f);
+            EXPECT_NEAR(actual.data<const float>()[index], expected.data<const float>()[index], tolerance);
             if (!previous_logits.empty() && actual.data<const float>()[index] != previous_logits[index]) {
                 changed = true;
             }
@@ -762,5 +773,11 @@ TEST(PrepareQwen3ASRModelTest, RejectsUnsupportedExportInsteadOfSilentlyFreezing
 
 INSTANTIATE_TEST_SUITE_P(ExportedMaskTypes, PrepareQwen3ASRMaskTest, ::testing::Bool());
 INSTANTIATE_TEST_SUITE_P(SharedHead, Qwen3ASRInferRequestTest, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(CPUPrecision,
+                         Qwen3ASRSharedHeadPrecisionTest,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "BF16" : "F32";
+                         });
 
 }  // namespace
