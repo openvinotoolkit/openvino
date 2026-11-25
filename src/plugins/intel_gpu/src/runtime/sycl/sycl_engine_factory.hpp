@@ -14,7 +14,7 @@ namespace cldnn {
 namespace sycl {
 
 // Factory for sycl_engine creation.
-std::shared_ptr<cldnn::engine> create_sycl_engine(const device::ptr device, runtime_types runtime_type);
+std::shared_ptr<cldnn::engine> create_sycl_engine(device::ptr device, runtime_types runtime_type);
 
 }  // namespace sycl
 }  // namespace cldnn

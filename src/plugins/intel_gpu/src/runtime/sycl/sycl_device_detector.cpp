@@ -23,22 +23,16 @@
 
 namespace {
 bool does_device_match_config(const ::sycl::device& device) {
-    if (!device.is_gpu()) {
-        return false;
-    }
-
 #if defined(OV_GPU_VENDOR_NVIDIA)
     // The plugin is built for NVIDIA GPUs through the CUDA backend only, so skip GPUs of other vendors
     // (e.g. an Intel iGPU next to an NVIDIA dGPU) and NVIDIA GPUs exposed through other backends
     // (e.g. OpenCL), which cannot run the CUDA device images of this build: otherwise they would be
     // listed and could even become the default "GPU" device
-    if (device.get_info<::sycl::info::device::vendor_id>() != cldnn::NVIDIA_VENDOR_ID ||
-        device.get_backend() != ::sycl::backend::ext_oneapi_cuda) {
-        return false;
-    }
+    return device.is_gpu() && device.get_info<::sycl::info::device::vendor_id>() == cldnn::NVIDIA_VENDOR_ID &&
+           device.get_backend() == ::sycl::backend::ext_oneapi_cuda;
+#else
+    return device.is_gpu();
 #endif
-
-    return true;
 }
 }  // namespace
 
@@ -76,10 +70,7 @@ static std::vector<::sycl::device> getSubDevices(const ::sycl::device& rootDevic
     return subDevices;
 }
 
-std::map<std::string, device::ptr> sycl_device_detector::get_available_devices(void* user_context,
-                                                                               void* user_device,
-                                                                               int ctx_device_id,
-                                                                               int target_tile_id) const {
+std::map<std::string, device::ptr> sycl_device_detector::get_available_devices(void* user_context, void* user_device, int ctx_device_id, int target_tile_id) {
     std::vector<device::ptr> devices_list;
     if (user_context != nullptr) {
         devices_list = create_device_list_from_user_context(user_context, ctx_device_id);
@@ -116,7 +107,7 @@ std::map<std::string, device::ptr> sycl_device_detector::get_available_devices(v
     return ret;
 }
 
-std::vector<device::ptr> sycl_device_detector::create_device_list() const {
+std::vector<device::ptr> sycl_device_detector::create_device_list() {
     auto platforms = ::sycl::platform::get_platforms();
 
     std::vector<device::ptr> supported_devices;
@@ -124,8 +115,9 @@ std::vector<device::ptr> sycl_device_detector::create_device_list() const {
         try {
             auto devices = platform.get_devices();
             for (auto& device : devices) {
-                if (!does_device_match_config(device))
+                if (!does_device_match_config(device)) {
                     continue;
+                }
                 supported_devices.emplace_back(std::make_shared<sycl_device>(device, ::sycl::context(device), platform));
             }
         } catch (std::exception& ex) {
@@ -137,15 +129,16 @@ std::vector<device::ptr> sycl_device_detector::create_device_list() const {
     return supported_devices;
 }
 
-std::vector<device::ptr> sycl_device_detector::create_device_list_from_user_context(void* user_context, int ctx_device_id) const {
+std::vector<device::ptr> sycl_device_detector::create_device_list_from_user_context(void* user_context, int ctx_device_id) {
     auto& ctx = *(static_cast<::sycl::context*>(user_context));
     auto all_devices = ctx.get_devices();
 
     std::vector<device::ptr> supported_devices;
     for (size_t i = 0; i < all_devices.size(); i++) {
         auto& device = all_devices[i];
-        if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id)
+        if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id) {
             continue;
+        }
         supported_devices.emplace_back(std::make_shared<sycl_device>(device, ctx, device.get_platform()));
     }
 
@@ -153,7 +146,7 @@ std::vector<device::ptr> sycl_device_detector::create_device_list_from_user_cont
     return supported_devices;
 }
 
-std::vector<device::ptr> sycl_device_detector::create_device_list_from_user_device(void* user_device) const {
+std::vector<device::ptr> sycl_device_detector::create_device_list_from_user_device(void* user_device) {
     OPENVINO_THROW("[GPU] User specified device is not supported for SYCL runtime.");
 }
 

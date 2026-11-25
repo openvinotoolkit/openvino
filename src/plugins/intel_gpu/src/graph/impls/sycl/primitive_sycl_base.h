@@ -34,7 +34,7 @@ struct typed_primitive_sycl_impl : public typed_primitive_impl<PType> {
     bool supports_replay() const override { return false; }
 
 protected:
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
+    void init_kernels(const kernels_cache& /*cache*/, const kernel_impl_params& /*impl_params*/) override {}
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override { }
     void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override { }
@@ -47,14 +47,13 @@ protected:
                 events.push_back(std::make_shared<ocl::ocl_event>(cl::Event(e, true)));
             }
             return stream.aggregate_events(events);
-        } else {
-            return nullptr;
         }
+        return nullptr;
     }
 
     static std::vector<::sycl::event> to_sycl_events(std::vector<event::ptr> const& deps) {
         std::vector<::sycl::event> events;
-        for (auto& dep : deps) {
+        for (const auto& dep : deps) {
             if (auto sycl_base_ev = std::dynamic_pointer_cast<sycl::sycl_base_event>(dep)) {
                 events.push_back(sycl_base_ev->get());
             }
@@ -62,7 +61,7 @@ protected:
         return events;
     }
 
-    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& /*impl_params*/) const override {
         return {};
     }
 };

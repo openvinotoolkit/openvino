@@ -89,9 +89,8 @@ const ::sycl::device& sycl_engine::get_sycl_device() const {
 allocation_type sycl_engine::detect_usm_allocation_type(const void* memory) const {
     if (use_unified_shared_memory()) {
         return sycl::gpu_usm::detect_allocation_type(this, memory);
-    } else {
-        return allocation_type::unknown;
     }
+    return allocation_type::unknown;
 }
 
 memory::ptr sycl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
@@ -142,7 +141,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
                             ") + offset (", byte_offset,
                             ") exceeds parent buffer size (", parent_mem_size, ")");
 
-            auto& new_buf = downcast<const sycl::gpu_usm>(memory);
+            const auto& new_buf = downcast<const sycl::gpu_usm>(memory);
             auto sub_buffer = sycl::UsmMemory(new_buf.get_buffer(), requested_mem_size, byte_offset);
 
             return std::make_shared<sycl::gpu_usm>(this,
@@ -231,20 +230,21 @@ memory::ptr sycl_engine::reinterpret_handle(const layout& new_layout, shared_mem
 }
 
 bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
-    if (mem1.get_engine() != this || mem2.get_engine() != this)
+    if (mem1.get_engine() != this || mem2.get_engine() != this) {
         return false;
-    if (mem1.get_allocation_type() != mem2.get_allocation_type())
+    }
+    if (mem1.get_allocation_type() != mem2.get_allocation_type()) {
         return false;
-    if (&mem1 == &mem2)
+    }
+    if (&mem1 == &mem2) {
         return true;
+    }
 
     if (!memory_capabilities::is_usm_type(mem1.get_allocation_type())) {
         return downcast<const sycl::gpu_buffer>(mem1).get_buffer() ==
                downcast<const sycl::gpu_buffer>(mem2).get_buffer();
     }
-    else
-        return downcast<const sycl::gpu_usm>(mem1).get_buffer() ==
-               downcast<const sycl::gpu_usm>(mem2).get_buffer();
+    return downcast<const sycl::gpu_usm>(mem1).get_buffer() == downcast<const sycl::gpu_usm>(mem2).get_buffer();
 }
 
 void* sycl_engine::get_user_context(runtime_types rt_type) const {
@@ -270,7 +270,7 @@ std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {
 }
 
 bool sycl_engine::extension_supported(::sycl::aspect extension) const {
-    auto& sycl_device = get_sycl_device();
+    const auto& sycl_device = get_sycl_device();
     return sycl_device.has(extension);
 }
 

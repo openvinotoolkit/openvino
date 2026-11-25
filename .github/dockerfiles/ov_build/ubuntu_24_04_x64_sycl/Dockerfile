@@ -48,6 +48,41 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
+RUN <<'SETUP'
+cat > /usr/local/bin/clang-tidy-sycl <<'BASH'
+#!/bin/bash
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Analyze both SYCL compilation modes and fail if either pass reports an error.
+set -u
+compiler=/opt/intel/oneapi/compiler/2024.2/bin/compiler
+sycl=false
+host_args=()
+for arg do
+    case "$arg" in
+        --version) exec "$compiler/clang" -cc1 -version;;
+        -fsycl)
+            sycl=true
+            host_args+=(-fno-sycl -Xclang -fsycl-is-host -D__SYCL_ANY_DEVICE_HAS_ANY_ASPECT__=1
+                -isystem /opt/intel/oneapi/compiler/2024.2/include/sycl
+                -isystem /opt/intel/oneapi/compiler/2024.2/include/sycl/stl_wrappers
+                -isystem /opt/intel/oneapi/compiler/2024.2/include
+                -isystem /opt/intel/oneapi/compiler/2024.2/opt/compiler/include)
+            ;;
+        *) host_args+=("$arg");;
+    esac
+done
+status=0
+"$compiler/clang-tidy" "$@" || status=$?
+if "$sycl"; then
+    "$compiler/clang-tidy" "${host_args[@]}" || status=$?
+fi
+exit "$status"
+BASH
+chmod +x /usr/local/bin/clang-tidy-sycl
+SETUP
+
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \

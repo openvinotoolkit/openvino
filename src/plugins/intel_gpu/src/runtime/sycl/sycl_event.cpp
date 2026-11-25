@@ -27,7 +27,7 @@ instrumentation::profiling_interval get_profiling_interval(instrumentation::prof
     return { stage, period };
 }
 
-const std::pair<uint64_t, uint64_t> get_profiling_period_value(const ::sycl::event& event, instrumentation::profiling_stage stage) {
+std::pair<uint64_t, uint64_t> get_profiling_period_value(const ::sycl::event& event, instrumentation::profiling_stage stage) {
     switch (stage) {
         case instrumentation::profiling_stage::starting:
             return std::make_pair(event.get_profiling_info<::sycl::info::event_profiling::command_submit>(),
@@ -46,7 +46,7 @@ namespace cldnn::sycl::utils {
 std::vector<::sycl::event> get_sycl_events(const std::vector<event::ptr>& events) {
     std::vector<::sycl::event> sycl_events;
     for (const auto& ev : events) {
-        if (auto sycl_base_ev = dynamic_cast<sycl_base_event*>(ev.get())) {
+        if (auto* sycl_base_ev = dynamic_cast<sycl_base_event*>(ev.get())) {
             sycl_events.push_back(sycl_base_ev->get());
         }
     }
@@ -56,8 +56,9 @@ std::vector<::sycl::event> get_sycl_events(const std::vector<event::ptr>& events
 }  // namespace cldnn::sycl::utils
 
 void sycl_event::set_sycl_callback() {
-    if (_callback_set)
+    if (_callback_set) {
         return;
+    }
 
     try {
         _queue.submit([this](::sycl::handler& cgh) {
@@ -96,7 +97,7 @@ bool sycl_event::is_set_impl() {
     return true;
 }
 
-bool sycl_event::add_event_handler_impl(event_handler, void*) {
+bool sycl_event::add_event_handler_impl(event_handler /*handler*/, void* /*data*/) {
     set_sycl_callback();
     return true;
 }
@@ -110,10 +111,11 @@ static const std::vector<instrumentation::profiling_stage> profiling_stages {
 
 
 bool sycl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
-    if (!is_event_profiled(_queue))
+    if (!is_event_profiled(_queue)) {
         return true;
+    }
 
-    for (auto& stage : profiling_stages) {
+    for (const auto& stage : profiling_stages) {
         uint64_t start;
         uint64_t end;
 
@@ -166,10 +168,11 @@ bool sycl_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
             continue;
         }
 
-        if (!is_event_profiled(be->_queue))
+        if (!is_event_profiled(be->_queue)) {
             continue;
+        }
 
-        for (auto& stage : profiling_stages) {
+        for (const auto& stage : profiling_stages) {
             std::pair<uint64_t, uint64_t> ev_duration;
             try {
                 ev_duration = get_profiling_period_value(be->_event, stage);
@@ -187,9 +190,8 @@ bool sycl_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
                         if (!ev_duration_merged) {
                             ev_duration_merged = true;
                             break;
-                        } else {
-                            it = durations.erase(it);
                         }
+                        it = durations.erase(it);
                     } else {
                         if (!ev_duration_merged) {
                             duration.first = std::min(duration.first, ev_duration.first);
@@ -218,7 +220,7 @@ bool sycl_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
         }
     }
 
-    for (auto& stage : profiling_stages) {
+    for (const auto& stage : profiling_stages) {
         uint64_t sum = 0;
         for (auto& duration : all_durations[stage]) {
             sum += (duration.second - duration.first);

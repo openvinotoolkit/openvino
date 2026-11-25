@@ -99,10 +99,12 @@ public:
         return static_cast<std::byte*>(_usm_pointer->ptr()) + _offset;
     }
 
-    bool is_empty() const { return _usm_pointer.get() == nullptr; }
+    bool is_empty() const {
+        return _usm_pointer == nullptr;
+    }
 
     void allocateHost(size_t size) {
-        auto ptr = ::sycl::malloc_host(size, _context);
+        auto* ptr = ::sycl::malloc_host(size, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate host USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
         _offset = 0;
@@ -110,7 +112,7 @@ public:
     }
 
     void allocateShared(size_t size) {
-        auto ptr = ::sycl::malloc_shared(size, _device, _context);
+        auto* ptr = ::sycl::malloc_shared(size, _device, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate shared USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
         _offset = 0;
@@ -118,7 +120,7 @@ public:
     }
 
     void allocateDevice(size_t size) {
-        auto ptr = ::sycl::malloc_device(size, _device, _context);
+        auto* ptr = ::sycl::malloc_device(size, _device, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate device USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
         _offset = 0;
@@ -151,7 +153,10 @@ inline bool operator!=(const UsmMemory &lhs, const UsmMemory &rhs) {
 
 struct gpu_buffer : public lockable_gpu_mem, public memory {
     gpu_buffer(sycl_engine* engine, const layout& new_layout, const ::sycl::buffer<std::byte, 1>& root_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
-    gpu_buffer(sycl_engine* engine, const layout& new_layout, const size_t byte_offset, const ::sycl::buffer<std::byte, 1>& root_buffer,
+    gpu_buffer(sycl_engine* engine,
+               const layout& new_layout,
+               size_t byte_offset,
+               const ::sycl::buffer<std::byte, 1>& root_buffer,
                std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_buffer(sycl_engine* engine, const layout& layout);
 

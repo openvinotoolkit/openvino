@@ -1,4 +1,4 @@
-name: Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)
+name: Clang-tidy static analysis
 on:
   workflow_dispatch:
   pull_request:
@@ -69,7 +69,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_24_04_x64_sycl\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -82,6 +82,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
+            ov_build/ubuntu_24_04_x64_sycl
             ov_build/ubuntu_24_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
@@ -171,12 +172,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [COMBINED, ZE-no-oneDNN]
+        mode: [COMBINED, ZE-no-oneDNN, SYCL]
+        include:
+          - mode: SYCL
+            cmake-extra-args: >-
+              -DCLANG_TIDY=/usr/local/bin/clang-tidy-sycl
+              -DCLANG_TIDY_REQUIRED_VERSION=19
+              -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+              -DENABLE_STRICT_DEPENDENCIES=OFF
+              -DENABLE_SYSTEM_OPENCL=ON
+              -DENABLE_SYSTEM_FLATBUFFERS=OFF
+              -DENABLE_INTEL_CPU=OFF
+              -DENABLE_INTEL_NPU=OFF
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
       cmake-build-parallel-level: '15'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build[matrix.mode == 'SYCL' && 'ubuntu_24_04_x64_sycl' || 'ubuntu_24_04_x64'] }}
       cmake-generator: 'Ninja Multi-Config'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu_${{ matrix.mode }}
       build-target: ${{ matrix.mode == 'COMBINED' && 'openvino_intel_gpu_plugin openvino_intel_gpu_plugin_ocl' || 'openvino_intel_gpu_plugin' }}
@@ -185,6 +197,7 @@ jobs:
         -DENABLE_INTEL_GPU=ON
         -DGPU_RT_TYPE=${{ matrix.mode == 'ZE-no-oneDNN' && 'ZE' || matrix.mode }}
         -DENABLE_ONEDNN_FOR_GPU=${{ matrix.mode == 'ZE-no-oneDNN' && 'OFF' || 'ON' }}
+        ${{ matrix.cmake-extra-args }}
       build-extra-args: '--quiet -k 0'
 
   Overall_Status:

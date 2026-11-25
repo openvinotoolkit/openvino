@@ -98,8 +98,8 @@ struct DivOp : public EltwiseOpBase<DivOp> {
  * Non-commutative operation that returns a raised to the power of b
  */
 struct PowOp : public EltwiseOpBase<PowOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const noexcept {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const noexcept {
         return ::sycl::pow(a, b);
     }
 };
@@ -113,8 +113,8 @@ struct PowOp : public EltwiseOpBase<PowOp> {
  * Commutative operation that returns the maximum of two operands
  */
 struct MaxOp : public EltwiseOpBase<MaxOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return ::sycl::max(a, b);
     }
 };
@@ -124,8 +124,8 @@ struct MaxOp : public EltwiseOpBase<MaxOp> {
  * Commutative operation that returns the minimum of two operands
  */
 struct MinOp : public EltwiseOpBase<MinOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return ::sycl::min(a, b);
     }
 };
@@ -139,8 +139,8 @@ struct MinOp : public EltwiseOpBase<MinOp> {
  * Commutative operation that returns the square of the difference
  */
 struct SquaredDiffOp : public EltwiseOpBase<SquaredDiffOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         const auto diff = a - b;
         return diff * diff;
     }
@@ -155,8 +155,8 @@ struct SquaredDiffOp : public EltwiseOpBase<SquaredDiffOp> {
  * Commutative boolean operation that returns 1 if equal, 0 otherwise
  */
 struct EqOp : public EltwiseOpBase<EqOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return (a == b) ? 1 : 0;
     }
 };
@@ -166,8 +166,8 @@ struct EqOp : public EltwiseOpBase<EqOp> {
  * Commutative boolean operation that returns 1 if not equal, 0 otherwise
  */
 struct NeOp : public EltwiseOpBase<NeOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return (a != b) ? 1 : 0;
     }
 };
@@ -177,8 +177,8 @@ struct NeOp : public EltwiseOpBase<NeOp> {
  * Non-commutative boolean operation that returns 1 if a < b, 0 otherwise
  */
 struct LtOp : public EltwiseOpBase<LtOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return (a < b) ? 1 : 0;
     }
 };
@@ -188,8 +188,8 @@ struct LtOp : public EltwiseOpBase<LtOp> {
  * Non-commutative boolean operation that returns 1 if a <= b, 0 otherwise
  */
 struct LeOp : public EltwiseOpBase<LeOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return (a <= b) ? 1 : 0;
     }
 };
@@ -199,8 +199,8 @@ struct LeOp : public EltwiseOpBase<LeOp> {
  * Non-commutative boolean operation that returns 1 if a > b, 0 otherwise
  */
 struct GtOp : public EltwiseOpBase<GtOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return (a > b) ? 1 : 0;
     }
 };
@@ -210,8 +210,8 @@ struct GtOp : public EltwiseOpBase<GtOp> {
  * Non-commutative boolean operation that returns 1 if a >= b, 0 otherwise
  */
 struct GeOp : public EltwiseOpBase<GeOp> {
-    template<typename T1, typename T2>
-    inline auto apply(const T1& a, const T2& b) const {
+    template <typename T1, typename T2>
+    auto apply(const T1& a, const T2& b) const {
         return (a >= b) ? 1 : 0;
     }
 };
@@ -305,11 +305,11 @@ template<template<typename> class MemAdapter>
                           const EltwiseOperator& op) {
     if (dtype == ov::element::f32) {
         return run_eltwise<MemAdapter<float>>(queue, events, input0, input1, output, in0_shape, in1_shape, out_shape, op);
-    } else if (dtype == ov::element::f16) {
-        return run_eltwise<MemAdapter<::sycl::half>>(queue, events, input0, input1, output, in0_shape, in1_shape, out_shape, op);
-    } else {
-        OPENVINO_THROW("No instance for given types found: ", dtype);
     }
+    if (dtype == ov::element::f16) {
+        return run_eltwise<MemAdapter<::sycl::half>>(queue, events, input0, input1, output, in0_shape, in1_shape, out_shape, op);
+    }
+    OPENVINO_THROW("No instance for given types found: ", dtype);
 }
 
 } // namespace
@@ -376,20 +376,25 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
                                                      input0, input1, output,
                                                      in0_shape, in1_shape, out_shape, op);
             return stream.create_base_event(ev);
-        } else if (all_usm) {
+        }
+        if (all_usm) {
             auto ev = run_eltwise<cldnn::sycl::UsmAdapter>(out_t, sycl_queue, sycl_events,
                                                   input0, input1, output,
                                                   in0_shape, in1_shape, out_shape, op);
             return stream.create_base_event(ev);
-        } else {
-            OPENVINO_THROW("Eltwise SYCL requires all inputs/outputs to be either sycl_buffer or USM. "
-                           "Got in0=", in0_alloc_type, ", in1=", in1_alloc_type, ", out=", out_alloc_type);
         }
+        OPENVINO_THROW("Eltwise SYCL requires all inputs/outputs to be either sycl_buffer or USM. "
+                       "Got in0=",
+                       in0_alloc_type,
+                       ", in1=",
+                       in1_alloc_type,
+                       ", out=",
+                       out_alloc_type);
     }
 
     static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         return std::make_unique<eltwise_sycl>(engine, config, nullptr /*weights_reorder*/);
     }
 };

@@ -20,13 +20,13 @@ namespace sycl {
 namespace {
 
 // SPIR-V magic number (little-endian layout in memory)
-constexpr uint32_t SPIRV_MAGIC = 0x07230203u;
+constexpr uint32_t SPIRV_MAGIC = 0x07230203U;
 
 // OpEntryPoint opcode
-constexpr uint16_t SPIRV_OP_ENTRY_POINT = 15u;
+constexpr uint16_t SPIRV_OP_ENTRY_POINT = 15U;
 
 // Execution model value for OpenCL kernels
-constexpr uint32_t SPIRV_EXEC_MODEL_KERNEL = 6u;
+constexpr uint32_t SPIRV_EXEC_MODEL_KERNEL = 6U;
 
 // Read a uint32_t from an unaligned/potentially-aliased byte pointer via
 // memcpy.  Compilers (GCC/Clang/MSVC) fold this into a single load
@@ -41,8 +41,9 @@ inline uint32_t read_u32(const void* p) noexcept {
 // Validates the SPIR-V module header: non-null pointer, at least the 5-word
 // header (magic, version, generator, bound, schema) present, and correct magic.
 bool is_spirv(const void* data, size_t bytes) {
-    if (!data || bytes < 5 * sizeof(uint32_t) || bytes % sizeof(uint32_t) != 0)
+    if (!data || bytes < 5 * sizeof(uint32_t) || bytes % sizeof(uint32_t) != 0) {
         return false;
+    }
     return read_u32(data) == SPIRV_MAGIC;
 }
 
@@ -60,8 +61,8 @@ std::vector<std::string> extract_spirv_kernel_names(const void* data, size_t byt
     size_t i = 5;  // skip the five-word header
     while (i < word_count) {
         const uint32_t first_word  = read_u32(p + i * sizeof(uint32_t));
-        const uint16_t opcode      = static_cast<uint16_t>(first_word & 0xFFFFu);
-        const uint16_t instr_words = static_cast<uint16_t>(first_word >> 16u);
+        const uint16_t opcode = static_cast<uint16_t>(first_word & 0xFFFFU);
+        const uint16_t instr_words = static_cast<uint16_t>(first_word >> 16U);
 
         // An instruction must contain at least the opcode word and must not
         // extend past the end of the module.  (word_count - i) is safe from
@@ -138,11 +139,11 @@ void sycl_kernel::launch(::sycl::handler& cgh,
             if (!arg.mem) {
                 OPENVINO_THROW("[GPU] sycl_kernel::launch: null memory for BUFFER arg at index ", arg_idx);
             }
-            if (auto* gu = dynamic_cast<const gpu_usm*>(arg.mem.get())) {
+            if (const auto* gu = dynamic_cast<const gpu_usm*>(arg.mem.get())) {
                 // USM pointer: pass the device pointer directly.
                 void* ptr = gu->buffer_ptr();
                 cgh.set_arg(arg_idx, ptr);
-            } else if (auto* gb = dynamic_cast<const gpu_buffer*>(arg.mem.get())) {
+            } else if (const auto* gb = dynamic_cast<const gpu_buffer*>(arg.mem.get())) {
                 // SYCL buffer: create a read-write accessor on the
                 // (sub-)buffer so the runtime registers the dependency and
                 // passes the cl_mem to the OpenCL kernel argument.
@@ -192,7 +193,7 @@ void sycl_kernel::launch(::sycl::handler& cgh,
     // passes OpenCL globalWorkSize={r2, r1, r0}.  To preserve the OpenCL IDs seen by
     // the kernel we must reverse the dimensions:
     //   SYCL range<3>(g2, g1, g0) -> OpenCL globalWorkSize = {g0, g1, g2}
-    const size_t g0 = gws.size() > 0 ? gws[0] : 1;
+    const size_t g0 = !gws.empty() ? gws[0] : 1;
     const size_t g1 = gws.size() > 1 ? gws[1] : 1;
     const size_t g2 = gws.size() > 2 ? gws[2] : 1;
 

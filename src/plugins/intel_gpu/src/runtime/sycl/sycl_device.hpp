@@ -14,7 +14,7 @@ namespace sycl {
 
 struct sycl_device : public device {
 public:
-    sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, const ::sycl::platform& platform);
+    sycl_device(::sycl::device dev, const ::sycl::context& ctx, const ::sycl::platform& platform);
 
     const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
@@ -26,11 +26,11 @@ public:
     const ::sycl::context& get_context() const { return _context; }
     const ::sycl::platform& get_platform() const { return _platform; }
 
-    bool is_same(const device::ptr other) override;
+    bool is_same(device::ptr other) override;
 
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
 
-    ~sycl_device() = default;
+    ~sycl_device() override = default;
 
 private:
     ::sycl::context _context;
