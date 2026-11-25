@@ -48,8 +48,7 @@ Node* row_selection_source(Node* node) {
 }
 
 std::shared_ptr<v1::Reshape> row_selection_indices(Node* node) {
-    const auto unsqueeze = as_type<v0::Unsqueeze>(node);
-    const auto gather = unsqueeze ? as_type<v8::Gather>(unsqueeze->get_input_node_ptr(0)) : nullptr;
+    const auto gather = as_type<v8::Gather>(node);
     if (!gather || gather->get_batch_dims() != 0)
         return nullptr;
     const auto axis = as_type_ptr<v0::Constant>(gather->get_input_node_shared_ptr(2));
@@ -84,8 +83,7 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
             const auto indices = row_selection_indices(ancestor);
             if (!indices)
                 continue;
-            const auto gather = ancestor->get_input_node_ptr(0);
-            const auto data_ancestors = ancestors(gather->input_value(0));
+            const auto data_ancestors = ancestors(ancestor->input_value(0));
             const bool after_attention = std::any_of(data_ancestors.begin(), data_ancestors.end(), [](Node* item) {
                 return is_type<PagedAttentionExtension>(item);
             });

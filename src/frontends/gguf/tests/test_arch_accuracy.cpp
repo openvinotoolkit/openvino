@@ -1032,16 +1032,12 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunesRowsAtFirstSharedKvLayer) {
         ASSERT_NE(attention, nullptr) << il;
         EXPECT_EQ(attention->attributes.count("last_query_rows"), il >= first_shared ? 1u : 0u) << il;
     }
-    const auto* shared_kv_batch_major = find_node("shared_kv_inp_batch_major");
-    ASSERT_NE(shared_kv_batch_major, nullptr);
-    EXPECT_EQ(shared_kv_batch_major->op_type, "GGML_OP_TRANSPOSE");
     EXPECT_NE(find_node("inp_pos_shared"), nullptr);
     EXPECT_EQ(find_node("blk." + std::to_string(config.n_layer - 1) + ".attn_out_g"), nullptr);
     EXPECT_EQ(find_node("blk." + std::to_string(config.n_layer - 1) + ".inpSA_g"), nullptr);
 
     for (int il = first_shared; il < config.n_layer; ++il) {
         EXPECT_NE(find_node("blk." + std::to_string(il) + ".per_layer_slice_sel"), nullptr);
-        EXPECT_NE(find_node("blk." + std::to_string(il) + ".per_layer_slice_batch_major"), nullptr);
     }
     EXPECT_EQ(find_node("blk.0.per_layer_slice_sel"), nullptr);
 

@@ -250,13 +250,6 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il,
     if (selects_per_layer_embedding_rows(il)) {
         pl_slice_used = p + "per_layer_slice_sel";
         m_emit.add_op("GGML_OP_GET_ROWS", pl_slice_used, {pl_slice, "inp_out_ids"}, 0);
-        if (prunes_shared_kv_rows() && il >= first_shared_kv_layer()) {
-            pl_slice_used = m_emit.add_op("GGML_OP_TRANSPOSE",
-                                          p + "per_layer_slice_batch_major",
-                                          {pl_slice_used},
-                                          0,
-                                          {{"perm", std::vector<int64_t>{1, 0, 2, 3}}});
-        }
     }
 
     // gate: cur -> inp_gate.weight -> GELU -> [1,1,T,pe]
@@ -508,11 +501,6 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
             if (prune_shared_kv_rows && il == first_shared_kv_layer()) {
                 full_token_ref = cur;
                 cur = m_emit.add_op("GGML_OP_GET_ROWS", "shared_kv_inp", {cur, "inp_out_ids"}, 0);
-                cur = m_emit.add_op("GGML_OP_TRANSPOSE",
-                                    "shared_kv_inp_batch_major",
-                                    {cur},
-                                    0,
-                                    {{"perm", std::vector<int64_t>{1, 0, 2, 3}}});
 
                 // Positions are stored as a vector on the last axis; reshape it to rows for GET_ROWS.
                 auto positions_as_rows =
