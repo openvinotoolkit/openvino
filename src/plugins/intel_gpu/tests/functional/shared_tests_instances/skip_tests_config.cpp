@@ -238,12 +238,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
         }
 
         if (is_xe2_or_newer()) {
-            // MFDNN-15824. OOB read in oneDNN JIT GEMM
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight/.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_input_4d/.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_(unaligned|no_slm|fp4|fp8|mxfp4|mxfp8|scalar_wzp|precomputed_reduction_with_gs16)/.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_gemm_output_coherency/.*weights_shape=\[4096,6144\]_group_size=128_weights_precision=(u3|u4)_activations_precision=f16_.*transpose_weights=1_.*param_weights=0_dyn_quan_group_size=0_.*)"));
-
             // CVS-197687. Disable the rest of failed tests to run CI validation.
             patterns.push_back(std::regex(R"__(.*ConvolutionInPlaceCrop\.smoke_GPU_second_half_feature_crop_no_oob/.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_BasicRandomUniform/.*modelType=f16_alignment=tensorflow_.*)__"));
