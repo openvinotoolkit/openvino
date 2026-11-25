@@ -183,7 +183,9 @@ Look for a concrete mechanism:
 - additional launches, synchronization, or host-blocking waits;
 - hot-path allocation or repeated invariant work;
 - larger or longer-lived temporary storage;
-- lost fusion, reduced parallelism, or slower implementation selection;
+- lost fusion, reduced parallelism, or slower implementation selection,
+  including selection changed by input rank, layout, or element type;
+- weights that lose compression eligibility or a larger serialized model;
 - increased compilation, loading, first-inference, or cache-import/export cost.
 
 Trace allocation formulas against actual indexing bounds, supported workloads,
@@ -194,7 +196,9 @@ first inference, cache operations, and peak memory consumption.
 
 For newly enabled paths, assess absolute resource use and expected performance.
 For changed existing paths, seek comparison against the baseline under relevant
-workloads and hardware.
+workloads and hardware. A change motivated by one metric, such as peak memory or
+decode latency, needs evidence that other affected metrics (accuracy, model
+size, prefill latency) did not regress.
 
 A source-level mechanism may establish added work or allocation growth without
 establishing a measurable regression. State that distinction. Do not claim a

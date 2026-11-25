@@ -29,6 +29,32 @@ under `src/bindings/python/src/openvino/frontend/` and
   multi-output producer; use the original value or `node->output(i)`.
 - Review Python decoders as conversion logic: preserve types, shapes,
   constants, attributes, input/output order, and framework-object lifetimes.
+- Name-based matching of inputs, outputs, or parameters must handle the names
+  each decoder actually produces, such as TorchScript debug-name suffixes
+  (`x.1`) and renamed aliases. Unmatched names must not silently drop shape or
+  type information.
+
+## Downstream graph consumers
+
+The emitted graph is an input to weight compression, plugin transformations,
+and serialization. A graph that converts and infers correctly can still
+regress compressed accuracy, model size, or performance.
+
+- When a change alters how weights reach `MatMul`, `Gather`, or `Convolution`
+  (constant element type, `Convert` placement, or `Split`, `VariadicSplit`,
+  `Slice`, `Reshape`, `Transpose` between the constant and its consumer), check
+  that the weight remains a `Constant`, optionally followed by `Convert`,
+  directly feeding the consumer. NNCF weight compression and plugin
+  compressed-weight patterns rely on this. Request a before/after comparison
+  of models exported with int8 and int4 weight compression (for example,
+  `optimum-cli export openvino --weight-format int8`): `.bin` size and
+  uncompressed f16/bf16/f32 weights on MatMul paths.
+- Rank or layout changes at `MatMul` inputs or outputs, and new nodes between
+  `MatMul` and its eltwise or attention consumers, can change plugin
+  implementation selection (for example, GPU dynamic quantization depends on
+  the FullyConnected input rank) and block fusions such as FullyConnected with
+  bias/eltwise, MoE, and SDPA. Flag them and request prefill and decode
+  measurements on CPU and GPU for representative weight types.
 
 ## Graph efficiency
 
@@ -79,6 +105,13 @@ numerical error for a supported scenario, rather than type width alone.
   with runtime values and dependent output shapes, not only rejection cases.
 - Check expected-failure and skip lists when support expands; newly passing
   strict xfails fail CI.
+- Operator-level tests do not cover changes to shared dispatch, decoders,
+  graph-wide passes, or weight handling. For such changes, ask which real
+  models were converted and validated, covering the affected model families
+  (for example, dense and MoE LLMs, VLMs, hybrid recurrent models, and
+  quantized models), and treat missing or pending validation as a gap.
+  Recommend splitting large changes that alter several capture paths or
+  frontend stages at once.
 
 ## Additional guidance
 
