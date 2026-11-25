@@ -378,8 +378,8 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format(ov
                                       [&device_source_ids = source_ids](size_t sum, const auto& pair) {
                                           return device_source_ids.count(pair.first) ? sum + pair.second.size() : sum;
                                       });
-        LOG_DEBUG("WeightSharingContextAccessor::serialize_native_format - total weights for device "
-                  << device << ": " << num_weights);
+        LOG_DEBUG("WeightSharingContextAccessor::serialize_native_format - total weights for device " << device << ": "
+                                                                                                      << num_weights);
         stream & num_weights;
 
         // serialize weights in the incrementing order
@@ -420,10 +420,9 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format(ov
                     source_staging_buffer_descriptor && "WeightSharingContextAccessor: staging buffer for source id: ",
                     source_id,
                     " must have a valid descriptor");
-                LOG_VERB(
-                    "WeightSharingContextAccessor::serialize_native_format - serializing weight data for uid: "
-                    << uid << ", source_id: " << source_staging_buffer_descriptor->get_id()
-                    << ", size: " << source_staging_buffer->size());
+                LOG_VERB("WeightSharingContextAccessor::serialize_native_format - serializing weight data for uid: "
+                         << uid << ", source_id: " << source_staging_buffer_descriptor->get_id()
+                         << ", size: " << source_staging_buffer->size());
                 stream.bytes(source_staging_buffer->get_ptr(weight_meta_map.m_offset), weight_meta_map.m_size);
             }
         }
@@ -451,7 +450,7 @@ std::set<WeightSharingContextAccessor::UID_Type> ov::npuw::weights::WeightSharin
         std::size_t storage_size = 0;
         stream & storage_size;
         LOG_DEBUG("WeightSharingContextAccessor::consume_from - total weights for device " << device << ": "
-                                                                                                << storage_size);
+                                                                                           << storage_size);
         auto remote_ctx = device == "CPU" ? nullptr : core.get_default_context(device)._ptr;
         for (std::size_t j = 0; j < storage_size; ++j) {
             UID_Type uid = -1;

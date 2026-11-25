@@ -170,8 +170,8 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         {
             // Serialize mapper and context updates among workers in this parallel_for.
             std::lock_guard weight_sharing_guard(m_weight_sharing_mutex);
-            auto shared_source = this->request_shared_weight_source_buffer(
-                uid, t.get_element_type(), t.get_shape(), "CPU");
+            auto shared_source =
+                this->request_shared_weight_source_buffer(uid, t.get_element_type(), t.get_shape(), "CPU");
             stored_tensor.tensor = tensor_factory(nullptr, t.get_element_type(), t.get_shape(), shared_source);
         }
         // Get ownership of the weights, might be a mmaped object during import

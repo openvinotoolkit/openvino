@@ -33,10 +33,10 @@ ov::Tensor tensor_factory(std::shared_ptr<ov::IRemoteContext> remote_ctx,
                           const ov::Shape& shape,
                           std::shared_ptr<ov::AlignedBuffer> staging_buffer_ptr = {});
 
-// Maps NPUW transformation UIDs to the OpenVINO weight-sharing context IDs that are represented by the pair of source and constant IDs.
-// The direct mapping is needed to associate transformation UIDs with their corresponding sources of constants in the weight-sharing context during the evaluation procedure.
-// The reverse mapping is needed to serialize to a NPUW blob and deserialize from a NPUw blob using the weight-sharing context.
-// This class is not thread-safe.
+// Maps NPUW transformation UIDs to the OpenVINO weight-sharing context IDs that are represented by the pair of source
+// and constant IDs. The direct mapping is needed to associate transformation UIDs with their corresponding sources of
+// constants in the weight-sharing context during the evaluation procedure. The reverse mapping is needed to serialize
+// to a NPUW blob and deserialize from a NPUw blob using the weight-sharing context. This class is not thread-safe.
 class TransformationWeightContextIDMapper {
 public:
     using UID_Type = int64_t;
@@ -65,10 +65,11 @@ private:
     std::unordered_map<WSContextIDs, UID_Type, ContextIDsHash> m_transformation_uids;
 };
 
-// Adapts an OpenVINO weight-sharing context for NPUW transformed weights. 
-// It must be called during the evaluations of LazyTensors, to register transformed weights as shared weight sources 
-// in ov::weight_sharing::Context, retains metadata needed to reconstruct transformed tensors, and serializes or restores weights in NPUW blobs.
-// This class does not provide synchronization; the caller ov::npuw::weights::Bank must serialize concurrent access itself.
+// Adapts an OpenVINO weight-sharing context for NPUW transformed weights.
+// It must be called during the evaluations of LazyTensors, to register transformed weights as shared weight sources
+// in ov::weight_sharing::Context, retains metadata needed to reconstruct transformed tensors, and serializes or
+// restores weights in NPUW blobs. This class does not provide synchronization; the caller ov::npuw::weights::Bank must
+// serialize concurrent access itself.
 class WeightSharingContextAccessor {
 public:
     using UID_Type = TransformationWeightContextIDMapper::UID_Type;
@@ -103,8 +104,7 @@ protected:
     /* CVS-198039
      * See a comment below
      */
-    const ov::op::v0::Constant& get_transformed_constant(const std::string& device,
-                                                         UID_Type transformation_uid) const;
+    const ov::op::v0::Constant& get_transformed_constant(const std::string& device, UID_Type transformation_uid) const;
 
     TransformationWeightContextIDMapper ids_mapper;
 
