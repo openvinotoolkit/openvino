@@ -56,7 +56,8 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Install CUDA
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb
-RUN apt-get update && apt-get install -y cuda-runtime-12-2 cuda-12-2 && apt-get install -y \
+RUN apt-get update && apt-get install -y --allow-downgrades --allow-change-held-packages \
+    cuda-runtime-12-2 cuda-12-2 && apt-get install -y --allow-downgrades --allow-change-held-packages \
     libcudnn8=8.9.7.*-1+cuda12.2 \
     libcudnn8-dev=8.9.7.*-1+cuda12.2 \
     libcudnn8-samples=8.9.7.*-1+cuda12.2 \
