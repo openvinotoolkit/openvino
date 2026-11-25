@@ -7,6 +7,9 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/op/proposal.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
@@ -2052,4 +2055,39 @@ TEST_F(IRFrontendTests, read_value_layer_with_missing_variable_id_attribute) {
     OV_EXPECT_THROW(core.read_model(testModelV11, ov::Tensor()),
                     ov::Exception,
                     testing::HasSubstr("Variable is not initialized."));
+}
+
+// Internal ops emitted directly by frontends (here GatedDeltaNet, as produced by the GGUF frontend for hybrid
+// linear-attention models) serialize with version "extension". The IR frontend must read them back without the user
+// registering an extension, otherwise ov::save_model output of such a model cannot be loaded.
+TEST_F(IRFrontendTests, internal_gated_delta_net_round_trip) {
+    const auto et = ov::element::f32;
+    auto query = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, 4, 8});
+    auto key = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, 4, 8});
+    auto value = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, 4, 16});
+    auto state = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, 4, 8, 16});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, 4});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, 4});
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(
+        ov::OutputVector{query, key, value, state, gate, beta}, true, 1e-5F, 2e-5F);
+    auto model = std::make_shared<ov::Model>(gdn->outputs(), ov::ParameterVector{query, key, value, state, gate, beta});
+
+    std::stringstream xml, bin;
+    ov::pass::Serialize(xml, bin).run_on_model(model);
+    const auto xml_str = xml.str();
+    ASSERT_NE(xml_str.find("type=\"GatedDeltaNet\" version=\"extension\""), std::string::npos);
+
+    std::shared_ptr<ov::Model> read;
+    OV_ASSERT_NO_THROW(read = core.read_model(xml_str, ov::Tensor()));
+    std::shared_ptr<ov::op::internal::GatedDeltaNet> read_gdn;
+    for (const auto& op : read->get_ordered_ops()) {
+        if (auto g = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(op))
+            read_gdn = g;
+    }
+    ASSERT_TRUE(read_gdn);
+    EXPECT_TRUE(read_gdn->get_fuse_qk_l2norm());
+    EXPECT_FLOAT_EQ(read_gdn->get_q_l2_norm_eps(), 1e-5F);
+    EXPECT_FLOAT_EQ(read_gdn->get_k_l2_norm_eps(), 2e-5F);
+    EXPECT_EQ(read_gdn->get_output_partial_shape(0), gdn->get_output_partial_shape(0));
+    EXPECT_EQ(read_gdn->get_output_partial_shape(1), gdn->get_output_partial_shape(1));
 }
