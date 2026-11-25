@@ -29,7 +29,7 @@ inline void expect_success(cl_int error, void *handle, const std::string& messag
     }
 }
 
-bool supports_interop(cl_device_id device) {
+bool has_interop_extension(cl_device_id device) {
     size_t size = 0;
     if (clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, nullptr, &size) != CL_SUCCESS || size == 0) {
         return false;
@@ -114,13 +114,8 @@ std::vector<std::pair<ze_driver_handle_t, ze_device_handle_t>> find_ze_devices()
 } // namespace
 
 bool ze_ocl_interop::check_support(ze_device_handle_t ze_device) const {
-    try {
-        auto* ocl_dev = find_ocl_device(ze_device);
-        return (ocl_dev != nullptr);
-    }
-    catch(...) {
-        return false;
-    }
+    auto it = _device_map.find(ze_device);
+    return it != _device_map.end() && it->second != nullptr && has_interop_extension(it->second);
 };
 
 void ze_ocl_interop::init() {
@@ -132,7 +127,7 @@ void ze_ocl_interop::init() {
         _device_map[ze_device.second] = nullptr;
     }
     for (auto &ocl_device : ocl_devices) {
-        if (!supports_interop(ocl_device)) {
+        if (!has_interop_extension(ocl_device)) {
             continue;
         }
         ze_device_handle_t ze_dev = nullptr;
