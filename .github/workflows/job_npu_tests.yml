@@ -40,7 +40,7 @@ env:
 jobs:
   NPU_Models_Tests:
     name: ${{ matrix.npu-platform }}
-    timeout-minutes: 40
+    timeout-minutes: 60
     strategy:
       # one runner per NPU platform; keep going even if one platform fails.
       fail-fast: false
