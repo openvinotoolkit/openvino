@@ -55,10 +55,6 @@ public:
                                    uint32_t pattern,
                                    const std::vector<event::ptr>& dependencies) const;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::stream& get_onednn_stream() override;
-#endif
-
 private:
     void submit(const std::function<void(VkCommandBuffer)>& record) const;
 

@@ -153,12 +153,6 @@ std::shared_ptr<kernel_builder> vulkan_engine::create_kernel_builder() const {
     OPENVINO_THROW("[GPU][Vulkan] Kernel compilation is unavailable");
 }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-void vulkan_engine::create_onednn_engine(const ExecutionConfig&) {
-    OPENVINO_THROW("[GPU][Vulkan] oneDNN interop is not supported");
-}
-#endif
-
 std::shared_ptr<cldnn::engine> create_vulkan_engine(const device::ptr& device, runtime_types runtime_type) {
     return std::make_shared<vulkan_engine>(device, runtime_type);
 }

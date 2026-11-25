@@ -57,10 +57,6 @@ public:
     std::shared_ptr<vulkan_device> get_vulkan_device_object() const;
     std::shared_ptr<vulkan_buffer_region> allocate_buffer_region(size_t size);
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    void create_onednn_engine(const ExecutionConfig&) override;
-#endif
-
 private:
     std::shared_ptr<vulkan_device> get_vulkan_device_object_impl() const;
     std::shared_ptr<vulkan_memory_allocator> _memory_allocator;
