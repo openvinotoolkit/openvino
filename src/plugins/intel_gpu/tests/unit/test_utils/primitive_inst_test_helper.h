@@ -31,5 +31,11 @@ public:
         const auto original_weights = inst->dep_memory_ptr(weights_idx);
         inst->_reordered_weights_cache.add(original_weights->get_layout(), original_weights);
     }
+    static void cache_weights(const std::shared_ptr<primitive_inst>& inst, const memory::ptr& weights) {
+        inst->_reordered_weights_cache.add(weights->get_layout(), weights);
+    }
+    static memory::ptr get_cached_weights(const std::shared_ptr<primitive_inst>& inst, const layout& weights_layout) {
+        return inst->_reordered_weights_cache.get(weights_layout);
+    }
 };
 }  // namespace cldnn

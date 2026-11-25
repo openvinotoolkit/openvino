@@ -14,6 +14,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -24,9 +25,11 @@ namespace {
 const std::string DECOR_NONE = "None";
 const std::string DECOR_TRANSPOSE = "Transpose";
 const std::string DECOR_RESHAPE = "Reshape";
+const std::string DECOR_SPLIT_RESHAPE = "Split_Reshape";
 
 void validate_decoration(const std::string& decoration) {
-    OPENVINO_ASSERT(decoration == DECOR_NONE || decoration == DECOR_TRANSPOSE || decoration == DECOR_RESHAPE,
+    OPENVINO_ASSERT(decoration == DECOR_NONE || decoration == DECOR_TRANSPOSE || decoration == DECOR_RESHAPE ||
+                        decoration == DECOR_SPLIT_RESHAPE,
                     "Unsupported conv1x1 decoration: ",
                     decoration);
 }
@@ -75,10 +78,14 @@ void Conv1x1WeightCompressedToMatmulTest::SetUp() {
     init_input_shapes({shape_params.data_shape});
     const auto& param_pshape = inputDynamicShapes[0];
 
-    // Cin is the Convolution input channel: last dim for the Transpose input layout, dim 1 otherwise.
-    const auto Cin = (in_decoration == DECOR_TRANSPOSE ? param_pshape[param_pshape.size() - 1] : param_pshape[1]).get_length();
-    OPENVINO_ASSERT(in_decoration != DECOR_RESHAPE || param_pshape.size() == 2,
-                    "Reshape input decoration expects a 2D [N, Cin] activation");
+    // Cin is the Convolution input channel: last dim for the Transpose input layout, half the channels for the
+    // Split_Reshape layout (the activation is the second Split output), dim 1 otherwise.
+    const auto Cin = in_decoration == DECOR_TRANSPOSE       ? param_pshape[param_pshape.size() - 1].get_length()
+                     : in_decoration == DECOR_SPLIT_RESHAPE ? param_pshape[1].get_length() / 2
+                                                            : param_pshape[1].get_length();
+    OPENVINO_ASSERT(
+        (in_decoration != DECOR_RESHAPE && in_decoration != DECOR_SPLIT_RESHAPE) || param_pshape.size() == 2,
+        "Reshape input decoration expects a 2D [N, Cin] activation");
 
     auto param = std::make_shared<ov::op::v0::Parameter>(act_prec, param_pshape);
 
@@ -89,6 +96,11 @@ void Conv1x1WeightCompressedToMatmulTest::SetUp() {
     } else if (in_decoration == DECOR_RESHAPE) {
         auto pattern = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, static_cast<int>(Cin), 1, 1});
         conv_input = std::make_shared<ov::op::v1::Reshape>(param, pattern, true);
+    } else if (in_decoration == DECOR_SPLIT_RESHAPE) {
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto split = std::make_shared<ov::op::v1::Split>(param, axis, 2);
+        auto pattern = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, static_cast<int>(Cin), 1, 1});
+        conv_input = std::make_shared<ov::op::v1::Reshape>(split->output(1), pattern, true);
     }
 
     const int seed = 1;
