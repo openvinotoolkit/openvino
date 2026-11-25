@@ -29,14 +29,13 @@ struct TypeMask {
         _u16 = 1 << 14,
         _u32 = 1 << 15,
         _u64 = 1 << 16,
-        _nf4 = 1 << 17,
-        _f8e4m3 = 1 << 18,
-        _f8e5m2 = 1 << 19,
-        _string = 1 << 20,
-        _f4e2m1 = 1 << 21,
-        _f8e8m0 = 1 << 22,
-        _u2 = 1 << 23,
-        _u3 = 1 << 24,
+        _f8e4m3 = 1 << 17,
+        _f8e5m2 = 1 << 18,
+        _string = 1 << 19,
+        _f4e2m1 = 1 << 20,
+        _f8e8m0 = 1 << 21,
+        _u2 = 1 << 22,
+        _u3 = 1 << 23,
     };
 
     explicit TypeMask(const ov::element::Type precision) : value(generateMask(precision)), precision(precision) {}
@@ -78,7 +77,6 @@ private:
             CASE(u16)
             CASE(u32)
             CASE(u64)
-            CASE(nf4)
             CASE(f8e4m3)
             CASE(f8e5m2)
             CASE(string)
@@ -114,7 +112,6 @@ DEFINE_TYPE_ALIAS(_u8);
 DEFINE_TYPE_ALIAS(_u16);
 DEFINE_TYPE_ALIAS(_u32);
 DEFINE_TYPE_ALIAS(_u64);
-DEFINE_TYPE_ALIAS(_nf4);
 DEFINE_TYPE_ALIAS(_f8e4m3);
 DEFINE_TYPE_ALIAS(_f8e5m2);
 DEFINE_TYPE_ALIAS(_string);

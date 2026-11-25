@@ -142,7 +142,7 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
                                                   const ov::element::Type weightsType,
                                                   const ov::intel_cpu::Config::ModelType modelType) {
     if (ov::with_cpu_x86_avx2()) {
-        if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1, u2, u3)) {
+        if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, u4, i4, f4e2m1, u2, u3)) {
             return true;
         }
 
