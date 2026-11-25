@@ -129,10 +129,11 @@ jobs:
       - name: CMake configure
         env:
           CMAKE_EXTRA_ARGS: ${{ inputs.cmake-extra-args }}
+          ENABLE_CLANG_TIDY: ${{ inputs.prepare-only && 'OFF' || 'ON' }}
         run: |
           cmake \
             -G "${CMAKE_GENERATOR}" \
-            -DENABLE_CLANG_TIDY=${{ inputs.prepare-only && 'OFF' || 'ON' }} \
+            -DENABLE_CLANG_TIDY="${ENABLE_CLANG_TIDY}" \
             -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
