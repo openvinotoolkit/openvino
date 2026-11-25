@@ -1,9 +1,5 @@
 name: Windows (VS 2022, Python 3.11, Release)
-run-name: ${{ github.event_name == 'schedule' && 'Windows (VS 2022, Python 3.11, Release) - Nightly (C++20 build only)' || 'Windows (VS 2022, Python 3.11, Release)' }}
 on:
-  schedule:
-    # at 02:00 every day: C++20 build without the regular build and tests
-    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -68,8 +64,7 @@ jobs:
 
   Build:
     needs: [ Smart_CI ]
-    # Skip the regular build and its dependent build/test jobs on the daily C++20 schedule.
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' }}
+    if: ${{ !needs.smart_ci.outputs.skip_workflow }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
       runner: 'aks-win-16-cores-32gb-build'
@@ -90,35 +85,6 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
-
-  # Non-blocking C++20 compile check (CVS-189849): daily, dispatched, or re-run workflows.
-  # Promote to a required pre-commit check once stable.
-  Build_CPP20:
-    name: Build (C++20, non-blocking)
-    needs: [ Smart_CI ]
-    if: >-
-      ${{
-        !needs.smart_ci.outputs.skip_workflow &&
-        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch' || github.run_attempt > 1)
-      }}
-    uses: ./.github/workflows/job_build_windows_cpp20.yml
-    with:
-      runner: 'aks-win-16-cores-32gb-build'
-      cmake-build-parallel-level: '15'
-      build-type: 'Release'
-      target-branch: ${{ needs.smart_ci.outputs.target_branch }}
-      cmake-options: >-
-            -G 'Ninja Multi-Config'
-            -DENABLE_PYTHON=ON
-            -DENABLE_WHEEL=OFF
-            -DENABLE_TESTS=ON
-            -DENABLE_OV_GGUF_FRONTEND=ON
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-            -DENABLE_STRICT_DEPENDENCIES=OFF
-            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config_cpp20"
-            -DCMAKE_CXX_STANDARD=20
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -464,7 +430,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t"]
+        # 3.15t fails with `Windows fatal exception: access violation`
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15"]
     defaults:
       run:
         shell: pwsh
@@ -475,6 +442,7 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYYAML_FORCE_LIBYAML: ${{ (matrix.python-version == '3.15' || matrix.python-version == '3.15t') && '0' || '' }} # pyYAML does not have Python 3.15 wheels
     steps:
       - name: Download OpenVINO artifacts (tarballs)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -529,6 +497,7 @@ jobs:
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Python API Tests -- numpy>=2.0.0
+        if: ${{ matrix.python-version != '3.15' && matrix.python-version != '3.15t' }} # numpy<2.1 has no Python 3.15 wheels
         shell: cmd
         run: |
           python3 -m pip uninstall -y numpy
@@ -712,7 +681,7 @@ jobs:
   GPU_Unit_Tests:
     name: GPU unit tests
     needs: [ Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: ${{ github.event_name != 'merge_group' && fromJSON(needs.smart_ci.outputs.affected_components).GPU }}
     timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
     defaults:
       run:
@@ -753,7 +722,7 @@ jobs:
           path: 'gtest-parallel'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -773,7 +742,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, Python_API_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

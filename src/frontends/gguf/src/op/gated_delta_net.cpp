@@ -140,10 +140,16 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
-    // ggml normalizes with x / max(||x||, eps); the op's fused normalization adds eps under the
-    // square root instead, which differs for small vectors, so normalize here.
-    if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
-        const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+    // ggml normalizes with x / max(||x||, eps); the op computes x / sqrt(||x||^2 + op_eps). With
+    // op_eps = eps^2 both agree except near ||x|| == eps (at most sqrt(2) apart there). Fusing keeps
+    // plugins from running the explicit normalization and its surrounding layout ops in f32. Fall
+    // back to the explicit form when eps^2 is not a normal float.
+    const bool qk_l2norm = context.get_attribute<bool>("fuse_qk_l2norm", false);
+    const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+    const bool fuse_qk_l2norm = qk_l2norm && std::isnormal(eps * eps);
+    // Paged conversion requires positive eps attributes even when the op does not normalize.
+    const float op_l2_norm_eps = fuse_qk_l2norm ? eps * eps : 1e-6f;
+    if (qk_l2norm && !fuse_qk_l2norm) {
         if (const auto joined = join_adjacent_qk(q, k); joined.get_node()) {
             const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
             const auto normalized = std::make_shared<ov::op::v1::Split>(make_l2_norm(joined, eps), axis, 2);
@@ -194,7 +200,15 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
     }
 
-    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta, false);
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q,
+                                                                 k,
+                                                                 v,
+                                                                 state,
+                                                                 g,
+                                                                 beta,
+                                                                 fuse_qk_l2norm,
+                                                                 op_l2_norm_eps,
+                                                                 op_l2_norm_eps);
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
     if (split_outputs) {

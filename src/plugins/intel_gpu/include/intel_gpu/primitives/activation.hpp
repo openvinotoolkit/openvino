@@ -80,9 +80,7 @@ struct activation_additional_params {
 struct activation : public primitive_base<activation> {
     CLDNN_DECLARE_PRIMITIVE(activation)
 
-    activation() : primitive_base("", {}),
-                   activation_function(activation_func::none),
-                   additional_params({0.f, 0.f}) {}
+    activation() : primitive_base("", {}), activation_function(activation_func::none), additional_params({0.F, 0.F}) {}
 
     /// @brief Constructs Relu primitive.
     /// @param id This primitive id.
@@ -92,7 +90,7 @@ struct activation : public primitive_base<activation> {
     activation(const primitive_id& id,
                const input_info& input,
                activation_func activation_function,
-               activation_additional_params additional_params = {0.f, 0.f})
+               activation_additional_params additional_params = {0.F, 0.F})
         : primitive_base(id, {input}),
           activation_function(activation_function),
           additional_params(additional_params),
