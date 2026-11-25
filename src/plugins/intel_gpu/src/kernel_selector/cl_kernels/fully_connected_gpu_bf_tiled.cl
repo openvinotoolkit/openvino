@@ -286,7 +286,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         }
         uint input_k_offset = 0;
     #else
-        const __global INPUT0_TYPE* input_ptr = input + GET_INPUT0_BF_OFFSET(out_b);
+        uint input_offset = GET_INPUT0_BF_OFFSET(out_b);
     #endif
 
 #if COMPRESSED_WEIGHTS_INT4
@@ -355,14 +355,14 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     ACTIVATION_VEC_TYPE activated[TILE_B] = { };
 #if OUTER_OFM > 1
 #if !USE_PER_ROW_INPUT_OFFSET
-    const __global INPUT0_TYPE* input_ptr_init = input_ptr;
+    uint input_offset_init = input_offset;
 #endif
     uint weights_offset_init = weights_offset;
     uint out_f_init = out_f;
     __attribute__((opencl_unroll_hint(1)))
     for (uint oi = 0; oi < OUTER_OFM; ++oi) {
 #if !USE_PER_ROW_INPUT_OFFSET
-        input_ptr = input_ptr_init;
+        input_offset = input_offset_init;
 #else
         input_k_offset = 0;
 #endif
@@ -382,7 +382,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         uint sglid_b = get_sub_group_local_id() % TILE_B;
 #if !USE_PER_ROW_INPUT_OFFSET
         INPUT0_TYPE tmp_input = (out_b + sglid_b < BATCH_SIZE)
-            ? input_ptr[sglid_b * TILE_IN_B_PITCH]
+            ? input[input_offset + sglid_b * TILE_IN_B_PITCH]
             : INPUT0_VAL_ZERO;
 #else
         INPUT0_TYPE tmp_input = (out_b + sglid_b < BATCH_SIZE)
@@ -398,7 +398,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         }
         weights_offset += TILE_OFM * SIMD;
 #if !USE_PER_ROW_INPUT_OFFSET
-        input_ptr += 1;
+        input_offset += 1;
 #else
         input_k_offset += 1;
 #endif
@@ -432,28 +432,24 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             #if IS_DYNAMIC || BATCH_LEFTOVER
             #define LOAD_IN_0(bi) do {                                                          \
                     if (bi + out_b < BATCH_SIZE) {                                              \
-                        in_0[bi] = INPUT_BLOCK_READ(input_ptr, (bi) * TILE_IN_B_PITCH);         \
+                        in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH); \
                     } else {                                                                    \
                         in_0[bi] = 0;                                                           \
                     }                                                                           \
                 } while (false)
             #else
             #define LOAD_IN_0(bi) do {                                                          \
-                    in_0[bi] = INPUT_BLOCK_READ(input_ptr, (bi) * TILE_IN_B_PITCH);             \
+                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH);  \
                 } while (false)
             #endif
             CONST_LOOP(TILE_B, LOAD_IN_0);
             #undef LOAD_IN_0
-            input_ptr += TILE_IFM * SIMD;
+            input_offset += TILE_IFM * SIMD;
         #endif
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-        #if DECOMPRESSION_SCALE_POST_OP
-            ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
-        #else
-            ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B];
-        #endif
+        ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             #if TILE_OFM != 2
@@ -655,19 +651,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         acc_tmp[bi] += in_val * weight;
                     #endif
 #else
-                    if (total_k == 0) {
-                        #if TILE_OFM > 1
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] = in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
-                        #else
-                            acc_tmp[bi] = in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
-                        #endif
-                    } else {
-                        #if TILE_OFM > 1
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
-                        #else
-                            acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
-                        #endif
-                    }
+                    #if TILE_OFM > 1
+                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                    #else
+                        acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                    #endif
 #endif
                     }
                 }
@@ -739,41 +727,33 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // Handle leftovers in normal case without alignment correction.
     #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
     {
-        // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         #if !USE_PER_ROW_INPUT_OFFSET
-            #if IS_DYNAMIC || BATCH_LEFTOVER
-            #define LOAD_IN_0(bi) do {                                                          \
-                    if (bi + out_b < BATCH_SIZE) {                                              \
-                        in_0[bi] = INPUT_BLOCK_READ(input_ptr, (bi) * TILE_IN_B_PITCH);         \
-                    } else {                                                                    \
-                        in_0[bi] = 0;                                                           \
-                    }                                                                           \
-                } while (false)
-            #else
-            #define LOAD_IN_0(bi) do {                                                          \
-                    in_0[bi] = INPUT_BLOCK_READ(input_ptr, (bi) * TILE_IN_B_PITCH);             \
-                } while (false)
-            #endif
-            CONST_LOOP(TILE_B, LOAD_IN_0);
-            #undef LOAD_IN_0
-            input_ptr += TILE_IFM * SIMD;
+        #define LEFTOVER_IN_OFFSET(bi) (input_offset + (bi) * TILE_IN_B_PITCH)
         #else
-            #if IS_DYNAMIC || BATCH_LEFTOVER
-            #define LOAD_IN_0(bi) do {                                                          \
-                    if (bi + out_b < BATCH_SIZE) {                                              \
-                        in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
-                    } else {                                                                    \
-                        in_0[bi] = 0;                                                           \
-                    }                                                                           \
-                } while (false)
-            #else
-            #define LOAD_IN_0(bi) do {                                                          \
-                    in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
-                } while (false)
-            #endif
-            CONST_LOOP(TILE_B, LOAD_IN_0);
-            #undef LOAD_IN_0
-            input_k_offset += TILE_IFM * SIMD;
+        #define LEFTOVER_IN_OFFSET(bi) (input_base_offset[bi] + input_k_offset)
+        #endif
+        // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
+        #if IS_DYNAMIC || BATCH_LEFTOVER
+        #define LOAD_IN_0(bi) do {                                                          \
+                if (bi + out_b < BATCH_SIZE) {                                              \
+                    in_0[bi] = INPUT_BLOCK_READ(input, LEFTOVER_IN_OFFSET(bi));             \
+                } else {                                                                    \
+                    in_0[bi] = 0;                                                           \
+                }                                                                           \
+            } while (false)
+        #else
+        #define LOAD_IN_0(bi) do {                                                          \
+                in_0[bi] = INPUT_BLOCK_READ(input, LEFTOVER_IN_OFFSET(bi));                 \
+            } while (false)
+        #endif
+
+        CONST_LOOP(TILE_B, LOAD_IN_0);
+        #undef LOAD_IN_0
+        #undef LEFTOVER_IN_OFFSET
+        #if !USE_PER_ROW_INPUT_OFFSET
+        input_offset += TILE_IFM * SIMD;
+        #else
+        input_k_offset += TILE_IFM * SIMD;
         #endif
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
             #if USE_SLM
