@@ -111,6 +111,9 @@ jobs:
           source "${INSTALL_DIR}/setupvars.sh"
           python3 "${INSTALL_TEST_DIR}/graph_fingerprint.py" --runner "${INSTALL_TEST_DIR}/ov_gguf_frontend_tests" --report "${INSTALL_TEST_DIR}/changed_cases.json"
 
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
+
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
         with:

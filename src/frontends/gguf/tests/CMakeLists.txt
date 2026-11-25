@@ -106,6 +106,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/ssm_scan.cpp"
     "${FE_SRC_DIR}/op/top_k.cpp"
     "${FE_SRC_DIR}/op/tri.cpp"
+    "${FE_SRC_DIR}/op/mean.cpp"
     "${FE_SRC_DIR}/op/sum_rows.cpp"
     "${FE_SRC_DIR}/op/transpose.cpp"
     "${FE_SRC_DIR}/op/unary_elu.cpp"
