@@ -238,19 +238,24 @@ bool ov::npuw::util::in_order_enabled() {
 }
 
 namespace {
-bool env_flag(const char* name) {
+bool env_flag(const char* name, bool default_value = false) {
     const char* opt = std::getenv(name);
     if (!opt) {
-        return false;
+        return default_value;
     }
     const std::string str(opt);
     return str == "YES" || str == "ON" || str == "1";
 }
 
-std::size_t env_size(const char* name) {
+std::size_t env_size(const char* name, std::size_t default_value = 0) {
     const char* opt = std::getenv(name);
-    return opt ? static_cast<std::size_t>(std::strtoull(opt, nullptr, 10)) : std::size_t{0};
+    return opt ? static_cast<std::size_t>(std::strtoull(opt, nullptr, 10)) : default_value;
 }
+
+// PROTOTYPE defaults: execution lists are on for both GQA stages, at most 8 graph executes per list
+// (one list for all 81 prefill subgraphs hit ZE_RESULT_ERROR_DEVICE_LOST, 8 works)
+constexpr bool kExecListDefault = true;
+constexpr std::size_t kExecListMaxDefault = 8;
 
 bool is_gqa_prefill(const std::string& model_name) {
     return model_name.find("_gqa_prefill") != std::string::npos;
@@ -262,14 +267,14 @@ bool is_gqa_generate(const std::string& model_name) {
 }  // namespace
 
 bool ov::npuw::util::exec_list_enabled_for(const std::string& model_name) {
-    static const bool prefill = env_flag("OPENVINO_NPUW_EXEC_LIST");
-    static const bool generate = env_flag("OPENVINO_NPUW_EXEC_LIST_GENERATE");
+    static const bool prefill = env_flag("OPENVINO_NPUW_EXEC_LIST", kExecListDefault);
+    static const bool generate = env_flag("OPENVINO_NPUW_EXEC_LIST_GENERATE", kExecListDefault);
     return (prefill && is_gqa_prefill(model_name)) || (generate && is_gqa_generate(model_name));
 }
 
 std::size_t ov::npuw::util::exec_list_max(const std::string& model_name) {
-    static const std::size_t prefill = env_size("OPENVINO_NPUW_EXEC_LIST_MAX");
-    static const std::size_t generate = env_size("OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX");
+    static const std::size_t prefill = env_size("OPENVINO_NPUW_EXEC_LIST_MAX", kExecListMaxDefault);
+    static const std::size_t generate = env_size("OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX", kExecListMaxDefault);
     return is_gqa_generate(model_name) ? generate : prefill;
 }
 
