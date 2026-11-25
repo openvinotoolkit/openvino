@@ -4,6 +4,7 @@
 
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 
+#include <algorithm>
 #include <memory>
 
 #include "openvino/core/graph_util.hpp"
@@ -29,6 +30,33 @@ using ov::pass::pattern::op::Or;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
+
+namespace {
+// GatherCompressed computes the scale / zero point index of a weights element as
+// flat_idx / (weights_size / param_size), so each value has to cover a contiguous block of the flattened weights:
+// the parameter shape must be the leading weights dims, then one dim that divides the next weights dim, then ones.
+bool is_blocked_decompression_param(const ov::Shape& weights_shape, const ov::PartialShape& param_shape) {
+    if (param_shape.is_dynamic() || param_shape.size() > weights_shape.size()) {
+        return false;
+    }
+    auto shape = param_shape.to_shape();
+    shape.insert(shape.begin(), weights_shape.size() - shape.size(), 1);
+    size_t i = 0;
+    while (i < shape.size() && shape[i] == weights_shape[i]) {
+        ++i;
+    }
+    if (i == shape.size()) {
+        return true;
+    }
+    if (shape[i] == 0 || weights_shape[i] % shape[i] != 0) {
+        return false;
+    }
+    return std::all_of(shape.begin() + i + 1, shape.end(), [](size_t dim) {
+        return dim == 1;
+    });
+}
+}  // namespace
+
 ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
     const std::vector<ov::element::Type>& supported_weights_types) {
     auto compressed_constant = ov::pass::pattern::type_matches_any(supported_weights_types) &&
@@ -69,6 +97,12 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
         ov::Shape dicts_shape = pattern_map.at(dicts_m).get_node_shared_ptr()->get_shape();
         auto gather_node = ov::as_type_ptr<v8::Gather>(pattern_map.at(gather_m).get_node_shared_ptr());
         if (!gather_node || transformation_callback(gather_node)) {
+            return false;
+        }
+
+        if (!is_blocked_decompression_param(dicts_shape, pattern_map.at(mul_const_m).get_partial_shape()) ||
+            (pattern_map.count(subtract_m) &&
+             !is_blocked_decompression_param(dicts_shape, pattern_map.at(sub_const_m).get_partial_shape()))) {
             return false;
         }
 

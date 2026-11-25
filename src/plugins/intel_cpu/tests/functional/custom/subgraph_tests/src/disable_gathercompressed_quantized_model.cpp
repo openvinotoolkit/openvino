@@ -4,6 +4,7 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/convert.hpp"
@@ -43,7 +44,7 @@ static std::ostream& operator<<(std::ostream& os, GatherScaleShape scale_shape) 
     case GatherScaleShape::PER_COLUMN:
         return os << "per_column";
     }
-    return os;
+    OPENVINO_THROW("Unexpected GatherScaleShape");
 }
 
 static Shape get_scale_shape(GatherScaleShape scale_shape, const Shape& weights_shape) {
@@ -55,7 +56,7 @@ static Shape get_scale_shape(GatherScaleShape scale_shape, const Shape& weights_
     case GatherScaleShape::SCALAR:
         return {1, 1};
     }
-    return {1, 1};
+    OPENVINO_THROW("Unexpected GatherScaleShape");
 }
 
 using DisableGatherCompressedForQuantizedModelParams =
@@ -137,41 +138,43 @@ protected:
 
         const auto matmul_runtime_precision =
             matmul->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>();
-        if (scale_shape == GatherScaleShape::PER_ROW) {
-            // LPT can't move a per-row scale through Gather with non-constant indices, so GatherCompressed
-            // dequantizes the compressed weights itself and MatMul gets f32 weights.
-            EXPECT_TRUE(have_gather_compressed);
-            EXPECT_FALSE(have_gather);
-            ASSERT_NE(gather, nullptr);
-            EXPECT_EQ(gather->get_input_element_type(0), compressed_weights_precision);
-            EXPECT_EQ(matmul->get_input_element_type(1), element::f32);
-            EXPECT_EQ(matmul_runtime_precision, element::f32);
-            return;
-        }
-        if (scale_shape == GatherScaleShape::PER_COLUMN) {
-            // LPT moves the dequantization after Gather, so Gather works on the compressed weights. The per-column
-            // scale is along the MatMul reduction axis, so LPT keeps it before MatMul, which runs in f32.
-            EXPECT_TRUE(have_gather);
-            EXPECT_FALSE(have_gather_compressed);
-            ASSERT_NE(gather, nullptr);
-            EXPECT_EQ(gather->get_output_element_type(0), compressed_weights_precision);
-            EXPECT_EQ(matmul->get_input_element_type(1), element::f32);
-            EXPECT_EQ(matmul_runtime_precision, element::f32);
-            return;
-        }
-
         switch (compressed_weights_precision) {
         case element::i8:
-            EXPECT_TRUE(have_gather);
-            EXPECT_EQ(matmul->get_input_element_type(1), element::i8);
-            // FakeQuantize(matmul's input(0))'s output precision is u8
-            EXPECT_EQ(matmul->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(),
-                      element::u8);
-            break;
         case element::u8:
-            EXPECT_TRUE(have_gather);
-            // Current oneDNN MutMul official support precision: Source(u8, s8), Weights(s8).
-            // So reorder will be inserted when weights is not s8, don't need to check matmul's input(1) precision.
+            switch (scale_shape) {
+            case GatherScaleShape::PER_ROW:
+                // LPT can't move a per-row scale through Gather with non-constant indices, so GatherCompressed
+                // dequantizes the compressed weights itself and MatMul is executed in a real precision
+                // (f32, or bf16 on bf16-capable hosts).
+                EXPECT_TRUE(have_gather_compressed);
+                EXPECT_FALSE(have_gather);
+                ASSERT_NE(gather, nullptr);
+                EXPECT_EQ(gather->get_input_element_type(0), compressed_weights_precision);
+                EXPECT_TRUE(matmul->get_input_element_type(1).is_real());
+                EXPECT_TRUE(matmul_runtime_precision.is_real());
+                break;
+            case GatherScaleShape::PER_COLUMN:
+                // LPT moves the dequantization after Gather, so Gather works on the compressed weights. The
+                // per-column scale is along the MatMul reduction axis, so LPT keeps it before MatMul, which is
+                // executed in a real precision.
+                EXPECT_TRUE(have_gather);
+                EXPECT_FALSE(have_gather_compressed);
+                ASSERT_NE(gather, nullptr);
+                EXPECT_EQ(gather->get_output_element_type(0), compressed_weights_precision);
+                EXPECT_TRUE(matmul->get_input_element_type(1).is_real());
+                EXPECT_TRUE(matmul_runtime_precision.is_real());
+                break;
+            case GatherScaleShape::SCALAR:
+                EXPECT_TRUE(have_gather);
+                if (compressed_weights_precision == element::i8) {
+                    EXPECT_EQ(matmul->get_input_element_type(1), element::i8);
+                    // FakeQuantize(matmul's input(0))'s output precision is u8
+                    EXPECT_EQ(matmul_runtime_precision, element::u8);
+                }
+                // Current oneDNN MutMul official support precision: Source(u8, s8), Weights(s8).
+                // So reorder will be inserted when weights is not s8, don't need to check matmul's input(1) precision.
+                break;
+            }
             break;
         case element::u4:
         case element::i4:

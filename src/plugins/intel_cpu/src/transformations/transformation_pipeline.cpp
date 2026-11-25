@@ -293,38 +293,6 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-// Checks that every GatherCompressed scale / zero point has the shape of the leading weights dimensions followed by
-// ones (e.g. [V, 1] or [V, D] for [V, D] weights), so each value covers a contiguous block of the flattened weights.
-static bool has_blocked_decompression_params(const_node_ptr& gather_compressed) {
-    const auto& weights_shape = gather_compressed->get_input_partial_shape(0);
-    if (weights_shape.is_dynamic()) {
-        return false;
-    }
-    const auto rank = weights_shape.size();
-    for (size_t i = 3; i < gather_compressed->get_input_size(); ++i) {
-        const auto& param_shape = gather_compressed->get_input_partial_shape(i);
-        if (param_shape.is_dynamic() || param_shape.size() > rank) {
-            return false;
-        }
-        if (ov::shape_size(param_shape.to_shape()) == 1) {
-            continue;
-        }
-        auto shape = param_shape.to_shape();
-        shape.insert(shape.begin(), rank - shape.size(), 1);
-        size_t blocked_dims = 0;
-        while (blocked_dims < rank &&
-               shape[blocked_dims] == static_cast<size_t>(weights_shape[blocked_dims].get_length())) {
-            ++blocked_dims;
-        }
-        if (std::any_of(shape.begin() + blocked_dims, shape.end(), [](size_t dim) {
-                return dim != 1;
-            })) {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
         const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
@@ -1026,13 +994,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     // GatherCompressed here, otherwise the final ConstantFolding of LPT would decompress the u8/i8 weights.
     lowPrecPass->add_main<ov::pass::ConvertGatherToGatherCompressed>(
         std::vector<ov::element::Type>{ov::element::u8, ov::element::i8});
-    CPU_SET_CALLBACK_COMMON(
-        lptManager,
-        [](const_node_ptr& node) -> bool {
-            // GatherCompressed expects each scale / zero point value to cover a contiguous block of weights
-            return ov::is_type<ov::op::internal::GatherCompressed>(node) && !has_blocked_decompression_params(node);
-        },
-        ov::pass::ConvertGatherToGatherCompressed);
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, ConvertFullyConnectedBias);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);

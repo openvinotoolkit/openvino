@@ -153,6 +153,52 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed4) {
     }
 }
 
+namespace {
+// GatherCompressed requires each scale / zero point value to cover a contiguous block of the flattened weights,
+// so the decompression subgraph must be kept as is for the other layouts.
+std::shared_ptr<ov::Model> make_gather_decompression_model(const ov::element::Type& weights_type,
+                                                           const ov::Shape& weights_shape,
+                                                           const ov::Shape& scale_shape,
+                                                           const ov::Shape& zp_shape = {}) {
+    auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+    auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto weights_const = v0::Constant::create(weights_type, weights_shape, {1});
+    std::shared_ptr<ov::Node> decompression = std::make_shared<v0::Convert>(weights_const, ov::element::f32);
+    if (!zp_shape.empty()) {
+        auto zp_const = v0::Constant::create(ov::element::f32, zp_shape, {1});
+        decompression = std::make_shared<v1::Subtract>(decompression, zp_const);
+    }
+    auto scale_const = v0::Constant::create(ov::element::f32, scale_shape, {1});
+    decompression = std::make_shared<v1::Multiply>(decompression, scale_const);
+    if (weights_shape.size() == 3) {
+        auto reshape_const = v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 16});
+        decompression = std::make_shared<v1::Reshape>(decompression, reshape_const, false);
+    }
+    auto gather = std::make_shared<v8::Gather>(decompression, input1, axis_const);
+    return std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{input1});
+}
+}  // namespace
+
+TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_PerColumnScale) {
+    model = make_gather_decompression_model(ov::element::u8, ov::Shape{32, 16}, ov::Shape{1, 16});
+    manager.register_pass<ConvertGatherToGatherCompressed>();
+}
+
+TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_PerColumnScaleU4) {
+    model = make_gather_decompression_model(ov::element::u4, ov::Shape{32, 16}, ov::Shape{1, 16});
+    manager.register_pass<ConvertGatherToGatherCompressed>();
+}
+
+TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_PerColumnZeroPoint) {
+    model = make_gather_decompression_model(ov::element::u8, ov::Shape{32, 16}, ov::Shape{32, 1}, ov::Shape{1, 16});
+    manager.register_pass<ConvertGatherToGatherCompressed>();
+}
+
+TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_NonLeadingGroupScale) {
+    model = make_gather_decompression_model(ov::element::u8, ov::Shape{32, 4, 4}, ov::Shape{1, 4, 1});
+    manager.register_pass<ConvertGatherToGatherCompressed>();
+}
+
 TEST_F(TransformationTestsF, ConvertGatherToCompressedU2NotMatchedByDefault) {
     // u2 is not in the default type list, so the graph must stay as is.
     auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
