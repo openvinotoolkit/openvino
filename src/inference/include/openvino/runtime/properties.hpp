@@ -930,7 +930,8 @@ inline std::istream& operator>>(std::istream& is, QoS& qos) {
  */
 struct QoSInfo {
     QoS level = QoS::DEFAULT;    //!< Effective level; never DEFAULT, the resolved driver/OS level is reported instead
-    bool is_overridden = false;  //!< True if the level was requested by the application, false if driver/OS-selected
+    bool is_overridden = false;  //!< True if the level was specified by the application through ov::qos, false if the
+                                 //!< level is the driver/OS-selected default
 };
 
 /** @cond INTERNAL */
@@ -953,9 +954,10 @@ inline std::istream& operator>>(std::istream& is, QoSInfo& qos_info) {
  * command queue. It is configured independently of ov::hint::model_priority and ov::workload_type: setting one of
  * these properties does not change the others.
  *
- * The level can be set at core level (Core::set_property), at compilation (Core::compile_model) or changed on the
- * compiled model at runtime (CompiledModel::set_property). Setting QoS::DEFAULT reverts to the driver/OS-selected
- * level. Use ov::qos_info on the compiled model to query the effective level.
+ * The level can be set in the configuration the compiled model is created with, or changed on the compiled model at
+ * runtime. It is a runtime property: it does not affect how the model is compiled, only the command queue used for its
+ * execution. Setting QoS::DEFAULT reverts to the driver/OS-selected level. Use ov::qos_info on the compiled model to
+ * query the effective level.
  *
  * Setting the level at core level applies only to the command queues created from that point on. Models that are
  * already compiled keep their current QoS level; use CompiledModel::set_property to change it for them.
