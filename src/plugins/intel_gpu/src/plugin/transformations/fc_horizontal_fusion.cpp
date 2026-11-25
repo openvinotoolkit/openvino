@@ -68,17 +68,19 @@ public:
         m_aligned_buffer = static_cast<char*>(ov::util::aligned_alloc(m_byte_size, 64));
         OPENVINO_ASSERT(m_aligned_buffer, "Failed to allocate ", m_byte_size, " bytes");
 #endif
-        m_valid = fill();
+        try {
+            m_valid = fill();
+        } catch (...) {
+            unmap();  // the destructor does not run for a partly constructed object
+            throw;
+        }
 #ifndef __linux__
         m_sources.clear();
 #endif
     }
 
     ~ConcatConstantBuffer() override {
-#ifdef __linux__
-        munmap(m_aligned_buffer, m_byte_size);
-        m_aligned_buffer = nullptr;  // the base class frees nothing then
-#endif
+        unmap();
     }
 
     // False if the Concat cannot evaluate these inputs (e.g. sub-byte elements not on a byte boundary).
@@ -141,6 +143,17 @@ private:
             return nullptr;
         }
     };
+
+    // Releases the mapping, after which the base class frees nothing. Without mmap the base class
+    // frees the buffer.
+    void unmap() noexcept {
+#ifdef __linux__
+        if (m_aligned_buffer) {
+            munmap(m_aligned_buffer, m_byte_size);
+            m_aligned_buffer = nullptr;
+        }
+#endif
+    }
 
     bool fill() {
         ov::TensorVector inputs;
