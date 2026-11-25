@@ -62,6 +62,8 @@ host_args=()
 for arg do
     case "$arg" in
         --version) exec "$compiler/clang" -cc1 -version;;
+        --list-checks|-list-checks|--dump-config|-dump-config|--explain-config|-explain-config|--verify-config|-verify-config|--help|-help|-h|--help-hidden)
+            exec "$compiler/clang-tidy" "$@";;
         -fsycl)
             sycl=true
             host_args+=(-fno-sycl -Xclang -fsycl-is-host -D__SYCL_ANY_DEVICE_HAS_ANY_ASPECT__=1
@@ -73,6 +75,13 @@ for arg do
         *) host_args+=("$arg");;
     esac
 done
+case "${0##*/}" in
+    clang-tidy-sycl-host) exec "$compiler/clang-tidy" "${host_args[@]}";;
+    clang-tidy-sycl-device)
+        "$sycl" || exit 0
+        exec "$compiler/clang-tidy" "$@"
+        ;;
+esac
 status=0
 "$compiler/clang-tidy" "$@" || status=$?
 if "$sycl"; then
@@ -81,6 +90,8 @@ fi
 exit "$status"
 BASH
 chmod +x /usr/local/bin/clang-tidy-sycl
+ln -s clang-tidy-sycl /usr/local/bin/clang-tidy-sycl-host
+ln -s clang-tidy-sycl /usr/local/bin/clang-tidy-sycl-device
 SETUP
 
 # Install build dependencies

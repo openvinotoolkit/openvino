@@ -47,6 +47,14 @@ on:
         description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
         type: string
         required: true
+      prepare-only:
+        description: 'Compile the shared build before running separate clang-tidy analyses'
+        type: boolean
+        default: false
+      prepared-build-artifact:
+        description: 'Artifact to upload during preparation or restore before analysis'
+        type: string
+        default: ''
 
 permissions: read-all
 
@@ -95,11 +103,28 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
+        if: inputs.prepare-only || inputs.prepared-build-artifact == ''
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
+          persist-credentials: ${{ inputs.prepared-build-artifact == '' }}
+
+      - name: Download prepared build
+        if: ${{ !inputs.prepare-only && inputs.prepared-build-artifact != '' }}
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: ${{ inputs.prepared-build-artifact }}
+          path: ${{ runner.temp }}
+
+      - name: Restore prepared build
+        if: ${{ !inputs.prepare-only && inputs.prepared-build-artifact != '' }}
+        run: tar -xpf "${RUNNER_TEMP}/prepared-build.tar.gz" -C "${GITHUB_WORKSPACE}"
+
+      - name: Use the preprocessor compiler cache for shared builds
+        if: inputs.prepared-build-artifact != ''
+        run: echo 'SCCACHE_DIRECT=false' >> "$GITHUB_ENV"
 
       - name: CMake configure
         env:
@@ -107,7 +132,7 @@ jobs:
         run: |
           cmake \
             -G "${CMAKE_GENERATOR}" \
-            -DENABLE_CLANG_TIDY=ON \
+            -DENABLE_CLANG_TIDY=${{ inputs.prepare-only && 'OFF' || 'ON' }} \
             -DENABLE_PROFILING_ITT=FULL \
             -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
@@ -121,7 +146,7 @@ jobs:
             -S "${OPENVINO_REPO}" \
             -B "${BUILD_DIR}"
 
-      - name: Cmake build with clang-tidy enabled
+      - name: CMake build
         env:
           BUILD_TARGET: ${{ inputs.build-target }}
           BUILD_EXTRA_ARGS: ${{ inputs.build-extra-args }}
@@ -133,6 +158,21 @@ jobs:
             --config "${CMAKE_BUILD_TYPE}" \
             --target "${build_targets[@]}" \
             -- ${BUILD_EXTRA_ARGS}
+
+      - name: Package prepared build
+        if: inputs.prepare-only
+        run: |
+          tar -I 'pigz -p 4' -cf "${RUNNER_TEMP}/prepared-build.tar.gz" \
+            -C "${GITHUB_WORKSPACE}" openvino openvino_build
+
+      - name: Upload prepared build
+        if: inputs.prepare-only
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ${{ inputs.prepared-build-artifact }}
+          path: ${{ runner.temp }}/prepared-build.tar.gz
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
