@@ -692,10 +692,11 @@ jobs:
       REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
       NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
       GTEST_PARALLEL_SCRIPT: "${{ github.workspace }}\\gtest-parallel\\gtest_parallel.py"
-      NEO_CACHE_MAX_SIZE: 0 # unlimited
+      NEO_CACHE_MAX_SIZE: 10737418240 # unlimited
       NEO_CACHE_PERSISTENT: 1
       NEO_CACHE_DIR: 'C:\neo_cache'
       NEO_CACHE_STATS: 1
+      cl_cache_dir: 'C:\neo_cache'
     steps:    
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
