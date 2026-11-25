@@ -18,6 +18,7 @@
 #include "common/utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "espcn_x2_model.hpp"
+#include "espcn_x2_reference_cache.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/op/constant.hpp"
@@ -124,20 +125,23 @@ public:
         APIBaseTest::TearDown();
     }
 
-    static void compareInferenceResult(const std::shared_ptr<ov::Model>& model,
-                                       ov::InferRequest& reqDynamic,
-                                       ov::InferRequest& reqReference);
+    static void compareTensors(const ov::Tensor& referenceOutputTensor, const ov::Tensor& npuOutputTensor);
 
-    static void inferAndCompare(const std::shared_ptr<ov::Model>& model,
+    // reqReference only holds the reference input; its output comes from referenceCache.
+    void compareInferenceResult(const std::shared_ptr<ov::Model>& model,
                                 ov::InferRequest& reqDynamic,
-                                ov::InferRequest& reqReference,
-                                const std::string& dumpPrefix);
+                                ov::InferRequest& reqReference);
 
-    static void setInputInferAndCompare(const std::shared_ptr<ov::Model>& model,
-                                        ov::InferRequest& reqDynamic,
-                                        ov::InferRequest& reqReference,
-                                        const ov::Tensor& inputTensor,
-                                        const std::string& dumpPrefix);
+    void inferAndCompare(const std::shared_ptr<ov::Model>& model,
+                         ov::InferRequest& reqDynamic,
+                         ov::InferRequest& reqReference,
+                         const std::string& dumpPrefix);
+
+    void setInputInferAndCompare(const std::shared_ptr<ov::Model>& model,
+                                 ov::InferRequest& reqDynamic,
+                                 ov::InferRequest& reqReference,
+                                 const ov::Tensor& inputTensor,
+                                 const std::string& dumpPrefix);
 
     static std::shared_ptr<ov::Model> createModelByName(const std::string& modelName);
 
@@ -149,6 +153,7 @@ protected:
     std::string selectedModelName;
     bool isTargetDevice = false;
     ov::log::Level originalLogLevel = ov::log::Level::ERR;
+    EspcnReferenceCache referenceCache;
 };
 
 InferWithHostCompileTests::ScopedLogCapture::ScopedLogCapture()
@@ -174,9 +179,12 @@ std::string InferWithHostCompileTests::ScopedLogCapture::str() const {
 void InferWithHostCompileTests::compareInferenceResult(const std::shared_ptr<ov::Model>& model,
                                                        ov::InferRequest& reqDynamic,
                                                        ov::InferRequest& reqReference) {
-    const auto npuOutputTensor = reqDynamic.get_tensor(model->output());
-    const auto referenceOutputTensor = reqReference.get_tensor(model->output());
+    compareTensors(referenceCache.getOutput(selectedModelName, reqReference.get_input_tensor()),
+                   reqDynamic.get_tensor(model->output()));
+}
 
+void InferWithHostCompileTests::compareTensors(const ov::Tensor& referenceOutputTensor,
+                                               const ov::Tensor& npuOutputTensor) {
     // NPU HostCompile runs in reduced (f16-class) precision while the TEMPLATE reference is f32, so a few
     // tenths of a percent of difference is expected. Use a tolerance that accepts that gap but stays far
     // tighter than any stale/garbage or cross-request difference.
@@ -194,7 +202,6 @@ void InferWithHostCompileTests::inferAndCompare(const std::shared_ptr<ov::Model>
                                                 ov::InferRequest& reqReference,
                                                 const std::string& stage) {
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-    OV_ASSERT_NO_THROW(reqReference.infer());
     try {
         compareInferenceResult(model, reqDynamic, reqReference);
     } catch (const ov::Exception& e) {
@@ -230,7 +237,7 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     }
 
     try {
-        result.context.referenceCompiledModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        result.context.referenceCompiledModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::skip;
         result.message = std::string("TEMPLATE plugin is not available for reference comparison: ") + e.what();
@@ -553,7 +560,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
     OV_ASSERT_NO_THROW(reqReference1.infer());
     ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), makeOutputShape(selectedModelName, batchShape));
-    compareInferenceResult(model, reqDynamic1, reqReference1);
+    compareTensors(reqReference1.get_output_tensor(), reqDynamic1.get_tensor(model->output()));
 
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 }
@@ -732,7 +739,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_WorkloadType) {
             }
             ov::CompiledModel refModel;
             try {
-                refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+                refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
             } catch (const ov::Exception&) {
                 GTEST_SKIP() << "TEMPLATE plugin unavailable";
             }
@@ -771,7 +778,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo) {
             }
             ov::CompiledModel refModel;
             try {
-                refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+                refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
             } catch (const ov::Exception&) {
                 GTEST_SKIP() << "TEMPLATE plugin unavailable";
             }
@@ -785,7 +792,6 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo) {
             OV_ASSERT_NO_THROW(reqRef.set_input_tensor(0, inTensor));
             try {
                 reqDynamic.infer();
-                OV_ASSERT_NO_THROW(reqRef.infer());
                 OV_ASSERT_NO_THROW(compareInferenceResult(model, reqDynamic, reqRef));
             } catch (const ov::Exception& e) {
                 if (!turbo) {
@@ -825,7 +831,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
         }
         ov::CompiledModel refModel;
         try {
-            refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+            refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
         } catch (const ov::Exception&) {
             GTEST_SKIP() << "TEMPLATE plugin unavailable";
         }
@@ -1029,7 +1035,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) 
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1070,7 +1076,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_SharedCommonQueue) {
     auto model = createModelByName(selectedModelName);
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1136,7 +1142,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests) {
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1233,7 +1239,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_N
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1272,7 +1278,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_NonSharedCommonQueue) 
     auto model = createModelByName(selectedModelName);
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1324,7 +1330,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSha
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = EspcnReferenceCache::getCompiledModel(selectedModelName);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
