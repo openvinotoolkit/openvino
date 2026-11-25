@@ -37,9 +37,11 @@ constexpr int64_t max_single_token_rows = 4;
 // Several query rows stay on the multi-token kernels where the single-token stages are not exact for them:
 // per-channel compressed KV needs the micro kernel, every key partition adds the sink to its softmax sum,
 // the finalization stage merges at most get_max_partitions_num() partitions, and the query's local memory is K wide
-// while its loads and the output reduction use the V width.
+// while its loads and the output reduction use the V width. A transposed V is read by the sdpa_ocl multi-token stage
+// (or the one-row opt stage), never by the key-partitioned stage for several rows.
 bool single_token_supports_query_rows(const RuntimeParams& params) {
-    return !SDPAOpt::has_per_channel_compressed_kv(params) && !params.typed_desc<scaled_dot_product_attention>()->has_sink_input &&
+    return !SDPAOpt::has_per_channel_compressed_kv(params) && !SDPABase::has_transposed_v(params) &&
+           !params.typed_desc<scaled_dot_product_attention>()->has_sink_input &&
            get_partitions_num(params, SDPAStage::SINGLE_TOKEN) <= get_max_partitions_num() &&
            SDPABase::get_effective_v_head_size(params) <= SDPABase::get_effective_k_head_size(params);
 }
@@ -88,6 +90,12 @@ bool unaligned_kv_head(const RuntimeParams& params) {
         return unaligned_head_size(params);
     }
     return SDPABase::get_effective_k_head_size(params) % 16 != 0 || SDPABase::get_effective_v_head_size(params) % 16 != 0;
+}
+
+// Several query rows of an unaligned head go to the multi-token stages: the key-partitioned single-token stage (use_multi_token_stage())
+// does not support unaligned heads, and the sdpa_ocl single-token stage takes one row only.
+bool use_multi_token_rows(const RuntimeParams& params) {
+    return use_multi_token_stage(params) || (get_target_seq_len(params) > 1 && unaligned_kv_head(params));
 }
 }  // namespace
 
@@ -214,7 +222,7 @@ public:
             // single-token branch, which stages the multi-tokens kernel only if sdpa_ocl is not added.
             // The opt single-token kernel does not support unaligned head sizes, and indirect keeps
             // its opt fallback, so both are excluded.
-            const bool is_prefill = use_multi_token_stage(params);
+            const bool is_prefill = use_multi_token_rows(params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
             const bool ocl_single_token_unaligned = ocl_lane && !is_indirect && ocl_single_token_ok;
 #else
@@ -267,7 +275,7 @@ public:
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
-        const bool multi_token_rows = use_multi_token_stage(new_params);
+        const bool multi_token_rows = use_multi_token_rows(new_params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", multi_token_rows = " << multi_token_rows << "\n";
         update_rt_params(instance);
