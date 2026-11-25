@@ -718,6 +718,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
+      run_python_custom_layer_tests: ${{ matrix.TEST_TYPE == 'unit' }}
       runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
