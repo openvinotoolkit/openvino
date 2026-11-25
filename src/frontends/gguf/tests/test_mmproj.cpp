@@ -1775,6 +1775,14 @@ TEST_F(GGUFMMProj, UnmatchedProjectorIsSkippedAndFailingProjectorIsFatal) {
     ASSERT_EQ(model->outputs().size(), 1);
     EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.supported"}), "false");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    for (const auto& source : {model, restored}) {
+        const auto components = adapt_to_genai(source->clone());
+        ASSERT_EQ(components.size(), 1);
+        EXPECT_EQ(components.count("audio_embeddings"), 1);
+        EXPECT_EQ(components.count("vision_embeddings"), 0);
+    }
 
     vision.match = {};
     FrontEnd failing;
