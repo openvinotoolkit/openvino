@@ -4771,6 +4771,23 @@ A writer change needs a byte comparison of the dumped caches ("The u4 token-majo
 
 Each needs its own measured change.
 
+- Plain SDPA at a head whose 2-byte row is not a multiple of 16 B (head % 8 == 4: 36, 44, ..., 100): the K / V rows fail
+  the 2D block rules, so `sdpa_ocl` reads them element by element (`k_tile_gather()` / `v_tile_gather()`, 2 B per lane
+  per load), and both stages spill (head 100: 11.6 KB `sdpa_ocl_mixed`, 6.7 KB `sdpa_ocl_prefill`). B70, 16 / 4 heads,
+  f16, SDPA against master's `sdpa_micro`: decode on 4096 keys 1124 / 168 us, prompt of 1023 1118 / 198, chunk of 512 on
+  4000 4068 / 590 (layer 1.7-4.1x); heads 96 / 104 / 112 / 128 are at or under master (decode 39-54 against 70-88 us).
+  - `sdpa_micro` (its microkernel blobs disassembled): the same tiles at heads 100 and 104; at 100 its GEMMs read K / V
+    with 1D block loads (`load.ugm.d64x8t`, 64 B a message), store them to SLM and read them back in the DPAS layout
+    (8-16 KB more SLM), 1.9x its head-104 time. The PA PREFILL / MIXED page reads have the same gathers; the PA decode
+    kernel takes heads that are multiples of 16 only.
+  - Tried (temporary builds, not kept): one 1D block read per key row (`intel_sub_group_block_read_us`) with the gathers
+    kept for the head tail and the last key tile: 1.4-1.8x faster, spill unchanged (9.3 KB), also at heads 104 / 128
+    with the 2D read turned off. Without any gather in the kernel (keys clamped to k - 1, heads 104 / 128): spill 0, but
+    the decode is still 4-6x the 2D read (head 104: 239 against 54 us; prefill 270 against 136): a decode subgroup holds
+    16 values, so S*V reads 32 B per row and message, 16x the 2D read's messages. Tail tiles by subgroup shuffles: spill
+    63 KB. What is left: the gather-free row reads (a tail window that ends the row with Q zeroed before the tile, wider
+    row reads where a subgroup holds several tiles; about 1.4x master, estimated from head 104), or an SLM staging like
+    `sdpa_micro`'s. No model with such a head is known; not pursued (user, 2026-11-25). Kit `test/h100/`.
 - Plain-SDPA f16 `d_max` 128 PREFILL ("Plain-SDPA PREFILL tiling"): a second shape-agnostic `sdpa_ocl` stage with the
   256 x 128 tile, chosen in `SDPAOptImpl::execute()` by the runtime counts, would give dynamic Q + K the 0.75-0.95x of
   long shapes without the small-query loss. The K-read order the non-causal KQ branch gets from IGC ("Plain-SDPA causal
