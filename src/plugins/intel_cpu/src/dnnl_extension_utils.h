@@ -123,12 +123,14 @@ public:
     static bool isUnarySupportedAsPostOp(Algorithm alg);
 
     /**
-     * @brief Computes weights string hash based on weights memory and requested descriptor
+     * @brief Computes a cache key for weights reordered between the given descriptors
      * @param memory Weights memory pointer
+     * @param srcDesc Effective descriptor used to interpret the source weights buffer
      * @param dstDesc descriptor defining weights representation after repacking
      * @return string hash
      */
     static std::string computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
+                                                const std::shared_ptr<DnnlMemoryDesc>& srcDesc,
                                                 const std::shared_ptr<DnnlMemoryDesc>& dstDesc);
 };
 
