@@ -242,11 +242,12 @@ RoPEFusionPackedPairs::RoPEFusionPackedPairs() {
     auto sin_second = pattern::any_input(table_pattern);
     auto cos_second = pattern::any_input(table_pattern);
 
-    auto first_rotated_cos = pattern::wrap_type<v1::Multiply>({pair_first, cos_first});
-    auto first_rotated_sin = pattern::wrap_type<v1::Multiply>({pair_second, sin_first});
+    const pattern::Attributes numpy_broadcast{{"auto_broadcast", "numpy"}};
+    auto first_rotated_cos = pattern::wrap_type<v1::Multiply>({pair_first, cos_first}, numpy_broadcast);
+    auto first_rotated_sin = pattern::wrap_type<v1::Multiply>({pair_second, sin_first}, numpy_broadcast);
     auto rotated_first = pattern::wrap_type<v1::Add, v1::Subtract>({first_rotated_cos, first_rotated_sin});
-    auto second_rotated_sin = pattern::wrap_type<v1::Multiply>({pair_first, sin_second});
-    auto second_rotated_cos = pattern::wrap_type<v1::Multiply>({pair_second, cos_second});
+    auto second_rotated_sin = pattern::wrap_type<v1::Multiply>({pair_first, sin_second}, numpy_broadcast);
+    auto second_rotated_cos = pattern::wrap_type<v1::Multiply>({pair_second, cos_second}, numpy_broadcast);
     auto rotated_second = pattern::wrap_type<v1::Add, v1::Subtract>({second_rotated_sin, second_rotated_cos});
 
     // The [..., 1] inputs and the [..., 2] output pin the Concat to the innermost axis.
@@ -272,6 +273,9 @@ RoPEFusionPackedPairs::RoPEFusionPackedPairs() {
         const auto& seq = symbols.at("seq");
         const auto& num_heads = symbols.at("num_heads");
         const auto& half_rotary_ndims = symbols.at("half_rotary_ndims");
+        if (seq.i() == 0 || num_heads.i() == 0 || half_rotary_ndims.i() == 0) {
+            return false;
+        }
         const auto head_size = 2 * static_cast<size_t>(half_rotary_ndims.i());
 
         // Tables are compared by value: a Subtract may be rewritten into an Add over a negated table.
