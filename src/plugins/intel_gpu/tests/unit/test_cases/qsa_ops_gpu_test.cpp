@@ -2657,8 +2657,8 @@ ov::Output<ov::Node> exported_query_preprocessing(const ov::Output<ov::Node>& qu
 }
 
 /// The GPU plugin disables RoPEFusionIOSlicing, so the partial rotary embedding of an exported query stays a RoPE over the
-/// rotary slice and a Concat: QSAIndexerQueryRoPESlicing folds it for the indexer, which must still absorb the query
-/// RMSNorm and RoPE, as its lowering requires.
+/// rotary slice and a Concat, which FuseQSAIndexerQuery must still absorb, with the query RMSNorm, as the indexer lowering
+/// requires.
 TEST_P(QSAIndexerPluginTest, AbsorbsDecomposedQueryPreprocessingBeforeLowering) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";

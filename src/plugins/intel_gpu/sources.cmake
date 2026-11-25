@@ -161,7 +161,6 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_qsa_indexer_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_sparse_attn_inputs.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/qsa_indexer_query_rope_slicing.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_shapeof.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_stridedslices_to_variadicsplit.cpp
