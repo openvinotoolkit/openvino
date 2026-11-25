@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <filesystem>
 #include <istream>
 #include <memory>
 #include <unordered_map>
@@ -26,13 +25,11 @@ class InputModel : public ov::frontend::InputModel {
 public:
     InputModel(std::istream& stream,
                std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-               std::filesystem::path weights_path = {});
+               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
 
     InputModel(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
                std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-               std::filesystem::path weights_path = {});
+               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
 
     std::shared_ptr<Model> convert();
 };
