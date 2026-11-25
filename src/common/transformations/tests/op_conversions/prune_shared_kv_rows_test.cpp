@@ -7,6 +7,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -14,6 +16,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
@@ -191,6 +194,51 @@ TEST_F(PruneSharedKVRowsTest, KeepsRowMixingTailUnchanged) {
     auto hidden = std::make_shared<v1::Add>(owner, total);
     auto head = std::make_shared<v8::Gather>(hidden, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
     model = std::make_shared<Model>(OutputVector{head}, i.params);
+}
+
+// The rows also end up on the second axis.
+std::shared_ptr<Model> row_broadcast_model() {
+    Inputs i;
+    i.params.push_back(i.sampled);
+    auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
+    auto layer = shared_layer(i, owner->output(0));
+    auto column = std::make_shared<v1::ReduceSum>(layer, v0::Constant::create(element::i64, Shape{1}, {1}), true);
+    auto row = std::make_shared<v1::ReduceSum>(layer, v0::Constant::create(element::i64, Shape{1}, {1}), false);
+    auto hidden = std::make_shared<v1::Add>(column, row);
+    auto head = std::make_shared<v8::Gather>(hidden, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
+    return std::make_shared<Model>(OutputVector{head}, i.params);
+}
+
+TEST_F(PruneSharedKVRowsTest, KeepsRowBroadcastUnchanged) {
+    model = row_broadcast_model();
+}
+
+TEST_F(PruneSharedKVRowsTest, KeepsRowCountValuesUnchanged) {
+    Inputs i;
+    i.params.push_back(i.sampled);
+    auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
+    auto layer = shared_layer(i, owner->output(0));
+    auto count =
+        std::make_shared<v0::Convert>(std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(layer),
+                                                                   v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                                   v0::Constant::create(element::i64, Shape{}, {0})),
+                                      element::f32);
+    auto hidden = std::make_shared<v1::Divide>(layer, count);
+    auto head = std::make_shared<v8::Gather>(hidden, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
+    model = std::make_shared<Model>(OutputVector{head}, i.params);
+}
+
+TEST(PruneSharedKVRows, KeepsParameterSymbols) {
+    const auto model = row_broadcast_model();
+    const auto& data = model->get_parameters().front();
+    auto shape = data->get_partial_shape();
+    const auto symbol = std::make_shared<Symbol>();
+    shape[0].set_symbol(symbol);
+    data->set_partial_shape(shape);
+    model->validate_nodes_and_infer_types();
+    EXPECT_FALSE(pass::PruneSharedKVRows().run_on_model(model));
+    EXPECT_EQ(data->get_output_partial_shape(0)[0].get_symbol(), symbol);
+    EXPECT_EQ(data->get_output_partial_shape(0)[1].get_symbol(), nullptr);
 }
 
 TEST_F(PruneSharedKVRowsTest, KeepsUnknownRowsUnchanged) {

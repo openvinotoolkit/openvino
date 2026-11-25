@@ -15,6 +15,7 @@
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -23,6 +24,7 @@
 #include "openvino/op/cum_sum.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/log_softmax.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
@@ -87,7 +89,12 @@ KeptRows keep_sampled_rows(const Output<Node>& sampled, const Output<Node>& past
     const auto starts = std::make_shared<v8::Slice>(all_begins, vector(0), vector(-1), vector(1));
     const auto ends =
         std::make_shared<v8::Slice>(all_begins, vector(1), vector(std::numeric_limits<int64_t>::max()), vector(1));
-    const auto sampled_i64 = to_i64(sampled);
+    const auto all_rows =
+        std::make_shared<v8::Slice>(all_begins, vector(-1), vector(std::numeric_limits<int64_t>::max()), vector(1));
+    const auto raw_sampled = to_i64(sampled);
+    const auto sampled_i64 = std::make_shared<v1::Select>(std::make_shared<v1::Less>(raw_sampled, scalar(0)),
+                                                          std::make_shared<v1::Add>(raw_sampled, all_rows),
+                                                          raw_sampled);
     const auto sampled_sequence = std::make_shared<v3::Bucketize>(sampled_i64, ends, element::i64, false);
 
     const auto sequences = std::make_shared<v0::Squeeze>(std::make_shared<v3::ShapeOf>(ends, element::i64));
@@ -133,8 +140,27 @@ public:
 
     bool in(const Output<Node>& output) const {
         const auto& shape = output.get_partial_shape();
-        return shape.rank().is_static() && shape.size() > 0 && shape[0].get_symbol() &&
-               symbol::are_equal(shape[0].get_symbol(), m_symbol);
+        return shape.rank().is_static() && shape.size() > 0 && is_row(shape[0]);
+    }
+
+    bool mentioned(const Output<Node>& output) const {
+        const auto& shape = output.get_partial_shape();
+        return shape.rank().is_dynamic() || std::any_of(shape.begin(), shape.end(), [&](const Dimension& d) {
+                   return is_row(d);
+               });
+    }
+
+    // Rows on the leading axis and nowhere else.
+    bool only_leading(const Output<Node>& output) const {
+        const auto& shape = output.get_partial_shape();
+        return in(output) && std::none_of(shape.begin() + 1, shape.end(), [&](const Dimension& d) {
+                   return is_row(d);
+               });
+    }
+
+private:
+    bool is_row(const Dimension& dimension) const {
+        return dimension.get_symbol() && symbol::are_equal(dimension.get_symbol(), m_symbol);
     }
 
 private:
@@ -201,12 +227,18 @@ bool computes_rows_independently(const std::shared_ptr<Node>& node, const Rows& 
                            v0::Convert,
                            v0::Clamp,
                            v4::Swish,
-                           v1::Select,
-                           ov::op::internal::RMS>(node))
+                           v1::Select>(node))
         return true;
+    if (ov::is_type<ov::op::internal::RMS>(node))
+        return data_shape.rank().is_static() && data_shape.size() > 1;
     if (const auto matmul = ov::as_type_ptr<v0::MatMul>(node)) {
-        const bool matrices = data_shape.rank().is_static() && data_shape.size() == 2;
-        return !(matrices && matmul->get_transpose_a()) && !(matrices && rows.in(matmul->input_value(1)));
+        const auto& weights = node->input_value(1);
+        const auto rank = data_shape.rank();
+        if (rank.is_dynamic() || rank.get_length() < 2 || (rank.get_length() == 2 && matmul->get_transpose_a()))
+            return false;
+        // Either rows times weights, or matrices batched over rows.
+        return !rows.mentioned(weights) ||
+               (rank.get_length() > 2 && rows.only_leading(weights) && weights.get_partial_shape().rank() == rank);
     }
     if (ov::is_type_any_of<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(node))
         return rows.in(node->input_value(0));
@@ -266,7 +298,7 @@ void propagate_row_symbols(const std::vector<std::shared_ptr<Node>>& ops) {
                 for (auto& dimension : shape) {
                     if (dimension.is_static())
                         dimension.set_symbol(nullptr);
-                    else if (!dimension.get_symbol())
+                    else if (!dimension.get_symbol() || ov::is_type<v0::Parameter>(node))
                         dimension.set_symbol(std::make_shared<Symbol>());
                 }
             }
@@ -276,7 +308,7 @@ void propagate_row_symbols(const std::vector<std::shared_ptr<Node>>& ops) {
         if (ov::is_type<v0::Parameter>(node)) {
             const auto& names = node->output(0).get_names();
             const bool token_major = names.count("input_ids") || names.count("inputs_embeds") ||
-                                     (names.count("position_ids") && output.rank().get_length() == 1);
+                                     (names.count("position_ids") && output.rank().is_static() && output.size() == 1);
             if (token_major && output.rank().is_static() && output.size() > 0 && output[0].get_symbol()) {
                 if (tokens)
                     symbol::set_equal(tokens, output[0].get_symbol());
@@ -291,15 +323,25 @@ void propagate_row_symbols(const std::vector<std::shared_ptr<Node>>& ops) {
     }
 }
 
-void clear_symbols(const std::shared_ptr<Model>& model) {
+// Restores the parameter shapes and the shapes inferred from them.
+void restore_symbols(const std::shared_ptr<Model>& model, const std::vector<PartialShape>& shapes) {
     ov::remove_skip_invalidation_rti(model);
-    for (const auto& parameter : model->get_parameters()) {
-        auto shape = parameter->get_partial_shape();
-        for (auto& dimension : shape)
-            dimension.set_symbol(nullptr);
-        parameter->set_partial_shape(shape);
-    }
+    const auto& parameters = model->get_parameters();
+    for (size_t i = 0; i < parameters.size(); ++i)
+        parameters[i]->set_partial_shape(shapes[i]);
     model->validate_nodes_and_infer_types();
+}
+
+bool feeds_only_shapes(const Node* node, const NodeSet& shape_values) {
+    for (const auto& output : node->outputs()) {
+        for (const auto& consumer : output.get_target_inputs()) {
+            const auto* target = consumer.get_node();
+            if (!shape_values.count(target) &&
+                !(ov::is_type_any_of<v1::Reshape, v1::Broadcast, v3::Broadcast>(target) && consumer.get_index() == 1))
+                return false;
+        }
+    }
+    return true;
 }
 
 }  // namespace
@@ -326,14 +368,18 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
     if (selections.empty())
         return false;
 
+    std::vector<PartialShape> parameter_shapes;
+    for (const auto& parameter : model->get_parameters())
+        parameter_shapes.push_back(parameter->get_partial_shape());
     propagate_row_symbols(ops);
-    const auto symbol = selections.front()->get_input_partial_shape(0)[0].get_symbol();
+    const auto& seed = selections.front()->get_input_partial_shape(0);
+    const auto symbol = seed.rank().is_static() && seed.size() > 0 ? seed[0].get_symbol() : nullptr;
     const Rows rows(symbol);
     NodeSet selection_nodes;
     for (const auto& selection : selections) {
-        if (!symbol || !rows.in(selection->input_value(0)) ||
+        if (!symbol || !rows.only_leading(selection->input_value(0)) ||
             selection->input_value(1) != selections.front()->input_value(1)) {
-            clear_symbols(model);
+            restore_symbols(model, parameter_shapes);
             return false;
         }
         selection_nodes.insert(selection.get());
@@ -373,7 +419,7 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
             continue;
         bool row_outputs = true;
         for (const auto& output : node->outputs())
-            row_outputs &= output.get_target_inputs().empty() || rows.in(output);
+            row_outputs &= output.get_target_inputs().empty() || rows.only_leading(output);
         if (shape_values.count(node.get()) || (row_outputs && computes_rows_independently(node, rows)))
             region.insert(node.get());
     }
@@ -386,18 +432,23 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
         const auto pa = ov::as_type<PagedAttentionExtension>(node.get());
         if (pa)
             attentions.push_back(pa);
+        // Shapes of pruned tensors may only size other pruned tensors.
+        if (shape_values.count(node.get()) && !feeds_only_shapes(node.get(), shape_values)) {
+            restore_symbols(model, parameter_shapes);
+            return false;
+        }
         for (const auto& input : node->inputs()) {
             const auto source = input.get_source_output();
             if (region.count(source.get_node()))
                 continue;
             const auto& shape = source.get_partial_shape();
-            if (rows.in(source)) {
+            if (rows.only_leading(source)) {
                 cuts.emplace(input, source);
-            } else if (shape_values.count(source.get_node()) ||
+            } else if (rows.mentioned(source) || shape_values.count(source.get_node()) ||
                        (!pa && shape.rank().is_static() && shape.size() > 0 && shape[0].is_dynamic()) ||
                        (pa && input.get_index() < 3)) {
                 // Shapes of unpruned tensors, or a tensor with unknown leading rows.
-                clear_symbols(model);
+                restore_symbols(model, parameter_shapes);
                 return false;
             }
         }
@@ -407,7 +458,7 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
                pa->input_value(6) == attentions.front()->input_value(6);
     });
     if (!consistent) {
-        clear_symbols(model);
+        restore_symbols(model, parameter_shapes);
         return false;
     }
 
@@ -430,6 +481,6 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
     }
     for (const auto& selection : selections)
         selection->input(1).replace_source_output(kept.sampled_rows);
-    clear_symbols(model);
+    restore_symbols(model, parameter_shapes);
     return true;
 }
