@@ -44,7 +44,7 @@ export VK_DRIVER_FILES="$VULKAN_SDK/share/vulkan/icd.d/MoltenVK_icd.json"
 
 ## Smoke tests
 
-Set `-DOV_GPU_VULKAN_SMOKE_TESTS=ON` to build and run the runtime and memory smoke tests.
+Configure the Vulkan build with `-DENABLE_TESTS=ON` to enable the smoke tests.
 On macOS and Linux, CTest also checks that the installed Vulkan loader reports
 no OpenVINO GPU devices when a compatible Vulkan driver is unavailable.
 

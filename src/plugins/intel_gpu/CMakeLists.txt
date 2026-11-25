@@ -278,12 +278,12 @@ else()
     ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})
 endif()
 
-if(ENABLE_TESTS AND NOT GPU_RT_TYPE STREQUAL "VULKAN")
-  add_subdirectory(tests)
-endif()
-
-if(GPU_RT_TYPE STREQUAL "VULKAN" AND (ENABLE_TESTS OR OV_GPU_VULKAN_SMOKE_TESTS))
-    add_subdirectory(tests/vulkan)
+if(ENABLE_TESTS)
+    if(GPU_RT_TYPE STREQUAL "VULKAN")
+        add_subdirectory(tests/vulkan)
+    else()
+        add_subdirectory(tests)
+    endif()
 endif()
 
 # Failed because of OpenCL

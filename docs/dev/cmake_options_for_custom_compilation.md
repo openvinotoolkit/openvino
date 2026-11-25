@@ -62,8 +62,6 @@ This document provides description and default values for CMake options that can
     * `ON` if requirements are satisfied (auto-discovered by CMake).
 * `ENABLE_TESTS` enables tests compilation:
     * `OFF` is default.
-* `OV_GPU_VULKAN_SMOKE_TESTS` enables Vulkan smoke tests when `GPU_RT_TYPE=VULKAN` and `ENABLE_TESTS=OFF`.
-    * The default is `OFF`. Vulkan builds with `ENABLE_TESTS=ON` already include these tests.
 * `ENABLE_DOCS` enables building the OpenVINO documentation:
     * `OFF` is on Debian (Ubuntu) OSes
     * `OFF` is in other cases.

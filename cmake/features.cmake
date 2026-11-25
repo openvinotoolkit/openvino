@@ -53,12 +53,6 @@ if (ENABLE_INTEL_GPU)
     if(GPU_RT_TYPE STREQUAL "L0")
         set(GPU_RT_TYPE "ZE" CACHE STRING "Type of GPU runtime" FORCE)
     endif()
-    if(GPU_RT_TYPE STREQUAL "VULKAN")
-        option(OV_GPU_VULKAN_SMOKE_TESTS "Build the GPU Vulkan runtime smoke tests" OFF)
-        if(OV_GPU_VULKAN_SMOKE_TESTS AND NOT ENABLE_TESTS)
-            enable_testing()
-        endif()
-    endif()
     # COMBINED ships two plugin libraries via plugins.xml, which requires shared libs.
     if(GPU_RT_TYPE STREQUAL "COMBINED" AND NOT BUILD_SHARED_LIBS)
         message(FATAL_ERROR "GPU_RT_TYPE=COMBINED requires BUILD_SHARED_LIBS=ON. "
