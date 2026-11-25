@@ -794,7 +794,18 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // [tokens, 1] (batch_dim=tokens, seq_dim=1), giving indices [0, 1, .., tokens - 1] -- the
     // identity that layout needs, since it already carries one token per row.
     auto inp_out_ids = find_parameter(model, "inp_out_ids");
+    std::vector<std::shared_ptr<v8::Gather>> out_row_selects;
     if (inp_out_ids) {
+        for (const auto& reshape_input : inp_out_ids->output(0).get_target_inputs()) {
+            const auto indices = reshape_input.get_node()->shared_from_this();
+            if (!ov::is_type<v1::Reshape>(indices))
+                continue;
+            for (const auto& gather_input : indices->output(0).get_target_inputs()) {
+                if (const auto gather = ov::as_type_ptr<v8::Gather>(gather_input.get_node()->shared_from_this());
+                    gather && gather_input.get_index() == 1)
+                    out_row_selects.push_back(gather);
+            }
+        }
         auto batch_dim = gather_dims(ids_shape, {0});
         auto seq_dim = gather_dims(ids_shape, {1});
         auto seq_dim_i32 = make_shared<v0::Convert>(seq_dim, ov::element::i32);
@@ -855,7 +866,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const auto& hidden_ps = lm_head ? lm_head->get_input_partial_shape(0) : ov::PartialShape::dynamic();
     if (lm_head && hidden_ps.rank().is_static() && (hidden_ps.size() == 3 || hidden_ps.size() == 4) &&
         hidden_ps[hidden_ps.size() - 1].is_static() && lm_head->get_input_partial_shape(1).size() == 2) {
-        // Selected rows may be fewer than the batch when shared-KV layers are pruned.
+        // The selected rows size the head, so passes that prune rows keep its shape consistent.
         const auto head_batch_len = inp_out_ids ? get_dimensions(lm_head->input_value(0), {0}) : batch_len;
         const auto sequence_and_hidden_dims =
             v0::Constant::create(ov::element::i64, {2}, {int64_t{-1}, hidden_ps[hidden_ps.size() - 1].get_length()});
@@ -1005,6 +1016,30 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
 
     model->validate_nodes_and_infer_types();
+    // The last row of each sequence of a [batch, 1, seq, hidden] activation, as a Slice instead of a
+    // row-index Gather: under PagedAttention seq is 1, so passes like PruneSharedKVRows see that
+    // rows are kept independently.
+    for (const auto& gather : out_row_selects) {
+        const auto data_flat = gather->get_input_node_shared_ptr(0);
+        if (!ov::is_type<v1::Reshape>(data_flat))
+            continue;
+        const auto data = data_flat->input_value(0);
+        const auto& shape = data.get_partial_shape();
+        if (shape.rank() != 4 || shape[1] != 1 || shape[3].is_dynamic())
+            continue;
+        auto last =
+            make_shared<v8::Slice>(data,
+                                   v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                   v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()}),
+                                   v0::Constant::create(ov::element::i64, {1}, {1}),
+                                   v0::Constant::create(ov::element::i64, {1}, {2}));
+        auto rows = make_shared<v1::Reshape>(
+            last,
+            v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{-1, 1, shape[3].get_length()}),
+            false);
+        ov::copy_runtime_info(gather, {last, rows});
+        ov::replace_node_update_name(gather, rows);
+    }
     if (inputs_embeds) {
         // Detached nodes can still consume input_ids. Only reachable auxiliary branches
         // require it in the model's input contract; get_ops() excludes detached consumers.

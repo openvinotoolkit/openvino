@@ -159,14 +159,6 @@ and qwen35 Gated DeltaNet layers that return the same sublayer output as attenti
 
 Do not add `DecoderConfig` flags for non-decoder families such as encoders; write a `ModelBuilder`.
 
-For Gemma4 text decoding with `GenAIExtension`, when `AdaptToGenAI` selects one output row it applies
-that selection before the first shared-KV layer, including positions, query masks and per-layer
-embeddings. Plain conversion and `GGUFMakeStateful` keep all token rows and preserve arbitrary
-`inp_out_ids` selection. Under PagedAttention the selection keeps all rows; when GenAI adds the
-`sampled_tokens_indices` Gather before the LM head, the CPU and GPU plugins run the generic
-`PruneSharedKVRows` pass, which computes the layers after shared-KV attention only for the rows
-from the first sampled row of each sequence (or its last row when none is sampled).
-
 ## Write a custom builder
 
 Implement `ModelBuilder::build()` with a `GgufGraphContext`. `BuildContext` borrows metadata and

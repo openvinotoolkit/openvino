@@ -989,131 +989,6 @@ TEST(GGUFMultimodalBackboneAdaptation, Rank3HeadRemainsVisibleToGenAI) {
     }
 }
 
-TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunesRowsAtFirstSharedKvLayer) {
-    using namespace ov::frontend::gguf;
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    auto loaded = get_gguf_data(temporary.path);
-    auto& metadata = std::get<0>(loaded);
-    auto& weights = std::get<1>(loaded);
-    detail::MetadataStore store{metadata};
-    const auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox);
-    detail::WeightStore tensors{weights};
-    BuildContext context{GgufMetadata(store), parameters.architecture, &tensors};
-    context.genai_adaptation = true;
-    DecoderBuilder builder(context, parameters);
-    const auto graph = builder.build();
-    const DecoderConfig config(parameters, weights);
-    const int first_shared = config.n_layer - config.shared_kv_layers;
-    ASSERT_GT(config.shared_kv_layers, 0);
-    ASSERT_GT(first_shared, 0);
-    ASSERT_GT(config.n_embd_per_layer, 0);
-
-    const auto find_node = [&](const std::string& name) -> const GgufOp* {
-        const auto it = std::find_if(graph->nodes.begin(), graph->nodes.end(), [&](const auto& op) {
-            return op.name == name;
-        });
-        return it == graph->nodes.end() ? nullptr : &*it;
-    };
-    const auto expect_rows = [&](const std::string& name, const std::string& input) {
-        const auto* op = find_node(name);
-        ASSERT_NE(op, nullptr) << name;
-        EXPECT_EQ(op->op_type, "GGML_OP_GET_ROWS");
-        ASSERT_EQ(op->input_names.size(), 2);
-        if (!input.empty()) {
-            EXPECT_EQ(op->input_names[0], input);
-        }
-        EXPECT_EQ(op->input_names[1], "inp_out_ids");
-    };
-
-    expect_rows("shared_kv_inp", "");
-    expect_rows("inp_pos_shared_rows", "inp_pos_as_rows");
-    for (int il = 0; il < config.n_layer; ++il) {
-        const auto* attention = find_node("blk." + std::to_string(il) + ".kqv");
-        ASSERT_NE(attention, nullptr) << il;
-        EXPECT_EQ(attention->attributes.count("last_query_rows"), il >= first_shared ? 1u : 0u) << il;
-    }
-    EXPECT_NE(find_node("inp_pos_shared"), nullptr);
-    EXPECT_EQ(find_node("blk." + std::to_string(config.n_layer - 1) + ".attn_out_g"), nullptr);
-    EXPECT_EQ(find_node("blk." + std::to_string(config.n_layer - 1) + ".inpSA_g"), nullptr);
-
-    for (int il = first_shared; il < config.n_layer; ++il) {
-        EXPECT_NE(find_node("blk." + std::to_string(il) + ".per_layer_slice_sel"), nullptr);
-    }
-    EXPECT_EQ(find_node("blk.0.per_layer_slice_sel"), nullptr);
-
-    const BuildContext raw_context{GgufMetadata(store), parameters.architecture, &tensors};
-    DecoderBuilder raw_builder(raw_context, parameters);
-    const auto raw_graph = raw_builder.build();
-    const auto has_node = [&](const std::string& name) {
-        return std::any_of(raw_graph->nodes.begin(), raw_graph->nodes.end(), [&](const auto& op) {
-            return op.name == name;
-        });
-    };
-    EXPECT_FALSE(has_node("shared_kv_inp"));
-    EXPECT_TRUE(has_node("blk." + std::to_string(config.n_layer - 1) + ".attn_out_g"));
-}
-
-TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedLogitsMatchUnprunedStatefulModel) {
-    using namespace ov::frontend::gguf;
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    FrontEnd optimized_frontend;
-    optimized_frontend.add_extension(std::make_shared<GenAIExtension>());
-    auto optimized = optimized_frontend.convert(optimized_frontend.load(temporary.path));
-
-    FrontEnd reference_frontend;
-    reference_frontend.add_extension(
-        std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
-    auto reference = reference_frontend.convert(reference_frontend.load(temporary.path));
-    ASSERT_TRUE(pass::AdaptToGenAI().run_on_model(reference));
-
-    ov::Core core;
-    const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
-        return core.compile_model(model,
-                                  "CPU",
-                                  ov::hint::inference_precision(ov::element::f32),
-                                  ov::num_streams(1),
-                                  ov::inference_num_threads(4),
-                                  ov::hint::dynamic_quantization_group_size(0),
-                                  ov::hint::kv_cache_precision(ov::element::f16));
-    };
-    auto actual = compile(optimized).create_infer_request();
-    auto expected = compile(reference).create_infer_request();
-    const auto infer = [](ov::InferRequest& request,
-                          size_t batch,
-                          const std::vector<int64_t>& ids,
-                          const std::vector<int64_t>& mask,
-                          const std::vector<int64_t>& positions,
-                          const std::vector<int32_t>& beams) {
-        const auto set = [&](const char* name, const ov::element::Type& type, const auto& values) {
-            ov::Tensor tensor(type, {batch, values.size() / batch});
-            std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
-            request.set_tensor(name, tensor);
-        };
-        set("input_ids", ov::element::i64, ids);
-        set("attention_mask", ov::element::i64, mask);
-        set("position_ids", ov::element::i64, positions);
-        ov::Tensor beam_tensor(ov::element::i32, {batch});
-        std::memcpy(beam_tensor.data(), beams.data(), beam_tensor.get_byte_size());
-        request.set_tensor("beam_idx", beam_tensor);
-        request.infer();
-        const auto output = request.get_tensor("logits");
-        return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
-    };
-    const auto compare = [&](const std::vector<int64_t>& ids,
-                             const std::vector<int64_t>& mask,
-                             const std::vector<int64_t>& positions,
-                             const std::vector<int32_t>& beams) {
-        const auto a = infer(actual, beams.size(), ids, mask, positions, beams);
-        const auto b = infer(expected, beams.size(), ids, mask, positions, beams);
-        ASSERT_EQ(a.size(), b.size());
-        ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(a.data(), b.data(), a.size()), 1e-5);
-    };
-    compare({1, 2, 3, 0, 2, 3}, {1, 1, 1, 0, 1, 1}, {0, 1, 2, 0, 0, 1}, {0, 0});
-    compare({5, 4}, {0, 1, 1, 1, 1, 1, 1, 1}, {2, 3}, {1, 0});
-}
-
 // Mirrors GenAI, which gathers the sampled rows before the LM head after SDPAToPagedAttention.
 static void add_sampled_tokens_indices(const std::shared_ptr<ov::Model>& model) {
     auto output = model->output("logits").get_node()->input_value(0);
@@ -1142,9 +1017,11 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     ov::frontend::gguf::FrontEnd frontend;
-    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
-    auto optimized = to_paged_attention(frontend.convert(frontend.load(temporary.path)), true);
-    auto reference = to_paged_attention(frontend.convert(frontend.load(temporary.path)), false);
+    const auto convert = [&] {
+        return ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(temporary.path))).at("language");
+    };
+    auto optimized = to_paged_attention(convert(), true);
+    auto reference = to_paged_attention(convert(), false);
     size_t shared_sliding_layers = 0;
     for (const auto& node : optimized->get_ordered_ops()) {
         const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
@@ -1246,6 +1123,59 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
     for (const auto& sampled : std::vector<std::vector<int64_t>>{{2, 4}, {1, 2, 4}, {4}, {0, 1, 2, 3, 4}, {0, 2, 4}})
         compare(actual, expected, prompt, positions, {0, 0}, {0, 3, 5}, {0, 1, 2}, sampled, 3);
     compare(actual, expected, {6, 7, 8}, {3, 4, 2}, {3, 2}, {0, 2, 3}, {0, 1, 2}, {1, 2}, 5);
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4AdaptedPagedAttentionPrunesSharedRows) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(temporary.path))).at("language");
+    model = to_paged_attention(model, true);
+    EXPECT_TRUE(ov::pass::PruneSharedKVRows().run_on_model(model));
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Gemma4AdaptedBatchMatchesSingleSequences) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(temporary.path))).at("language");
+    ov::Core core;
+    auto request = core.compile_model(model,
+                                      "CPU",
+                                      ov::hint::inference_precision(ov::element::f32),
+                                      ov::num_streams(1),
+                                      ov::inference_num_threads(4),
+                                      ov::hint::dynamic_quantization_group_size(0),
+                                      ov::hint::kv_cache_precision(ov::element::f32))
+                       .create_infer_request();
+    const auto infer = [&](size_t batch, const std::vector<int64_t>& ids) {
+        const size_t length = ids.size() / batch;
+        std::vector<int64_t> positions(ids.size()), mask(ids.size(), 1);
+        for (size_t i = 0; i < ids.size(); ++i)
+            positions[i] = static_cast<int64_t>(i % length);
+        const auto set = [&](const char* name, const std::vector<int64_t>& values) {
+            ov::Tensor tensor(ov::element::i64, {batch, length});
+            std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
+            request.set_tensor(name, tensor);
+        };
+        set("input_ids", ids);
+        set("attention_mask", mask);
+        set("position_ids", positions);
+        ov::Tensor beams(ov::element::i32, {batch});
+        for (size_t i = 0; i < batch; ++i)
+            beams.data<int32_t>()[i] = static_cast<int32_t>(i);
+        request.set_tensor("beam_idx", beams);
+        request.reset_state();
+        request.infer();
+        const auto logits = request.get_tensor("logits");
+        return std::vector<float>(logits.data<const float>(), logits.data<const float>() + logits.get_size());
+    };
+    const auto batched = infer(2, {1, 2, 3, 4, 7, 6, 5, 4});
+    auto expected = infer(1, {1, 2, 3, 4});
+    const auto second = infer(1, {7, 6, 5, 4});
+    expected.insert(expected.end(), second.begin(), second.end());
+    ASSERT_EQ(batched.size(), expected.size());
+    ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(batched.data(), expected.data(), expected.size()), 1e-5);
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionKeepsGenAIInputs) {

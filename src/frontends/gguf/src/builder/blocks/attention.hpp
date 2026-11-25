@@ -36,8 +36,6 @@ std::string attention(GraphEmitter& e,
                       const DecoderConfig& cfg,
                       const KvCachePlan& kv,
                       int il,
-                      const std::string& attn_norm,
-                      const std::string& positions = "inp_pos",
-                      bool last_query_rows = false);
+                      const std::string& attn_norm);
 
 }  // namespace ov::frontend::gguf::blocks

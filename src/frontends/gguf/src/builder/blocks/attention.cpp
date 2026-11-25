@@ -40,9 +40,7 @@ std::string attention(GraphEmitter& e,
                       const DecoderConfig& cfg,
                       const KvCachePlan& kv,
                       int il,
-                      const std::string& attn_norm,
-                      const std::string& positions,
-                      bool last_query_rows) {
+                      const std::string& attn_norm) {
     const std::string p = "blk." + std::to_string(il) + ".";
 
     // Per-layer hyperparameters (SWA vs global head size / rope / scale; per-layer KV heads).
@@ -144,7 +142,7 @@ std::string attention(GraphEmitter& e,
     if (use_rope) {
         const bool use_rope_freqs = cfg.has_rope_freqs && !is_swa_layer;
         const auto rope = [&](const std::string& x, const std::string& name) {
-            std::vector<std::string> inputs{x, positions};
+            std::vector<std::string> inputs{x, "inp_pos"};
             if (use_rope_freqs)
                 inputs.emplace_back("rope_freqs.weight");
             return e.add_op("GGML_OP_ROPE", name, inputs, cfg.rope_op_case, {{"rope_config", rope_config_l}});
@@ -158,7 +156,7 @@ std::string attention(GraphEmitter& e,
         qk_norm();
 
     if (cfg.attention_temperature_scale != 0.0f) {
-        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {positions}, 0, {{"dst_type", f32}});
+        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, 0, {{"dst_type", f32}});
         temp = scale(e, temp, 1.0f / cfg.rope_config.n_ctx_orig, p + "temp_window");
         // Positions are nonnegative: integer conversion implements floor(position / context).
         temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, 0, {{"dst_type", ov::element::i32}});
@@ -236,8 +234,6 @@ std::string attention(GraphEmitter& e,
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
-    if (last_query_rows)
-        attn_attrs["last_query_rows"] = true;
     if (cfg.embedding_model)
         attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f)

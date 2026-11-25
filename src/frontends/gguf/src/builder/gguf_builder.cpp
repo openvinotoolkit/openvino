@@ -77,13 +77,12 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
                        ". Register an ArchitectureExtension.");
     }
     return [data, definition = *definition, projectors = registry.projectors()](
-               const std::unordered_map<std::string, CreatorFunction>& translators,
-               bool genai_adaptation) {
+               const std::unordered_map<std::string, CreatorFunction>& translators) {
         const auto& [metadata, weights, mmap] = *data;
         const detail::MetadataStore meta_store{metadata};
         const GgufMetadata meta_view(meta_store);
         detail::WeightStore weight_store{weights, &translators};
-        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors, genai_adaptation};
+        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
         auto builder = definition.factory(ctx);
         OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
         auto graph = builder->build();

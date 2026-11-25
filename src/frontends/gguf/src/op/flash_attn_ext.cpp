@@ -4,7 +4,6 @@
 
 #include <cmath>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,7 +21,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/negative.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -157,14 +155,6 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
             auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
             auto token_len = get_dimensions(q, {op_case == 100 ? 1 : 2});
             mask_sliced = std::make_shared<ov::op::v8::Slice>(mask, zero, token_len, one, two);
-        }
-        if (context.get_attribute<bool>("last_query_rows", false)) {
-            // The query keeps only its trailing rows, so take the matching mask rows.
-            auto start = std::make_shared<ov::op::v0::Negative>(get_dimensions(q, {op_case == 100 ? 1 : 2}));
-            auto stop = ov::op::v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()});
-            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-            auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
-            mask_sliced = std::make_shared<ov::op::v8::Slice>(mask_sliced, start, stop, one, two);
         }
 
         if (mask_sliced.get_element_type() != sdpa_type) {
