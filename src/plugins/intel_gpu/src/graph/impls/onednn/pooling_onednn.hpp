@@ -104,9 +104,17 @@ struct PoolingImplementationManager : public ImplementationManager {
             std::any_of(prim->dilation.begin(), prim->dilation.end(), [](size_t dilation) { return dilation > 1; })) {
             return false;
         }
+        if (prim->mode == pooling_mode::average && has_unsupported_average_padding(*prim, in_layout, out_layout)) {
+            return false;
+        }
 #endif
         return is_supported_post_ops(node);
     }
+
+#ifdef OV_GPU_VENDOR_NVIDIA
+private:
+    static bool has_unsupported_average_padding(const pooling& prim, const layout& in_layout, const layout& out_layout);
+#endif
 };
 
 }  // namespace onednn
