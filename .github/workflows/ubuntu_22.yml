@@ -154,9 +154,7 @@ jobs:
       build-additional-python-packages: true
       build-samples: true
       generate-gguf-fixtures: true
-      # TEMPORARY: testing cpp20 default standard against openvino_contrib's own cpp20
-      # migration branch instead of master. Revert this line before merging.
-      target-branch: 'feature/migrate-to-cpp20-std'
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_NCC_STYLE=OFF

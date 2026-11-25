@@ -194,9 +194,7 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          # TEMPORARY: testing against the cpp20 migration branch on the fork, since it
-          # hasn't been pushed to openvinotoolkit/openvino_contrib yet. Revert before merging.
-          repository: 'praasz/openvino_contrib'
+          repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
           ref: ${{ env.TARGET_BRANCH }}
