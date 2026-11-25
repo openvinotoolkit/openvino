@@ -63,6 +63,12 @@ namespace {
 
 using NodeSet = std::unordered_set<const Node*>;
 
+// PagedAttentionExtension inputs.
+constexpr size_t past_lens_input = 5;
+constexpr size_t subsequence_begins_input = 6;
+constexpr size_t token_type_ids_input = 25;
+constexpr size_t qq_bias_input = 26;
+
 Output<Node> to_i64(const Output<Node>& value) {
     return value.get_element_type() == element::i64 ? value : std::make_shared<v0::Convert>(value, element::i64);
 }
@@ -211,8 +217,8 @@ bool depends_on_shared_attention(const Output<Node>& output) {
 bool computes_rows_independently(const std::shared_ptr<Node>& node, const Rows& rows) {
     const auto& data_shape = node->get_input_partial_shape(0);
     if (const auto pa = ov::as_type_ptr<PagedAttentionExtension>(node)) {
-        if (pa->get_write_kv_cache() || pa->get_input_partial_shape(25) != PartialShape{0} ||
-            pa->get_input_partial_shape(26) != PartialShape{0} || !rows.in(pa->input_value(0)))
+        if (pa->get_write_kv_cache() || pa->get_input_partial_shape(token_type_ids_input) != PartialShape{0} ||
+            pa->get_input_partial_shape(qq_bias_input) != PartialShape{0} || !rows.in(pa->input_value(0)))
             return false;
         for (size_t i = 1; i < pa->get_output_size(); ++i) {
             if (!pa->output(i).get_target_inputs().empty())
@@ -454,8 +460,8 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
         }
     }
     const bool consistent = !attentions.empty() && std::all_of(attentions.begin(), attentions.end(), [&](auto* pa) {
-        return pa->input_value(5) == attentions.front()->input_value(5) &&
-               pa->input_value(6) == attentions.front()->input_value(6);
+        return pa->input_value(past_lens_input) == attentions.front()->input_value(past_lens_input) &&
+               pa->input_value(subsequence_begins_input) == attentions.front()->input_value(subsequence_begins_input);
     });
     if (!consistent) {
         restore_symbols(model, parameter_shapes);
@@ -463,8 +469,9 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
     }
 
     const auto indices = selections.front()->input_value(1);
-    const auto kept =
-        keep_sampled_rows(indices, attentions.front()->input_value(5), attentions.front()->input_value(6));
+    const auto kept = keep_sampled_rows(indices,
+                                        attentions.front()->input_value(past_lens_input),
+                                        attentions.front()->input_value(subsequence_begins_input));
     const auto axis = v0::Constant::create(element::i64, Shape{}, {0});
     std::map<Output<Node>, Output<Node>> gathered;
     for (auto& [input, source] : cuts) {
@@ -476,8 +483,8 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
         Input<Node>(input).replace_source_output(replacement);
     }
     for (auto* pa : attentions) {
-        pa->input(5).replace_source_output(kept.past_lens);
-        pa->input(6).replace_source_output(kept.subsequence_begins);
+        pa->input(past_lens_input).replace_source_output(kept.past_lens);
+        pa->input(subsequence_begins_input).replace_source_output(kept.subsequence_begins);
     }
     for (const auto& selection : selections)
         selection->input(1).replace_source_output(kept.sampled_rows);
