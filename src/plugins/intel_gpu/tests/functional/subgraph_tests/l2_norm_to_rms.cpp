@@ -224,6 +224,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_L2NormToRMS_rank_six,
                                             ::testing::Values(ov::element::f32)),
                          L2NormToRMS::getTestCaseName);
 
+// Finds the single rms layer in the runtime model. Comparing outputs alone also passes when the norm is not fused,
+// so the tests check the fusion too.
+void get_single_rms_layer(const ov::CompiledModel& compiled_model, std::shared_ptr<ov::Node>& rms) {
+    const auto runtime_model = compiled_model.get_runtime_model();
+    ASSERT_NE(runtime_model, nullptr);
+    std::ostringstream layers;
+    rms = nullptr;
+    for (const auto& op : runtime_model->get_ordered_ops()) {
+        const auto layer_type = op->get_rt_info().at("layerType").as<std::string>();
+        layers << layer_type << " " << op->get_friendly_name() << " -> " << op->get_output_element_type(0) << "\n";
+        if (layer_type == "rms") {
+            ASSERT_EQ(rms, nullptr) << "expected a single rms layer";
+            rms = op;
+        }
+    }
+    ASSERT_NE(rms, nullptr) << "the L2 norm is not fused into RMS; runtime model:\n" << layers.str();
+}
+
 // Residual stream x0 + x1 + x2 + x3 feeding an L2 norm, f16 inference. With Overflow inputs the sum (~100000)
 // exceeds f16, so the residual stream must stay FP32 (L2NormToRMS marks the fused RMS to stay in FP32).
 enum class ResidualRange {
@@ -334,6 +352,14 @@ protected:
                            ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), target_input_static_shapes[i], gen)});
         }
     }
+
+    // The norm is fused, and the RMS reads the residual stream in FP32.
+    void validate() override {
+        ov::test::SubgraphBaseTest::validate();
+        std::shared_ptr<ov::Node> rms;
+        ASSERT_NO_FATAL_FAILURE(get_single_rms_layer(compiledModel, rms));
+        EXPECT_EQ(rms->get_input_element_type(0), ov::element::f32);
+    }
 };
 
 TEST_P(L2NormToRMSResidualOverflow, Inference) {
@@ -392,6 +418,12 @@ protected:
         weight_values[weight.get_size() - 1] = 65535;
         inputs.insert({func_inputs[1].get_node_shared_ptr(), weight});
     }
+
+    void validate() override {
+        ov::test::SubgraphBaseStaticTest::validate();
+        std::shared_ptr<ov::Node> rms;
+        ASSERT_NO_FATAL_FAILURE(get_single_rms_layer(compiledModel, rms));
+    }
 };
 
 TEST_F(L2NormToRMSU16Gamma, smoke_Inference) {
@@ -433,20 +465,8 @@ protected:
 
     void validate() override {
         ov::test::SubgraphBaseStaticTest::validate();
-        const auto runtime_model = compiledModel.get_runtime_model();
-        ASSERT_NE(runtime_model, nullptr);
-        std::ostringstream layers;
         std::shared_ptr<ov::Node> rms;
-        for (const auto& op : runtime_model->get_ordered_ops()) {
-            const auto layer_type = op->get_rt_info().at("layerType").as<std::string>();
-            layers << layer_type << " " << op->get_friendly_name() << " -> " << op->get_output_element_type(0) << "\n";
-            if (layer_type == "rms") {
-                ASSERT_EQ(rms, nullptr) << "expected a single rms layer";
-                rms = op;
-            }
-        }
-        SCOPED_TRACE("runtime model:\n" + layers.str());
-        ASSERT_NE(rms, nullptr) << "the L2 norm is not fused into RMS";
+        ASSERT_NO_FATAL_FAILURE(get_single_rms_layer(compiledModel, rms));
         EXPECT_EQ(rms->get_input_element_type(0), ov::element::f16);
         EXPECT_EQ(rms->get_output_element_type(0), ov::element::f16);
     }

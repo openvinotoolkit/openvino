@@ -9,12 +9,14 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -23,11 +25,13 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/convert_precision.hpp"
@@ -197,10 +201,16 @@ NormInput residual_stream() {
     return {residual, {h, b, branch}};
 }
 
-// branch + bias: an Add with a constant input is a bias, not a residual connection
+// MatMul(x, W): not a residual stream (a model input itself counts as one)
+NormInput matmul_output() {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+    return {std::make_shared<ov::op::v0::MatMul>(x, ov::op::v0::Constant::create(ov::element::f32, {hidden, hidden}, {0.01f})), {x}};
+}
+
+// MatMul + bias: an Add with a constant input is a bias, not a residual connection
 NormInput bias_only() {
-    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
-    return {add_bias(branch), {branch}};
+    auto in = matmul_output();
+    return {add_bias(in.x), in.params};
 }
 
 // gamma = (Convert(u16 weight) - zp) * scale with weight up to 65535 (above the f16 range)
@@ -323,17 +333,135 @@ TEST_F(TransformationTestsF, L2NormToRMS_BiasFedNormFused) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-// A q/k-norm-like L2 norm fed by a MatMul (not a residual connection) runs in f16 after ConvertPrecision.
-TEST(L2NormToRMSPipeline, NonResidualNormRunsInF16) {
-    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
-    auto q = std::make_shared<ov::op::v0::MatMul>(x, ov::op::v0::Constant::create(ov::element::f32, {hidden, hidden}, {0.01f}));
-    auto m = make_model(l2_norm(q, constant_gamma()), {x});
+namespace {
+// A node of the decomposed norm that is already marked to stay in FP32 before the pass, e.g. by the model's rt_info.
+enum class MarkedNode {
+    Divide,
+    OutputConvert,         // the trailing Convert that the RMS absorbs
+    DivideFromF32,         // disable_conversion(node, f32, f16): only for its own source type
+    OutputConvertFromF32,  // disable_conversion(node, f32, f16): only for its own source type
+};
+
+bool on_output_convert(MarkedNode marked) {
+    return marked == MarkedNode::OutputConvert || marked == MarkedNode::OutputConvertFromF32;
+}
+
+// Other rt_info of the absorbed output Convert, which the RMS takes over.
+constexpr const char* output_convert_rt_key = "l2_norm_to_rms_test_output_convert";
+
+// A norm fed by a MatMul (not a residual connection), with one node marked to stay in FP32.
+std::shared_ptr<ov::Model> norm_with_marked_node(MarkedNode marked) {
+    auto in = matmul_output();
+    auto norm = l2_norm(in.x, constant_gamma());
+    std::shared_ptr<ov::Node> out = norm;
+    std::shared_ptr<ov::Node> node = norm->get_input_node_shared_ptr(0);  // the Divide
+    if (on_output_convert(marked)) {
+        out = std::make_shared<ov::op::v0::Convert>(norm, ov::element::f32);
+        out->get_rt_info()[output_convert_rt_key] = std::string("kept");
+        node = out;
+    }
+    if (marked == MarkedNode::DivideFromF32 || marked == MarkedNode::OutputConvertFromF32) {
+        ov::disable_conversion(node, ov::element::f32, ov::element::f16);
+    } else {
+        ov::disable_conversion(node, ov::element::f16);
+    }
+    return make_model(out, in.params);
+}
+
+const std::vector<MarkedNode> marked_nodes{MarkedNode::Divide, MarkedNode::OutputConvert, MarkedNode::DivideFromF32, MarkedNode::OutputConvertFromF32};
+
+class L2NormToRMSMarkedNode : public TransformationTestsF, public WithParamInterface<MarkedNode> {};
+
+class L2NormToRMSMarkedNodePipeline : public TestWithParam<MarkedNode> {};
+}  // namespace
+
+// The fusion removes the marked node: the RMS gets its FP32 mark (and the rt_info of an absorbed output Convert).
+TEST_P(L2NormToRMSMarkedNode, MarkKeptOnRMS) {
+    model = norm_with_marked_node(GetParam());
+    {
+        auto in = matmul_output();
+        auto fused = rms(in.x, constant_gamma(), ov::element::f32);
+        ov::disable_conversion(fused, ov::element::f16);
+        if (on_output_convert(GetParam())) {
+            fused->get_rt_info()[output_convert_rt_key] = std::string("kept");
+        }
+        model_ref = make_model(fused, in.params);
+    }
+    manager.register_pass<L2NormToRMS>(1024);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// After ConvertPrecision the RMS still computes and writes f32. In f16 a large input (e.g. 70000) would give inf and
+// then NaN.
+TEST_P(L2NormToRMSMarkedNodePipeline, RMSStaysFP32AfterConvertPrecision) {
+    auto m = norm_with_marked_node(GetParam());
     fuse_and_convert_to_f16(m);
 
     const auto fused = single_rms(m);
     ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(fused->get_output_element_type(0), ov::element::f32);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, L2NormToRMSMarkedNode, ValuesIn(marked_nodes));
+INSTANTIATE_TEST_SUITE_P(smoke, L2NormToRMSMarkedNodePipeline, ValuesIn(marked_nodes));
+
+// A residual Add of a MatMul output and a ReadValue with a Constant initializer: the state changes at run time, so the
+// Add is a residual connection and stays in FP32 (in f16 the sum can overflow).
+TEST(L2NormToRMSPipeline, ResidualWithReadValueStaysFP32) {
+    const ov::Shape shape{1, 16, hidden};
+    auto in = matmul_output();
+    auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, ov::element::f32, "residual_state"});
+    auto state = std::make_shared<ov::op::v6::ReadValue>(ov::op::v0::Constant::create(ov::element::f32, shape, {0.f}), variable);
+    auto residual = std::make_shared<ov::op::v1::Add>(in.x, state);
+    auto assign = std::make_shared<ov::op::v6::Assign>(residual, variable);
+    auto m = std::make_shared<ov::Model>(ov::OutputVector{l2_norm(residual, constant_gamma())}, ov::SinkVector{assign}, in.params);
+    fuse_and_convert_to_f16(m);
+
+    const auto fused = single_rms(m);
+    ASSERT_NE(fused, nullptr);
+    EXPECT_TRUE(ov::is_conversion_disabled(fused, ov::element::f16));
+    EXPECT_EQ(fused->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(residual->get_output_element_type(0), ov::element::f32);
+}
+
+namespace {
+// The norm is not residual-fed, so after ConvertPrecision it runs in f16. The graph comparison in the tests above
+// does not catch an extra FP32 mark: it checks only that the reference's rt_info keys are present.
+void expect_norm_runs_in_f16(const NormInput& in) {
+    auto m = make_model(l2_norm(in.x, constant_gamma()), in.params);
+    fuse_and_convert_to_f16(m);
+
+    const auto fused = single_rms(m);
+    ASSERT_NE(fused, nullptr);
+    EXPECT_FALSE(ov::is_conversion_disabled(fused, ov::element::f16));
     EXPECT_EQ(fused->get_input_element_type(0), ov::element::f16);
     EXPECT_EQ(fused->get_output_element_type(0), ov::element::f16);
+}
+}  // namespace
+
+TEST(L2NormToRMSPipeline, BiasFedNormRunsInF16) {
+    expect_norm_runs_in_f16(bias_only());
+}
+
+// A q/k-norm-like L2 norm fed by a MatMul (not a residual connection) runs in f16 after ConvertPrecision.
+TEST(L2NormToRMSPipeline, NonResidualNormRunsInF16) {
+    expect_norm_runs_in_f16(matmul_output());
+}
+
+// A norm fed directly by a model input stays in FP32, as the decomposed norm did: the input may carry a residual
+// stream, e.g. in a model split per layer.
+TEST(L2NormToRMSPipeline, ModelInputFedNormStaysFP32) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+    auto m = make_model(l2_norm(x, constant_gamma()), {x});
+    fuse_and_convert_to_f16(m);
+
+    const auto fused = single_rms(m);
+    ASSERT_NE(fused, nullptr);
+    EXPECT_TRUE(ov::is_conversion_disabled(fused, ov::element::f16));
+    EXPECT_EQ(fused->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(fused->get_output_element_type(0), ov::element::f32);
 }
 
 // gamma = (Convert(u16 model input) - zp) * scale, as ONNX Runtime with the OpenVINO EP feeds a shared gamma

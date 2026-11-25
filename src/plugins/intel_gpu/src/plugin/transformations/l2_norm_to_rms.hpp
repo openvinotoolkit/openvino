@@ -43,8 +43,11 @@ namespace ov::intel_gpu {
 // The pass runs before ConvertPrecision, so the fusion removes the Divide that MarkDivWithEps would mark to keep
 // the norm and, through propagation, its neighbors in FP32. The pass sets these marks itself:
 //  - the RMS is marked to stay in FP32 when that mark, propagated up from x, reaches a residual connection
-//    (elementwise arithmetic of two non-constant inputs, e.g. the residual Add): ConvertPrecision then keeps the
-//    residual stream in FP32, which may exceed the f16 range. Other norms (e.g. q/k norms fed by a MatMul) run in f16;
+//    (elementwise arithmetic of two non-constant inputs, e.g. the residual Add) or a real-typed model input, which
+//    may carry a residual stream: ConvertPrecision then keeps the residual stream in FP32, which may exceed the f16
+//    range. Other norms (e.g. q/k norms fed by a MatMul) run in f16;
+//  - the RMS is also marked to stay in FP32 when a node that the fusion removes already has that mark (e.g. from the
+//    model's rt_info), since copy_runtime_info does not copy it;
 //  - the scaled gamma is marked to stay in FP32: it may be dequantized from u16 values above the f16 range
 //    (e.g. 65535). KeepDequantizationPrecision covers Constant weights only, not a u16 weight fed as a model input
 //    (as ONNX Runtime with the OpenVINO EP passes it). The Converts that dequantize such a non-constant gamma are
