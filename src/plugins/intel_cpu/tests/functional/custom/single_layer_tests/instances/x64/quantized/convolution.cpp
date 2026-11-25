@@ -58,12 +58,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_FP32_Quantization,
                                             ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
+// Feed the Convolution output to a per-channel Multiply and a Relu, then add their results.
+// Folding the Multiply into the Convolution's DQ scales would also scale the Relu input.
 const auto fusingMultiplyPerChannelWithSecondConsumer = fusingSpecificParams{
     std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
-             auto scale = ov::test::utils::make_constant(cfg.type, generatePerChannelShape(cfg.target));
+             auto scale = ov::test::utils::make_constant(cfg.type, generatePerChannelShape(cfg.input));
              auto multiply = std::make_shared<ov::op::v1::Multiply>(cfg.input, scale);
-             auto relu = std::make_shared<ov::op::v0::Relu>(cfg.target);
+             auto relu = std::make_shared<ov::op::v0::Relu>(cfg.input);
              return std::make_shared<ov::op::v1::Add>(multiply, relu);
          },
          "Add(Multiply(PerChannel),Relu)"}}),
@@ -85,6 +87,7 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoVNNI({conv_avx2_1D_nspc, conv_avx512_1D_nspc})),
         ::testing::Values(dqScalesMultipleConsumers),
+        // Pin f32 inference precision across CPUs. Disable Snippets so the static case exercises DQ-scale fusion.
         ::testing::Values(ov::AnyMap{ov::hint::inference_precision(ov::element::f32),
                                      ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE)})),
     ConvolutionLayerCPUTest::getTestCaseName);
