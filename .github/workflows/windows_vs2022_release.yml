@@ -695,11 +695,9 @@ jobs:
       REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
       NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
       GTEST_PARALLEL_SCRIPT: "${{ github.workspace }}\\gtest-parallel\\gtest_parallel.py"
-      NEO_CACHE_MAX_SIZE: 10737418240 # unlimited
+      NEO_CACHE_MAX_SIZE: 0 # unlimited
       NEO_CACHE_PERSISTENT: 1
       NEO_CACHE_DIR: 'C:\neo_cache'
-      NEO_CACHE_STATS: 1
-      cl_cache_dir: 'C:\neo_cache'
       PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache_gpu_unit_ptl.lst"
       TEST_RESULTS_DIR: "${{ github.workspace }}\\install\\tests\\gpu_unit_tests"
