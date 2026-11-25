@@ -45,6 +45,6 @@ def set_tensor_type(tensor: openvino._pyopenvino.DescriptorTensor, element_type:
                         :type tensor: openvino.Tensor
                         :param element_type: A new element type of the tensor descriptor.
                         :type element_type: openvino.Type
-                        :param partial_shape: A new partial shape of the tensor desriptor.
+                        :param partial_shape: A new partial shape of the tensor descriptor.
                         :type partial_shape: openvino.PartialShape
     """

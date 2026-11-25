@@ -275,7 +275,7 @@ void regclass_Core(py::module m) {
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
 
-            GIL is released while runing this function.
+            GIL is released while running this function.
 
             :param model_buffer: A string buffer of IR xml in memory
             :type model_buffer: str

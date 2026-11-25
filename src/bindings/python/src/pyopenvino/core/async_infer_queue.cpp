@@ -93,7 +93,7 @@ public:
 
     void set_default_callbacks() {
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
-            // auto end_time = m_requests[handle].m_end_time; // TODO: pass it bellow? like in InferRequestWrapper
+            // auto end_time = m_requests[handle].m_end_time; // TODO: pass it below? like in InferRequestWrapper
 
             m_requests[handle].m_request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 *m_requests[handle].m_end_time = Time::now();
@@ -209,7 +209,7 @@ void regclass_AsyncInferQueue(py::module m) {
             {
                 py::gil_scoped_release release;
                 *self.m_requests[handle].m_start_time = Time::now();
-                // Start InferRequest in asynchronus mode
+                // Start InferRequest in asynchronous mode
                 self.m_requests[handle].m_request.start_async();
             }
         },
@@ -255,7 +255,7 @@ void regclass_AsyncInferQueue(py::module m) {
             {
                 py::gil_scoped_release release;
                 *self.m_requests[handle].m_start_time = Time::now();
-                // Start InferRequest in asynchronus mode
+                // Start InferRequest in asynchronous mode
                 self.m_requests[handle].m_request.start_async();
             }
         },

@@ -22,7 +22,7 @@ def _check_value(op_name, attr_key, value, val_type, cond = None):
     
         :raises     UserInputError:
     
-        returns:    True if attribute satisfies all criterias. Otherwise False.
+        returns:    True if attribute satisfies all criteria. Otherwise False.
         
     """
 def assert_list_of_ints(value_list: collections.abc.Iterable[int], message: str) -> None:
@@ -37,13 +37,13 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond = None, r
         :param attr_dict:   Dictionary containing key-value attributes to check.
         :param attr_key:    Key value for validated attribute.
         :param val_type:    Value type for validated attribute.
-        :param cond:        Any callable wich accept attribute value and returns True or False.
+        :param cond:        Any callable which accept attribute value and returns True or False.
         :param required:    Whether provided attribute key is not required. This mean it may be missing
                             from provided dictionary.
     
         :raises     UserInputError:
     
-        returns True if attribute satisfies all criterias. Otherwise False.
+        returns True if attribute satisfies all criteria. Otherwise False.
         
     """
 def check_valid_attributes(op_name, attributes, requirements):
@@ -61,7 +61,7 @@ def check_valid_attributes(op_name, attributes, requirements):
     
         :raises     UserInputError:
     
-        :returns True if all attributes satisfies criterias. Otherwise False.
+        :returns True if all attributes satisfies criteria. Otherwise False.
         
     """
 def is_non_negative_value(value):

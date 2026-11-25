@@ -645,7 +645,7 @@ class Core:
                     This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
                     especially for cases when caching is enabled and cached model is available.
         
-                    GIL is released while runing this function.
+                    GIL is released while running this function.
         
                     :param model_buffer: A string buffer of IR xml in memory
                     :type model_buffer: str
@@ -4230,7 +4230,7 @@ class ProfilingInfo:
         ...
 class ProgressReporterExtension(Extension):
     """
-    An extension class intented to use as progress reporting utility
+    An extension class intended to use as progress reporting utility
     """
     @typing.overload
     def __init__(self) -> None:
@@ -4820,9 +4820,9 @@ class Tensor:
                     Access to Tensor's data with string Type in `np.bytes_` dtype.
         
                     Getter returns a numpy array with corresponding shape and dtype.
-                    Warning: Data of string type is always a copy of underlaying memory!
+                    Warning: Data of string type is always a copy of underlying memory!
         
-                    Setter fills underlaying Tensor's memory by copying strings from `other`.
+                    Setter fills underlying Tensor's memory by copying strings from `other`.
                     `other` must have the same size (number of elements) as the Tensor.
                     Tensor's shape is not changed by performing this operation!
         """
@@ -4841,9 +4841,9 @@ class Tensor:
         
                     For tensors with string element type, returns a numpy array of bytes
                     without any decoding.
-                    To change the underlaying data use `str_data`/`bytes_data` properties
+                    To change the underlying data use `str_data`/`bytes_data` properties
                     or the `copy_from` function.
-                    Warning: Data of string type is always a copy of underlaying memory!
+                    Warning: Data of string type is always a copy of underlying memory!
         
                     :rtype: numpy.array
         """
@@ -4875,9 +4875,9 @@ class Tensor:
                     Access to Tensor's data with string Type in `np.str_` dtype.
         
                     Getter returns a numpy array with corresponding shape and dtype.
-                    Warning: Data of string type is always a copy of underlaying memory!
+                    Warning: Data of string type is always a copy of underlying memory!
         
-                    Setter fills underlaying Tensor's memory by copying strings from `other`.
+                    Setter fills underlying Tensor's memory by copying strings from `other`.
                     `other` must have the same size (number of elements) as the Tensor.
                     Tensor's shape is not changed by performing this operation!
         """
@@ -5266,7 +5266,7 @@ def save_model(model: typing.Any, output_model: typing.Any, compress_to_fp16: bo
     """
                 Save model into IR files (xml and bin). Floating point weights are compressed to FP16 by default.
                 This method saves a model to IR applying all necessary transformations that usually applied
-                in model conversion flow provided by OVC tool. Paricularly, floatting point weights are
+                in model conversion flow provided by OVC tool. Particularly, floatting point weights are
                 compressed to FP16, debug information in model nodes are cleaned up, etc.
     
                 :param model: model which will be converted to IR representation

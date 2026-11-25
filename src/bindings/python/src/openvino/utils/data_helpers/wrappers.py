@@ -21,7 +21,7 @@ class _InferRequestWrapper(InferRequestBase):
     """InferRequest class with internal memory."""
 
     def __init__(self, other: InferRequestBase) -> None:
-        # Private memeber to store newly created shared memory data
+        # Private member to store newly created shared memory data
         self._inputs_data = None
         super().__init__(other)
 
@@ -43,7 +43,7 @@ class OVDict(Mapping):
     It is prohibited to assign new items or edit them.
 
     To revert to the previous behavior use `to_dict` method which
-    return shallow copy of underlaying dictionary.
+    return shallow copy of underlying dictionary.
     Note: It removes addressing feature! New dictionary keeps
           only `ConstOutput` keys.
 

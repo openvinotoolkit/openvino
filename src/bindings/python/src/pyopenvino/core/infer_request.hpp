@@ -24,7 +24,7 @@ public:
     // while calling upon any of the constructors, so lifetime of
     // the object is managed by the wrapper which is exposed to Python.
 
-    // AsyncInferQueue uses this specifc constructor as setting callback
+    // AsyncInferQueue uses this specific constructor as setting callback
     // for computing a latency will be done there.
     InferRequestWrapper(ov::InferRequest&& request) : InferRequestWrapper(std::move(request), {}, {}, false) {}
 
@@ -75,7 +75,7 @@ public:
 
     // Original ov::InferRequest class that is held by this wrapper
     ov::InferRequest m_request;
-    // Inputs and Outputs inherrited from ov::CompiledModel
+    // Inputs and Outputs inherited from ov::CompiledModel
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
     // A flag which is set when a user defines a custom callback on InferRequest

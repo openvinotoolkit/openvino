@@ -300,7 +300,7 @@ class CompiledModel(CompiledModelBase):
     """
 
     def __init__(self, other: CompiledModelBase, weights: Optional[bytes] = None) -> None:
-        # Private memeber to store already created InferRequest
+        # Private member to store already created InferRequest
         self._infer_request: Optional[InferRequest] = None
         self._weights = weights
         super().__init__(other)
@@ -319,7 +319,7 @@ class CompiledModel(CompiledModelBase):
         return InferRequest(super().create_infer_request())
 
     def query_state(self) -> None:
-        """Gets state control interface for the underlaying infer request.
+        """Gets state control interface for the underlying infer request.
 
         :return: list of VariableState objects.
         :rtype: list[openvino.VariableState]
@@ -330,7 +330,7 @@ class CompiledModel(CompiledModelBase):
         return self._infer_request.query_state()
 
     def reset_state(self) -> None:
-        """Resets all internal variable states of the underlaying infer request.
+        """Resets all internal variable states of the underlying infer request.
 
         Resets all internal variable states to a value specified as default for
         the corresponding `ReadValue` node.

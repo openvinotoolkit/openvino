@@ -12,7 +12,7 @@
 
 namespace py = pybind11;
 
-/// Trampoline class to support inheritence from TorchDecoder in Python
+/// Trampoline class to support inheritance from TorchDecoder in Python
 class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
     using ov::frontend::pytorch::TorchDecoder::TorchDecoder;
 

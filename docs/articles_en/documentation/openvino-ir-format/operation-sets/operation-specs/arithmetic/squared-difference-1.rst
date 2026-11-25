@@ -13,7 +13,7 @@ SquaredDifference
 **Short description**: *SquaredDifference* performs element-wise subtract and square the result operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
 **Detailed description**
-As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Substract* and *Square* the result operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
+As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Subtract* and *Square* the result operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 .. math::
 

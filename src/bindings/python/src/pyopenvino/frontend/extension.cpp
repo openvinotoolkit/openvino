@@ -117,7 +117,7 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
         "ProgressReporterExtension",
         py::dynamic_attr()};
 
-    ext.doc() = "An extension class intented to use as progress reporting utility";
+    ext.doc() = "An extension class intended to use as progress reporting utility";
 
     ext.def(py::init([]() {
         return std::make_shared<ProgressReporterExtension>();
