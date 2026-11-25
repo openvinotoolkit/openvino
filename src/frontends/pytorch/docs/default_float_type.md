@@ -29,12 +29,6 @@ option is on. The vLLM preset turns it on, and the vLLM plugin sets `default_flo
      IR (the no-folding flag isn't serialized) and the plugin decides which Converts to keep.
 3. The rt_info entry stays on the converted model, so the caller can pick the inference precision from it.
 
-`MarkCompressedWeightsCast` runs in every `normalize()`, independent of the default float type. It marks the
-trailing precision cast of a weight-decompression chain, for example
-`Constant(i4) -> Convert(f16) -> Multiply(scale) -> Convert(bf16) -> MatMul`, as decompression, so the CPU
-plugin folds the chain into `FullyConnectedCompressed` instead of keeping a runtime Convert and Multiply per
-layer.
-
 ## `CanonicalizeFloatPrecision`
 
 [transforms/canonicalize_float_precision.cpp](../src/transforms/canonicalize_float_precision.cpp)
@@ -58,8 +52,8 @@ layer.
 
 ## Tests
 
-The `test_canonicalize_float_precision_*`, `test_decoder_default_float_type` and `test_*weights*cast*` cases in
+The `test_canonicalize_float_precision_*` and `test_decoder_default_float_type` cases in
 [test_torch_frontend.py](../../../../tests/layer_tests/py_frontend_tests/test_torch_frontend.py) cover the
-pass, the decoder API and `MarkCompressedWeightsCast`. Rounding cases are parametrized in
+pass and the decoder API. Rounding cases are parametrized in
 `test_canonicalize_float_precision_keeps_rounding_before_sensitive_consumer`; add new patterns there with an
 input whose narrow rounding changes the integer result. See [testing](vllm_tests.md) for how to run them.

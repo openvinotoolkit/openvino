@@ -3,7 +3,7 @@
 | Suite | Location | Covers |
 |---|---|---|
 | vLLM tests | [tests/vllm_tests](../../../../tests/vllm_tests/) | vLLM + OpenVINO end to end, and unit tests of the plugin package |
-| PyTorch frontend tests | [test_torch_frontend.py](../../../../tests/layer_tests/py_frontend_tests/test_torch_frontend.py) | Decoder `default_float_type`, `CanonicalizeFloatPrecision`, `MarkCompressedWeightsCast` |
+| PyTorch frontend tests | [test_torch_frontend.py](../../../../tests/layer_tests/py_frontend_tests/test_torch_frontend.py) | Decoder `default_float_type`, `CanonicalizeFloatPrecision` |
 | Transformation tests | [normalize_vllm_rope_test.cpp](../../../common/transformations/tests/common_optimizations/normalize_vllm_rope_test.cpp), [vllm_gating_test.cpp](../../../common/transformations/tests/common_optimizations/vllm_gating_test.cpp) | `NormalizeVLLMRoPE` and its `vllm_model` gate (`ov_transformations_tests`) |
 | CPU plugin tests | `ov_cpu_unit_tests`, `ov_cpu_func_tests` | MLP and QKV projection fusions on the flattened `[tokens, hidden]` graphs this path produces, and a bf16 attention-mask subgraph |
 
@@ -57,7 +57,7 @@ through Inductor), then `requirements_vllm`, and sets `OV_LAZY_KVCACHE=1`.
 
 ```sh
 cd tests/layer_tests
-python -m pytest py_frontend_tests/test_torch_frontend.py -k "canonicalize_float_precision or default_float_type or weights_cast or weights_trailing_cast"
+python -m pytest py_frontend_tests/test_torch_frontend.py -k "canonicalize_float_precision or default_float_type"
 ```
 
 They need the usual layer-test requirements and no vLLM. See

@@ -23,7 +23,7 @@ def _pack(nibbles):
 
 
 def _nncf_tensors(name, bits, sym):
-    """`name`.weight in NNCF's layout, and the dense weight it decompresses to."""
+    """`name`.weight in NNCF's layout, and the dense weight it decompresses to in f16 (NNCF) and in f32."""
     groups = IN // GROUP if bits == 4 else 1
     levels = 1 << bits
     levels_q = torch.randint(0, levels, (OUT, IN), dtype=torch.uint8)
@@ -32,6 +32,7 @@ def _nncf_tensors(name, bits, sym):
     offset = levels // 2 if sym else zp.repeat_interleave(IN // groups, dim=1).reshape(OUT, IN).to(torch.float16)
     centered = (levels_q.to(torch.float16) - offset).reshape(OUT, groups, -1)
     dense = (centered * scale).reshape(OUT, IN).float()
+    dense_f32 = (centered.float() * scale.float()).reshape(OUT, IN)
     if bits == 8:
         stored = (levels_q.to(torch.int16) - offset).to(torch.int8) if sym else levels_q
         scale = scale.reshape(OUT, 1)
@@ -42,7 +43,7 @@ def _nncf_tensors(name, bits, sym):
     tensors = {f"{name}.weight": stored, model_loader._hook_key(f"{name}.weight", "_scale"): scale}
     if zp is not None:
         tensors[model_loader._hook_key(f"{name}.weight", "_zero_point")] = zp
-    return tensors, dense
+    return tensors, dense, dense_f32
 
 
 @pytest.mark.precommit
@@ -50,8 +51,8 @@ def _nncf_tensors(name, bits, sym):
 @pytest.mark.parametrize("sym", [True, False], ids=["sym", "asym"])
 def test_nncf_hooks_weights(tmp_path, bits, sym):
     torch.manual_seed(0)
-    linear, linear_dense = _nncf_tensors(LINEAR, bits, sym)
-    lm_head, lm_head_dense = _nncf_tensors(DENSE, bits, sym)
+    linear, _, linear_dense = _nncf_tensors(LINEAR, bits, sym)
+    lm_head, lm_head_dense, _ = _nncf_tensors(DENSE, bits, sym)
     save_file({**linear, **lm_head}, str(tmp_path / "model.safetensors"))
     # Only LINEAR is an nncf layer; lm_head (not a LinearBase) loads dense.
     params = {f"{LINEAR}.{p}": None for p in ("qweight", "scale", "zero_point")}

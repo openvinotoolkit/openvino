@@ -47,7 +47,7 @@ def _unpack_int4(packed: "torch.Tensor") -> "torch.Tensor":
 
 def _dequantize(qweight: "torch.Tensor", scale: "torch.Tensor", bits: int, out_dtype: "torch.dtype",
                 zero_point: "torch.Tensor | None" = None) -> "torch.Tensor":
-    """Decompress to a dense [out, in] weight in `out_dtype`, in NNCF's order so it matches bit for bit."""
+    """Decompress to a dense [out, in] weight, in NNCF's order but computed in `out_dtype`."""
     out_features = qweight.shape[0]
     if bits == 4:
         in_features = qweight.shape[1] * 2
@@ -60,11 +60,12 @@ def _dequantize(qweight: "torch.Tensor", scale: "torch.Tensor", bits: int, out_d
     # scale is [out, groups]; groups == 1 is per output channel.
     groups = scale.shape[1]
     weight = weight.reshape(out_features, groups, in_features // groups)
-    weight = weight.type(scale.dtype)
+    # No trailing cast: a chain that ends in `out_dtype` is the decompression pattern the plugins recognize.
+    weight = weight.type(out_dtype)
     if zero_point is not None:
-        weight = weight - zero_point.type(scale.dtype).unsqueeze(-1)
-    weight = weight * scale.unsqueeze(-1)
-    return weight.reshape(out_features, in_features).type(out_dtype)
+        weight = weight - zero_point.type(out_dtype).unsqueeze(-1)
+    weight = weight * scale.type(out_dtype).unsqueeze(-1)
+    return weight.reshape(out_features, in_features)
 
 
 def _define_classes() -> tuple[type[Any], type[Any]]:
