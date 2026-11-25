@@ -101,6 +101,9 @@ jobs:
           set-pip-install-path: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
+
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
         with:
