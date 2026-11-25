@@ -662,15 +662,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
       target-branch: ${{ inputs.target-branch }}
-      # TEMPORARY: testing cpp20 default standard against the cpp20 migration branch on the
-      # fork, since it hasn't been pushed to openvinotoolkit/openvino_tokenizers yet.
-      # Revert these two lines before merging.
-      tokenizers-repo: 'praasz/openvino_tokenizers'
-      tokenizers-ref: 'cpp20-standard'
-    # TEMPORARY: force this job to run for cpp20 testing regardless of Smart CI's TOKENIZERS
-    # component detection (this diff doesn't touch any path that flags TOKENIZERS as affected).
-    # Revert to: if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
-    if: true
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   GPU_Stub:
     needs: [Build, Smart_CI]

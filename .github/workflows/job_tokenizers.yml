@@ -28,18 +28,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-      # TEMPORARY: dedicated fork/branch override for cpp20 migration testing, mirroring
-      # how genai-ref lets GGUF_GenAI_Validation test against a specific revision independent
-      # of target-branch. Remove once openvino_tokenizers's cpp20 branch merges upstream.
-      tokenizers-repo:
-        description: 'TEMPORARY: openvino_tokenizers repository to check out (owner/repo)'
-        type: string
-        required: false
-        default: 'openvinotoolkit/openvino_tokenizers'
-      tokenizers-ref:
-        description: 'TEMPORARY: openvino_tokenizers ref to check out; falls back to target-branch'
-        type: string
-        required: false
 
 permissions: read-all
 
@@ -80,9 +68,9 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          repository: ${{ inputs.tokenizers-repo }}
+          repository: 'openvinotoolkit/openvino_tokenizers'
           path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
-          ref: ${{ inputs.tokenizers-ref || env.TARGET_BRANCH }}
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
