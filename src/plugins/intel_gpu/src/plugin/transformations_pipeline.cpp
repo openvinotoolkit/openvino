@@ -1074,7 +1074,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
-        // Before MarkDequantization, so that 4-bit expert weights are split while still compressed.
+        // Without immad or oneDNN, GroupedMatMul has no native implementation and is always decomposed into MatMuls.
+        // Do it before MarkDequantization, so that 4-bit expert weights are split while still compressed and stay
+        // compressed FCs. The immad non-f16 decomposition stays after it (register_grouped_matmul_decomposition()):
+        // compressed FCs with f32 activations would run on the oneDNN reference implementation there.
         if ((!device_info.supports_immad || !config.get_use_onednn()) && !GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
             manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
         }
