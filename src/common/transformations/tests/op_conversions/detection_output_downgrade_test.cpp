@@ -33,7 +33,7 @@ void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>&
             for (bool variance_encoded_in_target : {true, false}) {
                 for (bool share_location : {true, false}) {
                     for (bool normalized : {true, false}) {
-                        opset1::DetectionOutput::Attributes attrs_v1;
+                        opset1::DetectionOutput::Attributes attrs_v1{};
                         opset8::DetectionOutput::Attributes attrs_v8;
                         attrs_v1.top_k = attrs_v8.top_k = top_k;
                         attrs_v1.keep_top_k = attrs_v8.keep_top_k = {keep_top_k};
