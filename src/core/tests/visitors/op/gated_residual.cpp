@@ -19,12 +19,12 @@ TEST(attributes, gated_residual_read_default_attrs) {
 
     const auto op = std::make_shared<op::internal::GatedResidual>(
         OutputVector{residual, norm_weight, w_down, w_up},
-        ov::op::internal::GatedResidual::Config{op::internal::GatedResidual::Mode::READ, 4, 4, 8, 1e-6F, true, false});
+        ov::op::internal::GatedResidual::Config{op::internal::GatedResidual::Mode::READ, 4, 4, 8, 1e-6F, false});
 
     NodeBuilder builder(op, {residual, norm_weight, w_down, w_up});
     auto g_op = ov::as_type_ptr<op::internal::GatedResidual>(builder.create());
 
-    constexpr auto expected_attr_count = 7;
+    constexpr auto expected_attr_count = 6;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     EXPECT_EQ(g_op->get_config().mode, op->get_config().mode);
@@ -32,7 +32,6 @@ TEST(attributes, gated_residual_read_default_attrs) {
     EXPECT_EQ(g_op->get_config().hidden_size, op->get_config().hidden_size);
     EXPECT_EQ(g_op->get_config().lowrank, op->get_config().lowrank);
     EXPECT_FLOAT_EQ(g_op->get_config().epsilon, op->get_config().epsilon);
-    EXPECT_EQ(g_op->get_config().norm_gain_plus_one, op->get_config().norm_gain_plus_one);
     EXPECT_EQ(g_op->get_config().produce_write_gate, op->get_config().produce_write_gate);
 }
 
@@ -51,12 +50,12 @@ TEST(attributes, gated_residual_read_compressed_weights_attrs) {
     const OutputVector args{residual, norm_weight, w_down, w_up, w_down_scale, w_up_scale, w_down_zp, w_up_zp};
     const auto op = std::make_shared<op::internal::GatedResidual>(
         args,
-        ov::op::internal::GatedResidual::Config{op::internal::GatedResidual::Mode::READ, 4, 4, 8, 1e-6F, true, false});
+        ov::op::internal::GatedResidual::Config{op::internal::GatedResidual::Mode::READ, 4, 4, 8, 1e-6F, false});
 
     NodeBuilder builder(op, args);
     auto g_op = ov::as_type_ptr<op::internal::GatedResidual>(builder.create());
 
-    constexpr auto expected_attr_count = 7;
+    constexpr auto expected_attr_count = 6;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     const auto layout = g_op->get_read_layout();
@@ -73,18 +72,12 @@ TEST(attributes, gated_residual_write_non_default_attrs) {
 
     const auto op = std::make_shared<op::internal::GatedResidual>(
         OutputVector{residual, sublayer_y, write_gate},
-        ov::op::internal::GatedResidual::Config{op::internal::GatedResidual::Mode::WRITE,
-                                                4,
-                                                4,
-                                                0,
-                                                1e-3F,
-                                                false,
-                                                false});
+        ov::op::internal::GatedResidual::Config{op::internal::GatedResidual::Mode::WRITE, 4, 4, 0, 1e-3F, false});
 
     NodeBuilder builder(op, {residual, sublayer_y, write_gate});
     auto g_op = ov::as_type_ptr<op::internal::GatedResidual>(builder.create());
 
-    constexpr auto expected_attr_count = 7;
+    constexpr auto expected_attr_count = 6;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     EXPECT_EQ(g_op->get_config().mode, op::internal::GatedResidual::Mode::WRITE);
@@ -92,7 +85,6 @@ TEST(attributes, gated_residual_write_non_default_attrs) {
     EXPECT_EQ(g_op->get_config().hidden_size, 4U);
     EXPECT_EQ(g_op->get_config().lowrank, 0U);
     EXPECT_FLOAT_EQ(g_op->get_config().epsilon, 1e-3F);
-    EXPECT_FALSE(g_op->get_config().norm_gain_plus_one);
     EXPECT_FALSE(g_op->get_config().produce_write_gate);
 
     EXPECT_EQ(g_op->get_config().mode, op->get_config().mode);
@@ -100,7 +92,6 @@ TEST(attributes, gated_residual_write_non_default_attrs) {
     EXPECT_EQ(g_op->get_config().hidden_size, op->get_config().hidden_size);
     EXPECT_EQ(g_op->get_config().lowrank, op->get_config().lowrank);
     EXPECT_FLOAT_EQ(g_op->get_config().epsilon, op->get_config().epsilon);
-    EXPECT_EQ(g_op->get_config().norm_gain_plus_one, op->get_config().norm_gain_plus_one);
     EXPECT_EQ(g_op->get_config().produce_write_gate, op->get_config().produce_write_gate);
 }
 

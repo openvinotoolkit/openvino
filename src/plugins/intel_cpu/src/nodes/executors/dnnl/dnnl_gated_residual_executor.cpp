@@ -72,7 +72,6 @@ struct RmsKernelKey {
     ov::element::Type dst_precision;
     size_t data_size = 0;
     float eps = 0.0F;
-    bool plus_one = false;  // gain is applied as (1 + weight)
     cpu_isa_t isa = dnnl::impl::cpu::x64::avx2;
 
     [[nodiscard]] size_t hash() const {
@@ -83,14 +82,13 @@ struct RmsKernelKey {
         seed = hash_combine(seed, dst_precision.hash());
         seed = hash_combine(seed, data_size);
         seed = hash_combine(seed, std::hash<float>{}(eps));
-        seed = hash_combine(seed, static_cast<size_t>(plus_one));
         seed = hash_combine(seed, static_cast<size_t>(isa));
         return seed;
     }
 
     bool operator==(const RmsKernelKey& rhs) const {
         return precision == rhs.precision && dst_precision == rhs.dst_precision && data_size == rhs.data_size &&
-               eps == rhs.eps && plus_one == rhs.plus_one && isa == rhs.isa;
+               eps == rhs.eps && isa == rhs.isa;
     }
 };
 
@@ -116,7 +114,6 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
       m_hidden_size(attrs.hidden_size),
       m_lowrank(attrs.lowrank),
       m_epsilon(attrs.epsilon),
-      m_norm_gain_plus_one(attrs.norm_gain_plus_one),
       m_produce_write_gate(attrs.produce_write_gate),
       m_weights_compressed(attrs.read_layout.compressed),
       m_weights_have_zero_points(attrs.read_layout.has_zp),
@@ -318,7 +315,7 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
         // The kernels depend only on (precision, dst precision, D, eps, ISA), so layers with the same hidden size share
         // them through the runtime cache.
         const auto get_kernel = [&](ov::element::Type dst_prc) {
-            const RmsKernelKey key{m_precision, dst_prc, D, m_epsilon, m_norm_gain_plus_one, isa};
+            const RmsKernelKey key{m_precision, dst_prc, D, m_epsilon, isa};
             return m_context->getRuntimeCache()
                 ->getOrCreate(
                     key,
@@ -329,9 +326,8 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
                         jcp.data_size = k.data_size;
                         jcp.scale_size = k.data_size;
                         jcp.eps = k.eps;
-                        // The gain is read in the port precision; norm_gain_plus_one adds 1 in the kernel.
+                        // The gain is read in the port precision.
                         jcp.scale_prc = k.precision;
-                        jcp.scale_plus_one = k.plus_one;
                         std::shared_ptr<kernel::JitKernelBase> kernel;
                         if (k.isa == dnnl::impl::cpu::x64::avx512_core) {
                             kernel = std::make_shared<kernel::jit_rms_kernel<dnnl::impl::cpu::x64::avx512_core>>(jcp);

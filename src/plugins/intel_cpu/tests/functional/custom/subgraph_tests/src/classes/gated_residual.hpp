@@ -44,7 +44,6 @@ struct GatedResidualShapeParams {
 using GatedResidualLayerParams = std::tuple<ov::op::internal::GatedResidual::Mode,
                                             GatedResidualShapeParams,
                                             bool,  // produce_write_gate
-                                            bool,  // norm_gain_plus_one
                                             // Leading [B, T] dims of the data-path inputs: `first` is the dynamic
                                             // partial shape, `second` the static [B, T] per inference. The fixture
                                             // appends each input's last dim (C*D, D or C).
@@ -68,7 +67,6 @@ private:
     size_t m_hidden_size = 0;
     size_t m_lowrank = 0;
     bool m_produce_write_gate = false;
-    bool m_norm_gain_plus_one = true;
     float m_epsilon = 1e-6F;
     ov::element::Type m_precision = ov::element::f32;
     GatedResidualWeightCompression m_compression{};

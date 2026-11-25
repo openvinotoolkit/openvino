@@ -23,7 +23,7 @@ namespace ov::op::internal {
 ///   S      = 2 * sigmoid(W_inject * Rbar / C) (optional, only with produce_write_gate)
 /// WRITE (branch update): R'_c = R_c + S_c * Y
 ///
-/// The 1/C factors are model semantics; `gain = 1 + w` when `norm_gain_plus_one` is set.
+/// The 1/C factors are model semantics. The norm gain is used as it is: a `1 + w` is folded into it by the exporter.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatedResidual : public ov::op::Op {
@@ -70,7 +70,6 @@ public:
         size_t hidden_size{0};           ///< D: per-branch hidden size
         size_t lowrank{0};               ///< L: low rank of the gate (READ / FINAL_MIX only)
         float epsilon{1e-6F};            ///< RMSNorm epsilon
-        bool norm_gain_plus_one{true};   ///< gain = 1 + w
         bool produce_write_gate{false};  ///< READ also outputs the write gate S
     };
 

@@ -21,7 +21,6 @@ struct GatedResidualAttrs {
     size_t hidden_size = 0;
     size_t lowrank = 0;
     float epsilon = 1e-6F;
-    bool norm_gain_plus_one = true;
     bool produce_write_gate = false;
     // Input form of the node; see GatedResidual::ReadLayout.
     ov::op::internal::GatedResidual::ReadLayout read_layout{};

@@ -438,7 +438,6 @@ bool fuse_read(ov::pass::pattern::Matcher& m,
         if (with_gate) {
             inputs.push_back(gate_branch->w_inject);
         }
-        // The gain already carries any `1 + w` fold.
         return std::make_shared<ov::op::internal::GatedResidual>(
             inputs,
             ov::op::internal::GatedResidual::Config{ov::op::internal::GatedResidual::Mode::READ,
@@ -446,7 +445,6 @@ bool fuse_read(ov::pass::pattern::Matcher& m,
                                                     D,
                                                     L,
                                                     epsilon,
-                                                    /*norm_gain_plus_one=*/false,
                                                     /*produce_write_gate=*/with_gate});
     };
     bool with_gate = gate_usable;
@@ -581,7 +579,6 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
                                                     D,
                                                     /*lowrank=*/0,
                                                     /*epsilon=*/0.0F,
-                                                    /*norm_gain_plus_one=*/false,
                                                     /*produce_write_gate=*/false});
         if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
             return false;

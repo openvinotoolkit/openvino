@@ -30,8 +30,6 @@ struct jit_rms_compile_params {
     // Element type of the scale (gain): loaded and converted to f32 in the kernel. jit_rms_call_args then holds a raw
     // pointer to elements of this type (scale_size == 1 reads one element).
     ov::element::Type scale_prc = ov::element::f32;
-    // Apply (scale + 1) instead of scale (gain = 1 + weight), so callers need not materialize a biased copy.
-    bool scale_plus_one = false;
 };
 
 struct jit_rms_call_args {
@@ -98,7 +96,6 @@ private:
     const Vmm vmm_sum2 = Vmm(4);
     const Vmm vmm_sum3 = Vmm(5);
     const Vmm vmm_dst = Vmm(6);
-    const Vmm vmm_one = Vmm(1);
     const Xbyak::Reg64 reg_src = r8;
     const Xbyak::Reg64 reg_src_org = r13;
     const Xbyak::Reg64 reg_scale = r10;

@@ -53,7 +53,6 @@ private:
     size_t m_hidden_size = 0;
     size_t m_lowrank = 0;
     float m_epsilon = 1e-6F;
-    bool m_norm_gain_plus_one = true;
     bool m_produce_write_gate = false;
 
     // Element type of the ports and of the projection GEMM inputs. The node's type mapping already runs compressed bf16

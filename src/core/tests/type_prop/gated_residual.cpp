@@ -45,7 +45,7 @@ std::shared_ptr<op::internal::GatedResidual> make_read(const element::Type& et,
     }
     return std::make_shared<op::internal::GatedResidual>(
         args,
-        ov::op::internal::GatedResidual::Config{mode, hc_count, hidden_size, lowrank, 1e-6F, true, produce_write_gate});
+        ov::op::internal::GatedResidual::Config{mode, hc_count, hidden_size, lowrank, 1e-6F, produce_write_gate});
 }
 
 std::shared_ptr<op::internal::GatedResidual> make_write(const element::Type& et,
@@ -59,7 +59,7 @@ std::shared_ptr<op::internal::GatedResidual> make_write(const element::Type& et,
     auto write_gate_p = std::make_shared<op::v0::Parameter>(et, write_gate);
     return std::make_shared<op::internal::GatedResidual>(
         OutputVector{residual_p, sublayer_y_p, write_gate_p},
-        ov::op::internal::GatedResidual::Config{Mode::WRITE, hc_count, hidden_size, 0, 1e-6F, true, false});
+        ov::op::internal::GatedResidual::Config{Mode::WRITE, hc_count, hidden_size, 0, 1e-6F, false});
 }
 
 }  // namespace
@@ -143,7 +143,7 @@ TEST_F(TypePropGatedResidualTest, read_wrong_input_count) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, norm_weight, w_down},
-                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, true, false}),
+                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, false}),
                     NodeValidationFailure,
                     testing::HasSubstr("expects 4 inputs"));
 }
@@ -154,7 +154,7 @@ TEST_F(TypePropGatedResidualTest, write_wrong_input_count) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, sublayer_y},
-                        ov::op::internal::GatedResidual::Config{Mode::WRITE, 4, 4, 0, 1e-6F, true, false}),
+                        ov::op::internal::GatedResidual::Config{Mode::WRITE, 4, 4, 0, 1e-6F, false}),
                     NodeValidationFailure,
                     testing::HasSubstr("expects 3 inputs"));
 }
@@ -249,7 +249,7 @@ std::shared_ptr<op::internal::GatedResidual> make_read_compressed(const Compress
     }
     return std::make_shared<op::internal::GatedResidual>(
         args,
-        ov::op::internal::GatedResidual::Config{c.mode, 4, 4, 8, 1e-6F, true, c.write_gate});
+        ov::op::internal::GatedResidual::Config{c.mode, 4, 4, 8, 1e-6F, c.write_gate});
 }
 
 }  // namespace
@@ -405,7 +405,7 @@ TEST_F(TypePropGatedResidualTest, compressed_wrong_input_count) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, norm_weight, w_down, w_up, w_down_scale},
-                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, true, false}),
+                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, false}),
                     NodeValidationFailure,
                     testing::HasSubstr("expects"));
 }
@@ -464,7 +464,7 @@ TEST_F(TypePropGatedResidualTest, compressed_scale_shape_is_n_by_g) {
     auto scale_up = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 16});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, norm_weight, w_down, w_up, scale_down, scale_up},
-                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, true, false}),
+                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, false}),
                     NodeValidationFailure,
                     testing::HasSubstr("scale must have shape [8, G]"));
 }
@@ -531,7 +531,7 @@ TEST_F(TypePropGatedResidualTest, quantized_weights_need_compressed_form) {
     auto w_up = std::make_shared<op::v0::Parameter>(element::i4, Shape{16, 8});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, norm_weight, w_down, w_up},
-                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, true, false}),
+                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, false}),
                     NodeValidationFailure,
                     testing::HasSubstr("exactly with the compressed input forms"));
 }
@@ -551,7 +551,7 @@ TEST_F(TypePropGatedResidualTest, weights_must_share_element_type) {
     auto w_up = std::make_shared<op::v0::Parameter>(element::f16, Shape{16, 8});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, norm_weight, w_down, w_up},
-                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, true, false}),
+                        ov::op::internal::GatedResidual::Config{Mode::READ, 4, 4, 8, 1e-6F, false}),
                     NodeValidationFailure,
                     testing::HasSubstr("must share one element type"));
 }
@@ -591,7 +591,7 @@ TEST_F(TypePropGatedResidualTest, write_inputs_must_share_element_type) {
     auto write_gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, sublayer_y, write_gate},
-                        ov::op::internal::GatedResidual::Config{Mode::WRITE, 4, 4, 0, 1e-6F, true, false}),
+                        ov::op::internal::GatedResidual::Config{Mode::WRITE, 4, 4, 0, 1e-6F, false}),
                     NodeValidationFailure,
                     testing::HasSubstr("share the residual element type"));
 }

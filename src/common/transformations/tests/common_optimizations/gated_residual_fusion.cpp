@@ -133,6 +133,7 @@ struct ReadOptions {
     float low_scale_factor = 1.0F;
     float gate_scale_factor = 1.0F;
     size_t gain_size = CD;                    // elements of the norm gain; C*D is what the op takes
+    bool gain_plus_one = false;               // the gain is `w + 1` computed in the graph (an unfolded checkpoint)
     size_t gain_leading_ones = 0;             // the gain is stored as [1, .., 1, gain_size], as checkpoints export it
     size_t inject_rows = C;                   // rows of W_inject; the op takes C
     element::Type scale_type = element::f32;  // the stored type of the 1/C scalars
@@ -243,7 +244,11 @@ std::shared_ptr<Model> getReadModel(const ReadOptions& opt) {
         std::make_shared<op::v0::Parameter>(element::f32, with_last(PartialShape::dynamic(opt.leading), CD));
     auto gain = getGain(opt);
     const auto split = keep_rows(opt.leading, {static_cast<int64_t>(C), static_cast<int64_t>(D)});
-    const auto rbar_flat = getNormalizedFlat(opt, residual, gain);
+    Output<Node> gain_value = gain;
+    if (opt.gain_plus_one) {
+        gain_value = std::make_shared<op::v1::Add>(gain, scalar(1.0F));
+    }
+    const auto rbar_flat = getNormalizedFlat(opt, residual, gain_value);
 
     auto act =
         std::make_shared<op::v4::Swish>(scaled_projection(rbar_flat, L, CD, opt.low_scale, opt.low_scale_factor, opt));
@@ -283,6 +288,10 @@ std::shared_ptr<Model> getReadModelRef(const ReadOptions& opt, bool keep_gate_br
     auto gain = getGain(opt);
 
     Output<Node> gain_flat = gain;
+    if (opt.gain_plus_one) {
+        // The op takes the computed gain as it is.
+        gain_flat = std::make_shared<op::v1::Add>(gain, scalar(1.0F));
+    }
     if (opt.norm == Norm::FusedRms) {
         // The pass flattens the RMS gamma [C, D] with a plain Reshape.
         gain_flat = std::make_shared<op::v1::Reshape>(
@@ -308,7 +317,7 @@ std::shared_ptr<Model> getReadModelRef(const ReadOptions& opt, bool keep_gate_br
         inputs.push_back(weight(C, CD, opt));
     }
 
-    auto gr = std::make_shared<Gr>(inputs, Gr::Config{Gr::Mode::READ, C, D, L, EPS, false, op_gate});
+    auto gr = std::make_shared<Gr>(inputs, Gr::Config{Gr::Mode::READ, C, D, L, EPS, op_gate});
     ResultVector results{std::make_shared<op::v0::Result>(gr->output(0))};
     if (op_gate) {
         results.push_back(std::make_shared<op::v0::Result>(gate_consumer(opt, gr->output(1))));
@@ -370,8 +379,7 @@ std::shared_ptr<Model> getWriteRef(const PartialShape& rows, Shared shared = Sha
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, CD));
     auto y = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, D));
     auto gate = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, C));
-    auto gr =
-        std::make_shared<Gr>(OutputVector{residual, y, gate}, Gr::Config{Gr::Mode::WRITE, C, D, 0, 0.0F, false, false});
+    auto gr = std::make_shared<Gr>(OutputVector{residual, y, gate}, Gr::Config{Gr::Mode::WRITE, C, D, 0, 0.0F, false});
     ResultVector results{std::make_shared<op::v0::Result>(gr)};
     if (shared != Shared::None) {
         auto s3 = std::make_shared<op::v0::Unsqueeze>(gate, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
@@ -447,6 +455,11 @@ INSTANTIATE_TEST_SUITE_P(GatedResidualFusion,
                                            ReadCase{"GammalessRmsWithoutGain",
                                                     [](ReadOptions& o) {
                                                         o.norm = Norm::GammalessRmsNoGain;
+                                                    }},
+                                           // An unfolded checkpoint: the gain is computed as `w + 1` in the graph.
+                                           ReadCase{"DecomposedNormGainPlusOne",
+                                                    [](ReadOptions& o) {
+                                                        o.gain_plus_one = true;
                                                     }},
                                            ReadCase{"DecomposedNormGainWithLeadingOnes",
                                                     [](ReadOptions& o) {

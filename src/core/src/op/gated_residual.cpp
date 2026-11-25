@@ -72,7 +72,6 @@ bool GatedResidual::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("lowrank", m_config.lowrank);
     visitor.on_attribute("epsilon", m_config.epsilon);
-    visitor.on_attribute("norm_gain_plus_one", m_config.norm_gain_plus_one);
     visitor.on_attribute("produce_write_gate", m_config.produce_write_gate);
     return true;
 }

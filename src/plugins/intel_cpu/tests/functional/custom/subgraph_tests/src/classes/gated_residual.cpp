@@ -203,7 +203,6 @@ std::shared_ptr<ov::Model> make_reference_model(Mode mode,
                                                 size_t lowrank,
                                                 const ov::element::Type& precision,
                                                 bool produce_write_gate,
-                                                bool norm_gain_plus_one,
                                                 float epsilon,
                                                 const ov::test::GatedResidualWeightCompression& compression) {
     using namespace ov::op;
@@ -241,7 +240,7 @@ std::shared_ptr<ov::Model> make_reference_model(Mode mode,
     auto gain = std::make_shared<v0::Parameter>(precision, ov::Shape{cd});
     gain->set_friendly_name("norm_weight");
 
-    // Per-branch RMSNorm, decomposed. The gain already holds the `1 + w` fold when norm_gain_plus_one is set.
+    // Per-branch RMSNorm, decomposed. The gain is used as it is: exporters fold a `1 + w` into it.
     auto r3 = reshape_keep_leading(residual, leading_rank, {c, d});
     auto sq = std::make_shared<v1::Power>(r3, scalar(precision, 2.0F));
     auto mean = std::make_shared<v1::ReduceMean>(sq, v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), true);
@@ -250,11 +249,7 @@ std::shared_ptr<ov::Model> make_reference_model(Mode mode,
     auto inv_rms = std::make_shared<v1::Divide>(scalar(precision, 1.0F), rms);
     auto normalized = std::make_shared<v1::Multiply>(r3, inv_rms);
     auto normalized_flat = reshape_keep_leading(normalized, leading_rank, {cd_i});
-    ov::Output<ov::Node> gain_value = gain;
-    if (norm_gain_plus_one) {
-        gain_value = std::make_shared<v1::Add>(gain, scalar(precision, 1.0F));
-    }
-    auto rbar = std::make_shared<v1::Multiply>(normalized_flat, gain_value);
+    auto rbar = std::make_shared<v1::Multiply>(normalized_flat, gain);
 
     // Down projection with the 1/C scale, SiLU, up projection, sigmoid gate, weighted branch mix and its 1/C.
     auto low = std::make_shared<v0::MatMul>(rbar, make_weight(lowrank, cd, precision, compression, rng), false, true);
@@ -292,14 +287,12 @@ std::shared_ptr<ov::Model> make_reference_model(Mode mode,
 namespace ov::test {
 
 std::string GatedResidualLayerCPUTest::getTestCaseName(const testing::TestParamInfo<GatedResidualLayerParams>& obj) {
-    const auto& [mode, shape, produce_write_gate, norm_gain_plus_one, input_shape, additional_config, device] =
-        obj.param;
+    const auto& [mode, shape, produce_write_gate, input_shape, additional_config, device] = obj.param;
     const auto& [hc_count, hidden_size, lowrank, precision, compression] = shape;
     std::ostringstream result;
     result << "Mode=" << static_cast<int>(mode);
     result << "_C=" << hc_count << "_D=" << hidden_size << "_L=" << lowrank;
     result << "_WG=" << produce_write_gate;
-    result << "_GainP1=" << norm_gain_plus_one;
     result << "_IS=" << ov::test::utils::partialShape2str({input_shape.first}) << "_TS=";
     for (const auto& target : input_shape.second) {
         result << ov::test::utils::vec2str(target);
@@ -322,8 +315,7 @@ std::string GatedResidualLayerCPUTest::getTestCaseName(const testing::TestParamI
 }
 
 void GatedResidualLayerCPUTest::SetUp() {
-    const auto& [mode, shape, produce_write_gate, norm_gain_plus_one, input_shape, additional_config, device] =
-        GetParam();
+    const auto& [mode, shape, produce_write_gate, input_shape, additional_config, device] = GetParam();
     targetDevice = device;
     configuration.insert(additional_config.begin(), additional_config.end());
     m_mode = mode;
@@ -331,7 +323,6 @@ void GatedResidualLayerCPUTest::SetUp() {
     m_hidden_size = shape.hidden_size;
     m_lowrank = shape.lowrank;
     m_produce_write_gate = produce_write_gate;
-    m_norm_gain_plus_one = norm_gain_plus_one;
     m_precision = shape.precision;
     m_compression = shape.compression;
 
@@ -351,7 +342,6 @@ void GatedResidualLayerCPUTest::SetUp() {
                                         m_lowrank,
                                         m_precision,
                                         produce_write_gate,
-                                        norm_gain_plus_one,
                                         m_epsilon,
                                         m_compression);
     function = functionRefs->clone();
@@ -487,7 +477,6 @@ TEST(smoke_GatedResidualFusionPipeline, NonConstantWeightsAreNotFused) {
                                       16,
                                       ov::element::f32,
                                       false,
-                                      true,
                                       1e-6F,
                                       no_compression);
     ov::ParameterVector weights;
@@ -518,16 +507,8 @@ TEST(smoke_GatedResidualFusionPipeline, TooSmallWeightGroupsStayDecompressed) {
     tiny_groups.weights_precision = ov::element::u4;
     tiny_groups.has_zero_points = true;
     tiny_groups.group_size = 2;
-    auto model = make_reference_model(Mode::READ,
-                                      ov::PartialShape{-1},
-                                      4,
-                                      8,
-                                      16,
-                                      ov::element::f32,
-                                      true,
-                                      true,
-                                      1e-6F,
-                                      tiny_groups);
+    auto model =
+        make_reference_model(Mode::READ, ov::PartialShape{-1}, 4, 8, 16, ov::element::f32, true, 1e-6F, tiny_groups);
     ov::Core core;
     ov::CompiledModel compiled;
     ASSERT_NO_THROW(compiled = core.compile_model(model, ov::test::utils::DEVICE_CPU));
@@ -554,7 +535,6 @@ TEST(smoke_GatedResidualScratchPad, LayersOfDifferentSizesShareThePads) {
                                     hidden_size,
                                     lowrank,
                                     ov::element::f32,
-                                    true,
                                     true,
                                     1e-6F,
                                     no_compression);

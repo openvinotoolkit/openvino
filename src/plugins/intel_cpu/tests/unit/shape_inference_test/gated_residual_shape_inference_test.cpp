@@ -43,12 +43,12 @@ std::shared_ptr<Gr> make_read(bool compressed, bool write_gate) {
             args.push_back(param(element::f16));
         }
     }
-    return std::make_shared<Gr>(args, Gr::Config{Gr::Mode::READ, C, D, L, 1e-6F, true, write_gate});
+    return std::make_shared<Gr>(args, Gr::Config{Gr::Mode::READ, C, D, L, 1e-6F, write_gate});
 }
 
 std::shared_ptr<Gr> make_write() {
     return std::make_shared<Gr>(OutputVector{param(element::f32), param(element::f32), param(element::f32)},
-                                Gr::Config{Gr::Mode::WRITE, C, D, 0, 1e-6F, true, false});
+                                Gr::Config{Gr::Mode::WRITE, C, D, 0, 1e-6F, false});
 }
 
 }  // namespace

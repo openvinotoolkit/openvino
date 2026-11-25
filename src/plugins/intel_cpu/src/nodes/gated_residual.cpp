@@ -57,7 +57,6 @@ GatedResidual::GatedResidual(const std::shared_ptr<ov::Node>& op, const GraphCon
     m_attrs.hidden_size = config.hidden_size;
     m_attrs.lowrank = config.lowrank;
     m_attrs.epsilon = config.epsilon;
-    m_attrs.norm_gain_plus_one = config.norm_gain_plus_one;
     m_attrs.produce_write_gate = config.produce_write_gate;
     const auto layout = gr->get_read_layout();
     CPU_NODE_ASSERT(layout.has_value(), "has an unexpected number of inputs");

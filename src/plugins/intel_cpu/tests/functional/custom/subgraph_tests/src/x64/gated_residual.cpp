@@ -155,18 +155,6 @@ const std::vector<GatedResidualShapeParams> compressed_shapes_no_inject{
     {4, 16, 64, ov::element::f16, i4_grouped_zp},
 };
 
-// A model whose gain is used as it is, with no `1 + w` before it (norm_gain_plus_one = false in the model builder):
-// float weights, including the D = 1 scalar-gain path, and compressed ones.
-const std::vector<GatedResidualShapeParams> gain_without_one_shapes{
-    {4, 8, 16, ov::element::f32, kNoCompression},
-    {3, 5, 7, ov::element::f32, kNoCompression},
-    {4, 1, 8, ov::element::f32, kNoCompression},
-};
-const std::vector<GatedResidualShapeParams> gain_without_one_compressed_shapes{
-    {4, 8, 16, ov::element::f32, u8_per_channel},
-    {4, 16, 64, ov::element::f16, u4_grouped_zp},
-};
-
 // bf16 inference of compressed weights, where the hardware supports it.
 const std::vector<GatedResidualShapeParams> compressed_shapes_bf16{
     {4, 16, 64, ov::element::f16, u4_grouped_zp},
@@ -189,7 +177,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualRead,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(uncompressed_shapes),
                                             ::testing::Values(false, true),  // produce_write_gate
-                                            ::testing::Values(true),         // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
                                             ::testing::ValuesIn(inference_precision_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -200,7 +187,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualWrite,
                          ::testing::Combine(::testing::Values(Mode::WRITE),
                                             ::testing::ValuesIn(uncompressed_shapes),
                                             ::testing::Values(false),  // produce_write_gate
-                                            ::testing::Values(true),   // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
                                             ::testing::ValuesIn(inference_precision_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -212,7 +198,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualBatchSeqRead,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(batch_seq_shapes),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynBatchSeq),
                                             ::testing::ValuesIn(inference_precision_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -223,7 +208,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualBatchSeqWrite,
                          ::testing::Combine(::testing::Values(Mode::WRITE),
                                             ::testing::ValuesIn(batch_seq_shapes),
                                             ::testing::Values(false),  // produce_write_gate
-                                            ::testing::Values(true),   // norm_gain_plus_one
                                             ::testing::Values(kDynBatchSeq),
                                             ::testing::ValuesIn(inference_precision_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -234,7 +218,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualLargeRead,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(large_shapes),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynLargeRows),
                                             ::testing::ValuesIn(inference_precision_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -245,7 +228,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualTileRows,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(tile_shapes),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynTileRows),
                                             ::testing::ValuesIn(tile_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -256,7 +238,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressed,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(compressed_shapes_with_inject),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynCompressedRows),
                                             ::testing::Values(ov::AnyMap{}),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -267,7 +248,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedGroup128,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(compressed_shapes_group128),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynCompressedRows),
                                             ::testing::ValuesIn(group128_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -278,29 +258,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedNoWriteGate,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(compressed_shapes_no_inject),
                                             ::testing::Values(false),  // produce_write_gate
-                                            ::testing::Values(true),   // norm_gain_plus_one
-                                            ::testing::Values(kDynCompressedRows),
-                                            ::testing::Values(ov::AnyMap{}),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         GatedResidualLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualGainWithoutOne,
-                         GatedResidualLayerCPUTest,
-                         ::testing::Combine(::testing::Values(Mode::READ),
-                                            ::testing::ValuesIn(gain_without_one_shapes),
-                                            ::testing::Values(false, true),  // produce_write_gate
-                                            ::testing::Values(false),        // norm_gain_plus_one
-                                            ::testing::Values(kDynRows),
-                                            ::testing::ValuesIn(inference_precision_configs()),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         GatedResidualLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedGainWithoutOne,
-                         GatedResidualLayerCPUTest,
-                         ::testing::Combine(::testing::Values(Mode::READ),
-                                            ::testing::ValuesIn(gain_without_one_compressed_shapes),
-                                            ::testing::Values(true),   // produce_write_gate
-                                            ::testing::Values(false),  // norm_gain_plus_one
                                             ::testing::Values(kDynCompressedRows),
                                             ::testing::Values(ov::AnyMap{}),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -311,7 +268,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedBf16,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(compressed_shapes_bf16),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynCompressedRows),
                                             ::testing::ValuesIn(bf16_inference_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -322,7 +278,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedF16,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(compressed_shapes_f32_fallback),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynCompressedRows),
                                             ::testing::ValuesIn(f16_inference_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -333,7 +288,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedBf16WithoutNative,
                          ::testing::Combine(::testing::Values(Mode::READ),
                                             ::testing::ValuesIn(compressed_shapes_f32_fallback),
                                             ::testing::Values(true),  // produce_write_gate
-                                            ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynCompressedRows),
                                             ::testing::ValuesIn(bf16_without_native_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
