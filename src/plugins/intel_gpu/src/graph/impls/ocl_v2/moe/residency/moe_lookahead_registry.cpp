@@ -7,7 +7,7 @@ namespace ov::intel_gpu::ocl::moe {
 LookaheadContext::LookaheadContext(cldnn::network& network)
     : m_network(network), m_compute_stream(network.get_stream_ptr()) {
     build_once(network);
-    m_prefetcher = std::make_unique<ExpertPrefetcher>(network.get_engine(), network.get_config());
+    m_prefetcher = std::make_unique<ExpertPrefetcher>(network.get_engine(), network.get_config(), m_compute_stream);
 }
 
 LookaheadContext::~LookaheadContext() {

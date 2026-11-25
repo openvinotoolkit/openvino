@@ -2106,6 +2106,7 @@ public:
                     }
                     if (!partition->inflight_pairs.empty() || !partition->missing_pairs.empty()) {
                         {
+                            prefetcher.wait_for_uploads_on_shared_queue(copy_events);
                             dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(copy_events);
                         }
                         pass_a = false;

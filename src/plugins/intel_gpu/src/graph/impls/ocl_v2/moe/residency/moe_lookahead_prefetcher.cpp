@@ -2,7 +2,9 @@
 #include "moe_lookahead_prefetcher.hpp"
 
 #include <condition_variable>
+#include <cstdlib>
 #include <deque>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 
@@ -99,9 +101,15 @@ struct ExpertPrefetcher::State {
         uint32_t layer = 0;
     };
 
-    explicit State(cldnn::engine& engine, const cldnn::ExecutionConfig& config)
-        : dma(moe_otd::create_copy_stream(engine, config)),
-          context(dynamic_cast<cldnn::ocl::ocl_engine&>(engine).get_cl_context()) {
+    State(cldnn::engine& engine, const cldnn::ExecutionConfig& config, cldnn::stream::ptr compute_stream)
+        : context(dynamic_cast<cldnn::ocl::ocl_engine&>(engine).get_cl_context()) {
+        const auto* use_new_stream = std::getenv("MOE_LES_USE_NEW_STREAM");
+        if (!compute_stream || (use_new_stream && std::string_view(use_new_stream) == "1")) {
+            dma = moe_otd::create_copy_stream(engine, config);
+        } else {
+            dma = std::move(compute_stream);
+            shares_compute_queue = true;
+        }
         for (auto& chunk : staging.chunks) {
             chunk.memory = engine.allocate_memory(
                 cldnn::layout{cldnn::data_types::u8, cldnn::format::bfyx,
@@ -119,7 +127,9 @@ struct ExpertPrefetcher::State {
         wakeup->notify();
         worker.join();
         try {
-            dma->finish();
+            if (!shares_compute_queue) {
+                dma->finish();
+            }
         } catch (const std::exception& exception) {
             GPU_DEBUG_INFO << "Lookahead DMA teardown failed: " << exception.what() << std::endl;
         }
@@ -407,6 +417,7 @@ struct ExpertPrefetcher::State {
 
     std::shared_ptr<Wakeup> wakeup = std::make_shared<Wakeup>();
     cldnn::stream::ptr dma;
+    bool shares_compute_queue = false;
     cl::Context context;
     moe_otd::LookaheadStagingPool staging;
     std::unordered_map<OffloadExpertWeightProvider*, std::shared_ptr<Binding>> bindings;
@@ -426,10 +437,19 @@ struct ExpertPrefetcher::State {
     std::thread worker;
 };
 
-ExpertPrefetcher::ExpertPrefetcher(cldnn::engine& engine, const cldnn::ExecutionConfig& config)
-    : m_state(std::make_unique<State>(engine, config)) {}
+ExpertPrefetcher::ExpertPrefetcher(cldnn::engine& engine, const cldnn::ExecutionConfig& config, cldnn::stream::ptr compute_stream)
+    : m_state(std::make_unique<State>(engine, config, std::move(compute_stream))) {}
 
 ExpertPrefetcher::~ExpertPrefetcher() = default;
+
+void ExpertPrefetcher::wait_for_uploads_on_shared_queue(const std::vector<cldnn::event::ptr>& events) const {
+    if (m_state->shares_compute_queue && !events.empty()) {
+        m_state->dma->flush();
+        for (const auto& event : events) {
+            event->wait();
+        }
+    }
+}
 
 void ExpertPrefetcher::bind(const std::shared_ptr<OffloadExpertWeightProvider>& provider) {
     OPENVINO_ASSERT(provider && provider->_resident, "Lookahead provider must be bound to partial buffers");
