@@ -3502,8 +3502,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
 // byte of a dword (value * pitch + key mod 4), key counts under one cp block or ending inside a cp block pair, V rows padded
 // past the keys (a windowed view: the pitch is not the key count). A pitch of a multiple of 16 B with whole dwords of keys
 // takes the 2D block read, the rest the per-lane read. bits 4: the packed 4-bit cache (two channels per byte, the even one
-// low; i4 symmetric, u4 with a zp), V rows of channel pairs [B, KV heads, head size / 2, S]; Xe2+ only (xe_hpg reads it
-// through an explicit Transpose).
+// low; i4 symmetric, u4 with a zp), V rows of channel pairs [B, KV heads, head size / 2, S].
 struct sdpa_tv_i8_case {
     int batch, heads, kv_heads, head_size;
     std::vector<std::pair<int, int>> steps;  // {queries, keys}
@@ -3765,9 +3764,9 @@ TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d64) {
 TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_32q_8kv_d128) {
     run_sdpa_transposed_v_i8({1, 32, 8, 128, {{513, 513}, {1, 514}, {1, 515}, {1, 516}, {512, 1024}, {1, 1025}, {3, 1032}, {1, 1033}}, true});
 }
-// The packed 4-bit cache (bits 4): i4 symmetric and u4 asymmetric, heads 32 to 512 (80: a half 32-column window; 32: on
-// xe_hpg the sdpa_ocl single-token stage, which no other row reaches there), the 2D read (rows of a multiple of 16 B) and
-// the per-lane one, padded rows, dynamic prompt-then-decode sequences.
+// The packed 4-bit cache (bits 4): i4 symmetric and u4 asymmetric, heads 32 to 512 (80: a half 32-column window), the 2D
+// read (rows of a multiple of 16 B) and the per-lane one, padded rows, dynamic prompt-then-decode sequences. On xe_hpg one
+// query takes the opt single-token stage, at 32 / 40 / 72 the sdpa_ocl one; more the PREFILL kernel, at 384 the generic one.
 TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_1q_18kv_d64_asym) {
     run_sdpa_transposed_v_i8({1, 8, 2, 64, {{1, 18}}, false, true, 0, 4});
 }
@@ -3812,6 +3811,33 @@ TEST(sdpa_gpu_transposed_v_u4, static_pad_8q_2kv_300q_600kv_d512_2d_asym) {
 }
 TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_33q_193kv_d384_asym) {
     run_sdpa_transposed_v_i8({1, 8, 2, 384, {{33, 193}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_33q_65kv_d32_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 32, {{33, 65}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_1q_37kv_d40_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 40, {{1, 37}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_17q_41kv_d40) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 40, {{17, 41}}, false, false, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_1q_77kv_d72_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 72, {{1, 77}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_17q_41kv_d72_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 72, {{17, 41}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_1q_77kv_d96) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 96, {{1, 77}}, false, false, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_40q_58kv_d96_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 96, {{40, 58}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_16q_4kv_40q_123kv_d256_asym) {
+    run_sdpa_transposed_v_i8({1, 16, 4, 256, {{40, 123}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_pad_8q_2kv_17q_41kv_d256) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 256, {{17, 41}}, false, false, 7, 4});
 }
 TEST(sdpa_gpu_transposed_v_u4, dynamic_prompt_then_decode_8q_2kv_d512_asym) {
     run_sdpa_transposed_v_i8({1, 8, 2, 512, {{300, 300}, {1, 301}, {1, 302}, {64, 366}, {1, 367}}, true, true, 0, 4});

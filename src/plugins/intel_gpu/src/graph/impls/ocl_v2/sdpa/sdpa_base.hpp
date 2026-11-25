@@ -80,7 +80,7 @@ struct SDPABase : public KernelGenerator {
     // GroupQueryAttentionDecomposition's [B, KV heads, head size, S] cache.
     static bool has_transposed_v(const kernel_impl_params& params);
     // has_transposed_v() with what sdpa_ocl's transposed-V readers take, on the sdpa_ocl lane: an f16 uncompressed V
-    // (v_tile_t) or a per-channel compressed i8 one (v_t_i8_read).
+    // (v_tile_t) or a per-channel compressed i8 or 4-bit one (v_t_i8_read).
     static bool transposed_v_reader_ok(const kernel_impl_params& params);
     // xe_hpg: the opt single-token stage reads a transposed V too (V_TRANSPOSED_READ: f16, or the per-channel cache of
     // opt_single_token_reads_per_channel()), and SDPAOptImpl gives it the op's one-query steps at the heads it takes;
