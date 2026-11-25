@@ -178,6 +178,14 @@ under `gguf_tokenizer_metadata_key()`, when the decoder provides them. Values ar
 as GenAI can build the tokenizer from it without reopening the file. The attribute is intentionally
 in-memory only: it is dropped on `clone()` and not written to IR, so read it from the converted model.
 
+## Recommended sampling
+
+When the file has `general.sampling.*` keys, conversion stores them in the model's rt_info under
+`generation_config`, using Hugging Face `generation_config.json` names: `top_k`, `top_p`, `min_p`,
+`temperature` (from `temp`) and `repetition_penalty` (from `penalty_repeat`). `do_sample` is `false`
+only when `temp` is zero or negative, which matches llama.cpp. Values are strings and survive IR
+serialization. GenAI uses them as the default generation config.
+
 ## Internal operations and serialization
 
 [`SetRows`](../include/openvino/frontend/gguf/set_rows_op.hpp) is a conversion placeholder for

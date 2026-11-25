@@ -6,7 +6,9 @@
 
 #include "gguf_builder.hpp"
 
+#include <cmath>
 #include <memory>
+#include <sstream>
 #include <type_traits>
 
 #include "builder/api/metadata_store.hpp"
@@ -46,6 +48,37 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
             value);
     }
     return cfg;
+}
+
+// The model's recommended sampling (`general.sampling.*`), in Hugging Face generation_config
+// names. Values are strings so the entry survives IR serialization unchanged.
+ov::AnyMap extract_generation_config(const GgufMetadata& metadata) {
+    ov::AnyMap config;
+    const auto put = [&](const std::string& name, double value) {
+        if (!std::isfinite(value))
+            return;
+        std::ostringstream text;
+        text << value;
+        config[name] = text.str();
+    };
+    if (const auto top_k = metadata.get_int("general.sampling.top_k"))
+        put("top_k", double(*top_k));
+    for (const auto& [key, name] : {std::pair<const char*, const char*>{"top_p", "top_p"},
+                                    {"min_p", "min_p"},
+                                    {"temp", "temperature"},
+                                    {"penalty_repeat", "repetition_penalty"}}) {
+        if (const auto value = metadata.get_float(std::string("general.sampling.") + key))
+            put(name, *value);
+    }
+    if (config.empty())
+        return config;
+    // llama.cpp samples unless the temperature is zero or negative.
+    const auto temperature = metadata.get_float("general.sampling.temp");
+    const bool do_sample = !temperature || *temperature > 0;
+    config["do_sample"] = std::string(do_sample ? "true" : "false");
+    if (!do_sample)
+        config.erase("temperature");
+    return config;
 }
 
 GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
@@ -96,6 +129,8 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
                         component,
                         "'");
         graph->tokenizer_config = extract_tokenizer_config(metadata);
+        if (auto generation_config = extract_generation_config(meta_view); !generation_config.empty())
+            graph->model_rt_info.emplace("generation_config", std::move(generation_config));
         graph->architecture = meta_view.architecture();
         if (graph->mtp_draft)
             graph->mtp_draft->architecture = graph->architecture;
