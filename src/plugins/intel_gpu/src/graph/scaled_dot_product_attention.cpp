@@ -88,11 +88,16 @@ std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scale
         input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
     }
 
-    // For INT4 KV-cache, restore logical head size from query for shape inference
+    // For INT4 KV-cache, restore logical head size from query for shape inference: on the stored axis that the input's
+    // transpose order makes the head (axis 2 of a [B, H, head size / 2, S] V with order {0, 1, 3, 2}).
     if (prim->is_kv_compressed && scaled_dot_product_attention_inst::is_int4_kv_cache(impl_param) && input_shapes.size() >= 3) {
         auto q_last = input_shapes[0][input_shapes[0].size() - 1];
-        input_shapes[1][input_shapes[1].size() - 1] = q_last;
-        input_shapes[2][input_shapes[2].size() - 1] = q_last;
+        const auto head_axis = [](const ShapeType& shape, const std::vector<int64_t>& order) {
+            const size_t last = shape.size() - 1;
+            return order.size() > 1 && order.size() <= shape.size() ? static_cast<size_t>(order.back()) + (shape.size() - order.size()) : last;
+        };
+        input_shapes[1][head_axis(input_shapes[1], prim->input_k_transpose_order)] = q_last;
+        input_shapes[2][head_axis(input_shapes[2], prim->input_v_transpose_order)] = q_last;
     }
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,

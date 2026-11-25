@@ -106,12 +106,15 @@ bool SDPABase::transposed_v_reader_ok(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto& v = params.get_input_layout(2);
     // f16 (v_tile_t), or the per-channel i8 cache (v_t_i8_read; on xe_hpg also the xe_hpg PREFILL kernel's and the opt
-    // single-token stage's reads); a packed 4-bit one would pack two keys per byte.
+    // single-token stage's reads), or the packed 4-bit one (two channels per byte, the same rows; SG16 only: xe_hpg's
+    // readers take no 4-bit transposed V).
     const bool f16_v = !desc->is_kv_compressed && v.data_type == ov::element::f16;
-    const bool i8_per_channel_v =
-        desc->is_kv_compressed && has_per_channel_compressed_kv(params) && !is_int4_kv_cache(params) && v.data_type == ov::element::i8;
-    return cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && (f16_v || i8_per_channel_v) && v.get_partial_shape().size() == 4 &&
-           format::is_simple_data_format(v.format);
+    const bool per_channel_v = desc->is_kv_compressed && has_per_channel_compressed_kv(params);
+    const bool i8_per_channel_v = per_channel_v && !is_int4_kv_cache(params) && v.data_type == ov::element::i8;
+    const bool u4_per_channel_v =
+        per_channel_v && is_int4_kv_cache(params) && data_type_traits::is_i8_u8(v.data_type) && params.get_device_info().arch >= cldnn::gpu_arch::xe_hpc;
+    return cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && (f16_v || i8_per_channel_v || u4_per_channel_v) &&
+           v.get_partial_shape().size() == 4 && format::is_simple_data_format(v.format);
 }
 
 bool SDPABase::opt_single_token_reads_transposed_v(const kernel_impl_params& params) {

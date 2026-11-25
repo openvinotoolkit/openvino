@@ -1165,9 +1165,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 A_tile1[r][cd] = (float8)0.0f;
 #endif
 
-        #if USE_2D_BLOCK_IO_V_I8 || (V_TRANSPOSED && KV_COMP_PER_CHANNEL)
+        #if USE_2D_BLOCK_IO_V_I8
             // Declared outside the cp loop because one read serves two consecutive cp blocks (see below).
             uint vt[8 * sv_value_blocks];
+        #elif V_TRANSPOSED && KV_COMP_PER_CHANNEL
+            // v_t_i8_read(): the same, one read per value block (i8) or 32-column window (4-bit).
+            uint vt[8 * V_T_READS];
         #elif USE_2D_BLOCK_IO_V_U4
             // The same for v_u4_read(), one read per value-block pair.
             uint vt[8 * ((sv_value_blocks + 1) / 2)];
@@ -1285,7 +1288,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
             #endif
             #elif V_TRANSPOSED
-              #if KV_COMP_PER_CHANNEL
+              #if PLAIN_KV_U4
+                FUNC_CALL(v_u4_dequant)(vb, vt, vt_half, v_zp_ch, sg_j0_sv);
+              #elif KV_COMP_PER_CHANNEL
                 FUNC_CALL(v_i8_dequant_ch)(vb, vt, vt_half, v_zp_ch);
               #else
                 FUNC_CALL(v_tile_t)(vb, vt_carry, V, ldvt, k0, cp, k, dv, sg_j0_sv, lane, vt_2d, vt_shift, VT_b2d, VT_w, VT_p, VT_x0);

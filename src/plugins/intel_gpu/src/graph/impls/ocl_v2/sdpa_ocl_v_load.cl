@@ -315,7 +315,9 @@ SDPA_OCL_INLINE void FUNC(v_u4_read)(__private uint *vt, const __global VAL_DATA
             (private uint *)&vt[(cd / 2) * 8]);
     }
 }
+#endif
 
+#if USE_2D_BLOCK_IO_V_U4 || (V_TRANSPOSED && PLAIN_KV_U4)
 // Block cd takes nibble V_U4_PARITY of every lane's own byte (lane L = column 2L + parity of the window, see
 // PLAIN_V_U4_PERMUTED), then v_i8_dequant_ch's zp subtraction. NEG_X5 == 4 (negative control) swaps the nibbles.
 SDPA_OCL_INLINE void FUNC(v_u4_dequant)(__private int8 *vb, const __private uint *vt, const int vt_half,
@@ -882,12 +884,24 @@ SDPA_OCL_INLINE void FUNC(v_tile_t)(__private int8 *vb, __private uint *vt_carry
 #endif
 
 #if V_TRANSPOSED && KV_COMP_PER_CHANNEL
-// Per-channel i8 V stored [value][key]: lane L of value block cd needs the keys in its OWN row, 1 B each. As v_i8_read(),
-// one read serves two cp blocks (the caller issues it on even cp) and gives vt[cd * 8 + i] = keys 4i .. 4i + 3 of the pair,
-// the layout v_i8_dequant_ch() takes. Per lane: 8 dwords from the dword below the row start, plus one more and a shift by
-// 8 bits per byte when the row starts off a dword (value * ldvt + key not a multiple of 4). A pair reaching the last key
-// reads byte by byte, zero past k, and one past it reads nothing. Lanes past dv read the last row (zp 0, not stored).
-// Where the 2D block rules hold (vt_2d, decided once per workgroup) a 32b transpose read gives the same dwords.
+// Per-channel V stored [row][key], 1 B per key: an i8 V (a row per value), or the packed 4-bit one (a row per channel
+// pair, the even channel in the low nibble). Read j is a value block (i8), or a 32-column window (4-bit: two value
+// blocks, lane L = byte row window / 2 + L, i.e. columns 2L and 2L + 1, as v_u4_read() hands them, PLAIN_V_U4_PERMUTED).
+// Lane L needs the keys of its OWN row. As v_i8_read(), one read serves two cp blocks (the caller issues it on even cp)
+// and gives vt[j * 8 + i] = keys 4i .. 4i + 3 of the pair, the layout v_i8_dequant_ch() / v_u4_dequant() take. Per
+// lane: 8 dwords from the dword below the row start, plus one more and a shift by 8 bits per byte when the row starts off
+// a dword (row * ldvt + key not a multiple of 4). A pair reaching the last key reads byte by byte, zero past k, and one
+// past it reads nothing. Lanes past the rows read the last one (zp 0, not stored). Where the 2D block rules hold (vt_2d,
+// decided once per workgroup) a 32b transpose read gives the same dwords.
+#if PLAIN_KV_U4
+#  define V_T_READS ((sv_value_blocks + 1) / 2)
+#  define V_T_ROW(sg_j0, j, l) (V_U4_WINDOW(sg_j0, 2 * (j)) / 2 + (int)(l))
+#  define V_T_ROWS(dv) ((dv) / 2)
+#else
+#  define V_T_READS sv_value_blocks
+#  define V_T_ROW(sg_j0, j, l) ((int)(sg_j0) + (j) * SUBGROUP_SIZE + (int)(l))
+#  define V_T_ROWS(dv) (dv)
+#endif
 SDPA_OCL_INLINE void FUNC(v_t_i8_read)(__private uint *vt, const __global VAL_DATA_T *V, const uint ldvt, const int k0,
                                        const int cp, const int k, const int dv, const size_t sg_j0_sv, const size_t lane,
                                        const bool vt_2d, const bool vt_shift, const __global void *VT_b2d, const int VT_w,
@@ -895,37 +909,37 @@ SDPA_OCL_INLINE void FUNC(v_t_i8_read)(__private uint *vt, const __global VAL_DA
     const int key0 = k0 + cp * DPAS_K;
 #if V_T_2D
     if (vt_2d) {
-        // The [value rows][4-key dwords] surface: lane L gets row y + L (a value), dword i = keys 4i .. 4i + 3. The
-        // surface ends at the last key and the last value (zero past them).
+        // The [rows][4-key dwords] surface: lane L gets row y + L, dword i = keys 4i .. 4i + 3. The surface ends at the
+        // last key and the last row (zero past them).
         #pragma unroll
-        for (int cd = 0; cd < sv_value_blocks; ++cd)
-            intel_sub_group_2d_block_read_transpose_32b_16r8x1c((global void *)VT_b2d, VT_w, dv, VT_p,
-                                                                (int2)(VT_x0 + key0 / 4, (int)sg_j0_sv + cd * SUBGROUP_SIZE),
+        for (int cd = 0; cd < V_T_READS; ++cd)
+            intel_sub_group_2d_block_read_transpose_32b_16r8x1c((global void *)VT_b2d, VT_w, V_T_ROWS(dv), VT_p,
+                                                                (int2)(VT_x0 + key0 / 4, V_T_ROW(sg_j0_sv, cd, 0)),
                                                                 (private uint *)&vt[cd * 8]);
         return;
     }
 #endif
-#if sv_value_blocks > 1
+#if V_T_READS > 1
     if (key0 + 2 * DPAS_K + 2 < k) {
-        // Uniform. With several value blocks all their loads go out before any shift (no branch between them); with no
+        // Uniform. With several reads all their loads go out before any shift (no branch between them); with no
         // row shifted (vt_shift, uniform) they are the dwords themselves. The extra dword of a shifted row ends at most 3
         // keys past the pair, all of them keys; an unshifted row reads its last dword again ("Transposed V per-lane read
         // at any key count" in the docs).
-        uint8 a[sv_value_blocks];
+        uint8 a[V_T_READS];
         if (vt_shift) {
-            uint e[sv_value_blocks];
-            uint mis[sv_value_blocks];
+            uint e[V_T_READS];
+            uint mis[V_T_READS];
             #pragma unroll
-            for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                const int value = (int)sg_j0_sv + cd * SUBGROUP_SIZE + (int)lane;
-                const global uchar *row = (const global uchar *)V + (size_t)min(value, dv - 1) * ldvt + key0;
+            for (int cd = 0; cd < V_T_READS; ++cd) {
+                const int value = V_T_ROW(sg_j0_sv, cd, lane);
+                const global uchar *row = (const global uchar *)V + (size_t)min(value, V_T_ROWS(dv) - 1) * ldvt + key0;
                 mis[cd] = (uint)as_long(row) & 3u;
                 const global uint *p = (const global uint *)(row - mis[cd]);
                 a[cd] = vload8(0, p);
                 e[cd] = p[mis[cd] ? 8 : 7];
             }
             #pragma unroll
-            for (int cd = 0; cd < sv_value_blocks; ++cd) {
+            for (int cd = 0; cd < V_T_READS; ++cd) {
                 const uint sh = mis[cd] * 8u;
                 const uint hm = mis[cd] ? 0xFFFFFFFFu : 0u;
                 const uint an[9] = {a[cd].s0, a[cd].s1, a[cd].s2, a[cd].s3, a[cd].s4, a[cd].s5, a[cd].s6, a[cd].s7, e[cd]};
@@ -935,12 +949,12 @@ SDPA_OCL_INLINE void FUNC(v_t_i8_read)(__private uint *vt, const __global VAL_DA
             }
         } else {
             #pragma unroll
-            for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                const int value = (int)sg_j0_sv + cd * SUBGROUP_SIZE + (int)lane;
-                a[cd] = vload8(0, (const global uint *)((const global uchar *)V + (size_t)min(value, dv - 1) * ldvt + key0));
+            for (int cd = 0; cd < V_T_READS; ++cd) {
+                const int value = V_T_ROW(sg_j0_sv, cd, lane);
+                a[cd] = vload8(0, (const global uint *)((const global uchar *)V + (size_t)min(value, V_T_ROWS(dv) - 1) * ldvt + key0));
             }
             #pragma unroll
-            for (int cd = 0; cd < sv_value_blocks; ++cd)
+            for (int cd = 0; cd < V_T_READS; ++cd)
                 #pragma unroll
                 for (int i = 0; i < 8; ++i)
                     vt[cd * 8 + i] = a[cd][i];
@@ -949,11 +963,11 @@ SDPA_OCL_INLINE void FUNC(v_t_i8_read)(__private uint *vt, const __global VAL_DA
     }
 #endif
     #pragma unroll
-    for (int cd = 0; cd < sv_value_blocks; ++cd) {
-        const int value = (int)sg_j0_sv + cd * SUBGROUP_SIZE + (int)lane;
-        const global uchar *row = (const global uchar *)V + (size_t)min(value, dv - 1) * ldvt + key0;
+    for (int cd = 0; cd < V_T_READS; ++cd) {
+        const int value = V_T_ROW(sg_j0_sv, cd, lane);
+        const global uchar *row = (const global uchar *)V + (size_t)min(value, V_T_ROWS(dv) - 1) * ldvt + key0;
         uint w[8];
-#if sv_value_blocks == 1
+#if V_T_READS == 1
         if (key0 + 2 * DPAS_K + 2 < k) {
             // Uniform. The extra dword of a shifted row ends at most 3 keys past the pair, all of them keys.
             const uint mis = (uint)as_long(row) & 3u;

@@ -521,9 +521,9 @@ bool solve_plain_prefill_i8_tiling(gpu_arch arch, size_t d_max, size_t vd_max, c
 // Plain (non-PA) SDPA on xe2_tuned() arches at d_max 512 with f16 Q and the per-channel compressed i8 or 4-bit K / V of the
 // GQA decomposition, where no other tiling took the stage (the i8 decode has its own): 256 GRF (the table tile spilled 7-11
 // KB at 128 GRF), PREFILL with the PA PREFILL loop changes (the 8-bit / 4-bit reads take neither PREFETCH_V nor WIDE_READS).
-// A PREFILL stage with a plain V takes one row of 16 subgroups (16-key x 32-query tiles, 256 keys x 32 queries), the i8 V
-// widened by convert_half4 and prefetched into L3; a transposed i8 V and the 4-bit decode keep the table tile. Reads the op's
-// V order, no query or key count ("Plain-SDPA d_max 512 tiling for the per-channel cache" in the docs).
+// A PREFILL stage with a plain V or a 4-bit cache takes one row of 16 subgroups (16-key x 32-query tiles, 256 keys x 32
+// queries), the i8 V widened by convert_half4 and prefetched into L3; a transposed i8 V and the 4-bit decode keep the table
+// tile. Reads the op's V order, no query or key count ("Plain-SDPA d_max 512 tiling for the per-channel cache" in the docs).
 bool solve_plain_per_channel_d512_tiling(gpu_arch arch,
                                          size_t d_max,
                                          size_t vd_max,
@@ -534,7 +534,7 @@ bool solve_plain_per_channel_d512_tiling(gpu_arch arch,
         return false;
     }
     sdpa_ocl_config_t t = choose_config_kq_only(arch, d_max);
-    if (prefill && !shape.v_transposed) {
+    if (prefill && (!shape.v_transposed || shape.u4_per_channel_kv)) {
         t.kq_sg_tile_keys = 16;
         t.kq_sg_tile_queries = 32;
         t.kq_sg_per_wg_keys = 16;
@@ -1666,7 +1666,7 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     // transform reads of the packed rows (ldk / ldv are head_size / 2 bytes there) instead of the i8 ones.
     const bool per_channel = !in.is_pa && config.is_kv_compressed && SDPABase::has_per_channel_compressed_kv(in.params);
     const bool kv_u4 = per_channel && plain_kv_u4(in.params);
-    // A transposed V (per-channel i8 only) has its own reader, v_t_i8_read; the V block reads take the [key][value] surface.
+    // A transposed V (per-channel i8 or 4-bit) has its own reader, v_t_i8_read; the V block reads take the [key][value] surface.
     const bool v_t = SDPABase::has_transposed_v(in.params);
     if (kv_u4) {
         const auto qdt = in.params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;

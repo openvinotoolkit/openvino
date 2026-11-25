@@ -218,12 +218,13 @@
 #if PREFETCH_V_L3 && (IS_PA_MIXED || !IS_PREFILL || PREFETCH_V)
 #  error "sdpa_ocl.cl: PREFETCH_V_L3 needs the PREFILL V input and excludes PREFETCH_V"
 #endif
-// Transposed V (value order {..,3,2}): a plain-SDPA input, f16 (v_tile_t()) or a per-channel i8 cache (v_t_i8_read(), one
-// read per cp block pair); the V prefetches, wide V reads and other V block reads assume the [key][value] surface.
-#if V_TRANSPOSED && (IS_PAGED_ATTENTION || (defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL) || PLAIN_KV_U4 || \
+// Transposed V (value order {..,3,2}): a plain-SDPA input, f16 (v_tile_t()) or a per-channel i8 or packed 4-bit cache
+// (v_t_i8_read(), one read per cp block pair; 4-bit on SG16 only); the V prefetches, wide V reads and other V block reads
+// assume the [key][value] surface.
+#if V_TRANSPOSED && (IS_PAGED_ATTENTION || (defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL) || (PLAIN_KV_U4 && SG8) || \
                      USE_2D_BLOCK_IO_V_I8 || USE_2D_BLOCK_IO_V_U4 || PREFETCH_V || PREFETCH_V_L3 || (WIDE_READS & 2) || \
                      (KV_COMP_PER_CHANNEL && (sv_key_blocks % 2) != 0))
-#  error "sdpa_ocl.cl: V_TRANSPOSED is an f16 or per-channel i8 plain-SDPA input without V prefetch or other V reads"
+#  error "sdpa_ocl.cl: V_TRANSPOSED is an f16, per-channel i8 or SG16 4-bit plain-SDPA input without V prefetch or other V reads"
 #endif
 
 // Keys are counted in two units that are equal only on Xe2:
@@ -413,15 +414,15 @@
 #else
 #  define KV_K_BIAS 1152.0f
 #endif
-// Packed 4-bit V read by block (USE_2D_BLOCK_IO_V_U4): the value columns of each 32-column window are permuted like the K
-// depth, so the read needs no shuffle. A window is two 16-column value blocks, of one subgroup (an even sv_value_blocks)
-// or of two neighbouring ones (one block per subgroup, an even sv_sg_per_wg_values); the block with parity h
-// (((sg_j0_sv >> 4) + cd) & 1) takes nibble h of the window's bytes, so lane L holds column 2L + h of the window, and the
-// epilogue stores every column where it belongs. The host enables the read for such splits only (v_u4_window_split_ok());
-// others take v_tile_gather_ch().
-#define PLAIN_V_U4_PERMUTED USE_2D_BLOCK_IO_V_U4
-#if USE_2D_BLOCK_IO_V_U4 && !((sv_value_blocks % 2) == 0 || (sv_value_blocks == 1 && (sv_sg_per_wg_values % 2) == 0))
-#  error "sdpa_ocl.cl: USE_2D_BLOCK_IO_V_U4 needs value blocks that pair into 32-column windows"
+// Packed 4-bit V read by block (USE_2D_BLOCK_IO_V_U4) or transposed (V_TRANSPOSED, v_t_i8_read()): the value columns of
+// each 32-column window are permuted like the K depth, so the read needs no shuffle. A window is two 16-column value
+// blocks, of one subgroup (an even sv_value_blocks) or of two neighbouring ones (one block per subgroup, an even
+// sv_sg_per_wg_values); the block with parity h (((sg_j0_sv >> 4) + cd) & 1) takes nibble h of the window's bytes, so lane
+// L holds column 2L + h of the window, and the epilogue stores every column where it belongs. The host enables the block
+// read for such splits only (v_u4_window_split_ok()); others take v_tile_gather_ch(). A transposed V has no other reader.
+#define PLAIN_V_U4_PERMUTED (USE_2D_BLOCK_IO_V_U4 || (V_TRANSPOSED && PLAIN_KV_U4))
+#if PLAIN_V_U4_PERMUTED && !((sv_value_blocks % 2) == 0 || (sv_value_blocks == 1 && (sv_sg_per_wg_values % 2) == 0))
+#  error "sdpa_ocl.cl: the permuted 4-bit V reads need value blocks that pair into 32-column windows"
 #endif
 // The 32-column window of value block cd (the read covers it) and the block's half of it.
 #define V_U4_WINDOW(sg_j0, cd) ((((int)(sg_j0) + (cd) * SUBGROUP_SIZE) / (2 * SUBGROUP_SIZE)) * (2 * SUBGROUP_SIZE))

@@ -4041,7 +4041,8 @@ land on `sdpa_ref`); the i8-only rule for an 8-bit cache stays.
 - With a transposed V the 8-bit cache at head 384 / 512 is read by `v_t_i8_read()` (fused since the entry above); a 4-bit one
   keeps the explicit Transpose. That path runs end to end in `smoke_GQAQuantizedKVCache` `int4_*_transposedV` (heads 64 /
   80 / 128 / 512, since 2026-11-25; B70 26 / 26). With the decomposition's 4-bit exclusion removed (temporary build) the 4
-  fail at the first step: SDPA's output head is half the head size.
+  fail at the first step: SDPA's output head is half the head size. On Xe2+ the 4-bit one is read in place since "The
+  4-bit cache with a transposed V read in place".
 - Tests: `sdpa_gpu_transposed_v_i8` +6 (heads 512 / 384: prefill, decode, the 2D read, padded rows, dynamic);
   `smoke_GQAQuantizedKVCache` head 512 now fused. B70: the transposed-V, per-channel, `gqa_decomp` and decomposition unit
   suites 147 / 147, `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` 62 / 62. The ONNX repro at head 512
@@ -4375,6 +4376,62 @@ count in 8 (f16) or 16 (i8); the others read per lane ("Transposed V read in sdp
   the head-128 / 512 programs compile to the same instruction counts. Not run on DG2 ("xe_hpg follow-ups").
 - Not checked: Xe3 (same code, not measured), DG2, real models.
 
+### The 4-bit cache with a transposed V read in place (2026-11-25)
+
+Since "GQA transposed V: master's fusion conditions back" the decomposition hands SDPA a `[B, KV heads, head size, S]` V
+cache as value order {0,1,3,2} wherever `sdpa_ocl` reads it, except the packed 4-bit per-channel cache: no reader took
+it, so the whole `[B, KV heads, head size / 2, S]` byte cache went through an explicit Transpose every step. Master
+fuses it (and builds no 4-bit GQA on these devices: "Per-channel compressed KV at heads up to 512").
+
+- The reader: the transposed 4-bit rows are byte rows of keys like the i8 V's, one row per channel pair. `v_t_i8_read()`
+  takes the read unit from `V_T_READS` / `V_T_ROW` / `V_T_ROWS`: a value block for i8 (its expressions as before), a
+  32-column window for 4-bit, where lane L reads byte row window / 2 + L, i.e. columns 2L and 2L + 1. Those are the
+  registers `v_u4_read()` gives the plain cache, so `v_u4_dequant()` and the permuted columns (`PLAIN_V_U4_PERMUTED`:
+  the scale and zp per column, the epilogue store) are shared; the value blocks must pair into windows (`#error`; every
+  `choose_config()` tiling does). The 2D read is the same transpose read over `dv / 2` rows, the per-lane read that of
+  "Transposed V per-lane read at any key count" (batched where a subgroup reads more than one window).
+- SG16 only. `transposed_v_reader_ok()` takes the 4-bit V at arch >= xe_hpc; xe_hpg has no 4-bit transposed-V reader in
+  any of its kernels (the xe_hpg PREFILL kernel `#error`s, the generic SG8 path, the opt single-token stage), so there
+  the decomposition keeps the Transpose: the pipeline passes `fuse_transposed_v_4bit` (arch >= xe_hpc, on top of
+  `fuse_transposed_v`) and the 4-bit condition of `construct_kvcache()` is now that flag ("xe_hpg follow-ups").
+- Output shape: `scaled_dot_product_attention_inst::calc_output_layouts()` restored the 4-bit K / V head size on the
+  stored last axis, which for the transposed V is the key axis, so the output head came out as head size / 2. It now
+  restores the axis the input order makes the head (master's code; master never runs this cache).
+- Tiling: the `d_max` 512 PREFILL with this cache takes the plain cache's 16-key x 32-query tiles
+  (`solve_plain_per_channel_d512_tiling()`). On the table tile, which the transposed i8 V keeps, the layer was
+  1.04-1.29x the build before on prefill, chunk and 16 queries on 4113 keys (SDPA, chunk of 512 on 4001 keys: 1841
+  against 1151 us); on these tiles 1.00-1.03x on prefill and chunk. The 4-bit cache takes no V prefetch either way.
+- Cost, B70 at 1800 MHz pinned, one GQA layer (H 32 / KV heads 8 at head 128, 16 / 4 elsewhere; perf-counter device
+  time, median of 30, one process per case and arm; `test/g4/run_fin.sh`, 2 rounds, arms alternating; logs
+  `test/g4/f_*.log`), layer total, after / before (the Transpose of the cache gone, SDPA reading it in place):
+
+  | head | decode on 4096 / 4097 / 16385 keys | 16 queries on 1040 / 4113 | prefill 1023 / 1024 / 4096 | chunk of 512 on 4000 / 4001 |
+  |---|---|---|---|---|
+  | 128 | 0.79 / 0.98 / 0.51 | | 1.04 / 0.97 / - | 0.96 / 1.09 |
+  | 512 | 0.83 / 0.97 / 0.84 | 0.87 / 0.92 | 1.02 / 1.00 / 1.02 | - / 1.03 |
+  | 64 / 80 | 0.39 / 0.45 (4097 keys) | | 0.76 / 0.76 (77 keys / 33 on 100) | |
+
+  SDPA alone is 1.03-1.28x the plain cache's at head 128 / 512 (decode on 4097 keys 142 against 111 us at head 128): the
+  per-lane read of an odd row pitch, as for i8. At heads 64 / 80 the plain cache's SDPA was the slow part (decode on
+  4097 keys 1060 / 1194 us, now 377 / 493): its 32 / 40 B rows are under the 2D read's minimum width, so it took the
+  per-byte gather (`v_tile_gather_ch()`), not looked at. Unchanged (SDPA 0.997-1.003): the plain 4-bit cache, the i8 and
+  f16 transposed V. Load average up to 8 (another user on the shared PC).
+- Open: the head-128 prefill and chunk at a key count the 2D read does not take, 1.04 / 1.09x (the per-lane read,
+  "Transposed V per-lane read at any key count"); xe_hpg readers (DG2).
+- Tests: `sdpa_gpu_transposed_v_u4` (17, through `run_sdpa_transposed_v_i8()` with `bits` 4: i4 symmetric and u4 with a
+  zp, heads 64 / 80 / 128 / 256 / 384 / 512, prefill and decode, the 2D and per-lane reads, padded rows, dynamic
+  sequences; bit-exact against the plain layout on every static row); `GQADecompositionTest`
+  `int4_per_channel_kv_with_transpose_v_is_fused` now expects value order {0,1,3,2}, and
+  `int4_per_channel_kv_with_transpose_v_without_4bit_reader_transposes_sdpa_value` the Transpose without the flag;
+  `smoke_GQAQuantizedKVCache` `int4_*_transposedV` (heads 64 / 80 / 128 / 512) now read it in place.
+  - Negative controls (temporary builds): the 4-bit row one off fails all 17 unit rows and the 4 func cases; the batched
+    read's extra dword always the last one fails exactly the 2 rows whose head-512 decode reads two windows per subgroup
+    on a shifted row (static 1025 keys, dynamic); the old output-shape code fails all 17.
+  - B70: the transposed-V, per-channel, `gqa_decomp`, decomposition, predicate and `smoke_sdpa_kv_compressed` unit
+    suites 186 / 186; `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` + `smoke_GQASlidingWindow` 72 / 72.
+- Not checked: xe_hpg (keeps the Transpose; the host path that decides it is not run on DG2), Xe3 (same code, not
+  measured), real models with a 4-bit transposed-V cache.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -4528,6 +4585,9 @@ re-measures against the opt kernels.
   layout (plain V: SDPA 5723 us on 4095 keys; the opt single-token kernel takes 181 us at head 512), not analysed. The
   B70 counterparts are the `xe2_tuned()` `d_max` 512 tilings. The head-100 transposed-V stages take the per-lane read
   of "Transposed V per-lane read at any key count" since 2026-11-25 (dg2 offline build only, not run on DG2).
+- The 4-bit per-channel cache with a transposed V keeps the explicit Transpose on xe_hpg (`fuse_transposed_v_4bit`):
+  none of its kernels reads it in place ("The 4-bit cache with a transposed V read in place"). Readers in the xe_hpg
+  PREFILL kernel, the generic SG8 path and the opt single-token stage would let the decomposition drop that flag.
 - PA PREFILL prompts up to about 2K tokens are slower than `sdpa_micro` with the 256-key x 32-query tile: 65 and 128
   tokens about 1.2x, 384-768 tokens 1.03-1.16x with gaps between calls, 2048 tokens 1.03x. Two study kernels cover parts
   of it (`h128_2_2_active_q8_pfix`, 8 queries, best up to 512 tokens; `h128_2_2_one_e1p6`, 16 queries x 256 keys, best
