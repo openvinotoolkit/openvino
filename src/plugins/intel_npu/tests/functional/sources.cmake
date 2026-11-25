@@ -73,6 +73,8 @@ set(OV_NPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/behavior/remote_tensor_tests/remote_run.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/replace_sw_layers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/roi_tensors_tests/roi_tensors_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/vm/level_zero_allocator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/vm/vm_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/weights_separation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/work_with_devices.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common/functions.cpp
@@ -94,10 +96,12 @@ set(OV_NPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/internal/backend/zero_tensor_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/backend/zero_variable_state_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/compiler_adapter/compile_log_level.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/compiler_adapter/parser_factory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/compiler_adapter/vcl_allocator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/compiler_adapter/zero_graph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/plugin/test_compiler_option_support_helper.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/plugin/test_properties.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/utils/vcl_loader.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/utils/zero/zero_cmd_queue_pool_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/utils/zero/zero_mem_pool_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/utils/zero/zero_wrappers_tests.cpp

@@ -6,13 +6,16 @@ set(OV_NPU_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/main.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/blob_format_importers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/blob_source.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/compiler_adapter_factory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/compiler_impl_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/fake_vcl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/fake_vcl_compiler.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/plugin_compiler_adapter_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/vcl_profiling_decoder_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/vcl_provider_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/vcl_version_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npu/fake_backend_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/flash_attention_tile_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/metadata/metadata_text.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/metadata/metadata_text.hpp
@@ -67,6 +70,26 @@ set(OV_NPU_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/npuw/unpack.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/unpack.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/untangle_const_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/bytecode_builder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/composable_allocators.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/counting_leaf.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/except.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instruction_sizes.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/arithmetic_float.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/arithmetic_integers.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/bitwise.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/buffers.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/comparison.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/conditional_assignment.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/control_flow.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/conversion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/utils/common.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/instructions/utils/common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/span.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/version_compatibility_check.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/virtual_machine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/virtual_machine_parse.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vm/vm_value_helpers.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/src/zero_backend.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/src/zero_device.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/src/zero_dynamic_infer_request.cpp
