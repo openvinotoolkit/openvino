@@ -214,6 +214,7 @@ struct LLMVariantSwitchTestAccess {
         s::write(os, compiled->m_prefix_caching_max_num_blocks);
         s::write(os, compiled->m_longrope_context_limit);
         s::write(os, compiled->m_is_whisper);
+        s::write(os, compiled->m_is_qwen3_asr);
         s::write(os, compiled->m_eos_token_id);
         s::write(os, compiled->m_decomposed_sdpa_size);
         s::write(os, compiled->m_is_eagle);
