@@ -1860,3 +1860,32 @@ TEST(alias_validation, V1_persistent_class_downgrade_only_when_the_biggest_membe
         EXPECT_EQ(rep.count(rule_id::V1, severity::defect), 1u) << hits_str(rep);
     }
 }
+
+// N2 (a): R4 looks only UP from the overwritten tensor. An external-root member that sits DOWNSTREAM of P (here a mutable_data that is a hypothetical
+// in-place member reading P, and is not part of the version set because the in-place edge is a version boundary) is not something W overwrites.
+TEST(alias_validation, N2a_downstream_external_root_member_does_not_taint_the_writer) {
+    auto& eng = get_test_engine();
+    topology t;
+    t.add(input_layout("in", f32_l()));
+    t.add(activation("P", input_info("in"), activation_func::relu));
+    t.add(mutable_data("md", {input_info("P")}, eng.allocate_memory(f32_l())));
+    t.add(activation("W", input_info("P"), activation_func::abs));
+    auto prog = make_hand(eng, t, {"W", "md"});
+    force_order(*prog, {"P", "md", "W"});
+    auto r = war_of(*prog, "W", 0, {{"W", 0}, {"md", 0}});
+    EXPECT_NO_REASON(r, wr_external_root);
+    EXPECT_NO_REASON(r, wr_persistent_unregistered);
+    EXPECT_NO_REASON(r, wr_via_upstream_inplace);
+    // The only remaining reason is the unrelated R5a one: a mutable_data user makes P a visible output (W12), so the verdict stays Unsafe.
+    EXPECT_EQ(r.res.reasons & war_unsafe_mask, static_cast<uint32_t>(wr_visible_version)) << why(r.res);
+}
+
+// N2 (b): the external root is genuinely upstream of P through an in-place edge: still reported, and flagged as reached through upstream in-place.
+TEST(alias_validation, N2b_upstream_external_root_through_inplace_edge_is_still_reported) {
+    auto& eng = get_test_engine();
+    auto prog = make_hand(eng, ext_chain_topology(), {"S3"});
+    auto r = war_of(*prog, "S3", 0, {{"S3", 0}, {"S2", 0}, {"S1", 0}});
+    EXPECT_VERDICT(r, war_verdict::Unsafe);
+    EXPECT_REASON(r, wr_external_root);
+    EXPECT_REASON(r, wr_via_upstream_inplace);
+}

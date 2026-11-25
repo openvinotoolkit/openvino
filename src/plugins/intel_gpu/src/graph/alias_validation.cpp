@@ -251,7 +251,7 @@ war_result war_safe(const alias_analysis& aa, const exec_axis& axis, const war_q
         version.insert(n.t);
     }
 
-    // 2. R4: external / persistent roots of the physical class (crosses in-place edges)
+    // 2. R4: external / persistent roots the overwritten tensor depends on (upstream closure, crosses in-place edges)
     {
         std::set<const program_node*> done;
         auto check_root = [&](const program_node& rn) {
@@ -273,15 +273,39 @@ war_result war_safe(const alias_analysis& aa, const exec_axis& axis, const war_q
                 reasons |= wr_via_upstream_inplace;
             }
         };
+        // N2: only what the overwritten tensor physically depends on counts: allocators / external roots reached by walking UP the provider
+        // edges from every start (in-place edges and version boundaries are crossed on purpose: an upstream in-place chain still ends in
+        // that root), plus external-root members of the version set. Members that are only downstream of P (views / slots of P) do not.
+        std::set<tkey> up_seen;
+        std::vector<tkey> up_queue;
         for (const auto& s : starts) {
-            const alias_class* k = aa.class_of(*s.first, s.second);
-            if (k == nullptr) {
-                continue;
+            if (up_seen.insert(s).second) {
+                up_queue.push_back(s);
             }
-            for (const auto& m : k->members) {
-                if (m.role == alias_role::allocator || program_helpers::is_external_buffer_root(*m.node)) {
-                    check_root(*m.node);
+        }
+        for (size_t i = 0; i < up_queue.size(); ++i) {
+            const tkey t = up_queue[i];
+            if (program_helpers::is_external_buffer_root(*t.first)) {
+                check_root(*t.first);
+            } else if (const alias_class* k = aa.class_of(*t.first, t.second)) {
+                for (const auto& m : k->members) {
+                    if (m.node == t.first && m.id.space == tensor_space::OUTPUT && m.id.index == t.second && m.role == alias_role::allocator) {
+                        check_root(*m.node);
+                        break;
+                    }
                 }
+            }
+            for (size_t ei : aa.edges_from(*t.first, t.second)) {
+                const auto& e = aa.edges()[ei];
+                const tkey pt{e.provider_node, e.provider_port};
+                if (up_seen.insert(pt).second) {
+                    up_queue.push_back(pt);
+                }
+            }
+        }
+        for (const auto& vt : version) {
+            if (program_helpers::is_external_buffer_root(*vt.first)) {
+                check_root(*vt.first);
             }
         }
     }
