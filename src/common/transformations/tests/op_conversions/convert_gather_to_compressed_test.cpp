@@ -179,25 +179,46 @@ std::shared_ptr<ov::Model> make_gather_decompression_model(const ov::element::Ty
 }
 }  // namespace
 
-TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_PerColumnScale) {
-    model = make_gather_decompression_model(ov::element::u8, ov::Shape{32, 16}, ov::Shape{1, 16});
-    manager.register_pass<ConvertGatherToGatherCompressed>();
-}
+using ConvertGatherToCompressedNegativeParams = std::tuple<ov::element::Type,  // weights type
+                                                           ov::Shape,          // weights shape
+                                                           ov::Shape,          // scale shape
+                                                           ov::Shape>;         // zero point shape, empty if none
 
-TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_PerColumnScaleU4) {
-    model = make_gather_decompression_model(ov::element::u4, ov::Shape{32, 16}, ov::Shape{1, 16});
-    manager.register_pass<ConvertGatherToGatherCompressed>();
-}
+class ConvertGatherToCompressedNegativeTests
+    : public testing::WithParamInterface<ConvertGatherToCompressedNegativeParams>,
+      public TransformationTestsF {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertGatherToCompressedNegativeParams>& info) {
+        const auto& [weights_type, weights_shape, scale_shape, zp_shape] = info.param;
+        std::ostringstream ss;
+        ss << "weights=" << weights_type << weights_shape << "_scale=" << scale_shape << "_zp=" << zp_shape;
+        return ss.str();
+    }
 
-TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_PerColumnZeroPoint) {
-    model = make_gather_decompression_model(ov::element::u8, ov::Shape{32, 16}, ov::Shape{32, 1}, ov::Shape{1, 16});
-    manager.register_pass<ConvertGatherToGatherCompressed>();
-}
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& [weights_type, weights_shape, scale_shape, zp_shape] = GetParam();
+        model = make_gather_decompression_model(weights_type, weights_shape, scale_shape, zp_shape);
+        manager.register_pass<ConvertGatherToGatherCompressed>();
+    }
+};
 
-TEST_F(TransformationTestsF, ConvertGatherToCompressed_Negative_NonLeadingGroupScale) {
-    model = make_gather_decompression_model(ov::element::u8, ov::Shape{32, 4, 4}, ov::Shape{1, 4, 1});
-    manager.register_pass<ConvertGatherToGatherCompressed>();
-}
+TEST_P(ConvertGatherToCompressedNegativeTests, NotConverted) {}
+
+INSTANTIATE_TEST_SUITE_P(ConvertGatherToCompressed_Negative,
+                         ConvertGatherToCompressedNegativeTests,
+                         ::testing::Values(
+                             // per-column scale
+                             ConvertGatherToCompressedNegativeParams{ov::element::u8, {32, 16}, {1, 16}, {}},
+                             ConvertGatherToCompressedNegativeParams{ov::element::u4, {32, 16}, {1, 16}, {}},
+                             // per-column zero point
+                             ConvertGatherToCompressedNegativeParams{ov::element::u8, {32, 16}, {32, 1}, {1, 16}},
+                             // scale that doesn't vary along the leading weights dim
+                             ConvertGatherToCompressedNegativeParams{ov::element::u8, {32, 4, 4}, {1, 4, 1}, {}},
+                             // scale that broadcasts the weights
+                             ConvertGatherToCompressedNegativeParams{ov::element::u8, {32, 1}, {32, 4}, {}}),
+                         ConvertGatherToCompressedNegativeTests::getTestCaseName);
 
 TEST_F(TransformationTestsF, ConvertGatherToCompressedU2NotMatchedByDefault) {
     // u2 is not in the default type list, so the graph must stay as is.

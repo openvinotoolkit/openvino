@@ -22,6 +22,7 @@
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
+using ov::pass::pattern::has_static_shape;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::type_matches;
 using ov::pass::pattern::wrap_type;
@@ -33,25 +34,16 @@ namespace v8 = ov::op::v8;
 
 namespace {
 // GatherCompressed computes the scale / zero point index of a weights element as
-// flat_idx / (weights_size / param_size), so each value has to cover a contiguous block of the flattened weights:
-// the parameter shape must be the leading weights dims, then one dim that divides the next weights dim, then ones.
-bool is_blocked_decompression_param(const ov::Shape& weights_shape, const ov::PartialShape& param_shape) {
-    if (param_shape.is_dynamic() || param_shape.size() > weights_shape.size()) {
+// flat_idx / (weights_size / param_size), so each value has to cover a contiguous block of the flattened weights.
+// Multiply broadcasting makes every scale / zero point dim either 1 or equal to the weights dim, so the parameter
+// shape has to be the leading weights dims followed by ones.
+bool is_blocked_decompression_param(const ov::Shape& weights_shape, ov::Shape param_shape) {
+    if (param_shape.size() > weights_shape.size()) {
         return false;
     }
-    auto shape = param_shape.to_shape();
-    shape.insert(shape.begin(), weights_shape.size() - shape.size(), 1);
-    size_t i = 0;
-    while (i < shape.size() && shape[i] == weights_shape[i]) {
-        ++i;
-    }
-    if (i == shape.size()) {
-        return true;
-    }
-    if (shape[i] == 0 || weights_shape[i] % shape[i] != 0) {
-        return false;
-    }
-    return std::all_of(shape.begin() + i + 1, shape.end(), [](size_t dim) {
+    param_shape.insert(param_shape.begin(), weights_shape.size() - param_shape.size(), 1);
+    const auto param_it = std::mismatch(param_shape.begin(), param_shape.end(), weights_shape.begin()).first;
+    return std::all_of(param_it, param_shape.end(), [](size_t dim) {
         return dim == 1;
     });
 }
@@ -71,10 +63,10 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
     auto dicts_m = wrap_type<v0::Constant>(compressed_constant);
     auto convert_m = wrap_type<v0::Convert>({dicts_m});
 
-    auto sub_const_m = any_input();  // const or const+convert
+    auto sub_const_m = any_input(has_static_shape());  // const or const+convert
     auto subtract_m = wrap_type<v1::Subtract>({convert_m, sub_const_m});
 
-    auto mul_const_m = any_input();  // const or const+convert
+    auto mul_const_m = any_input(has_static_shape());  // const or const+convert
     auto mul_with_sub_m = wrap_type<v1::Multiply>({subtract_m, mul_const_m});
     auto mul_no_sub_m = wrap_type<v1::Multiply>({convert_m, mul_const_m});
     auto mul_m = std::make_shared<Or>(ov::OutputVector{mul_with_sub_m, mul_no_sub_m});
@@ -100,9 +92,9 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
             return false;
         }
 
-        if (!is_blocked_decompression_param(dicts_shape, pattern_map.at(mul_const_m).get_partial_shape()) ||
+        if (!is_blocked_decompression_param(dicts_shape, pattern_map.at(mul_const_m).get_shape()) ||
             (pattern_map.count(subtract_m) &&
-             !is_blocked_decompression_param(dicts_shape, pattern_map.at(sub_const_m).get_partial_shape()))) {
+             !is_blocked_decompression_param(dicts_shape, pattern_map.at(sub_const_m).get_shape()))) {
             return false;
         }
 
