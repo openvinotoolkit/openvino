@@ -81,3 +81,21 @@ def test_disable_conversion_keeps_node_precise_in_compiled_model(device):
     compiled = core.compile_model(model, device, {"INFERENCE_PRECISION_HINT": "f16"})
     result = compiled(np.full([1, 4], 300.0, dtype=np.float32))[0]
     assert np.allclose(result, 90000.0)
+
+
+@pytest.mark.parametrize(
+    ("func", "args"),
+    [
+        (disable_conversion, (Type.f16,)),
+        (disable_conversion, (Type.f32, Type.f16)),
+        (disable_conversion, ([Type.f32], [Type.f16])),
+        (enable_conversion, (Type.f16,)),
+        (enable_conversion, (Type.f32, Type.f16)),
+        (enable_conversion, ([Type.f32], [Type.f16])),
+        (is_conversion_disabled, (Type.f16,)),
+        (is_conversion_disabled, (Type.f32, Type.f16)),
+    ],
+)
+def test_conversion_helpers_reject_none(func, args):
+    with pytest.raises(TypeError):
+        func(None, *args)

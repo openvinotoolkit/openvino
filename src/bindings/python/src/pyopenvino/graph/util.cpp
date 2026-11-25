@@ -56,7 +56,7 @@ void regmodule_graph_util(py::module m) {
 
     mod.def("disable_conversion",
             overload_cast_<const NodePtr&, const Type&>()(&ov::disable_conversion),
-            py::arg("node"),
+            py::arg("node").none(false),
             py::arg("to_type"),
             R"(
                 Keeps a node in its original precision: marks it so that it is not converted
@@ -73,7 +73,7 @@ void regmodule_graph_util(py::module m) {
 
     mod.def("disable_conversion",
             overload_cast_<const NodePtr&, const Type&, const Type&>()(&ov::disable_conversion),
-            py::arg("node"),
+            py::arg("node").none(false),
             py::arg("from_type"),
             py::arg("to_type"),
             R"(
@@ -89,7 +89,7 @@ void regmodule_graph_util(py::module m) {
 
     mod.def("disable_conversion",
             overload_cast_<const NodePtr&, const TypeVector&, const TypeVector&>()(&ov::disable_conversion),
-            py::arg("node"),
+            py::arg("node").none(false),
             py::arg("from_types"),
             py::arg("to_types"),
             R"(
@@ -105,7 +105,7 @@ void regmodule_graph_util(py::module m) {
 
     mod.def("enable_conversion",
             overload_cast_<const NodePtr&, const Type&>()(&ov::enable_conversion),
-            py::arg("node"),
+            py::arg("node").none(false),
             py::arg("to_type"),
             R"(
                 Removes a mark set by `disable_conversion(node, to_type)`.
@@ -118,7 +118,7 @@ void regmodule_graph_util(py::module m) {
 
     mod.def("enable_conversion",
             overload_cast_<const NodePtr&, const Type&, const Type&>()(&ov::enable_conversion),
-            py::arg("node"),
+            py::arg("node").none(false),
             py::arg("from_type"),
             py::arg("to_type"),
             R"(
@@ -134,7 +134,7 @@ void regmodule_graph_util(py::module m) {
 
     mod.def("enable_conversion",
             overload_cast_<const NodePtr&, const TypeVector&, const TypeVector&>()(&ov::enable_conversion),
-            py::arg("node"),
+            py::arg("node").none(false),
             py::arg("from_types"),
             py::arg("to_types"),
             R"(
@@ -153,7 +153,7 @@ void regmodule_graph_util(py::module m) {
         [](const NodePtr& node, const Type& to_type) {
             return ov::is_conversion_disabled(node, to_type);
         },
-        py::arg("node"),
+        py::arg("node").none(false),
         py::arg("to_type"),
         R"(
                 Checks whether converting the node to `to_type` is disabled.
@@ -171,7 +171,7 @@ void regmodule_graph_util(py::module m) {
         [](const NodePtr& node, const Type& from_type, const Type& to_type) {
             return ov::is_conversion_disabled(node, from_type, to_type);
         },
-        py::arg("node"),
+        py::arg("node").none(false),
         py::arg("from_type"),
         py::arg("to_type"),
         R"(
