@@ -51,10 +51,11 @@ void LookaheadContext::build_once(cldnn::network& network) {
                            << std::endl;
         }
         const auto& predictor_path = network.get_config().get_les_predictor();
+        const auto& predictor_ir = network.get_config().les_predictor_ir;
         std::optional<LesPredictorModel> predictor_model;
-        if (!predictor_path.empty()) {
+        if (predictor_ir || !predictor_path.empty()) {
             // The predictor replaces the next-layer router, so only the plain chain topology is required.
-            predictor_model = load_les_predictor_model(predictor_path);
+            predictor_model = load_les_predictor_model(predictor_ir ? predictor_ir : ov::Core().read_model(predictor_path));
             for (const auto& id : network.get_input_ids()) {
                 if (id == "parameter:les_prev_hidden" && network.get_program()->get_node(id).get_users().empty()) {
                     m_previous_input = id;

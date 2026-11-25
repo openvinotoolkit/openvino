@@ -95,9 +95,7 @@ inline std::vector<float> matmul_weights(const std::shared_ptr<ov::op::v0::MatMu
 }  // namespace les_detail
 
 // Reads a predictor IR whose model outputs are named `les_experts.<layer>` (see LesPredictor).
-inline LesPredictorModel load_les_predictor_model(const std::string& path) {
-    ov::Core core;
-    auto model = core.read_model(path);
+inline LesPredictorModel load_les_predictor_model(const std::shared_ptr<ov::Model>& model) {
     LesPredictorModel result;
     static const std::regex output_name("les_experts\\.(\\d+)");
     for (const auto& output : model->outputs()) {
@@ -157,7 +155,7 @@ inline LesPredictorModel load_les_predictor_model(const std::string& path) {
         result.top_k = topk->get_k();
         result.heads.emplace(layer, std::move(head));
     }
-    OPENVINO_ASSERT(!result.heads.empty(), "LES predictor: no les_experts.<layer> outputs in ", path);
+    OPENVINO_ASSERT(!result.heads.empty(), "LES predictor: no les_experts.<layer> outputs in ", model->get_friendly_name());
     return result;
 }
 
