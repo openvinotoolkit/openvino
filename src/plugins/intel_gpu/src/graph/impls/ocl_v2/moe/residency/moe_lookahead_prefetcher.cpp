@@ -119,6 +119,10 @@ struct ExpertPrefetcher::State {
         moe_otd::LookaheadStagingPool staging;
         std::thread thread;
     };
+    struct PendingUpload {
+        Job job;
+        std::vector<cldnn::event::ptr> events;
+    };
 
     State(cldnn::engine& engine, const cldnn::ExecutionConfig& config, cldnn::stream::ptr compute_stream)
         : context(dynamic_cast<cldnn::ocl::ocl_engine&>(engine).get_cl_context()) {
@@ -126,6 +130,8 @@ struct ExpertPrefetcher::State {
         workers.resize(worker_count());
         shares_compute_queue = compute_stream &&
                                !(use_new_stream && std::string_view(use_new_stream) == "1");
+        const auto* pipeline = std::getenv("MOE_LES_PIPELINE_UPLOADS");
+        pipeline_uploads = shares_compute_queue && pipeline && std::string_view(pipeline) == "1";
         for (auto& worker : workers) {
             worker.dma = shares_compute_queue ? compute_stream : moe_otd::create_copy_stream(engine, config);
             for (auto& chunk : worker.staging.chunks) {
@@ -280,11 +286,38 @@ struct ExpertPrefetcher::State {
         }
     }
 
+    void cancel_uploads(std::vector<PendingUpload>& pending) {
+        for (auto& upload : pending) {
+            for (const auto& event : upload.events) {
+                try {
+                    event->wait();
+                } catch (const std::exception&) {
+                }
+            }
+            finish(upload.job, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+        }
+        {
+            std::lock_guard<std::mutex> lock(wakeup->mutex);
+            active -= pending.size();
+            if (active == 0) {
+                discard_locked();
+            }
+        }
+        fail_abandoned();
+        wakeup->notify();
+    }
+
     void run(Worker& worker) noexcept {
+        constexpr size_t max_pending = 2;
+        std::vector<PendingUpload> pending;
         bool running_job = false;
         try {
+            if (pipeline_uploads) {
+                pending.reserve(max_pending);
+            }
             for (;;) {
                 std::optional<Job> selected;
+                std::optional<size_t> completed;
                 std::optional<PrefetchTask> prediction;
                 std::shared_ptr<Binding> binding;
                 {
@@ -296,11 +329,8 @@ struct ExpertPrefetcher::State {
                             observed = wakeup->revision;
                         }
                         if (stop) {
-                            if (active == 0) {
-                                discard_locked();
-                            }
                             lock.unlock();
-                            fail_abandoned();
+                            cancel_uploads(pending);
                             return;
                         }
                         expire_locked();
@@ -317,6 +347,9 @@ struct ExpertPrefetcher::State {
                         }
                         for (const auto& task : predictions) {
                             dependencies.push_back(task.prediction_ready_event);
+                        }
+                        for (const auto& upload : pending) {
+                            dependencies.insert(dependencies.end(), upload.events.begin(), upload.events.end());
                         }
                         lock.unlock();
                         std::unordered_map<const cldnn::event*, cl_int> statuses;
@@ -336,7 +369,16 @@ struct ExpertPrefetcher::State {
                             const auto found = statuses.find(event.get());
                             return found != statuses.end() && found->second <= CL_COMPLETE;
                         };
-                        auto eligible = [&](const Job& job) { return terminal(job.load.last_use_event); };
+                        const auto done = std::find_if(pending.begin(), pending.end(), [&](const PendingUpload& upload) {
+                            return std::all_of(upload.events.begin(), upload.events.end(), terminal);
+                        });
+                        if (done != pending.end()) {
+                            completed = static_cast<size_t>(done - pending.begin());
+                            break;
+                        }
+                        auto eligible = [&](const Job& job) {
+                            return pending.size() < max_pending && terminal(job.load.last_use_event);
+                        };
                         auto urgent = std::find_if(demand.begin(), demand.end(), eligible);
                         if (urgent != demand.end()) {
                             selected = *urgent;
@@ -377,18 +419,36 @@ struct ExpertPrefetcher::State {
                 }
                 running_job = true;
                 fail_abandoned();
-                if (selected) {
+                if (completed) {
+                    auto upload = std::move(pending[*completed]);
+                    pending.erase(pending.begin() + *completed);
+                    const auto succeeded = std::all_of(upload.events.begin(), upload.events.end(), [](const auto& event) {
+                        return event_status(event) == CL_COMPLETE;
+                    });
+                    finish(upload.job, succeeded ? CL_COMPLETE : CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+                    OPENVINO_ASSERT(succeeded, "Lookahead expert upload failed");
+                } else if (selected) {
                     try {
                         OPENVINO_ASSERT(event_status(selected->load.last_use_event) == CL_COMPLETE,
                                         "Lookahead consumer event failed");
                         auto& source = *selected->binding;
                         OPENVINO_ASSERT(source.cache->start_load(selected->load), "Lookahead slot reservation is stale");
-                        moe_otd::fill_weights_memory_async(*worker.dma, *source.reader, source.tensors,
-                                                           {selected->load.expert_id}, {selected->load.slot},
-                                                           nullptr, &worker.staging);
-                        finish(*selected, CL_COMPLETE);
+                        auto events = moe_otd::fill_weights_memory_async(*worker.dma, *source.reader, source.tensors,
+                                                                         {selected->load.expert_id}, {selected->load.slot},
+                                                                         nullptr, &worker.staging, pipeline_uploads);
+                        if (pipeline_uploads) {
+                            pending.push_back({*selected, std::move(events)});
+                            running_job = false;
+                            for (const auto& event : pending.back().events) {
+                                watch(event);
+                            }
+                        } else {
+                            finish(*selected, CL_COMPLETE);
+                        }
                     } catch (...) {
-                        finish(*selected, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+                        if (running_job) {
+                            finish(*selected, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+                        }
                         throw;
                     }
                 } else if (prediction) {
@@ -439,7 +499,9 @@ struct ExpertPrefetcher::State {
                 }
                 {
                     std::lock_guard<std::mutex> lock(wakeup->mutex);
-                    --active;
+                    if (running_job) {
+                        --active;
+                    }
                     running_job = false;
                 }
                 wakeup->notify();
@@ -454,17 +516,15 @@ struct ExpertPrefetcher::State {
                 if (running_job) {
                     --active;
                 }
-                if (active == 0) {
-                    discard_locked();
-                }
             }
-            fail_abandoned();
             wakeup->notify();
+            cancel_uploads(pending);
         }
     }
 
     std::shared_ptr<Wakeup> wakeup = std::make_shared<Wakeup>();
     bool shares_compute_queue = false;
+    bool pipeline_uploads = false;
     cl::Context context;
     std::unordered_map<OffloadExpertWeightProvider*, std::shared_ptr<Binding>> bindings;
     std::deque<Job> demand;

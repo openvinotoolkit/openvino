@@ -179,7 +179,9 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                                                       const std::vector<uint32_t>& experts,
                                                       const std::vector<size_t>& slots,
                                                       uint64_t* uploaded_bytes,
-                                                      LookaheadStagingPool* staging_pool) {
+                                                      LookaheadStagingPool* staging_pool,
+                                                      bool defer_completion) {
+    OPENVINO_ASSERT(!defer_completion || staging_pool, "Deferred LES uploads require persistent staging");
     constexpr size_t chunk_bytes = LookaheadStagingPool::chunk_bytes;
     struct ReadPlan {
         cldnn::memory::ptr memory;
@@ -261,6 +263,9 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
         }
     } catch (...) {
         error = std::current_exception();
+    }
+    if (defer_completion && !error) {
+        return events;
     }
     for (auto& buffer : staging) {
         if (buffer.upload) {
