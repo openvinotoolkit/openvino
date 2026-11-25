@@ -178,10 +178,16 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
         auto weights_layout = conv_node.weights().get_output_layout();
         if (weights_layout.is_static()) {
             const auto& shape = weights_layout.get_partial_shape();
-            if (is_input) {
-                channel_count = shape[conv_node.get_groups() > 1 ? 2 : 1].get_length();
-            } else {
-                channel_count = shape[conv_node.get_groups() > 1 ? 1 : 0].get_length();
+            const bool grouped_weights = conv_node.get_primitive()->grouped_weights_shape || format::is_grouped(weights_layout.format);
+            const int64_t groups = static_cast<int64_t>(conv_node.get_groups());
+            if (grouped_weights) {
+                // Grouped weights shape is [G, O_per_group, I_per_group, ...]
+                if (shape.size() >= 3) {
+                    channel_count = groups * shape[is_input ? 2 : 1].get_length();
+                }
+            } else if (shape.size() >= 2) {
+                // Non-grouped weights shape is [G * O_per_group, I_per_group, ...]
+                channel_count = is_input ? groups * shape[1].get_length() : shape[0].get_length();
             }
         }
     }
@@ -1287,30 +1293,14 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         node.set_preferred_input_fmt(0, get_fsv16_format(rank));
         node.set_preferred_output_fmt(0, get_fsv16_format(rank));
 
-        // Override input for small channels (≤ 16)
-        // fsv16 format uses 16-element blocks. channels ≤ 16 waste block padding
-        // e.g. 8ch uses only 8/16 elements per block (50% waste), planar format is more efficient
-        if (input_channels > 0 && input_channels <= 16) {
+        // Override with default planar format for small channels (<= 8).
+        // Matches oneDNN jit:ir small-channel threshold for FP16 (get_default_mad_block(f16) / 2 = 8),
+        // where fsv16 (aBcd16b) is rejected and falls back to ocl:ref:any.
+        if (input_channels > 0 && input_channels <= 8) {
             node.set_preferred_input_fmt(0, format::get_default_format(rank));
         }
 
-        // Override output for small channels (≤ 16)
-        // same as input - avoid fsv16 block padding overhead for small channel counts
-        if (output_channels > 0 && output_channels <= 16) {
-            node.set_preferred_output_fmt(0, format::get_default_format(rank));
-        }
-
-        // Override output for channel expansion operations (small input → large output)
-        // when expanding from small input channels (≤16) to large output channels (≥32),
-        // planar output format enables OneDNN to select optimized JIT kernel instead of reference kernel
-        // Thresholds explained:
-        //   - input ≤ 16: matches fsv16 block size, input side uses planar format (set above)
-        //   - output ≥ 32: 2 or more fsv16 blocks (32/16=2), where blocked write overhead exceeds
-        //                  sequential write benefits. planar format provides better cache locality
-        //                  and memory access patterns for large channel generation
-        // e.g. 3ch → 1024ch would create 64 fsv16 blocks with scattered writes,
-        //      but planar format allows efficient sequential writes
-        if (input_channels > 0 && input_channels <= 16 && output_channels >= 32) {
+        if (output_channels > 0 && output_channels <= 8) {
             node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
     } else if (is_fp32_input) {
