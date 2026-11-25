@@ -133,10 +133,19 @@ struct ReadOptions {
     float low_scale_factor = 1.0F;
     float gate_scale_factor = 1.0F;
     size_t gain_size = CD;                    // elements of the norm gain; C*D is what the op takes
+    size_t gain_leading_ones = 0;             // the gain is stored as [1, .., 1, gain_size], as checkpoints export it
     size_t inject_rows = C;                   // rows of W_inject; the op takes C
     element::Type scale_type = element::f32;  // the stored type of the 1/C scalars
     int64_t rms_axis = -1;                    // axis of a fused RMS; the op normalizes the last one
 };
+
+// The RMS gamma of the FusedRms form: [C, D] with `gain_leading_ones` ones in front.
+Shape getGamma(const ReadOptions& opt) {
+    Shape shape(opt.gain_leading_ones, 1);
+    shape.push_back(C);
+    shape.push_back(D);
+    return shape;
+}
 
 // The projection weight of a GEMM: [N, K] stored with transpose_b.
 Output<Node> weight(size_t n, size_t k, const ReadOptions& opt) {
@@ -178,7 +187,7 @@ Output<Node> getNormalizedFlat(const ReadOptions& opt, const Output<Node>& resid
     switch (opt.norm) {
     case Norm::FusedRms:
         return reshape_to(std::make_shared<ov::op::internal::RMS>(r3,
-                                                                  filled_f32(Shape{C, D}, 1.0F),
+                                                                  filled_f32(getGamma(opt), 1.0F),
                                                                   EPS,
                                                                   element::dynamic,
                                                                   opt.rms_axis),
@@ -221,11 +230,18 @@ Output<Node> gate_consumer(const ReadOptions& opt, const Output<Node>& gate) {
     return std::make_shared<op::v0::Unsqueeze>(gate, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
 }
 
+// The norm gain input of the model: [gain_size] with `gain_leading_ones` ones in front.
+std::shared_ptr<op::v0::Parameter> getGain(const ReadOptions& opt) {
+    Shape shape(opt.gain_leading_ones, 1);
+    shape.push_back(opt.gain_size);
+    return std::make_shared<op::v0::Parameter>(element::f32, shape);
+}
+
 // Canonical READ graph of the layer, decomposed as checkpoints export it.
 std::shared_ptr<Model> getReadModel(const ReadOptions& opt) {
     auto residual =
         std::make_shared<op::v0::Parameter>(element::f32, with_last(PartialShape::dynamic(opt.leading), CD));
-    auto gain = std::make_shared<op::v0::Parameter>(element::f32, Shape{opt.gain_size});
+    auto gain = getGain(opt);
     const auto split = keep_rows(opt.leading, {static_cast<int64_t>(C), static_cast<int64_t>(D)});
     const auto rbar_flat = getNormalizedFlat(opt, residual, gain);
 
@@ -264,17 +280,23 @@ std::shared_ptr<Model> getReadModel(const ReadOptions& opt) {
 std::shared_ptr<Model> getReadModelRef(const ReadOptions& opt, bool keep_gate_branch = false) {
     auto residual =
         std::make_shared<op::v0::Parameter>(element::f32, with_last(PartialShape::dynamic(opt.leading), CD));
-    auto gain = std::make_shared<op::v0::Parameter>(element::f32, Shape{opt.gain_size});
+    auto gain = getGain(opt);
 
     Output<Node> gain_flat = gain;
     if (opt.norm == Norm::FusedRms) {
         // The pass flattens the RMS gamma [C, D] with a plain Reshape.
         gain_flat = std::make_shared<op::v1::Reshape>(
-            filled_f32(Shape{C, D}, 1.0F),
+            filled_f32(getGamma(opt), 1.0F),
             op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(CD)}),
             false);
     } else if (opt.norm == Norm::GammalessRmsNoGain) {
         gain_flat = filled_f32(Shape{CD}, 1.0F);
+    } else if (opt.gain_leading_ones > 0) {
+        // A gain that is not [CD] is flattened with a plain Reshape.
+        gain_flat = std::make_shared<op::v1::Reshape>(
+            gain,
+            op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(CD)}),
+            false);
     }
 
     const bool op_gate = opt.with_gate && !keep_gate_branch;
@@ -425,6 +447,20 @@ INSTANTIATE_TEST_SUITE_P(GatedResidualFusion,
                                            ReadCase{"GammalessRmsWithoutGain",
                                                     [](ReadOptions& o) {
                                                         o.norm = Norm::GammalessRmsNoGain;
+                                                    }},
+                                           ReadCase{"DecomposedNormGainWithLeadingOnes",
+                                                    [](ReadOptions& o) {
+                                                        o.gain_leading_ones = 2;
+                                                    }},
+                                           ReadCase{"FusedRmsGammaWithLeadingOnes",
+                                                    [](ReadOptions& o) {
+                                                        o.norm = Norm::FusedRms;
+                                                        o.gain_leading_ones = 2;
+                                                    }},
+                                           ReadCase{"GammalessRmsGainWithLeadingOnes",
+                                                    [](ReadOptions& o) {
+                                                        o.norm = Norm::GammalessRms;
+                                                        o.gain_leading_ones = 2;
                                                     }},
                                            ReadCase{"ReduceMeanMix",
                                                     [](ReadOptions& o) {

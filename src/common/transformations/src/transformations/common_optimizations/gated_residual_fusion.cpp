@@ -258,7 +258,7 @@ ReadPattern make_read_pattern(NormForm form) {
     auto mix_scale = optional<ov::op::v0::Convert>(p.mix_scale_const);
 
     // Static dimensions are named: equal names are equal sizes. The residual is [..., CD] and splits into [..., C, D];
-    // W_down is [L, CD] and W_up [CD, L]; the gain is the expanded [CD] or the split [C, D], with leading ones allowed.
+    // W_down is [L, CD] and W_up [CD, L]; the gain is the expanded [CD] or the split [C, D]
     p.residual = any_input(shape_matches("[..., CD]") && rank_more_than(1) && is_real_type);
     p.residual_3d =
         wrap_type<ov::op::v1::Reshape>({p.residual, any_input()},
@@ -267,8 +267,8 @@ ReadPattern make_read_pattern(NormForm form) {
     // The 1/C scale may be folded into W_down.
     p.w_down_folded = wrap_type<ov::op::v1::Multiply>({p.w_down_inner, folded_scale});
     p.w_up = any_input(shape_matches("[CD, L]") && has_static_shape());
-    const auto gain_shape =
-        shape_matches("[CD]") || shape_matches("[C, D]") || shape_matches("[1, CD]") || shape_matches("[1, C, D]");
+    const auto gain_shape = shape_matches("[CD]") || shape_matches("[C, D]") || shape_matches("[1, CD]") ||
+                            shape_matches("[1, C, D]") || shape_matches("[1, 1, CD]") || shape_matches("[1, 1, C, D]");
 
     // The flattened, normalized activations Rbar.
     std::shared_ptr<ov::Node> rbar;
@@ -408,7 +408,7 @@ bool fuse_read(ov::pass::pattern::Matcher& m,
         new_ops.push_back(ones);
         gain_flat = ones;
     } else {
-        // The pattern guarantees the gain holds C * D elements ([CD], [C, D], or with a leading one); the op takes the
+        // The pattern guarantees the gain holds C * D elements ([CD], [C, D], or with leading ones); the op takes the
         // expanded [C * D] form.
         gain_flat = gain;
         if (gain.get_partial_shape().size() != 1) {
