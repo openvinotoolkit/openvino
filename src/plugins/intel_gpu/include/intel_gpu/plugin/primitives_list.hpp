@@ -341,5 +341,6 @@ REGISTER_FACTORY(internal, MLIR);
 REGISTER_FACTORY(internal, GatedResidual);
 REGISTER_FACTORY(internal, PagedQSAIndexer);
 REGISTER_FACTORY(internal, QSAIndexer);
+REGISTER_FACTORY(internal, QSAIndexerInPlace);
 REGISTER_FACTORY(internal, PagedSparseAttention);
 REGISTER_FACTORY(internal, SparseSDPA);

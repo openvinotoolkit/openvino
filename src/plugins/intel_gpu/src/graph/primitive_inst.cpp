@@ -456,6 +456,10 @@ void primitive_inst::update_shape() {
 
     if (!get_node().is_type<kv_cache>() && !get_node().is_type<stateless_kv>() && !get_node().is_type<strided_slice>() &&
         !input_shape_changed && _impl_params->get_output_layout().is_static()) {
+        if (get_node().is_type<assign>()) {
+            // A reset restores the initial layout of the variable even when the assigned shape does not change.
+            get_network().get_variable(get_node().as<assign>().get_primitive()->variable_id).set_layout(_impl_params->get_output_layout());
+        }
         return;
     }
 

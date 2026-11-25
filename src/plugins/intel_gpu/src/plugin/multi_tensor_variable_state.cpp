@@ -81,7 +81,9 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
     cldnn::mem_lock<int32_t, cldnn::mem_lock_type::read> bt_in_ptr(bt_mem, stream);
     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> kv_out_ptr(kv_out_mem, stream);
 
-    OPENVINO_ASSERT(kv_shape.size() == 4);
+    // A rank-3 cache (e.g. the QSA indexer block keys) is stored as bfyx with x = 1.
+    OPENVINO_ASSERT(kv_shape.size() == 3 || kv_shape.size() == 4);
+    kv_shape.resize(4, 1);
 
     for (size_t b = 0; b < kv_shape[0]; b++) {
         for (size_t f = 0; f < kv_shape[1]; f++) {
