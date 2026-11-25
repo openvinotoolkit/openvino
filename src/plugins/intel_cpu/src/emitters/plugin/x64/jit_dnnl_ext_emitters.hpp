@@ -10,6 +10,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <memory>
 
+#include "emitters/utils.hpp"
 #include "jit_dnnl_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -28,9 +29,8 @@ class jit_relu_emitter : public jit_dnnl_emitter {
 public:
     jit_relu_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                     const std::shared_ptr<ov::Node>& n,
-                     ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                     const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_relu;
         alpha = 0.F;
         beta = 0.F;
@@ -43,9 +43,8 @@ class jit_sigmoid_emitter : public jit_dnnl_emitter {
 public:
     jit_sigmoid_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                        const std::shared_ptr<ov::Node>& n,
-                        ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                        const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_logistic;
         alpha = 0.F;
         beta = 0.F;
@@ -58,9 +57,8 @@ class jit_tanh_emitter : public jit_dnnl_emitter {
 public:
     jit_tanh_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                     const std::shared_ptr<ov::Node>& n,
-                     ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                     const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_tanh;
         alpha = 0.F;
         beta = 0.F;
@@ -73,9 +71,8 @@ class jit_elu_emitter : public jit_dnnl_emitter {
 public:
     jit_elu_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& n,
-                    ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                    const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_elu;
         alpha = static_cast<float>(ov::as_type_ptr<ov::op::v0::Elu>(n)->get_alpha());
         beta = 0.F;
@@ -88,9 +85,8 @@ class jit_swish_emitter : public jit_dnnl_emitter {
 public:
     jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                      const std::shared_ptr<ov::Node>& n,
-                      ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                      const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_swish;
         auto op = ov::as_type_ptr<ov::intel_cpu::SwishNode>(n);
         alpha = op->get_alpha();
@@ -104,9 +100,8 @@ class jit_hswish_emitter : public jit_dnnl_emitter {
 public:
     jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                       const std::shared_ptr<ov::Node>& n,
-                       ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                       const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         // since v3.0 oneDNN has flexible version of hardswish, ov still uses the one with hardcoded alpha and beta
         kind = dnnl_eltwise_hardswish;
         alpha = 1.F / 6.F;
@@ -120,9 +115,8 @@ class jit_hsigmoid_emitter : public jit_dnnl_emitter {
 public:
     jit_hsigmoid_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                         const std::shared_ptr<ov::Node>& n,
-                         ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                         const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_hsigmoid;
 
         set_injector();
@@ -133,9 +127,8 @@ class jit_gelu_erf_emitter : public jit_dnnl_emitter {
 public:
     jit_gelu_erf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                         const std::shared_ptr<ov::Node>& n,
-                         ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                         const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_gelu_erf;
 
         set_injector();
@@ -146,9 +139,8 @@ class jit_gelu_tanh_emitter : public jit_dnnl_emitter {
 public:
     jit_gelu_tanh_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                          const std::shared_ptr<ov::Node>& n,
-                          ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                          const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         kind = dnnl_eltwise_gelu_tanh;
 
         set_injector();
@@ -159,9 +151,8 @@ class jit_round_emitter : public jit_dnnl_emitter {
 public:
     jit_round_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                      const std::shared_ptr<ov::Node>& n,
-                      ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+                      const std::shared_ptr<ov::Node>& n)
+        : jit_dnnl_emitter(host, host_isa, n, get_arithmetic_binary_exec_precision(n)) {
         const auto round = getNgraphOpAs<ov::op::v5::Round>(n);
         const auto mode = round->get_mode();
         if (none_of(mode,
