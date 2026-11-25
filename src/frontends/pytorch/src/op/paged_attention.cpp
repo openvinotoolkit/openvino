@@ -62,7 +62,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         // A distinct tag per occurrence: a shared fallback tag would alias one Parameter across layers whose
         // KV-cache shapes differ.
         auto* session = context.get_session();
-        size_t idx = session ? session->get_paged_attention_state().unknown_layer_count++ : 0;
+        size_t idx = session ? session->get_vllm_paged_attention_state().unknown_layer_count++ : 0;
         layer_name = idx == 0 ? "unknown_layer" : "unknown_layer_" + std::to_string(idx);
     }
     // vLLM's layer.impl.scale; 0 if the op carries none, then 1/sqrt(head_dim) below.
@@ -85,7 +85,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
     // writes. Using the target's normed k/v makes that write idempotent. The query stays the layer's own.
     auto* kv_session = context.get_session();
     if (!kv_sharing_target.empty() && kv_session) {
-        const auto& layer_kv = kv_session->get_paged_attention_state().layer_kv;
+        const auto& layer_kv = kv_session->get_vllm_paged_attention_state().layer_kv;
         auto it = layer_kv.find(kv_sharing_target);
         if (it != layer_kv.end()) {
             key = it->second.first;
@@ -97,7 +97,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
                       << "', which has not been translated yet; using its own key/value" << std::endl;
         }
     } else if (kv_session) {
-        kv_session->get_paged_attention_state().layer_kv[layer_name] = {key, value};
+        kv_session->get_vllm_paged_attention_state().layer_kv[layer_name] = {key, value};
     }
 
     if (std::getenv("OV_DBG_PA_TRANS")) {
@@ -221,14 +221,14 @@ OutputVector translate_paged_attention(const NodeContext& context) {
     auto* session = context.get_session();
     auto derive_or_cache = [&](const std::string& key, std::function<Output<Node>()> mk) -> Output<Node> {
         if (session) {
-            const auto& shared_outputs = session->get_paged_attention_state().shared_outputs;
+            const auto& shared_outputs = session->get_vllm_paged_attention_state().shared_outputs;
             auto it = shared_outputs.find(key);
             if (it != shared_outputs.end())
                 return it->second;
         }
         auto out = mk();
         if (session)
-            session->get_paged_attention_state().shared_outputs[key] = out;
+            session->get_vllm_paged_attention_state().shared_outputs[key] = out;
         return out;
     };
 

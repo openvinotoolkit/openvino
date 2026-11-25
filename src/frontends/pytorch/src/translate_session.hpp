@@ -16,7 +16,7 @@
 namespace ov::frontend::pytorch {
 
 /// vLLM PagedAttention state shared by the PagedAttention translator calls of one translation session.
-struct PagedAttentionState {
+struct VLLMPagedAttentionState {
     // Shared PagedAttention side-channel Parameters, keyed by tag.
     std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> shared_params;
     // Shared PA inputs derived from seq_lens and query_start_loc (past_lens, max_context_len, ...).
@@ -83,7 +83,7 @@ public:
     OutputVector convert_node(const NodeContext& context);
 
     /// \brief Returns the vLLM PagedAttention state shared across translator calls of this session
-    PagedAttentionState& get_paged_attention_state() {
+    VLLMPagedAttentionState& get_vllm_paged_attention_state() {
         return m_pa_state;
     }
 
@@ -97,7 +97,7 @@ private:
     std::map<std::string, uint64_t> m_op_statistics;
     // Set per converted graph in convert_pytorch_model; the decoder type never varies within one.
     bool m_is_fx = false;
-    PagedAttentionState m_pa_state;
+    VLLMPagedAttentionState m_pa_state;
 };
 
 }  // namespace ov::frontend::pytorch

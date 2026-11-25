@@ -1468,7 +1468,7 @@ std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeCon
                                                                    const PartialShape& ps) {
     auto* session = context.get_session();
     if (session) {
-        const auto& shared_params = session->get_paged_attention_state().shared_params;
+        const auto& shared_params = session->get_vllm_paged_attention_state().shared_params;
         auto it = shared_params.find(tag);
         if (it != shared_params.end()) {
             return it->second;
@@ -1476,7 +1476,7 @@ std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeCon
     }
     auto param = make_tagged_parameter(context, tag, et, ps);
     if (session) {
-        session->get_paged_attention_state().shared_params[tag] = param;
+        session->get_vllm_paged_attention_state().shared_params[tag] = param;
     }
     return param;
 }
