@@ -574,6 +574,14 @@ public:
     // sum entry as binary_add. No md is built, attrs and impl are untouched, nothing can throw on an unconvertible dtype/format.
     bool relabel_frozen_sum_as_binary_add(size_t mem_dep);
 
+    // Phase 1a-2: the veto of a frozen binary_mul_inplace (the frozen list is the veto flag; nothing new is serialized). The list entry is
+    // relabelled binary_mul (all other fields are shared by both kinds) and, for the oneDNN variant, the compiled chain gets a binary_mul at
+    // the same slot in a new dnnl::primitive_attr. The impl is NOT rebuilt here. Both return false if there is no frozen binary_mul_inplace
+    // for mem_dep; the oneDNN variant throws if the compiled chain does not match the list.
+    bool downgrade_onednn_mul_inplace_to_binary_mul(size_t mem_dep);
+    // non-oneDNN impl (OCL can carry a lazily frozen list, F17 G-impl): only relabels the entry, attrs and impl are untouched.
+    bool relabel_frozen_mul_inplace_as_binary_mul(size_t mem_dep);
+
     void init_onednn_primitive_attributes();
     void create_onednn_primitive_attributes(const std::vector<fused_primitive_desc>& cldnn_post_ops,
                                             std::shared_ptr<dnnl::primitive_attr>& attrs,

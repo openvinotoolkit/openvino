@@ -1718,6 +1718,55 @@ program_node::onednn_binary_post_op program_node::make_onednn_binary_post_op(lay
     return res;
 }
 
+namespace {
+// Copies the post-op at slot `i` of `src` to the end of `dst`, kind by kind (shared by the sum -> binary_add and the
+// binary_mul_inplace -> binary_mul downgrades; same as try_optimize_post_ops: only convolution takes the data type in append_sum).
+void append_post_op_copy(const dnnl::post_ops& src, int i, dnnl::post_ops& dst, bool is_conv, const primitive_id& id) {
+    switch (src.kind(i)) {
+    case dnnl::primitive::kind::sum: {
+        float scale;
+        dnnl::memory::data_type data_type;
+        src.get_params_sum(i, scale, data_type);
+        if (is_conv) {
+            dst.append_sum(scale, 0 /*zero_point*/, data_type);
+        } else {
+            dst.append_sum(scale);
+        }
+        break;
+    }
+    case dnnl::primitive::kind::eltwise: {
+        dnnl::algorithm alg;
+        float alpha, beta;
+        src.get_params_eltwise(i, alg, alpha, beta);
+        dst.append_eltwise(alg, alpha, beta);
+        break;
+    }
+    case dnnl::primitive::kind::binary: {
+        dnnl::algorithm alg;
+        dnnl::memory::desc desc;
+        src.get_params_binary(i, alg, desc);
+        dst.append_binary(alg, desc);
+        break;
+    }
+    case dnnl::primitive::kind::prelu: {
+        int mask;
+        src.get_params_prelu(i, mask);
+        dst.append_prelu(mask);
+        break;
+    }
+    case dnnl::primitive::kind::convolution: {
+        dnnl::memory::data_type weights_dt, bias_dt, dst_dt;
+        dnnl::memory::dim kernel, stride, padding_l;
+        src.get_params_dw(i, weights_dt, bias_dt, dst_dt, kernel, stride, padding_l);
+        dst.append_dw(weights_dt, bias_dt, dst_dt, kernel, stride, padding_l);
+        break;
+    }
+    default:
+        OPENVINO_THROW("[GPU] F5: cannot copy post-op kind ", static_cast<int>(src.kind(i)), " at slot ", i, " of ", id);
+    }
+}
+}  // namespace
+
 bool program_node::relabel_frozen_sum_as_binary_add(size_t mem_dep) {
     for (auto& e : fused_prims_onednn) {
         if ((e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum) && e.mem_dep == mem_dep) {
@@ -1760,49 +1809,7 @@ bool program_node::downgrade_onednn_sum_to_binary_add(size_t mem_dep) {
             new_ops.append_binary(dnnl::algorithm::binary_add, bin.md);
             continue;
         }
-        switch (old_ops.kind(i)) {
-        case dnnl::primitive::kind::sum: {
-            float scale;
-            dnnl::memory::data_type data_type;
-            old_ops.get_params_sum(i, scale, data_type);
-            // Same as try_optimize_post_ops: only convolution takes the data type in append_sum.
-            if (is_type<convolution>()) {
-                new_ops.append_sum(scale, 0 /*zero_point*/, data_type);
-            } else {
-                new_ops.append_sum(scale);
-            }
-            break;
-        }
-        case dnnl::primitive::kind::eltwise: {
-            dnnl::algorithm alg;
-            float alpha, beta;
-            old_ops.get_params_eltwise(i, alg, alpha, beta);
-            new_ops.append_eltwise(alg, alpha, beta);
-            break;
-        }
-        case dnnl::primitive::kind::binary: {
-            dnnl::algorithm alg;
-            dnnl::memory::desc desc;
-            old_ops.get_params_binary(i, alg, desc);
-            new_ops.append_binary(alg, desc);
-            break;
-        }
-        case dnnl::primitive::kind::prelu: {
-            int mask;
-            old_ops.get_params_prelu(i, mask);
-            new_ops.append_prelu(mask);
-            break;
-        }
-        case dnnl::primitive::kind::convolution: {
-            dnnl::memory::data_type weights_dt, bias_dt, dst_dt;
-            dnnl::memory::dim kernel, stride, padding_l;
-            old_ops.get_params_dw(i, weights_dt, bias_dt, dst_dt, kernel, stride, padding_l);
-            new_ops.append_dw(weights_dt, bias_dt, dst_dt, kernel, stride, padding_l);
-            break;
-        }
-        default:
-            OPENVINO_THROW("[GPU] F5: cannot copy post-op kind ", static_cast<int>(old_ops.kind(i)), " at slot ", i, " of ", id());
-        }
+        append_post_op_copy(old_ops, i, new_ops, is_type<convolution>(), id());
     }
 
     // A new attribute object, not an in-place edit: the impl of this node (and, for fully_connected, the attrs the impl was created
@@ -1818,6 +1825,63 @@ bool program_node::downgrade_onednn_sum_to_binary_add(size_t mem_dep) {
     entry.dims = bin.dims;
     entry.dt = bin.dt;
     entry.flatten = false;  // mem_offset / mem_dep stay: the sum already owned a fused-memory slot
+    onednn_attrs = new_attrs;
+    return true;
+}
+
+// 1a-2: the veto of a frozen binary_mul_inplace is the frozen list itself (no new field, nothing to serialize): the entry is relabelled
+// binary_mul and the compiled chain gets a plain binary_mul at the same slot. mul_inplace and mul share the md (set_binary_op in
+// create_onednn_primitive_attributes uses the same make_onednn_binary_post_op), so the entry keeps tag / dims / dt / flatten / mem_offset /
+// mem_dep; only the algorithm (and op_type) differ.
+bool program_node::relabel_frozen_mul_inplace_as_binary_mul(size_t mem_dep) {
+    for (auto& e : fused_prims_onednn) {
+        if (e.op_type == onednn_post_op_type::binary_mul_inplace && e.mem_dep == mem_dep) {
+            e.op_type = onednn_post_op_type::binary_mul;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool program_node::downgrade_onednn_mul_inplace_to_binary_mul(size_t mem_dep) {
+    size_t entry_idx = fused_prims_onednn.size();
+    size_t slot = 0;
+    for (size_t i = 0; i < fused_prims_onednn.size(); i++) {
+        if (fused_prims_onednn[i].op_type == onednn_post_op_type::binary_mul_inplace && fused_prims_onednn[i].mem_dep == mem_dep) {
+            entry_idx = i;
+            break;
+        }
+        if (fused_prims_onednn[i].op_type != onednn_post_op_type::optimized) {
+            slot++;  // a compiled post-op slot; `optimized` entries occupy none
+        }
+    }
+    if (entry_idx == fused_prims_onednn.size()) {
+        return false;
+    }
+    OPENVINO_ASSERT(onednn_attrs != nullptr, "[GPU] 1a: node ", id(), " has a frozen oneDNN binary_mul_inplace but no oneDNN attributes");
+    const dnnl::post_ops old_ops = onednn_attrs->get_post_ops();
+    OPENVINO_ASSERT(slot < static_cast<size_t>(old_ops.len()) && old_ops.kind(static_cast<int>(slot)) == dnnl::primitive::kind::binary,
+                    "[GPU] 1a: the compiled post-op chain of ", id(), " does not hold a binary at slot ", slot, " (chain length ", old_ops.len(), ")");
+    dnnl::algorithm old_alg;
+    dnnl::memory::desc desc;
+    old_ops.get_params_binary(static_cast<int>(slot), old_alg, desc);
+    OPENVINO_ASSERT(old_alg == dnnl::algorithm::binary_mul_inplace, "[GPU] 1a: the compiled binary at slot ", slot, " of ", id(), " is not a binary_mul_inplace");
+
+    dnnl::post_ops new_ops;
+    for (int i = 0; i < old_ops.len(); i++) {
+        if (static_cast<size_t>(i) == slot) {
+            new_ops.append_binary(dnnl::algorithm::binary_mul, desc);
+            continue;
+        }
+        append_post_op_copy(old_ops, i, new_ops, is_type<convolution>(), id());
+    }
+
+    // A new attribute object, not an in-place edit: the impl of this node shares the old one (see the sum downgrade).
+    auto new_attrs = std::make_shared<dnnl::primitive_attr>();
+    new_attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    new_attrs->set_post_ops(new_ops);
+
+    fused_prims_onednn[entry_idx].op_type = onednn_post_op_type::binary_mul;
     onednn_attrs = new_attrs;
     return true;
 }

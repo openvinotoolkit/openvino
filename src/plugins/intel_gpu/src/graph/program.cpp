@@ -837,7 +837,7 @@ void program::prepare_memory_dependencies() {
     _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
 #ifdef INPLACE_CONFLICT_DEBUG_CHECKS
     // Phase 1a D6 (Debug): after refreeze_onednn_inplace_post_ops every surviving oneDNN sum writer is war-Safe on the final graph (design 17
-    // §3.2 I-1a-1; lemma 1: the graph does not change between the pass and this point). Slice 1a-1 covers onednn_sum only.
+    // §3.2 I-1a-1; lemma 1: the graph does not change between the pass and this point). Covers onednn_sum and onednn_mul.
     if (_config.get_enable_inplace_conflict_resolution() && _config.get_queue_type() == QueueTypes::in_order && !is_internal_program() &&
         !is_body_program() && _alias_analysis) {
         const auto axis = exec_axis::build(*this);
@@ -848,7 +848,7 @@ void program::prepare_memory_dependencies() {
                 for (const auto& a : unsafe) {
                     msg += " [" + a.writer->id() + " dep " + std::to_string(a.mem_dep) + " reasons " + std::to_string(a.r.reasons) + "]";
                 }
-                OPENVINO_THROW("[GPU] 1a D6: a surviving oneDNN in-place sum is not war-Safe after resolve_inplace_conflicts:", msg);
+                OPENVINO_THROW("[GPU] 1a D6: a surviving oneDNN in-place sum / mul is not war-Safe after resolve_inplace_conflicts:", msg);
             }
         }
     }

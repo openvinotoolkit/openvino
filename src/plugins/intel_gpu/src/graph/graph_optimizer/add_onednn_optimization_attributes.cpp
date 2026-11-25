@@ -160,19 +160,20 @@ void refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(program& p, c
             ++rep.kept;
             continue;
         }
-        if (a.origin == edge_origin::onednn_mul) {
-            // Slice 1a-1 plans the mul veto but only counts it. Justification (design audit N3): the structural rules M0 (the dependency has
-            // exactly one user) and M1 (the dependency is neither a view nor a concat slot) make the version set of a mul writer exactly {P_m},
-            // so its war verdict cannot be anything but Safe on a real graph; the executor lands in slice 1a-2.
-            ++rep.skipped_mul;
-            continue;
-        }
         auto& n = p.get_node(a.writer->id());
         const bool onednn = n.get_selected_impl() != nullptr && n.get_selected_impl()->is_onednn();
-        // origin onednn_sum (hypothetical edges only exist in tests, where they are never applied)
-        const bool changed = onednn ? n.downgrade_onednn_sum_to_binary_add(static_cast<size_t>(a.mem_dep))
-                                    : n.relabel_frozen_sum_as_binary_add(static_cast<size_t>(a.mem_dep));
-        OPENVINO_DEBUG_ASSERT(changed, "[GPU] 1a: no frozen sum entry for ", n.id(), " dep ", a.mem_dep);
+        const bool is_mul = a.origin == edge_origin::onednn_mul;
+        // origin onednn_sum (hypothetical edges only exist in tests, where they are never applied) or onednn_mul. A non-oneDNN impl (OCL can
+        // carry a frozen mul_inplace, F17 G-impl) only gets its label changed: no md / attrs / impl.
+        bool changed = false;
+        if (is_mul) {
+            changed = onednn ? n.downgrade_onednn_mul_inplace_to_binary_mul(static_cast<size_t>(a.mem_dep))
+                             : n.relabel_frozen_mul_inplace_as_binary_mul(static_cast<size_t>(a.mem_dep));
+        } else {
+            changed = onednn ? n.downgrade_onednn_sum_to_binary_add(static_cast<size_t>(a.mem_dep))
+                             : n.relabel_frozen_sum_as_binary_add(static_cast<size_t>(a.mem_dep));
+        }
+        OPENVINO_DEBUG_ASSERT(changed, "[GPU] 1a: no frozen in-place entry for ", n.id(), " dep ", a.mem_dep);
         GPU_DEBUG_LOG << "[1a] downgrade " << n.id() << " dep " << a.mem_dep << " origin " << to_string(a.origin) << " why " << to_string(a.why)
                       << " reasons " << a.r.reasons << std::endl;
         if (changed) {
@@ -196,7 +197,7 @@ void refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(program& p, c
     rep.via_upstream_after_downgrade = plan.via_upstream_after_downgrade;
     // one rebuild per node (a node holds at most one in-place post-op, design H8, so F5 and 1a never both rebuild the same node)
     for (auto* n : rebuild) {
-        rebuild_onednn_impl(p, *n, "downgrading the in-place sum to binary_add (Phase 1a)");
+        rebuild_onednn_impl(p, *n, "downgrading the in-place post-op (sum to binary_add / binary_mul_inplace to binary_mul, Phase 1a)");
     }
 #    ifdef INPLACE_CONFLICT_DEBUG_CHECKS
     // I-1a-4: the downgraded nodes are consistent again: compiled chain matches the list, and no sum slot remains at the downgraded dependency.
@@ -206,14 +207,21 @@ void refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(program& p, c
                         "[GPU] 1a I-1a-4: the rebuilt impl of ", n->id(), " does not match its frozen post-op list");
     }
     for (const auto& a : plan.actions) {
-        if (a.why == war_downgrade_reason::none || a.origin == edge_origin::onednn_mul) {
+        if (a.why == war_downgrade_reason::none) {
             continue;
         }
         const auto& n = p.get_node(a.writer->id());
         for (const auto& e : n.get_fused_primitives_onednn()) {
-            OPENVINO_ASSERT(!((e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum) &&
-                              e.mem_dep == static_cast<size_t>(a.mem_dep)),
-                            "[GPU] 1a I-1a-4: ", n.id(), " still holds a frozen sum at the downgraded dependency ", a.mem_dep);
+            const bool still_sum = (e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum);
+            const bool still_mul = e.op_type == onednn_post_op_type::binary_mul_inplace;
+            OPENVINO_ASSERT(!((a.origin == edge_origin::onednn_mul ? still_mul : still_sum) && e.mem_dep == static_cast<size_t>(a.mem_dep)),
+                            "[GPU] 1a I-1a-4: ", n.id(), " still holds a frozen in-place post-op at the downgraded dependency ", a.mem_dep);
+        }
+        if (a.origin == edge_origin::onednn_mul && n.get_selected_impl() != nullptr && n.get_selected_impl()->is_onednn()) {
+            // the compiled slot of the vetoed mul is a plain binary_mul now
+            const auto slots = get_compiled_post_op_slots(n.get_fused_primitives_onednn(), static_cast<size_t>(a.mem_dep), {onednn_post_op_type::binary_mul});
+            OPENVINO_ASSERT(!slots.slot || !n.get_selected_impl()->is_binary_mul_inplace_post_op(slots.kinds, *slots.slot),
+                            "[GPU] 1a I-1a-4: the rebuilt impl of ", n.id(), " still compiles a binary_mul_inplace at the vetoed slot");
         }
     }
 #    endif

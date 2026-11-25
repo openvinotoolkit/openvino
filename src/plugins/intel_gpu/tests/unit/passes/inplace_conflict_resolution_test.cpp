@@ -12,6 +12,7 @@
 
 #include "test_utils.h"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -1297,6 +1298,231 @@ TEST(inplace_conflict_resolution, E12_divergence_after_freeze_three_sides_agree)
     EXPECT_EQ(rep->candidates, 0u) << "F5 must have downgraded the sum before the 1a planner: " << rep->summary();
     expect_downgraded(*prog, "W", dep);
     network net(prog, 0);
+    EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
+}
+
+// =====================================================================================================================================
+// Slice 1a-2: the binary_mul_inplace veto (frozen entry relabelled binary_mul + attrs slot algorithm swapped, no new field).
+// =====================================================================================================================================
+namespace {
+
+// A = abs(ia); W = FC_onednn(in1); M = prod(W, A) [fused into W as binary_mul_inplace]; Z = FC_ocl(M); out_Z.
+fc_graph mul_graph(engine& eng) {
+    fc_graph g;
+    g.t.add(input_layout("in1", f16_lay()));
+    g.t.add(input_layout("ia", f16_lay()));
+    g.inputs = {{"in1", f16_lay()}, {"ia", f16_lay()}};
+    g.t.add(activation("A", input_info("ia"), activation_func::abs));
+    add_fc(g, eng, "W", "in1", 0, impl_types::onednn);
+    g.t.add(eltwise("M", {input_info("W"), input_info("A")}, eltwise_mode::prod));
+    add_fc(g, eng, "Z", "M", 2, impl_types::ocl);
+    g.t.add(reorder("out_Z", input_info("Z"), format::bfyx, data_types::f32));
+    g.outs = {"out_Z"};
+    return g;
+}
+
+// outer dependency of the fused prod of `w` if the mul_inplace is formed (frozen entry AND live predicate), else -1
+int32_t mul_dep_if_formed(const program_node& w) {
+    for (const auto& fd : w.get_fused_primitives()) {
+        if (fd.is_type<eltwise>() && fd.typed_desc<eltwise>()->mode == eltwise_mode::prod && fd.deps.size() == 1 && fd.has_outer_dep()) {
+            const int32_t dep = fd.outer_dep_start_idx;
+            if (fusing::is_frozen_inplace_post_op(w, dep, eltwise_mode::prod) && fusing::get_reused_eltwmem_idx(w) == dep) {
+                return dep;
+            }
+            return -1;
+        }
+    }
+    return -1;
+}
+
+std::vector<dnnl::algorithm> binary_algs(program_node& n) {
+    std::vector<dnnl::algorithm> r;
+    const auto ops = n.get_onednn_primitive_attributes()->get_post_ops();
+    for (int i = 0; i < ops.len(); i++) {
+        if (ops.kind(i) == dnnl::primitive::kind::binary) {
+            dnnl::algorithm alg;
+            dnnl::memory::desc md;
+            ops.get_params_binary(i, alg, md);
+            r.push_back(alg);
+        }
+    }
+    return r;
+}
+
+bool has_alg(const std::vector<dnnl::algorithm>& v, dnnl::algorithm a) {
+    return std::find(v.begin(), v.end(), a) != v.end();
+}
+
+bool frozen_has(const program_node& n, onednn_post_op_type t) {
+    for (const auto& e : n.get_fused_primitives_onednn()) {
+        if (e.op_type == t) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// a hand-written plan that vetoes the mul_inplace of W (the real planner never does on a real graph: M0/M1 make the version set {P_m})
+inplace_conflict_plan mul_veto_plan(program& p, int32_t dep) {
+    inplace_conflict_plan plan;
+    inplace_conflict_action a;
+    a.writer = &p.get_node("W");
+    a.mem_dep = dep;
+    a.origin = edge_origin::onednn_mul;
+    a.why = war_downgrade_reason::unsafe;
+    a.r.reasons = wr_late_reader;
+    plan.actions.push_back(std::move(a));
+    return plan;
+}
+
+}  // namespace
+
+// M1: a real FC mul_inplace is planned and judged Safe: kept, frozen entry and impl untouched (zero behaviour change on real graphs).
+TEST(inplace_conflict_resolution, M1_real_mul_inplace_is_planned_safe_and_kept) {
+    P1A_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto g = mul_graph(eng);
+    int32_t dep = -1;
+    auto hook = [&](program& p) {
+        dep = mul_dep_if_formed(p.get_node("W"));
+    };
+    auto prog = build_staged(eng, g, true, hook);
+    if (dep < 0) {
+        GTEST_SKIP() << "construction not formed: no frozen+live binary_mul_inplace on W at the freeze";
+    }
+    const auto* rep = prog->get_inplace_conflict_report();
+    ASSERT_NE(rep, nullptr);
+    EXPECT_EQ(rep->candidates, 1u) << rep->summary();
+    EXPECT_EQ(rep->kept, 1u);
+    EXPECT_TRUE(rep->entries.empty()) << rep->summary();
+    auto& W = prog->get_node("W");
+    EXPECT_TRUE(frozen_has(W, onednn_post_op_type::binary_mul_inplace));
+    EXPECT_EQ(fusing::get_reused_eltwmem_idx(W), dep);
+    EXPECT_TRUE(has_alg(binary_algs(W), dnnl::algorithm::binary_mul_inplace));
+    // the planner itself: one onednn_mul action, Safe
+    const auto aa = alias_analysis::build(*prog);
+    const auto axis = exec_axis::build(*prog);
+    ASSERT_TRUE(axis.valid());
+    const auto plan = plan_inplace_conflict_resolution(aa, axis);
+    ASSERT_EQ(plan.actions.size(), 1u);
+    EXPECT_EQ(plan.actions[0].origin, edge_origin::onednn_mul);
+    EXPECT_EQ(plan.actions[0].why, war_downgrade_reason::none);
+    network net(prog, 0);
+    EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
+}
+
+// M2: the executor vetoes a mul_inplace from a hand-written plan: frozen entry binary_mul, attrs slot algorithm binary_mul, impl rebuilt, no alias
+// at runtime (G-impl), output equal to the reference, and the state survives an export / import round trip.
+TEST(inplace_conflict_resolution, M2_mul_veto_relabels_entry_swaps_alg_and_roundtrips) {
+    P1A_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto g = mul_graph(eng);
+    int32_t dep = -1;
+    size_t algs_before_inplace = 0;
+    const primitive_impl* impl_before = nullptr;
+    inplace_conflict_report rep;
+    auto hook = [&](program& p) {
+        dep = mul_dep_if_formed(p.get_node("W"));
+        if (dep < 0) {
+            return;
+        }
+        auto& W = p.get_node("W");
+        algs_before_inplace = has_alg(binary_algs(W), dnnl::algorithm::binary_mul_inplace) ? 1 : 0;
+        impl_before = W.get_selected_impl();
+        refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(p, mul_veto_plan(p, dep), rep);
+    };
+    auto prog = build_staged(eng, g, /*resolution_on=*/false, hook);   // switch off: only the hand-written plan acts
+    if (dep < 0) {
+        GTEST_SKIP() << "construction not formed: no frozen+live binary_mul_inplace on W at the freeze";
+    }
+    ASSERT_EQ(algs_before_inplace, 1u) << "the compiled chain must hold a binary_mul_inplace before the veto";
+    ASSERT_EQ(rep.entries.size(), 1u);
+    EXPECT_EQ(rep.entries[0].origin, edge_origin::onednn_mul);
+    auto& W = prog->get_node("W");
+    EXPECT_FALSE(frozen_has(W, onednn_post_op_type::binary_mul_inplace));
+    EXPECT_TRUE(frozen_has(W, onednn_post_op_type::binary_mul));
+    const auto algs = binary_algs(W);
+    EXPECT_TRUE(has_alg(algs, dnnl::algorithm::binary_mul)) << "attrs slot algorithm must be binary_mul";
+    EXPECT_FALSE(has_alg(algs, dnnl::algorithm::binary_mul_inplace));
+    EXPECT_NE(W.get_selected_impl(), impl_before) << "the oneDNN impl must have been rebuilt";
+    ASSERT_TRUE(W.get_selected_impl()->is_onednn());
+    EXPECT_EQ(fusing::get_reused_eltwmem_idx(W), -1);
+    {
+        const auto slots = get_compiled_post_op_slots(W.get_fused_primitives_onednn(), static_cast<size_t>(dep), {onednn_post_op_type::binary_mul});
+        ASSERT_TRUE(slots.slot.has_value());
+        EXPECT_FALSE(W.get_selected_impl()->is_binary_mul_inplace_post_op(slots.kinds, *slots.slot));
+    }
+    network net(prog, 0);
+    EXPECT_FALSE(net.get_primitive("W")->reused_eltw_alias_allowed(dep)) << "G-impl: no alias after the veto";
+    EXPECT_EQ(net.get_primitive("W")->get_reused_eltw_dep_idx(), -1);
+    EXPECT_FALSE(eng.is_the_same_buffer(*net.get_primitive("W")->output_memory_ptr(), *net.get_primitive("A")->output_memory_ptr()));
+    EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
+
+    // export / import: the vetoed state is consistent after the round trip (the import check does not throw, the compiled alg is binary_mul)
+    auto cfg = opt_cfg(eng, g, false);
+    program::ptr imported;
+    ASSERT_NO_THROW(imported = roundtrip(eng, *prog, cfg));
+    ASSERT_NE(imported, nullptr);
+    expect_same_frozen_lists(*prog, *imported);
+    auto& Wi = imported->get_node("W");
+    EXPECT_TRUE(frozen_has(Wi, onednn_post_op_type::binary_mul));
+    EXPECT_FALSE(frozen_has(Wi, onednn_post_op_type::binary_mul_inplace));
+    EXPECT_EQ(fusing::get_reused_eltwmem_idx(Wi), -1);
+    network net_i(imported);
+    EXPECT_EQ(mismatches(run_net(net_i, eng, g), run_reference(eng, g)), 0u);
+}
+
+// M3: a non-oneDNN impl (OCL under a oneDNN-preferred node, F17 G-impl) only gets its frozen label changed: attrs and impl are untouched.
+TEST(inplace_conflict_resolution, M3_mul_veto_on_non_onednn_impl_only_relabels) {
+    P1A_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto g = mul_graph(eng);
+    int32_t dep = -1;
+    bool ocl_swapped = false;
+    const primitive_impl* impl_before = nullptr;
+    const void* attrs_before = nullptr;
+    inplace_conflict_report rep;
+    auto hook = [&](program& p) {
+        dep = mul_dep_if_formed(p.get_node("W"));
+        if (dep < 0) {
+            return;
+        }
+        auto& W = p.get_node("W");
+        auto params = W.get_kernel_impl_params();
+        std::unique_ptr<primitive_impl> ocl_impl;
+        for (const auto& m : W.type()->get_all_implementations()) {
+            if (m->get_impl_type() == impl_types::ocl) {
+                ocl_impl = m->create(W, *params);
+                break;
+            }
+        }
+        if (!ocl_impl) {
+            return;
+        }
+        W.set_selected_impl(std::move(ocl_impl));
+        auto new_params = W.get_kernel_impl_params();
+        p.get_kernels_cache().add_kernels_source(*new_params, W.get_selected_impl()->get_kernels_source());
+        ocl_swapped = !W.get_selected_impl()->is_onednn();
+        impl_before = W.get_selected_impl();
+        attrs_before = W.get_onednn_primitive_attributes().get();
+        refreeze_onednn_inplace_post_ops::apply_inplace_conflict_plan(p, mul_veto_plan(p, dep), rep);
+    };
+    auto prog = build_staged(eng, g, /*resolution_on=*/false, hook);
+    if (dep < 0) {
+        GTEST_SKIP() << "construction not formed: no frozen+live binary_mul_inplace on W at the freeze";
+    }
+    if (!ocl_swapped) {
+        GTEST_SKIP() << "construction not formed: no OCL fully_connected implementation to put under the oneDNN-preferred node";
+    }
+    auto& W = prog->get_node("W");
+    EXPECT_EQ(W.get_selected_impl(), impl_before) << "a non-oneDNN impl must not be rebuilt";
+    EXPECT_FALSE(W.get_selected_impl()->is_onednn());
+    EXPECT_EQ(W.get_onednn_primitive_attributes().get(), attrs_before) << "attrs of a non-oneDNN node must not be touched";
+    EXPECT_FALSE(frozen_has(W, onednn_post_op_type::binary_mul_inplace));
+    EXPECT_TRUE(frozen_has(W, onednn_post_op_type::binary_mul));
+    EXPECT_EQ(fusing::get_reused_eltwmem_idx(W), -1);
+    network net(prog, 0);
+    EXPECT_FALSE(net.get_primitive("W")->reused_eltw_alias_allowed(dep));
     EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
 }
 

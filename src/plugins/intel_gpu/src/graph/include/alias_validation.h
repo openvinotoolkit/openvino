@@ -149,8 +149,7 @@ struct inplace_conflict_plan {
 // hypothetical are treated like a sum.
 inplace_conflict_plan plan_inplace_conflict_resolution(const alias_analysis& aa, const exec_axis& axis, bool include_hypothetical = false);
 
-// D6: the surviving oneDNN sum writers whose verdict is not Safe (never throws). In slice 1a-1 only origin onednn_sum (and hypothetical when
-// requested) is covered; 1a-2 extends it to onednn_mul.
+// D6: the surviving oneDNN sum / mul_inplace writers whose verdict is not Safe (never throws); origin hypothetical only when requested.
 std::vector<inplace_conflict_action> find_unsafe_surviving_inplace_writers(const alias_analysis& aa, const exec_axis& axis,
                                                                           bool include_hypothetical = false);
 
@@ -158,7 +157,6 @@ std::vector<inplace_conflict_action> find_unsafe_surviving_inplace_writers(const
 struct inplace_conflict_report {
     std::string skipped_reason;   // "" | "disabled" | "no_candidates" | "internal" | "body" | "oooq"
     size_t candidates = 0, kept = 0, program_level_skipped = 0, via_upstream_after_downgrade = 0;
-    size_t skipped_mul = 0;   // 1a-1 only: planned mul actions that are counted but not executed
     struct entry {
         std::string writer_id;
         int32_t mem_dep = -1;

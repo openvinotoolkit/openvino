@@ -770,8 +770,8 @@ namespace {
 
 std::atomic<bool> g_inplace_conflict_fault{false};
 
-// 1a-1: D6 and the executor handle onednn_sum only. Slice 1a-2 flips this to true (mul veto + D6 over onednn_mul).
-constexpr bool k_mul_actions_executed = false;
+// 1a-2: D6 covers onednn_mul as well as onednn_sum (the executor vetoes mul_inplace).
+constexpr bool k_mul_actions_executed = true;
 
 struct planned_writer {
     war_query q;
@@ -906,7 +906,7 @@ const char* to_string(edge_origin o) {
 std::string inplace_conflict_report::summary() const {
     std::ostringstream os;
     os << "[inplace_conflict] skipped=" << (skipped_reason.empty() ? "-" : skipped_reason) << " candidates=" << candidates << " kept=" << kept
-       << " downgraded=" << entries.size() << " program_level_skipped=" << program_level_skipped << " skipped_mul=" << skipped_mul
+       << " downgraded=" << entries.size() << " program_level_skipped=" << program_level_skipped
        << " via_upstream_after_downgrade=" << via_upstream_after_downgrade;
     for (const auto& kv : downgrade_bits) {
         int bit = 0;
