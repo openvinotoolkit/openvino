@@ -89,11 +89,12 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_ternocl_int2, true, "Ena
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_rms_rope_fusion, true, "Enable/Disable the pass which folds per-head Q/K RMSNorm into RoPE")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, ternocl_int2_int8_prefill, false, "TernOCL ternary FullyConnected: run M > 8 on the int2 x int8 DPAS GEMM, quantizing activations to int8 per 128-group")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, record_replay, false, "Enable level-zero command list through record and replay for static models")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_mlir, false, "Enable/Disable MLIR/Graph-Compiler execution for supported subgraphs. Requires ENABLE_MLIR_FOR_GPU=ON at build time [EXPERIMENTAL, NOT PRODUCTION-READY]")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, mlir_patterns, "", "Overrides the subgraph patterns compiled through MLIR/Graph-Compiler: \"name1=Type1,Type2;name2=Type3\", where each entry is a chain of consecutive op types, e.g. \"sdpa=ScaledDotProductAttention;mm_bias=MatMul,Add\" (SDPA and MatMul with bias post-op). Empty keeps the built-in default set, \"*\" matches every supported operation [EXPERIMENTAL, MAY CHANGE OR BE REMOVED]")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose_color, true, "Enable coloring for verbose logs")
-OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, enable_mlir, false, "Enable/Disable MLIR/Graph-Compiler execution for supported subgraphs. Requires ENABLE_MLIR_FOR_GPU=ON at build time [EXPERIMENTAL, NOT PRODUCTION-READY]")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, mlir_debug, false, "Enable verbose logging of the MLIR/Graph-Compiler pipeline")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, disable_usm, false, "Disable USM memory allocations and use only cl_mem")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, finish_after_enqueue, false, "Diagnostic: call finish() after each kernel enqueue so async errors like CL_OUT_OF_RESOURCES surface at the exact failing kernel/layer")
@@ -105,7 +106,6 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug co
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, use_onednn_sdpa, false, "Use oneDNN SDPA primitive implementation for debugging. PA is not supported")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, mlir_patterns, "", "Overrides the subgraph patterns compiled through MLIR/Graph-Compiler: \"name1=Type1,Type2;name2=Type3,Type4\". Empty keeps the built-in default set, \"*\" matches every supported operation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, average_counters, "", "Save csv file with per-primitive averaged execution time. Output format matches benchmark_app --report_type average_counters and OV_CPU_AVERAGE_COUNTERS")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_graphs_path, "", "Save intermediate graph representations during model compilation pipeline to specified folder")
