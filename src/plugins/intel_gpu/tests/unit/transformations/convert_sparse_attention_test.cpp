@@ -10,13 +10,16 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -50,38 +53,41 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<ov::Node>& attention) {
 
 // An i64 [1] key_length is converted and broadcast over the batch; the head geometry comes from the shapes and the scale
 // is passed on.
-TEST(ConvertSparseAttentionToInternal, BroadcastsKeyLengthOverTheBatch) {
+TEST_F(TransformationTestsF, ConvertSparseAttentionToInternalBroadcastsKeyLength) {
     const auto f16 = ov::element::f16;
-    const auto scale = ov::op::v0::Constant::create(f16, ov::Shape{}, {0.125f});
-    const auto attention = std::make_shared<ov::op::v17::SparseAttention>(param(f16, {-1, 4, -1, 32}),
-                                                                          param(f16, {-1, 2, -1, 32}),
-                                                                          param(f16, {-1, 2, -1, 16}),
-                                                                          param(ov::element::i32, {-1, 1, -1, 8}),
-                                                                          param(ov::element::i32, {-1, 1, -1}),
-                                                                          param(ov::element::i64, {1}),
-                                                                          scale,
-                                                                          key_block_size);
-    attention->set_friendly_name("attention");
-
-    const auto sdpa = ov::as_type_ptr<SparseSDPA>(convert(attention));
-    ASSERT_NE(sdpa, nullptr);
-    EXPECT_EQ(sdpa->get_friendly_name(), "attention");
-    const auto& config = sdpa->get_config();
-    EXPECT_EQ(config.num_heads, 4u);
-    EXPECT_EQ(config.num_kv_heads, 2u);
-    EXPECT_EQ(config.k_head_size, 32u);
-    EXPECT_EQ(config.v_head_size, 16u);
-    EXPECT_EQ(config.num_selection_heads, 1u);
-    EXPECT_EQ(config.key_block_size, static_cast<size_t>(key_block_size));
-    EXPECT_FALSE(config.kv_compressed());
-
-    const auto key_length = ov::as_type_ptr<ov::op::v3::Broadcast>(sdpa->get_input_node_shared_ptr(In::KEY_LENGTH));
-    ASSERT_NE(key_length, nullptr);
-    EXPECT_TRUE(ov::is_type<ov::op::v0::Convert>(key_length->get_input_node_shared_ptr(0)));
-    EXPECT_EQ(sdpa->get_input_element_type(In::KEY_LENGTH), ov::element::i32);
-    ASSERT_TRUE(sdpa->has_scale_input());
-    EXPECT_EQ(sdpa->get_input_node_shared_ptr(config.scale_input_idx()), scale);
-    EXPECT_FALSE(sdpa->has_sinks());
+    const auto make_params = [&] {
+        return ov::ParameterVector{param(f16, {-1, 4, -1, 32}),
+                                   param(f16, {-1, 2, -1, 32}),
+                                   param(f16, {-1, 2, -1, 16}),
+                                   param(ov::element::i32, {-1, 1, -1, 8}),
+                                   param(ov::element::i32, {-1, 1, -1}),
+                                   param(ov::element::i64, {1})};
+    };
+    {
+        const auto p = make_params();
+        const auto scale = ov::op::v0::Constant::create(f16, ov::Shape{}, {0.125f});
+        const auto attention = std::make_shared<ov::op::v17::SparseAttention>(p[0], p[1], p[2], p[3], p[4], p[5], scale, key_block_size);
+        model = std::make_shared<ov::Model>(ov::OutputVector{attention}, p);
+        manager.register_pass<ConvertSparseAttentionToInternal>();
+    }
+    {
+        const auto p = make_params();
+        const auto scale = ov::op::v0::Constant::create(f16, ov::Shape{}, {0.125f});
+        const auto batch = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(p[0], ov::element::i32),
+                                                                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}),
+                                                                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+        const auto key_length = std::make_shared<ov::op::v3::Broadcast>(std::make_shared<ov::op::v0::Convert>(p[5], ov::element::i32), batch);
+        SparseSDPA::Config config;
+        config.num_heads = 4;
+        config.num_kv_heads = 2;
+        config.k_head_size = 32;
+        config.v_head_size = 16;
+        config.key_block_size = static_cast<size_t>(key_block_size);
+        const auto sdpa = std::make_shared<SparseSDPA>(ov::OutputVector{p[0], p[1], p[2], p[3], p[4], key_length, scale}, config);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, p);
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
 }
 
 // A per-row i32 key_length is read as it is.

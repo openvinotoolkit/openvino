@@ -93,9 +93,9 @@ ConvertSparseAttentionToInternal::ConvertSparseAttentionToInternal() {
         // [1] i32 tensor holding dimension `axis` of `data`, a Constant when it is static.
         const auto dim_of = [&rg](const ov::Output<ov::Node>& data, int64_t axis) -> ov::Output<ov::Node> {
             const auto shape = rg.add(ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(data, ov::element::i32));
-            return rg.add(ov::op::util::make_try_fold<ov::op::v8::Gather>(shape,
-                                                                          ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {axis}),
-                                                                          ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0})));
+            const auto indices = rg.add(ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {axis}));
+            const auto gather_axis = rg.add(ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+            return rg.add(ov::op::util::make_try_fold<ov::op::v8::Gather>(shape, indices, gather_axis));
         };
 
         const auto& query = attention->input_value(Idx::QUERY);

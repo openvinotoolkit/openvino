@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
@@ -18,7 +19,6 @@
 namespace {
 
 using Indexer = ov::op::internal::PagedQSAIndexer;
-using In = Indexer::InputIdx;
 namespace v0 = ov::op::v0;
 
 constexpr int64_t index_heads = 4;
@@ -32,7 +32,10 @@ struct Graph {
 };
 
 // The PagedQSAIndexer the paged-attention conversion emits: caches with the model precision and open shapes.
-Graph make_graph(const ov::PartialShape& key_cache_shape = ov::PartialShape{-1, 1, -1, head_dim}, bool converted = false) {
+Graph make_graph(const ov::PartialShape& key_cache_shape = ov::PartialShape{-1, 1, -1, head_dim},
+                 bool converted = false,
+                 const ov::PartialShape& rope_cache_shape = ov::PartialShape{-1, -1, 2 * rotary},
+                 const ov::PartialShape& summary_cache_shape = ov::PartialShape{-1, 1, -1, head_dim}) {
     ov::ParameterVector params;
     const auto param = [&params](ov::element::Type type, const ov::PartialShape& shape) {
         params.push_back(std::make_shared<v0::Parameter>(type, shape));
@@ -51,8 +54,8 @@ Graph make_graph(const ov::PartialShape& key_cache_shape = ov::PartialShape{-1, 
     // The indexer takes one floating-point type: f32 caches (the model precision) come through a Convert.
     const auto cache_type = converted ? ov::element::f32 : ov::element::f16;
     g.key_cache = param(cache_type, key_cache_shape);
-    g.rope_cache = param(cache_type, {-1, -1, 2 * rotary});
-    g.summary_cache = param(cache_type, {-1, 1, -1, head_dim});
+    g.rope_cache = param(cache_type, rope_cache_shape);
+    g.summary_cache = param(cache_type, summary_cache_shape);
     for (const auto& cache : {g.key_cache, g.rope_cache, g.summary_cache}) {
         // As ConvertPrecision leaves a keep_const_precision cache for an f16 model.
         args.push_back(converted ? std::make_shared<v0::Convert>(cache, ov::element::f16)->output(0) : cache->output(0));
@@ -75,17 +78,12 @@ void run(const Graph& g, size_t page_size = 16) {
 
 }  // namespace
 
-// The caches become f16 pages of the paged-attention block size.
-TEST(ConvertPagedQSAIndexerInputsTest, LaysOutCaches) {
-    const auto g = make_graph({-1, 1, -1, head_dim}, true);
-    run(g);
-    for (const auto& cache : {g.key_cache, g.rope_cache, g.summary_cache}) {
-        EXPECT_EQ(cache->get_element_type(), ov::element::f16);
-        EXPECT_TRUE(ov::is_keep_const_precision(cache));
-    }
-    EXPECT_EQ(g.key_cache->get_partial_shape(), (ov::PartialShape{-1, 1, 16, head_dim}));
-    EXPECT_EQ(g.rope_cache->get_partial_shape(), (ov::PartialShape{-1, 4, 2 * rotary}));
-    EXPECT_EQ(g.summary_cache->get_partial_shape(), (ov::PartialShape{-1, 1, 4, head_dim}));
+// The caches become f16 pages of the paged-attention block size, and the Convert ConvertPrecision puts in front of
+// them is removed: the indexer updates the caches.
+TEST_F(TransformationTestsF, ConvertPagedQSAIndexerInputsLaysOutCaches) {
+    model = make_graph({-1, 1, -1, head_dim}, true).model;
+    manager.register_pass<ov::intel_gpu::ConvertPagedQSAIndexerInputs>(16);
+    model_ref = make_graph({-1, 1, 16, head_dim}, false, {-1, 4, 2 * rotary}, {-1, 1, 4, head_dim}).model;
 }
 
 // A page size declared by the index key cache is kept.
@@ -97,14 +95,11 @@ TEST(ConvertPagedQSAIndexerInputsTest, KeepsDeclaredPageSize) {
     EXPECT_EQ(g.summary_cache->get_element_type(), ov::element::f16);
 }
 
-// The Convert ConvertPrecision puts in front of a keep_const_precision cache is removed: the indexer updates the cache.
-TEST(ConvertPagedQSAIndexerInputsTest, RemovesPrecisionConvert) {
+// The caches keep their f16 precision through the later ConvertPrecision (not compared by the reference graph above).
+TEST(ConvertPagedQSAIndexerInputsTest, KeepsCachePrecision) {
     const auto g = make_graph({-1, 1, -1, head_dim}, true);
     run(g);
-    const auto indexer = g.model->get_results()[0]->get_input_node_shared_ptr(0);
-    EXPECT_EQ(indexer->get_input_node_shared_ptr(In::INDEX_KEY_CACHE), g.key_cache);
-    EXPECT_EQ(indexer->get_input_node_shared_ptr(In::INDEX_BLOCK_ROPE_CACHE), g.rope_cache);
-    EXPECT_EQ(indexer->get_input_node_shared_ptr(In::BLOCK_INDEX_KEYS_CACHE), g.summary_cache);
-    EXPECT_EQ(g.key_cache->get_element_type(), ov::element::f16);
-    EXPECT_EQ(g.key_cache->get_partial_shape(), (ov::PartialShape{-1, 1, 16, head_dim}));
+    for (const auto& cache : {g.key_cache, g.rope_cache, g.summary_cache}) {
+        EXPECT_TRUE(ov::is_keep_const_precision(cache));
+    }
 }

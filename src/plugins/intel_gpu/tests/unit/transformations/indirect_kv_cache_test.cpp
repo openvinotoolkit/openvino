@@ -312,26 +312,13 @@ TEST_F(TransformationTestsF, IndirectKVCacheSparseAttention) {
         const auto c = make_sparse_attention_caches();
         const auto indirect = [&c](const std::shared_ptr<ov::op::v0::Parameter>& new_token, const std::shared_ptr<ov::op::util::Variable>& variable) {
             auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
-            return std::make_shared<ov::intel_gpu::op::KVCache>(past, new_token, c.beam_idx, variable, 2, 0, ov::element::f16);
+            auto kv_cache = std::make_shared<ov::intel_gpu::op::KVCache>(past, new_token, c.beam_idx, variable, 2, 0, ov::element::f16);
+            kv_cache->get_rt_info()[ov::intel_gpu::op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX] = true;
+            return kv_cache;
         };
         const auto attention = sparse_attention(c, indirect(c.key, c.key_variable)->output(0), indirect(c.value, c.value_variable)->output(0));
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention)}, parameters(c));
         comparator.enable(FunctionsComparator::ATTRIBUTES);
-    }
-}
-
-TEST(IndirectKVCacheSparseAttentionTest, MarksCachesForIdentityBeamIdx) {
-    const auto c = make_sparse_attention_caches();
-    const auto attention = sparse_attention(c, gathered_kv_cache(c, c.key, c.key_variable), gathered_kv_cache(c, c.value, c.value_variable));
-    const auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention)}, parameters(c));
-    ov::pass::Manager manager;
-    manager.register_pass<IndirectKVCache>();
-    manager.run_passes(model);
-    for (size_t idx : {size_t{1}, size_t{2}}) {
-        const auto kv_cache = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(attention->get_input_node_shared_ptr(idx));
-        ASSERT_NE(kv_cache, nullptr);
-        EXPECT_TRUE(kv_cache->get_indirect());
-        EXPECT_EQ(kv_cache->get_rt_info().count(ov::intel_gpu::op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX), 1u);
     }
 }
 

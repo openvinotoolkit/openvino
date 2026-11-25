@@ -65,17 +65,23 @@ std::shared_ptr<ov::ITensor> ensure_contiguous(const std::shared_ptr<ov::ITensor
 }
 
 // Some KV caches are read without their beam table (see op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX), which is only valid
-// while beam_idx keeps every row in place, i.e. without beam search. A remote beam_idx is not read back.
+// while beam_idx keeps every row in place, i.e. without beam search. `tensor` is the whole beam_idx (a batched input is
+// checked once merged); a remote one is read back.
 void check_identity_beam_idx(const std::shared_ptr<ov::ITensor>& tensor, const std::string& name) {
-    if (!tensor || std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr) {
+    if (!tensor) {
         return;
     }
     const auto element_type = tensor->get_element_type();
     if (element_type != ov::element::i32 && element_type != ov::element::i64) {
         return;
     }
-    const auto* data = tensor->data();
-    for (size_t i = 0; i < tensor->get_size(); ++i) {
+    auto host = tensor;
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr) {
+        host = ov::make_tensor(element_type, tensor->get_shape());
+        tensor->copy_to(host);
+    }
+    const auto* data = host->data();
+    for (size_t i = 0; i < host->get_size(); ++i) {
         const int64_t value = element_type == ov::element::i32 ? static_cast<const int32_t*>(data)[i] : static_cast<const int64_t*>(data)[i];
         OPENVINO_ASSERT(value == static_cast<int64_t>(i),
                         "[GPU] Input '",
@@ -1094,6 +1100,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
             }
         }
 
+        if (m_identity_beam_idx_inputs.count(internal_names[0]) != 0) {
+            check_identity_beam_idx(merged_tensor, internal_names[0]);
+        }
         auto events = prepare_input(internal_names[0], input_idx, port, {merged_tensor, TensorOwner::PLUGIN});
         std::move(events.begin(), events.end(), std::back_inserter(ret_events));
     } else {

@@ -69,6 +69,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "openvino/op/paged_qsa_indexer.hpp"
@@ -2350,7 +2351,8 @@ TEST(qsa_ops_gpu_test, gqa_sparse_attention_op_reads_compressed_kv_cache) {
 }
 
 // The sparse attention reads its indirect KV caches without the beam table: beam search (a beam_idx that reorders the
-// rows) is rejected instead of computed on stale rows.
+// rows) is rejected instead of computed on stale rows, whether beam_idx is a host tensor, a remote one (read back) or a
+// batch of one-row tensors (checked once merged).
 TEST(qsa_ops_gpu_test, sparse_attention_op_rejects_beam_search) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
@@ -2358,6 +2360,7 @@ TEST(qsa_ops_gpu_test, sparse_attention_op_rejects_beam_search) {
     const auto d = two_kv_head_dims();
     const auto f16 = ov::element::f16;
     const auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    beam_idx->set_layout("N");  // allows set_tensors()
     const auto query = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{-1, I(d.Hq), -1, I(d.Dh)});
     const auto key_new = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{-1, I(d.Hkv), -1, I(d.Dh)});
     const auto value_new = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{-1, I(d.Hkv), -1, I(d.Dv)});
@@ -2380,22 +2383,49 @@ TEST(qsa_ops_gpu_test, sparse_attention_op_rejects_beam_search) {
                                                    sinks,
                                                    ov::ParameterVector{query, key_new, value_new, sel, count, beam_idx});
     ov::Core core;
-    auto request = core.compile_model(model, "GPU", ov::hint::inference_precision(f16)).create_infer_request();
+    auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(f16));
+    auto context = compiled.get_context();
 
     constexpr size_t batch = 2;
     constexpr size_t q_len = 4;
     const auto zeros = [](size_t size) {
         return std::vector<float>(size, 0.0f);
     };
-    request.set_tensor(query, make_tensor(f16, {batch, d.Hq, q_len, d.Dh}, zeros(batch * d.Hq * q_len * d.Dh)));
-    request.set_tensor(key_new, make_tensor(f16, {batch, d.Hkv, q_len, d.Dh}, zeros(batch * d.Hkv * q_len * d.Dh)));
-    request.set_tensor(value_new, make_tensor(f16, {batch, d.Hkv, q_len, d.Dv}, zeros(batch * d.Hkv * q_len * d.Dv)));
-    request.set_tensor(sel, make_i32_tensor({batch, 1, q_len, d.block_topk}, std::vector<int32_t>(batch * q_len * d.block_topk, 0)));
-    request.set_tensor(count, make_i32_tensor({batch, 1, q_len}, std::vector<int32_t>(batch * q_len, 0)));
-    request.set_tensor(beam_idx, make_i32_tensor({batch}, {0, 1}));
-    ASSERT_NO_THROW(request.infer());
-    request.set_tensor(beam_idx, make_i32_tensor({batch}, {1, 0}));
-    EXPECT_THROW(request.infer(), ov::Exception);
+    // Sets beam_idx to `rows` in one of the forms an application can use.
+    using SetBeamIdx = std::function<void(ov::InferRequest&, const std::vector<int32_t>&)>;
+    const SetBeamIdx host = [&](ov::InferRequest& request, const std::vector<int32_t>& rows) {
+        request.set_tensor(beam_idx, make_i32_tensor({batch}, rows));
+    };
+    const SetBeamIdx remote = [&](ov::InferRequest& request, const std::vector<int32_t>& rows) {
+        auto tensor = context.create_tensor(ov::element::i32, {batch});
+        tensor.copy_from(make_i32_tensor({batch}, rows));
+        request.set_tensor(beam_idx, tensor);
+    };
+    const SetBeamIdx batched = [&](ov::InferRequest& request, const std::vector<int32_t>& rows) {
+        std::vector<ov::Tensor> tensors;
+        for (const auto row : rows) {
+            tensors.push_back(make_i32_tensor({1}, {row}));
+        }
+        request.set_tensors(compiled.input(5), tensors);
+    };
+    const std::vector<std::pair<const char*, SetBeamIdx>> forms{{"host", host}, {"remote", remote}, {"batched", batched}};
+    // One request runs every call (the requests of a compiled model share the kv_cache primitive state, see
+    // run_stateful_indexer_chain); a rejected call leaves the caches as they are.
+    auto request = compiled.create_infer_request();
+    const auto infer = [&](const SetBeamIdx& set_beam_idx, const std::vector<int32_t>& rows) {
+        request.set_tensor(query, make_tensor(f16, {batch, d.Hq, q_len, d.Dh}, zeros(batch * d.Hq * q_len * d.Dh)));
+        request.set_tensor(key_new, make_tensor(f16, {batch, d.Hkv, q_len, d.Dh}, zeros(batch * d.Hkv * q_len * d.Dh)));
+        request.set_tensor(value_new, make_tensor(f16, {batch, d.Hkv, q_len, d.Dv}, zeros(batch * d.Hkv * q_len * d.Dv)));
+        request.set_tensor(sel, make_i32_tensor({batch, 1, q_len, d.block_topk}, std::vector<int32_t>(batch * q_len * d.block_topk, 0)));
+        request.set_tensor(count, make_i32_tensor({batch, 1, q_len}, std::vector<int32_t>(batch * q_len, 0)));
+        set_beam_idx(request, rows);
+        request.infer();
+    };
+    for (const auto& [form, set_beam_idx] : forms) {
+        SCOPED_TRACE(form);
+        EXPECT_NO_THROW(infer(set_beam_idx, {0, 1}));
+        EXPECT_THROW(infer(set_beam_idx, {1, 0}), ov::Exception);
+    }
 }
 
 // ---------------------------------------------------------------------------

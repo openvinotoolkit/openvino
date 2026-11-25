@@ -340,7 +340,7 @@ QSAIndexerBlockCacheFusionMatcher::QSAIndexerBlockCacheFusionMatcher() {
         inputs[QSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE] = kv_cache->output(0);
         const auto in_place = std::make_shared<op::QSAIndexerInPlace>(inputs, indexer_node->get_config());
         in_place->set_friendly_name(indexer_node->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), ov::NodeVector{new_blocks, kv_cache, in_place});
+        ov::copy_runtime_info(m.get_matched_nodes(), ov::NodeVector{head_axis, new_blocks, kv_cache, in_place});
         for (const auto out : {QSAIndexer::OutputIdx::SELECTED_BLOCK_INDICES,
                                QSAIndexer::OutputIdx::SELECTED_BLOCK_COUNT,
                                QSAIndexer::OutputIdx::PAST_INCOMPLETE_RAW_K,

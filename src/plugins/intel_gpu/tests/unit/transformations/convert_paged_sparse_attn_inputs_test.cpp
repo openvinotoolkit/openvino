@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
+
 #include "intel_gpu/op/sparse_kv_quant.hpp"
 #include "intel_gpu/op/sparse_pa_config.hpp"
 #include "openvino/core/model.hpp"
@@ -76,8 +78,7 @@ Graph make_graph(const Geometry& g, const ov::PartialShape& cache_shape = ov::Pa
 }
 
 // The GPU pipeline registration: the PagedAttention instance of ConvertPagedAttnInputs skips PagedSparseAttention.
-void run(const Graph& graph, ov::element::Type precision, bool key_by_channel = true) {
-    ov::pass::Manager manager;
+void register_passes(ov::pass::Manager& manager, const Graph& graph, ov::element::Type precision, bool key_by_channel = true) {
     const auto pass_config = manager.get_pass_config();
     pass_config->set_callback<ov::pass::ConvertPagedAttnInputs>([](const std::shared_ptr<const ov::Node>& node) {
         return ov::is_type<ov::op::internal::PagedSparseAttention>(node);
@@ -96,6 +97,11 @@ void run(const Graph& graph, ov::element::Type precision, bool key_by_channel = 
     cache_config.page_size = page_size;
     cache_config.precision = Pass::select_precision(*graph.model, cache_config);
     manager.register_pass<Pass>(cache_config);
+}
+
+void run(const Graph& graph, ov::element::Type precision, bool key_by_channel = true) {
+    ov::pass::Manager manager;
+    register_passes(manager, graph, precision, key_by_channel);
     manager.run_passes(graph.model);
 }
 
@@ -122,20 +128,21 @@ TEST(ConvertPagedSparseAttnInputsTest, LaysOutF16Caches) {
 }
 
 // An 8-bit cache precision gives u8 SparsePA pages: the key per channel (groups of 16 tokens), the value per token.
-TEST(ConvertPagedSparseAttnInputsTest, QuantizesCachesByChannel) {
+// 64 channels x 8 bits: 64 bytes per row; one group of key parameters (2 x 64 f16) takes 4 rows, the 16 value
+// (scale, zp) pairs 1 row.
+TEST_F(TransformationTestsF, ConvertPagedSparseAttnInputsQuantizesCachesByChannel) {
     const Geometry g;
     const auto graph = make_graph(g);
-    run(graph, ov::element::i8);
-    const auto key_quant = ov::intel_gpu::op::paged_cache_quant(ov::element::i8, true);
-    const auto value_quant = ov::intel_gpu::op::paged_cache_quant(ov::element::i8, false);
-    // 64 channels x 8 bits: 64 bytes per row; one group of key parameters (2 x 64 f16) takes 4 rows, the 16 value
-    // (scale, zp) pairs 1 row.
-    EXPECT_EQ(page_shape(key_quant, 64), (ov::PartialShape{-1, kv_heads, 20, 64}));
-    EXPECT_EQ(page_shape(value_quant, 64), (ov::PartialShape{-1, kv_heads, 17, 64}));
-    EXPECT_EQ(graph.key_cache->get_element_type(), ov::element::u8);
-    EXPECT_EQ(graph.value_cache->get_element_type(), ov::element::u8);
-    EXPECT_EQ(graph.key_cache->get_partial_shape(), page_shape(key_quant, 64));
-    EXPECT_EQ(graph.value_cache->get_partial_shape(), page_shape(value_quant, 64));
+    model = graph.model;
+    register_passes(manager, graph, ov::element::i8);
+
+    const auto ref = make_graph(g);
+    ref.key_cache->set_element_type(ov::element::u8);
+    ref.key_cache->set_partial_shape({-1, kv_heads, 20, 64});
+    ref.value_cache->set_element_type(ov::element::u8);
+    ref.value_cache->set_partial_shape({-1, kv_heads, 17, 64});
+    ref.model->validate_nodes_and_infer_types();
+    model_ref = ref.model;
 }
 
 TEST(ConvertPagedSparseAttnInputsTest, QuantizesCachesByToken4Bit) {

@@ -17,6 +17,7 @@
 
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -360,10 +361,33 @@ KVCacheCompressionSparseMatcher::KVCacheCompressionSparseMatcher(ov::element::Ty
             return false;
         }
 
+        const bool four_bit = compression_dt.bitwidth() == 4;
+        if (four_bit) {
+            // The kv_cache packs 4-bit codes two per byte, which halves the inner dimension of its layout. A standalone
+            // DynamicQuantize of a ReadValue initializer does not pack, so the initializer must be empty, and a shape read
+            // of the compressed cache would see the packed width.
+            for (size_t i = 0; i < 2; ++i) {
+                const auto& past = past_read_values[i];
+                bool empty_initializer = past->get_input_size() == 0;
+                if (!empty_initializer) {
+                    const auto& shape = past->get_input_partial_shape(0);
+                    if (shape.rank().is_static()) {
+                        const auto axis = static_cast<size_t>(ov::util::normalize(kv_caches[i]->get_concat_axis(), shape.rank().get_length()));
+                        empty_initializer = shape[axis].is_static() && shape[axis].get_length() == 0;
+                    }
+                }
+                if (!empty_initializer || kv_caches[i]->get_output_target_inputs(0).size() != 1) {
+                    GPU_DEBUG_LOG << "SparseAttention " << attention->get_friendly_name()
+                                  << " keeps uncompressed KV caches: a 4-bit cache needs an empty initializer and no shape reads" << std::endl;
+                    return false;
+                }
+            }
+        }
+
         // The quantized histories have the head sizes of the uncompressed ones, which SparseSDPA already validated.
         op::KVQuant quant;
         quant.mode = op::KVQuant::Mode::BY_TOKEN;
-        quant.bits = compression_dt.bitwidth() == 4 ? 4 : 8;
+        quant.bits = four_bit ? 4 : 8;
         auto sdpa_config = attention->get_config();
         sdpa_config.key_quant = quant;
         sdpa_config.value_quant = quant;
@@ -381,7 +405,7 @@ KVCacheCompressionSparseMatcher::KVCacheCompressionSparseMatcher(ov::element::Ty
         for (size_t i = 0; i < 2; ++i) {
             auto read_values = update_past_read_value(past_read_values[i], config);
             compressed[i] = update_kv_cache(read_values, kv_caches[i], config);  // keeps the runtime info of the cache
-            // The compressed data has the shape of the cache (see KVCacheCompressed shape_infer).
+            // The 8-bit compressed data has the shape of the cache (a 4-bit one has no shape reads, see above).
             for (const auto& input : kv_caches[i]->output(0).get_target_inputs()) {
                 if (input.get_node() != attention.get()) {
                     input.replace_source_output(compressed[i]->output(0));
