@@ -3,7 +3,12 @@
 //
 
 #include "custom/single_layer_tests/classes/convolution.hpp"
+
+#include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"
@@ -52,6 +57,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_FP32_Quantization,
                                             ::testing::ValuesIn({prelu_u8i8f32, prelu_u8i8u8}),
                                             ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
+
+const auto fusingMultiplyPerChannelWithSecondConsumer = fusingSpecificParams{
+    std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+             auto scale = ov::test::utils::make_constant(cfg.type, generatePerChannelShape(cfg.target));
+             auto multiply = std::make_shared<ov::op::v1::Multiply>(cfg.input, scale);
+             auto relu = std::make_shared<ov::op::v0::Relu>(cfg.target);
+             return std::make_shared<ov::op::v1::Add>(multiply, relu);
+         },
+         "Add(Multiply(PerChannel),Relu)"}}),
+    {}};
 
 const ExtraOperationsParams dqScalesMultipleConsumers{
     fusingMultiplyPerChannelWithSecondConsumer,

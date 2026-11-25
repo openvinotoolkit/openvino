@@ -22,9 +22,8 @@ using namespace ov;
 
 InsertFakeQuantize::InsertFakeQuantize(size_t input_id, const QuantizationData& qinfo) {
     // more operation can be covered if necessery
-    auto ops_m =
-        ov::pass::pattern::wrap_type<ov::op::v1::Convolution, ov::op::v1::ConvolutionBackpropData, ov::op::v0::MatMul>(
-            {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto ops_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution, ov::op::v0::MatMul>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

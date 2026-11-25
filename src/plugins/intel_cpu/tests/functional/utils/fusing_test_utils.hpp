@@ -13,7 +13,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/relu.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
@@ -441,17 +440,6 @@ const auto fusingMultiplyPerChannel = fusingSpecificParams{std::make_shared<post
             auto secondMultInput = ov::test::utils::make_constant(cfg.type, secondMultInShape);
             return std::make_shared<ov::op::v1::Multiply>(cfg.input, secondMultInput);
         }, "Multiply(PerChannel)"}}), {"Multiply"}};
-
-const auto fusingMultiplyPerChannelWithSecondConsumer = fusingSpecificParams{
-    std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](postNodeConfig& cfg) {
-             auto scale = ov::test::utils::make_constant(cfg.type, generatePerChannelShape(cfg.target));
-             auto multiply = std::make_shared<ov::op::v1::Multiply>(cfg.input, scale);
-             auto relu = std::make_shared<ov::op::v0::Relu>(cfg.target);
-             return std::make_shared<ov::op::v1::Add>(multiply, relu);
-         },
-         "Add(Multiply(PerChannel),Relu)"}}),
-    {}};
 
 const auto fusingMultiplyAddPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
