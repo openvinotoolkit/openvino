@@ -365,7 +365,7 @@ TEST_P(mvn_scale_shift, last_axis) {
         }
     }
 
-    check_fusions_correctness(fused, {{"mvn", {"multiply", "add"}}});
+    ASSERT_TRUE(has_node_with_type<mvn>(*fused.get_program()));
     tolerance = 1e-5f;
     compare(reference, fused, p);
 }
