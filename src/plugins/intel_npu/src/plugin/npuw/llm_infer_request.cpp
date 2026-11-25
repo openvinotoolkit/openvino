@@ -669,21 +669,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
+        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
+                                      m_lm_head_request->get_tensor(lm_head_embed_port));
 
-        {
-            // Share prefill output → LM head input only when sizes match (SliceOutEmbeds was applied).
-            // If the prefill output is a full sequence tensor (e.g. Qwen3-ASR skips SliceOutEmbeds),
-            // the subclass infer_prefill() will manually copy the last-token slice instead.
-            auto prefill_embed_tensor =
-                m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::output_embeds));
-            auto lm_head_embed_tensor = m_lm_head_request->get_tensor(lm_head_embed_port);
-            if (prefill_embed_tensor->get_byte_size() == lm_head_embed_tensor->get_byte_size()) {
-                m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds), lm_head_embed_tensor);
-            }
-        }
-
-        // Generate model outputs [1, max_generation_token_len=1, embed_dim] naturally,
-        // so tensor sharing works for both standard and Qwen3-ASR paths.
+        // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
             const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
             generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
@@ -978,13 +967,11 @@ void ov::npuw::LLMInferRequest::zero_prefill_staging() {
         type_ids_port != m_prefill_in_ports.end()) {
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
     }
-    if (auto attn_port = m_prefill_in_ports.find(layer_names::attention_mask); attn_port != m_prefill_in_ports.end()) {
-        auto prefill_attention_mask = m_prefill_request->get_tensor(attn_port->second);
-        if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
-            fill_additive_attention_mask(prefill_attention_mask);
-        } else {
-            uu::fill_tensor<int64_t>(prefill_attention_mask, 0);
-        }
+    auto prefill_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+    if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
+        fill_additive_attention_mask(prefill_attention_mask);
+    } else {
+        uu::fill_tensor<int64_t>(prefill_attention_mask, 0);
     }
 
     if (m_position_ids_present) {
@@ -1029,11 +1016,6 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
 
     // Select the appropriate generate inference request variant based on prompt length
     bind_generate_variant(prompt_length);
-}
-
-std::pair<uint32_t, uint32_t> ov::npuw::LLMInferRequest::get_prefill_kv_range() const {
-    const auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    return {kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens, kvcache_desc.max_prompt_size};
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
@@ -1123,8 +1105,11 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
             uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
         } else {
-            const auto [kv_start, kv_end] = get_prefill_kv_range();
-            auto prefill_out_slice = uu::make_tensor_slice(prefill_out_tensor, pre_kv_dim, kv_start, kv_end);
+            auto prefill_out_slice =
+                uu::make_tensor_slice(prefill_out_tensor,
+                                      pre_kv_dim,
+                                      kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                      kvcache_desc.max_prompt_size);
 
             auto kvcache_in_slice =
                 uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
@@ -1628,25 +1613,21 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     m_llm_profile["1/prefill:3a.prepare"].record([&]() {
         // NB: padded_input can be either fp32(VLM) or i64(LLM)
         auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-        // Right-align: copy tokens to the END of the padded buffer (left-pad with zeros).
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
                     input_ids->get_byte_size(),
                     reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() -
                         input_ids->get_byte_size());
 
-        if (const auto attn_it = m_prefill_in_ports.find(layer_names::attention_mask);
-            attn_it != m_prefill_in_ports.end()) {
-            auto padded_attention_mask = m_prefill_request->get_tensor(attn_it->second);
-            if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
-                stage_additive_attention_mask_for_prefill(attention_mask,
-                                                          padded_attention_mask,
-                                                          input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
-            } else {
-                std::copy_n(attention_mask->data<int64_t>(),
-                            attention_mask->get_size(),
-                            padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() -
-                                attention_mask->get_size());
-            }
+        auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+        if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
+            stage_additive_attention_mask_for_prefill(attention_mask,
+                                                      padded_attention_mask,
+                                                      input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
+        } else {
+            std::copy_n(attention_mask->data<int64_t>(),
+                        attention_mask->get_size(),
+                        padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() -
+                            attention_mask->get_size());
         }
 
         if (token_type_ids) {
@@ -1906,7 +1887,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-
     uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
     if (input_tokens_len > kvcache_desc.max_generation_token_len) {
         OPENVINO_THROW("Input prompt length is greater than output \"NPUW_LLM_MAX_GENERATION_TOKEN_LEN\": ",
@@ -2015,7 +1995,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             ov::npuw::util::pad_position_ids(kv_pos_ids, position_ids);
         }
 
-        // Qwen3-ASR: inject encoder_hidden_states into generate model.
         if (m_eagle3_ext.is_eagle3_model()) {
             m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
         }
@@ -2082,18 +2061,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
 void ov::npuw::LLMInferRequest::infer() {
     const auto& inputs = get_inputs();
-    auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
 
-    auto attention_mask_opt = ov::npuw::util::find_port_by_name(inputs, layer_names::attention_mask);
-    ov::SoPtr<ov::ITensor> attention_mask;
-    if (attention_mask_opt.has_value()) {
-        attention_mask = get_tensor(attention_mask_opt.value());
-    } else {
-        // Synthesize a full-ones mask matching input_ids seq_len.
-        const auto seq_len = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
-        attention_mask = ov::make_tensor(ov::element::i64, ov::Shape{1, seq_len});
-        std::fill_n(attention_mask->data<int64_t>(), seq_len, 1);
-    }
+    auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
+    auto attention_mask = get_tensor(ov::npuw::util::find_port_by_name(inputs, layer_names::attention_mask).value());
 
     auto position_ids = ov::npuw::util::TensorPtr();
     auto position_ids_opt = ov::npuw::util::find_port_by_name(inputs, layer_names::position_ids);

@@ -4,6 +4,7 @@
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
+#include <limits>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -58,6 +59,7 @@
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
+#include "partitioning/patterns/opt.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "qwen3asr/prepare_qwen3_asr_model.hpp"
@@ -802,8 +804,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                                   axes,
                                   m_max_lora_rank,
                                   whisper_lhs_seq_size,
-                                  /*is_prefill=*/false,
-                                  /*is_whisper=*/m_is_whisper)
+                                  false,
+                                  m_is_whisper)
             .run_on_model(generate_variant);
 
         // The pass treats attention_mask as a 2D 0/1 mask, which an additive 4D float mask is not.
@@ -831,9 +833,6 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
 
         // Set unique name for this variant
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
-        // LOG_DEBUG("Variant " << (i + 1) << " reshaped. Saving to "
-        //                      << (m_name + "_kvcache_kv" + std::to_string(kv_size) + "_static.xml"));
-        // ov::save_model(generate_variant, m_name + "_kvcache_kv" + std::to_string(kv_size) + "_static.xml");
         generate_model_variants.push_back(generate_variant);
     }
     LOG_INFO("Created all generate model variants");
@@ -1156,7 +1155,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     //    the KV cache still keeps the full context (no memory/perf savings).
     //  - ShrinkSlidingWindowKVCache: shrinks the KV cache to the window size and
     //    manages it as a sliding buffer at runtime for better memory/perf.
-    if (!m_is_whisper && !m_attention_mask_is_4d_float &&
+    if (!m_is_whisper && !m_is_qwen3_asr && !m_attention_mask_is_4d_float &&
         !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
@@ -1195,7 +1194,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
     if (m_is_qwen3_asr) {
-        whisper_lhs_seq_size = static_cast<uint32_t>(m_cfg.get<::intel_npu::NPUW_QWEN3_ASR_MAX_ENCODER_LEN>());
+        const auto encoder_len = m_cfg.get<::intel_npu::NPUW_QWEN3_ASR_MAX_ENCODER_LEN>();
+        OPENVINO_ASSERT(encoder_len > 0 && encoder_len <= std::numeric_limits<uint32_t>::max(),
+                        "NPUW_QWEN3_ASR_MAX_ENCODER_LEN must be between 1 and ",
+                        std::numeric_limits<uint32_t>::max(),
+                        ", got ",
+                        encoder_len,
+                        ".");
+        whisper_lhs_seq_size = static_cast<uint32_t>(encoder_len);
         LOG_INFO("[Qwen3-ASR] encoder_hidden_states static seq_len = " << whisper_lhs_seq_size);
     }
     if (m_is_whisper) {
@@ -1257,12 +1263,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   axes,
                                   m_max_lora_rank,
                                   whisper_lhs_seq_size,
-                                  /*is_prefill=*/true,
-                                  /*is_whisper=*/m_is_whisper)
+                                  true,
+                                  m_is_whisper)
             .run_on_model(prefill_model);
     }
     if (!m_attention_mask_is_4d_float) {
         ov::npuw::RewriteGQAAttentionMask().run_on_model(prefill_model);
+    }
+    if (m_is_qwen3_asr && !lm_head_model) {
+        ov::pass::GraphRewrite slice_logits;
+        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
+        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
+        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
+        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
+        slice_logits.run_on_model(prefill_model);
+        prefill_model->validate_nodes_and_infer_types();
+        const auto logits_shape = prefill_model->output("logits").get_partial_shape();
+        OPENVINO_ASSERT(logits_shape.rank() == 3 && logits_shape[1].is_static() && logits_shape[1].get_length() == 1,
+                        "Qwen3-ASR without a shared LM head requires a single-token logits output.");
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
@@ -1436,6 +1454,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (lm_head_model) {
         LOG_DEBUG("LM head model is present, erasing NPUW_SLICE_OUT from prefill config.");
         prefill_config.erase("NPUW_SLICE_OUT");
+    } else if (m_is_qwen3_asr) {
+        // The prefill graph was already sliced before its compiled-model ports were created.
+        prefill_config["NPUW_SLICE_OUT"] = "NO";
     }
     merge_config_with(generate_config, generate_config_addition_value);
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
@@ -1755,7 +1776,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    std::cout << "Compile kv model" << std::endl;
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 

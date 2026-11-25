@@ -18,9 +18,6 @@ ov::npuw::Qwen3ASRInferRequest::Qwen3ASRInferRequest(const std::shared_ptr<ov::n
                     "Qwen3-ASR supports one generated token per inference call.");
 }
 
-// ---------------------------------------------------------------------------
-// infer(): dispatch to prefill or generate based on seq_len
-// ---------------------------------------------------------------------------
 void ov::npuw::Qwen3ASRInferRequest::infer() {
     const auto& inputs = get_inputs();
 
@@ -51,9 +48,6 @@ void ov::npuw::Qwen3ASRInferRequest::infer() {
     publish_stored_tokens(static_cast<int64_t>(kvcache_desc.num_stored_tokens));
 }
 
-// ---------------------------------------------------------------------------
-// prepare_for_new_conversation(): reset state for a fresh audio segment
-// ---------------------------------------------------------------------------
 void ov::npuw::Qwen3ASRInferRequest::prepare_for_new_conversation() {
     // Base class resets: prefill input buffers, strategy on_reset(), num_stored_tokens,
     // generate variant selection.
@@ -61,9 +55,6 @@ void ov::npuw::Qwen3ASRInferRequest::prepare_for_new_conversation() {
     m_generate_initialized = false;
 }
 
-// ---------------------------------------------------------------------------
-// infer_prefill(): right-aligned tokens with attention_mask + position_ids injection
-// ---------------------------------------------------------------------------
 void ov::npuw::Qwen3ASRInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                    ov::SoPtr<ov::ITensor> enc_hidden_states) {
     LOG_DEBUG("[Qwen3-ASR] Calling inference for prefill model...");
@@ -154,9 +145,6 @@ void ov::npuw::Qwen3ASRInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_
     LOG_DEBUG("[Qwen3-ASR] Done prefill. num_stored_tokens=" << kvcache_desc.num_stored_tokens);
 }
 
-// ---------------------------------------------------------------------------
-// infer_generate(): O(1) per-step decode with static KV cache
-// ---------------------------------------------------------------------------
 void ov::npuw::Qwen3ASRInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids) {
     LOG_DEBUG("[Qwen3-ASR] Calling inference for generate model...");
     LOG_BLOCK();

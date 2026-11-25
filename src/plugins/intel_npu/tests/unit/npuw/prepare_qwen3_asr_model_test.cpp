@@ -8,8 +8,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <map>
 #include <numeric>
 #include <sstream>
@@ -474,7 +476,9 @@ TEST(PrepareQwen3ASRModelTest, WhisperCacheShapesStillUseEncoderLength) {
     }
 }
 
-TEST(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState) {
+class Qwen3ASRInferRequestTest : public ::testing::TestWithParam<bool> {};
+
+TEST_P(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState) {
     auto model = make_stateful_qwen_decoder();
     auto plugin = std::make_shared<ov::test::npuw::NullPlugin>();
     ov::test::npuw::RecordingFactory recorder;
@@ -484,8 +488,16 @@ TEST(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState)
                           {"NPUW_LLM_MAX_PROMPT_LEN", "64"},
                           {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
                           {"NPUW_LLM_PREFILL_HINT", "STATIC"},
+                          {"NPUW_LLM_SHARED_HEAD", GetParam() ? "YES" : "NO"},
                           {"NPUW_DEVICES", "CPU"}};
     auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties, recorder.make_factory());
+    EXPECT_EQ(recorder.count_suffix("_lm_head"), GetParam() ? 1u : 0u);
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+    if (!GetParam()) {
+        EXPECT_EQ(prefill->props.at("NPUW_SLICE_OUT").as<std::string>(), "NO");
+        EXPECT_EQ(prefill->model->output("logits").get_shape().at(1), 1u);
+    }
     EXPECT_TRUE(compiled->get_property("NPUW_QWEN3_ASR").as<bool>());
     EXPECT_EQ(compiled->get_property("NPUW_QWEN3_ASR_MAX_ENCODER_LEN").as<uint64_t>(), 16u);
     ov::npuw::Qwen3ASRInferRequest request(compiled);
@@ -548,6 +560,96 @@ TEST(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState)
     EXPECT_EQ(std::memcmp(actual_logits->data(), expected_logits.data(), expected_logits.get_byte_size()), 0);
 }
 
+TEST(Qwen3ASRPropertiesTest, ValidatesEncoderCapacityAndUsesDefault) {
+    auto plugin = std::make_shared<ov::test::npuw::NullPlugin>();
+    ov::AnyMap properties{{"NPUW_LLM", "YES"},
+                          {"NPUW_QWEN3_ASR", "YES"},
+                          {"NPUW_LLM_MAX_PROMPT_LEN", "64"},
+                          {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                          {"NPUW_LLM_PREFILL_HINT", "STATIC"},
+                          {"NPUW_DEVICES", "CPU"}};
+    for (const auto& capacity :
+         {std::string{"0"}, std::to_string(static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()) + 1)}) {
+        SCOPED_TRACE(capacity);
+        auto invalid = properties;
+        invalid["NPUW_QWEN3_ASR_MAX_ENCODER_LEN"] = capacity;
+        ov::test::npuw::RecordingFactory recorder;
+        EXPECT_THROW((void)std::make_shared<ov::npuw::LLMCompiledModel>(make_stateful_qwen_decoder(),
+                                                                        plugin,
+                                                                        invalid,
+                                                                        recorder.make_factory()),
+                     ov::Exception);
+    }
+
+    ov::test::npuw::RecordingFactory recorder;
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(make_stateful_qwen_decoder(),
+                                                                 plugin,
+                                                                 properties,
+                                                                 recorder.make_factory());
+    EXPECT_EQ(compiled->get_property("NPUW_QWEN3_ASR_MAX_ENCODER_LEN").as<uint64_t>(), 64u);
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+    EXPECT_EQ(prefill->model->input("encoder_hidden_states").get_shape(), (ov::Shape{1, 64, 64}));
+}
+
+TEST(Qwen3ASRInferRequestTest, SharedHeadMatchesUnsharedPrefillAndDecode) {
+    ov::Core core;
+    const auto model = make_stateful_qwen_decoder();
+    ov::AnyMap properties{{"NPU_USE_NPUW", "YES"},
+                          {"NPUW_LLM", "YES"},
+                          {"NPUW_QWEN3_ASR", "YES"},
+                          {"NPUW_QWEN3_ASR_MAX_ENCODER_LEN", "16"},
+                          {"NPUW_LLM_MAX_PROMPT_LEN", "16"},
+                          {"NPUW_LLM_MIN_RESPONSE_LEN", "16"},
+                          {"NPUW_LLM_PREFILL_HINT", "STATIC"},
+                          {"NPUW_LLM_GENERATE_PYRAMID", "NO"},
+                          {"NPUW_ONLINE_PIPELINE", "NONE"},
+                          {"NPUW_DEVICES", "CPU"}};
+    std::vector<ov::InferRequest> requests;
+    for (const bool shared_head : {true, false}) {
+        SCOPED_TRACE(shared_head);
+        properties["NPUW_LLM_SHARED_HEAD"] = shared_head ? "YES" : "NO";
+        ov::CompiledModel compiled;
+        ASSERT_NO_THROW(compiled = core.compile_model(model, "NPU", properties));
+        EXPECT_EQ(compiled.get_property("NPUW_LLM_SHARED_HEAD").as<bool>(), shared_head);
+        ASSERT_NO_THROW(requests.push_back(compiled.create_infer_request()));
+    }
+
+    ov::Tensor encoder{ov::element::f32, {1, 1, 64}};
+    std::fill_n(encoder.data<float>(), encoder.get_size(), 0.25f);
+    ov::Tensor beam{ov::element::i32, {1}};
+    beam.data<int32_t>()[0] = 0;
+    std::vector<float> previous_logits;
+    bool changed = false;
+    for (const std::vector<int64_t>& tokens :
+         {std::vector<int64_t>{1, 2, 3}, std::vector<int64_t>{4}, std::vector<int64_t>{5}}) {
+        SCOPED_TRACE(tokens.size());
+        ov::Tensor ids{ov::element::i64, {1, tokens.size()}};
+        std::copy(tokens.begin(), tokens.end(), ids.data<int64_t>());
+        for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+            SCOPED_TRACE(request_index);
+            auto& request = requests[request_index];
+            request.set_tensor("input_ids", ids);
+            request.set_tensor("beam_idx", beam);
+            request.set_tensor("encoder_hidden_states", encoder);
+            ASSERT_NO_THROW(request.infer());
+        }
+        const auto expected = requests[0].get_tensor("logits");
+        const auto actual = requests[1].get_tensor("logits");
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ASSERT_EQ(actual.get_element_type(), ov::element::f32);
+        for (size_t index = 0; index < actual.get_size(); ++index) {
+            ASSERT_TRUE(std::isfinite(actual.data<const float>()[index]));
+            EXPECT_NEAR(actual.data<const float>()[index], expected.data<const float>()[index], 1e-5f);
+            if (!previous_logits.empty() && actual.data<const float>()[index] != previous_logits[index]) {
+                changed = true;
+            }
+        }
+        previous_logits.assign(actual.data<const float>(), actual.data<const float>() + actual.get_size());
+    }
+    EXPECT_TRUE(changed);
+}
+
 TEST(Qwen3ASRPropertiesTest, CompiledAndImportedModelExposeOptions) {
     const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
     const auto dir = std::filesystem::temp_directory_path() / ("npuw_qwen_properties_" + std::to_string(nonce));
@@ -598,5 +700,6 @@ TEST(PrepareQwen3ASRModelTest, RejectsUnsupportedExportInsteadOfSilentlyFreezing
 }
 
 INSTANTIATE_TEST_SUITE_P(ExportedMaskTypes, PrepareQwen3ASRMaskTest, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(SharedHead, Qwen3ASRInferRequestTest, ::testing::Bool());
 
 }  // namespace
