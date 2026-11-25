@@ -25,6 +25,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
@@ -56,6 +57,18 @@ SpaceToBatch::SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphConte
     const size_t dstRank = getOutputShapeAtPort(0).getRank();
     CPU_NODE_ASSERT(srcRank >= 4 && srcRank <= 5, "has unsupported 'data' input rank: ", srcRank);
     CPU_NODE_ASSERT(srcRank == dstRank, "has incorrect number of input/output dimensions");
+
+    hasRuntimeAttrInputs = false;
+    for (size_t i = 1; i < op->get_input_size(); i++) {
+        if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i))) {
+            hasRuntimeAttrInputs = true;
+            break;
+        }
+    }
+}
+
+bool SpaceToBatch::needShapeInfer() const {
+    return Node::needShapeInfer() || hasRuntimeAttrInputs;
 }
 
 void SpaceToBatch::initSupportedPrimitiveDescriptors() {

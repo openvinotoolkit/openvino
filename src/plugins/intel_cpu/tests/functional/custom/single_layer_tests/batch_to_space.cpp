@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "openvino/op/batch_to_space.hpp"
 
 using namespace CPUTestUtils;
 
@@ -451,6 +453,95 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchToSpaceCPULayerTestCaseOutputDimOne,
                          BatchToSpaceCPULayerTest,
                          dynamicBatchToSpaceParamsSetOutputDimOne,
                          BatchToSpaceCPULayerTest::getTestCaseName);
+
+TEST(smoke_BatchToSpaceCPULayerTest, DynamicDataConstantAttrRepeatedInfer) {
+    auto core = ov::Core();
+    auto data_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, -1, -1});
+    auto block_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 2, 2});
+    auto crops_begin = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0});
+    auto crops_end = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0});
+
+    auto bts = std::make_shared<ov::op::v1::BatchToSpace>(data_param, block_shape, crops_begin, crops_end);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{bts->output(0)}, ov::ParameterVector{data_param});
+
+    auto compiled_model = core.compile_model(model, "CPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    for (float base : {1.0f, 5.0f}) {
+        ov::Tensor data_tensor(ov::element::f32, ov::Shape{4, 1, 1, 1});
+        auto* data_ptr = data_tensor.data<float>();
+        for (size_t i = 0; i < 4; ++i) {
+            data_ptr[i] = base + static_cast<float>(i);
+        }
+        infer_request.set_tensor(data_param, data_tensor);
+        infer_request.infer();
+
+        auto out_tensor = infer_request.get_output_tensor(0);
+        ASSERT_EQ(out_tensor.get_shape(), (ov::Shape{1, 1, 2, 2}));
+        const auto* out_ptr = out_tensor.data<const float>();
+        for (size_t i = 0; i < 4; ++i) {
+            EXPECT_EQ(out_ptr[i], base + static_cast<float>(i));
+        }
+    }
+}
+
+TEST(smoke_BatchToSpaceCPULayerTest, DynamicRuntimeAttrInputsRefresh) {
+    auto core = ov::Core();
+    auto data_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, -1, -1});
+    auto block_shape_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{4});
+    auto crops_begin_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{4});
+    auto crops_end_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{4});
+
+    ov::ParameterVector params{data_param, block_shape_param, crops_begin_param, crops_end_param};
+    auto bts =
+        std::make_shared<ov::op::v1::BatchToSpace>(data_param, block_shape_param, crops_begin_param, crops_end_param);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{bts->output(0)}, params);
+
+    auto compiled_model = core.compile_model(model, "CPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    ov::Tensor data_tensor(ov::element::f32, ov::Shape{4, 1, 1, 1});
+    auto* data_ptr = data_tensor.data<float>();
+    for (size_t i = 0; i < 4; ++i) {
+        data_ptr[i] = static_cast<float>(i + 1);
+    }
+
+    auto set_i64_tensor = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, const std::vector<int64_t>& vals) {
+        ov::Tensor t(ov::element::i64, ov::Shape{4});
+        auto* p = t.data<int64_t>();
+        std::copy(vals.begin(), vals.end(), p);
+        infer_request.set_tensor(param, t);
+    };
+
+    // First inference: block_shape [1, 1, 2, 2], no crops -> output [1, 1, 2, 2]
+    infer_request.set_tensor(data_param, data_tensor);
+    set_i64_tensor(block_shape_param, {1, 1, 2, 2});
+    set_i64_tensor(crops_begin_param, {0, 0, 0, 0});
+    set_i64_tensor(crops_end_param, {0, 0, 0, 0});
+    infer_request.infer();
+
+    auto out1 = infer_request.get_output_tensor(0);
+    ASSERT_EQ(out1.get_shape(), (ov::Shape{1, 1, 2, 2}));
+    const auto* out1_ptr = out1.data<const float>();
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_EQ(out1_ptr[i], static_cast<float>(i + 1));
+    }
+
+    // Second inference: same input shapes, different block_shape [1, 1, 1, 4] and crops_end [0, 0, 0, 1]
+    // -> output [1, 1, 1, 3]
+    infer_request.set_tensor(data_param, data_tensor);
+    set_i64_tensor(block_shape_param, {1, 1, 1, 4});
+    set_i64_tensor(crops_begin_param, {0, 0, 0, 0});
+    set_i64_tensor(crops_end_param, {0, 0, 0, 1});
+    infer_request.infer();
+
+    auto out2 = infer_request.get_output_tensor(0);
+    ASSERT_EQ(out2.get_shape(), (ov::Shape{1, 1, 1, 3}));
+    const auto* out2_ptr = out2.data<const float>();
+    for (size_t i = 0; i < 3; ++i) {
+        EXPECT_EQ(out2_ptr[i], static_cast<float>(i + 1));
+    }
+}
 
 }  // namespace
 }  // namespace test
