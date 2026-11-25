@@ -19,6 +19,7 @@
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/matmul.hpp"
@@ -524,6 +525,34 @@ TEST(GQADecompositionTest, padded_query_fixed_capacity_uses_stateless_kv_present
     ASSERT_NE(sdpa, nullptr);
     EXPECT_TRUE(sdpa->get_causal());
     EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+}
+
+// A fixed capacity must still grow past its own declared row count when total_sequence_length (ORT: an upper
+// bound, independent of past_key's static row count) asks for more headroom -- StatelessKV has no input carrying
+// that bound, so its past operand is pre-grown via resize_kv_to_capacity before reaching StatelessKV.
+TEST(GQADecompositionTest, padded_query_fixed_capacity_resizes_past_before_stateless_kv) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    for (const auto& stateless_kv : statelesskvs) {
+        // total_sequence_length is a runtime Parameter here, so resize_kv_to_capacity cannot prove the declared
+        // capacity already covers it and must build the growth chain instead of passing past_key/value through.
+        EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(stateless_kv->input_value(0).get_node()))
+            << "StatelessKV past operand must be pre-grown, not the raw past_key/past_value parameter";
+        EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(stateless_kv->input_value(0).get_node()))
+            << "resize_kv_to_capacity's growth chain ends in a Concat";
+    }
 }
 
 TEST(GQADecompositionTest, indirect_present_skips_stateless_kv) {

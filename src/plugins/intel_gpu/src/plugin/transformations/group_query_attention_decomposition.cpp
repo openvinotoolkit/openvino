@@ -11,6 +11,7 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
@@ -18,6 +19,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -58,6 +60,7 @@ namespace ov::intel_gpu {
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
 
 
@@ -204,7 +207,27 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         return outputs;
     }
 
-    const auto key_cache = make_stateless_kv(past_key, key, 2);
+    // A declared fixed capacity still has to grow for query_seqlens when total_sequence_length asks for more
+    // headroom than past_key/past_value's own static row count (ORT: max(past_rows, total_sequence_length)).
+    // resize_kv_to_capacity is a no-op whenever capacity already covers it, so StatelessKV stays zero-copy for
+    // every already-covered config; only a real headroom request pays for the Slice/Broadcast/Concat growth.
+    ov::Output<ov::Node> stateless_past_key = past_key;
+    ov::Output<ov::Node> stateless_past_value = past_value;
+    if (query_seqlens && !sliding_window && node->has_fixed_kv_capacity()) {
+        const auto total_seqlen_pos = static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH);
+        if (total_seqlen_pos < node->get_input_size() && !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos))) {
+            const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+            const auto total_sequence_length = register_new_node<v1::Reshape>(
+                register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
+                one,
+                false);
+            const auto past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2});
+            stateless_past_key = resize_kv_to_capacity(past_rows, past_key, total_sequence_length);
+            stateless_past_value = resize_kv_to_capacity(past_rows, past_value, total_sequence_length);
+        }
+    }
+
+    const auto key_cache = make_stateless_kv(stateless_past_key, key, 2);
     key_cache->set_friendly_name(present_key->get_friendly_name() + "_stateless");
 
     std::shared_ptr<op::StatelessKV> value_cache;
@@ -219,7 +242,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         value_cache = make_stateless_kv(past_value_transpose->input_value(0), transposed_value, 3);
         present_value_transpose->output(0).replace(value_cache->output(0));
     } else {
-        value_cache = make_stateless_kv(past_value, value, 2);
+        value_cache = make_stateless_kv(stateless_past_value, value, 2);
     }
     value_cache->set_friendly_name(present_value->get_friendly_name() + "_stateless");
 
