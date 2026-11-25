@@ -73,12 +73,12 @@ both. Conversion builds the file's supported encoders into one model:
 2. Each encoder takes its projector from the global `clip.projector_type`, or else from
    `clip.vision.projector_type` / `clip.audio.projector_type`. A combined file therefore uses the
    per-modality keys; only the legacy `qwen2.5o` resolves to a different projector per modality
-   (Qwen2.5 VL vision, Qwen2 audio). An encoder that cannot be converted is skipped with a notice
-   on stderr: either no builder is registered for its projector, or the registered builder throws,
-   for example on an unsupported variant. The graph is then rebuilt without that encoder, so none
-   of its partial nodes or inputs remain. For example, a combined Gemma3n `gemma3nv` / `gemma3na`
-   file builds only vision unless an extension handles its audio branch. A file with no
-   convertible encoder or supported speech generation fails and reports each encoder's reason.
+   (Qwen2.5 VL vision, Qwen2 audio). An encoder whose projector has no matching builder is skipped
+   with a notice on stderr; a builder declines an unsupported variant through its `match`
+   predicate. An error thrown while building a matched projector, such as a missing tensor, still
+   fails conversion. For example, a combined Gemma3n `gemma3nv` / `gemma3na` file builds only
+   vision unless an extension handles its audio branch. A file with no convertible encoder or
+   supported speech generation fails and lists each skipped encoder.
 3. The encoders become disconnected branches of the same graph. Vision reads `v.*` tensors and
    `vision.*` inputs and produces `vision.embeddings`; audio reads `a.*` tensors and `audio.*`
    inputs and produces `audio.embeddings`.

@@ -10,7 +10,6 @@
 #include <iostream>
 #include <limits>
 #include <map>
-#include <new>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -1433,12 +1432,6 @@ private:
     }
 };
 
-// A projector whose build threw; the caller rebuilds the graph without it.
-struct ProjectorBuildError {
-    std::string modality;
-    std::string message;
-};
-
 struct MmprojEncoders {
     std::vector<std::string> modalities;
     std::vector<std::string> skipped;
@@ -1473,8 +1466,7 @@ void add_projector_branch(GgufGraphContext& g,
 MmprojEncoders build_mmproj_encoders(GgufGraphContext& g,
                                      const BuildContext& ctx,
                                      ModelAdapters& adapters,
-                                     std::map<std::string, std::string>& config,
-                                     const std::map<std::string, std::string>& failed) {
+                                     std::map<std::string, std::string>& config) {
     std::optional<ProjectorRegistry> defaults;
     const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
     MmprojEncoders encoders;
@@ -1484,27 +1476,18 @@ MmprojEncoders build_mmproj_encoders(GgufGraphContext& g,
             continue;
         const auto type = resolve_projector_type(ctx.metadata, modality);
         const auto definition = registry.find(ctx.metadata, modality, type);
-        const auto it = failed.find(modality);
-        if (it != failed.end() || !definition) {
-            const auto reason = it != failed.end()
-                                    ? (it->second.empty() ? std::string("projector builder failed") : it->second)
-                                    : std::string("no registered builder; register a ProjectorExtension");
+        if (!definition) {
             config[modality + ".projector"] = type;
             config[modality + ".supported"] = "false";
-            encoders.skipped.push_back(modality + " '" + type + "': " + reason);
+            encoders.skipped.push_back(modality + " '" + type +
+                                       "': no matching builder; register a ProjectorExtension");
             continue;
         }
         definitions.push_back(definition);
     }
     config.emplace("vision.auxiliary_count", "0");
     for (const auto& definition : definitions) {
-        try {
-            add_projector_branch(g, *definition, adapters, config);
-        } catch (const std::bad_alloc&) {
-            throw;
-        } catch (const std::exception& error) {
-            throw ProjectorBuildError{definition->modality, error.what()};
-        }
+        add_projector_branch(g, *definition, adapters, config);
         encoders.modalities.push_back(definition->modality);
     }
     return encoders;
@@ -1557,23 +1540,10 @@ public:
     explicit MmprojBuilder(const BuildContext& context) : ctx(context) {}
 
     std::shared_ptr<GgufGraph> build() override {
-        // A failed projector can leave partial state in the graph, so rebuild without it from scratch.
-        std::map<std::string, std::string> failed;
-        while (true) {
-            try {
-                return build(failed);
-            } catch (const ProjectorBuildError& error) {
-                failed.emplace(error.modality, error.message);
-            }
-        }
-    }
-
-private:
-    std::shared_ptr<GgufGraph> build(const std::map<std::string, std::string>& failed) {
         GgufGraphContext g(ctx);
         ModelAdapters adapters;
         std::map<std::string, std::string> config;
-        const auto encoders = build_mmproj_encoders(g, ctx, adapters, config, failed);
+        const auto encoders = build_mmproj_encoders(g, ctx, adapters, config);
         const auto& modalities = encoders.modalities;
         const auto generation_type = resolve_projector_type(ctx.metadata, "gen.audio");
         const auto explicit_generation_type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
@@ -1634,6 +1604,7 @@ private:
         return graph;
     }
 
+private:
     BuildContext ctx;
 };
 

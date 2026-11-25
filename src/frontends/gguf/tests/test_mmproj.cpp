@@ -7,7 +7,6 @@
 #include <cstring>
 #include <filesystem>
 #include <sstream>
-#include <stdexcept>
 #include <unordered_map>
 
 #include "builder/api/metadata_store.hpp"
@@ -1592,24 +1591,23 @@ TEST_F(GGUFMMProj, FileWithoutSupportedProjectorIsRejected) {
                                    testing::HasSubstr("audio 'unsupported_audio'")));
 }
 
-TEST_F(GGUFMMProj, FailingProjectorIsRolledBackAndSkipped) {
+TEST_F(GGUFMMProj, UnmatchedProjectorIsSkippedAndFailingProjectorIsFatal) {
     using namespace ov::frontend::gguf;
     writer.kv_bool("clip.has_vision_encoder", true);
-    writer.kv_str("clip.vision.projector_type", "failing-vision");
+    writer.kv_str("clip.vision.projector_type", "custom-vision");
     writer.kv_bool("clip.has_audio_encoder", true);
     writer.kv_str("clip.audio.projector_type", "custom-audio");
     ASSERT_TRUE(writer.write(path));
-    const ProjectorDefinition failing{"clip.vision.failing",
-                                      "clip",
-                                      "vision",
-                                      "failing-vision",
-                                      [](GgufGraphContext& graph) -> ProjectorResult {
-                                          auto input =
-                                              graph.add_input("vision.partial", ov::element::f32, {1, 1, 2, 3});
-                                          graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}});
-                                          OPENVINO_THROW("vision variant is not implemented");
-                                      },
-                                      {}};
+    ProjectorDefinition vision{"clip.vision.custom",
+                               "clip",
+                               "vision",
+                               "custom-vision",
+                               [](GgufGraphContext&) -> ProjectorResult {
+                                   OPENVINO_THROW("malformed vision projector");
+                               },
+                               [](const GgufMetadata&) {
+                                   return false;
+                               }};
     const ProjectorDefinition audio{
         "clip.audio.custom",
         "clip",
@@ -1621,35 +1619,20 @@ TEST_F(GGUFMMProj, FailingProjectorIsRolledBackAndSkipped) {
         },
         {}};
     FrontEnd frontend;
-    frontend.add_extension(std::make_shared<ProjectorExtension>(failing));
+    frontend.add_extension(std::make_shared<ProjectorExtension>(vision));
     frontend.add_extension(std::make_shared<ProjectorExtension>(audio));
     auto model = frontend.convert(frontend.load(path));
-    ASSERT_EQ(model->inputs().size(), 1);
-    EXPECT_EQ(model->input().get_any_name(), "audio.custom");
     ASSERT_EQ(model->outputs().size(), 1);
     EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
-    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "failing-vision");
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.supported"}), "false");
-    const auto components = adapt_to_genai(model);
-    ASSERT_EQ(components.size(), 1);
-    EXPECT_EQ(components.count("audio_embeddings"), 1);
 
-    ProjectorDefinition silent = failing;
-    silent.build = [](GgufGraphContext&) -> ProjectorResult {
-        throw std::runtime_error("");
-    };
-    FrontEnd silent_frontend;
-    silent_frontend.add_extension(std::make_shared<ProjectorExtension>(silent));
-    silent_frontend.add_extension(std::make_shared<ProjectorExtension>(audio));
-    auto audio_only = silent_frontend.convert(silent_frontend.load(path));
-    ASSERT_EQ(audio_only->outputs().size(), 1);
-    EXPECT_EQ(audio_only->get_rt_info<std::string>({"gguf_mmproj", "vision.supported"}), "false");
-
-    FrontEnd vision_only;
-    vision_only.add_extension(std::make_shared<ProjectorExtension>(failing));
-    OV_EXPECT_THROW(vision_only.convert(vision_only.load(path)),
+    vision.match = {};
+    FrontEnd failing;
+    failing.add_extension(std::make_shared<ProjectorExtension>(vision));
+    failing.add_extension(std::make_shared<ProjectorExtension>(audio));
+    OV_EXPECT_THROW(failing.convert(failing.load(path)),
                     ov::Exception,
-                    testing::HasSubstr("vision variant is not implemented"));
+                    testing::HasSubstr("malformed vision projector"));
 }
 
 TEST_F(GGUFMMProj, Gemma3nCombinedFileBuildsVisionAndRecordsUnsupportedAudio) {
