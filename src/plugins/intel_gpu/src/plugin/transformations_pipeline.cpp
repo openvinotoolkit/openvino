@@ -1256,9 +1256,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true, true);
-        // Before ConvertPrecision, so the fused RMS and its neighbors can run in f16. Residual-fed norms are skipped
-        // here and fused by the late run in GPU:PostLPT.
-        manager.register_pass<ov::intel_gpu::L2NormToRMS>(device_info.max_work_group_size, true);
+        // Before ConvertPrecision, so the fused RMS and its neighbors can run in f16. The pass marks the RMS of a
+        // residual-fed norm to stay in FP32, so ConvertPrecision keeps the residual stream in FP32.
+        manager.register_pass<ov::intel_gpu::L2NormToRMS>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::FoldRMSTransposes>();
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         const bool fp16_activation_scaling_enabled =
@@ -1934,7 +1934,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.set_per_pass_validation(false);
 
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
-        manager.register_pass<ov::intel_gpu::L2NormToRMS>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);

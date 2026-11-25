@@ -9,7 +9,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
@@ -223,7 +225,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_L2NormToRMS_rank_six,
                          L2NormToRMS::getTestCaseName);
 
 // Residual stream x0 + x1 + x2 + x3 feeding an L2 norm, f16 inference. With Overflow inputs the sum (~100000)
-// exceeds f16, so the residual stream must stay FP32 (the early L2NormToRMS run must not fuse this norm).
+// exceeds f16, so the residual stream must stay FP32 (L2NormToRMS marks the fused RMS to stay in FP32).
 enum class ResidualRange {
     InRange,   // inputs in [0, 1)
     Overflow,  // inputs in [20000, 30000)
@@ -232,9 +234,29 @@ enum class ResidualRange {
 // What lies between the residual Add and the norm.
 enum class ResidualLink {
     Direct,
-    BiasAdd,  // Add of a constant bias
-    Reshape,  // rank-changing Reshape {1, 16, 64} -> {16, 64}
+    BiasAdd,    // Add of a constant bias
+    Reshape,    // rank-changing Reshape {1, 16, 64} -> {16, 64}
+    Abs,        // unary elementwise arithmetic
+    Broadcast,  // {1, 16, 64} -> {2, 16, 64}
 };
+
+const char* to_string(ResidualLink link) {
+    switch (link) {
+    case ResidualLink::Direct:
+        return "Direct";
+    case ResidualLink::BiasAdd:
+        return "BiasAdd";
+    case ResidualLink::Reshape:
+        return "Reshape";
+    case ResidualLink::Abs:
+        return "Abs";
+    case ResidualLink::Broadcast:
+        return "Broadcast";
+    }
+    return "Unknown";
+}
+
+const std::vector<ResidualLink> residual_links{ResidualLink::Direct, ResidualLink::BiasAdd, ResidualLink::Reshape, ResidualLink::Abs, ResidualLink::Broadcast};
 
 using ResidualOverflowParams = std::tuple<ResidualRange, ResidualLink>;
 
@@ -245,7 +267,7 @@ public:
         const auto& [range, link] = obj.param;
         std::ostringstream name;
         name << (range == ResidualRange::Overflow ? "Overflow" : "InRange") << "_";
-        name << (link == ResidualLink::Direct ? "Direct" : link == ResidualLink::BiasAdd ? "BiasAdd" : "Reshape");
+        name << to_string(link);
         return name.str();
     }
 
@@ -255,6 +277,10 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+        // The InRange and Overflow cases compile the same model (also as the TEMPLATE reference). With a cache_dir left
+        // on the shared core by an earlier test, the second compile imports the first's blob, whose inputs are other
+        // Parameter nodes, and set_tensor fails. Restore the default (no model cache).
+        core->set_property(ov::cache_dir(""));
         inType = outType = ov::element::f32;
         abs_threshold = 5e-3;
         rel_threshold = 1e-2;
@@ -276,6 +302,11 @@ protected:
         } else if (link == ResidualLink::Reshape) {
             auto target_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {shape[1], shape[2]});
             residual = std::make_shared<ov::op::v1::Reshape>(residual, target_shape, false);
+        } else if (link == ResidualLink::Abs) {
+            residual = std::make_shared<ov::op::v0::Abs>(residual);
+        } else if (link == ResidualLink::Broadcast) {
+            auto target_shape = ov::op::v0::Constant::create(ov::element::i64, {3}, {size_t{2}, shape[1], shape[2]});
+            residual = std::make_shared<ov::op::v3::Broadcast>(residual, target_shape);
         }
 
         // ONNX LpNormalization(p=2) lowering with FLT_EPSILON, as the ONNX frontend produces it
@@ -311,8 +342,7 @@ TEST_P(L2NormToRMSResidualOverflow, Inference) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_L2NormToRMS_residual_overflow,
                          L2NormToRMSResidualOverflow,
-                         ::testing::Combine(::testing::Values(ResidualRange::InRange, ResidualRange::Overflow),
-                                            ::testing::Values(ResidualLink::Direct, ResidualLink::BiasAdd, ResidualLink::Reshape)),
+                         ::testing::Combine(::testing::Values(ResidualRange::InRange, ResidualRange::Overflow), ::testing::ValuesIn(residual_links)),
                          L2NormToRMSResidualOverflow::getTestCaseName);
 
 // L2 norm with gamma = (Convert(u16 weight) - zp) * scale, weight up to 65535, f16 inference. The u16 weight is a model

@@ -13,10 +13,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
@@ -25,7 +28,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
+#include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
 using namespace testing;
@@ -212,40 +217,105 @@ std::shared_ptr<ov::Model> make_model(const std::shared_ptr<ov::Node>& out, cons
     return std::make_shared<ov::Model>(ov::OutputVector{out}, params);
 }
 
+// What lies between the residual Add and the norm. The FP32 mark propagates up through each of these ops.
+enum class ResidualLink {
+    Direct,
+    BiasAdd,    // Add of a constant bias
+    Reshape,    // rank-changing Reshape {1, 16, n} -> {16, n}
+    Abs,        // unary elementwise arithmetic
+    Broadcast,  // {1, 16, n} -> {2, 16, n}
+};
+
+ov::Output<ov::Node> link_to_norm(const ov::Output<ov::Node>& residual, ResidualLink link) {
+    switch (link) {
+    case ResidualLink::Direct:
+        return residual;
+    case ResidualLink::BiasAdd:
+        return add_bias(residual);
+    case ResidualLink::Reshape:
+        return std::make_shared<ov::op::v1::Reshape>(residual, ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{16, hidden}), false);
+    case ResidualLink::Abs:
+        return std::make_shared<ov::op::v0::Abs>(residual);
+    case ResidualLink::Broadcast:
+        return std::make_shared<ov::op::v3::Broadcast>(residual, ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{2, 16, hidden}));
+    }
+    OPENVINO_THROW("unknown ResidualLink");
+}
+
+// L2NormToRMS followed by the f32 -> f16 ConvertPrecision of the GPU pipeline (precision-sensitive subgraphs kept in
+// FP32, model inputs and outputs keep their types).
+void fuse_and_convert_to_f16(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::Manager manager;
+    manager.register_pass<L2NormToRMS>(1024);
+    manager.register_pass<ov::pass::ConvertPrecision>(ov::element::f32, ov::element::f16, type_to_fuse_map{}, true, false);
+    manager.run_passes(model);
+}
+
+std::shared_ptr<ov::op::internal::RMS> single_rms(const std::shared_ptr<ov::Model>& model) {
+    std::shared_ptr<ov::op::internal::RMS> found;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto rms = ov::as_type_ptr<ov::op::internal::RMS>(op)) {
+            EXPECT_EQ(found, nullptr) << "expected a single RMS";
+            found = rms;
+        }
+    }
+    return found;
+}
+
+const std::vector<ResidualLink> residual_links{ResidualLink::Direct, ResidualLink::BiasAdd, ResidualLink::Reshape, ResidualLink::Abs, ResidualLink::Broadcast};
+
+class L2NormToRMSResidualFed : public TransformationTestsF, public WithParamInterface<ResidualLink> {};
+
+class L2NormToRMSResidualFedPipeline : public TestWithParam<ResidualLink> {};
+
 }  // namespace
 
-// Before ConvertPrecision a residual-fed norm is left decomposed, so MarkDivWithEps still keeps the residual stream
-// in FP32.
-TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_ResidualFedNormNotFused) {
-    auto in = residual_stream();
-    model = make_model(l2_norm(in.x, constant_gamma()), in.params);
-    manager.register_pass<L2NormToRMS>(1024, true);
-}
-
-// A bias Add between the residual Add and the norm: the FP32 mark of MarkDivWithEps propagates up through it to
-// the residual stream, so the norm is left decomposed as well.
-TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_ResidualThroughBiasNotFused) {
-    auto in = residual_stream();
-    model = make_model(l2_norm(add_bias(in.x), constant_gamma()), in.params);
-    manager.register_pass<L2NormToRMS>(1024, true);
-}
-
-// The same for a rank-changing Reshape between the residual Add and the norm.
-TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_ResidualThroughReshapeNotFused) {
-    auto in = residual_stream();
-    auto reshape = std::make_shared<ov::op::v1::Reshape>(in.x, ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{16, hidden}), false);
-    model = make_model(l2_norm(reshape, constant_gamma()), in.params);
-    manager.register_pass<L2NormToRMS>(1024, true);
-}
-
-// The late registration (after ConvertPrecision) fuses the residual-fed norm.
-TEST_F(TransformationTestsF, L2NormToRMS_ResidualFedNormFused) {
+// A residual-fed norm is fused and its RMS is marked to stay in FP32, so ConvertPrecision keeps the residual stream
+// in FP32 (as MarkDivWithEps did for the decomposed norm).
+TEST_P(L2NormToRMSResidualFed, FusedAndMarkedFP32) {
     {
         auto in = residual_stream();
-        model = make_model(l2_norm(in.x, constant_gamma()), in.params);
+        model = make_model(l2_norm(link_to_norm(in.x, GetParam()), constant_gamma()), in.params);
     }
     {
         auto in = residual_stream();
+        auto fused = rms(link_to_norm(in.x, GetParam()), constant_gamma(), ov::element::f32);
+        ov::disable_conversion(fused, ov::element::f16);
+        model_ref = make_model(fused, in.params);
+    }
+    manager.register_pass<L2NormToRMS>(1024);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// After ConvertPrecision the residual Adds and the RMS stay in FP32.
+TEST_P(L2NormToRMSResidualFedPipeline, ResidualStreamStaysFP32AfterConvertPrecision) {
+    auto in = residual_stream();
+    auto m = make_model(l2_norm(link_to_norm(in.x, GetParam()), constant_gamma()), in.params);
+    fuse_and_convert_to_f16(m);
+
+    const auto fused = single_rms(m);
+    ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(fused->get_output_element_type(0), ov::element::f32);
+    for (const auto& op : m->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v1::Add>(op)) {
+            EXPECT_EQ(op->get_output_element_type(0), ov::element::f32) << op->get_friendly_name();
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, L2NormToRMSResidualFed, ValuesIn(residual_links));
+INSTANTIATE_TEST_SUITE_P(smoke, L2NormToRMSResidualFedPipeline, ValuesIn(residual_links));
+
+// A norm fed by a bias Add is not residual-fed: fused without the FP32 mark.
+TEST_F(TransformationTestsF, L2NormToRMS_BiasFedNormFused) {
+    {
+        auto in = bias_only();
+        model = make_model(l2_norm(in.x, constant_gamma()), in.params);
+    }
+    {
+        auto in = bias_only();
         model_ref = make_model(rms(in.x, constant_gamma(), ov::element::f32), in.params);
     }
     manager.register_pass<L2NormToRMS>(1024);
@@ -253,23 +323,46 @@ TEST_F(TransformationTestsF, L2NormToRMS_ResidualFedNormFused) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_BiasFedNormFused) {
-    {
-        auto in = bias_only();
-        model = make_model(l2_norm(in.x, constant_gamma()), in.params);
+// A q/k-norm-like L2 norm fed by a MatMul (not a residual connection) runs in f16 after ConvertPrecision.
+TEST(L2NormToRMSPipeline, NonResidualNormRunsInF16) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+    auto q = std::make_shared<ov::op::v0::MatMul>(x, ov::op::v0::Constant::create(ov::element::f32, {hidden, hidden}, {0.01f}));
+    auto m = make_model(l2_norm(q, constant_gamma()), {x});
+    fuse_and_convert_to_f16(m);
+
+    const auto fused = single_rms(m);
+    ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(fused->get_output_element_type(0), ov::element::f16);
+}
+
+// gamma = (Convert(u16 model input) - zp) * scale, as ONNX Runtime with the OpenVINO EP feeds a shared gamma
+// initializer: after ConvertPrecision the Convert of the u16 input still converts to f32 (to f16, 65535 is inf), and
+// the dequantization stays in FP32. (The RMS itself may run in f16; the scaled gamma fits in f16.)
+TEST(L2NormToRMSPipeline, U16GammaModelInputConvertStaysFP32) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+    auto weight = std::make_shared<ov::op::v0::Parameter>(ov::element::u16, ov::Shape{hidden});
+    auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+    auto zp = std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::u16, {}, {127}), ov::element::f32);
+    auto shifted = std::make_shared<ov::op::v1::Subtract>(weight_convert, zp);
+    auto gamma = std::make_shared<ov::op::v1::Multiply>(shifted, ov::op::v0::Constant::create(ov::element::f32, {}, {0.000855f}));
+    auto m = make_model(l2_norm(x, gamma), {x, weight});
+    fuse_and_convert_to_f16(m);
+
+    const auto fused = single_rms(m);
+    ASSERT_NE(fused, nullptr);
+    ASSERT_EQ(weight->get_output_target_inputs(0).size(), 1);
+    const auto* convert = weight->get_output_target_inputs(0).begin()->get_node();
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Convert>(convert));
+    EXPECT_EQ(convert->get_output_element_type(0), ov::element::f32);
+    for (const ov::Node* node : std::initializer_list<const ov::Node*>{shifted.get(), gamma.get()}) {
+        EXPECT_EQ(node->get_output_element_type(0), ov::element::f32) << node->get_friendly_name();
     }
-    {
-        auto in = bias_only();
-        model_ref = make_model(rms(in.x, constant_gamma(), ov::element::f32), in.params);
-    }
-    manager.register_pass<L2NormToRMS>(1024, true);
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 // A norm fused before ConvertPrecision with gamma dequantized from u16: the scaled gamma is marked to stay in FP32
 // (no Divide is left for MarkDivWithEps, and a u16 -> f16 conversion of 65535 gives inf).
-TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_U16DequantizedGammaKeptFP32) {
+TEST_F(TransformationTestsF, L2NormToRMS_U16DequantizedGammaKeptFP32) {
     {
         auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
         model = make_model(l2_norm(x, u16_dequantized_gamma()), {x});
@@ -278,7 +371,7 @@ TEST_F(TransformationTestsF, L2NormToRMSSkipResidualInput_U16DequantizedGammaKep
         auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
         model_ref = make_model(rms(x, u16_dequantized_gamma(), ov::element::f32), {x});
     }
-    manager.register_pass<L2NormToRMS>(1024, true);
+    manager.register_pass<L2NormToRMS>(1024);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
