@@ -115,7 +115,12 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 data_types input_dtype = prev_node.get_input_layout().data_type;
                 updated_input_layout.data_type = input_dtype;
 
-                // Need to update input format in case of fusing weights constant with transpose
+                // Need to update input format in case of fusing weights constant with transpose.
+                // Derive groupedness from updated_input_layout.format rather than get_grouped():
+                // OCL grouped convolutions use grouped weight formats (goiyx/goizyx), whereas
+                // oneDNN grouped convolutions keep plain data formats (e.g. bfzyx -> oizyx).
+                // Align default-format rank to the target weights reorder input rank (e.g. 5D FC
+                // weights reshaped to 2D) so weights reorder kernels see matching dimensions.
                 format input_fmt = prev_node.get_input_layout().format;
                 const bool is_grouped = format::is_grouped(updated_input_layout.format);
                 if (format::is_default_format(input_fmt) &&

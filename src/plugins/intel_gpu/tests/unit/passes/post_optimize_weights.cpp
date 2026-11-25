@@ -309,7 +309,7 @@ static void check_folded_fc_weights(program_node& node, const std::vector<T>& sr
 TEST(post_optimize_weights, fc_5d_weights_reorder_constant_folding_test) {
     auto& engine = get_test_engine();
 
-    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfyx};
+    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfzyx};
     ov::Shape weight_shape = {1, 1, 1, 32, 16};
     auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::f16, format::bfzyx});
 
@@ -326,7 +326,7 @@ TEST(post_optimize_weights, fc_5d_weights_reorder_constant_folding_test) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::ocl};
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfzyx, "", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
 
     auto prog = program::build_program(engine, topology, config, false, true);
@@ -348,7 +348,7 @@ TEST(post_optimize_weights, fc_5d_weights_reorder_constant_folding_test) {
 TEST(post_optimize_weights, fc_5d_fuse_reorder_to_weights_reorder_test) {
     auto& engine = get_test_engine();
 
-    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfyx};
+    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfzyx};
     ov::Shape weight_shape = {1, 1, 1, 32, 16};
     auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::f32, format::bfzyx});
 
@@ -366,7 +366,7 @@ TEST(post_optimize_weights, fc_5d_fuse_reorder_to_weights_reorder_test) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::ocl};
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfzyx, "", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
 
     auto prog = program::build_program(engine, topology, config, false, true);
