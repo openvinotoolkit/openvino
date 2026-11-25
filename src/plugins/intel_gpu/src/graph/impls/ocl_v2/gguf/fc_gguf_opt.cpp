@@ -237,7 +237,6 @@ GgufTranscodeTarget transcode_target(element::Type_t t, size_t N) {
 // subclasses (FCGGUFQ{4k,5k,6k,40,41,80}SgGenerator) are in the shared header:
 //   fc_gguf_shuffle_gen.hpp
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
 // Q4_K / Q6_K "weight shuffle" path: when enabled, the weight was reordered once (compile_model) into
 // the SG-transposed plane-separated layout that the sub-group-block-read GEMV kernels (fc_gguf_gemv_opt.cl) and the shuffle-aware prefill transcode consume
 // with fully coalesced weight loads. Same total bytes, bit-exact. Default ON; set OV_GPU_GGUF_SHUFFLE=0 to disable. Must match the RepackGGUFWeightsShuffle
@@ -273,6 +272,7 @@ bool gguf_shuffle_applicable(element::Type_t t, size_t N, size_t K) {
     return (N % GGUF_GEMV_SG_SIZE == 0) && (K % 256 == 0);
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 // Opt-in f16 prefill (OV_GPU_GGUF_PREFILL_F16=1, default on). When on, the prefill transcode kernel
 // fully dequantises the GGUF weight into an f16 scratchpad and the direct dnnl::matmul runs as a plain
 // f16 x f16 GEMM (no WOQ scales) instead of the default i4/i8 weight-only-quantised path. This trades
@@ -692,6 +692,8 @@ protected:
     }
 };
 
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 // =================================================================================================
 // Prefill GEMM (OCL dpas kernels fc_gguf_gemm_opt.cl, or the CM kernels gemm_q*_full.cm for comparison).
 //
@@ -705,7 +707,7 @@ constexpr int GGUF_CM_TOKENS_PER_TILE = 8;  // dpas RepeatCount (fixed by the IS
 constexpr int CONV_ACT_BLOCK = 64;  // elements converted per thread
 constexpr int CONV_ACT_LOCAL = 16;  // threads per work-group
 
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
 struct CmGemmConfig {
     int row_groups;    // N-dimension blocking (ROW_GROUPS)
     int token_groups;  // token dimension register blocking (TOKEN_GROUPS)
@@ -826,11 +828,24 @@ struct OclGemmConfig {
     int n_band;        // GG_N_BAND: work-group band swizzle (0 = plain dispatch order)
 };
 
+gpu_arch gguf_ocl_gemm_arch(const cldnn::device_info& device) {
+    if (device.arch != gpu_arch::unknown) {
+        return device.arch;
+    }
+    if (device.gfx_ver.major == 30) {
+        return gpu_arch::xe3;
+    }
+    if (device.gfx_ver.major >= 20) {
+        return gpu_arch::xe2;
+    }
+    return gpu_arch::unknown;
+}
+
 OclGemmConfig pick_ocl_gemm_config(const RuntimeParams& params, bool small_m = false) {
     if (small_m) {
         return OclGemmConfig{2, 1, 4, 1, 4, false, 0};
     }
-    if (params.get_device_info().arch >= gpu_arch::xe3) {
+    if (gguf_ocl_gemm_arch(params.get_device_info()) >= gpu_arch::xe3) {
         // PTL (Arc B390), 256 GRF: every sub-group owns 32 tokens x 64 outputs. The 4-bit formats decode cheaply
         // enough to share each activation tile between two row blocks (256 tokens x 128 outputs per work-group);
         // Q5_K / Q6_K / Q8_0 run best with 256 tokens x 64 outputs per work-group.
@@ -1001,7 +1016,7 @@ std::string gguf_ocl_gemm_blocker(const RuntimeParams& params, bool shuffled_fam
         return r;
     }
     const auto& dev = params.get_device_info();
-    if (dev.arch < gpu_arch::xe2) {
+    if (gguf_ocl_gemm_arch(dev) < gpu_arch::xe2) {
         return "GPU architecture is older than Xe2";
     }
     if (!dev.supports_intel_subgroups_short || !dev.supports_intel_subgroups_char || !dev.supports_intel_subgroup_2d_block_io ||
@@ -1011,7 +1026,7 @@ std::string gguf_ocl_gemm_blocker(const RuntimeParams& params, bool shuffled_fam
     return {};
 }
 
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
 // CM kernels only post-process relu / swish and binary sum / prod fused ops.
 std::string gguf_cm_fused_blocker(const RuntimeParams& params) {
     if (!params.has_fused_primitives()) {
@@ -1049,7 +1064,7 @@ std::string gguf_cm_fused_blocker(const RuntimeParams& params) {
 #    endif
 
 std::string gguf_cm_gemm_blocker([[maybe_unused]] const program_node& node, const RuntimeParams& params, bool shuffled_family) {
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
     const CmGemmConfig cm_cfg = pick_cm_gemm_config(params, params.input_layouts[1].get_shape()[1]);
     const size_t cm_align = GGUF_GEMV_SG_SIZE * static_cast<size_t>(cm_cfg.row_groups) * static_cast<size_t>(cm_cfg.row_blocks);
     if (auto r = gguf_gemm_common_blocker(params, shuffled_family, cm_align); !r.empty()) {
@@ -1093,13 +1108,21 @@ PrefillKernel gguf_select_prefill_kernel(const program_node& node, const Runtime
         OPENVINO_WARN("[GPU] FCGGUFOpt: node '", node_name, "' cannot use prefill GEMM kernel 'cm' (", cm_block, "); using 'ocl'.");
         return PrefillKernel::ocl;
     }
+#ifdef ENABLE_ONEDNN_FOR_GPU
     if (family) {
         OPENVINO_WARN("[GPU] FCGGUFOpt: node '", node_name, "' prefill falls back to transcode + oneDNN (", preferred_name, " GEMM: ", preferred_block, ").");
     }
     return PrefillKernel::onednn;
+#else
+    if (shuffled_family) {
+        OPENVINO_WARN("[GPU] FCGGUFOpt: node '", node_name, "' prefill uses SG GEMV (",
+                      preferred_name, " GEMM: ", preferred_block, "; oneDNN disabled).");
+    }
+    return PrefillKernel::none;
+#endif
 }
 
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
 // ==========================================================================
 // Shared CM kernel-data builder.
 //
@@ -1452,8 +1475,7 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
     }
 };
-#    endif  // ENABLE_CM_FOR_GPU
-#endif      // ENABLE_ONEDNN_FOR_GPU
+#endif  // ENABLE_ONEDNN_FOR_GPU && ENABLE_CM_FOR_GPU
 
 class FCGGUFOptImpl : public PrimitiveImplOCL {
 public:
@@ -1466,6 +1488,7 @@ public:
     Stage::Ptr transcode_stage = make_stage<FCGGUFTranscodeGenerator>();
     // Per-token activation DQ stage (prefill W4A8 path): FP16 -> INT8 + scale.
     Stage::Ptr act_dq_stage = make_stage<FCGGUFActDQGenerator>();
+#endif
     // Q4_K / Q6_K weight-shuffle decode path (OV_GPU_GGUF_SHUFFLE=1): coalesced sub-group-block-read
     // GEMV over the SG-shuffled weight that RepackGGUFWeightsShuffle produced at compile_model. One
     // stage per format (each owns its own kernel entry point).
@@ -1483,7 +1506,7 @@ public:
                                                              make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[3], kOclGemmFormatDefines[3]),
                                                              make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[4], kOclGemmFormatDefines[4]),
                                                              make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[5], kOclGemmFormatDefines[5])};
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
     // ... and the CM kernels (OV_GPU_GGUF_PREFILL_GEMM=cm, comparison aid) plus their fp32->fp16 activation pre-pass.
     std::array<Stage::Ptr, GGUF_GEMM_FORMATS> cm_gemm_stages = {make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[0]),
                                                                 make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[1]),
@@ -1496,7 +1519,6 @@ public:
     cldnn::memory::ptr m_act_f16_scratch;
     size_t m_act_f16_scratch_elems = 0;
     bool m_cm_scratch_active = false;
-#    endif
 #endif
 
     // Kernel used for prefill (M > threshold) on this node; chosen once in the constructor (see
@@ -1544,7 +1566,6 @@ public:
     std::shared_ptr<TranscodeArena> m_transcode_arena;
 #endif
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
     std::array<Stage::Ptr, GGUF_GEMM_FORMATS> tail_gemm_stages = {
         make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[0], kOclGemmFormatDefines[0], false, true),
         make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[1], kOclGemmFormatDefines[1], false, true),
@@ -1559,8 +1580,6 @@ public:
         make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[3], kOclGemmFormatDefines[3], true),
         make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[4], kOclGemmFormatDefines[4], true),
         make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[5], kOclGemmFormatDefines[5], true)};
-#endif
-
     FCGGUFOptImpl() : PrimitiveImplOCL(FCGGUFOpt::get_type_info_static()) {
         if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_THRESHOLD")) {
             const long v = std::atol(env);
@@ -1581,7 +1600,6 @@ public:
     }
     FCGGUFOptImpl(const program_node& node, const RuntimeParams& params) : FCGGUFOptImpl() {
         add_stage(gguf_stage, params);
-#ifdef ENABLE_ONEDNN_FOR_GPU
         const auto wet = params.input_layouts[1].data_type;
 
         // Weight-shuffle gate for Q4_K / Q5_K / Q6_K (native 256-elem block) and the small-block formats
@@ -1600,6 +1618,7 @@ public:
             return gguf_shuffle_applicable(wl.data_type, N, K);
         }();
 
+    #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& weight_shape = params.input_layouts[1].get_shape();
         const auto weight_type = static_cast<element::Type_t>(wet);
         m_act_dq_group = gguf_act_dq_safe_group_size(weight_shape[1], weight_type, weight_shape[0]);
@@ -1607,6 +1626,7 @@ public:
         const int block_elem = shuffle_applicable && gguf_is_small_shuffle_format(weight_type)
                                    ? 256 : static_cast<int>(element::Type(weight_type).block_elem_count());
         m_requant_group = gguf_requant_group(block_elem);
+    #endif
 
         if (shuffle_applicable && wet == element::Type_t::gguf_q4_k) {
             m_q4k_shuffle = true;
@@ -1634,30 +1654,33 @@ public:
         m_gemm_strict = gguf_prefill_gemm_strict();
         m_prefill_kernel = gguf_select_prefill_kernel(node, params, shuffle_applicable && m_gemm_family, m_gemm_family, m_gemm_strict);
         switch (m_prefill_kernel) {
-        case PrefillKernel::ocl:
+        case PrefillKernel::ocl: {
+            const auto arch = gguf_ocl_gemm_arch(params.get_device_info());
             add_stage(gemm_stages[static_cast<size_t>(fmt_idx)], params);
-            if (m_prefill_threshold < m_small_m_threshold && params.get_device_info().arch >= gpu_arch::xe3) {
+            if (m_prefill_threshold < m_small_m_threshold && arch >= gpu_arch::xe3) {
                 add_stage(small_m_gemm_stages[static_cast<size_t>(fmt_idx)], params);
             }
-            if (params.get_device_info().arch == gpu_arch::xe3 &&
+            if (arch == gpu_arch::xe3 &&
                 (wet == data_types::gguf_q4_k || wet == data_types::gguf_q6_k)) {
                 add_stage(tail_gemm_stages[static_cast<size_t>(fmt_idx)], params);
             }
             break;
+        }
         case PrefillKernel::cm:
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
             add_stage(cm_gemm_stages[static_cast<size_t>(fmt_idx)], params);
             add_stage(cm_act_conv_stage, params);
-#    endif
+#endif
             break;
         case PrefillKernel::onednn:
+#ifdef ENABLE_ONEDNN_FOR_GPU
             add_stage(transcode_stage, params);
             add_stage(act_dq_stage, params);
+#endif
             break;
         case PrefillKernel::none:
             break;
         }
-#endif
     }
 
     void save(cldnn::BinaryOutputBuffer& ob) const override {
@@ -1755,7 +1778,6 @@ public:
         // SHAPE_CHANGED flag all the way to this custom multi-stage execute() path, so refresh dispatch
         // unconditionally before enqueueing the shape-agnostic kernel.
         gguf_stage->kd.need_dispatch_data_update = true;
-#ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& params = *instance.get_impl_params();
         const auto& in0 = params.get_input_layout(0);
         const auto& in1 = params.get_input_layout(1);
@@ -1789,13 +1811,17 @@ public:
                 case PrefillKernel::ocl:
                     return execute_ocl_gemm(events, instance, fmt);
                 case PrefillKernel::cm:
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
                     return execute_cm_gemm(events, instance, M, fmt);
-#    else
+#else
                     break;
-#    endif
+#endif
                 case PrefillKernel::onednn:
+#ifdef ENABLE_ONEDNN_FOR_GPU
                     return execute_transcode_plus_onednn_woq(events, instance, M);
+#else
+                    break;
+#endif
                 case PrefillKernel::none:
                     break;
                 }
@@ -1811,12 +1837,10 @@ public:
                 return execute_shuffle_gemv(events, instance, M);
             }
         }
-#endif
-        // Memory-bound / small-M (or OneDNN disabled): run only the GEMV stage.
+    // Unshuffled weights use the raw GEMV stage.
         return execute_stage(events, instance, gguf_stage);
     }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
 private:
     // Bring the base auto-args execute_stage overloads into scope (the explicit-args overload below
     // would otherwise hide them by name).
@@ -1902,7 +1926,7 @@ private:
         return execute_stage(events, instance, gemm);
     }
 
-#    ifdef ENABLE_CM_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
     // ---- Prefill GEMM (CM): gemm_q*_full.cm, kept for comparison (OV_GPU_GGUF_PREFILL_GEMM=cm). ----
     cldnn::event::ptr execute_cm_gemm(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t M, size_t fmt) {
         Stage& gemm = *cm_gemm_stages[fmt];
@@ -1968,8 +1992,9 @@ private:
                              /*needs_shape_info=*/false,
                              /*scalars=*/{total_elems_scalar});
     }
-#    endif
+#endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
     // Cached direct dnnl::matmul WOQ primitive keyed by (gguf type, M, K, N). K/N are static per node
     // so in practice the cache holds one entry per distinct prefill M.
     struct GgufMatmul {
@@ -2379,6 +2404,7 @@ private:
         }
         return transcode_ev;
     }
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
     // Q4_K / Q6_K weight-shuffle decode: the FC weight is already the SG-shuffled buffer (produced by
     // RepackGGUFWeightsShuffle), so the sub-group-block-read GEMV reads it with coalesced loads. Each
@@ -2424,7 +2450,6 @@ private:
                              /*needs_shape_info=*/needs_shape_info);
     }
 
-#endif  // ENABLE_ONEDNN_FOR_GPU
 };
 
 }  // namespace

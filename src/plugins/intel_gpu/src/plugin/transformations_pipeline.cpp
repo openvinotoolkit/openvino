@@ -1990,7 +1990,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
-    #ifdef ENABLE_ONEDNN_FOR_GPU
+    #if defined(OV_GPU_WITH_OCL_RT) || defined(ENABLE_ONEDNN_FOR_GPU)
         manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>(true);
     #endif
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);

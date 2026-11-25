@@ -44,7 +44,7 @@ using namespace ov_gguf_test;
 
 namespace {
 
-#ifdef GGUF_GPU_NATIVE_TESTS
+#if defined(GGUF_GPU_NATIVE_TESTS) || defined(GGUF_GPU_RAW_OCL_TESTS)
 class GgufScopedEnvironment {
 public:
     GgufScopedEnvironment(const char* name, const char* value) : name(name) {
@@ -2287,13 +2287,23 @@ TEST_F(GGUFQ8Projection, SharedModelCompilesInEitherDeviceOrder) {
 }
 
 #ifdef GGUF_GPU_RAW_OCL_TESTS
-TEST_F(GGUFProjection, Q4KFileExecutesRawOclAtMultipleRowCounts) {
+class GGUFQ4KDispatch : public GGUFProjection, public testing::WithParamInterface<bool> {};
+
+TEST_P(GGUFQ4KDispatch, FileExecutesAtMultipleRowCounts) {
+    const bool shuffled = GetParam();
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", shuffled ? "1" : "0");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    GgufScopedEnvironment prefill("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
+    const auto* strict_env = std::getenv("OV_GPU_GGUF_PREFILL_GEMM_STRICT");
+    const bool require_gemm = shuffled && strict_env && std::string(strict_env) == "1";
+    GgufScopedEnvironment strict("OV_GPU_GGUF_PREFILL_GEMM_STRICT", require_gemm ? "1" : "0");
     ov::Core core;
     const auto devices = core.get_available_devices();
     if (std::find(devices.begin(), devices.end(), "GPU") == devices.end()) {
         GTEST_SKIP() << "GPU device unavailable";
     }
     constexpr size_t width = 256;
+    RecordProperty("device", core.get_property("GPU", ov::device::full_name));
     const auto blocks = load_npy<uint8_t>("q4_k_qbytes");
     const auto decoded = load_npy<float>("q4_k_deq");
     ASSERT_EQ(blocks.size(), 4 * 144);
@@ -2329,7 +2339,7 @@ TEST_F(GGUFProjection, Q4KFileExecutesRawOclAtMultipleRowCounts) {
     auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32),
                                        ov::enable_profiling(true));
     auto request = compiled.create_infer_request();
-    for (size_t rows : {1u, 33u, 1u}) {
+    for (size_t rows : {1u, 33u, 128u, 257u, 1u}) {
         SCOPED_TRACE(rows);
         ov::Tensor input(ov::element::f32, {rows, width});
         std::fill_n(input.data<float>(), input.get_size(), 0.f);
@@ -2341,12 +2351,6 @@ TEST_F(GGUFProjection, Q4KFileExecutesRawOclAtMultipleRowCounts) {
         const auto output = request.get_output_tensor();
         ASSERT_EQ(output.get_shape(), (ov::Shape{rows, width}));
         ASSERT_EQ(output.get_element_type(), ov::element::f32);
-        for (size_t row = 0; row < rows; ++row) {
-            for (size_t channel = 0; channel < width; ++channel) {
-                const auto expected = decoded[(channel % 4) * width + (7 * row + 13) % width];
-                EXPECT_NEAR(output.data<const float>()[row * width + channel], expected, 1e-4f);
-            }
-        }
         std::vector<std::string> executed;
         for (const auto& op : compiled.get_runtime_model()->get_ordered_ops()) {
             const auto& info = op->get_rt_info();
@@ -2357,12 +2361,31 @@ TEST_F(GGUFProjection, Q4KFileExecutesRawOclAtMultipleRowCounts) {
             }
         }
         ASSERT_EQ(executed.size(), 1u);
-        EXPECT_EQ(executed.front().find("fc_gguf_opt_gguf_q4_k_"), 0u);
+        const auto& kernel = executed.front();
+        const bool gemm = kernel.find("fc_gguf_gemm_q4k") == 0;
+        if (!shuffled) {
+            EXPECT_EQ(kernel.find("fc_gguf_opt_gguf_q4_k_"), 0u);
+        } else if (rows == 1) {
+            EXPECT_EQ(kernel.find("fc_gguf_q4k_sg"), 0u);
+        } else if (require_gemm) {
+            EXPECT_TRUE(gemm) << kernel;
+        } else {
+            EXPECT_TRUE(gemm || kernel.find("fc_gguf_q4k_sg") == 0) << kernel;
+        }
+        for (size_t row = 0; row < rows; ++row) {
+            for (size_t channel = 0; channel < width; ++channel) {
+                const auto value = decoded[(channel % 4) * width + (7 * row + 13) % width];
+                const auto expected = gemm ? static_cast<float>(ov::float16(value)) : value;
+                EXPECT_NEAR(output.data<const float>()[row * width + channel], expected, 1e-4f);
+            }
+        }
         RecordProperty("kernel_m" + std::to_string(rows), executed.front());
         EXPECT_EQ(fc->get_input_node_shared_ptr(1), weights);
         EXPECT_EQ(std::memcmp(weights->get_data_ptr(), payload.data(), payload.size()), 0);
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(OclLayouts, GGUFQ4KDispatch, testing::Bool());
 #endif
 
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
