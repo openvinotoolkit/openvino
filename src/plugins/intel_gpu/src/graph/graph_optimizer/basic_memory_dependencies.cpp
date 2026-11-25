@@ -7,6 +7,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "program_helpers.h"
+#include "class_level_memory_dependencies.h"
 #include "stateless_kv_inst.h"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -34,6 +35,11 @@ void basic_memory_dependencies::run(program& p) {
     auto itr = p.get_processing_order().begin();
     std::vector<size_t> past_outputs;
     size_t owner_diff_count = 0;
+    // P1-C-1 (design 18 section 3.4): with the sum root pool active only the sum WRITERS are marked here. The chain roots / owners are marked by the
+    // backfill of class_level_memory_dependencies (every one of them except the promoted sum roots), computed from the same helper (lemma M).
+    // The predicate reads the 1a report, the config and the queue type only: it cannot change between this pass and class_level_memory_dependencies.
+    const bool defer_root_marks = class_level::sum_root_pool_active(p);
+    std::set<const program_node*> deferred_local;  // B4 bookkeeping only (what the legacy marking would already have written)
 #ifdef ALIAS_B4_DEBUG_CHECKS
     // Defect B transition (Phase 0.5a): nodes marked only by the new owner resolution, with their can_share_buffer before the mark.
     struct owner_only_mark {
@@ -94,7 +100,11 @@ void basic_memory_dependencies::run(program& p) {
                 node->can_share_buffer(false);
                 // The chain root buffer owner (legacy walk) is marked as non-shareable.
                 auto* root = marks->legacy_root;
-                root->can_share_buffer(false);
+                if (defer_root_marks) {
+                    deferred_local.insert(root);
+                } else {
+                    root->can_share_buffer(false);
+                }
 #ifdef ALIAS_B4_DEBUG_CHECKS
                 legacy_marked.insert(root);
 #endif
@@ -107,9 +117,13 @@ void basic_memory_dependencies::run(program& p) {
                 if (owner != root) {
                     ++owner_diff_count;
 #ifdef ALIAS_B4_DEBUG_CHECKS
-                    owner_only_marks.push_back({owner, !owner->can_share_buffer()});
+                    owner_only_marks.push_back({owner, !owner->can_share_buffer() || deferred_local.count(owner) != 0});
 #endif
-                    owner->can_share_buffer(false);
+                    if (defer_root_marks) {
+                        deferred_local.insert(owner);
+                    } else {
+                        owner->can_share_buffer(false);
+                    }
                 }
 
                 for (const auto& user : node->get_users()) {

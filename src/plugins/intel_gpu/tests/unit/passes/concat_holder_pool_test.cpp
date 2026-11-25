@@ -20,6 +20,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/pooling.hpp"
 #include "alias_analysis.h"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
@@ -2063,4 +2064,145 @@ TEST(concat_holder_pool, tb_dup_e_cascade_shared_producer_pipeline) {
     }
     EXPECT_EQ(r.on.out.at("out"), expect);
     EXPECT_EQ(r.on.promoted, 0u) << dump_nodes(prog);
+}
+
+// =================================================================================================================================
+// P1-C-1 (design 18 r3, CL-2): the output-view owner gap that L3 step (5) closes, for an in-place concat holder.
+// Y -> r1 (reorder, network output, compatible-but-not-identical layout), Y -> r2 (identical to r1, merged away by remove_redundant_reorders: the
+// kept r1 inherits r2's user) -> U -> Z, P (two poolings) -> H = concat(Z, P) (in-place holder). U (not a slot) reads the view and both slots are
+// reachable from Y, so the union of the members' restrictions (L3 step 2) does not contain Y by itself: only step (5) closes the gap. After the merge y = r1 is a can_be_optimized + requires_reinterpret
+// view of Y that is an output AND has a user, and Y has no other user: oooq and skipped_branch do not relate Y and H, the direct insertion of r1
+// by past_outputs skips the fold of r1 to Y (pass_manager.h:347-350).
+// =================================================================================================================================
+namespace {
+
+struct out_view_topo {
+    topology t;
+    std::vector<std::string> outs;
+};
+
+out_view_topo topo_output_view_owner(bool plain_user_after) {
+    out_view_topo r;
+    auto& t = r.t;
+    t.add(input_layout("in_y", layout{ov::PartialShape{1, 32, 32, 32}, data_types::f32, format::bfyx}));
+    t.add(activation("Y", input_info("in_y"), activation_func::abs));
+    t.add(reorder("r1", input_info("Y"), format::bfzyx, data_types::f32));
+    t.add(reorder("r2", input_info("Y"), format::bfzyx, data_types::f32));
+    t.add(activation("U", input_info("r2"), activation_func::abs));   // reads the (merged) output view; the slot Z does not read it directly
+    t.add(eltwise("Z", {input_info("U"), input_info("U")}, eltwise_mode::sum, data_types::f16));   // 2|x| as f16: half the bytes of Y
+    t.add(eltwise("P", {input_info("U"), input_info("U")}, eltwise_mode::prod, data_types::f16));   // x^2 as f16; both slots are fed by U (reachable from Y)
+    t.add(concatenation("H", {input_info("Z"), input_info("P")}, 1));   // 64 x 32 x 32 f16 == the bytes of Y
+    t.add(activation("A", input_info("H"), activation_func::abs));
+    r.outs = {"r1", "A"};   // A is a network output: it never takes a pool block, so only H can expose the gap
+    if (plain_user_after) {   // LEGACY characterisation: A is an ordinary pool user followed by an output reorder
+        t.add(reorder("out_A", input_info("A"), format::bfyx, data_types::f32));
+        r.outs = {"r1", "out_A"};
+    }
+    return r;
+}
+
+}  // namespace
+
+namespace {
+
+std::map<std::string, std::vector<float>> run_out_view(network& net, engine& eng) {
+    auto y = eng.allocate_memory(layout{ov::PartialShape{1, 32, 32, 32}, data_types::f32, format::bfyx});
+    set_values(y, vals(32 * 32 * 32, 1));
+    net.set_input_data("in_y", y);
+    auto outs = net.execute();
+    std::map<std::string, std::vector<float>> res;
+    for (auto& o : outs) {
+        res[o.first] = read_f32(o.second.get_memory());
+    }
+    return res;
+}
+
+network::ptr out_view_network(engine& eng, bool holder_pool, bool plain_user_after, std::string* why = nullptr) {
+    auto tp = topo_output_view_owner(plain_user_after);
+    auto cfg = make_cfg(eng, holder_pool);
+    cfg.set_property(ov::intel_gpu::custom_outputs(tp.outs));
+    auto net = get_network(eng, tp.t, cfg, get_test_stream_ptr(), false);
+    (void)why;
+    return net;
+}
+
+// the preconditions of the output-view owner gap on a built program (design 18 r3 C-19): y = r1 is an output with a user, a cbo + requires_reinterpret view
+// of Y, Y has no other user. Returns an empty string if they hold, otherwise the first one that does not.
+std::string out_view_construction_gap(program& p) {
+    auto& y = p.get_node("r1");
+    auto& Y = p.get_node("Y");
+    if (!y.is_output()) {
+        return "r1 is not a network output";
+    }
+    if (y.get_users().empty()) {
+        return "r1 has no user (the duplicate reorder was not merged into it)";
+    }
+    if (!y.can_be_optimized() || !y.as<reorder>().requires_reinterpret()) {
+        return "r1 is not a can_be_optimized + requires_reinterpret view";
+    }
+    if (Y.get_users().size() != 1) {
+        return "Y has more than one user";
+    }
+    return "";
+}
+
+}  // namespace
+
+// C-19c (CL-2, concat holder variant): the owner Y of the output view y = r1 is not related to the holder H by oooq / skipped_branch (the gap exists in the
+// switch-off restriction), the L3 step (5) closes it: H and Y restrict each other, never share a block, the lifetime oracle is clean, outputs equal the
+// switch-off run and the reference.
+TEST(concat_holder_pool, C_19c_output_view_owner_before_holder_never_shares) {
+    auto& eng = get_test_engine();
+    auto net_off = out_view_network(eng, false, false);
+    auto net_on = out_view_network(eng, true, false);
+    auto& off = *net_off->get_program();
+    auto& on = *net_on->get_program();
+    if (const auto why = out_view_construction_gap(on); !why.empty()) {
+        GTEST_SKIP() << "construction not formed: " << why << "\n" << dump_nodes(on);
+    }
+    if (!on.get_node("H").is_pool_class_root()) {
+        GTEST_SKIP() << "construction not formed: the holder H was not promoted\n" << dump_nodes(on);
+    }
+    const bool gap_in_legacy = !off.get_node("H").has_memory_dependency(off.get_node("Y").get_unique_id());
+    if (!gap_in_legacy) {
+        GTEST_SKIP() << "construction not formed: the LEGACY restriction of H already contains Y (the gap is not present)\n" << dump_nodes(off);
+    }
+    EXPECT_TRUE(on.get_node("H").has_memory_dependency(on.get_node("Y").get_unique_id())) << "L3 step (5) must add the owner Y of the view r1 to R(H)\n" << dump_nodes(on);
+    EXPECT_TRUE(on.get_node("Y").has_memory_dependency(on.get_node("H").get_unique_id())) << "... and H to R(Y)";
+    const auto o_off = run_out_view(*net_off, eng);
+    const auto o_on = run_out_view(*net_on, eng);
+    const auto xin = vals(32 * 32 * 32, 1);
+    // output A (a plain output of the concat): equal between the two configurations. (The absolute value is not compared with a host reference: the f32 ->
+    // f16 eltwise on a bfzyx-formatted 4D view is not the subject of this test and was not validated as a reference.)
+    EXPECT_EQ(o_on.at("A"), o_off.at("A")) << "output A equals the switch-off run";
+    std::vector<float> expect_r1;
+    for (float x : xin) {
+        expect_r1.push_back(std::fabs(x));
+    }
+    EXPECT_EQ(o_on.at("r1"), expect_r1) << "the output view r1 of Y keeps the data of Y: H did not take the block of Y";
+    EXPECT_NE(buf_of(*net_on, "H"), buf_of(*net_on, "Y")) << "H must not take the block of Y while the output view of Y is alive";
+    EXPECT_TRUE(lifetime_violations(*net_on).empty());
+}
+
+// C-19L (NB-V3, LEGACY characterisation, DISABLED): with every switch off, a plain pool user that comes after r1 in processing order (A, or N) has r1 in its
+// restriction through past_outputs but not Y, and neither oooq nor skipped_branch relates it to Y (Y's only user is the output view r1, which reaches it): it can
+// take the block of Y while the output view r1 of Y is alive, and the network output r1 is overwritten. REPRODUCED on this graph (the output differs from
+// abs(in_y); A is the node that shares the block, see the printed line). The same gap is what L3 step (5) closes for promoted roots (sum root, concat holder).
+TEST(concat_holder_pool, DISABLED_output_view_owner_skipped_fold_shares_block) {
+    auto& eng = get_test_engine();
+    auto net = out_view_network(eng, false, true);
+    auto& prog = *net->get_program();
+    if (const auto why = out_view_construction_gap(prog); !why.empty()) {
+        GTEST_SKIP() << "construction not formed: " << why;
+    }
+    const auto out = run_out_view(*net, eng);
+    std::vector<float> expect;
+    for (float x : vals(32 * 32 * 32, 1)) {
+        expect.push_back(std::fabs(x));
+    }
+    for (const char* id : {"A", "H", "Z", "U", "P", "out_A"}) {
+        std::cout << "[C-19L] " << id << " shares the buffer of Y: " << (buf_of(*net, id) == buf_of(*net, "Y")) << " restriction has Y: "
+                  << prog.get_node(id).has_memory_dependency(prog.get_node("Y").get_unique_id()) << "\n";
+    }
+    EXPECT_EQ(out.at("r1"), expect) << "LEGACY: the output view r1 of Y is corrupted when a later pool user takes the block of Y";
 }

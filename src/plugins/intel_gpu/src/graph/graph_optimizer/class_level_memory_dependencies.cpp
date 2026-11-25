@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <memory>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <unordered_map>
@@ -84,7 +86,8 @@ std::string to_string(uint32_t m) {
     return s.empty() ? "admitted" : s;
 }
 
-uint32_t pool_admission_reject_mask(const alias_class& k, const program& p, const std::function<bool(uint32_t)>& uid_is_ambiguous) {
+uint32_t pool_admission_reject_mask(const alias_class& k, const program& p, const std::function<bool(uint32_t)>& uid_is_ambiguous,
+                                    const std::unordered_set<const program_node*>* deferred_sum_marks) {
     uint32_t m = 0;
     const auto& cfg = p.get_config();
     // L1-0
@@ -108,8 +111,9 @@ uint32_t pool_admission_reject_mask(const alias_class& k, const program& p, cons
     if (dyn_ok && !root->is_runtime_skippable()) {
         m |= rj_root_kind;
     }
-    // L1-3: the holder must be a poolable node (defect B owner marking and outputs keep it off the pool)
-    if (root == nullptr || !root->can_share_buffer() || root->is_output()) {
+    // L1-3: the holder must be a poolable node (defect B owner marking and outputs keep it off the pool). P1-C-1: a node whose sum mark is deferred
+    // (basic_memory_dependencies did not write it) is non-shareable exactly like with the switch off.
+    if (root == nullptr || !root->can_share_buffer() || (deferred_sum_marks != nullptr && deferred_sum_marks->count(root) != 0) || root->is_output()) {
         m |= rj_root_not_shareable;
     }
     // L1-12: the same producer must not occupy two slots of the holder tree. Leaves are collected through cascaded in-place concats (their
@@ -218,9 +222,9 @@ std::vector<std::vector<uint32_t>> snapshot_restrictions(const restriction_store
     return res;
 }
 
-void materialize_class_restrictions(restriction_store& store, const std::vector<promoted_class>& classes) {
+size_t materialize_class_restrictions(restriction_store& store, const std::vector<promoted_class>& classes, const view_owner_fn* view_owners) {
     if (classes.empty()) {
-        return;
+        return 0;
     }
     const size_t n = store.size();
     std::unordered_map<uint32_t, std::vector<size_t>> nodes_of_uid;
@@ -276,6 +280,117 @@ void materialize_class_restrictions(restriction_store& store, const std::vector<
             }
         }
     }
+    // (5) L3-V: the view owner closure (design 18 section 3.6). A view in R(root) whose fold to its owner was skipped (direct insertion by past_outputs /
+    // lora, early return of add_memory_dependency) leaves the owner out of R(root): add it, in both directions. Single pass, no cascade (lemma V).
+    size_t closures = 0;
+    if (view_owners != nullptr) {
+        std::vector<uint32_t> owners;
+        for (const auto& c : classes) {
+            const uint32_t ruid = store.uid(c.root);
+            const std::vector<uint32_t> snapshot = store.values(c.root);
+            for (uint32_t u : snapshot) {
+                owners.clear();
+                (*view_owners)(u, owners);
+                for (uint32_t o : owners) {
+                    const auto own = member_root.find(o);
+                    if (own != member_root.end() && own->second == c.root) {
+                        continue;   // o belongs to the class of r itself: covered
+                    }
+                    bool added = !contains_sorted(store.values(c.root), o);
+                    store.insert(c.root, o);
+                    const auto it = nodes_of_uid.find(o);
+                    if (it != nodes_of_uid.end()) {
+                        for (size_t j : it->second) {
+                            added = added || !contains_sorted(store.values(j), ruid);
+                            store.insert(j, ruid);
+                        }
+                    }
+                    closures += added ? 1 : 0;
+                }
+            }
+        }
+    }
+    return closures;
+}
+
+std::string check_view_owner_closure(const restriction_store& after, const std::vector<promoted_class>& classes, const view_owner_fn& view_owners) {
+    std::ostringstream err;
+    std::unordered_map<uint32_t, std::vector<size_t>> by_uid;
+    for (size_t i = 0; i < after.size(); ++i) {
+        by_uid[after.uid(i)].push_back(i);
+    }
+    std::unordered_map<uint32_t, size_t> member_root;
+    for (const auto& c : classes) {
+        member_root[after.uid(c.root)] = c.root;
+        for (size_t m : c.members) {
+            member_root[after.uid(m)] = c.root;
+        }
+    }
+    std::vector<uint32_t> owners;
+    for (const auto& c : classes) {
+        const uint32_t ruid = after.uid(c.root);
+        for (uint32_t u : after.values(c.root)) {
+            owners.clear();
+            view_owners(u, owners);
+            for (uint32_t o : owners) {
+                const auto own = member_root.find(o);
+                if (own != member_root.end() && own->second == c.root) {
+                    continue;
+                }
+                if (!contains_sorted(after.values(c.root), o)) {
+                    err << "I-B1-V: owner uid " << o << " of view uid " << u << " is not in R(root uid " << ruid << "); ";
+                }
+                const auto it = by_uid.find(o);
+                if (it == by_uid.end()) {
+                    continue;
+                }
+                for (size_t j : it->second) {
+                    if (!contains_sorted(after.values(j), ruid)) {
+                        err << "I-B1-V: owner uid " << o << " of view uid " << u << " does not carry root uid " << ruid << "; ";
+                    }
+                }
+            }
+        }
+    }
+    return err.str();
+}
+
+view_owner_fn make_program_view_owner_fn(const std::vector<program_node*>& nodes) {
+    struct state {
+        std::vector<const program_node*> nodes;
+        std::unordered_map<uint32_t, std::vector<size_t>> nodes_of_uid;
+        std::unordered_map<uint32_t, std::vector<uint32_t>> cache;
+    };
+    auto st = std::make_shared<state>();
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        st->nodes.push_back(nodes[i]);
+        st->nodes_of_uid[static_cast<uint32_t>(nodes[i]->get_unique_id())].push_back(i);
+    }
+    return [st](uint32_t u, std::vector<uint32_t>& out) {
+        auto c = st->cache.find(u);
+        if (c == st->cache.end()) {
+            std::vector<uint32_t> res;
+            const auto it = st->nodes_of_uid.find(u);
+            if (it != st->nodes_of_uid.end()) {
+                for (size_t ni : it->second) {
+                    const program_node& node = *st->nodes[ni];
+                    const size_t ports = std::max<size_t>(1, node.get_outputs_count());
+                    for (size_t k = 0; k < ports; ++k) {
+                        const program_node* own =
+                            program_helpers::resolve_buffer_owner(node, program_helpers::view_resolution::settled_only, false, static_cast<int32_t>(k)).owner;
+                        if (own != &node) {
+                            const uint32_t ou = static_cast<uint32_t>(own->get_unique_id());
+                            if (std::find(res.begin(), res.end(), ou) == res.end()) {
+                                res.push_back(ou);
+                            }
+                        }
+                    }
+                }
+            }
+            c = st->cache.emplace(u, std::move(res)).first;
+        }
+        out.insert(out.end(), c->second.begin(), c->second.end());
+    };
 }
 
 std::string check_class_invariants(const restriction_store& after, const std::vector<std::vector<uint32_t>>& r0, const std::vector<promoted_class>& classes) {
@@ -413,24 +528,38 @@ namespace class_level {
 
 std::string check_b4_prime(const program& p) {
     std::ostringstream err;
-    auto not_class_route = [&](const program_node& n, const char* what, const program_node& w) {
+    const auto* aa = p.get_alias_analysis();
+    // the writer itself, and for anything but its own promoted sum root the dependency and owner, never carry a class route
+    auto not_class_route = [&](const program_node& n, const char* what, const program_node& w, bool sum_root_allowed) {
         const auto r = primitive_inst::allocation_route(n, 0, n.can_be_optimized());
-        if (r == primitive_inst::alloc_route::POOL_AS_ROOT || r == primitive_inst::alloc_route::ZERO_ALLOC_MEMBER) {
+        if (r == primitive_inst::alloc_route::ZERO_ALLOC_MEMBER) {
             err << "B4': " << what << " " << n.id() << " of in-place writer " << w.id() << " has a class route; ";
+        } else if (r == primitive_inst::alloc_route::POOL_AS_ROOT) {
+            bool ok = false;
+            if (sum_root_allowed && aa != nullptr) {
+                const auto* kw = aa->class_of(w);
+                ok = kw != nullptr && kw->root_node == &n && n.is_pool_class_root() && !n.is_type<concatenation>() && n.has_alias_pool_root() &&
+                     n.get_alias_pool_root_uid() == static_cast<uint32_t>(n.get_unique_id());
+            }
+            if (!ok) {
+                err << "B4': " << what << " " << n.id() << " of in-place writer " << w.id() << " has a class route; ";
+            }
         }
     };
-    for (const auto* w : p.get_processing_order()) {
+    for (auto* w : p.get_processing_order()) {
         const int32_t r = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*w);
         if (r == -1) {
             continue;
         }
         const program_node& d = w->get_dependency(static_cast<size_t>(r));
         const program_node& o = *program_helpers::resolve_buffer_owner(d, program_helpers::view_resolution::settled_only).owner;
-        not_class_route(*w, "writer", *w);
-        not_class_route(d, "dependency", *w);
-        not_class_route(o, "owner", *w);
+        // P1-C-1: only a sum writer may have the promoted root of its own sum class as dependency / owner (I-C1: the writer itself never routes)
+        const bool is_sum_writer = onednn_eltwise_fusing_helpers::sum_writer_root_marks(*w).has_value();
+        not_class_route(*w, "writer", *w, false);
+        not_class_route(d, "dependency", *w, is_sum_writer);
+        not_class_route(o, "owner", *w, is_sum_writer);
     }
-    if (const auto* aa = p.get_alias_analysis()) {
+    if (aa != nullptr) {
         for (const auto& c : aa->classes()) {
             if (c.root_node == nullptr || !c.root_node->is_pool_class_root()) {
                 continue;
@@ -438,8 +567,19 @@ std::string check_b4_prime(const program& p) {
             if (!c.root_node->can_share_buffer()) {
                 err << "B4': promoted root " << c.root_node->id() << " is not shareable; ";
             }
+            const bool sum_class = !c.root_node->is_type<concatenation>();
             for (const auto& m : c.members) {
-                if (m.kind == alias_kind::MUST_INPLACE || m.kind == alias_kind::MAY_INPLACE) {
+                bool bad = m.kind == alias_kind::MAY_INPLACE;
+                if (m.kind == alias_kind::MUST_INPLACE) {
+                    bool by_sum = false;
+                    if (sum_class) {
+                        for (size_t ei : aa->edges_from(*m.node, m.id.index)) {
+                            by_sum = by_sum || aa->edges()[ei].origin == edge_origin::onednn_sum;
+                        }
+                    }
+                    bad = !by_sum;
+                }
+                if (bad) {
                     err << "B4': promoted class of " << c.root_node->id() << " has in-place member " << m.node->id() << "; ";
                 }
             }
@@ -506,8 +646,9 @@ bool sum_root_pool_active(const program& p, std::string* why) {
     return true;
 }
 
-sum_root_marks_index collect_sum_root_marks(const program& p) {
+sum_root_marks_index collect_sum_root_marks(const program& p, std::vector<program_node*>* marked_nodes) {
     sum_root_marks_index idx;
+    std::unordered_set<const program_node*> seen;
     for (auto* node : p.get_processing_order()) {
         const auto m = onednn_eltwise_fusing_helpers::sum_writer_root_marks(*node);
         if (!m) {
@@ -518,8 +659,28 @@ sum_root_marks_index collect_sum_root_marks(const program& p) {
         if (m->owner != m->legacy_root) {
             idx.writers_marking[m->owner].push_back(node);
         }
+        if (marked_nodes != nullptr) {
+            if (seen.insert(m->legacy_root).second) {
+                marked_nodes->push_back(m->legacy_root);
+            }
+            if (seen.insert(m->owner).second) {
+                marked_nodes->push_back(m->owner);
+            }
+        }
     }
     return idx;
+}
+
+void sum_root_backfill::apply() {
+    if (applied) {
+        return;
+    }
+    applied = true;
+    for (auto* n : marked) {
+        if (n != nullptr && promoted.count(n) == 0) {
+            n->can_share_buffer(false);
+        }
+    }
 }
 
 bool is_sum_candidate_class(const alias_class& k, const alias_analysis& aa, bool include_hypothetical) {
@@ -548,8 +709,8 @@ uint32_t sum_class_reject_mask(const alias_class& k, const alias_analysis& aa, c
         root->is_type<concatenation>() || onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*root) != -1) {
         m |= rj_root_kind;
     }
-    // L1S-3 (see the header note: sum marks on the root are not counted before the P1-C-1 deferral)
-    if (root == nullptr || root->is_output() || (!root->can_share_buffer() && marks.writers_marking.count(root) == 0)) {
+    // L1S-3 (P1-C-1, exact): evaluated in the deferred state, where a non-shareable root is non-shareable for a non-sum reason
+    if (root == nullptr || !root->can_share_buffer() || root->is_output()) {
         m |= rj_root_not_shareable;
     }
     std::unordered_set<const program_node*> member_nodes;
@@ -673,9 +834,9 @@ uint32_t sum_class_reject_mask(const alias_class& k, const alias_analysis& aa, c
 
 std::string sum_census::summary() const {
     std::ostringstream os;
-    os << "sum classes: candidates=" << candidates << " promoted=0 would_promote=" << would_promote << " rejected=" << rejected
+    os << "sum classes: candidates=" << candidates << " promoted=" << promoted << " would_promote=" << would_promote << " rejected=" << rejected
        << " would_promote_root_bytes=" << would_promote_root_bytes << " downgraded_roots=" << downgraded_roots << " mixed_concat=" << mixed_concat
-       << " padded_roots=" << padded_roots << " no_edge_sum=" << no_edge_sum << " view_owner_closures=" << view_owner_closures << "(not run in P1-C-0)"
+       << " padded_roots=" << padded_roots << " no_edge_sum=" << no_edge_sum << " view_owner_closures=" << view_owner_closures
        << " reasons={";
     bool first = true;
     for (const auto& kv : reasons) {
@@ -686,14 +847,18 @@ std::string sum_census::summary() const {
     return os.str();
 }
 
-sum_census run_sum_census(const program& p) {
+sum_census run_sum_census(const program& p, const sum_root_marks_index* precomputed_marks) {
     sum_census c;
     const alias_analysis* aa = p.get_alias_analysis();
     if (aa == nullptr) {
         return c;
     }
     const auto t0 = std::chrono::steady_clock::now();
-    const auto marks = collect_sum_root_marks(p);
+    sum_root_marks_index own_marks;
+    if (precomputed_marks == nullptr) {
+        own_marks = collect_sum_root_marks(p);
+    }
+    const auto& marks = precomputed_marks != nullptr ? *precomputed_marks : own_marks;
     const auto amb = [&](uint32_t uid) {
         return aa->uid_is_ambiguous(uid);
     };
@@ -705,6 +870,7 @@ sum_census run_sum_census(const program& p) {
         }
         ++c.candidates;
         sum_class_info info;
+        info.cls = &k;
         info.root_id = k.root_node != nullptr ? k.root_node->id() : std::string("?");
         info.members = k.members.size();
         info.readers = k.readers.size();
@@ -779,41 +945,35 @@ sum_census run_sum_census(const program& p) {
 void class_level_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::ClassLevelMemoryDependencies");
     const auto& cfg = p.get_config();
-    // P1-C-0: census only. Reads the graph and the alias engine, writes nothing (no flag, no restriction, no pool field).
+    // P1-C-1 (design 18 section 3.4, 3.7): with the sum root pool active basic_memory_dependencies marked only the sum writers. The backfill below writes
+    // can_share_buffer(false) on the chain roots / owners it deferred, for every node except the promoted sum roots, on EVERY exit of this function
+    // (early returns and exceptions included): the flags of a rejected class are then the ones of the switch off (theorem F).
+    bool sum_on = false;
     if (cfg.get_enable_sum_root_pool()) {
         std::string why;
-        if (!class_level::sum_root_pool_active(p, &why)) {
+        sum_on = class_level::sum_root_pool_active(p, &why);
+        if (!sum_on) {
             GPU_DEBUG_LOG << "[class_level_memory_dependencies] enable_sum_root_pool ignored: " << why << std::endl;
-        } else {
-            try {
-                [[maybe_unused]] const auto census = class_level::run_sum_census(p);
-                GPU_DEBUG_INFO << "[class_level_memory_dependencies] " << census.summary() << std::endl;
-                for (const auto& ci : census.classes) {
-                    GPU_DEBUG_LOG << "[class_level_memory_dependencies] sum class of " << ci.root_id << " members=" << ci.members << " writers=" << ci.writers
-                                  << " views=" << ci.views << " readers=" << ci.readers << " root_bytes=" << ci.root_bytes
-                                  << " root_padded=" << (ci.root_padded ? 1 : 0) << " origin=" << (ci.downgraded_by_1a ? "downgraded_by_1a" : "natural")
-                                  << " mask=" << class_level::to_string(ci.mask) << std::endl;
-                }
-            } catch (...) {
-#ifndef NDEBUG
-                throw;
-#else
-                GPU_DEBUG_LOG << "[class_level_memory_dependencies] sum census failed (ignored, census is diagnostics only)" << std::endl;
-#endif
-            }
         }
     }
-    if (!cfg.get_enable_concat_holder_pool()) {
+    std::optional<class_level::sum_root_backfill> bf;
+    class_level::sum_root_marks_index marks;
+    if (sum_on) {
+        bf.emplace();
+        marks = class_level::collect_sum_root_marks(p, &bf->marked);
+    }
+    bool concat_on = cfg.get_enable_concat_holder_pool();
+    if (!concat_on) {
         GPU_DEBUG_IF(cfg.get_enable_dynamic_concat_holder_pool()) {
             GPU_DEBUG_LOG << "[class_level_memory_dependencies] enable_dynamic_concat_holder_pool ignored: enable_concat_holder_pool is off" << std::endl;
         }
-        return;
-    }
-    if (cfg.get_queue_type() != QueueTypes::in_order) {
+    } else if (cfg.get_queue_type() != QueueTypes::in_order) {
         GPU_DEBUG_LOG << "[class_level_memory_dependencies] enable_concat_holder_pool ignored: out_of_order queue keeps the LEGACY path" << std::endl;
-        return;
+        concat_on = false;
+    } else if (p.is_internal_program() || p.is_body_program() || !cfg.get_enable_memory_pool()) {
+        concat_on = false;
     }
-    if (p.is_internal_program() || p.is_body_program() || !cfg.get_enable_memory_pool()) {
+    if (!concat_on && !sum_on) {
         return;
     }
     const alias_analysis* aa = p.get_alias_analysis();
@@ -832,46 +992,116 @@ void class_level_memory_dependencies::run(program& p) {
     const auto amb = [&](uint32_t uid) {
         return aa->uid_is_ambiguous(uid);
     };
+    std::unordered_set<const program_node*> deferred;
+    if (sum_on) {
+        deferred.insert(bf->marked.begin(), bf->marked.end());
+    }
     std::vector<class_level::promoted_class> promoted;
     std::vector<const alias_class*> promoted_src;
+    std::vector<bool> promoted_is_sum;
     [[maybe_unused]] size_t rejected = 0;
-    for (const auto& c : aa->classes()) {
-        if (c.root_node == nullptr || !c.root_node->is_type<concatenation>() || !c.root_node->can_be_optimized()) {
-            continue;  // not a holder class: nothing to report either
+    if (concat_on) {
+        for (const auto& c : aa->classes()) {
+            if (c.root_node == nullptr || !c.root_node->is_type<concatenation>() || !c.root_node->can_be_optimized()) {
+                continue;  // not a holder class: nothing to report either
+            }
+            const uint32_t mask = class_level::pool_admission_reject_mask(c, p, amb, sum_on ? &deferred : nullptr);
+            if (mask != 0) {
+                ++rejected;
+                GPU_DEBUG_LOG << "[class_level_memory_dependencies] class of " << c.root_node->id() << " rejected: " << class_level::to_string(mask) << std::endl;
+                continue;
+            }
+            class_level::promoted_class pc;
+            pc.root = idx_of.at(c.root_node);
+            for (const auto& m : c.members) {
+                pc.members.push_back(idx_of.at(m.node));
+            }
+            promoted.push_back(std::move(pc));
+            promoted_src.push_back(&c);
+            promoted_is_sum.push_back(false);
         }
-        const uint32_t mask = class_level::pool_admission_reject_mask(c, p, amb);
-        if (mask != 0) {
-            ++rejected;
-            GPU_DEBUG_LOG << "[class_level_memory_dependencies] class of " << c.root_node->id() << " rejected: " << class_level::to_string(mask) << std::endl;
-            continue;
+    }
+    class_level::sum_census census;
+    if (sum_on) {
+        // The census runs in the deferred state (root flags are the non-sum ones): a class with mask 0 is promoted. In Release a failing census only
+        // means "promote nothing"; the backfill then restores the switch-off flags.
+        try {
+            census = class_level::run_sum_census(p, &marks);
+        } catch (...) {
+#ifndef NDEBUG
+            throw;
+#else
+            census = class_level::sum_census{};
+            GPU_DEBUG_LOG << "[class_level_memory_dependencies] sum census failed: no sum class is promoted" << std::endl;
+#endif
         }
-        class_level::promoted_class pc;
-        pc.root = idx_of.at(c.root_node);
-        for (const auto& m : c.members) {
-            pc.members.push_back(idx_of.at(m.node));
+        for (const auto& ci : census.classes) {
+            GPU_DEBUG_LOG << "[class_level_memory_dependencies] sum class of " << ci.root_id << " members=" << ci.members << " writers=" << ci.writers
+                          << " views=" << ci.views << " readers=" << ci.readers << " root_bytes=" << ci.root_bytes
+                          << " root_padded=" << (ci.root_padded ? 1 : 0) << " origin=" << (ci.downgraded_by_1a ? "downgraded_by_1a" : "natural")
+                          << " mask=" << class_level::to_string(ci.mask) << std::endl;
+            if (ci.mask != 0 || ci.cls == nullptr || std::find(promoted_src.begin(), promoted_src.end(), ci.cls) != promoted_src.end()) {
+                continue;
+            }
+            class_level::promoted_class pc;
+            pc.root = idx_of.at(ci.cls->root_node);
+            for (const auto& m : ci.cls->members) {
+                pc.members.push_back(idx_of.at(m.node));
+            }
+            promoted.push_back(std::move(pc));
+            promoted_src.push_back(ci.cls);
+            promoted_is_sum.push_back(true);
+            ++census.promoted;
         }
-        promoted.push_back(std::move(pc));
-        promoted_src.push_back(&c);
     }
 
     if (!promoted.empty()) {
         program_restriction_store store(nodes);
+        // L3 step (5): owners of the views of R(root), memoised per uid (the settled flags do not change inside this pass)
+        const class_level::view_owner_fn view_owners = class_level::make_program_view_owner_fn(nodes);
 #ifdef P1B_DEBUG_CHECKS
         const auto r0 = class_level::snapshot_restrictions(store);
 #endif
-        class_level::materialize_class_restrictions(store, promoted);
+        census.view_owner_closures = class_level::materialize_class_restrictions(store, promoted, &view_owners);
 #ifdef P1B_DEBUG_CHECKS
         const auto err = class_level::check_class_invariants(store, r0, promoted);
         OPENVINO_ASSERT(err.empty(), "[GPU] P1-B-S class restriction invariants violated: ", err);
+        const auto err_v = class_level::check_view_owner_closure(store, promoted, view_owners);
+        OPENVINO_ASSERT(err_v.empty(), "[GPU] P1-C I-B1-V violated: ", err_v);
 #endif
         for (size_t i = 0; i < promoted.size(); ++i) {
             program_node& root = *nodes[promoted[i].root];
             const uint32_t ruid = static_cast<uint32_t>(root.get_unique_id());
             root.set_pool_class_root(true);
             root.set_alias_pool_root_uid(ruid);
+            if (promoted_is_sum[i]) {
+                // C1/I-C1: no member of a sum class carries a class flag (the writers keep can_share_buffer(false) and route DIRECT; only the root
+                // routes through the pool). Nothing else is written here.
+                bf->promoted.insert(&root);
+                continue;
+            }
             for (const auto& m : promoted_src[i]->members) {
                 if (m.node != &root && is_zero_alloc_member(m)) {
                     nodes[idx_of.at(m.node)]->set_alias_pool_root_uid(ruid);
+                }
+            }
+        }
+        if (bf) {
+            bf->apply();   // the flags are final from here on (Debug checks and the 0.5b shadow validation see them)
+        }
+        // Release-cheap I-C1/I-C2: a sum root is shareable and not a writer; a sum writer never carries a class flag
+        for (size_t i = 0; i < promoted.size(); ++i) {
+            if (!promoted_is_sum[i]) {
+                continue;
+            }
+            const program_node& root = *nodes[promoted[i].root];
+            OPENVINO_ASSERT(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(root) == -1 && root.can_share_buffer() && !root.is_output() &&
+                                primitive_inst::allocation_route(root, 0, root.can_be_optimized()) == primitive_inst::alloc_route::POOL_AS_ROOT,
+                            "[GPU] P1-C I-C2: sum root ", root.id(), " is not a plain pool root");
+            for (const auto& m : promoted_src[i]->members) {
+                if (m.node != &root && onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*m.node) != -1) {
+                    OPENVINO_ASSERT(!m.node->can_share_buffer() && !m.node->is_pool_class_root() && !m.node->has_alias_pool_root(),
+                                    "[GPU] P1-C I-C1: sum writer ", m.node->id(), " of class ", root.id(), " carries a class flag or is shareable");
                 }
             }
         }
@@ -883,6 +1113,10 @@ void class_level_memory_dependencies::run(program& p) {
                 const auto route = primitive_inst::allocation_route(*m.node, 0, m.node->can_be_optimized());
                 if (m.node == promoted_src[i]->root_node) {
                     OPENVINO_ASSERT(route == primitive_inst::alloc_route::POOL_AS_ROOT, "[GPU] P1-B-S I-B2: root ", m.node->id(), " is not routed as pool root");
+                } else if (promoted_is_sum[i]) {
+                    // I-C2: every non-root member of a sum class (writers, views) is DIRECT
+                    OPENVINO_ASSERT(route == primitive_inst::alloc_route::DIRECT, "[GPU] P1-C I-C2: member ", m.node->id(), " of sum class ",
+                                    promoted_src[i]->root_node->id(), " is not DIRECT");
                 } else if (promoted_src[i]->root_node->is_dynamic()) {
                     // P1-B-D I-B2 (dynamic class): slot predecessors are DIRECT (can_share_buffer(false)); MAY_VIEW members may allocate at runtime
                     // under their own uid (LEGACY_POOL, class restrictions keep their uid and gain the root uid) but never as root / zero-alloc member.
@@ -899,11 +1133,28 @@ void class_level_memory_dependencies::run(program& p) {
                 }
             }
         }
+        // I-C3: after the backfill every deferred node except the promoted sum roots is non-shareable
+        if (bf) {
+            for (const auto* n : bf->marked) {
+                OPENVINO_ASSERT(bf->promoted.count(n) != 0 || !n->can_share_buffer(), "[GPU] P1-C I-C3: deferred node ", n->id(), " is shareable after the backfill");
+            }
+        }
 #endif
     }
+    if (bf) {
+        bf->apply();   // no class was promoted: every deferred node is written non-shareable now
+#ifdef P1B_DEBUG_CHECKS
+        for (const auto* n : bf->marked) {
+            OPENVINO_ASSERT(bf->promoted.count(n) != 0 || !n->can_share_buffer(), "[GPU] P1-C I-C3: deferred node ", n->id(), " is shareable after the backfill");
+        }
+#endif
+    }
+    if (sum_on) {
+        GPU_DEBUG_INFO << "[class_level_memory_dependencies] " << census.summary() << std::endl;   // final state: promoted and view_owner_closures filled
+    }
     [[maybe_unused]] const auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count();
-    GPU_DEBUG_INFO << "[class_level_memory_dependencies] promoted " << promoted.size() << " class(es), rejected " << rejected << ", " << elapsed_us << " us"
-                   << std::endl;
+    GPU_DEBUG_INFO << "[class_level_memory_dependencies] promoted " << promoted.size() << " class(es) (sum " << census.promoted << "), rejected " << rejected
+                   << ", view_owner_closures " << census.view_owner_closures << ", " << elapsed_us << " us" << std::endl;
 }
 
 }  // namespace cldnn
