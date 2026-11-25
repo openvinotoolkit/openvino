@@ -1075,11 +1075,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
     with_token_type_ids(make_gqa_multi_tokens_params({{13, 600}}, 32, 8, 128), dflash_token_types({{5, 8}})),
     with_token_type_ids(make_gqa_multi_tokens_params({{16, 250}}, 32, 8, 128), dflash_token_types({{8, 8}})),  // crosses a partition
     with_token_type_ids(make_gqa_multi_tokens_params({{9, 40}, {16, 520}}, 32, 8, 128), dflash_token_types({{1, 8}, {8, 8}})),
-    with_sliding_window(with_token_type_ids(make_gqa_multi_tokens_params({{16, 600}}, 32, 8, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
-                                            dflash_token_types({{8, 8}})),
-                        256),
-    with_token_type_ids(make_gqa_multi_tokens_params({{12, 500}}, 16, 4, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
-                        dflash_token_types({{4, 8}})),
+    // type-1 rows whose causal length fits in the first partition, while their block crosses it
+    with_token_type_ids(make_gqa_multi_tokens_params({{16, 245}}, 32, 8, 128), dflash_token_types({{2, 14}})),
+    with_sliding_window(with_token_type_ids(make_gqa_multi_tokens_params({{16, 245}}, 32, 8, 128), dflash_token_types({{2, 14}})), 8),
+    with_sliding_window(
+        with_token_type_ids(
+            make_gqa_multi_tokens_params({{16, 600}}, 32, 8, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+            dflash_token_types({{8, 8}})),
+        256),
+    with_token_type_ids(
+        make_gqa_multi_tokens_params({{12, 500}}, 16, 4, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+        dflash_token_types({{4, 8}})),
     // window shorter than the block: type-1 rows keep their whole block
     with_sliding_window(with_token_type_ids(make_gqa_multi_tokens_params({{10, 600}}, 8, 2, 128), dflash_token_types({{2, 8}})), 5),
     // block in the middle, block at the start, and short contexts that keep the fallback

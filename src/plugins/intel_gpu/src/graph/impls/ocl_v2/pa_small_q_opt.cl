@@ -42,14 +42,14 @@
 
 // Run of type-1 tokens containing query token `token_off` of the subsequence, as [begin, end) offsets in the subsequence.
 // Subsequences have at most a few tokens on this path, so a serial scan is enough.
-inline uint FUNC(type1_run_begin)(const __global int* token_type_ids, uint query_begin, uint token_off) {
+inline uint FUNC(type1_run_begin)(const __global TOKEN_TYPE_IDS_TYPE* token_type_ids, uint query_begin, uint token_off) {
     uint begin = token_off;
     while (begin > 0 && token_type_ids[query_begin + begin - 1] == 1)
         begin--;
     return begin;
 }
 
-inline uint FUNC(type1_run_end)(const __global int* token_type_ids, uint query_begin, uint query_count, uint token_off) {
+inline uint FUNC(type1_run_end)(const __global TOKEN_TYPE_IDS_TYPE* token_type_ids, uint query_begin, uint query_count, uint token_off) {
     uint end = token_off + 1;
     while (end < query_count && token_type_ids[query_begin + end] == 1)
         end++;
@@ -186,7 +186,7 @@ KERNEL(pa_small_q_opt)(
     const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
 #endif
 #if HAS_TOKEN_TYPE_IDS
-    const __global int* token_type_ids,
+    const __global TOKEN_TYPE_IDS_TYPE* token_type_ids,
 #endif
     __global OUTPUT_TYPE* output,
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,

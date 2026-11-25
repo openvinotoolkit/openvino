@@ -1055,10 +1055,24 @@ struct PagedAttentionReference {
         std::vector<ov::float16> ref_scores_output;
         std::vector<ov::float16> ref_diversity_output;
         size_t qq_bias_offset = 0;
+        size_t total_tokens = 0;
+        for (const auto& subsequence_desc : pam.subsequence_descs) {
+            total_tokens += subsequence_desc.num_tokens;
+        }
+        OPENVINO_ASSERT(pam.token_type_ids.empty() || pam.token_type_ids.size() == total_tokens,
+                        "token_type_ids size (",
+                        pam.token_type_ids.size(),
+                        ") must match the number of scheduled tokens (",
+                        total_tokens,
+                        ")");
         size_t token_offset = 0;
         for (size_t i = 0; i < pam.subsequence_descs.size(); i++) {
             const auto& subsequence_desc = pam.subsequence_descs[i];
-            const int* token_type_ids = pam.token_type_ids.size() >= token_offset + subsequence_desc.num_tokens ? pam.token_type_ids.data() + token_offset : nullptr;
+            std::vector<int> token_type_ids;
+            if (!pam.token_type_ids.empty()) {
+                const auto subsequence_begin = pam.token_type_ids.begin() + token_offset;
+                token_type_ids.assign(subsequence_begin, subsequence_begin + subsequence_desc.num_tokens);
+            }
             token_offset += subsequence_desc.num_tokens;
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
 
@@ -1156,7 +1170,7 @@ private:
                                                                                 double xattention_threshold,
                                                                                 size_t block_size,
                                                                                 const std::vector<uint8_t>* qq_bias = nullptr,
-                                                                                const int* token_type_ids = nullptr,
+                                                                                const std::vector<int>& token_type_ids = {},
                                                                                 size_t stride = 16) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
@@ -1376,7 +1390,7 @@ private:
                                                         const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
                                                         int block_size,
                                                         const std::vector<uint8_t>* qq_bias,
-                                                        const int* token_type_ids = nullptr) {
+                                                        const std::vector<int>& token_type_ids = {}) {
         int heads_per_kv = num_heads / num_kv_heads;
 
         ov::PartialShape mask_shape;
@@ -1421,7 +1435,7 @@ private:
                 }
             }
             // A type-1 query also sees its whole run of type-1 tokens, inside a sliding window as well
-            if (token_type_ids) {
+            if (!token_type_ids.empty()) {
                 const int past = num_keys - num_queries;
                 for (int i = 0; i < num_queries; i++) {
                     if (token_type_ids[i] != 1)
