@@ -28,7 +28,6 @@ namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
-class Qwen3ASRInferRequest;
 class LLMBlockKVCacheStrategy;
 class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
@@ -95,7 +94,6 @@ protected:
     friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
-    friend class Qwen3ASRInferRequest;
     friend class EmbeddingInferRequest;
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
@@ -109,7 +107,6 @@ protected:
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
-    std::shared_ptr<ov::ISyncInferRequest> create_qwen3_asr_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_encoder_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
@@ -188,8 +185,6 @@ protected:
     bool m_is_whisper = false;
     uint64_t m_eos_token_id = 0;
     size_t m_decomposed_sdpa_size = 0;
-
-    bool m_is_qwen3_asr = false;
 
     bool m_is_embedding = false;
     // True when the model expects additive attention_mask in [B, 1, Q, K] float layout.

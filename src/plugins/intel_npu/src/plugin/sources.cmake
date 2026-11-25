@@ -253,6 +253,10 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/batched.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/failsafe.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/failsafe.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/qwen3_asr_audio.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/qwen3_asr_audio.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/token_lookup.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/token_lookup.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/subgraph_pipeline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/variable_state.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank.cpp
@@ -261,8 +265,4 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/prepare_whisper_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/whisper_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/whisper_infer_request.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/prepare_qwen3_asr_model.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/prepare_qwen3_asr_model.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/qwen3_asr_infer_request.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/qwen3_asr_infer_request.hpp
 )

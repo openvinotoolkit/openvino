@@ -4,7 +4,6 @@
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
-#include <limits>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -59,11 +58,8 @@
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
-#include "partitioning/patterns/opt.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
-#include "qwen3asr/prepare_qwen3_asr_model.hpp"
-#include "qwen3asr/qwen3_asr_infer_request.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
@@ -403,8 +399,7 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
 
 void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properties, ov::AnyMap& other_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW_LLM") != it->first.npos || it->first.find("NPUW_WHISPER") != it->first.npos ||
-            it->first.find("NPUW_QWEN3_ASR") != it->first.npos) {
+        if (it->first.find("NPUW_LLM") != it->first.npos || it->first.find("NPUW_WHISPER") != it->first.npos) {
             llm_properties.insert(*it);
         } else {
             other_properties.insert(*it);
@@ -808,13 +803,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                              << "): reshaping to static");
 
         // Reshape to target size
-        ov::npuw::ReshapeToStatic(max_generation_token_len,
-                                  kv_size,
-                                  axes,
-                                  m_max_lora_rank,
-                                  whisper_lhs_seq_size,
-                                  false,
-                                  m_is_whisper)
+        ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
         // The pass treats attention_mask as a 2D 0/1 mask, which an additive 4D float mask is not.
@@ -936,17 +925,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
-    }
-
-    // NB: Qwen3-ASR uses encoder_hidden_states for audio embedding injection.
-    // Chunked prefill is disabled to avoid audio token counter issues across chunks.
-    // SHARED_HEAD is intentionally kept enabled (split_llm separates the LM head);
-    // SliceOutEmbeds extracts the last real token (right-aligned → always at max_prompt-1).
-    m_is_qwen3_asr = m_cfg.get<::intel_npu::NPUW_QWEN3_ASR>();
-    if (m_is_qwen3_asr) {
-        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
-        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
-        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -1103,14 +1081,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
-
-        if (m_is_qwen3_asr) {
-            // StatefulToStateless only handles beam_idx-gated KV-cache states.
-            // encoder_hidden_states state is not handled. PrepareQwen3ASRModel converts
-            // remaining ReadValue nodes to Parameters and removes Assign sinks.
-            LOG_DEBUG("[Qwen3-ASR] Removing residual state tensors (e.g. encoder_hidden_states).");
-            ov::npuw::PrepareQwen3ASRModel().run_on_model(kvcache_model);
-        }
     }
 
     // Reported after the embedding branch, since an encoder embedding model turns chunking off and
@@ -1164,7 +1134,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     //    the KV cache still keeps the full context (no memory/perf savings).
     //  - ShrinkSlidingWindowKVCache: shrinks the KV cache to the window size and
     //    manages it as a sliding buffer at runtime for better memory/perf.
-    if (!m_is_whisper && !m_is_qwen3_asr && !m_attention_mask_is_4d_float &&
+    if (!m_is_whisper && !m_attention_mask_is_4d_float &&
         !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
@@ -1189,30 +1159,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
-    if (m_is_qwen3_asr) {
-        // Must run AFTER the prefill clone (so models diverge) and BEFORE ReshapeToStatic
-        // (so Range/Gather nodes are still dynamic when matched).
-        LOG_INFO("[Qwen3-ASR] Injecting attention_mask and position_ids into kvcache model.");
-        ov::npuw::PrepareQwen3ASRKVCacheModel().run_on_model(kvcache_model);
-        LOG_INFO("[Qwen3-ASR] Injecting attention_mask and position_ids into prefill model.");
-        ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(prefill_model);
-    }
-
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
     uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
-    if (m_is_qwen3_asr) {
-        const auto encoder_len = m_cfg.get<::intel_npu::NPUW_QWEN3_ASR_MAX_ENCODER_LEN>();
-        OPENVINO_ASSERT(encoder_len > 0 && encoder_len <= std::numeric_limits<uint32_t>::max(),
-                        "NPUW_QWEN3_ASR_MAX_ENCODER_LEN must be between 1 and ",
-                        std::numeric_limits<uint32_t>::max(),
-                        ", got ",
-                        encoder_len,
-                        ".");
-        whisper_lhs_seq_size = static_cast<uint32_t>(encoder_len);
-        LOG_INFO("[Qwen3-ASR] encoder_hidden_states static seq_len = " << whisper_lhs_seq_size);
-    }
     if (m_is_whisper) {
         axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
         m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim, 1u};
@@ -1272,24 +1222,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   axes,
                                   m_max_lora_rank,
                                   whisper_lhs_seq_size,
-                                  true,
-                                  m_is_whisper)
+                                  true)
             .run_on_model(prefill_model);
     }
     if (!m_attention_mask_is_4d_float) {
         ov::npuw::RewriteGQAAttentionMask().run_on_model(prefill_model);
-    }
-    if (m_is_qwen3_asr && !lm_head_model) {
-        ov::pass::GraphRewrite slice_logits;
-        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
-        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
-        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
-        slice_logits.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
-        slice_logits.run_on_model(prefill_model);
-        prefill_model->validate_nodes_and_infer_types();
-        const auto logits_shape = prefill_model->output("logits").get_partial_shape();
-        OPENVINO_ASSERT(logits_shape.rank() == 3 && logits_shape[1].is_static() && logits_shape[1].get_length() == 1,
-                        "Qwen3-ASR without a shared LM head requires a single-token logits output.");
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
@@ -1329,9 +1266,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
-        // Slice prefill output to the last max_generation_token_len positions.
-        // For Qwen3-ASR, tokens are right-aligned (left-padded), so the last real token
-        // is always at max_prompt-1 — SliceOutEmbeds works identically.
+        // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
+        // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
         if (propagate_slice_up) {
             ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
@@ -1463,9 +1399,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (lm_head_model) {
         LOG_DEBUG("LM head model is present, erasing NPUW_SLICE_OUT from prefill config.");
         prefill_config.erase("NPUW_SLICE_OUT");
-    } else if (m_is_qwen3_asr) {
-        // The prefill graph was already sliced before its compiled-model ports were created.
-        prefill_config["NPUW_SLICE_OUT"] = "NO";
     }
     merge_config_with(generate_config, generate_config_addition_value);
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
@@ -1926,8 +1859,8 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
-            m_longrope_context_limit & m_is_whisper & m_is_qwen3_asr & m_eos_token_id & m_decomposed_sdpa_size &
-            m_is_eagle & m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size;
+            m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
+            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size;
 
         // LongRoPE cos/sin tables: the transformed graphs have npuw_lr_cos/npuw_lr_sin
         // inputs the host must fill every call, but deserialization imports already-
@@ -2129,10 +2062,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
             compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
-            compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_is_qwen3_asr &
-            compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle &
-            compiled->m_is_embedding & compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding &
-            compiled->m_swa_window_size;
+            compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
+            compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
+            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size;
 
         // Not serialized: derived from the restored inputs, the same way as at compile time.
         compiled->m_attention_mask_is_4d_float = is_4d_float_attention_mask(ov_model);
@@ -2377,8 +2309,6 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
     if (m_is_whisper) {
         return non_const_this->create_whisper_infer_request();
-    } else if (m_is_qwen3_asr) {
-        return non_const_this->create_qwen3_asr_infer_request();
     } else if (m_is_embedding) {
         return m_is_encoder_embedding ? non_const_this->create_encoder_embedding_infer_request()
                                       : non_const_this->create_embedding_infer_request();
@@ -2395,11 +2325,6 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_in
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
-}
-
-std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_qwen3_asr_infer_request() {
-    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::Qwen3ASRInferRequest>(this_sptr);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_embedding_infer_request() {
@@ -2447,8 +2372,6 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
-                          BIND(npuw::qwen3_asr::enabled, NPUW_QWEN3_ASR, get),
-                          BIND(npuw::qwen3_asr::max_encoder_len, NPUW_QWEN3_ASR_MAX_ENCODER_LEN, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
                           BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get),
                           BIND(npuw::text_rerank::enabled, NPUW_TEXT_RERANK, get)});

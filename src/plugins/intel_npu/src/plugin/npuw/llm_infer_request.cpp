@@ -539,10 +539,6 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
 }
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
-    : LLMInferRequest(compiled_model, {}) {}
-
-ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
-                                           const std::string& alternate_input_ids_name)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
     init_ports();
 
@@ -550,15 +546,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
     if (input_ids_port.has_value()) {
         m_input_ids_name = layer_names::input_ids;
-    } else if (!alternate_input_ids_name.empty() &&
-               ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), alternate_input_ids_name)
-                   .has_value()) {
-        m_input_ids_name = alternate_input_ids_name;
     } else {
         OPENVINO_ASSERT(
             ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::inputs_embeds)
-                .has_value(),
-            "Prefill model has no 'input_ids', 'inputs_embeds', or requested alternate input port");
+                .has_value());
         m_input_ids_name = layer_names::inputs_embeds;
     }
 
@@ -1042,7 +1033,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             LOG_DEBUG("Output name " << output_name << " has no matching past kv-cache input. Skipping.");
             return;
         }
-        const auto is_value_tensor = uu::isPastValueParam(past_input_name) || uu::isDQScaleOrZPValue(past_input_name);
+        const auto is_value_tensor = output_name.find("value") != std::string::npos;
         const auto kv_dim = [&](bool v_trans) -> uint32_t {
             return (is_value_tensor && v_trans) ? 3u : kvcache_desc.dim;
         };
@@ -1139,15 +1130,14 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                         "There is no ",
                         input_name,
                         " in input ports map, while it is expected!");
-        const auto output_name = uu::past_key_values_to_present_name(input_name);
+        const auto& output_name = std::regex_replace(input_name, std::regex(layer_names::past_key_values), "present");
         OPENVINO_ASSERT(out_ports.find(output_name) != out_ports.end(),
                         "There is no ",
                         output_name,
                         " in output ports map, while it is expected!");
 
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const bool is_value = uu::isPastValueParam(input_name) || uu::isDQScaleOrZPValue(input_name);
-        const auto& kv_dim = (is_value && v_transposed) ? 3u : kvcache_desc.dim;
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
                                                kv_dim,
                                                kvcache_desc.num_stored_tokens - num_tokens,

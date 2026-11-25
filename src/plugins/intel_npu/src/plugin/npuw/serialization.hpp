@@ -56,6 +56,12 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATO
 const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICATOR =
     {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
 
+const constexpr ov::npuw::s11n::IndicatorType NPUW_TOKEN_LOOKUP_COMPILED_MODEL_INDICATOR =
+    {char{0x54}, char{0x4f}, char{0x4b}, char{0x43}, char{0x4d}, char{0x4f}};
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_QWEN3_ASR_AUDIO_COMPILED_MODEL_INDICATOR =
+    {char{0x51}, char{0x41}, char{0x55}, char{0x43}, char{0x4d}, char{0x4f}};
+
 const constexpr char* NPUW_SERIALIZATION_VERSION = "0.37";
 
 // Forward declaration

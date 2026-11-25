@@ -1,5 +1,11 @@
 INTEL_NPU_NPUW_SIMPLE_OPT(NPU_USE_NPUW, bool, false, ov::intel_npu, use_npuw, "NPU_USE_NPUW", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DEVICES, std::string, "NPU,CPU", ov::intel_npu::npuw, devices, "NPUW_DEVICES", ROOT, EXPOSED, CACHED, ALL)
+// Enable fixed-size execution for stateless token-wise vocabulary lookup models.
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TOKEN_LOOKUP, bool, false, ov::intel_npu::npuw::token_lookup, enabled, "NPUW_TOKEN_LOOKUP", ROOT, EXPOSED, CACHED, ALL)
+// Enable independent-window execution for the Qwen3-ASR split audio encoder.
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_QWEN3_ASR_AUDIO_ENCODER, bool, false, ov::intel_npu::npuw::qwen3_asr_audio, enabled, "NPUW_QWEN3_ASR_AUDIO_ENCODER", ROOT, EXPOSED, CACHED, ALL)
+// Audio encoder window size in mel frames.
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_QWEN3_ASR_AUDIO_WINDOW, uint64_t, 0, ov::intel_npu::npuw::qwen3_asr_audio, window_frames, "NPUW_QWEN3_ASR_AUDIO_WINDOW", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_SUBMODEL_DEVICE, std::string, "", ov::intel_npu::npuw, submodel_device, "NPUW_SUBMODEL_DEVICE", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_PIPELINE, std::string, "REG", ov::intel_npu::npuw::partitioning::online, pipeline, "NPUW_ONLINE_PIPELINE", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_AVOID, std::string, "", ov::intel_npu::npuw::partitioning::online, avoid, "NPUW_ONLINE_AVOID", ROOT, EXPOSED, CACHED, ALL)
@@ -96,9 +102,6 @@ INTEL_NPU_NPUW_ANYMAP_OPT(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG, ov::intel_n
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER, bool, false, ov::intel_npu::npuw::whisper, enabled, "NPUW_WHISPER", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER_EOS_TOKEN, uint64_t, 50257, ov::intel_npu::npuw::whisper, whisper_eos_token, "NPUW_WHISPER_EOS_TOKEN", LLM, EXPOSED, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER_DECOMPOSE_SDPA, bool, false, ov::intel_npu::npuw::whisper, whisper_decompose_sdpa, "NPUW_WHISPER_DECOMPOSE_SDPA", LLM, EXPOSED, CACHED, ALL)
-INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_QWEN3_ASR, bool, false, ov::intel_npu::npuw::qwen3_asr, enabled, "NPUW_QWEN3_ASR", LLM, EXPOSED, CACHED, ALL)
-// Maximum number of encoder output tokens for the legacy Qwen3-ASR decoder; callers must set it to fit the audio.
-INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_QWEN3_ASR_MAX_ENCODER_LEN, uint64_t, 64, ov::intel_npu::npuw::qwen3_asr, max_encoder_len, "NPUW_QWEN3_ASR_MAX_ENCODER_LEN", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_EAGLE, bool, false, ov::intel_npu::npuw::eagle, enabled, "NPUW_EAGLE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TEXT_EMBED, bool, false, ov::intel_npu::npuw::text_embed, enabled, "NPUW_TEXT_EMBED", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TEXT_RERANK, bool, false, ov::intel_npu::npuw::text_rerank, enabled, "NPUW_TEXT_RERANK", LLM, EXPOSED, CACHED, ALL)

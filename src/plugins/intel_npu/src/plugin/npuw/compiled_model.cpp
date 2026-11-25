@@ -37,6 +37,8 @@
 #include "v1/elements/accuracy_checked.hpp"
 #include "v1/elements/batched.hpp"
 #include "v1/elements/failsafe.hpp"
+#include "v1/elements/qwen3_asr_audio.hpp"
+#include "v1/elements/token_lookup.hpp"
 
 // required for get_properties_per_device()
 #include "intel_npu/config/config.hpp"
@@ -318,6 +320,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     auto use_pa_key = ov::intel_npu::npuw::pa::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
+    auto use_token_lookup_key = ov::intel_npu::npuw::token_lookup::enabled.name();
+    auto use_qwen3_asr_audio_key = ov::intel_npu::npuw::qwen3_asr_audio::enabled.name();
 
     // Drop CACHE_DIR from the config
     // If it's present we will be utilizing .*CompiledModel's import
@@ -329,15 +333,30 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const bool llm_requested = properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true;
     const bool pa_requested = properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true;
     const bool kokoro_requested = properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true;
+    const bool token_lookup_requested =
+        properties.count(use_token_lookup_key) && properties.at(use_token_lookup_key).as<bool>() == true;
+    const bool qwen3_asr_audio_requested =
+        properties.count(use_qwen3_asr_audio_key) && properties.at(use_qwen3_asr_audio_key).as<bool>() == true;
+    OPENVINO_ASSERT(!(token_lookup_requested && qwen3_asr_audio_requested) &&
+                        (!(token_lookup_requested || qwen3_asr_audio_requested) ||
+                         (!flux2_requested && !llm_requested && !pa_requested && !kokoro_requested)),
+                    "NPUW input-model modes cannot be combined with another NPUW model mode.");
 
     const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
     const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
     const bool gqa_requested = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == true;
     // Auto-detect GQA models unless NPUW_GQA=NO or another front-end was explicitly requested.
     const bool gqa_detected = !gqa_explicitly_disabled && !flux2_requested && !llm_requested && !pa_requested &&
-                              !kokoro_requested && ov::npuw::GQACompiledModel::supports(model);
+                              !kokoro_requested && !token_lookup_requested && !qwen3_asr_audio_requested &&
+                              ov::npuw::GQACompiledModel::supports(model);
 
-    if (flux2_requested) {
+    if (token_lookup_requested) {
+        OPENVINO_ASSERT(!gqa_requested, "NPUW token lookup cannot be combined with NPUW_GQA.");
+        compiled_model = std::make_shared<ov::npuw::token_lookup::CompiledModel>(model, plugin, config);
+    } else if (qwen3_asr_audio_requested) {
+        OPENVINO_ASSERT(!gqa_requested, "Qwen3-ASR NPUW audio encoder cannot be combined with NPUW_GQA.");
+        compiled_model = std::make_shared<ov::npuw::qwen3_asr_audio::CompiledModel>(model, plugin, config);
+    } else if (flux2_requested) {
         LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
     } else if (gqa_requested || gqa_detected) {
@@ -427,6 +446,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
         return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_TOKEN_LOOKUP_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::token_lookup::CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_QWEN3_ASR_AUDIO_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::qwen3_asr_audio::CompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
         // The flat CompiledModel and GQACompiledModel moved to the ORC container above; its old
         // indicator-headed layout has no reader anymore.

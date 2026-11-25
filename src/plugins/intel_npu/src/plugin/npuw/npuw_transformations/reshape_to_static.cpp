@@ -18,8 +18,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const ov::npuw::KVAxesPosition& kv_axes_position,
                        const uint32_t lora_rank,
                        const uint32_t lhs_seq_size = 0,
-                       const bool is_prefill = false,
-                       const bool is_whisper = false) {
+                       const bool is_prefill = false) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -63,8 +62,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                 new_shape = ov::PartialShape({1, 1, input_size, kvcache_size});
             } else {
                 new_shape = ov::PartialShape({1, kvcache_size});
-                if (is_whisper && lhs_seq_size && !is_prefill)
-                    // Only Whisper generate needs an extra query position.
+                if (lhs_seq_size && !is_prefill)
+                    // NB: for whisper kvcache model attn mask should be size + 1
                     new_shape = ov::PartialShape({1, kvcache_size + 1});
             }
         } else if (input_name.find(ov::npuw::util::kVisualPosMasksParamName) != std::string::npos) {
@@ -75,26 +74,18 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             // The first dimension (3) represents the three components of position encoding: time, height, and width
             // enabling alignment across multimodal inputs like text, audio, and video
             // Update: Qwen3.5 has first dimension = 4.
-            // NB: Qwen3-ASR generate uses 1D position_ids [1] (single scalar per step).
-            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u || partial_shape_size == 1u);
-            if (partial_shape_size == 1u) {
-                new_shape = is_prefill ? ov::PartialShape({input_size}) : ov::PartialShape({1});
-            } else {
-                auto first_dim_value = input.get_partial_shape()[0];
-                new_shape = partial_shape_size == 3u ? ov::PartialShape({first_dim_value, 1, input_size})
-                                                     : ov::PartialShape({1, input_size});
-            }
+            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
+            auto first_dim_value = input.get_partial_shape()[0];
+            new_shape = partial_shape_size == 3u ? ov::PartialShape({first_dim_value, 1, input_size})
+                                                 : ov::PartialShape({1, input_size});
         } else if (input_name.find("cache_position") != std::string::npos) {
             // NB: Whisper case
             new_shape = ov::PartialShape({1});
         } else if (input_name.find("encoder_hidden_states") != std::string::npos) {
-            // NB: Whisper/Qwen3-ASR case
+            // NB: Whisper case
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
-            if (lhs_seq_size > 0 && new_shape[1].is_dynamic()) {
-                new_shape[1] = lhs_seq_size;  // staticize audio token seq_len for NPU compilation
-            }
         } else if (ov::npuw::matchEagle3HiddenStatesString(input_name) ||
                    ov::npuw::matchEagle3TreeMaskString(input_name)) {
             new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size, kvcache_size, is_prefill);
@@ -158,7 +149,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[kv_axes_position.batch] = 1;
-            if (is_whisper && lhs_seq_size) {
+            if (lhs_seq_size) {  // Whisper model
                 new_shape[kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
                                                           ? kvcache_size - input_size  // kv_size for decoder
                                                           : lhs_seq_size;  // sequence size for encoder hidden states
@@ -180,15 +171,13 @@ ReshapeToStatic::ReshapeToStatic(const uint32_t input_size,
                                  const KVAxesPosition& kv_axes_position,
                                  const uint32_t lora_rank,
                                  const uint32_t lhs_seq_size,
-                                 const bool is_prefill,
-                                 const bool is_whisper)
+                                 const bool is_prefill)
     : m_input_size(input_size),
       m_kvcache_size(kvcache_size),
       m_kv_axes_position(kv_axes_position),
       m_lora_rank(lora_rank),
       m_lhs_seq_size(lhs_seq_size),
-      m_is_prefill(is_prefill),
-      m_is_whisper(is_whisper) {}
+      m_is_prefill(is_prefill) {}
 
 bool ReshapeToStatic::run_on_model(const std::shared_ptr<ov::Model>& model) {
     reshape_to_static(model,
@@ -197,8 +186,7 @@ bool ReshapeToStatic::run_on_model(const std::shared_ptr<ov::Model>& model) {
                       m_kv_axes_position,
                       m_lora_rank,
                       m_lhs_seq_size,
-                      m_is_prefill,
-                      m_is_whisper);
+                      m_is_prefill);
 
     return true;
 }

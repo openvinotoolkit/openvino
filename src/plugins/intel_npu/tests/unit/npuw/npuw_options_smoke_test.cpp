@@ -85,6 +85,9 @@ Case enum_case(std::string test_name, std::string value, std::string expected) {
 std::vector<Case> make_cases() {
     std::vector<Case> cases = {
         bool_case<::intel_npu::NPU_USE_NPUW>("NPU_USE_NPUW", "YES", true),
+        bool_case<::intel_npu::NPUW_TOKEN_LOOKUP>("NPUW_TOKEN_LOOKUP", "YES", true),
+        bool_case<::intel_npu::NPUW_QWEN3_ASR_AUDIO_ENCODER>("NPUW_QWEN3_ASR_AUDIO_ENCODER", "YES", true),
+        numeric_case<::intel_npu::NPUW_QWEN3_ASR_AUDIO_WINDOW>("NPUW_QWEN3_ASR_AUDIO_WINDOW", "100", uint64_t{100}),
         string_case<::intel_npu::NPUW_DEVICES>("NPUW_DEVICES", "CPU,NPU", "CPU,NPU"),
         string_case<::intel_npu::NPUW_SUBMODEL_DEVICE>("NPUW_SUBMODEL_DEVICE", "0:CPU,last:NPU", "0:CPU,last:NPU"),
         string_case<::intel_npu::NPUW_WEIGHTS_BANK>("NPUW_WEIGHTS_BANK", "shared-bank", "shared-bank"),

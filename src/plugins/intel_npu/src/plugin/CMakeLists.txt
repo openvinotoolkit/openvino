@@ -42,7 +42,6 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
-        openvino::conditional_compilation
         openvino::reference
         openvino::npu_ops
 )
