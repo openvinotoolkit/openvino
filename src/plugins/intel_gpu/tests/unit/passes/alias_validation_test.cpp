@@ -1919,3 +1919,91 @@ TEST(alias_validation, W6b_holder_with_a_view_user_keeps_sibling_slot_pruning) {
         EXPECT_EQ(r.res.witnesses.at(0).reader, &prog->get_node("OV"));
     }
 }
+
+// N2c: the faithful Safe case for N2. P is an ordinary activation that a stateless_kv takes as `past` (a real MAY_INPLACE edge P <- kv:0 with a
+// persistent binding on P). A hypothetical in-place writer W on P runs AFTER the stateless_kv. The old whole-class R4 saw the persistent binding of
+// the kv writer on the class and reported wr_persistent_unregistered for W; the upward closure of the overwritten tensor P holds no such root.
+TEST(alias_validation, N2c_writer_after_a_stateless_kv_on_an_ordinary_pooled_tensor_is_safe) {
+    auto& eng = get_test_engine();
+    topology t;
+    const layout past_l{ov::PartialShape{1, 2, 4, 4}, data_types::f32, format::bfyx};
+    t.add(input_layout("in", past_l));
+    t.add(input_layout("new_token", layout{ov::PartialShape{1, 2, 1, 4}, data_types::f32, format::bfyx}));
+    t.add(input_layout("present_len", layout{ov::PartialShape{1}, data_types::i64, format::bfyx}));
+    t.add(activation("P", input_info("in"), activation_func::relu));
+    auto kv = stateless_kv("stateless_kv", {input_info("P"), input_info("new_token"), input_info("present_len")}, 2, true);
+    kv.num_outputs = 2;
+    kv.output_data_types = {data_types::f32, data_types::f32};
+    t.add(kv);
+    t.add(reorder("result", input_info("stateless_kv", 0), format::bfyx, data_types::f32));
+    t.add(activation("W", input_info("P"), activation_func::abs));
+    auto prog = make_hand(eng, t, {"result", "W"});
+    force_order(*prog, {"P", "stateless_kv", "result", "W"});
+    {
+        auto r = war_of(*prog, "W", 0, {{"W", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe);
+        EXPECT_NO_REASON(r, wr_persistent_unregistered);
+        EXPECT_NO_REASON(r, wr_external_root);
+    }
+    {   // companion ("relative Safe" contract): the stateless_kv's own query is not Safe; W is a late reader of the class it writes
+        auto aa = alias_analysis::build(*prog);
+        const auto ax = exec_axis::build(*prog);
+        const auto writers = enumerate_inplace_writers(aa);
+        const war_query* kvq = nullptr;
+        for (const auto& w : writers) {
+            if (w.writer == &prog->get_node("stateless_kv")) {
+                kvq = &w;
+            }
+        }
+        ASSERT_NE(kvq, nullptr);
+        auto r = war_safe(aa, ax, *kvq);
+        EXPECT_NE(r.verdict, war_verdict::Safe) << why(r);
+        EXPECT_NE(r.reasons & wr_runtime_guarded, 0u) << why(r);
+        bool w_is_witness = false;
+        for (const auto& wi : r.witnesses) {
+            w_is_witness |= (wi.reader == &prog->get_node("W"));
+        }
+        EXPECT_TRUE(w_is_witness) << why(r);
+    }
+}
+
+// W6c (P-2, nested): S1 -> C1 (slot of C2) -> C2 (holder), S2 sibling slot of C1, S3 sibling slot of C2; C2 also has a non-slot cbo view V with reader OV.
+TEST(alias_validation, W6c_nested_concat_with_a_holder_view_user_keeps_sibling_slot_pruning) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool view_reader_late) {
+        topology t;
+        t.add(input_layout("in1", f32_l()));
+        t.add(input_layout("in2", f32_l()));
+        t.add(input_layout("in3", f32_l()));
+        t.add(activation("S1", input_info("in1"), activation_func::relu));
+        t.add(activation("S2", input_info("in2"), activation_func::abs));
+        t.add(activation("S3", input_info("in3"), activation_func::abs));
+        t.add(concatenation("C1", {input_info("S1"), input_info("S2")}, 1, data_types::f32));
+        t.add(concatenation("C2", {input_info("C1"), input_info("S3")}, 1, data_types::f32));
+        t.add(activation("O", input_info("C2"), activation_func::abs));
+        t.add(activation("WW", input_info("S1"), activation_func::abs));
+        t.add(activation("Z2", input_info("S2"), activation_func::abs));
+        t.add(activation("Z3", input_info("S3"), activation_func::abs));
+        t.add(reorder("V", input_info("C2"), format::bfyx, data_types::f32));
+        t.add(activation("OV", input_info("V"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"O", "WW", "Z2", "Z3", "OV"});
+        prog->get_node("C1").can_be_optimized(true);
+        prog->get_node("C2").can_be_optimized(true);
+        prog->get_node("V").can_be_optimized(true);
+        force_order(*prog, view_reader_late ? std::vector<std::string>{"S1", "S2", "S3", "C1", "C2", "V", "O", "WW", "OV", "Z2", "Z3"}
+                                              : std::vector<std::string>{"S1", "S2", "S3", "C1", "C2", "V", "O", "OV", "WW", "Z2", "Z3"});
+        return prog;
+    };
+    {   // readers of the sibling slots S2 (of C1) and S3 (of C2) are later than the writer; every reader of C1/C2/V is earlier: Safe
+        auto prog = make(false);
+        auto r = war_of(*prog, "WW", 0, {{"WW", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe) << "sibling slots pruned in the nested concat although the outer holder has a non-slot view user";
+    }
+    {   // guard: the view reader OV of the outer holder is later than the writer
+        auto prog = make(true);
+        auto r = war_of(*prog, "WW", 0, {{"WW", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        ASSERT_FALSE(r.res.witnesses.empty());
+        EXPECT_EQ(r.res.witnesses.at(0).reader, &prog->get_node("OV"));
+    }
+}
