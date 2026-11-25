@@ -167,6 +167,11 @@ war_result war_safe(const alias_analysis& aa, const exec_axis& axis, const war_q
 
     // 3. version set. A version boundary is an in-place edge or an edge whose member is a registered in-place writer (kv cbo view edge).
     auto is_boundary = [&](const alias_edge& e) {
+        if (e.origin == edge_origin::lora) {
+            // With empty adapters lora is an identity alias of its input (lora.cpp: _outputs[0] = input_memory_ptr()), not a write: its output
+            // is the same version as the input. Keep it in the version set; it is opaque, so the writer is judged Unknown (and downgraded).
+            return false;
+        }
         if (is_inplace_kind(e.kind)) {
             return true;
         }

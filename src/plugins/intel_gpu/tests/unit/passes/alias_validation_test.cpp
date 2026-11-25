@@ -1215,6 +1215,63 @@ TEST(alias_validation, W14_lora_is_unknown_opaque) {
     EXPECT_NE(r.reasons & wr_opaque, 0u);
 }
 
+// W14b: static lora with empty adapters is an identity alias, not a write. P has users {lora, W2}; W2 overwrites P while the lora output L
+// (the same buffer as P) is still read: L must be part of P's version set (opaque => Unknown; a late reader of L => Unsafe).
+// Order is forced by data dependencies: lora < E=abs(L) < W2=sum(P, E) < Z=sum(L, W2).
+TEST(alias_validation, W14b_lora_output_is_in_version_set_of_its_input) {
+    auto& eng = get_test_engine();
+    const auto lshape = layout{ov::PartialShape{1, 1, 256}, data_types::f32, format::bfyx};
+    for (const bool late : {false, true}) {
+        topology t;
+        t.add(input_layout("main", lshape));
+        t.add(input_layout("input", layout{ov::PartialShape{1, 1, 128}, data_types::f32, format::bfyx}));
+        t.add(input_layout("a", layout{ov::PartialShape{16, 128}, data_types::f32, format::bfyx}));
+        t.add(input_layout("alpha", layout{ov::PartialShape{1, 16}, data_types::f32, format::bfyx}));
+        t.add(input_layout("b", layout{ov::PartialShape{256, 16}, data_types::f32, format::bfyx}));
+        t.add(activation("P", input_info("main"), activation_func::relu));
+        t.add(lora("L", {input_info("P"), input_info("input"), input_info("a"), input_info("alpha"), input_info("b")}, true));
+        t.add(activation("E", input_info("L"), activation_func::abs));
+        t.add(eltwise("W2", {input_info("P"), input_info("E")}, eltwise_mode::sum));
+        std::vector<std::string> outs{"W2"};
+        if (late) {
+            t.add(eltwise("Z", {input_info("L"), input_info("W2")}, eltwise_mode::sum));
+            outs.push_back("Z");
+        }
+        auto prog = make_hand(eng, t, outs);
+        auto r = war_of(*prog, "W2", 0, {{"W2", 0}});
+        const auto* e = [&]() -> const alias_edge* {
+            for (const auto& ed : r.aa.edges()) {
+                if (ed.origin == edge_origin::lora && ed.member_node == &prog->get_node("L")) {
+                    return &ed;
+                }
+            }
+            return nullptr;
+        }();
+        if (!e) {
+            GTEST_SKIP() << "construction not formed: no lora edge";
+        }
+        const auto pL = r.ax.position(prog->get_node("L"));
+        const auto pE = r.ax.position(prog->get_node("E"));
+        const auto pW = r.ax.position(prog->get_node("W2"));
+        if (!pL || !pE || !pW || !(*pL < *pE && *pE < *pW)) {
+            GTEST_SKIP() << "construction not formed: expected exec order L < E < W2";
+        }
+        if (late) {
+            const auto pZ = r.ax.position(prog->get_node("Z"));
+            if (!pZ || *pZ < *pW) {
+                GTEST_SKIP() << "construction not formed: Z must follow W2";
+            }
+        }
+        EXPECT_REASON(r, wr_opaque);
+        if (late) {
+            EXPECT_VERDICT(r, war_verdict::Unsafe);
+            EXPECT_REASON(r, wr_late_reader);
+        } else {
+            EXPECT_VERDICT(r, war_verdict::Unknown);
+        }
+    }
+}
+
 // W15: OOOQ: only the order independent evidence survives.
 TEST(alias_validation, W15_out_of_order_queue) {
     auto& eng = get_test_engine();
