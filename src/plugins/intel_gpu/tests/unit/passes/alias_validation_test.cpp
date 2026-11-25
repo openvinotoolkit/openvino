@@ -1889,3 +1889,33 @@ TEST(alias_validation, N2b_upstream_external_root_through_inplace_edge_is_still_
     EXPECT_REASON(r, wr_external_root);
     EXPECT_REASON(r, wr_via_upstream_inplace);
 }
+
+// P-2: W6 with a holder that also has a non-slot view user (a cbo reorder of C). The walk S1 -> C (COVERING_VIA_SLOT) -> V goes down to a
+// non-slot member; coming back up from V must not re-enter C (already on the path) as OVERLAP, which would defeat the sibling pruning.
+TEST(alias_validation, W6b_holder_with_a_view_user_keeps_sibling_slot_pruning) {
+    auto& eng = get_test_engine();
+    auto make = [&](bool view_reader_late) {
+        topology t = slots_topology();
+        t.add(activation("WW", input_info("S1"), activation_func::abs));
+        t.add(activation("Z", input_info("S2"), activation_func::abs));
+        t.add(reorder("V", input_info("C"), format::bfyx, data_types::f32));
+        t.add(activation("OV", input_info("V"), activation_func::abs));
+        auto prog = make_hand(eng, t, {"O", "WW", "Z", "OV"});
+        prog->get_node("C").can_be_optimized(true);
+        prog->get_node("V").can_be_optimized(true);
+        force_order(*prog, view_reader_late ? std::vector<std::string>{"S1", "S2", "C", "V", "O", "WW", "OV", "Z"}
+                                              : std::vector<std::string>{"S1", "S2", "C", "V", "O", "OV", "WW", "Z"});
+        return prog;
+    };
+    {   // Z (reader of the sibling slot S2) is later than the writer, every reader of the holder and of its view is earlier: Safe
+        auto prog = make(false);
+        auto r = war_of(*prog, "WW", 0, {{"WW", 0}});
+        EXPECT_VERDICT(r, war_verdict::Safe) << "sibling slot pruned although the holder has a non-slot view user";
+    }
+    {   // guard: the view reader OV of the holder is later than the writer: a real victim, must stay Unsafe
+        auto prog = make(true);
+        auto r = war_of(*prog, "WW", 0, {{"WW", 0}});
+        EXPECT_VERDICT(r, war_verdict::Unsafe);
+        EXPECT_EQ(r.res.witnesses.at(0).reader, &prog->get_node("OV"));
+    }
+}

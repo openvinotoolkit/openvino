@@ -228,7 +228,11 @@ war_result war_safe(const alias_analysis& aa, const exec_axis& axis, const war_q
             } else {
                 nst = vstate::OVERLAP;
             }
-            push({e.provider_node, e.provider_port}, nst, static_cast<int32_t>(cur));
+            const tkey pt{e.provider_node, e.provider_port};
+            if (on_path(static_cast<int32_t>(cur), pt)) {
+                continue;   // P-2: the provider is where this walk came from (or an ancestor on it); re-entering it as OVERLAP would defeat sibling pruning
+            }
+            push(pt, nst, static_cast<int32_t>(cur));
         }
         // down: t is a provider, go to its members
         for (size_t ei : aa.edges_into(*t.first, t.second)) {
