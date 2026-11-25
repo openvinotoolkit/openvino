@@ -391,6 +391,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const int VT_x0 = (int)(vt_prem / 4);
     const bool vt_2d = V_T_2D && (VT_p % 16) == 0 && (vt_prem % 4) == 0 && ((k * (int)sizeof(VAL_DATA_T)) % 4) == 0 && VT_w >= 64 &&
                        VT_p >= 64;
+    // The per-lane reads: whether any V row starts off a dword (a row length or a start off one). Uniform.
+#if KV_COMP_PER_CHANNEL
+    const bool vt_shift = ((ldvt & 3u) != 0) || ((as_long(V) & 3) != 0);
+#else
+    const bool vt_shift = ((ldvt & 1u) != 0) || ((as_long(V) & 2) != 0);
+#endif
 #endif
 #if WIDE_Q_SLM
     // Read as ulong4: 8 B alignment, which a uint array alone does not guarantee.
@@ -1166,6 +1172,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // The same for v_u4_read(), one read per value-block pair.
             uint vt[8 * ((sv_value_blocks + 1) / 2)];
         #endif
+        #if V_TRANSPOSED && !KV_COMP_PER_CHANNEL
+            // v_tile_t(): per value block, the dword below a shifted row's next cp block.
+            uint vt_carry[sv_value_blocks];
+        #endif
 #if SG8 && defined(SG8_SV_UNROLL)
         // Partial unroll (the host's SG8_SV_UNROLL), as the KQ depth loop.
         __attribute__((opencl_unroll_hint(SG8_SV_UNROLL)))
@@ -1200,7 +1210,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #elif V_TRANSPOSED && KV_COMP_PER_CHANNEL
                 const int vt_half = (cp & 1) * 4;
                 if ((cp & 1) == 0)
-                    FUNC_CALL(v_t_i8_read)(vt, V, ldvt, k0, cp, k, dv, sg_j0_sv, lane, vt_2d, VT_b2d, VT_w, VT_p, VT_x0);
+                    FUNC_CALL(v_t_i8_read)(vt, V, ldvt, k0, cp, k, dv, sg_j0_sv, lane, vt_2d, vt_shift, VT_b2d, VT_w, VT_p, VT_x0);
             #endif
 
             DPAS_A_T pA[sv_score_blocks];
@@ -1278,7 +1288,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
               #if KV_COMP_PER_CHANNEL
                 FUNC_CALL(v_i8_dequant_ch)(vb, vt, vt_half, v_zp_ch);
               #else
-                FUNC_CALL(v_tile_t)(vb, V, ldvt, k0, cp, k, dv, sg_j0_sv, lane, vt_2d, VT_b2d, VT_w, VT_p, VT_x0);
+                FUNC_CALL(v_tile_t)(vb, vt_carry, V, ldvt, k0, cp, k, dv, sg_j0_sv, lane, vt_2d, vt_shift, VT_b2d, VT_w, VT_p, VT_x0);
               #endif
             #elif USE_2D_BLOCK_IO_V_I8
                 // The paired read above gives a 32-key x 16-value tile (lane = value, 4 keys per

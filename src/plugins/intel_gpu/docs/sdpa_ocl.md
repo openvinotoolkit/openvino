@@ -4184,6 +4184,7 @@ B70, 16 / 4 heads, head 512, SDPA us, transposed / plain: prefill 1024 534 / 336
   (cosine 0.04-0.09, "GQA transposed V: master's fusion conditions back"), so it is not compared.
 - Open (follow-up): odd key counts. Their row pitch rules out the 2D read, so they take the per-lane read: SDPA 514 us
   at 1023 keys against 370 at 1024. The layer is 1.12x the explicit Transpose there, and 1.02x at 4096 keys.
+  "Transposed V per-lane read at any key count" took that read down (SDPA 462 us at 1023 keys).
 - Tests: no new rows; the static and dynamic `d_max` 512 / 384 rows of `sdpa_gpu_transposed_v` run the tiling (cliloader:
   local memory 51328 B against the table tile's 42112).
   - Negative control (temporary kernel build): the causal skip's KQ bound 16 keys early fails 11 of 42 rows, including
@@ -4288,8 +4289,9 @@ for 4-bit, against 339 us for the f16 SDPA after the dequantization and 360 us f
   within 1 us): the i8 transposed V (0.97-1.00), the decode on 4096 keys (0.99-1.02) and head 256 (1.00-1.02).
 - Open (follow-up): the i8 plain V is still 1.06-1.15x master on prefill and chunk (SDPA 438 against 360 us at 1024)
   and 1.06x the dequantized cache at 4096; the i8 transposed V is still 1.05-1.26x the dequantized cache on prefill
-  (1023 tokens: 782 us, the per-lane read of an odd row pitch); outside `d_max` 512, the i8 plain V at head 256 is 1.16x
-  master (SDPA 301 against 179 us at 1024, the table tile; not looked at).
+  (1023 tokens: 782 us, the per-lane read of an odd row pitch; 673 us since "Transposed V per-lane read at any key
+  count"); outside `d_max` 512, the i8 plain V at head 256 is 1.16x master (SDPA 301 against 179 us at 1024, the table
+  tile; not looked at).
 - Tests: no new rows. The `d_max` 512 / 384 prefill rows of `smoke_sdpa_gpu_compressed_kv_per_channel` run the tiling
   (cliloader: local memory 51328 / 43136 B against the table tile's 42112 at head 512), as do the plain arm of
   `sdpa_gpu_transposed_v_i8` (non-causal) and the head-512 `smoke_GQAQuantizedKVCache` / `smoke_GQATransposedVCache`
@@ -4300,6 +4302,78 @@ for 4-bit, against 339 us for the f16 SDPA after the dequantization and 360 us f
   - B70: the transposed-V, per-channel, `gqa_decomp`, decomposition and predicate unit suites 168 / 168;
     `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` + `smoke_GQASlidingWindow` 72 / 72.
 - Not checked: xe_hpg (its own kernels, unchanged; "xe_hpg follow-ups"), Xe3 (`xe2_tuned()` only), real models.
+
+### Transposed V per-lane read at any key count (2026-11-25)
+
+A transposed V takes the 2D block read only where its row pitch is a multiple of 16 B, i.e. a dense cache at 1 key
+count in 8 (f16) or 16 (i8); the others read per lane ("Transposed V read in sdpa_ocl"). Their SDPA took 1.2-1.9x the
+2D read's at the nearest aligned count (B70, single runs, H 32 / KV heads 8 / head 128 and 16 / 4 / 512): f16 decode on
+4097 keys 123 us (2D at 4104: 92), d512 prefill 1023 512 us (1024: 369), i8 d512 prefill 1023 780 us (1024: 552).
+
+- Where the time goes (temporary builds, single runs, SDPA us):
+  - 4096 keys is a fast case of its own: the 2D read takes 65 us at 4096 but 89-92 at 4104 / 4112 (d128 decode). The
+    per-lane read (its first batched form below) forced everywhere takes 83 at 4096, 105-107 at even counts and 113-117
+    at odd ones. At d512 prefill, 2D / per-lane: 369 / 464 at 1024 keys, 376 / 489 at 1040, 422 / 506 at 1032, per-lane
+    529-538 at 1023-1028. So the per-lane message costs about 100 us over the 2D one, and rows whose 32 B cross a 64 B
+    line add 40-70; the 2D read pays that too (1032 keys: every second row crosses one).
+  - The fast path's per-lane branch (only the lanes of a shifted row load the extra dword) sat between the value blocks'
+    loads: in the vISA a divergent `goto` follows every `d32x8` load, so the loads went out one after the other.
+  - The extra dword itself (timing builds without it, wrong output): f16 d512 prefill 1023 535 -> 455 us, d512 decode on
+    4097 keys 234 -> 204, 16 queries 344 -> 277; i8 674 -> 644.
+- `v_tile_t()` (f16): the loads of all value blocks go out before any shift, with no branch between them. A shifted row
+  reads its 8 dwords from the dword above its start (keys key0 + 1 .. key0 + 16) and takes key0 from the previous cp
+  block's last dword (`vt_carry`), loaded only for the first block of the tile. That relies on the blocks running in
+  order from cp 0; the causal skip drops only the last ones. `vt_shift` (uniform: an odd row length or a start 2 B
+  off a dword) takes plain loads when no row is shifted. One `d32x8` load per block instead of two.
+- `v_t_i8_read()` (per-channel i8), where a subgroup has more than one value block (`sv_value_blocks > 1`: the
+  multi-query stages and the d512 decode): the loads of all value blocks first, each with its extra dword (all lanes),
+  and none when no row is shifted (`vt_shift`: a row length or start off 4 B).
+  - With one value block (the d128 decode, 16-value subgroup tiles) the read is as before. There the batched form took
+    1.01-1.08x, with the `vt_shift` branch 1.04-1.12x, and with only the lanes of a shifted row loading the extra dword
+    (as before) still 1.03-1.05x.
+  - The carry on i8 took 1.10x at the d512 decode (248 against 226 us) and 1.02-1.10x at the d128 decode, so it was
+    dropped.
+- The bytes read are the ones read before (the dword below a shifted row's start, its extra dword, nothing past the key
+  range), and the dwords and shifts are the same: outputs are bit-identical to before (the tests' bit-exact checks
+  against the plain layout hold).
+- Cost, B70 at 1800 MHz pinned, one GQA layer (H 32 / KV heads 8 at head 128, 16 / 4 at head 512; perf-counter device
+  time, median of 30, one process per case and arm; `test/g3c/run_fin.sh`, 2 rounds, arms alternating; logs
+  `test/g3c/f_tv.log`, `f_plain.log`). SDPA (us), before -> after, transposed V:
+
+  | case (keys) | f16 | i8 |
+  |---|---|---|
+  | head 128, decode on 4097 / 4099 / 4102 | 123 -> 111 / 127 -> 113 / 112 -> 103 | 114 / 116 / 117 (unchanged) |
+  | head 128, decode on 16385 | 538 -> 456 | 423 (unchanged) |
+  | head 128, prefill 1023 / chunk of 512 on 4001 | 296 -> 278 / 1066 -> 1000 | 271 -> 263 / 811 -> 776 |
+  | head 512, prefill 1023 / 4095 | 513 -> 462 / 6317 -> 5898 | 782 -> 673 / 9924 -> 8341 |
+  | head 512, prefill 1032 (i8: rows on a dword) | 2D read, 424 (unchanged) | 789 -> 600 |
+  | head 512, chunk of 512 on 4001 | 1702 -> 1583 | 2680 -> 2138 |
+  | head 512, decode on 4097 / 4104 | 263 -> 211 / 2D read, 220 | 226 -> 215 / 223 -> 182 |
+  | head 512, 16 queries on 4113 | 372 -> 289 | 482 -> 372 |
+
+  Layer total: 0.85-0.99 on these rows. Unchanged (SDPA 0.997-1.008): the aligned counts that take the 2D read (head
+  128: decode on 4096 / 4104 / 16384, prefill 1024, chunk on 4000; head 512: prefill 1024 / 4096, chunk on 4000, decode
+  on 4096, 16 queries on 4112) and the plain-V controls. The layer total of rows whose SDPA did not move varied by up to
+  3% (another user's load on the shared PC, load average up to 10).
+- Open: the per-lane read is still up to 1.35x the 2D one at a nearby aligned count (f16 d512 prefill 1023 462 against
+  369 us at 1024, chunk 1583 against 1188; i8 673 against 552): the message type and the line crossings above. The d512
+  decode is at par (211 against 220 at 4104). The i8 d128 decode (one value block) is unchanged: 114-117 us on 4097-4104
+  keys (85 at 4096 with the 2D read; no other aligned count measured).
+- Tests: no new rows; the `sdpa_gpu_transposed_v` and `sdpa_gpu_transposed_v_i8` rows with unaligned key counts run
+  every path. Negative controls (temporary kernel builds, `sdpa_gpu_transposed_v*`, 72 rows):
+  - the carry not updated fails exactly the 18 f16 rows with a shifted row and two or more blocks before the last key;
+  - the unshifted f16 per-lane load one dword off fails the 15 f16 rows with an even row length off the 2D rule (18,
+    58, 300 keys, the NaN-padded rows, dynamic steps);
+  - the i8 extra dword always the last one fails the 9 i8 rows with a shifted row on a several-value-block stage;
+  - the unshifted i8 load one dword off fails the 2 rows with such a stage at a row length of a multiple of 4 that the
+    2D read does not take (dynamic head 128 `{3, 1032}`, dynamic head 512 `{300, 300}`).
+  - B70: the transposed-V, per-channel, `gqa_decomp`, decomposition, predicate and `smoke_sdpa_kv_compressed` unit
+    suites 168 / 168; `smoke_GQATransposedVCache` + `smoke_GQAQuantizedKVCache` + `smoke_GQASlidingWindow` 72 / 72.
+- xe_hpg: the generic SG8 stages that read a transposed V (head 100 in the kit; the head-128 / 512 PREFILL kernel reads
+  it with `hpg_v_rows()`, unchanged) take the new code too. `ocloc -device dg2` on the xe_hpg JIT (dumped on the B70
+  with the local arch-override patch) builds them without spill, instructions 6221 -> 6380 (f16) and 7576 -> 7627 (i8);
+  the head-128 / 512 programs compile to the same instruction counts. Not run on DG2 ("xe_hpg follow-ups").
+- Not checked: Xe3 (same code, not measured), DG2, real models.
 
 ## Known issues
 
@@ -4452,7 +4526,8 @@ re-measures against the opt kernels.
   the i8 transposed V (1.16-1.47x, kernel 2106 us against 1245 with the Transpose); the f16 transposed-V decode at head 100
   on `sdpa_ocl_mixed` (1.50x: 4318 us against 2620 + 148 on the opt multi-query kernel). Head-100 decode is slow in either
   layout (plain V: SDPA 5723 us on 4095 keys; the opt single-token kernel takes 181 us at head 512), not analysed. The
-  B70 counterparts are the `xe2_tuned()` `d_max` 512 tilings.
+  B70 counterparts are the `xe2_tuned()` `d_max` 512 tilings. The head-100 transposed-V stages take the per-lane read
+  of "Transposed V per-lane read at any key count" since 2026-11-25 (dg2 offline build only, not run on DG2).
 - PA PREFILL prompts up to about 2K tokens are slower than `sdpa_micro` with the 256-key x 32-query tile: 65 and 128
   tokens about 1.2x, 384-768 tokens 1.03-1.16x with gaps between calls, 2048 tokens 1.03x. Two study kernels cover parts
   of it (`h128_2_2_active_q8_pfix`, 8 queries, best up to 512 tokens; `h128_2_2_one_e1p6`, 16 queries x 256 keys, best
