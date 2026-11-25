@@ -43,6 +43,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
     auto input_a_m = any_input();
     auto input_attn_mask_m = any_input();
     auto input_scale_m = any_input();
+    auto input_sink_m = any_input();
     // ── Pattern A: KVCache → [Unsqueeze|Reshape](5D) → Broadcast(BIDIRECTIONAL) → Reshape(4D) → [Convert] ──
     auto input_b_kvcache_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
     auto input_c_kvcache_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
@@ -114,7 +115,10 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
     auto sdpa_with_attn_mask_m = wrap_type<op::SDPA>({input_a_m, key_input_m, value_input_m, input_attn_mask_m});
     auto sdpa_with_attn_mask_and_scale_m = wrap_type<op::SDPA>({input_a_m, key_input_m, value_input_m, input_attn_mask_m, input_scale_m});
 
-    auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
+    auto sdpa_with_sink_m =
+        wrap_type<op::SDPA>({input_a_m, key_input_m, value_input_m, input_attn_mask_m, input_scale_m, input_sink_m});
+    auto sdpa_m = std::make_shared<Or>(
+        OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m, sdpa_with_sink_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
@@ -372,11 +376,8 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
             return false;
         }
 
-        if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
-            data_inputs.push_back(sdpa->get_input_source_output(3));  // attn_mask
-        } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
-            data_inputs.push_back(sdpa->get_input_source_output(3));  // attn_mask
-            data_inputs.push_back(sdpa->get_input_source_output(4));  // scale
+        for (size_t i = 3; i < sdpa->get_input_size(); ++i) {
+            data_inputs.push_back(sdpa->get_input_source_output(i));  // attn_mask, scale, sink
         }
 
         auto order_a = sdpa->get_input0_transpose_order();

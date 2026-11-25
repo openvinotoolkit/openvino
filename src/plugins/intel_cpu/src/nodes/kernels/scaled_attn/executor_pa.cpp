@@ -430,6 +430,7 @@ struct MHAHelper {
     PlainTensor _wv_scratch_a;
     PlainTensor _wv_scratch_b;
     PlainTensor _alibi_lookup;
+    PlainTensor _relative_bias;
     PlainTensor _score_output;
     std::vector<size_t> _wsp;
     size_t _wsp_size_per_thread = 0;
@@ -531,6 +532,18 @@ struct MHAHelper {
     void clear_qq_bias() {
         _qq_bias = PlainTensor();
         _qq_bias_infos.clear();
+    }
+
+    float apply_relative_bias(float* scores, size_t count, size_t token, size_t head, float scale) const {
+        if (!_relative_bias)
+            return scale;
+        const auto* bias = _relative_bias.ptr<float>(token, head, 0);
+        const auto span = _relative_bias.size(2) - 1;
+        for (size_t key = 0; key < count; ++key) {
+            const auto distance = count - 1 - key;
+            scores[key] = scores[key] * scale + bias[std::min(distance, span)];
+        }
+        return 1.f;
     }
 
     // Initialize per-sequence metadata for speculative query-to-query masks.
@@ -994,6 +1007,7 @@ struct MHAHelper {
                     _params.is_sage_attn
                         ? _d_scale * reinterpret_cast<float*>(_quantized_q.ptr<int8_t>(ithr, m - q_start, 0))[0]
                         : _d_scale;
+                revised_d_scale = apply_relative_bias(score, causal_pos, q_token_start + m, h, revised_d_scale);
 
                 // sink processing is independent of sliding_window size
                 float* sink = nullptr;
@@ -1223,13 +1237,14 @@ struct MHAHelper {
                                         rnd_up(cur_kv_len_ext, _block_size));
                     soft_in = f32_cvt.ptr<float>(0);
                 }
+                const auto softmax_scale = apply_relative_bias(soft_in, causal_pos, q_token_start + m, h, _d_scale);
                 if (_sliding_window) {
                     const auto start_idx = get_sliding_start_idx(q_token_start + m, causal_pos);
                     const auto new_causal = ncausal - start_idx;
                     float* alibi_lookup = nullptr;
                     attn_softmax_kernel<float>(soft_in + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
-                                               _d_scale,
+                                               softmax_scale,
                                                alibi_lookup,
                                                nullptr,
                                                nullptr,
@@ -1251,7 +1266,7 @@ struct MHAHelper {
                     }
                     attn_softmax_kernel<float>(soft_in,
                                                reinterpret_cast<DATA_TYPE*>(score),
-                                               _d_scale,
+                                               softmax_scale,
                                                alibi_lookup,
                                                nullptr,
                                                nullptr,
@@ -1367,6 +1382,7 @@ struct MHAHelper {
                 const auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
+                const auto softmax_scale = apply_relative_bias(score, cur_kv_len, q_token_start + pq, h, _d_scale);
 
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
@@ -1384,7 +1400,7 @@ struct MHAHelper {
                     float* sw_alibi_lookup = nullptr;
                     attn_softmax_kernel<float>(score + start_idx,
                                                score + start_idx,
-                                               _d_scale,
+                                               softmax_scale,
                                                sw_alibi_lookup,
                                                nullptr,
                                                nullptr,
@@ -1401,7 +1417,7 @@ struct MHAHelper {
                 } else {
                     attn_softmax_kernel<float>(score,
                                                score,
-                                               _d_scale,
+                                               softmax_scale,
                                                alibi_lookup,
                                                nullptr,
                                                nullptr,
@@ -1576,6 +1592,7 @@ struct MHAHelper {
             //  apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
+            const auto softmax_scale = apply_relative_bias(score, cur_kv_len, q_token_start + pq, h, _d_scale);
             float* alibi_lookup = nullptr;
             float alibi_slope = 0.F;
             if (alibi_slopes) {
@@ -1592,7 +1609,7 @@ struct MHAHelper {
                 float* sw_alibi_lookup = nullptr;
                 attn_softmax_kernel<float>(score + start_idx,
                                            score + start_idx,
-                                           _d_scale,
+                                           softmax_scale,
                                            sw_alibi_lookup,
                                            nullptr,
                                            nullptr,
@@ -1609,7 +1626,7 @@ struct MHAHelper {
             } else {
                 attn_softmax_kernel<float>(score,
                                            score,
-                                           _d_scale,
+                                           softmax_scale,
                                            alibi_lookup,
                                            nullptr,
                                            nullptr,
@@ -2169,7 +2186,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 28);
+        OPENVINO_ASSERT(inputs_size == 28 || inputs_size == 30);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2381,6 +2398,46 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (qq_bias) {
             qq_bias.assert_dims({0}, true);
             qq_bias_begins.assert_dims({B_seq + 1});
+        }
+
+        _helper._relative_bias = PlainTensor();
+        if (inputs_size == 30) {
+            OPENVINO_ASSERT(!inputs[ID_RELATIVE_BIAS]->getShape().hasZeroDims(),
+                            "PagedAttention: relative bias cannot be empty");
+            _helper._relative_bias.reset(inputs[ID_RELATIVE_BIAS]);
+            _helper._relative_bias.assert_dims({B_token, H, 0}, true);
+            OPENVINO_ASSERT(_helper._relative_bias.size(2) >= 2,
+                            "PagedAttention: relative bias requires a distance and fallback entry");
+            PlainTensor positions;
+            positions.reset(inputs[ID_POSITION_IDS]);
+            positions.assert_dims({B_token});
+            OPENVINO_ASSERT(!alibi_slopes && !rotated_block_indices && !xattention_threshold &&
+                                !adaptive_rkv_evictable_sizes && !token_type_ids && !qq_bias,
+                            "PagedAttention: relative bias does not support ALiBi, cache eviction/rotation, "
+                            "sparse attention, image tokens, or speculative masks");
+#    if defined(OPENVINO_ARCH_ARM64)
+            OPENVINO_ASSERT(!any_of(precision_of<DATA_TYPE>::value, ov::element::f16, ov::element::bf16),
+                            "PagedAttention: relative bias on ARM requires f32 inference");
+#    endif
+            const auto* begins = subsequence_begins.ptr<int32_t>();
+            const auto* past = past_lens.ptr<int32_t>();
+            const auto* position = positions.ptr<int64_t>();
+            OPENVINO_ASSERT(begins[0] == 0 && begins[B_seq] >= 0 && static_cast<size_t>(begins[B_seq]) == B_token,
+                            "PagedAttention: invalid subsequence boundaries for relative bias");
+            for (size_t seq = 0; seq < B_seq; ++seq) {
+                OPENVINO_ASSERT(begins[seq] >= 0 && begins[seq + 1] >= begins[seq] &&
+                                    static_cast<size_t>(begins[seq + 1]) <= B_token && past[seq] >= 0,
+                                "PagedAttention: invalid sequence lengths for relative bias");
+                for (int32_t token = begins[seq]; token < begins[seq + 1]; ++token) {
+                    const auto expected = static_cast<int64_t>(past[seq]) + token - begins[seq];
+                    OPENVINO_ASSERT(expected <= std::numeric_limits<int32_t>::max() && position[token] == expected,
+                                    "PagedAttention: relative bias requires contiguous position_ids without "
+                                    "cache eviction; expected ",
+                                    expected,
+                                    ", got ",
+                                    position[token]);
+                }
+            }
         }
 
         output_emb.assert_dims({B_token, H * SV});

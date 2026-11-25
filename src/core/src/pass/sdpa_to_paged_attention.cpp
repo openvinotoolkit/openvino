@@ -9,6 +9,9 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sparse_attention.hpp"
@@ -28,6 +31,7 @@
 #include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
 #include "transformations/paged_attention/paged_sparse_attention_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
+#include "transformations/paged_attention/preserve_gather_matmul_layout.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
 #include "transformations/paged_attention/total_sequence_length_pattern.hpp"
@@ -92,6 +96,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "No ScaledDotProductAttention or SparseAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
+    // A frontend's redundant reshape can be eliminated before PA changes the token layout.
+    ov::pass::Manager layout_manager;
+    layout_manager.register_pass<PreserveGatherMatmulLayout>();
+    layout_manager.run_passes(model);
+
     m_params = PaParams{model->get_parameters()};
     m_results = PaResults{model->get_results()};
     auto max_context_len = m_params.add("max_context_len", element::i32, PartialShape{});
@@ -134,6 +143,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     std::unordered_set<std::string> var_ids_to_remove;
+    std::unordered_set<std::string> position_vars_to_remove;
     std::unordered_set<std::string> params_to_remove{"beam_idx", "attention_mask"};
 
     // Get-or-create the flattened position_ids parameter and restore its rank at each existing consumer with a
@@ -178,12 +188,17 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     if (m_options.is_draft_model) {
         manager.register_pass<Gemma4MTPStateManagementPattern>(m_params, params_to_remove, m_options);
     } else {
-        manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
+        manager.register_pass<StateManagementPattern>(m_params,
+                                                      m_results,
+                                                      m_options,
+                                                      var_ids_to_remove,
+                                                      position_vars_to_remove);
     }
     manager.register_pass<PagedSparseAttentionFusion>(m_params, m_options, var_ids_to_remove);
     manager.register_pass<EliminateConvPaddingMaskGating>();
     auto paged_ssm_fusion = manager.register_pass<PagedSelectiveSSMFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedCausalConv1DFusion>(m_params, var_ids_to_remove);
+    manager.register_pass<PagedCausalConv1DWithDynamicTaps>(m_params, var_ids_to_remove);
     manager.register_pass<PagedGatedDeltaNetFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
@@ -203,6 +218,30 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     " SelectiveSSM node(s), but PagedSelectiveSSMFusion converted ",
                     paged_ssm_fusion->get_fused_count(),
                     ". Stateful SSM nodes cannot be left in the graph.");
+
+    if (!position_vars_to_remove.empty()) {
+        ov::NodeVector pending;
+        pending.insert(pending.end(), model->get_results().begin(), model->get_results().end());
+        for (const auto& sink : model->get_sinks()) {
+            const auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink);
+            if (!assign || (!position_vars_to_remove.count(assign->get_variable_id()) &&
+                            !var_ids_to_remove.count(assign->get_variable_id())))
+                pending.push_back(sink);
+        }
+        std::unordered_set<const ov::Node*> visited;
+        while (!pending.empty()) {
+            const auto node = pending.back();
+            pending.pop_back();
+            if (!visited.insert(node.get()).second)
+                continue;
+            const auto state = ov::as_type_ptr<ov::op::util::ReadValueBase>(node);
+            OPENVINO_ASSERT(!state || !position_vars_to_remove.count(state->get_variable_id()),
+                            "PagedAttention: cached positions are still used by a live output");
+            for (const auto& input : node->input_values())
+                pending.push_back(input.get_node_shared_ptr());
+        }
+        var_ids_to_remove.insert(position_vars_to_remove.begin(), position_vars_to_remove.end());
+    }
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
@@ -243,6 +282,20 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_results(m_results.items());
     model->add_parameters(m_params.items());
     model->validate_nodes_and_infer_types();
+
+    const auto nodes = model->get_ops();
+    const bool has_relative_bias = std::any_of(nodes.begin(), nodes.end(), [](const auto& node) {
+        const auto attention = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
+        return attention && attention->get_input_size() == 30;
+    });
+    if (has_relative_bias) {
+        for (const auto& node : nodes) {
+            OPENVINO_ASSERT(
+                !ov::is_type<ov::op::util::ReadValueBase>(node) && !ov::is_type<ov::op::util::AssignBase>(node),
+                "PagedAttention with relative bias cannot retain unconverted state: ",
+                node->get_friendly_name());
+        }
+    }
 
     return true;
 }

@@ -101,9 +101,17 @@ def muse_glimmer_indices(height, width, window, merge=2):
 
 
 WHISPER_AUDIO = {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
+def inkling_vision_indices(rows, cols, merge):
+    y, x = np.indices((rows, cols))
+    index = lambda values: np.asarray(values, np.int32).reshape(1, 1, 1, -1)
+    return {"position_x": index(np.concatenate(([0], x.ravel() + 1))),
+            "position_y": index(np.concatenate(([0], y.ravel() + 1))),
+            "merge_indices": index(merge_window_order(rows, cols, merge))}
+
+
 FIXED_VISION = {"gemma3", "idefics3", "internvl", "janus_pro", "mlp"}
 DYNAMIC_VISION = {"lfm2", "gemma4v", "gemma4uv", "pixtral", "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger",
-                  "muse-glimmer"}
+                  "muse-glimmer", "inkling2v"}
 
 
 def lfm2_audio_positions(frames, width):
@@ -168,6 +176,9 @@ def checkpoint_inputs(metadata, modality, width, height=None, seed=42):
     index = lambda values: np.asarray(values, np.int32).reshape(1, 1, 1, -1)
     if projector == "lfm2":
         feeds["vision.merge_indices"] = index(merge_window_order(gh, gw, int(metadata["vision.merge"])))
+    elif projector == "inkling2v":
+        feeds.update({"vision." + name: value for name, value in inkling_vision_indices(
+            gh, gw, int(metadata["vision.merge"])).items()})
     elif projector in {"gemma4v", "gemma4uv", "pixtral"}:
         rows, cols = np.indices((gh, gw))
         feeds.update({"vision.position_x": index(cols), "vision.position_y": index(rows)})

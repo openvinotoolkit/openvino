@@ -59,6 +59,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/arch/lfm3_projector_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm3_audio_generator.cpp"
     "${FE_SRC_DIR}/builder/arch/dspark_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/inkling_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mamba_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mmproj_builder.cpp"
     "${FE_SRC_DIR}/op/multimodal.cpp"

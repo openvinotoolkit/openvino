@@ -11,6 +11,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <numeric>
 #include <set>
 #include <sstream>
 #include <tuple>
@@ -18,6 +19,7 @@
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/decoder_builder.hpp"
 #include "builder/arch/dspark_builder.hpp"
+#include "builder/arch/inkling_builder.hpp"
 #include "builder/arch_registry.hpp"
 #include "builder/decoder_config.hpp"
 #include "builder/decoder_metadata.hpp"
@@ -39,10 +41,14 @@
 #include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -50,7 +56,9 @@
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
@@ -58,7 +66,9 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/common_util.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "quant/gguf.hpp"
+#include "transformations/convert_precision.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -171,6 +181,508 @@ TEST(GGUFQwen3TTSAdaptation, NativeHiddenStateContractSurvivesIRReloadAndArchite
     ov_gguf_test::expect_near(
         actual,
         std::vector<float>(expected.data<const float>(), expected.data<const float>() + expected.get_size()));
+}
+
+const auto set_tensor = [](ov::InferRequest& request,
+                           const char* name,
+                           const ov::element::Type& type,
+                           const ov::Shape& shape,
+                           const auto& values) {
+    ov::Tensor tensor(type, shape);
+    ASSERT_EQ(tensor.get_size(), values.size()) << name;
+    std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
+    request.set_tensor(name, tensor);
+};
+
+TEST(GGUFInkling, RejectsInvalidMetadataAndTensorShapes) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2-loop.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    const auto original = get_gguf_data(temporary.path);
+    for (const auto& [key, value] : {std::pair{"loop.start", int64_t{0}},
+                                     {"loop.start", 3},
+                                     {"loop.end", 8},
+                                     {"loop.count", 1},
+                                     {"loop.count", std::numeric_limits<int32_t>::max()},
+                                     {"loop.gate_rank", 0},
+                                     {"shortconv.l_cache", 65},
+                                     {"attention.value_length", 16},
+                                     {"expert_used_count", 5}}) {
+        SCOPED_TRACE(key);
+        auto metadata = std::get<0>(original);
+        ov::Tensor invalid(ov::element::i64, {});
+        *invalid.data<int64_t>() = value;
+        metadata[std::string("inkling2_loop.") + key] = invalid;
+        detail::MetadataStore store{metadata};
+        detail::WeightStore tensors{std::get<1>(original)};
+        const BuildContext context{GgufMetadata(store), "inkling2_loop", &tensors};
+        OV_EXPECT_THROW(make_inkling_builder(context)->build(), ov::Exception, testing::HasSubstr("Inkling"));
+    }
+    for (const auto& [key, value] : {std::pair{"attention.layer_norm_rms_epsilon", 1e39},
+                                     {"attention.qk_clip", std::numeric_limits<double>::denorm_min()},
+                                     {"activation.situ_beta", 1e-39},
+                                     {"attention.log_scale_alpha", 1e39},
+                                     {"final_logit_softcapping", 1e39},
+                                     {"final_logit_softcapping", 1e-39},
+                                     {"expert_weights_scale", -1e39}}) {
+        SCOPED_TRACE(key);
+        auto metadata = std::get<0>(original);
+        ov::Tensor invalid(ov::element::f64, {});
+        *invalid.data<double>() = value;
+        metadata[std::string("inkling2_loop.") + key] = invalid;
+        detail::MetadataStore store{metadata};
+        detail::WeightStore tensors{std::get<1>(original)};
+        const BuildContext context{GgufMetadata(store), "inkling2_loop", &tensors};
+        OV_EXPECT_THROW(make_inkling_builder(context)->build(), ov::Exception, testing::HasSubstr("Inkling"));
+    }
+    auto metadata = std::get<0>(original);
+    metadata.erase("inkling2_loop.attention.qk_clip");
+    detail::MetadataStore store{metadata};
+    auto weights = std::get<1>(original);
+    detail::WeightStore tensors{weights};
+    const BuildContext context{GgufMetadata(store), "inkling2_loop", &tensors};
+    OV_EXPECT_THROW(make_inkling_builder(context)->build(), ov::Exception, testing::HasSubstr("attention.qk_clip"));
+    metadata = std::get<0>(original);
+    weights["token_embd_norm.weight"] = ov::Tensor(ov::element::f32, {25});
+    OV_EXPECT_THROW(make_inkling_builder(context)->build(),
+                    ov::Exception,
+                    testing::HasSubstr("token_embd_norm.weight"));
+}
+
+TEST(GGUFInkling, PaddedVocabularyAndIntegerPositionState) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    auto& metadata = std::get<0>(loaded);
+    ov::Tensor unpadded(ov::element::u32, {});
+    *unpadded.data<uint32_t>() = 29;
+    metadata["inkling2.vocab_size_unpadded"] = unpadded;
+    detail::MetadataStore store{metadata};
+    detail::WeightStore tensors{std::get<1>(loaded)};
+    const auto graph = make_inkling_builder({GgufMetadata(store), "inkling2", &tensors})->build();
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<GenAIExtension>());
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(graph);
+    const auto model = frontend.convert(frontend.load(decoder));
+    ov::Core core;
+    auto request = core.compile_model(model,
+                                      "CPU",
+                                      ov::hint::inference_precision(ov::element::f32),
+                                      ov::hint::dynamic_quantization_group_size(0),
+                                      ov::inference_num_threads(4))
+                       .create_infer_request();
+    ov::Tensor ids(ov::element::i64, {1, 3}), positions(ov::element::i64, {1, 3});
+    ov::Tensor mask(ov::element::i64, {1, 3}), beam(ov::element::i32, {1});
+    for (int i = 0; i < 3; ++i) {
+        ids.data<int64_t>()[i] = i + 1;
+        positions.data<int64_t>()[i] = i;
+        mask.data<int64_t>()[i] = 1;
+    }
+    beam.data<int32_t>()[0] = 0;
+    request.set_tensor("input_ids", ids);
+    request.set_tensor("position_ids", positions);
+    request.set_tensor("attention_mask", mask);
+    request.set_tensor("beam_idx", beam);
+    request.infer();
+    const auto logits = request.get_tensor("logits");
+    ASSERT_EQ(logits.get_shape(), (ov::Shape{1, 1, 29}));
+    const auto& expected = ov_gguf_test::npz_array(arrays, "logits");
+    ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(logits.data<const float>(), expected.data<float>(), 29), 1e-5);
+    for (auto state : request.query_state())
+        state.reset();
+    const std::vector<int64_t> large_positions{257, 2049, 16777217};
+    std::copy(large_positions.begin(), large_positions.end(), positions.data<int64_t>());
+    request.infer();
+    bool found_positions = false;
+    for (const auto& state : request.query_state()) {
+        if (state.get_name() != "cache_positions")
+            continue;
+        found_positions = true;
+        const auto cached = state.get_state();
+        ASSERT_EQ(cached.get_element_type(), ov::element::i32);
+        ASSERT_EQ(cached.get_size(), large_positions.size());
+        for (size_t i = 0; i < large_positions.size(); ++i)
+            EXPECT_EQ(cached.data<const int32_t>()[i], large_positions[i]);
+    }
+    EXPECT_TRUE(found_positions);
+}
+
+TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
+    for (const auto* family : {"inkling2", "inkling2-loop", "inkling2-loop-varying"}) {
+        SCOPED_TRACE(family);
+        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+        auto model = frontend.convert(frontend.load(temporary.path));
+        auto stateful = model->clone();
+        ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model));
+        size_t attentions = 0, convolutions = 0;
+        std::shared_ptr<ov::op::v0::Convert> first_bias;
+        for (const auto& node : model->get_ops()) {
+            if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+                ++attentions;
+                EXPECT_EQ(pa->get_input_size(), 30);
+                if (!first_bias)
+                    first_bias = ov::as_type_ptr<ov::op::v0::Convert>(pa->get_input_node_shared_ptr(28));
+            }
+            convolutions += ov::is_type<ov::op::internal::PagedCausalConv1D>(node);
+            EXPECT_FALSE(ov::is_type<ov::op::util::ReadValueBase>(node));
+        }
+        const size_t slots = std::string(family) == "inkling2" ? 4 : std::string(family) == "inkling2-loop" ? 10 : 6;
+        EXPECT_EQ(attentions, slots);
+        EXPECT_EQ(convolutions, slots * 4);
+        EXPECT_TRUE(model->get_sinks().empty());
+        ASSERT_TRUE(first_bias);
+        ASSERT_EQ(first_bias->get_output_element_type(0), ov::element::f16);
+        auto raw_bias = std::make_shared<ov::op::v0::Result>(first_bias->input_value(0));
+        raw_bias->output(0).set_names({"test_bias_raw"});
+        auto rounded_bias = std::make_shared<ov::op::v0::Result>(first_bias->output(0));
+        rounded_bias->output(0).set_names({"test_bias_f16"});
+        model->add_results({raw_bias, rounded_bias});
+
+        ov::Core core;
+        const ov::AnyMap config{ov::hint::inference_precision(ov::element::f32),
+                                ov::hint::kv_cache_precision(ov::element::f16),
+                                ov::hint::dynamic_quantization_group_size(0),
+                                ov::num_streams(1),
+                                ov::inference_num_threads(4)};
+        auto stateful_compiled = core.compile_model(stateful, "CPU", config);
+        auto paged_compiled = core.compile_model(model, "CPU", config);
+        auto first = stateful_compiled.create_infer_request();
+        auto second = stateful_compiled.create_infer_request();
+        auto paged = paged_compiled.create_infer_request();
+        std::map<std::string, ov::Tensor> caches;
+        for (const auto& input : paged_compiled.inputs()) {
+            const auto name = input.get_any_name();
+            if (name.rfind("key_cache.", 0) != 0 && name.rfind("value_cache.", 0) != 0 &&
+                name.rfind("conv_state_table.", 0) != 0)
+                continue;
+            auto shape = input.get_partial_shape();
+            shape[0] = name.rfind("conv_state_table.", 0) == 0 ? 4 : 2;
+            ASSERT_TRUE(shape.is_static()) << name << ' ' << shape;
+            ov::Tensor cache(input.get_element_type(), shape.to_shape());
+            std::memset(cache.data(), 0, cache.get_byte_size());
+            paged.set_tensor(name, cache);
+            caches.emplace(name, cache);
+        }
+        ASSERT_EQ(caches.size(), attentions * 2 + convolutions);
+
+        const auto stateful_infer = [&](ov::InferRequest& request, const std::vector<int64_t>& tokens, int64_t past) {
+            std::vector<int64_t> positions(tokens.size());
+            std::iota(positions.begin(), positions.end(), past);
+            std::vector<int64_t> mask(static_cast<size_t>(past) + tokens.size(), 1);
+            set_tensor(request, "input_ids", ov::element::i64, {1, tokens.size()}, tokens);
+            set_tensor(request, "position_ids", ov::element::i64, {1, tokens.size()}, positions);
+            set_tensor(request, "attention_mask", ov::element::i64, {1, mask.size()}, mask);
+            set_tensor(request, "beam_idx", ov::element::i32, {1}, std::vector<int32_t>{0});
+            request.infer();
+            const auto result = request.get_tensor("logits");
+            return std::vector<float>(result.data<const float>(), result.data<const float>() + result.get_size());
+        };
+        const auto& oracle = ov_gguf_test::npz_array(arrays, "logits");
+        ASSERT_EQ(oracle.shape.size(), 2);
+        const auto vocab = oracle.shape[1];
+        const auto run = [&](const std::vector<int64_t>& a,
+                             const std::vector<int64_t>& b,
+                             int32_t past_a,
+                             int32_t past_b,
+                             bool swapped,
+                             const std::vector<int32_t>& linear_blocks,
+                             size_t oracle_step) {
+            const auto expected_a = stateful_infer(first, a, past_a);
+            const auto expected_b = stateful_infer(second, b, past_b);
+            ASSERT_EQ(expected_a.size(), vocab);
+            ASSERT_EQ(expected_b.size(), vocab);
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(expected_a.data(), oracle.data<float>() + oracle_step * vocab, vocab),
+                1e-5);
+            const auto& seq0 = swapped ? b : a;
+            const auto& seq1 = swapped ? a : b;
+            const auto p0 = swapped ? past_b : past_a;
+            const auto p1 = swapped ? past_a : past_b;
+            std::vector<int64_t> tokens = seq0;
+            tokens.insert(tokens.end(), seq1.begin(), seq1.end());
+            std::vector<int64_t> positions;
+            for (size_t i = 0; i < seq0.size(); ++i)
+                positions.push_back(p0 + static_cast<int64_t>(i));
+            for (size_t i = 0; i < seq1.size(); ++i)
+                positions.push_back(p1 + static_cast<int64_t>(i));
+            const auto total = static_cast<int32_t>(tokens.size());
+            set_tensor(paged, "input_ids", ov::element::i64, {tokens.size()}, tokens);
+            set_tensor(paged, "position_ids", ov::element::i64, {positions.size()}, positions);
+            set_tensor(paged, "past_lens", ov::element::i32, {2}, std::vector<int32_t>{p0, p1});
+            set_tensor(paged,
+                       "subsequence_begins",
+                       ov::element::i32,
+                       {3},
+                       std::vector<int32_t>{0, static_cast<int32_t>(seq0.size()), total});
+            set_tensor(paged,
+                       "max_context_len",
+                       ov::element::i32,
+                       {},
+                       std::vector<int32_t>{
+                           std::max(p0 + static_cast<int32_t>(seq0.size()), p1 + static_cast<int32_t>(seq1.size()))});
+            set_tensor(paged,
+                       "block_indices",
+                       ov::element::i32,
+                       {2},
+                       std::vector<int32_t>{swapped ? 1 : 0, swapped ? 0 : 1});
+            set_tensor(paged, "block_indices_begins", ov::element::i32, {3}, std::vector<int32_t>{0, 1, 2});
+            set_tensor(paged, "la.block_indices", ov::element::i32, {4}, linear_blocks);
+            set_tensor(paged, "la.block_indices_begins", ov::element::i32, {3}, std::vector<int32_t>{0, 2, 4});
+            set_tensor(paged, "la.past_lens", ov::element::i32, {2}, std::vector<int32_t>{p0, p1});
+            set_tensor(paged, "la.cache_interval", ov::element::i32, {2}, std::vector<int32_t>{0, 0});
+            ASSERT_NO_THROW(paged.infer());
+            const auto actual = paged.get_tensor("logits");
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{tokens.size(), 1, vocab}));
+            const auto before_rounding = paged.get_tensor("test_bias_raw");
+            const auto after_rounding = paged.get_tensor("test_bias_f16");
+            ASSERT_EQ(before_rounding.get_element_type(), ov::element::f32);
+            ASSERT_EQ(after_rounding.get_element_type(), ov::element::f16);
+            ASSERT_EQ(before_rounding.get_size(), after_rounding.get_size());
+            size_t rounded_values = 0;
+            for (size_t i = 0; i < before_rounding.get_size(); ++i) {
+                const auto before = before_rounding.data<const float>()[i];
+                const auto after = static_cast<float>(after_rounding.data<const ov::float16>()[i]);
+                EXPECT_FLOAT_EQ(after, static_cast<float>(ov::float16(before)));
+                rounded_values += before != after;
+            }
+            EXPECT_GT(rounded_values, 0);
+            const auto* seq0_logits = actual.data<const float>() + (seq0.size() - 1) * vocab;
+            const auto* seq1_logits = actual.data<const float>() + (tokens.size() - 1) * vocab;
+            const auto& expected0 = swapped ? expected_b : expected_a;
+            const auto& expected1 = swapped ? expected_a : expected_b;
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(seq0_logits, expected0.data(), vocab), 1e-5);
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(seq1_logits, expected1.data(), vocab), 1e-5);
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(swapped ? seq1_logits : seq0_logits,
+                                                               oracle.data<float>() + oracle_step * vocab,
+                                                               vocab),
+                                            1e-5);
+        };
+        run({1, 2, 3}, {2, 3}, 0, 0, false, {0, 1, 2, 3}, 0);
+        run({4}, {5}, 3, 2, true, {3, 2, 1, 0}, 1);
+        run({5, 6}, {6}, 4, 3, true, {2, 3, 0, 1}, 2);
+        for (auto state : first.query_state())
+            state.reset();
+        for (auto state : second.query_state())
+            state.reset();
+        for (auto& [name, cache] : caches)
+            std::memset(cache.data(), 0, cache.get_byte_size());
+        run({1, 2, 3}, {2, 3}, 0, 0, false, {0, 1, 2, 3}, 0);
+    }
+}
+
+TEST(GGUFPagedAttention, Qwen3MoeMatchesLlamaCpu) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen3moe.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    size_t attentions = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            ++attentions;
+            EXPECT_EQ(pa->get_input_size(), 28);
+        }
+    }
+    ASSERT_EQ(attentions, 2);
+    ASSERT_TRUE(model->get_sinks().empty());
+
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::hint::kv_cache_precision(ov::element::f16),
+                                       ov::hint::dynamic_quantization_group_size(0),
+                                       ov::num_streams(1),
+                                       ov::inference_num_threads(4));
+    auto request = compiled.create_infer_request();
+    std::vector<ov::Tensor> caches;
+    for (const auto& input : compiled.inputs()) {
+        const auto name = input.get_any_name();
+        if (name.rfind("key_cache.", 0) != 0 && name.rfind("value_cache.", 0) != 0)
+            continue;
+        auto shape = input.get_partial_shape();
+        shape[0] = 1;
+        ASSERT_TRUE(shape.is_static()) << name << ' ' << shape;
+        ov::Tensor cache(input.get_element_type(), shape.to_shape());
+        std::memset(cache.data(), 0, cache.get_byte_size());
+        request.set_tensor(name, cache);
+        caches.push_back(cache);
+    }
+    ASSERT_EQ(caches.size(), 2 * attentions);
+    set_tensor(request, "block_indices", ov::element::i32, {1}, std::vector<int32_t>{0});
+    set_tensor(request, "block_indices_begins", ov::element::i32, {2}, std::vector<int32_t>{0, 1});
+
+    const auto& oracle = ov_gguf_test::npz_array(arrays, "logits");
+    ASSERT_EQ(oracle.shape.size(), 2);
+    const auto vocab = oracle.shape[1];
+    const std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
+    ASSERT_EQ(oracle.shape[0], schedule.size());
+    for (size_t replay = 0; replay < 2; ++replay) {
+        for (auto& cache : caches)
+            std::memset(cache.data(), 0, cache.get_byte_size());
+        int32_t past = 0;
+        const auto steps = replay == 0 ? schedule.size() : size_t{1};
+        for (size_t step = 0; step < steps; ++step) {
+            const auto& tokens = schedule[step];
+            std::vector<int64_t> positions(tokens.size());
+            std::iota(positions.begin(), positions.end(), past);
+            set_tensor(request, "input_ids", ov::element::i64, {tokens.size()}, tokens);
+            set_tensor(request, "position_ids", ov::element::i64, {positions.size()}, positions);
+            set_tensor(request, "past_lens", ov::element::i32, {1}, std::vector<int32_t>{past});
+            set_tensor(request,
+                       "subsequence_begins",
+                       ov::element::i32,
+                       {2},
+                       std::vector<int32_t>{0, static_cast<int32_t>(tokens.size())});
+            set_tensor(request,
+                       "max_context_len",
+                       ov::element::i32,
+                       {},
+                       std::vector<int32_t>{past + static_cast<int32_t>(tokens.size())});
+            request.infer();
+            const auto actual = request.get_tensor("logits");
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{tokens.size(), 1, vocab}));
+            const auto* row = actual.data<const float>() + actual.get_size() - vocab;
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(row, oracle.data<float>() + step * vocab, vocab), 1e-5);
+            past += static_cast<int32_t>(tokens.size());
+        }
+    }
+}
+
+TEST(GGUFInkling, PagedBiasContractSurvivesSerialization) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2-loop.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    const auto model = frontend.convert(frontend.load(temporary.path));
+    std::stringstream xml, weights;
+    ov::pass::Serialize(xml, weights).run_on_model(model);
+    const auto bytes = weights.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    std::memcpy(constants.data(), bytes.data(), bytes.size());
+    ov::Core core;
+    core.add_extension(std::make_shared<ov::OpExtension<ov::op::internal::GatherMatmul>>());
+    auto restored = core.read_model(xml.str(), constants);
+    size_t markers = 0;
+    for (const auto& node : restored->get_ops())
+        markers += node->get_rt_info().count(ov::op::paged_attention_relative_bias_rt_info);
+    ASSERT_EQ(markers, 10);
+    ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(restored));
+    size_t attentions = 0;
+    for (const auto& node : restored->get_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            ++attentions;
+            EXPECT_EQ(pa->get_input_size(), 30);
+        }
+    }
+    EXPECT_EQ(attentions, 10);
+}
+
+TEST(GGUFInkling, PagedBiasFollowsPrecisionConversion) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    ov::pass::ConvertPrecision(ov::element::f16, ov::element::f32).run_on_model(model);
+    size_t attentions = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            ++attentions;
+            ASSERT_EQ(pa->get_input_size(), 30);
+            EXPECT_EQ(pa->get_input_element_type(28), ov::element::f32);
+        }
+    }
+    EXPECT_EQ(attentions, 4);
+}
+
+TEST(GGUFInkling, PagedAttentionRejectsUnmatchedDynamicTapState) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    std::shared_ptr<ov::Node> window;
+    for (const auto& node : model->get_ops()) {
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node);
+        if (concat && concat->get_axis() == 3 && concat->get_input_size() == 2 &&
+            ov::is_type<ov::op::util::ReadValueBase>(concat->get_input_node_shared_ptr(0)) &&
+            concat->output(0).get_target_inputs().size() >= 5) {
+            window = concat;
+            break;
+        }
+    }
+    ASSERT_TRUE(window);
+    model->add_results({std::make_shared<ov::op::v0::Result>(window)});
+    OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
+                    ov::Exception,
+                    testing::HasSubstr("cannot retain unconverted state"));
+}
+
+TEST(GGUFInkling, PagedAttentionRejectsUnmarkedRelativeBias) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2-loop.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    bool removed = false;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_rt_info().erase(ov::op::paged_attention_relative_bias_rt_info)) {
+            removed = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(removed);
+    OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
+                    ov::Exception,
+                    testing::HasSubstr("query-dependent relative bias has no conversion contract"));
+}
+
+TEST(GGUFInkling, PagedAttentionAllowsUnrelatedGatherMask) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2-loop.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    size_t replaced = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+        if (!sdpa)
+            continue;
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(sdpa->get_input_node_shared_ptr(3));
+        ASSERT_TRUE(convert);
+        const auto old_mask = ov::as_type_ptr<ov::op::v1::Add>(convert->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(old_mask);
+        const auto zero = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {0.f});
+        const auto indices = ov::op::v0::Constant::create(ov::element::i32, {1, 1, 1, 1}, {0});
+        const auto gather = std::make_shared<ov::op::v6::GatherElements>(zero, indices, 3);
+        const auto subtract = std::make_shared<ov::op::v1::Subtract>(gather, zero);
+        const auto mask = std::make_shared<ov::op::v1::Add>(subtract, old_mask->input_value(1));
+        sdpa->input(3).replace_source_output(std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16));
+        ++replaced;
+    }
+    ASSERT_EQ(replaced, 10);
+    const auto sinks = model->get_sinks();
+    for (const auto& sink : sinks) {
+        const auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink);
+        if (assign && assign->get_variable_id() == "cache_positions")
+            model->remove_sink(sink);
+    }
+    ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    size_t attentions = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            ++attentions;
+            EXPECT_EQ(pa->get_input_size(), 28);
+        }
+    }
+    EXPECT_EQ(attentions, 10);
 }
 
 TEST(GGUFAFMoE, MissingAndZeroRoutingUseSigmoidDefaults) {
@@ -1089,7 +1601,7 @@ TEST(GGUFMultimodalBackboneAdaptation, AdaptToGenAIReturnsDecoderModels) {
 // Gemma3/Gemma4 scale token lookups only, as in llama.cpp, so the scale belongs to the embedding
 // model and injected media embeddings reach the decoder unscaled.
 TEST(GGUFMultimodalBackboneAdaptation, EmbeddingModelPreservesTokenScaling) {
-    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple", "lfm2", "lfm2moe"}) {
+    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple", "lfm2", "lfm2moe", "inkling2"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -1121,7 +1633,7 @@ TEST(GGUFMultimodalBackboneAdaptation, EmbeddingModelPreservesTokenScaling) {
                 return constant && ov::shape_size(constant->get_shape()) == 1 &&
                        std::abs(constant->cast_vector<float>()[0] - std::sqrt(float(width))) < 1e-4f;
             });
-        EXPECT_EQ(scaled, std::string(family).find("lfm2") != 0);
+        EXPECT_EQ(scaled, std::string(family).find("lfm2") != 0 && std::string(family) != "inkling2");
 
         ov::Core core;
         const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
@@ -1139,6 +1651,22 @@ TEST(GGUFMultimodalBackboneAdaptation, EmbeddingModelPreservesTokenScaling) {
         beam.data<int32_t>()[0] = 0;
         lookup.set_tensor("input_ids", ids);
         lookup.infer();
+        if (std::string(family) == "inkling2") {
+            const auto loaded = ov::frontend::gguf::get_gguf_data(temporary.path);
+            const auto& weights = std::get<1>(loaded);
+            const auto* table = weights.at("token_embd.weight").data.data<const float>();
+            const auto* norm = weights.at("token_embd_norm.weight").data.data<const float>();
+            const auto embeddings = lookup.get_tensor("inputs_embeds");
+            for (int token = 0; token < 3; ++token) {
+                double mean_square = 0;
+                for (int feature = 0; feature < width; ++feature)
+                    mean_square += std::pow(table[(token + 1) * width + feature], 2) / width;
+                for (int feature = 0; feature < width; ++feature)
+                    EXPECT_NEAR(embeddings.data<const float>()[token * width + feature],
+                                table[(token + 1) * width + feature] * norm[feature] / std::sqrt(mean_square + 1e-6),
+                                1e-5);
+            }
+        }
         for (auto* request : {&tokens, &values}) {
             request->set_tensor("attention_mask", mask);
             request->set_tensor("position_ids", positions);
@@ -1948,8 +2476,10 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
     const bool legacy_hadamard = std::string(GetParam()) == "qwen3next-legacy-hadamard";
     const std::string fixture_family = legacy_hadamard ? "qwen3next-legacy" : GetParam();
-    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h" ||
-                       std::string(GetParam()).find("lfm2") == 0 || std::string(GetParam()).find("lfm3") == 0;
+    const bool inkling = std::string(GetParam()).find("inkling2") == 0;
+    const bool mamba = inkling || std::string(GetParam()).find("mamba2") == 0 ||
+                       std::string(GetParam()) == "nemotron_h" || std::string(GetParam()).find("lfm2") == 0 ||
+                       std::string(GetParam()).find("lfm3") == 0;
     const bool lfm2 = std::string(GetParam()).find("lfm2") == 0 || std::string(GetParam()).find("lfm3") == 0;
     const auto directory = override_dir && !legacy_hadamard
                                ? std::filesystem::path(override_dir)
@@ -1985,7 +2515,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             size_t count = 0;
             while (token_file >> count) {
                 ASSERT_GT(count, 0);
-                ASSERT_LE(count, 64);
+                ASSERT_LE(count, 4096);
                 std::vector<int64_t> ids(count);
                 for (auto& token : ids)
                     ASSERT_TRUE(token_file >> token);
@@ -1996,6 +2526,8 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         reference.resize(schedule.size() * vocab);
         file.read(reinterpret_cast<char*>(reference.data()), reference.size() * sizeof(float));
         ASSERT_TRUE(file);
+        // Split checkpoints discover sibling shards from the first shard's canonical filename.
+        model_path = std::filesystem::canonical(model_path).string();
     } else {
         const auto arrays = cnpy::npz_load(base.string() + ".npz");
         const auto array = [&](const std::string& name) -> const cnpy::NpyArray& {
@@ -2093,14 +2625,18 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{lfm2 ? -1 : 1, -1}));
         EXPECT_NO_THROW(model->input("beam_idx"));
     }
+    const char* device_override = std::getenv("OV_GGUF_ACCURACY_DEVICE");
+    const std::string device = real_checkpoint && device_override ? device_override : "CPU";
+    RecordProperty("device", device);
     ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       "CPU",
-                                       ov::hint::inference_precision(ov::element::f32),
-                                       ov::num_streams(1),
-                                       ov::inference_num_threads(4),
-                                       ov::hint::dynamic_quantization_group_size(0),
-                                       ov::hint::kv_cache_precision(ov::element::f16));
+    ov::AnyMap config{ov::num_streams(1),
+                      ov::hint::dynamic_quantization_group_size(0),
+                      ov::hint::kv_cache_precision(ov::element::f16)};
+    if (device == "CPU") {
+        config.insert(ov::hint::inference_precision(ov::element::f32));
+        config.insert(ov::inference_num_threads(4));
+    }
+    auto compiled = core.compile_model(model, device, config);
     auto request = compiled.create_infer_request();
     ov::InferRequest lookup;
     if (!real_checkpoint && GetParam() == std::string("eagle3-mapped")) {
@@ -2234,7 +2770,10 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
-                         ::testing::Values("qwen35",
+                         ::testing::Values("inkling2",
+                                           "inkling2-loop",
+                                           "inkling2-loop-varying",
+                                           "qwen35",
                                            "qwen3next",
                                            "qwen3next-legacy",
                                            "qwen3next-legacy-hadamard",

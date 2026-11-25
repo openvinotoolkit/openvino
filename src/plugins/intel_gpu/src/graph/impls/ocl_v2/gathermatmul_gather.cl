@@ -15,7 +15,7 @@
  */
 
 // Copies activation rows into a contiguous per-group buffer (driven by sort output).
-// Dispatch: z=max_groups, y=token-within-group, x=K tile.
+// Dispatch: y=gathered row (n_tokens * top_k), x=K tile.
 
 #define COPY_BLOCK 8
 
@@ -30,37 +30,32 @@ KERNEL(bgm_gather)(
     const global int* num_groups,
     int k_val
 ) {
-    int group_id = get_global_id(2);
-    if (group_id >= num_groups[0])
+    const int row = get_global_id(1);
+    const int k_offset = get_global_id(0) * COPY_BLOCK;
+    if (k_offset >= k_val)
         return;
 
-    int n_tokens_in_group = group_sizes[group_id];
-    int token_in_group = get_global_id(1);
-    if (token_in_group >= n_tokens_in_group)
+    int lo = 0;
+    int hi = num_groups[0] - 1;
+    while (lo < hi) {
+        const int mid = (lo + hi + 1) >> 1;
+        if (group_offsets[mid] <= row)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    if (row >= group_offsets[lo] + group_sizes[lo])
         return;
 
-    int offset = group_offsets[group_id];
-    int slot = group_slot_ids[group_id];
-    int n_act = N_ACTIVATED_EXPERTS;
-    int a_slot = min(slot, n_act - 1);  // clamp for broadcast case
-    int n_tokens = N_TOKENS;
+    const int a_slot = min(group_slot_ids[lo], N_ACTIVATED_EXPERTS - 1);
+    const int orig_token = token_map[row];
+    const global half* src = input_ptr + (a_slot * N_TOKENS + orig_token) * k_val;
+    global half* dst = gathered_ptr + row * k_val;
 
-    int orig_token = token_map[offset + token_in_group];
-
-    // Source: A[a_slot, orig_token, :]
-    const global half* src = input_ptr + (a_slot * n_tokens + orig_token) * k_val;
-    // Dest: gathered_A[offset + token_in_group, :]
-    global half* dst = gathered_ptr + (offset + token_in_group) * k_val;
-
-    // Copy K elements using vectorized loads
-    int k_offset = get_global_id(0) * COPY_BLOCK;
     if (k_offset + COPY_BLOCK <= k_val) {
-        half8 val = vload8(0, src + k_offset);
-        vstore8(val, 0, dst + k_offset);
+        vstore8(vload8(0, src + k_offset), 0, dst + k_offset);
     } else {
-        // Tail handling
-        for (int i = k_offset; i < k_val && i < k_offset + COPY_BLOCK; i++) {
+        for (int i = k_offset; i < k_val; i++)
             dst[i] = src[i];
-        }
     }
 }

@@ -73,6 +73,11 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             return false;
         }
 
+        // kv_cache primitive has no integer implementations; integer states such as cache positions stay unfused.
+        if (!past_node->get_output_element_type(0).is_real()) {
+            return false;
+        }
+
         // TODO: Support conversion internally
         if (ov::is_type<ov::opset8::Gather>(concat_past_input)) {
             if (!concat_node || concat_node->get_output_element_type(0) != past_node->get_output_element_type(0)) {

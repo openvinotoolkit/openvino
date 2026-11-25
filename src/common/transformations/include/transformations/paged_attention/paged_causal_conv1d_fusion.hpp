@@ -92,5 +92,26 @@ private:
     size_t m_layer_index = 0;
 };
 
+/**
+ * @brief Replaces a depthwise causal convolution and its per-lag history slices with one
+ * PagedCausalConv1D. Repeated channels with one-hot filters expose each history sample:
+ *
+ *   ReadValue -> Concat -> GroupConvolution, Slice[0..K-1], Assign
+ *   tokens -> PagedCausalConv1D -> static convolution and K history samples
+ *
+ * The replacement is applicable to packed, single-token rows after SDPA-to-PA input rewriting.
+ */
+class TRANSFORMATIONS_API PagedCausalConv1DWithDynamicTaps : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("PagedCausalConv1DWithDynamicTaps");
+    PagedCausalConv1DWithDynamicTaps(ov::pass::paged_attention::PaParams& pa_params,
+                                     std::unordered_set<std::string>& var_ids_to_remove);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    ov::pass::paged_attention::PaParams& m_pa_params;
+    std::unordered_set<std::string>& m_var_ids_to_remove;
+};
+
 }  // namespace pass
 }  // namespace ov

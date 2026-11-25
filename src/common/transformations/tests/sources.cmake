@@ -110,6 +110,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_qsa_indexer_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_selective_ssm_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/preprocessing_fusion_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/preserve_gather_matmul_layout.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pull_through_reduce_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/push_constant_to_subgraphs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/random_uniform_fusion_test.cpp

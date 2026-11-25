@@ -147,7 +147,9 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         const bool is_swa = context.get_attribute<bool>("is_swa", false) ||
                             context.get_input_names()[3].find("swa") != std::string::npos;
         const std::string mask_name = is_swa ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
-        if (context.has_input(mask_name)) {
+        if (context.get_attribute<bool>("explicit_mask", false)) {
+            mask_sliced = mask;
+        } else if (context.has_input(mask_name)) {
             mask_sliced = context.get_input(mask_name);
         } else {
             auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});

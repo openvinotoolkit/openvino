@@ -15,6 +15,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -23,6 +24,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -32,7 +34,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
-#include "openvino/runtime/core.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace {
 
@@ -820,4 +822,150 @@ TEST_F(PagedCausalConv1DFusionTest, FusesPLEWithBiasAndNoOutputSlice) {
     model = build_dilated_conv_model(history_length, dilation, /*with_output_slice=*/false, /*with_bias=*/true);
     run_paged_causal_conv1d_fusion(model);
     model_ref = build_dilated_conv_fused_reference(history_length, dilation, /*with_bias=*/true);
+}
+
+namespace {
+
+std::shared_ptr<ov::Model> build_dynamic_tap_model(bool duplicate_tap = false) {
+    const auto i64 = [](const std::vector<int64_t>& values) {
+        return v0::Constant::create(element::i64, {values.size()}, values);
+    };
+    auto tokens = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 1, 1, 2});
+    tokens->output(0).set_names({"tokens"});
+    auto initial = v0::Constant::create(element::f32, {1, 1, 2, 2}, {0.f});
+    auto state = std::make_shared<ov::op::v3::ReadValue>(initial, "dynamic_tap_state");
+    auto transposed = std::make_shared<v1::Transpose>(tokens, i64({0, 1, 3, 2}));
+    auto window = std::make_shared<v0::Concat>(OutputVector{state, transposed}, 3);
+    auto conv_input = std::make_shared<v1::Reshape>(window, i64({1, 2, -1}), false);
+    auto weights = v0::Constant::create(element::f32, {2, 1, 1, 3}, {1.f, 2.f, 3.f, -1.f, 0.5f, 2.f});
+    auto conv = std::make_shared<v1::GroupConvolution>(conv_input,
+                                                       weights,
+                                                       Strides{1},
+                                                       CoordinateDiff{0},
+                                                       CoordinateDiff{0},
+                                                       Strides{1});
+    ResultVector results{std::make_shared<v0::Result>(conv)};
+    auto length = std::make_shared<v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(tokens), i64({2}), i64({0}));
+    for (int64_t lag = 0; lag < 3; ++lag) {
+        auto start = i64({duplicate_tap && lag == 2 ? 1 : 2 - lag});
+        auto stop = std::make_shared<v1::Add>(start, length);
+        results.push_back(
+            std::make_shared<v0::Result>(std::make_shared<v8::Slice>(window, start, stop, i64({1}), i64({3}))));
+    }
+    auto update = std::make_shared<v8::Slice>(window, i64({-2}), i64({INT64_MAX}), i64({1}), i64({3}));
+    auto assign = std::make_shared<ov::op::v3::Assign>(update, "dynamic_tap_state");
+    return std::make_shared<ov::Model>(results, SinkVector{assign}, ParameterVector{tokens});
+}
+
+std::shared_ptr<ov::Model> build_dynamic_tap_reference() {
+    const auto i64 = [](const std::vector<int64_t>& values) {
+        return v0::Constant::create(element::i64, {values.size()}, values);
+    };
+    auto tokens = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 1, 1, 2});
+    auto rows = std::make_shared<v1::Reshape>(tokens, i64({-1, 2}), false);
+    auto expanded = std::make_shared<v0::Concat>(OutputVector{rows, rows, rows, rows}, 1);
+    auto weights = v0::Constant::create(element::f32, {2, 1, 1, 3}, {1.f, 2.f, 3.f, -1.f, 0.5f, 2.f});
+    auto static_weights = std::make_shared<v1::Reshape>(weights, i64({2, 1, 3}), false);
+    auto one_hot = v0::Constant::create(
+        element::f32,
+        {6, 1, 3},
+        {0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 0.f});
+    auto combined_weights = std::make_shared<v0::Concat>(OutputVector{static_weights, one_hot}, 0);
+    auto bias = v0::Constant::create(element::f32, {0}, std::vector<float>{});
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 8, 3});
+    ov::enable_keep_const_precision(table);
+    auto paged = std::make_shared<ov::op::internal::PagedCausalConv1D>(expanded,
+                                                                       table,
+                                                                       combined_weights,
+                                                                       bias,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       past_lens,
+                                                                       cache_interval,
+                                                                       1);
+    const auto column = [&](int64_t start) {
+        return std::make_shared<v8::Slice>(paged, i64({start}), i64({start + 2}), i64({1}), i64({1}));
+    };
+    ResultVector results{std::make_shared<v0::Result>(std::make_shared<v0::Unsqueeze>(column(0), i64({2})))};
+    for (int64_t lag = 0; lag < 3; ++lag) {
+        auto tap = std::make_shared<v1::Reshape>(column((lag + 1) * 2), i64({0, 1, 2, 1}), true);
+        results.push_back(std::make_shared<v0::Result>(tap));
+    }
+    return std::make_shared<ov::Model>(results,
+                                       ParameterVector{tokens,
+                                                       subsequence_begins,
+                                                       block_indices,
+                                                       block_indices_begins,
+                                                       past_lens,
+                                                       cache_interval,
+                                                       table});
+}
+
+}  // namespace
+
+class ApplyDynamicTapFusion : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ApplyDynamicTapFusion");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        ov::pass::paged_attention::PaParams params{model->get_parameters()};
+        std::unordered_set<std::string> variables;
+        const auto changed = ov::pass::PagedCausalConv1DWithDynamicTaps(params, variables).run_on_model(model);
+        if (!changed)
+            return false;
+        const auto sinks = model->get_sinks();
+        for (const auto& sink : sinks) {
+            const auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink);
+            if (assign && variables.count(assign->get_variable_id()))
+                model->remove_sink(sink);
+        }
+        model->add_parameters(params.items());
+        model->validate_nodes_and_infer_types();
+        return true;
+    }
+};
+
+namespace {
+
+class DynamicTapFusion : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ApplyDynamicTapFusion>();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+};
+
+}  // namespace
+
+TEST_F(DynamicTapFusion, LowersAllDynamicLags) {
+    model = build_dynamic_tap_model();
+    model_ref = build_dynamic_tap_reference();
+    // Paged cache parameters are newly introduced inputs, not replacements.
+    disable_rt_info_check();
+}
+
+TEST_F(DynamicTapFusion, RejectsDuplicateLag) {
+    model = build_dynamic_tap_model(true);
+}
+
+TEST(PagedCausalConv1DWithDynamicTaps, RejectsOverflowingHistoryLength) {
+    auto tokens = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 1, 1, 2});
+    auto initial =
+        std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 2, std::numeric_limits<int64_t>::max() - 2});
+    auto state = std::make_shared<ov::op::v3::ReadValue>(initial, "dynamic_tap_state");
+    auto order = v0::Constant::create(element::i64, {4}, {0, 1, 3, 2});
+    auto transposed = std::make_shared<v1::Transpose>(tokens, order);
+    auto window = std::make_shared<v0::Concat>(OutputVector{state, transposed}, 3);
+    auto model = std::make_shared<ov::Model>(OutputVector{window}, ParameterVector{tokens, initial});
+    ov::pass::paged_attention::PaParams pa_params{model->get_parameters()};
+    std::unordered_set<std::string> variables;
+    EXPECT_THROW(ov::pass::PagedCausalConv1DWithDynamicTaps(pa_params, variables).run_on_model(model), ov::Exception);
 }

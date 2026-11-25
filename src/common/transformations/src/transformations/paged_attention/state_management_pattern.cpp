@@ -4,6 +4,9 @@
 
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
+#include <charconv>
+#include <limits>
+#include <optional>
 #include <tuple>
 #include <unordered_set>
 
@@ -19,9 +22,13 @@
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -202,6 +209,88 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
     return res_alibi_slopes;
 }
 
+static bool depends_on(const ov::Output<ov::Node>& root, const ov::Node* target);
+
+namespace {
+
+struct RelativeBias {
+    ov::Output<ov::Node> table;
+    ov::Output<ov::Node> sink;
+    std::shared_ptr<ov::op::util::ReadValueBase> positions_state;
+    ov::element::Type mask_type;
+    int32_t sliding_window;
+};
+
+bool constant_is(const ov::Output<ov::Node>& value, const std::vector<int64_t>& expected) {
+    const auto constant = ov::as_type_ptr<v0::Constant>(value.get_node_shared_ptr());
+    return constant && constant->get_element_type().is_integral_number() &&
+           constant->cast_vector<int64_t>() == expected;
+}
+
+std::optional<RelativeBias> extract_relative_bias(const ov::Node* sdpa, const PaParams& params) {
+    auto root = sdpa->get_input_node_shared_ptr(3);
+    if (const auto convert = ov::as_type_ptr<v0::Convert>(root))
+        root = convert->get_input_node_shared_ptr(0);
+    const auto add = ov::as_type_ptr<v1::Add>(root);
+    const auto sub = add ? ov::as_type_ptr<v1::Subtract>(add->get_input_node_shared_ptr(0)) : nullptr;
+    const auto gather = sub ? ov::as_type_ptr<ov::op::v6::GatherElements>(sub->get_input_node_shared_ptr(0)) : nullptr;
+    const auto attr = root->get_rt_info().find(ov::op::paged_attention_relative_bias_rt_info);
+    if (attr == root->get_rt_info().end()) {
+        const auto table = gather ? ov::as_type_ptr<v0::MatMul>(gather->get_input_node_shared_ptr(0)) : nullptr;
+        const auto indices = gather ? ov::as_type_ptr<v3::Broadcast>(gather->get_input_node_shared_ptr(1)) : nullptr;
+        OPENVINO_ASSERT(!table || !indices, "PagedAttention: query-dependent relative bias has no conversion contract");
+        return std::nullopt;
+    }
+
+    const auto& text = attr->second.as<std::string>();
+    int32_t window = 0;
+    const auto parsed = std::from_chars(text.data(), text.data() + text.size(), window);
+    OPENVINO_ASSERT(parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size() && window >= 0,
+                    "PagedAttention: invalid relative-bias sliding window");
+    OPENVINO_ASSERT(add && sub && gather && gather->get_axis() == 3, "PagedAttention: invalid relative-bias mask");
+    const auto table = ov::as_type_ptr<v0::MatMul>(gather->get_input_node_shared_ptr(0));
+    const auto broadcast = ov::as_type_ptr<v3::Broadcast>(gather->get_input_node_shared_ptr(1));
+    const auto select = broadcast ? ov::as_type_ptr<v1::Select>(broadcast->get_input_node_shared_ptr(0)) : nullptr;
+    const auto valid = select ? ov::as_type_ptr<v1::LogicalAnd>(select->get_input_node_shared_ptr(0)) : nullptr;
+    const auto lower = valid ? ov::as_type_ptr<v1::GreaterEqual>(valid->get_input_node_shared_ptr(0)) : nullptr;
+    const auto upper = valid ? ov::as_type_ptr<v1::Less>(valid->get_input_node_shared_ptr(1)) : nullptr;
+    const auto distance = select ? ov::as_type_ptr<v1::Subtract>(select->get_input_node_shared_ptr(1)) : nullptr;
+    OPENVINO_ASSERT(table && table->get_transpose_b() && broadcast && select && lower && upper && distance &&
+                        lower->input_value(0) == distance->output(0) && constant_is(lower->input_value(1), {0}) &&
+                        upper->input_value(0) == distance->output(0) && upper->input_value(1) == select->input_value(2),
+                    "PagedAttention: invalid relative-distance indexing");
+    const auto table_shape = table->get_output_partial_shape(0);
+    const auto sink_shape = sub->get_input_partial_shape(1);
+    OPENVINO_ASSERT(table_shape.rank() == 4 && table_shape[1].is_static() && table_shape[1].get_length() > 0 &&
+                        table_shape[2] == 1 && table_shape[3].is_static() && table_shape[3].get_length() >= 2 &&
+                        sink_shape.rank() == 4 && sink_shape[1] == table_shape[1] && sink_shape[2] == 1 &&
+                        sink_shape[3] == 1 && constant_is(select->input_value(2), {table_shape[3].get_length() - 1}),
+                    "PagedAttention: invalid relative-bias table or sink shape");
+
+    const auto positions = params.get("position_ids");
+    const auto beam = params.get("beam_idx");
+    const auto query_pos = ov::as_type_ptr<v1::Reshape>(distance->get_input_node_shared_ptr(0));
+    const auto key_pos = ov::as_type_ptr<v1::Reshape>(distance->get_input_node_shared_ptr(1));
+    const auto key_convert = key_pos ? ov::as_type_ptr<v0::Convert>(key_pos->get_input_node_shared_ptr(0)) : nullptr;
+    const auto cache = key_convert ? ov::as_type_ptr<v0::Concat>(key_convert->get_input_node_shared_ptr(0)) : nullptr;
+    const auto reorder = cache && cache->get_input_size() == 2
+                             ? ov::as_type_ptr<v8::Gather>(cache->get_input_node_shared_ptr(0))
+                             : nullptr;
+    const auto state =
+        reorder ? ov::as_type_ptr<ov::op::util::ReadValueBase>(reorder->get_input_node_shared_ptr(0)) : nullptr;
+    OPENVINO_ASSERT(positions && beam && query_pos && key_pos && query_pos->get_special_zero() &&
+                        key_pos->get_special_zero() && constant_is(query_pos->input_value(1), {0, 1, -1, 1}) &&
+                        constant_is(key_pos->input_value(1), {0, 1, 1, -1}) && cache && cache->get_axis() == 1 &&
+                        state && state->get_output_element_type(0) == ov::element::i32 &&
+                        reorder->input_value(1) == beam->output(0) && constant_is(reorder->input_value(2), {0}) &&
+                        depends_on(query_pos->input_value(0), positions.get()) &&
+                        depends_on(cache->input_value(1), positions.get()),
+                    "PagedAttention: invalid cached-position state");
+    return RelativeBias{table->output(0), sub->input_value(1), state, sdpa->get_input_element_type(3), window};
+}
+
+}  // namespace
+
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sliding_window_pattern() {
     auto offset = wrap_type<v0::Constant>();
     auto t196 = wrap_type<v1::Add>({any_input(), offset});
@@ -377,7 +466,8 @@ StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_
 ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                          ov::pass::paged_attention::PaResults& results,
                                                          const ov::pass::paged_attention::Options& options,
-                                                         std::unordered_set<std::string>& var_ids_to_remove) {
+                                                         std::unordered_set<std::string>& var_ids_to_remove,
+                                                         std::unordered_set<std::string>& position_vars_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = any_input();
@@ -498,8 +588,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &results, &var_ids_to_remove](
-                                             Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS,
+                                          &pa_params,
+                                          &results,
+                                          &var_ids_to_remove,
+                                          &position_vars_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q_inner);
 
@@ -508,6 +601,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                  : pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs
                                                                          : sdpa_with_6_inputs)
                              .get_node();
+
+        const auto relative_bias = extract_relative_bias(sdpa_node, pa_params);
+        if (relative_bias) {
+            OPENVINO_ASSERT(!options.allow_cache_rotation && !options.allow_xattention && !options.allow_adaptive_rkv &&
+                                !options.allow_qq_bias,
+                            "PagedAttention: relative bias is incompatible with cache rotation, sparse attention, "
+                            "adaptive eviction and speculative masks");
+            position_vars_to_remove.insert(relative_bias->positions_state->get_variable_id());
+        }
 
         auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E from SDPA spec.
         auto v_head_size_dim = sdpa_node->get_input_tensor(2)
@@ -702,7 +804,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         pa_arguments.push_back(pa_params["block_indices_begins"]);
 
         std::shared_ptr<Node> sliding_window;
-        if (pattern_map.count(phi3_offset)) {
+        if (relative_bias) {
+            sliding_window = v0::Constant::create(element::i32, Shape{}, {relative_bias->sliding_window});
+        } else if (pattern_map.count(phi3_offset)) {
             auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
             if (offset->get_element_type() != element::i32) {
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
@@ -876,6 +980,23 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 27, v0::Constant::create(element::i32, Shape{0}, {}));
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28);
+        if (relative_bias) {
+            const auto shape = relative_bias->table.get_partial_shape();
+            const auto shifted = std::make_shared<v1::Subtract>(relative_bias->table, relative_bias->sink);
+            const auto transposed =
+                std::make_shared<v1::Transpose>(shifted, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+            const auto flattened = std::make_shared<v1::Reshape>(
+                transposed,
+                v0::Constant::create(element::i64,
+                                     Shape{3},
+                                     std::vector<int64_t>{0, shape[1].get_length(), shape[3].get_length()}),
+                true);
+            const auto rounded = std::make_shared<v0::Convert>(flattened, relative_bias->mask_type);
+            auto positions = pa_params["position_ids"];
+            enable_keep_const_precision(positions);
+            pa_arguments.push_back(rounded);
+            pa_arguments.push_back(positions);
+        }
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);

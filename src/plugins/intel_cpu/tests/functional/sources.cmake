@@ -258,6 +258,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram_hash.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/paged_causal_conv_dynamic_taps.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/read_value_assign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/remove_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_chain.cpp
@@ -351,6 +352,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_adaptive_rkv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_qq_bias.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_relative_bias.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_score.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/paged_attn_token_type.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/powerstatic_bf16_saturation.cpp
