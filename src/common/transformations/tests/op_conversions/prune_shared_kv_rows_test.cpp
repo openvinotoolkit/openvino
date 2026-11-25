@@ -4,19 +4,34 @@
 
 #include "transformations/paged_attention/prune_shared_kv_rows.hpp"
 
+#include <limits>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bucketize.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/cum_sum.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
@@ -144,6 +159,102 @@ protected:
         manager.register_pass<pass::PruneSharedKVRows>();
     }
 };
+
+TEST_F(PruneSharedKVRowsTest, GathersSampledRowsIntoSharedLayersReference) {
+    model = getModel();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+
+    Inputs i;
+    i.params.push_back(i.sampled);
+    const auto scalar = [](int64_t value) {
+        return v0::Constant::create(element::i64, Shape{}, {value});
+    };
+    const auto vector = [](int64_t value) {
+        return v0::Constant::create(element::i64, Shape{1}, {value});
+    };
+    const auto rows_of = [&](const Output<Node>& data, const Output<Node>& indices) {
+        return std::make_shared<v8::Gather>(data, indices, scalar(0));
+    };
+    const auto max = std::numeric_limits<int64_t>::max();
+    // begins = [0, 3, 5], sampled = [2, 4]: kept rows [2, 4], past_lens + [2, 1], begins [0, 1, 2], sampled [0, 1].
+    const auto begins = std::make_shared<v0::Convert>(i.begins, element::i64);
+    const auto starts = std::make_shared<v8::Slice>(begins, vector(0), vector(-1), vector(1));
+    const auto ends = std::make_shared<v8::Slice>(begins, vector(1), vector(max), vector(1));
+    const auto total_rows = std::make_shared<v8::Slice>(begins, vector(-1), vector(max), vector(1));
+    const auto sampled = std::make_shared<v1::Select>(std::make_shared<v1::Less>(i.sampled, scalar(0)),
+                                                      std::make_shared<v1::Add>(i.sampled, total_rows),
+                                                      i.sampled);
+    const auto sampled_sequence = std::make_shared<v3::Bucketize>(sampled, ends, element::i64, false);
+    const auto sequence_count = std::make_shared<v0::Squeeze>(std::make_shared<v3::ShapeOf>(ends, element::i64));
+    const auto sequence_ids = std::make_shared<v4::Range>(scalar(0), sequence_count, scalar(1), element::i64);
+    const auto matches =
+        std::make_shared<v1::Equal>(std::make_shared<v0::Unsqueeze>(sequence_ids, scalar(1)), sampled_sequence);
+    const auto end_column = std::make_shared<v0::Unsqueeze>(ends, scalar(1));
+    const auto first_sampled = std::make_shared<v1::ReduceMin>(
+        std::make_shared<v0::Concat>(
+            OutputVector{std::make_shared<v1::Select>(matches, sampled, end_column), end_column},
+            1),
+        scalar(1));
+    const auto lengths = std::make_shared<v1::Subtract>(ends, starts);
+    const auto counts = std::make_shared<v1::Minimum>(
+        std::make_shared<v1::Maximum>(std::make_shared<v1::Subtract>(ends, first_sampled), scalar(1)),
+        lengths);
+    const auto kept_ends = std::make_shared<v0::CumSum>(counts, scalar(0));
+    const auto kept_count = std::make_shared<v1::ReduceSum>(counts, scalar(0));
+    const auto kept_ids = std::make_shared<v4::Range>(scalar(0), kept_count, scalar(1), element::i64);
+    const auto kept_sequence = std::make_shared<v3::Bucketize>(kept_ids, kept_ends, element::i64, false);
+    const auto kept_rows =
+        std::make_shared<v1::Subtract>(rows_of(ends, kept_sequence),
+                                       std::make_shared<v1::Subtract>(rows_of(kept_ends, kept_sequence), kept_ids));
+    const auto sampled_rows =
+        std::make_shared<v1::Subtract>(rows_of(kept_ends, sampled_sequence),
+                                       std::make_shared<v1::Subtract>(rows_of(ends, sampled_sequence), sampled));
+    const auto past = std::make_shared<v1::Add>(std::make_shared<v0::Convert>(i.past, element::i64),
+                                                std::make_shared<v1::Subtract>(lengths, counts));
+    const auto kept_past = std::make_shared<v0::Convert>(past, element::i32);
+    const auto kept_begins =
+        std::make_shared<v0::Convert>(std::make_shared<v0::Concat>(OutputVector{vector(0), kept_ends}, 0),
+                                      element::i32);
+
+    auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
+    const auto owner_rows = rows_of(owner->output(0), kept_rows);
+    const auto data_rows = rows_of(i.data, kept_rows);
+    auto query = std::make_shared<v1::Multiply>(owner_rows, v0::Constant::create(element::f32, Shape{1, 4}, {2}));
+    auto layer = attention(query, data_rows, data_rows, i.key, i.value, kept_past, kept_begins, false);
+    auto hidden = std::make_shared<v1::Add>(layer->output(0), owner_rows);
+    auto head = rows_of(hidden, std::make_shared<v0::Convert>(sampled_rows, element::i64));
+    model_ref = std::make_shared<Model>(OutputVector{head}, i.params);
+}
+
+TEST_F(PruneSharedKVRowsTest, KeepsSharedAttentionWithXAttentionUnchanged) {
+    model = getModel();
+    shared_attention(model)->input(17).replace_source_output(v0::Constant::create(element::f32, Shape{1}, {0.9f}));
+}
+
+TEST_F(PruneSharedKVRowsTest, KeepsRowsBroadcastFromLowerRankUnchanged) {
+    Inputs i;
+    i.params.push_back(i.sampled);
+    auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
+    auto layer = shared_layer(i, owner->output(0));
+    // [T, 4, 1] + [T, 4] aligns the residual's rows with the middle axis.
+    auto column = std::make_shared<v0::Unsqueeze>(layer, v0::Constant::create(element::i64, Shape{1}, {2}));
+    auto hidden = std::make_shared<v1::Add>(column, owner);
+    auto head = std::make_shared<v8::Gather>(hidden, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
+    model = std::make_shared<Model>(OutputVector{head}, i.params);
+}
+
+TEST_F(PruneSharedKVRowsTest, KeepsSelectionsOfUnprunedRowsUnchanged) {
+    Inputs i;
+    i.params.push_back(i.sampled);
+    auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
+    auto first = shared_layer(i, owner->output(0));
+    auto second = shared_layer(i, first->output(0));
+    const auto axis = v0::Constant::create(element::i64, Shape{}, {0});
+    auto first_head = std::make_shared<v8::Gather>(first->output(0), i.sampled, axis);
+    auto second_head = std::make_shared<v8::Gather>(second->output(0), i.sampled, axis);
+    model = std::make_shared<Model>(OutputVector{first_head, second_head, first->output(0)}, i.params);
+}
 
 TEST_F(PruneSharedKVRowsTest, KeepsModelsWithoutRowSelectionUnchanged) {
     model = getModel(true, false);

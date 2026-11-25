@@ -66,6 +66,7 @@ using NodeSet = std::unordered_set<const Node*>;
 // PagedAttentionExtension inputs.
 constexpr size_t past_lens_input = 5;
 constexpr size_t subsequence_begins_input = 6;
+constexpr size_t xattention_threshold_input = 17;
 constexpr size_t token_type_ids_input = 25;
 constexpr size_t qq_bias_input = 26;
 
@@ -218,7 +219,8 @@ bool computes_rows_independently(const std::shared_ptr<Node>& node, const Rows& 
     const auto& data_shape = node->get_input_partial_shape(0);
     if (const auto pa = ov::as_type_ptr<PagedAttentionExtension>(node)) {
         if (pa->get_write_kv_cache() || pa->get_input_partial_shape(token_type_ids_input) != PartialShape{0} ||
-            pa->get_input_partial_shape(qq_bias_input) != PartialShape{0} || !rows.in(pa->input_value(0)))
+            pa->get_input_partial_shape(qq_bias_input) != PartialShape{0} ||
+            pa->get_input_partial_shape(xattention_threshold_input) != PartialShape{0} || !rows.in(pa->input_value(0)))
             return false;
         for (size_t i = 1; i < pa->get_output_size(); ++i) {
             if (!pa->output(i).get_target_inputs().empty())
@@ -233,8 +235,15 @@ bool computes_rows_independently(const std::shared_ptr<Node>& node, const Rows& 
                            v0::Convert,
                            v0::Clamp,
                            v4::Swish,
-                           v1::Select>(node))
+                           v1::Select>(node)) {
+        // Lower-rank operands could broadcast their rows onto another axis.
+        const auto rank = node->get_output_partial_shape(0).rank();
+        for (const auto& input : node->input_values()) {
+            if (rows.mentioned(input) && input.get_partial_shape().rank() != rank)
+                return false;
+        }
         return true;
+    }
     if (ov::is_type<ov::op::internal::RMS>(node))
         return data_shape.rank().is_static() && data_shape.size() > 1;
     if (const auto matmul = ov::as_type_ptr<v0::MatMul>(node)) {
@@ -350,6 +359,28 @@ bool feeds_only_shapes(const Node* node, const NodeSet& shape_values) {
     return true;
 }
 
+// Copies runtime info to the nodes between `inputs` and `outputs`.
+void copy_runtime_info_to_subgraph(const NodeVector& from, const OutputVector& outputs, const OutputVector& inputs) {
+    NodeSet stop;
+    for (const auto& input : inputs)
+        stop.insert(input.get_node());
+    NodeVector created;
+    NodeSet visited;
+    std::vector<std::shared_ptr<Node>> pending;
+    for (const auto& output : outputs)
+        pending.push_back(output.get_node_shared_ptr());
+    while (!pending.empty()) {
+        const auto node = pending.back();
+        pending.pop_back();
+        if (stop.count(node.get()) || !visited.insert(node.get()).second)
+            continue;
+        created.push_back(node);
+        for (const auto& input : node->input_values())
+            pending.push_back(input.get_node_shared_ptr());
+    }
+    copy_runtime_info(from, created);
+}
+
 }  // namespace
 
 bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& model) {
@@ -459,10 +490,15 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
             }
         }
     }
-    const bool consistent = !attentions.empty() && std::all_of(attentions.begin(), attentions.end(), [&](auto* pa) {
-        return pa->input_value(past_lens_input) == attentions.front()->input_value(past_lens_input) &&
-               pa->input_value(subsequence_begins_input) == attentions.front()->input_value(subsequence_begins_input);
+    const bool selects_region = std::all_of(selections.begin(), selections.end(), [&](const auto& selection) {
+        return region.count(selection->get_input_node_ptr(0)) > 0;
     });
+    const bool consistent =
+        selects_region && !attentions.empty() && std::all_of(attentions.begin(), attentions.end(), [&](auto* pa) {
+            return pa->input_value(past_lens_input) == attentions.front()->input_value(past_lens_input) &&
+                   pa->input_value(subsequence_begins_input) ==
+                       attentions.front()->input_value(subsequence_begins_input);
+        });
     if (!consistent) {
         restore_symbols(model, parameter_shapes);
         return false;
@@ -472,6 +508,11 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
     const auto kept = keep_sampled_rows(indices,
                                         attentions.front()->input_value(past_lens_input),
                                         attentions.front()->input_value(subsequence_begins_input));
+    copy_runtime_info_to_subgraph(NodeVector(selections.begin(), selections.end()),
+                                  {kept.rows, kept.past_lens, kept.subsequence_begins, kept.sampled_rows},
+                                  {indices,
+                                   attentions.front()->input_value(past_lens_input),
+                                   attentions.front()->input_value(subsequence_begins_input)});
     const auto axis = v0::Constant::create(element::i64, Shape{}, {0});
     std::map<Output<Node>, Output<Node>> gathered;
     for (auto& [input, source] : cuts) {
