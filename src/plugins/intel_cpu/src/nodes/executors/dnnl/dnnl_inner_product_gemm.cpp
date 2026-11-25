@@ -4,15 +4,14 @@
 
 #include "dnnl_inner_product_gemm.hpp"
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#endif
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <algorithm>
 #include <common/primitive_hashing.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -20,6 +19,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -31,6 +31,7 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -185,15 +186,18 @@ std::unordered_map<int, dnnl::memory> InnerProduct::make_args(dnnl::memory& src,
     return args;
 }
 
-Dim normalize_m(Dim M) {
+Dim normalize_m_granularity(Dim M) {
     if (M < 512) {
-        M = rnd_up(M, 16);
-    } else if (M < 1024) {
-        M = rnd_up(M, 32);
-    } else {
-        M = rnd_up(M, 256);
+        return 16;
     }
-    return M;
+    if (M < 1024) {
+        return 32;
+    }
+    return 256;
+}
+
+Dim normalize_m(Dim M) {
+    return rnd_up(M, normalize_m_granularity(M));
 }
 
 dnnl::memory::desc make_bias_md(dnnl::memory::dim N, const MemoryPtr& bias_mem) {
@@ -224,11 +228,10 @@ DnnlMemoryDescPtr add_batch_dim(const BlockedMemoryDescPtr& desc, size_t batch_d
     return MemoryDescUtils::convertToDnnlMemoryDesc(target_desc);
 }
 
-bool is_supported_compressed_inner_product([[maybe_unused]] size_t IC,
-                                           [[maybe_unused]] size_t OC,
-                                           [[maybe_unused]] size_t G,
-                                           [[maybe_unused]] const ov::element::Type& inference_precision) {
-#ifdef OPENVINO_ARCH_X86_64
+bool is_supported_compressed_inner_product(size_t IC,
+                                           size_t OC,
+                                           size_t G,
+                                           const ov::element::Type& inference_precision) {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         return false;
     }
@@ -257,33 +260,27 @@ bool is_supported_compressed_inner_product([[maybe_unused]] size_t IC,
     }
 
     return OC != 1;
-#else
-    return false;
-#endif
 }
 
-bool supports_inner_product([[maybe_unused]] const MemoryDescArgs& descs) {
-#ifdef OPENVINO_ARCH_X86_64
+bool supports_inner_product(const MemoryDescArgs& descs) {
     // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
-    if ((descs.count(ARG_SRC) != 0U) && !descs.at(ARG_SRC)->empty()) {
+    if (descs.contains(ARG_SRC) && !descs.at(ARG_SRC)->empty()) {
         const auto src_prc = descs.at(ARG_SRC)->getPrecision();
         if (!any_of(src_prc, ov::element::f32, ov::element::bf16)) {
             return false;
         }
     }
     // For compressed (int) weights, require AVX2
-    if ((descs.count(ARG_WEI) != 0U) && !descs.at(ARG_WEI)->empty()) {
+    if (descs.contains(ARG_WEI) && !descs.at(ARG_WEI)->empty()) {
         const auto wei_prc = descs.at(ARG_WEI)->getPrecision();
-        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3)) {
+        const auto compressed_types = supported_compressed_weights_types();
+        if (std::find(compressed_types.begin(), compressed_types.end(), wei_prc) != compressed_types.end()) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
                 return false;
             }
         }
     }
     return true;
-#else
-    return false;
-#endif
 }
 
 VectorDims per_group_shape(const MemoryPtr& mem) {
@@ -334,7 +331,7 @@ std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_si
                                                             size_t K,
                                                             const VectorDims& scale_shape,
                                                             const VectorDims& zp_shape,
-                                                            bool allow_u4) {
+                                                            const std::vector<ov::element::Type>& eligible_weights) {
     const auto disabled = std::make_pair(size_t{0}, dnnl::memory::data_type::f32);
     if (dq_group_size == 0 || dq_group_size == std::numeric_limits<uint64_t>::max() || dq_group_size % 32 != 0) {
         return disabled;
@@ -349,7 +346,11 @@ std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_si
                               ov::element::dynamic) ||
                        (zp_precision == ov::element::i8 && zp_non_negative_i8);
     const bool is_supported_weights =
-        wei_precision == ov::element::u3 || (allow_u4 && wei_precision == ov::element::u4);
+        std::find(eligible_weights.begin(), eligible_weights.end(), wei_precision) != eligible_weights.end();
+    // @todo Symmetric i8/i4 weights (no zero point) are not handled here. FullyConnected enables dynamic
+    // quantization for them by switching the weights to u8/u4 and adding a zero point of 128/8
+    // (see createPrimitiveAttrs and createDescriptorInternal in dnnl_fullyconnected_primitive.cpp).
+    // Reuse that approach to cover i8/i4 in GroupedMatMul and GatherMatmul.
     if (!is_supported_weights || !zp_ok) {
         return disabled;
     }
@@ -371,6 +372,98 @@ std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_si
     const auto zp_dt =
         zp_precision == ov::element::dynamic ? dnnl::memory::data_type::f32 : dnnl::memory::data_type::u8;
     return {static_cast<size_t>(dq_group_size), zp_dt};
+}
+
+GemvInnerProduct prepare_gemv_inner_product(const MemoryArgs& memory,
+                                            const ExecutorContext::CPtr& context,
+                                            uint64_t dq_group_size,
+                                            const std::vector<ov::element::Type>& eligible_weights) {
+    const auto& weights_memory = memory.at(ARG_WEI);
+    const auto& src_memory = memory.at(ARG_SRC);
+
+    const auto src_precision = src_memory->getDesc().getPrecision();
+    const auto weights_precision = weights_memory->getDesc().getPrecision();
+    // The primitive output follows the ARG_DST precision, not the source precision, and the two can differ
+    // (e.g. bf16 source -> f32 destination). Callers' temporary output buffers and the copy back to dst must
+    // therefore use the destination precision and element size, otherwise the primitive overflows the buffer
+    // and only part of each row is copied. Covered by gathermatmul_dst_precision_test.cpp.
+    const auto dst_precision = memory.at(ARG_DST)->getDesc().getPrecision();
+
+    const auto& wei_dims = weights_memory->getShape().getStaticDims();
+    const dnnl::memory::dim N = wei_dims[wei_dims.size() - 2];
+    const dnnl::memory::dim K = wei_dims[wei_dims.size() - 1];
+
+    // Per-group scale / zero point shapes (the leading group dim is removed)
+    const auto& scales_mem = memory.at(ARG_SRC_3);
+    const auto& zp_mem = memory.at(ARG_SRC_4);
+    const VectorDims scale_shape = per_group_shape(scales_mem);
+    const VectorDims zp_shape = scale_shape.empty() ? VectorDims{} : per_group_shape(zp_mem);
+
+    ov::element::Type zp_precision = ov::element::dynamic;
+    bool zp_non_negative_i8 = false;
+    if (zp_mem && !zp_mem->getDesc().empty()) {
+        zp_precision = zp_mem->getDesc().getPrecision();
+        zp_non_negative_i8 = zp_precision == ov::element::i8 && isNonNegativeI8(*zp_mem);
+    }
+
+    dnnl::memory::desc src_md({1, K},
+                              DnnlExtensionUtils::ElementTypeToDataType(src_precision),
+                              dnnl::memory::format_tag::ab);
+    dnnl::memory::desc weights_md({N, K},
+                                  DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
+                                  dnnl::memory::format_tag::any);
+
+    const auto [src_dyn_quant_group_size, zp_dt] = dyn_quant_params(dq_group_size,
+                                                                    weights_precision,
+                                                                    src_precision,
+                                                                    zp_precision,
+                                                                    zp_non_negative_i8,
+                                                                    static_cast<size_t>(K),
+                                                                    scale_shape,
+                                                                    zp_shape,
+                                                                    eligible_weights);
+
+    GemvInnerProduct result;
+    result.key = InnerProductKey{src_md,
+                                 weights_md,
+                                 make_bias_md(N, memory.at(ARG_BIAS)),
+                                 DnnlExtensionUtils::ElementTypeToDataType(dst_precision),
+                                 scale_shape,
+                                 zp_shape,
+                                 zp_dt,
+                                 src_dyn_quant_group_size};
+
+    const auto& eng = context->getEngine();
+    const auto thread_pool = context->getThreadPool();
+    auto cache = context->getRuntimeCache();
+    // Created with format_tag::any so oneDNN picks the weights layout. The weights are packed into it
+    // once below; every other row count is then created against that concrete descriptor.
+    std::tie(result.impl, std::ignore) = cache->getOrCreate(result.key, [&eng, &thread_pool](const InnerProductKey& k) {
+        return std::make_shared<InnerProduct>(eng, thread_pool, k);
+    });
+
+    // Repack weights: convert from [G, N, K] to [G, (packed_N, K)] format expected by oneDNN
+    auto gemv_weights_desc =
+        MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(result.impl->get_weights_md()));
+    auto target_weights_desc = add_batch_dim(gemv_weights_desc, wei_dims[0]);
+    auto src_weights_desc = MemoryDescUtils::convertToDnnlMemoryDesc(weights_memory->getDescPtr());
+
+    result.weights = prepareWeightsMemory(src_weights_desc,
+                                          target_weights_desc,
+                                          weights_memory,
+                                          eng,
+                                          cache,
+                                          context->getWeightsCache(),
+                                          context->getPrivateWeightCache(),
+                                          thread_pool);
+
+    if (!scale_shape.empty()) {
+        result.scales = prepare_decompression_memory(scales_mem, result.impl->get_scale_md(), eng);
+    }
+    if (!zp_shape.empty()) {
+        result.zp = prepare_decompression_memory(zp_mem, result.impl->get_zp_md(), eng);
+    }
+    return result;
 }
 
 }  // namespace ov::intel_cpu::utils

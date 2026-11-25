@@ -26,7 +26,7 @@ public:
 
 protected:
     void SetUp() override;
-    void check_results();
+    void validate() override;
 };
 
 using GroupedMatMulCompressedCPUTestParams = std::tuple<GroupedMatMulShapeParams,
@@ -50,7 +50,7 @@ public:
 
 protected:
     void SetUp() override;
-    void check_results();
+    void validate() override;
 
 private:
     bool m_expect_compressed = true;

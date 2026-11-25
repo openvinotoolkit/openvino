@@ -72,9 +72,6 @@ protected:
 };
 
 TEST_P(GatherMatmulDstPrecisionTest, OutputFollowsDstPrecision) {
-#ifndef OPENVINO_ARCH_X86_64
-    GTEST_SKIP() << "The oneDNN GatherMatmul executor is x64 only";
-#else
     const auto& [src_prc, dst_prc] = GetParam();
     if (src_prc == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
         GTEST_SKIP() << "bf16 is not supported on this CPU";
@@ -149,7 +146,6 @@ TEST_P(GatherMatmulDstPrecisionTest, OutputFollowsDstPrecision) {
             }
         }
     }
-#endif
 }
 
 // f32 -> f32 and bf16 -> bf16 keep the source precision. bf16 -> f32 is the case where the output differs from the

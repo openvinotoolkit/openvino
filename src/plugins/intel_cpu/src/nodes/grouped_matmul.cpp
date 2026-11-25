@@ -141,23 +141,18 @@ bool GroupedMatMul::isSupportedCompressedOperation([[maybe_unused]] const std::s
 
 ov::element::TypeVector GroupedMatMul::getSupportedCompressedWeightsTypes() {
 #ifdef OPENVINO_ARCH_X86_64
-    using ov::element::Type_t;
-    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::u3};
+    return utils::supported_compressed_weights_types();
 #else
     return {};
 #endif
 }
 
 ov::element::TypeVector GroupedMatMul::getSupportedCompressedActivationsTypes() {
-    using ov::element::Type_t;
-    // @todo enable for bf16 as well
-    // after EnforceInferencePrecision is replaced with ConvertPrecision
-    return {Type_t::f32};
-}
-
-bool GroupedMatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op) noexcept {
-    std::string error_message;
-    return isSupportedOperation(op, error_message);
+#ifdef OPENVINO_ARCH_X86_64
+    return utils::supported_compressed_activations_types();
+#else
+    return {ov::element::f32};
+#endif
 }
 
 GroupedMatMul::GroupedMatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -170,16 +165,16 @@ GroupedMatMul::GroupedMatMul(const std::shared_ptr<ov::Node>& op, const GraphCon
     algorithm = ov::is_type<ov::op::internal::GroupedMatMulCompressed>(op) ? Algorithm::GroupedMatMulCompressed
                                                                            : Algorithm::GroupedMatMulDefault;
 
-    m_atoi[ARG_SRC] = DATA;
-    m_atoi[ARG_WEI] = WEIGHTS;
+    m_atoi[ARG_GMM_DATA] = DATA;
+    m_atoi[ARG_GMM_WEIGHTS] = WEIGHTS;
     if (has_offsets(*op)) {
-        m_atoi[ARG_SRC_1] = OFFSETS;
+        m_atoi[ARG_GMM_OFFSETS] = OFFSETS;
     }
     if (algorithm == Algorithm::GroupedMatMulCompressed) {
         const auto scales_port = first_optional_port(*op);
-        m_atoi[ARG_SRC_3] = static_cast<int>(scales_port);
+        m_atoi[ARG_GMM_SCALES] = static_cast<int>(scales_port);
         if (op->get_input_size() > scales_port + 1) {
-            m_atoi[ARG_SRC_4] = static_cast<int>(scales_port + 1);
+            m_atoi[ARG_GMM_ZP] = static_cast<int>(scales_port + 1);
         }
     }
 }
@@ -206,7 +201,7 @@ void GroupedMatMul::initSupportedPrimitiveDescriptors() {
     }
     // GroupedMatMul-17 has no bias; the empty slot is what the executor's make_bias_md() expects
     descs[ARG_BIAS] = MemoryDescUtils::makeEmptyDesc();
-    for (auto arg_id : {ARG_SRC_1, ARG_SRC_3, ARG_SRC_4}) {
+    for (auto arg_id : {ARG_GMM_OFFSETS, ARG_GMM_SCALES, ARG_GMM_ZP}) {
         if (descs.count(arg_id) == 0) {
             descs[arg_id] = MemoryDescUtils::makeEmptyDesc();
         }
@@ -240,7 +235,7 @@ void GroupedMatMul::createPrimitive() {
         m_memory[arg_id] = getSrcMemoryAtPort(port_id);
     }
 
-    for (auto arg_id : {ARG_BIAS, ARG_SRC_1, ARG_SRC_3, ARG_SRC_4}) {
+    for (auto arg_id : {ARG_BIAS, ARG_GMM_OFFSETS, ARG_GMM_SCALES, ARG_GMM_ZP}) {
         if (m_memory.count(arg_id) == 0) {
             m_memory[arg_id] = MemoryDescUtils::makeEmptyMemory(context);
         }

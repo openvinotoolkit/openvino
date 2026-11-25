@@ -30,8 +30,6 @@ public:
     }
 };
 
-// GroupedMatMulShapeInfer is stateless — it derives everything from the input shapes — so unlike the
-// other factories in this directory this one does not need to capture the op.
 class GroupedMatMulShapeInferFactory : public ShapeInferFactory {
 public:
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {

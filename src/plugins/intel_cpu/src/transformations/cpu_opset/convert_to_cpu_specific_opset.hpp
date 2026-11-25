@@ -52,15 +52,13 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     // Must run before ConvertGatherMatmulToGatherMatmulCompressed, so that a lowered op still gets
     // its weights compressed (this is what the architectures without the native node rely on).
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertGroupedMatMulToGatherMatmul);
-    // Keep whatever the native GroupedMatMul node can execute out of the lowering. Neither
-    // v17::GroupedMatMul nor GroupedMatMulCompressed implement evaluate(), so anything the node
-    // rejects (e.g. non-constant weights on x64) is still lowered to GatherMatmul.
-    // GroupedMatMul::isSupportedOperation rejects everything on non-x64, so the other
-    // architectures lower every GroupedMatMul.
+    // What the native GroupedMatMul node can execute stays out of the lowering; everything else (e.g.
+    // non-constant weights, any op on non-x64) is still lowered to GatherMatmul.
     CPU_SET_CALLBACK_COMMON(
         manager,
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            return ov::intel_cpu::node::GroupedMatMul::isSupportedOperation(node);
+            std::string error_message;
+            return ov::intel_cpu::node::GroupedMatMul::isSupportedOperation(node, error_message);
         },
         ov::pass::ConvertGroupedMatMulToGatherMatmul);
 

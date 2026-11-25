@@ -15,15 +15,13 @@
 #include <utility>
 #include <vector>
 
-#include "nodes/common/blocked_desc_creator.h"
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#endif
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/common/offset_helper.hpp"
 #include "nodes/executors/dnnl/dnnl_inner_product_gemm.hpp"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
@@ -48,98 +46,20 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
                                                    const MemoryArgs& memory,
                                                    const ExecutorContext::CPtr& context)
     : m_context(context) {
-    const auto& weightsMemory = memory.at(ARG_WEI);
-    const auto& srcMemory = memory.at(ARG_SRC);
-
-    auto src_precision = srcMemory->getDesc().getPrecision();
-    auto weights_precision = weightsMemory->getDesc().getPrecision();
-#ifdef OPENVINO_ARCH_X86_64
+    const auto src_precision = memory.at(ARG_SRC)->getDesc().getPrecision();
     m_bf16AmxMode =
         (src_precision == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx));
-#endif
 
-    const auto& weiDims = weightsMemory->getShape().getStaticDims();
-    const dnnl::memory::dim N = weiDims[weiDims.size() - 2];
-    const dnnl::memory::dim K = weiDims[weiDims.size() - 1];
-
-    // Determine scale/zp shapes (per-group, removing the leading batch/gather dim)
-    const auto& scalesMem = memory.at(ARG_SRC_3);
-    const auto& zpMem = memory.at(ARG_SRC_4);
-    const VectorDims scale_shape = utils::per_group_shape(scalesMem);
-    const VectorDims zp_shape = utils::per_group_shape(zpMem);
-
-    ov::element::Type zp_precision = ov::element::dynamic;
-    bool zp_non_negative_i8 = false;
-    if (zpMem && !zpMem->getDesc().empty()) {
-        zp_precision = zpMem->getDesc().getPrecision();
-        zp_non_negative_i8 = zp_precision == ov::element::i8 && utils::isNonNegativeI8(*zpMem);
-    }
-
-    dnnl::memory::desc src_md({1, K},
-                              DnnlExtensionUtils::ElementTypeToDataType(src_precision),
-                              dnnl::memory::format_tag::ab);
-    dnnl::memory::desc weights_md({N, K},
-                                  DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
-                                  dnnl::memory::format_tag::any);
-
-    const auto [src_dyn_quant_group_size, zp_dt] = utils::dyn_quant_params(attrs.dynamicQuantizationGroupSize,
-                                                                           weights_precision,
-                                                                           src_precision,
-                                                                           zp_precision,
-                                                                           zp_non_negative_i8,
-                                                                           static_cast<size_t>(K),
-                                                                           scale_shape,
-                                                                           zp_shape);
-
-    // The primitive output follows the ARG_DST precision rather than the source precision: they can differ
-    // (e.g. bf16 source -> f32 destination). The M > 1 temporary output buffer and the copy back to dst must
-    // therefore use the destination precision/element size too, otherwise the primitive overflows the temporary
-    // buffer and only part of each row is copied. Covered by gathermatmul_dst_precision_test.cpp.
-    const auto dst_dt = DnnlExtensionUtils::ElementTypeToDataType(memory.at(ARG_DST)->getDesc().getPrecision());
-    InnerProductKey key{src_md,
-                        weights_md,
-                        utils::make_bias_md(N, memory.at(ARG_BIAS)),
-                        dst_dt,
-                        scale_shape,
-                        zp_shape,
-                        zp_dt,
-                        src_dyn_quant_group_size};
-
-    const auto& eng = context->getEngine();
-    const auto threadPool = context->getThreadPool();
-    auto cache = context->getRuntimeCache();
-    std::tie(m_gemvImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
-        return std::make_shared<InnerProduct>(eng, threadPool, k);
-    });
+    auto gemv = utils::prepare_gemv_inner_product(memory, context, attrs.dynamicQuantizationGroupSize, {ov::element::u3});
+    m_weightsMemory = std::move(gemv.weights);
+    m_scalesMemory = std::move(gemv.scales);
+    m_zpMemory = std::move(gemv.zp);
+    m_gemvImpl = std::move(gemv.impl);
 
     // The M > 1 GEMMs solve the GEMV problem on the weights layout the GEMV selected (the weights are
-    // repacked to it below); createGemm() sets the row count.
-    key.weights_md = m_gemvImpl->get_weights_md();
-    m_gemmKey = std::make_shared<const InnerProductKey>(std::move(key));
-
-    // Repack weights: convert from [G, K, N] to [G, (packed_N, K)] format expected by oneDNN
-    auto gemvWeightsDesc =
-        MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_weights_md()));
-
-    auto targetWeightsDesc = utils::add_batch_dim(gemvWeightsDesc, weiDims[0]);
-    auto srcWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightsMemory->getDescPtr());
-
-    m_weightsMemory = utils::prepareWeightsMemory(srcWeightsDesc,
-                                                  targetWeightsDesc,
-                                                  weightsMemory,
-                                                  eng,
-                                                  cache,
-                                                  context->getWeightsCache(),
-                                                  context->getPrivateWeightCache(),
-                                                  threadPool);
-
-    if (scalesMem && !scale_shape.empty()) {
-        m_scalesMemory = utils::prepare_decompression_memory(scalesMem, m_gemvImpl->get_scale_md(), eng);
-    }
-
-    if (zpMem && !zp_shape.empty()) {
-        m_zpMemory = utils::prepare_decompression_memory(zpMem, m_gemvImpl->get_zp_md(), eng);
-    }
+    // repacked to it); createGemm() sets the row count.
+    gemv.key.weights_md = m_gemvImpl->get_weights_md();
+    m_gemmKey = std::make_shared<const InnerProductKey>(std::move(gemv.key));
 
     m_implType = m_gemvImpl->get_impl_type();
 }

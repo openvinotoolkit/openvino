@@ -30,20 +30,34 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
     const std::vector<ov::element::Type>& supported_weights_types,
-    const std::set<size_t>& supported_weights_ranks)
+    const std::set<size_t>& supported_weights_ranks,
+    bool allow_reshaped_decompression_constants)
     : Block({}, {}, "CompressedWeightsBlock") {
     auto weights = wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any(supported_weights_types));
     auto convert = wrap_type<v0::Convert>({weights});
 
     auto sub_const = wrap_type<v0::Constant>();
     auto sub_convert_const = wrap_type<v0::Convert>({sub_const});
-    auto sub_with_convert = wrap_type<v1::Subtract>({convert, sub_convert_const});
+    std::shared_ptr<ov::Node> sub_reshape = nullptr;
+    std::shared_ptr<ov::Node> sub_rhs = sub_convert_const;
+    if (allow_reshaped_decompression_constants) {
+        // Reshape(Constant | Convert(Constant)) restoring the squeezed dimensions. It is matched by the same
+        // Subtract as a Convert'ed constant, so the "sub_with_convert" anchor covers it as well.
+        sub_reshape = wrap_type<v1::Reshape>({sub_convert_const | sub_const, wrap_type<v0::Constant>()});
+        sub_rhs = sub_convert_const | sub_reshape;
+    }
+    auto sub_with_convert = wrap_type<v1::Subtract>({convert, sub_rhs});
     auto sub_no_convert = wrap_type<v1::Subtract>({convert, sub_const});
     auto subtract = sub_with_convert | sub_no_convert;
 
     auto mul_const = wrap_type<v0::Constant>();
     auto mul_convert_const = wrap_type<v0::Convert>({mul_const});
-    auto mul_scale = mul_const | mul_convert_const;
+    std::shared_ptr<ov::Node> mul_reshape = nullptr;
+    std::shared_ptr<ov::Node> mul_scale = mul_const | mul_convert_const;
+    if (allow_reshaped_decompression_constants) {
+        mul_reshape = wrap_type<v1::Reshape>({mul_const | mul_convert_const, wrap_type<v0::Constant>()});
+        mul_scale = mul_const | mul_convert_const | mul_reshape;
+    }
 
     auto mul_with_sub = wrap_type<v1::Multiply>({subtract, mul_scale});
     auto mul_no_sub = wrap_type<v1::Multiply>({convert, mul_scale});
@@ -81,4 +95,8 @@ ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
                      mul_const,
                      transpose,
                      transpose_const);
+    if (allow_reshaped_decompression_constants) {
+        register_anchor("sub_reshape", sub_reshape);
+        register_anchor("mul_reshape", mul_reshape);
+    }
 }

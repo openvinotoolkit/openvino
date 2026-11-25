@@ -56,6 +56,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grid_sample.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grid_sample.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grouped_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grouped_matmul.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/identity.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/identity.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/interpolate.cpp

@@ -142,7 +142,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes() {
     using ov::element::Type_t;
 #ifdef OPENVINO_ARCH_X86_64
-    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::u3};
+    return utils::supported_compressed_weights_types();
 #elif defined(OPENVINO_ARCH_ARM64)
     return {Type_t::i8, Type_t::i4};
 #else
@@ -151,10 +151,11 @@ ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes() {
 }
 
 ov::element::TypeVector GatherMatmul::getSupportedCompressedActivationsTypes() {
-    using ov::element::Type_t;
-    // @todo enable for bf16 as well
-    // after EnforceInferencePrecision is replaced with ConvertPrecision
-    return {Type_t::f32};
+#ifdef OPENVINO_ARCH_X86_64
+    return utils::supported_compressed_activations_types();
+#else
+    return {ov::element::f32};
+#endif
 }
 
 GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)

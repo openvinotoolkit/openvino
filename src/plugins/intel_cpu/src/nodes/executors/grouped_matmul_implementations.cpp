@@ -36,7 +36,7 @@ using namespace executor;
 
 using LayoutConfig = std::vector<LayoutType>;
 
-// GroupedMatMul always uses plain (ncsp) layout. ARG_SRC_1 is the optional offsets input of the
+// GroupedMatMul always uses plain (ncsp) layout. ARG_GMM_OFFSETS is the optional offsets input of the
 // 2D x 3D form. The empty bias argument used by the shared inner-product executor is not mapped.
 static const LayoutConfig dnnlGroupedMatMulLayoutConfig{LayoutType::ncsp,
                                                         LayoutType::ncsp,
@@ -53,6 +53,7 @@ struct Require {
 }  // namespace
 
 // clang-format off
+static const uint64_t compressed_weights = utils::supported_compressed_weights_mask();
 static const TypeMapping dnnlGroupedMatMulTypeMapping {
     // {src, wei, offsets, dst}                                  pt<src, wei, offsets, dst>
     // float precision paths
@@ -63,19 +64,19 @@ static const TypeMapping dnnlGroupedMatMulTypeMapping {
     // compresses float weights which do not match input data precision
     {{_f32, _half_float, _any, _any},                           {bypass(), bypass(), just<i32>(), use<0>()}},
     // compressed int weights with float activations
-    {{_f32,  _u8 | _i8 | _u4 | _i4 | _u3, _any, _any},          {bypass(), bypass(), just<i32>(), use<0>()}},
-    {{_bf16, _u8 | _i8 | _u4 | _i4 | _u3, _any, _any},          {bypass(), bypass(), just<i32>(), use<0>()},
+    {{_f32,  compressed_weights, _any, _any},          {bypass(), bypass(), just<i32>(), use<0>()}},
+    {{_bf16, compressed_weights, _any, _any},          {bypass(), bypass(), just<i32>(), use<0>()},
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()},
-    {{_bf16, _u8 | _i8 | _u4 | _i4 | _u3, _any, _any},          {just<f32>(), bypass(), just<i32>(), just<f32>()}},
+    {{_bf16, compressed_weights, _any, _any},          {just<f32>(), bypass(), just<i32>(), just<f32>()}},
     // fallback
     {{_any,  _any, _any, _any},                                 {just<f32>(), just<f32>(), just<i32>(), just<f32>()}},
 };
 // clang-format on
 
 static const MappingNotation groupedMatMulMappingNotation{
-    {ARG_SRC, 0},
-    {ARG_WEI, 1},
-    {ARG_SRC_1, 2},
+    {ARG_GMM_DATA, 0},
+    {ARG_GMM_WEIGHTS, 1},
+    {ARG_GMM_OFFSETS, 2},
     {ARG_DST, 3},
 };
 
@@ -87,7 +88,7 @@ const std::vector<ExecutorImplementation<GroupedMatMulAttrs>>& getImplementation
     static const std::vector<ExecutorImplementation<GroupedMatMulAttrs>> grouped_matmul_implementations {
 
         OV_CPU_INSTANCE_DNNL_X64(
-            "groupedmatmul_dnnl", // -> TODO: grouped_matmul_dnnl
+            "groupedmatmul_dnnl",
             ExecutorType::Dnnl,
             OperationType::GroupedMatMul,
             // supports

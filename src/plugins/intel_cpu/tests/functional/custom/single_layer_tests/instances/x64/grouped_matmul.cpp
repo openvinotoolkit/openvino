@@ -33,10 +33,7 @@ const std::vector<CPUSpecificParams>& filter_specific_params_jit_gemm() {
     return specific_params;
 }
 
-// bf16 execution comes from the inference_precision property (see the note in the test class), and is
-// only reachable on hardware with bf16 support. The implementation string could not be measured -
-// no bf16 capable machine was available - so any_type keeps the impl check off and leaves the node
-// presence, the weights precision and the numerics as the assertions.
+// bf16 comes from the inference_precision property (see the test class), so the impl type is not checked.
 const std::vector<CPUSpecificParams>& filter_specific_params_bf16() {
     if (ov::with_cpu_x86_bfloat16()) {
         const static std::vector<CPUSpecificParams> specific_params{CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type}};
@@ -242,7 +239,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Compressed_RoutingEdgeCases,
 
 
 // Dynamic quantization of activations (requires VNNI): u3 / u4 weights
-const std::vector<ov::element::Type> dyn_quant_weights_precisions = {ov::element::u4, ov::element::u3};
+const std::vector<ov::element::Type> dyn_quant_weights_precisions = {ov::element::u4, ov::element::u3, ov::element::u8};
 const ov::AnyMap dyn_quant_config = {{ov::hint::dynamic_quantization_group_size.name(), uint64_t(32)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Compressed_DynQuant_2D,
@@ -287,6 +284,21 @@ const std::vector<GroupedMatMulShapeParams> shapes_chunking = {
     {{ov::PartialShape{-1, 128}, {{1024, 128}}}, {4, 96, 128}, TokensPerExpert{{0, 512, 512, 0}}},
     {{ov::PartialShape{-1, 128}, {{1111, 128}}}, {4, 64, 128}, TokensPerExpert{{1030, 33, 48, 0}}},
 };
+
+// offsets[G-1] < total tokens: the trailing rows belong to no group and must be zero.
+const std::vector<GroupedMatMulShapeParams> shapes_tail = {
+    {{ov::PartialShape{-1, 128}, {{40, 128}}}, {3, 48, 128}, TokensPerExpert{{10, 12, 8}}},
+    {{ov::PartialShape{-1, 128}, {{100, 128}}}, {4, 48, 128}, TokensPerExpert{{17, 0, 40, 0}}},
+    {{ov::PartialShape{-1, 128}, {{30, 128}}}, {2, 48, 128}, TokensPerExpert{{0, 0}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_UnassignedTail,
+                         GroupedMatMulLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_tail),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(empty_plugin_config),
+                                            ::testing::ValuesIn(filter_specific_params_brgemm())),
+                         GroupedMatMulLayerCPUTest::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Chunking,
                          GroupedMatMulLayerCPUTest,

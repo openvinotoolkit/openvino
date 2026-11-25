@@ -193,12 +193,6 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_fullyconnected_primitive.cpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp
-    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gathermatmul_executor.cpp
-    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp
-    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_grouped_matmul_executor.cpp
-    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_grouped_matmul_executor.hpp
-    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_inner_product_gemm.cpp
-    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_inner_product_gemm.hpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_matmul_primitive.cpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_matmul_primitive.hpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_post_op_data.hpp
@@ -840,6 +834,12 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/emitters/snippets/x64/utils.hpp
     ${CPU_SRC_DIR}/emitters/snippets/x64/verbose.cpp
     ${CPU_SRC_DIR}/emitters/snippets/x64/verbose.hpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gathermatmul_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_grouped_matmul_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_grouped_matmul_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_inner_product_gemm.cpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_inner_product_gemm.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/gdn_jit_executor.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/gdn_jit_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/jit_transpose.cpp

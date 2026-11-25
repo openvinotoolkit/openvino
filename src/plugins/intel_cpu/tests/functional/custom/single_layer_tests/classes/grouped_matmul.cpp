@@ -102,16 +102,15 @@ void GroupedMatMulLayerCPUTest::SetUp() {
     }
 }
 
-void GroupedMatMulLayerCPUTest::check_results() {
+void GroupedMatMulLayerCPUTest::validate() {
+    GroupedMatMulTestBase::validate();
     // CheckPluginRelatedResults only validates the nodes it finds, so assert presence separately
     CheckNumberOfNodesWithType(compiledModel, groupedMatMulLayerType, 1);
     CheckPluginRelatedResults(compiledModel, groupedMatMulLayerType);
 }
 
 TEST_P(GroupedMatMulLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    check_results();
 }
 
 // Instantiated in instances/x64 only, which non-x64 builds exclude while still compiling this file.
@@ -197,7 +196,8 @@ void GroupedMatMulCompressedLayerCPUTest::SetUp() {
     }
 }
 
-void GroupedMatMulCompressedLayerCPUTest::check_results() {
+void GroupedMatMulCompressedLayerCPUTest::validate() {
+    GroupedMatMulTestBase::validate();
     CheckNumberOfNodesWithType(compiledModel, groupedMatMulLayerType, 1);
     CheckPluginRelatedResults(compiledModel, groupedMatMulLayerType);
 
@@ -210,9 +210,7 @@ void GroupedMatMulCompressedLayerCPUTest::check_results() {
 }
 
 TEST_P(GroupedMatMulCompressedLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    check_results();
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GroupedMatMulCompressedLayerCPUTest);

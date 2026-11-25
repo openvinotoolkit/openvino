@@ -40,116 +40,33 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
                                                      const MemoryArgs& memory,
                                                      const ExecutorContext::CPtr& context)
     : m_context(context) {
-    const auto& weights_memory = memory.at(ARG_WEI);
-    const auto& src_memory = memory.at(ARG_SRC);
-
-    auto src_precision = src_memory->getDesc().getPrecision();
-    auto weights_precision = weights_memory->getDesc().getPrecision();
-    const auto dst_precision = memory.at(ARG_DST)->getDesc().getPrecision();
+    const auto& src_memory = memory.at(ARG_GMM_DATA);
+    const auto src_precision = src_memory->getDesc().getPrecision();
     m_is_batched = src_memory->getShape().getRank() == 3;
 
-    const auto& wei_dims = weights_memory->getShape().getStaticDims();
-    const dnnl::memory::dim N = wei_dims[wei_dims.size() - 2];
+    const auto& wei_dims = memory.at(ARG_GMM_WEIGHTS)->getShape().getStaticDims();
     const dnnl::memory::dim K = wei_dims[wei_dims.size() - 1];
 
-    const auto& scales_mem = memory.at(ARG_SRC_3);
-    const auto& zp_mem = memory.at(ARG_SRC_4);
-    const VectorDims scale_shape = utils::per_group_shape(scales_mem);
-    const VectorDims zp_shape = scale_shape.empty() ? VectorDims{} : utils::per_group_shape(zp_mem);
-
-    ov::element::Type zp_precision = ov::element::dynamic;
-    bool zp_non_negative_i8 = false;
-    if (zp_mem && !zp_mem->getDesc().empty()) {
-        zp_precision = zp_mem->getDesc().getPrecision();
-        zp_non_negative_i8 = zp_precision == ov::element::i8 && utils::isNonNegativeI8(*zp_mem);
-    }
-
-    dnnl::memory::desc src_md({1, K},
-                              DnnlExtensionUtils::ElementTypeToDataType(src_precision),
-                              dnnl::memory::format_tag::ab);
-    dnnl::memory::desc weights_md({N, K},
-                                  DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
-                                  dnnl::memory::format_tag::any);
-
-    const auto [src_dyn_quant_group_size, zp_dt] = utils::dyn_quant_params(attrs.dynamic_quantization_group_size,
-                                                                           weights_precision,
-                                                                           src_precision,
-                                                                           zp_precision,
-                                                                           zp_non_negative_i8,
-                                                                           static_cast<size_t>(K),
-                                                                           scale_shape,
-                                                                           zp_shape,
-                                                                           true);
-
-    InnerProductKey key{src_md,
-                        weights_md,
-                        utils::make_bias_md(N, memory.at(ARG_BIAS)),
-                        DnnlExtensionUtils::ElementTypeToDataType(dst_precision),
-                        scale_shape,
-                        zp_shape,
-                        zp_dt,
-                        src_dyn_quant_group_size};
-
-    const auto& eng = context->getEngine();
-    const auto thread_pool = context->getThreadPool();
-    auto cache = context->getRuntimeCache();
-    // Created with format_tag::any so oneDNN picks the weights layout. The weights are packed into it
-    // once below; every other row count is then created against that concrete descriptor.
-    InnerProductPtr ref_impl;
-    std::tie(ref_impl, std::ignore) = cache->getOrCreate(key, [&eng, &thread_pool](const InnerProductKey& k) {
-        return std::make_shared<InnerProduct>(eng, thread_pool, k);
-    });
-
-    // Repack weights: convert from [G, N, K] to [G, (packed_N, K)] format expected by oneDNN
-    auto gemv_weights_desc =
-        MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(ref_impl->get_weights_md()));
-
-    auto target_weights_desc = utils::add_batch_dim(gemv_weights_desc, wei_dims[0]);
-    auto src_weights_desc = MemoryDescUtils::convertToDnnlMemoryDesc(weights_memory->getDescPtr());
-
-    m_weights_memory = utils::prepareWeightsMemory(src_weights_desc,
-                                                   target_weights_desc,
-                                                   weights_memory,
-                                                   eng,
-                                                   cache,
-                                                   context->getWeightsCache(),
-                                                   context->getPrivateWeightCache(),
-                                                   thread_pool);
-
-    if (scales_mem && !scale_shape.empty()) {
-        m_scales_memory = utils::prepare_decompression_memory(scales_mem, ref_impl->get_scale_md(), eng);
-    }
-
-    if (zp_mem && !zp_shape.empty()) {
-        m_zp_memory = utils::prepare_decompression_memory(zp_mem, ref_impl->get_zp_md(), eng);
-    }
+    auto gemv = utils::prepare_gemv_inner_product(memory, context, attrs.dynamic_quantization_group_size, {ov::element::u3, ov::element::u4, ov::element::u8});
+    m_weights_memory = std::move(gemv.weights);
+    m_scales_memory = std::move(gemv.scales);
+    m_zp_memory = std::move(gemv.zp);
+    const auto gemv_impl = gemv.impl;
 
     // Only one value can be reported; the per-group primitives are all inner_product over the same
     // weights, so the implementation family does not vary.
-    m_impl_type = ref_impl->get_impl_type();
+    m_impl_type = gemv_impl->get_impl_type();
 
     m_src_data_type = DnnlExtensionUtils::ElementTypeToDataType(src_precision);
     m_K = K;
-    m_key_template = InnerProductKey{{},
-                                     ref_impl->get_weights_md(),
-                                     key.bias_md,
-                                     key.dst_data_type,
-                                     scale_shape,
-                                     zp_shape,
-                                     zp_dt,
-                                     src_dyn_quant_group_size};
+    m_key_template = std::move(gemv.key);
+    m_key_template.src_md = {};
+    m_key_template.weights_md = gemv_impl->get_weights_md();
 }
 
-// inner_product bakes M into the primitive descriptor (src/common/inner_product.cpp rejects
-// DNNL_RUNTIME_DIM_VAL), and a group's row count is offsets *data*, so nothing can be built earlier
-// than execute():
-//  * prepareParams() runs from Graph::InferDynamic's update phase, which covers a whole block of
-//    nodes before any of them execute, so the offsets still hold the previous inference's routing.
-//    Reading them there needs a sync point, i.e. a data dependency [T, N] does not actually have.
-//  * needPrepareParams() is inputShapesModified(), so prepareParams is skipped whenever routing
-//    changes at a constant token count - every decode step.
-// Steady state is a cache lookup, and the cache keys on descriptors, so layers with equal expert
-// dimensions share primitives.
+// inner_product bakes M into the primitive and a group's row count is offsets *data*, which is not valid in
+// prepareParams() (it also doesn't run when only the routing changes): so the primitives are taken from
+// the runtime cache in execute().
 GroupedMatMulDnnlExecutor::InnerProductPtr GroupedMatMulDnnlExecutor::impl_for(Dim rows) {
     auto key = m_key_template;
     key.src_md =
@@ -169,9 +86,9 @@ bool GroupedMatMulDnnlExecutor::update([[maybe_unused]] const MemoryArgs& memory
 }
 
 void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
-    const auto& src_mem = memory.at(ARG_SRC);
+    const auto& src_mem = memory.at(ARG_GMM_DATA);
     const auto& dst_mem = memory.at(ARG_DST);
-    const auto& offsets_mem = memory.at(ARG_SRC_1);
+    const auto& offsets_mem = memory.at(ARG_GMM_OFFSETS);
 
     auto src_offset = OffsetHelper::createOffsetHelper(src_mem);
     auto dst_offset = OffsetHelper::createOffsetHelper(dst_mem);
@@ -207,8 +124,6 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
         offsets = offsets_mem->getDataAs<int32_t>();
     }
 
-    const auto dst_element_size = dst_mem->getDesc().getPrecision().size();
-
     // Row range owned by group g. The 2D x 3D offsets are cumulative exclusive end boundaries; the
     // 3D x 3D form gives every group its own M rows, indexed within the group.
     size_t prev_end = 0;
@@ -236,16 +151,13 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
         auto* scale = scale_offset(g);
         auto* zp = zp_offset(g);
 
-        // Source and destination rows are both contiguous, so the primitives run on them in place.
-        // The row count of a group changes with every routing, and the primitive cache keys on it, so
-        // exact counts would create a new primitive for almost every group. Padding in place is not
-        // possible (it would read and write past the group), so the rows are split into chunks whose
-        // sizes are multiples of the normalize_m granularity, followed by a tail shorter than it.
-        // A chunk size is then one of a small set of values, and the primitives are reused.
+        // Rows are contiguous, so the primitives run in place. Padding the tail is not possible (it would read
+        // and write past the group), so the rows are split into chunks of the normalize_m granularity plus a
+        // short tail: this keeps the set of distinct row counts small.
         size_t chunk_start = start;
         size_t remaining = rows;
         while (remaining > 0) {
-            const size_t granularity = remaining < 512 ? 16 : (remaining < 1024 ? 32 : 256);
+            const size_t granularity = utils::normalize_m_granularity(remaining);
             const size_t chunk = remaining < granularity ? remaining : remaining - remaining % granularity;
             impl_for(chunk)->exec(src_at(g, chunk_start), dst_at(g, chunk_start), wei, nullptr, scale, zp);
             chunk_start += chunk;
@@ -256,6 +168,7 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
     // offsets[G-1] is allowed to be smaller than the token count; the rows past the last group are
     // left untouched by every GEMM, and the reference implementation defines them as zero.
     if (!m_is_batched && (prev_end < total_rows)) {
+        const auto dst_element_size = dst_mem->getDesc().getPrecision().size();
         std::memset(dst_at(0, prev_end), 0, (total_rows - prev_end) * N * dst_element_size);
     }
 }

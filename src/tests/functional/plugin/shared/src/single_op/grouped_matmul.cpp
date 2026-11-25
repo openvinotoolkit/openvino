@@ -129,9 +129,11 @@ void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& target
                 cum += static_cast<int32_t>(tpe[g]);
                 offsets[g] = cum;
             }
-            OPENVINO_ASSERT(offsets[G - 1] == static_cast<int32_t>(T),
+            // offsets[G-1] < T is legal: the rows past the last offset belong to no group and the
+            // reference defines them as zero.
+            OPENVINO_ASSERT(offsets[G - 1] <= static_cast<int32_t>(T),
                             "tokens_per_expert[", iter, "] sums to ", offsets[G - 1],
-                            " but T=", T);
+                            " which exceeds T=", T);
         } else {
             // Even distribution: offsets[g] = ceil(T*(g+1)/G), last clamped to T.
             for (size_t g = 0; g < G; ++g) {
