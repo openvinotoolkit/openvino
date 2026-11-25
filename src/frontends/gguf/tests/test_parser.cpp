@@ -2025,12 +2025,16 @@ TEST_F(GGUFShards, RejectsUnrelatedModelsAndEmptyLists) {
 
 class GGUFProjection : public GGUFShards {
 protected:
-    std::string write_projection_model(uint32_t width, GgufTensorType type, const std::vector<uint8_t>& payload);
+    std::string write_projection_model(uint32_t width,
+                                       GgufTensorType type,
+                                       const std::vector<uint8_t>& payload,
+                                       uint32_t ffn_channels = 0);
 };
 
 std::string GGUFProjection::write_projection_model(uint32_t width,
                                                    GgufTensorType type,
-                                                   const std::vector<uint8_t>& payload) {
+                                                   const std::vector<uint8_t>& payload,
+                                                   uint32_t ffn_channels) {
     GgufWriter writer;
     writer.kv_str("general.architecture", "qwen3");
     writer.kv_u32("qwen3.block_count", 1);
@@ -2040,18 +2044,25 @@ std::string GGUFProjection::write_projection_model(uint32_t width,
     writer.kv_u32("qwen3.rope.dimension_count", width / 2);
     writer.kv_u32("qwen3.context_length", 32);
     writer.kv_f32("qwen3.attention.layer_norm_rms_epsilon", 1e-5f);
+    const auto intermediate = ffn_channels ? ffn_channels : 12u;
     const std::vector<std::pair<std::string, std::vector<uint64_t>>> tensors{
         {"token_embd.weight", {width, 16}}, {"output_norm.weight", {width}},
         {"blk.0.attn_norm.weight", {width}}, {"blk.0.attn_k.weight", {width, width / 2}},
         {"blk.0.attn_v.weight", {width, width / 2}}, {"blk.0.attn_output.weight", {width, width}},
         {"blk.0.attn_q_norm.weight", {width / 2}}, {"blk.0.attn_k_norm.weight", {width / 2}},
-        {"blk.0.ffn_norm.weight", {width}}, {"blk.0.ffn_gate.weight", {width, 12}},
-        {"blk.0.ffn_up.weight", {width, 12}}, {"blk.0.ffn_down.weight", {12, width}},
+        {"blk.0.ffn_norm.weight", {width}}, {"blk.0.ffn_up.weight", {width, intermediate}},
+        {"blk.0.ffn_down.weight", {intermediate, width}},
     };
     for (const auto& [name, shape] : tensors) {
         writer.filled_tensor(name, shape, name.find("norm") != std::string::npos);
     }
-    writer.raw_tensor("blk.0.attn_q.weight", {width, width}, type, payload);
+    if (ffn_channels) {
+        writer.filled_tensor("blk.0.attn_q.weight", {width, width}, false);
+        writer.raw_tensor("blk.0.ffn_gate.weight", {width, ffn_channels}, type, payload);
+    } else {
+        writer.filled_tensor("blk.0.ffn_gate.weight", {width, intermediate}, false);
+        writer.raw_tensor("blk.0.attn_q.weight", {width, width}, type, payload);
+    }
     const auto model_path = m_base + ".gguf";
     m_paths.push_back(model_path);
     return writer.write(model_path) ? model_path : std::string{};
@@ -2286,16 +2297,34 @@ TEST_F(GGUFQ8Projection, SharedModelCompilesInEitherDeviceOrder) {
     }
 }
 
-#ifdef GGUF_GPU_RAW_OCL_TESTS
-class GGUFQ4KDispatch : public GGUFProjection, public testing::WithParamInterface<bool> {};
+#if defined(GGUF_GPU_NATIVE_TESTS) || defined(GGUF_GPU_RAW_OCL_TESTS)
+enum class DenseLayout { Raw, Shuffled, RawUnaligned, ShuffledGemmUnaligned };
 
-TEST_P(GGUFQ4KDispatch, FileExecutesAtMultipleRowCounts) {
-    const bool shuffled = GetParam();
-    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", shuffled ? "1" : "0");
+struct DenseDispatchCase {
+    GgufTensorType type;
+    const char* fixture;
+    const char* kernel_suffix;
+    size_t bytes_per_row;
+    DenseLayout layout;
+};
+
+class GGUFDenseDispatch : public GGUFProjection, public testing::WithParamInterface<DenseDispatchCase> {};
+
+TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
+    const auto& test_case = GetParam();
+    const auto layout_case = test_case.layout;
+    const std::string fixture = test_case.fixture;
+    const std::string weight_type = "gguf_" + fixture;
+    const std::string kernel_suffix = test_case.kernel_suffix;
+    const bool shuffled = layout_case == DenseLayout::Shuffled || layout_case == DenseLayout::ShuffledGemmUnaligned;
+    const bool gemm_aligned = layout_case == DenseLayout::Shuffled;
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", layout_case == DenseLayout::Raw ? "0" : "1");
     GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
     GgufScopedEnvironment prefill("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
+    GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", "1");
+    GgufScopedEnvironment prefill_dq("OV_GPU_GGUF_PREFILL_DQ_ACT", "0");
     const auto* strict_env = std::getenv("OV_GPU_GGUF_PREFILL_GEMM_STRICT");
-    const bool require_gemm = shuffled && strict_env && std::string(strict_env) == "1";
+    const bool require_gemm = gemm_aligned && strict_env && std::string(strict_env) == "1";
     GgufScopedEnvironment strict("OV_GPU_GGUF_PREFILL_GEMM_STRICT", require_gemm ? "1" : "0");
     ov::Core core;
     const auto devices = core.get_available_devices();
@@ -2303,16 +2332,20 @@ TEST_P(GGUFQ4KDispatch, FileExecutesAtMultipleRowCounts) {
         GTEST_SKIP() << "GPU device unavailable";
     }
     constexpr size_t width = 256;
+    const uint32_t ffn_channels = layout_case == DenseLayout::RawUnaligned            ? 52
+                                  : layout_case == DenseLayout::ShuffledGemmUnaligned ? 48
+                                                                                      : 0;
+    const auto channels = ffn_channels ? ffn_channels : width;
     RecordProperty("device", core.get_property("GPU", ov::device::full_name));
-    const auto blocks = load_npy<uint8_t>("q4_k_qbytes");
-    const auto decoded = load_npy<float>("q4_k_deq");
-    ASSERT_EQ(blocks.size(), 4 * 144);
+    const auto blocks = load_npy<uint8_t>(fixture + "_qbytes");
+    const auto decoded = load_npy<float>(fixture + "_deq");
+    ASSERT_EQ(blocks.size(), 4 * test_case.bytes_per_row);
     ASSERT_EQ(decoded.size(), 4 * width);
     std::vector<uint8_t> payload;
-    for (size_t group = 0; group < width / 4; ++group) {
+    for (size_t group = 0; group < channels / 4; ++group) {
         payload.insert(payload.end(), blocks.begin(), blocks.end());
     }
-    const auto path = write_projection_model(width, GGUF_TYPE_Q4_K, payload);
+    const auto path = write_projection_model(width, test_case.type, payload, ffn_channels);
     ASSERT_FALSE(path.empty());
     const auto native = [&] {
         FrontEnd frontend;
@@ -2321,7 +2354,7 @@ TEST_P(GGUFQ4KDispatch, FileExecutesAtMultipleRowCounts) {
     std::shared_ptr<ov::op::internal::FullyConnectedCompressed> projection;
     for (const auto& node : native->get_ordered_ops()) {
         const auto candidate = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
-        if (candidate && candidate->get_input_element_type(1) == ov::element::gguf_q4_k) {
+        if (candidate && candidate->get_input_element_type(1).get_type_name() == weight_type) {
             projection = candidate;
             break;
         }
@@ -2338,7 +2371,26 @@ TEST_P(GGUFQ4KDispatch, FileExecutesAtMultipleRowCounts) {
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
     auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32),
                                        ov::enable_profiling(true));
+    std::stringstream blob;
+    compiled.export_model(blob);
+    auto imported = [&] {
+        GgufScopedEnvironment opposite_shuffle("OV_GPU_GGUF_SHUFFLE", layout_case == DenseLayout::Raw ? "1" : "0");
+        return core.import_model(blob, "GPU", ov::hint::inference_precision(ov::element::f32), ov::enable_profiling(true));
+    }();
+    const auto executed_kernels = [&](const ov::CompiledModel& gpu_model) {
+        std::vector<std::string> executed;
+        for (const auto& op : gpu_model.get_runtime_model()->get_ordered_ops()) {
+            const auto& info = op->get_rt_info();
+            const auto kernels = info.find("gguf_last_executed_kernels");
+            if (kernels != info.end()) {
+                EXPECT_EQ(info.at("weights_precision").as<std::string>(), weight_type);
+                executed.push_back(kernels->second.as<std::string>());
+            }
+        }
+        return executed;
+    };
     auto request = compiled.create_infer_request();
+    auto imported_request = imported.create_infer_request();
     for (size_t rows : {1u, 33u, 128u, 257u, 1u}) {
         SCOPED_TRACE(rows);
         ov::Tensor input(ov::element::f32, {rows, width});
@@ -2349,34 +2401,42 @@ TEST_P(GGUFQ4KDispatch, FileExecutesAtMultipleRowCounts) {
         request.set_input_tensor(input);
         request.infer();
         const auto output = request.get_output_tensor();
-        ASSERT_EQ(output.get_shape(), (ov::Shape{rows, width}));
+        ASSERT_EQ(output.get_shape(), (ov::Shape{rows, channels}));
         ASSERT_EQ(output.get_element_type(), ov::element::f32);
-        std::vector<std::string> executed;
-        for (const auto& op : compiled.get_runtime_model()->get_ordered_ops()) {
-            const auto& info = op->get_rt_info();
-            const auto kernels = info.find("gguf_last_executed_kernels");
-            if (kernels != info.end()) {
-                EXPECT_EQ(info.at("weights_precision").as<std::string>(), "gguf_q4_k");
-                executed.push_back(kernels->second.as<std::string>());
-            }
-        }
+        const auto executed = executed_kernels(compiled);
         ASSERT_EQ(executed.size(), 1u);
+        imported_request.set_input_tensor(input);
+        imported_request.infer();
+        const auto imported_output = imported_request.get_output_tensor();
+        ASSERT_EQ(imported_output.get_shape(), output.get_shape());
+        ASSERT_EQ(imported_output.get_element_type(), output.get_element_type());
+        EXPECT_EQ(std::memcmp(imported_output.data<const float>(), output.data<const float>(), output.get_byte_size()), 0);
+        EXPECT_EQ(executed_kernels(imported), executed);
         const auto& kernel = executed.front();
-        const bool gemm = kernel.find("fc_gguf_gemm_q4k") == 0;
+        const bool gemm = kernel.find("fc_gguf_gemm_" + kernel_suffix) == 0;
+        const bool sg = kernel.find("fc_gguf_" + kernel_suffix + "_sg") == 0;
+        EXPECT_FALSE(gemm && !gemm_aligned) << kernel;
+        const bool transcode = kernel.find("fc_gguf_transcode_" + weight_type + "_") == 0;
+    #ifdef GGUF_GPU_NATIVE_TESTS
+        if (rows > 32 && !gemm) {
+            EXPECT_FALSE(require_gemm);
+            EXPECT_TRUE(transcode) << kernel;
+        } else
+    #endif
         if (!shuffled) {
-            EXPECT_EQ(kernel.find("fc_gguf_opt_gguf_q4_k_"), 0u);
+            EXPECT_EQ(kernel.find("fc_gguf_opt_" + weight_type + "_"), 0u);
         } else if (rows == 1) {
-            EXPECT_EQ(kernel.find("fc_gguf_q4k_sg"), 0u);
+            EXPECT_TRUE(sg) << kernel;
         } else if (require_gemm) {
             EXPECT_TRUE(gemm) << kernel;
         } else {
-            EXPECT_TRUE(gemm || kernel.find("fc_gguf_q4k_sg") == 0) << kernel;
+            EXPECT_TRUE(gemm || sg) << kernel;
         }
         for (size_t row = 0; row < rows; ++row) {
-            for (size_t channel = 0; channel < width; ++channel) {
+            for (size_t channel = 0; channel < channels; ++channel) {
                 const auto value = decoded[(channel % 4) * width + (7 * row + 13) % width];
-                const auto expected = gemm ? static_cast<float>(ov::float16(value)) : value;
-                EXPECT_NEAR(output.data<const float>()[row * width + channel], expected, 1e-4f);
+                const auto expected = gemm || transcode ? static_cast<float>(ov::float16(value)) : value;
+                EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 1e-4f);
             }
         }
         RecordProperty("kernel_m" + std::to_string(rows), executed.front());
@@ -2385,7 +2445,31 @@ TEST_P(GGUFQ4KDispatch, FileExecutesAtMultipleRowCounts) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(OclLayouts, GGUFQ4KDispatch, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(
+    OclLayouts,
+    GGUFDenseDispatch,
+    testing::Values(DenseDispatchCase{GGUF_TYPE_Q4_K, "q4_k", "q4k", 144, DenseLayout::Raw},
+                    DenseDispatchCase{GGUF_TYPE_Q4_K, "q4_k", "q4k", 144, DenseLayout::Shuffled},
+                    DenseDispatchCase{GGUF_TYPE_Q4_K, "q4_k", "q4k", 144, DenseLayout::RawUnaligned},
+                    DenseDispatchCase{GGUF_TYPE_Q4_K, "q4_k", "q4k", 144, DenseLayout::ShuffledGemmUnaligned},
+                    DenseDispatchCase{GGUF_TYPE_Q5_K, "q5_k", "q5k", 176, DenseLayout::Raw},
+                    DenseDispatchCase{GGUF_TYPE_Q5_K, "q5_k", "q5k", 176, DenseLayout::Shuffled},
+                    DenseDispatchCase{GGUF_TYPE_Q6_K, "q6_k", "q6k", 210, DenseLayout::Raw},
+                    DenseDispatchCase{GGUF_TYPE_Q6_K, "q6_k", "q6k", 210, DenseLayout::Shuffled},
+                    DenseDispatchCase{GGUF_TYPE_Q4_0, "q4_0", "q4_0", 144, DenseLayout::Raw},
+                    DenseDispatchCase{GGUF_TYPE_Q4_0, "q4_0", "q4_0", 144, DenseLayout::Shuffled},
+                    DenseDispatchCase{GGUF_TYPE_Q4_1, "q4_1", "q4_1", 160, DenseLayout::Raw},
+                    DenseDispatchCase{GGUF_TYPE_Q4_1, "q4_1", "q4_1", 160, DenseLayout::Shuffled},
+                    DenseDispatchCase{GGUF_TYPE_Q8_0, "q8_0", "q8_0", 272, DenseLayout::Raw},
+                    DenseDispatchCase{GGUF_TYPE_Q8_0, "q8_0", "q8_0", 272, DenseLayout::Shuffled}),
+    [](const testing::TestParamInfo<DenseDispatchCase>& info) {
+        const auto layout = info.param.layout;
+        const char* name = layout == DenseLayout::Raw                 ? "Raw"
+                           : layout == DenseLayout::Shuffled          ? "Shuffled"
+                           : layout == DenseLayout::RawUnaligned      ? "RawUnaligned"
+                                                                      : "ShuffledGemmUnaligned";
+        return std::string(info.param.fixture) + "_" + name;
+    });
 #endif
 
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
