@@ -226,7 +226,8 @@ std::string attention(GraphEmitter& e,
     // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     std::vector<std::string> attn_in = {q, k, v};
-    if (!cfg.embedding_model || cfg.causal_attention)
+    // Stateless noncausal models keep a mask only on sliding-window layers (LFM3 D1).
+    if (!cfg.embedding_model || cfg.causal_attention || is_swa_layer)
         attn_in.emplace_back(is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask");
     if (cfg.has_sinks) {
         e.add_weight(p + "attn_sinks.weight");
