@@ -57,7 +57,7 @@ More portability and performance to run AI at the edge, in the cloud or locally
 
 * Multi-Token Prediction (MTP), Dflash, and DSpark speculative decoding with prefix caching, and audio input come to OpenVINO Model Server, bringing the latest OpenVINO GenAI capabilities to serving deployments.
 
-* OpenVINO Model Server now accepts video input for VLM endpoints, enabling video through a standard API.
+* OpenVINO Model Server now accepts video input for VLM endpoints, enabling video and audio through a standard API.
 
 * Preview: OpenVINO™ GenAI introduces the genai-cli tool as a native model export path, giving developers a more unified workflow for preparing and running GenAI models with OpenVINO.
 
