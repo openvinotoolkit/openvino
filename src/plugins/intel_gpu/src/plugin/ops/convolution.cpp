@@ -172,6 +172,8 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
                                                pads_end,
                                                output_padding,
                                                weights_have_group_dim);
+        // The pads of the op are zero if auto_pad is SAME_UPPER/SAME_LOWER and spatial dims are dynamic.
+        deconvPrim.auto_pad = op->get_auto_pad();
         if (op->get_input_size() == 3) {
             auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
@@ -258,6 +260,8 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
                                                pads_end,
                                                output_padding,
                                                weights_have_group_dim);
+        // The pads of the op are zero if auto_pad is SAME_UPPER/SAME_LOWER and spatial dims are dynamic.
+        deconvPrim.auto_pad = op->get_auto_pad();
         if (op->get_input_size() == 3) {
             auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
