@@ -299,7 +299,7 @@ QSAIndexerBlockCacheFusionMatcher::QSAIndexerBlockCacheFusionMatcher() {
             return false;
         }
         // The past cache is otherwise only read for its shape (the block count FuseQSAIndexer grows it by).
-        const auto with_head_node = pattern_map.at(with_head).get_node();
+        auto* const with_head_node = pattern_map.at(with_head).get_node();
         const auto gather_node = pattern_map.count(gather_past) ? ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr()) : nullptr;
         if (gather_node) {
             if (gather_node->get_batch_dims() != 0 || ov::util::normalize(gather_node->get_axis(), 3) != 0 || !read_only_by(past_node->output(0), gather_node.get()) ||
