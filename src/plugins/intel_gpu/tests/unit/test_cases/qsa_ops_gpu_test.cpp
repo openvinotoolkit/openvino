@@ -1791,8 +1791,10 @@ TEST(qsa_ops_gpu_test, dense_state_carries_across_calls) {
     run_dense_state_chain_test(split_dims{}, {37, 1, 1, 6, 1, 3, 2}, 2e-2f);
 }
 
+// The first call leaves an incomplete block (130 % 4 == 2) that the following calls complete; the top-k boundary of the
+// GQA kernels is covered by the gqa_*_crossing_topk_boundary tests.
 TEST(qsa_ops_gpu_test, gqa_dense_state_carries_across_calls) {
-    run_dense_state_chain_test(gqa_dims(), {2050, 1, 1, 17, 1}, 3e-3f);
+    run_dense_state_chain_test(gqa_dims(), {130, 1, 1, 17, 1}, 3e-3f);
 }
 
 // Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar Q3 kernel.
@@ -2200,7 +2202,7 @@ TEST(qsa_ops_gpu_test, gqa_dense_attention_gqa_split_reads_padded_kv) {
 // How the KV-cache model expresses the sparse attention.
 enum class KVCacheModelOp {
     SparseSDPA,                 // the GPU op, built directly
-    SparseAttention,            // the public op with an i64 key_length, lowered by CreateSparseAttentionOp
+    SparseAttention,            // the public op with an i64 key_length, converted by ConvertSparseAttentionToInternal
     SparseAttentionBeamGather,  // the same, with the past K / V gathered by beam_idx as exported stateful models do
     SparseAttentionNoKeyLength  // the public op without key_length: every row holds the whole key sequence
 };
@@ -2325,13 +2327,15 @@ TEST(qsa_ops_gpu_test, gqa_sparse_sdpa_reads_kv_cache_across_infer_calls) {
     run_sparse_sdpa_kv_cache_model_test(gqa_dims(), {37, 1, 1, 9, 1}, 3e-3f);
 }
 
-// The public SparseAttention op is lowered to sparse_sdpa (i64 key_length converted to i32).
+// The public SparseAttention op is converted to SparseSDPA (i64 key_length converted to i32), then lowered to sparse_sdpa.
 TEST(qsa_ops_gpu_test, sparse_attention_op_reads_kv_cache_across_infer_calls) {
     run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 2e-3f, 2e-3f, KVCacheModelOp::SparseAttention);
 }
 
-TEST(qsa_ops_gpu_test, qwen38_sparse_attention_op_reads_beam_gathered_kv_cache) {
-    run_sparse_sdpa_kv_cache_model_test(gqa_dims(), {37, 1, 1, 9, 1}, 3e-3f, 2e-3f, KVCacheModelOp::SparseAttentionBeamGather);
+// The lowering of the beam gather does not depend on the kernel dimensions (the GQA kernels are covered above and by the
+// compressed case below).
+TEST(qsa_ops_gpu_test, sparse_attention_op_reads_beam_gathered_kv_cache) {
+    run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1}, 2e-3f, 2e-3f, KVCacheModelOp::SparseAttentionBeamGather);
 }
 
 // Without key_length the lowering gives every row the whole key sequence.
@@ -2619,7 +2623,7 @@ TEST_P(QSAIndexerPluginTest, AbsorbsQueryPreprocessingBeforeLowering) {
     EXPECT_NO_THROW(core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16)));
 }
 
-/// The query preprocessing as exported (e.g. Qwen4): the RMSNorm x * 1 / sqrt(mean(x ^ 2) + eps) * gamma of the
+/// The query preprocessing as exported: the RMSNorm x * 1 / sqrt(mean(x ^ 2) + eps) * gamma of the
 /// [B, L, H, D] query, transposed to [B, H, L, D], then the rotate-half RoPE of its first `rotary` channels concatenated
 /// with the others. Returns the [B, H, L, D] result.
 ov::Output<ov::Node> exported_query_preprocessing(const ov::Output<ov::Node>& query,
@@ -2864,7 +2868,9 @@ std::shared_ptr<ov::Model> make_exported_indexer_model(const split_dims& d, bool
 /// Then the states are restored into a new request by set_state, which must continue as the original one would. The
 /// restored request runs alone: requests of one compiled model that run stateful steps in turn share the kv_cache
 /// primitive state, which the GPU plugin does not support yet for any KV cache.
-void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens) {
+/// `rollbacks` maps a step to the past length it starts from instead (key_length shrinks, the states are kept): the block
+/// cache variable keeps its capacity of max(past, needed) blocks, whose leading blocks must be the reference's cache.
+void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens, const std::map<size_t, size_t>& rollbacks = {}) {
     const split_dims d;
     const auto f32 = ov::element::f32;
     ov::Core core;
@@ -2896,6 +2902,8 @@ void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens)
     std::iota(identity.begin(), identity.end(), 0);
     uint32_t seed = 1;
     const std::vector<std::string> state_names{"block_keys", "incomplete_keys", "incomplete_rope"};
+    // Blocks held by the block cache variable of the stateful requests.
+    size_t cache_blocks = 0;
 
     // Feeds one call of L new tokens after `past` to the stateful requests and the reference, then checks them.
     const auto run_step = [&](const std::vector<ov::InferRequest*>& requests, size_t past, size_t L, const std::string& tag) {
@@ -2944,6 +2952,7 @@ void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens)
         const auto ref_count = reference.get_output_tensor(1);
         const auto ref_selected = reference.get_output_tensor(0);
         const auto blocks = total / d.r;
+        cache_blocks = std::max(cache_blocks, blocks);
         for (auto* req : requests) {
             const auto count = req->get_output_tensor(1);
             const auto selected = req->get_output_tensor(0);
@@ -2962,19 +2971,24 @@ void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens)
                 ASSERT_NE(it, state_names.end()) << variable.get_name();
                 const auto& ref_state = ref_states[static_cast<size_t>(it - state_names.begin())];
                 const auto state = variable.get_state();
-                if (it == state_names.begin() && blocks == 0) {
+                if (it == state_names.begin() && cache_blocks == 0) {
                     // No block was appended yet: the cache variable is still unset.
                     EXPECT_EQ(state.get_size(), 0u) << tag;
                     continue;
                 }
+                const size_t row_size = state.get_size() / batch;
+                const size_t ref_row_size = ref_state.get_size() / batch;
+                size_t compared = ref_row_size;
                 if (it == state_names.begin()) {
-                    ASSERT_EQ(state.get_shape(), (ov::Shape{batch, blocks, d.Di})) << tag;
+                    // The variable keeps its capacity, while the reference is sliced to the complete blocks: they share
+                    // the leading blocks.
+                    ASSERT_EQ(state.get_shape(), (ov::Shape{batch, cache_blocks, d.Di})) << tag;
+                    ASSERT_EQ(ref_state.get_shape(), (ov::Shape{batch, blocks, d.Di})) << tag;
+                } else {
+                    ASSERT_EQ(ref_state.get_shape(), state.get_shape()) << tag << " " << *it;
                 }
-                ASSERT_EQ(ref_state.get_shape(), state.get_shape()) << tag << " " << *it;
                 // Only the staged keys and, with an incomplete block, its RoPE row are read again: the other rows are left
                 // as they come, which after a reset is the Gather of an empty state.
-                const size_t row_size = state.get_size() / batch;
-                size_t compared = row_size;
                 if (*it == "incomplete_keys") {
                     compared = (total % d.r) * d.Di;
                 } else if (*it == "incomplete_rope" && total % d.r == 0) {
@@ -2982,7 +2996,7 @@ void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens)
                 }
                 for (size_t b = 0; b < batch; b++) {
                     for (size_t i = 0; i < compared; i++) {
-                        ASSERT_EQ(state.data<float>()[b * row_size + i], ref_state.data<float>()[b * row_size + i])
+                        ASSERT_EQ(state.data<float>()[b * row_size + i], ref_state.data<float>()[b * ref_row_size + i])
                             << tag << " " << *it << " row " << b << " element " << i;
                     }
                 }
@@ -2997,7 +3011,14 @@ void run_stateful_indexer_chain(size_t batch, const std::vector<size_t>& q_lens)
             request.reset_state();
             reset_reference();
             past = 0;
+            cache_blocks = 0;
             continue;
+        }
+        if (const auto rollback = rollbacks.find(step); rollback != rollbacks.end()) {
+            // At a block boundary, so that the incomplete-block states, whose unused rows may differ, are not read.
+            ASSERT_LE(rollback->second, past);
+            ASSERT_EQ(rollback->second % d.r, 0u);
+            past = rollback->second;
         }
         run_step({&request}, past, L, "step " + std::to_string(step));
         if (::testing::Test::HasFatalFailure()) {
@@ -3033,8 +3054,10 @@ TEST(qsa_ops_gpu_test, stateful_indexer_block_cache_is_updated_in_place) {
     // long enough to fill it up block by block, and a reset.
     std::vector<size_t> q_lens{3, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 600, 700};
     q_lens.insert(q_lens.end(), 600, 1);
-    q_lens.insert(q_lens.end(), {0, 9, 1});
-    run_stateful_indexer_chain(1, q_lens);
+    // key_length shrinks without a reset (a rollback to a block boundary) and the cache keeps its capacity, then a reset.
+    const size_t rollback_step = q_lens.size();
+    q_lens.insert(q_lens.end(), {4, 1, 0, 9, 1});
+    run_stateful_indexer_chain(1, q_lens, {{rollback_step, 800}});
 }
 
 TEST(qsa_ops_gpu_test, batched_stateful_indexer_block_cache_is_updated_in_place) {
@@ -3043,7 +3066,10 @@ TEST(qsa_ops_gpu_test, batched_stateful_indexer_block_cache_is_updated_in_place)
     }
     std::vector<size_t> q_lens{5, 300};
     q_lens.insert(q_lens.end(), 600, 1);
-    run_stateful_indexer_chain(2, q_lens);
+    // Rolled back to a block boundary: the rank-3 cache of several rows keeps its capacity too.
+    const size_t rollback_step = q_lens.size();
+    q_lens.insert(q_lens.end(), {1, 1});
+    run_stateful_indexer_chain(2, q_lens, {{rollback_step, 400}});
 }
 
 /// The block index key cache is read without its beam table, so beam search is rejected.
@@ -3160,8 +3186,8 @@ TEST(qsa_ops_gpu_test, paged_sparse_attention_op_matches_reference) {
     run_paged_sparse_attention_op_test(two_kv_head_dims(), {{0, 37}, {37, 1}, {38, 6}, {2003, 1}}, 2e-3f);
 }
 
-TEST(qsa_ops_gpu_test, qwen38_paged_sparse_attention_op_matches_reference) {
-    run_paged_sparse_attention_op_test(gqa_dims(), {{0, 37}, {37, 1}, {2100, 1}}, 3e-3f);
+TEST(qsa_ops_gpu_test, gqa_paged_sparse_attention_op_matches_reference) {
+    run_paged_sparse_attention_op_test(gqa_dims(), {{0, 37}, {37, 1}, {38, 6}}, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_config_validation_rejects_illegal_attributes) {

@@ -14,8 +14,8 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -28,6 +28,7 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -283,10 +284,17 @@ std::shared_ptr<ov::intel_gpu::op::KVCache> gathered_kv_cache(const SparseAttent
     return std::make_shared<ov::intel_gpu::op::KVCache>(gather, new_token, variable, 2, ov::element::f16);
 }
 
-std::shared_ptr<ov::op::v17::SparseAttention> sparse_attention(const SparseAttentionCaches& c,
-                                                               const ov::Output<ov::Node>& key,
-                                                               const ov::Output<ov::Node>& value) {
-    return std::make_shared<ov::op::v17::SparseAttention>(c.query, key, value, c.indices, c.count, c.key_length, 4);
+// The GPU SparseSDPA op ConvertSparseAttentionToInternal makes of a SparseAttention.
+std::shared_ptr<ov::intel_gpu::op::SparseSDPA> sparse_attention(const SparseAttentionCaches& c,
+                                                                const ov::Output<ov::Node>& key,
+                                                                const ov::Output<ov::Node>& value) {
+    ov::intel_gpu::op::SparseSDPA::Config config;
+    config.num_heads = 4;
+    config.num_kv_heads = 2;
+    config.k_head_size = 32;
+    config.v_head_size = 32;
+    config.key_block_size = 4;
+    return std::make_shared<ov::intel_gpu::op::SparseSDPA>(ov::OutputVector{c.query, key, value, c.indices, c.count, c.key_length}, config);
 }
 
 }  // namespace
@@ -335,4 +343,23 @@ TEST_F(TransformationTestsF, IndirectKVCacheSparseAttentionSharedCache) {
     model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention), std::make_shared<ov::op::v0::Result>(key_cache)},
                                         parameters(c));
     manager.register_pass<IndirectKVCache>();
+}
+
+// A shape read of a cache (the key_length ConvertSparseAttentionToInternal makes for a SparseAttention without one) does
+// not depend on the row order: the cache still becomes indirect, and the shape read follows it.
+TEST(IndirectKVCacheSparseAttentionTest, ShapeReadOfCacheKeepsItIndirect) {
+    const auto c = make_sparse_attention_caches();
+    const auto key_cache = gathered_kv_cache(c, c.key, c.key_variable);
+    const auto key_shape = std::make_shared<ov::op::v3::ShapeOf>(key_cache, ov::element::i32);
+    const auto attention = sparse_attention(c, key_cache, gathered_kv_cache(c, c.value, c.value_variable));
+    const auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention), std::make_shared<ov::op::v0::Result>(key_shape)},
+                                    parameters(c));
+    ov::pass::Manager manager;
+    manager.register_pass<IndirectKVCache>();
+    manager.run_passes(model);
+    const auto kv_cache = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(attention->get_input_node_shared_ptr(ov::intel_gpu::op::SparseSDPA::InputIdx::KEY));
+    ASSERT_NE(kv_cache, nullptr);
+    EXPECT_TRUE(kv_cache->get_indirect());
+    EXPECT_EQ(key_shape->get_input_node_shared_ptr(0), kv_cache);
 }

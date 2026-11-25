@@ -35,7 +35,6 @@
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/util/log.hpp"
 
 namespace {
 
@@ -1014,8 +1013,12 @@ void SyncInferRequest::allocate_states() {
                 concat_axis = ov::util::normalize(kv_cache_prim->concat_axis, kv_cache_shape.size());
                 compressed = kv_cache_prim->compressed;
                 has_zp_state = kv_cache_prim->get_compression_zp_inputs_num() > 0;
-                if (kv_cache_prim->requires_identity_beam_idx && kv_cache_prim->input.size() > 2) {
-                    m_identity_beam_idx_inputs.insert(kv_cache_prim->input[2].pid);
+                if (kv_cache_prim->requires_identity_beam_idx) {
+                    OPENVINO_ASSERT(kv_cache_prim->indirect && kv_cache_prim->input.size() > cldnn::kv_cache::beam_idx_input,
+                                    "[GPU] kv_cache '",
+                                    kv_cache_prim->id,
+                                    "' requires an identity beam_idx but has no beam_idx input");
+                    m_identity_beam_idx_inputs.insert(kv_cache_prim->input[cldnn::kv_cache::beam_idx_input].pid);
                 }
             } else if (const auto* read_value = dynamic_cast<const cldnn::read_value*>(p)) {
                 states_layouts = read_value->output_layouts;
@@ -1041,15 +1044,17 @@ void SyncInferRequest::allocate_states() {
         }
     }
 
-    // The beam_idx checked by enqueue() must be a model input.
+    // The beam_idx checked by enqueue() must be a model input: IndirectSparseAttentionOpt and
+    // QSAIndexerBlockCacheFusionMatcher only accept a Parameter, which is lowered to an input_layout of the same id.
     for (const auto& beam_idx : m_identity_beam_idx_inputs) {
         const bool is_input = std::any_of(m_input_ports_map.begin(), m_input_ports_map.end(), [&](const auto& it) {
             const auto names = m_graph->input_port_index_to_internal(it.first);
             return std::find(names.begin(), names.end(), beam_idx) != names.end();
         });
-        if (!is_input) {
-            OPENVINO_WARN("[GPU] '", beam_idx, "' is not a model input: beam search cannot be rejected for the sparse attention KV caches it reorders.");
-        }
+        OPENVINO_ASSERT(is_input,
+                        "[GPU] '",
+                        beam_idx,
+                        "' is not a model input: beam search could not be rejected for the sparse attention KV caches it reorders.");
     }
 }
 

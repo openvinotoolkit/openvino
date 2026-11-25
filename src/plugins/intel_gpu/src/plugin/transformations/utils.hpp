@@ -4,11 +4,22 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include "ov_ops/type_relaxed.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace ov::intel_gpu {
+
+/// Whether `output` is read only by `user` and by shape reads (ShapeOf), which do not depend on its values.
+inline bool read_only_by(const ov::Output<ov::Node>& output, const ov::Node* user) {
+    const auto inputs = output.get_target_inputs();
+    return std::all_of(inputs.begin(), inputs.end(), [user](const ov::Input<ov::Node>& input) {
+        return input.get_node() == user || ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(input.get_node());
+    });
+}
 
 template<typename T, typename... Args>
 std::shared_ptr<T> make_type_relaxed(const element::TypeVector& input_data_types,

@@ -49,7 +49,9 @@ struct kv_cache : public primitive_base<kv_cache> {
     bool trim = false;
     bool update_kv = false;
     bool compressed = false;
-    /// The consumers of this indirect cache ignore its beam table, so beam_idx (input 2) must be the identity.
+    /// Input order: [kv_state, kv_new_token, [beam_idx, bt_past], ...]; beam_idx is present when indirect.
+    static constexpr size_t beam_idx_input = 2;
+    /// The consumers of this indirect cache ignore its beam table, so beam_idx must be the identity.
     bool requires_identity_beam_idx = false;
     QuantizationAttributes quantization_attributes;
 

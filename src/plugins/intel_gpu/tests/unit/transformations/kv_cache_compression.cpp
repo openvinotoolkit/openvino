@@ -11,6 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 
@@ -20,7 +21,6 @@
 #include "intel_gpu/op/kv_cache_compressed.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/sparse_sdpa.hpp"
-#include "openvino/op/sparse_attention.hpp"
 
 #include "plugin/transformations/kv_cache_compression.hpp"
 
@@ -786,14 +786,16 @@ TEST_F(TransformationTestsF, KVCacheCompressionPlanar) {
 
 namespace {
 
-// A SparseAttention over the indirect key / value caches IndirectSparseAttentionOpt makes.
-std::shared_ptr<ov::Model> make_sparse_attention_kv_cache_model(int64_t head_size = 64) {
+// The GPU SparseSDPA op (see ConvertSparseAttentionToInternal) over the indirect key / value caches
+// IndirectSparseAttentionOpt makes, with a Constant scale; `key_shape_read` adds a ShapeOf of the key cache.
+std::shared_ptr<ov::Model> make_sparse_attention_kv_cache_model(bool key_shape_read = false) {
     const auto f16 = ov::element::f16;
+    constexpr int64_t head_size = 64;
     const auto query = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{-1, 4, -1, head_size});
     const auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
     const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 1, -1, 8});
     const auto count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 1, -1});
-    const auto key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1});
+    const auto key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
     ov::ParameterVector params{query, beam_idx, indices, count, key_length};
     const auto cache = [&](const char* name) {
         const auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 2, -1, head_size}, f16, name});
@@ -806,8 +808,20 @@ std::shared_ptr<ov::Model> make_sparse_attention_kv_cache_model(int64_t head_siz
     };
     const auto key = cache("k");
     const auto value = cache("v");
-    const auto attention = std::make_shared<ov::op::v17::SparseAttention>(query, key->output(0), value->output(0), indices, count, key_length, 16);
-    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention)}, params);
+    ov::intel_gpu::op::SparseSDPA::Config config;
+    config.num_heads = 4;
+    config.num_kv_heads = 2;
+    config.k_head_size = static_cast<size_t>(head_size);
+    config.v_head_size = static_cast<size_t>(head_size);
+    config.key_block_size = 16;
+    const auto scale = ov::op::v0::Constant::create(f16, ov::Shape{}, {0.125f});
+    const auto attention =
+        std::make_shared<ov::intel_gpu::op::SparseSDPA>(ov::OutputVector{query, key->output(0), value->output(0), indices, count, key_length, scale}, config);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(attention)};
+    if (key_shape_read) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(std::make_shared<ov::op::v3::ShapeOf>(key, ov::element::i32)));
+    }
+    return std::make_shared<ov::Model>(results, params);
 }
 
 std::shared_ptr<ov::Node> attention_of(const std::shared_ptr<ov::Model>& model) {
@@ -818,6 +832,13 @@ void compress(const std::shared_ptr<ov::Model>& model, ov::element::Type precisi
     ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::KVCacheCompression>(precision, supports_immad);
     manager.run_passes(model);
+}
+
+void expect_uncompressed(const std::shared_ptr<ov::Model>& model) {
+    const auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SparseSDPA>(attention_of(model));
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_FALSE(sdpa->get_config().kv_compressed());
+    EXPECT_FALSE(ov::is_type<ov::intel_gpu::op::KVCacheCompressed>(sdpa->get_input_node_shared_ptr(ov::intel_gpu::op::SparseSDPA::InputIdx::KEY)));
 }
 
 }  // namespace
@@ -834,8 +855,10 @@ TEST(KVCacheCompressionSparseAttention, Int8) {
     EXPECT_EQ(config.key_quant.bits, 8);
     EXPECT_FALSE(config.key_quant.symmetric);
     EXPECT_EQ(config.value_quant, config.key_quant);
-    // query, key, value, selections, key_length, then the key / value scales and zero points.
-    ASSERT_EQ(sdpa->get_input_size(), 10u);
+    // query, key, value, selections, key_length, the key / value scales and zero points, then the scale.
+    ASSERT_EQ(sdpa->get_input_size(), 11u);
+    EXPECT_TRUE(sdpa->has_scale_input());
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Constant>(sdpa->get_input_node_shared_ptr(config.scale_input_idx())));
     EXPECT_EQ(sdpa->get_input_element_type(ov::intel_gpu::op::SparseSDPA::InputIdx::KEY_LENGTH), ov::element::i32);
     for (size_t idx : {ov::intel_gpu::op::SparseSDPA::InputIdx::KEY, ov::intel_gpu::op::SparseSDPA::InputIdx::VALUE}) {
         const auto kv_cache = ov::as_type_ptr<ov::intel_gpu::op::KVCacheCompressed>(sdpa->get_input_node_shared_ptr(idx));
@@ -846,6 +869,18 @@ TEST(KVCacheCompressionSparseAttention, Int8) {
         EXPECT_EQ(attrs.zp_dt, ov::element::i8);
     }
     EXPECT_EQ(sdpa->get_input_element_type(ov::intel_gpu::op::SparseSDPA::InputIdx::KEY_ZP), ov::element::i8);
+}
+
+// A shape read of a cache moves to the compressed cache, so that the uncompressed KVCache drops out of the model.
+TEST(KVCacheCompressionSparseAttention, ShapeReadOfCacheFollowsCompression) {
+    const auto model = make_sparse_attention_kv_cache_model(true);
+    compress(model, ov::element::i8, true);
+    ASSERT_TRUE(ov::is_type<ov::intel_gpu::op::SparseSDPA>(attention_of(model)));
+    const auto shape_read = model->get_results()[1]->get_input_node_shared_ptr(0);
+    EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::KVCacheCompressed>(shape_read->get_input_node_shared_ptr(0)));
+    for (const auto& node : model->get_ordered_ops()) {
+        EXPECT_TRUE(!ov::is_type<ov::intel_gpu::op::KVCache>(node) || ov::is_type<ov::intel_gpu::op::KVCacheCompressed>(node)) << node->get_friendly_name();
+    }
 }
 
 TEST(KVCacheCompressionSparseAttention, Int4HasF16ZeroPoints) {
@@ -861,19 +896,13 @@ TEST(KVCacheCompressionSparseAttention, Int4HasF16ZeroPoints) {
 TEST(KVCacheCompressionSparseAttention, KeepsUncompressedCachesWithoutImmad) {
     const auto model = make_sparse_attention_kv_cache_model();
     compress(model, ov::element::i8, false);
-    EXPECT_TRUE(ov::is_type<ov::op::v17::SparseAttention>(attention_of(model)));
-}
-
-TEST(KVCacheCompressionSparseAttention, KeepsUnsupportedHeadSize) {
-    const auto model = make_sparse_attention_kv_cache_model(24);
-    compress(model, ov::element::i8, true);
-    EXPECT_TRUE(ov::is_type<ov::op::v17::SparseAttention>(attention_of(model)));
+    expect_uncompressed(model);
 }
 
 TEST(KVCacheCompressionSparseAttention, KeepsF16Caches) {
     const auto model = make_sparse_attention_kv_cache_model();
     compress(model, ov::element::f16, true);
-    EXPECT_TRUE(ov::is_type<ov::op::v17::SparseAttention>(attention_of(model)));
+    expect_uncompressed(model);
 }
 
 }  // namespace intel_gpu

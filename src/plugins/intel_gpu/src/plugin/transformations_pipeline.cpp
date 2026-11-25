@@ -98,6 +98,7 @@
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_paged_qsa_indexer_inputs.hpp"
 #include "plugin/transformations/convert_paged_sparse_attn_inputs.hpp"
+#include "plugin/transformations/convert_sparse_attention.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
@@ -1982,6 +1983,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::StatelessKVFusion>();
 
         manager.register_pass<ov::pass::GLUFusion>();
+        // SparseAttention becomes the GPU SparseSDPA op, whose caches IndirectKVCache and KVCacheCompression handle.
+        manager.register_pass<ov::intel_gpu::ConvertSparseAttentionToInternal>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         if (!has_shared_kv_cache_vars(func)) {

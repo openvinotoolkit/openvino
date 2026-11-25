@@ -18,24 +18,21 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sink.hpp"
-#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
+#include "plugin/transformations/utils.hpp"
 
 #include <memory>
 #include "openvino/core/graph_util.hpp"
@@ -311,11 +308,11 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
     this->register_matcher(m, callback);
 }
 
-/// Compresses the key / value caches of ov::op::v17::SparseAttention made indirect by IndirectSparseAttentionOpt and
-/// replaces the attention with the GPU SparseSDPA op, which reads the compressed caches. The caches are quantized like
-/// the SDPA ones on systolic platforms (planar storage): per token, asymmetric, with f16 scales and i8 zero points
-/// (f16 for a 4-bit cache), as SparseSDPA reads them (see sparse_kv_quant.hpp). SparseSDPA does not read the
-/// interleaved scales / zero points of the other platforms, so there the caches stay uncompressed (with a warning).
+/// Compresses the key / value caches of the GPU SparseSDPA op made indirect by IndirectSparseAttentionOpt and replaces
+/// the op with a SparseSDPA that reads the compressed caches. The caches are quantized like the SDPA ones on systolic
+/// platforms (planar storage): per token, asymmetric, with f16 scales and i8 zero points (f16 for a 4-bit cache), as
+/// SparseSDPA reads them (see sparse_kv_quant.hpp). SparseSDPA does not read the interleaved scales / zero points of the
+/// other platforms, so there the caches stay uncompressed (with a warning).
 class KVCacheCompressionSparseMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("KVCacheCompressionSparseMatcher");
@@ -325,28 +322,29 @@ public:
 KVCacheCompressionSparseMatcher::KVCacheCompressionSparseMatcher(ov::element::Type compression_dt, bool supports_immad) {
     using namespace ov::pass::pattern;
     using SparseSDPA = ov::intel_gpu::op::SparseSDPA;
+    using In = SparseSDPA::InputIdx;
 
     if (!cldnn::one_of(compression_dt, {element::i8, element::u8, element::i4, element::u4})) {
         return;
     }
 
-    // Inputs of ov::op::v17::SparseAttention.
-    constexpr size_t QUERY = 0, KEY = 1, VALUE = 2, BLOCK_INDICES = 3, BLOCK_COUNT = 4, KEY_LENGTH = 5, SCALE = 6, SINKS = 7;
-
-    auto sparse_attention = wrap_type<ov::op::v17::SparseAttention>();
+    auto sparse_sdpa = wrap_type<SparseSDPA>();
     auto warned = std::make_shared<bool>(false);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        const auto attention = ov::as_type_ptr<ov::op::v17::SparseAttention>(m.get_match_root());
-        if (!attention || transformation_callback(attention) || attention->get_query_block_size() != 1 || attention->get_input_size() > SINKS) {
+        const auto attention = ov::as_type_ptr<SparseSDPA>(m.get_match_root());
+        // A compressed SparseSDPA has no sinks input.
+        if (!attention || transformation_callback(attention) || attention->get_config().kv_compressed() || attention->has_sinks() ||
+            attention->get_input_element_type(In::QUERY) != element::f16) {
             return false;
         }
         std::shared_ptr<op::KVCache> kv_caches[2];
         std::shared_ptr<op::ReadValue> past_read_values[2];
         for (size_t i = 0; i < 2; ++i) {
-            kv_caches[i] = ov::as_type_ptr<op::KVCache>(attention->get_input_node_shared_ptr(i == 0 ? KEY : VALUE));
+            kv_caches[i] = ov::as_type_ptr<op::KVCache>(attention->get_input_node_shared_ptr(i == 0 ? In::KEY : In::VALUE));
+            // Shape reads (the key_length of a SparseAttention without one) move to the compressed cache below.
             if (!kv_caches[i] || ov::is_type<op::KVCacheCompressed>(kv_caches[i]) || !kv_caches[i]->get_indirect() ||
-                kv_caches[i]->get_rt_info().count(op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX) == 0) {
+                kv_caches[i]->get_rt_info().count(op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX) == 0 || !read_only_by(kv_caches[i]->output(0), attention.get())) {
                 return false;
             }
             past_read_values[i] = ov::as_type_ptr<op::ReadValue>(kv_caches[i]->get_input_node_shared_ptr(0));
@@ -362,29 +360,13 @@ KVCacheCompressionSparseMatcher::KVCacheCompressionSparseMatcher(ov::element::Ty
             return false;
         }
 
-        const auto static_dim = [&attention](size_t input, size_t axis) -> size_t {
-            const auto& shape = attention->get_input_partial_shape(input);
-            return shape.rank().is_static() && shape.size() == 4 && shape[axis].is_static() ? static_cast<size_t>(shape[axis].get_length()) : 0;
-        };
+        // The quantized histories have the head sizes of the uncompressed ones, which SparseSDPA already validated.
         op::KVQuant quant;
         quant.mode = op::KVQuant::Mode::BY_TOKEN;
         quant.bits = compression_dt.bitwidth() == 4 ? 4 : 8;
-        SparseSDPA::Config sdpa_config;
-        sdpa_config.num_heads = static_dim(QUERY, 1);
-        sdpa_config.k_head_size = static_dim(QUERY, 3);
-        sdpa_config.num_kv_heads = static_dim(KEY, 1);
-        sdpa_config.v_head_size = static_dim(VALUE, 3);
-        sdpa_config.num_selection_heads = static_dim(BLOCK_INDICES, 1);
-        sdpa_config.key_block_size = static_cast<size_t>(attention->get_key_block_size());
-        sdpa_config.causal = attention->get_causal();
+        auto sdpa_config = attention->get_config();
         sdpa_config.key_quant = quant;
         sdpa_config.value_quant = quant;
-        std::string reason;
-        const auto& query = attention->input_value(QUERY);
-        if (!SparseSDPA::validate_config(sdpa_config, reason) || query.get_element_type() != element::f16) {
-            GPU_DEBUG_LOG << "SparseAttention " << attention->get_friendly_name() << " keeps an uncompressed KV cache: " << reason << std::endl;
-            return false;
-        }
 
         ov::op::internal::DynamicQuantize::Attributes config;
         config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
@@ -399,52 +381,36 @@ KVCacheCompressionSparseMatcher::KVCacheCompressionSparseMatcher(ov::element::Ty
         for (size_t i = 0; i < 2; ++i) {
             auto read_values = update_past_read_value(past_read_values[i], config);
             compressed[i] = update_kv_cache(read_values, kv_caches[i], config);  // keeps the runtime info of the cache
+            // The compressed data has the shape of the cache (see KVCacheCompressed shape_infer).
+            for (const auto& input : kv_caches[i]->output(0).get_target_inputs()) {
+                if (input.get_node() != attention.get()) {
+                    input.replace_source_output(compressed[i]->output(0));
+                }
+            }
         }
 
-        // SparseSDPA reads i32 selections and one i32 key_length per batch row.
-        ov::pass::NodeRegistry rg;
-        const auto to_i32 = [&rg](const ov::Output<ov::Node>& value) -> ov::Output<ov::Node> {
-            return value.get_element_type() == element::i32 ? value : rg.make<ov::op::v0::Convert>(value, element::i32);
-        };
-        const auto dim_of = [&rg](const ov::Output<ov::Node>& data, int64_t axis) -> ov::Output<ov::Node> {
-            const auto shape = rg.make<ov::op::v3::ShapeOf>(data, element::i32);
-            return rg.make<ov::op::v8::Gather>(shape,
-                                               ov::op::v0::Constant::create(element::i32, ov::Shape{1}, {axis}),
-                                               ov::op::v0::Constant::create(element::i32, ov::Shape{}, {0}));
-        };
-        const auto batch = query.get_partial_shape()[0];
-        ov::Output<ov::Node> key_length =
-            attention->get_input_size() > KEY_LENGTH ? to_i32(attention->input_value(KEY_LENGTH)) : dim_of(attention->input_value(KEY), 2);
-        const auto& key_length_shape = key_length.get_partial_shape();
-        const bool per_row = key_length_shape.rank().is_static() && key_length_shape.size() == 1 && key_length_shape[0].is_static() && batch.is_static() &&
-                             key_length_shape[0] == batch;
-        if (!per_row) {
-            key_length = rg.make<ov::op::v3::Broadcast>(key_length, dim_of(query, 0));
-        }
-
-        ov::OutputVector inputs{query,
+        ov::OutputVector inputs{attention->input_value(In::QUERY),
                                 compressed[0]->output(0),
                                 compressed[1]->output(0),
-                                to_i32(attention->input_value(BLOCK_INDICES)),
-                                to_i32(attention->input_value(BLOCK_COUNT)),
-                                key_length,
+                                attention->input_value(In::SELECTED_BLOCK_INDICES),
+                                attention->input_value(In::SELECTED_BLOCK_COUNT),
+                                attention->input_value(In::KEY_LENGTH),
                                 compressed[0]->output(2),
                                 compressed[1]->output(2),
                                 compressed[0]->output(3),
                                 compressed[1]->output(3)};
-        if (attention->get_input_size() > SCALE) {
-            inputs.push_back(attention->input_value(SCALE));
+        if (attention->has_scale_input()) {
+            inputs.push_back(attention->input_value(attention->get_config().scale_input_idx()));
         }
-        const auto sparse_sdpa = std::make_shared<SparseSDPA>(inputs, sdpa_config);
-        sparse_sdpa->set_friendly_name(attention->get_friendly_name());
-        ov::copy_runtime_info(attention, rg.get());
-        ov::copy_runtime_info(attention, sparse_sdpa);
+        const auto compressed_sdpa = std::make_shared<SparseSDPA>(inputs, sdpa_config, attention->get_output_type());
+        compressed_sdpa->set_friendly_name(attention->get_friendly_name());
+        ov::copy_runtime_info(attention, compressed_sdpa);
         // As for SDPA, the uncompressed KVCache nodes are no longer read and drop out of the model.
-        ov::replace_node(attention, sparse_sdpa);
+        ov::replace_node(attention, compressed_sdpa);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(sparse_attention, "KVCacheCompressionSparseMatcher");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sparse_sdpa, "KVCacheCompressionSparseMatcher");
     this->register_matcher(m, callback);
 }
 

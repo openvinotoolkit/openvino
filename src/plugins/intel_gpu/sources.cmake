@@ -161,6 +161,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_qsa_indexer_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_paged_sparse_attn_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_shapeof.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_stridedslices_to_variadicsplit.cpp
@@ -239,7 +240,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/placeholder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sdpa.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa_config.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/qsa_indexer_in_place.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/stateless_kv.cpp

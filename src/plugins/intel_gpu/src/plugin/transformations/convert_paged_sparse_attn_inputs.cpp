@@ -8,6 +8,8 @@
 #include <string>
 
 #include "intel_gpu/op/sparse_kv_quant.hpp"
+#include "intel_gpu/op/sparse_pa_config.hpp"
+#include "op/qsa_op_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -18,18 +20,8 @@ namespace ov::intel_gpu {
 namespace {
 
 using PagedSparseAttention = ov::op::internal::PagedSparseAttention;
-constexpr size_t KEY_CACHE = 3;
-constexpr size_t VALUE_CACHE = 4;
-constexpr size_t BY_CHANNEL_GROUP = 16;
-
-std::optional<size_t> rt_size(const ov::Node& node, const char* key) {
-    const auto& rt = node.get_rt_info();
-    const auto it = rt.find(key);
-    if (it == rt.end()) {
-        return std::nullopt;
-    }
-    return it->second.as<size_t>();
-}
+using In = op::SparsePAInputIdx;
+using op::qsa_util::rt_size;
 
 ov::pass::ConvertPagedAttnInputs::KVCacheConfig make_kv_cache_config(const ConvertPagedSparseAttnInputs::CacheConfig& c) {
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig config;
@@ -40,7 +32,7 @@ ov::pass::ConvertPagedAttnInputs::KVCacheConfig make_kv_cache_config(const Conve
     config.keyCacheBlockSize = c.page_size;
     config.valueCacheBlockSize = c.page_size;
     config.keyCacheQuantBychannel = c.key_by_channel;
-    config.keyCacheGroupSize = c.key_by_channel ? BY_CHANNEL_GROUP : 0;
+    config.keyCacheGroupSize = c.key_by_channel ? op::paged_by_channel_group_size : 0;
     config.valueCacheQuantBychannel = false;
     config.valueCacheGroupSize = 0;
     // [blocks, num_kv_heads, rows, row width] for both caches: the rows hold the tokens, then the parameters.
@@ -79,8 +71,8 @@ bool ConvertPagedSparseAttnInputs::skip(const std::shared_ptr<const ov::Node>& n
             return true;
         }
     }
-    const auto key_cache = ov::as_type_ptr<const ov::op::v0::Parameter>(node->get_input_node_shared_ptr(KEY_CACHE));
-    const auto value_cache = ov::as_type_ptr<const ov::op::v0::Parameter>(node->get_input_node_shared_ptr(VALUE_CACHE));
+    const auto key_cache = ov::as_type_ptr<const ov::op::v0::Parameter>(node->get_input_node_shared_ptr(In::KEY_CACHE));
+    const auto value_cache = ov::as_type_ptr<const ov::op::v0::Parameter>(node->get_input_node_shared_ptr(In::VALUE_CACHE));
     return !key_cache || !value_cache || key_cache == value_cache || key_cache->get_output_target_inputs(0).size() != 1 ||
            value_cache->get_output_target_inputs(0).size() != 1;
 }

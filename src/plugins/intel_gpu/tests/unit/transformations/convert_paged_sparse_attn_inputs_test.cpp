@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "intel_gpu/op/sparse_kv_quant.hpp"
-#include "intel_gpu/op/sparse_pa.hpp"
+#include "intel_gpu/op/sparse_pa_config.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
@@ -20,7 +20,7 @@
 namespace {
 
 using Pass = ov::intel_gpu::ConvertPagedSparseAttnInputs;
-using In = ov::intel_gpu::op::SparsePA::InputIdx;
+using In = ov::intel_gpu::op::SparsePAInputIdx;
 namespace v0 = ov::op::v0;
 
 constexpr int64_t heads = 8;

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "json_object.h"
+#include "kv_cache_inst.h"
 #include "primitive_type_base.h"
 #include "qsa_indexer_inst.h"
 #include "to_string_utils.h"
@@ -71,6 +72,18 @@ std::string qsa_indexer_inst::to_string(const qsa_indexer_node& node) {
 qsa_indexer_inst::typed_primitive_inst(network& network, const qsa_indexer_node& node) : parent(network, node) {
     std::string reason;
     OPENVINO_ASSERT(ov::op::internal::QSAIndexer::validate_config(node.get_primitive()->get_config(), reason), "[GPU] Invalid qsa_indexer primitive: ", reason);
+    if (node.get_primitive()->in_place_block_cache) {
+        // The kernel writes the completed blocks into this input: it must be the variable memory of the kv_cache, not a
+        // copy (e.g. a reorder inserted by a graph pass), whose updates would be lost.
+        const auto [cache, port] = node.get_dependency_with_port(qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE);
+        OPENVINO_ASSERT(cache->is_type<kv_cache>() && port == 0,
+                        "[GPU] qsa_indexer '",
+                        node.id(),
+                        "': the in-place block cache must be output 0 of a kv_cache, got ",
+                        cache->id(),
+                        ":",
+                        port);
+    }
 }
 
 }  // namespace cldnn

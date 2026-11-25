@@ -90,8 +90,12 @@ public:
 ///
 ///   ReadValue -> KVCache(zero blocks[, beam_idx]) -> QSAIndexerInPlace
 ///
-/// The KVCache holds max(past, needed) blocks: QSAIndexer only reads the blocks completed by key_length, so it equals the
-/// sliced cache wherever it is read. A beam_idx Gather becomes an indirect KVCache whose beam_idx must be the identity (see
+/// The KVCache holds max(past, needed) blocks, where needed = max(key_length) / key_block_size is the block count the Slice
+/// keeps: QSAIndexer only reads the blocks completed by key_length, so it equals the sliced cache wherever it is read.
+/// The two differ only when max(key_length) shrinks without a reset (a caller rolling the sequence back): the variable
+/// keeps its capacity, so get_state() returns the `needed` blocks of the unfused model followed by the stale blocks of
+/// the longer sequence, which are overwritten as the sequence grows again before being read.
+/// A beam_idx Gather becomes an indirect KVCache whose beam_idx must be the identity (see
 /// op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX), as the indexer reads the cache rows as they are.
 class QSAIndexerBlockCacheFusionMatcher : public ov::pass::MatcherPass {
 public:

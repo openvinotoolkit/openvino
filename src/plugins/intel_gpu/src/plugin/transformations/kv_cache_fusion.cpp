@@ -38,6 +38,7 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
+#include "plugin/transformations/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
@@ -227,6 +228,14 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
 
 namespace {
 
+// Axes of the QSA indexer block cache: the variable is [B, blocks, D_idx], the indexer reads it as [B, 1, blocks, D_idx].
+constexpr int64_t cache_batch_axis = 0;
+constexpr int64_t cache_block_axis = 1;
+constexpr int64_t cache_dim_axis = 2;
+constexpr int64_t indexer_head_axis = 1;
+constexpr int64_t indexer_block_axis = 2;
+constexpr int64_t indexer_dim_axis = 3;
+
 /// Whether the constant `value` holds the single value `expected`.
 bool is_scalar_value(const ov::Output<ov::Node>& value, int64_t expected) {
     const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
@@ -234,14 +243,6 @@ bool is_scalar_value(const ov::Output<ov::Node>& value, int64_t expected) {
         return false;
     }
     return constant->cast_vector<int64_t>()[0] == expected;
-}
-
-/// Whether `output` is read only by `user` and by shape reads.
-bool read_only_by(const ov::Output<ov::Node>& output, const ov::Node* user) {
-    const auto inputs = output.get_target_inputs();
-    return std::all_of(inputs.begin(), inputs.end(), [user](const ov::Input<ov::Node>& input) {
-        return input.get_node() == user || ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(input.get_node());
-    });
 }
 
 }  // namespace
@@ -264,7 +265,7 @@ QSAIndexerBlockCacheFusionMatcher::QSAIndexerBlockCacheFusionMatcher() {
     indexer_inputs[QSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE] = grown;
     auto indexer = wrap_type_strict_index<QSAIndexer>(indexer_inputs);
     auto squeezed = wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>({indexer->output(QSAIndexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE), any_input()},
-                                                                       rank_equals(3) && consumers_count(1));
+                                                                        rank_equals(3) && consumers_count(1));
     auto slice_start = wrap_type<ov::op::v0::Constant>();
     auto slice_step = wrap_type<ov::op::v0::Constant>();
     auto slice_axis = wrap_type<ov::op::v0::Constant>();
@@ -288,22 +289,25 @@ QSAIndexerBlockCacheFusionMatcher::QSAIndexerBlockCacheFusionMatcher() {
         const auto& cache_shape = past_node->get_output_partial_shape(0);
         const auto& with_head_shape = pattern_map.at(with_head).get_partial_shape();
         const auto cache_type = past_node->get_output_element_type(0);
-        if (cache_shape.rank() != 3 || cache_shape[2] != head_dim || with_head_shape[1] != 1 || with_head_shape[3] != head_dim ||
-            ov::util::normalize(concat_node->get_axis(), 4) != 2 || cache_type != indexer_node->get_input_element_type(QSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE) ||
+        if (cache_shape.rank() != 3 || cache_shape[cache_dim_axis] != head_dim || with_head_shape[indexer_head_axis] != 1 ||
+            with_head_shape[indexer_dim_axis] != head_dim || ov::util::normalize(concat_node->get_axis(), 4) != indexer_block_axis ||
+            cache_type != indexer_node->get_input_element_type(QSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE) ||
             pattern_map.at(zero_blocks).get_element_type() != cache_type) {
             return false;
         }
         // The Assign stores the leading blocks of the updated cache, which has no other reader.
         if (!is_scalar_value(pattern_map.at(slice_start), 0) || !is_scalar_value(pattern_map.at(slice_step), 1) ||
-            !is_scalar_value(pattern_map.at(slice_axis), 1) || indexer_node->get_output_target_inputs(QSAIndexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE).size() != 1) {
+            !is_scalar_value(pattern_map.at(slice_axis), cache_block_axis) ||
+            indexer_node->get_output_target_inputs(QSAIndexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE).size() != 1) {
             return false;
         }
         // The past cache is otherwise only read for its shape (the block count FuseQSAIndexer grows it by).
         auto* const with_head_node = pattern_map.at(with_head).get_node();
-        const auto gather_node = pattern_map.count(gather_past) ? ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr()) : nullptr;
+        const auto gather_node =
+            pattern_map.count(gather_past) ? ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr()) : nullptr;
         if (gather_node) {
-            if (gather_node->get_batch_dims() != 0 || ov::util::normalize(gather_node->get_axis(), 3) != 0 || !read_only_by(past_node->output(0), gather_node.get()) ||
-                !read_only_by(gather_node->output(0), with_head_node)) {
+            if (gather_node->get_batch_dims() != 0 || ov::util::normalize(gather_node->get_axis(), 3) != cache_batch_axis ||
+                !read_only_by(past_node->output(0), gather_node.get()) || !read_only_by(gather_node->output(0), with_head_node)) {
                 return false;
             }
         } else if (!read_only_by(past_node->output(0), with_head_node)) {
@@ -318,16 +322,17 @@ QSAIndexerBlockCacheFusionMatcher::QSAIndexerBlockCacheFusionMatcher() {
         ov::copy_runtime_info(past_node, read_value);
         ov::replace_node(past_node, read_value);
 
-        const auto blocks_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-        const auto new_blocks = std::make_shared<ov::op::v0::Squeeze>(pattern_map.at(zero_blocks), blocks_axis);
+        const auto head_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {indexer_head_axis});
+        const auto new_blocks = std::make_shared<ov::op::v0::Squeeze>(pattern_map.at(zero_blocks), head_axis);
         std::shared_ptr<op::KVCache> kv_cache;
         if (gather_node) {
-            kv_cache = std::make_shared<op::KVCache>(read_value, new_blocks, gather_node->input_value(1), variable, 1, 0, cache_type);
+            kv_cache =
+                std::make_shared<op::KVCache>(read_value, new_blocks, gather_node->input_value(1), variable, cache_block_axis, cache_batch_axis, cache_type);
             kv_cache->get_rt_info()[op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX] = true;
             // The shape reads of the gathered cache remain: with an identity beam_idx its shape is the one of the past cache.
             gather_node->output(0).replace(read_value->output(0));
         } else {
-            kv_cache = std::make_shared<op::KVCache>(read_value, new_blocks, variable, 1, cache_type);
+            kv_cache = std::make_shared<op::KVCache>(read_value, new_blocks, variable, cache_block_axis, cache_type);
         }
         kv_cache->set_friendly_name(concat_node->get_friendly_name());
 

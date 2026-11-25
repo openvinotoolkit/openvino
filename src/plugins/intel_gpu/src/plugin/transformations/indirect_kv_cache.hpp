@@ -53,7 +53,7 @@ public:
     IndirectSDPAOpt();
 };
 
-/// Makes the key / value KVCache of ov::op::v17::SparseAttention indirect, as IndirectSDPAOpt does for SDPA, so that
+/// Makes the key / value KVCache of the GPU SparseSDPA op (see ConvertSparseAttentionToInternal) indirect, as IndirectSDPAOpt does for SDPA, so that
 /// the caches are not gathered by beam_idx on every step and can be compressed by KVCacheCompression.
 /// The sparse attention kernels do not read a beam table yet: the caches are marked with
 /// op::KV_CACHE_REQUIRES_IDENTITY_BEAM_IDX and the infer request rejects a beam_idx that is not the identity, i.e. beam

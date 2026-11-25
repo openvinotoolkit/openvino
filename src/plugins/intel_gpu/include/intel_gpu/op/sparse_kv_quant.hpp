@@ -72,9 +72,12 @@ inline KVPageLayout kv_page_layout(const KVQuant& q, size_t page_size, size_t he
     return l;
 }
 
+/// Tokens per parameter group of a BY_CHANNEL quantized paged key cache.
+inline constexpr uint16_t paged_by_channel_group_size = 16;
+
 /// The SparsePA quantization of a paged cache stored with the KV cache precision `precision`: 8 or 4 bits by the
-/// precision (f16 for any other precision), the key per channel in groups of 16 tokens or per token, the value per
-/// token, asymmetric. This matches the PagedAttention cache quantization of the GPU plugin.
+/// precision (f16 for any other precision), the key per channel in groups of paged_by_channel_group_size tokens or per
+/// token, the value per token, asymmetric. This matches the PagedAttention cache quantization of the GPU plugin.
 inline KVQuant paged_cache_quant(const ov::element::Type& precision, bool by_channel) {
     KVQuant quant;
     if (precision == ov::element::i8 || precision == ov::element::u8) {
@@ -85,7 +88,7 @@ inline KVQuant paged_cache_quant(const ov::element::Type& precision, bool by_cha
         return quant;
     }
     quant.mode = by_channel ? KVQuant::Mode::BY_CHANNEL : KVQuant::Mode::BY_TOKEN;
-    quant.group_size = by_channel ? 16 : 0;
+    quant.group_size = by_channel ? paged_by_channel_group_size : 0;
     return quant;
 }
 

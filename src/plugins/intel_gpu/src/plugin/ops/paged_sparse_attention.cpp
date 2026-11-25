@@ -10,12 +10,13 @@
 #include <vector>
 
 #include "intel_gpu/op/sparse_kv_quant.hpp"
-#include "intel_gpu/op/sparse_pa.hpp"
+#include "intel_gpu/op/sparse_pa_config.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/sparse_pa.hpp"
 #include "openvino/op/constant.hpp"
+#include "plugin/transformations/op/qsa_op_utils.hpp"
 
 // Lowers ov::op::internal::PagedSparseAttention to cldnn::sparse_pa, like CreatePagedAttentionExtensionOp lowers
 // PagedAttentionExtension:
@@ -31,8 +32,9 @@ namespace ov::intel_gpu {
 
 namespace {
 
-using SparsePA = ov::intel_gpu::op::SparsePA;
-using In = SparsePA::InputIdx;
+using SparsePAConfig = ov::intel_gpu::op::SparsePAConfig;
+using In = ov::intel_gpu::op::SparsePAInputIdx;
+using ov::intel_gpu::op::qsa_util::rt_size;
 
 std::optional<size_t> static_dim(const ov::PartialShape& shape, int64_t rank, size_t axis) {
     if (shape.rank().is_dynamic() || shape.rank().get_length() != rank || shape[axis].is_dynamic()) {
@@ -41,17 +43,8 @@ std::optional<size_t> static_dim(const ov::PartialShape& shape, int64_t rank, si
     return static_cast<size_t>(shape[axis].get_length());
 }
 
-std::optional<size_t> rt_size(const ov::Node& node, const std::string& key) {
-    const auto& rt = node.get_rt_info();
-    const auto it = rt.find(key);
-    if (it == rt.end()) {
-        return std::nullopt;
-    }
-    return it->second.as<size_t>();
-}
-
 // The head geometry of `op`, see the file description.
-bool derive_heads(const ov::op::internal::PagedSparseAttention& op, SparsePA::Config& config, std::string& reason) {
+bool derive_heads(const ov::op::internal::PagedSparseAttention& op, SparsePAConfig& config, std::string& reason) {
     const auto query_width = static_dim(op.get_input_partial_shape(In::QUERY), 2, 1);
     const auto key_width = static_dim(op.get_input_partial_shape(In::KEY), 2, 1);
     const auto value_width = static_dim(op.get_input_partial_shape(In::VALUE), 2, 1);
@@ -93,7 +86,7 @@ bool derive_heads(const ov::op::internal::PagedSparseAttention& op, SparsePA::Co
 }
 
 // Checks the cache shape against the config: [blocks, Hkv, page_size, head_size] f16, or u8 kv_page_layout pages.
-bool cache_matches(const ov::PartialShape& ps, const SparsePA::Config& config, const op::KVQuant& quant, size_t head_size) {
+bool cache_matches(const ov::PartialShape& ps, const SparsePAConfig& config, const op::KVQuant& quant, size_t head_size) {
     if (ps.rank().is_dynamic()) {
         return true;
     }
@@ -118,7 +111,7 @@ static void CreatePagedSparseAttentionOp(ProgramBuilder& p, const std::shared_pt
     validate_inputs_count(op, {In::COUNT});
     const auto layer_name = layer_type_name_ID(op);
 
-    SparsePA::Config config;
+    SparsePAConfig config;
     std::string reason;
     OPENVINO_ASSERT(derive_heads(*op, config, reason), "[GPU] Cannot lower PagedSparseAttention '", layer_name, "': ", reason);
     config.key_block_size = static_cast<size_t>(op->get_key_block_size());
@@ -145,7 +138,7 @@ static void CreatePagedSparseAttentionOp(ProgramBuilder& p, const std::shared_pt
         config.page_size = *page_size;
     }
 
-    OPENVINO_ASSERT(SparsePA::validate_config(config, reason), "[GPU] Cannot lower PagedSparseAttention '", layer_name, "': ", reason);
+    OPENVINO_ASSERT(config.validate(reason), "[GPU] Cannot lower PagedSparseAttention '", layer_name, "': ", reason);
     OPENVINO_ASSERT(config.num_selection_heads == 1,
                     "[GPU] PagedSparseAttention '",
                     layer_name,
