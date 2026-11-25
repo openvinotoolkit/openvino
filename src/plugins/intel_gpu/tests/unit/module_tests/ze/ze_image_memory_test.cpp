@@ -6,8 +6,6 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "ze/ze_memory.hpp"
-#include "ze/ze_engine.hpp"
-#include "ze/ze_ocl_interop.hpp"
 
 #include <numeric>
 #include <vector>
