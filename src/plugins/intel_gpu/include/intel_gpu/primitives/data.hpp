@@ -409,11 +409,11 @@ public:
         size_t data_size = partial_upload ? partial_upload_cache_marker | _partial_upload_bytes : mem->size();
         ob << make_data(&data_size, sizeof(size_t));
 
-        bool do_weightless_caching = cache_info->save(ob, data_size);
         if (partial_upload) {
-            OPENVINO_ASSERT(!do_weightless_caching, "OTD partial cache payload cannot use weightless metadata");
+            ob << false;
             return;
         }
+        bool do_weightless_caching = cache_info->save(ob, data_size);
         const auto& engine = mem->get_engine();
         const auto& dev_info = engine->get_device_info();
         if (!do_weightless_caching) {
