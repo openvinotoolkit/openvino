@@ -160,7 +160,7 @@ void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src, co
 cldnn::memory::ptr allocate_internal_buffer(cldnn::engine& engine, const cldnn::layout& layout, TensorType& mem_type) {
     using cldnn::allocation_type;
     if (mem_type == TensorType::BT_BUF_INTERNAL) {
-        for (const auto type : {allocation_type::device_buffer, allocation_type::cl_mem, allocation_type::sycl_buffer}) {
+        for (const auto type : {allocation_type::cl_mem, allocation_type::sycl_buffer, allocation_type::vk_buffer}) {
             if (engine.supports_allocation(type)) {
                 return engine.allocate_memory(layout, type, false);
             }
@@ -176,7 +176,7 @@ cldnn::memory::ptr allocate_internal_buffer(cldnn::engine& engine, const cldnn::
 
 TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
     switch (t) {
-    case cldnn::allocation_type::device_buffer:
+    case cldnn::allocation_type::vk_buffer:
     case cldnn::allocation_type::cl_mem: return TensorType::BT_BUF_INTERNAL;
     case cldnn::allocation_type::usm_host: return TensorType::BT_USM_HOST_INTERNAL;
     case cldnn::allocation_type::usm_device: return TensorType::BT_USM_DEVICE_INTERNAL;

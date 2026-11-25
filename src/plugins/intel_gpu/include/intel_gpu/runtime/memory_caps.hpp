@@ -20,8 +20,8 @@ enum class allocation_type {
     usm_device,   // Accessible only by device. Not migratable.
     sycl_buffer,  // Use standard SYCL buffer allocations.
     ze_image,     // Level Zero image allocation. Accessible only by device.
-    device_buffer,
-    max_value,  // Used for data array size. Shall be last
+    vk_buffer,    // Linear Vulkan VkBuffer. The memory type determines host visibility.
+    max_value,    // Used for data array size. Shall be last
 };
 
 inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_type) {
@@ -32,8 +32,8 @@ inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_
         case allocation_type::usm_device: out << "usm_device"; break;
         case allocation_type::sycl_buffer: out << "sycl_buffer"; break;
         case allocation_type::ze_image:    out << "ze_image";    break;
-        case allocation_type::device_buffer:
-            out << "device_buffer";
+        case allocation_type::vk_buffer:
+            out << "vk_buffer";
             break;
         default: out << "unknown"; break;
     }

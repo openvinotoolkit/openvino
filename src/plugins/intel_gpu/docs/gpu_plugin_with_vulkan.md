@@ -10,6 +10,9 @@ Use that context to allocate a remote tensor and copy data between host and
 device tensors. This runtime supports linear buffers and synchronous
 transfers for fixed-size element types.
 
+The `GPU_MEMORY_STATISTICS` property reports live Vulkan buffer bytes under
+`vk_buffer`.
+
 Model compilation, model import, and external GPU handle interop are
 unavailable in this runtime.
 

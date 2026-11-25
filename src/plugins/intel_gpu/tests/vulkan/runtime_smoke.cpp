@@ -62,9 +62,9 @@ int main(int argc, char* argv[]) {
 
         const auto tracked_buffer_bytes = [&] {
             const auto statistics = core.get_property(*gpu, ov::intel_gpu::memory_statistics);
-            const auto device_buffer = statistics.find("device_buffer");
-            OPENVINO_ASSERT(device_buffer != statistics.end(), "Vulkan memory statistics omit device_buffer");
-            return device_buffer->second;
+            const auto vk_buffer = statistics.find("vk_buffer");
+            OPENVINO_ASSERT(vk_buffer != statistics.end(), "Vulkan memory statistics omit vk_buffer");
+            return vk_buffer->second;
         };
         OPENVINO_ASSERT(tracked_buffer_bytes() == 0, "Vulkan reported device-buffer bytes before context creation");
 

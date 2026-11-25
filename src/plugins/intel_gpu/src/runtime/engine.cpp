@@ -255,8 +255,8 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     add_stat(allocation_type::usm_host);
     add_stat(allocation_type::usm_shared);
     add_stat(allocation_type::usm_device);
-    if (supports_allocation(allocation_type::device_buffer)) {
-        add_stat(allocation_type::device_buffer);
+    if (supports_allocation(allocation_type::vk_buffer)) {
+        add_stat(allocation_type::vk_buffer);
     }
     return statistics;
 }

@@ -71,7 +71,7 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     OPENVINO_ASSERT(layout.data_type != ov::element::string, "[GPU][Vulkan] String tensors are unsupported");
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU][Vulkan] Cannot allocate an unbounded dynamic layout");
     OPENVINO_ASSERT(!layout.format.is_image(), "[GPU][Vulkan] Image allocations are not supported");
-    OPENVINO_ASSERT(type == allocation_type::device_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
+    OPENVINO_ASSERT(type == allocation_type::vk_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
     check_allocatable(layout, type);
 
     auto region = allocate_buffer_region(layout.bytes_count());
@@ -81,7 +81,7 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     } else {
         tracking_address = region.get();
     }
-    auto memory_tracker = std::make_shared<MemoryTracker>(this, tracking_address, layout.bytes_count(), allocation_type::device_buffer);
+    auto memory_tracker = std::make_shared<MemoryTracker>(this, tracking_address, layout.bytes_count(), allocation_type::vk_buffer);
     auto result = std::make_shared<vulkan_buffer>(this, layout, std::move(region), 0, std::move(memory_tracker));
     if (reset || result->is_memory_reset_needed(layout)) {
         result->fill(get_service_stream());

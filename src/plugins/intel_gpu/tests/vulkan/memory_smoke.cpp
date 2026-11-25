@@ -58,7 +58,7 @@ void check_mapped_non_coherent_locks(cldnn::vulkan::vulkan_engine& engine, cldnn
     });
     auto region = allocator->allocate(8);
     const auto& allocation = region->get_allocation();
-    auto* mapped = static_cast<const uint8_t*>(allocation->mapped_data);
+    const auto* mapped = static_cast<const uint8_t*>(allocation->mapped_data);
     OPENVINO_ASSERT(mapped != nullptr, "The non-coherent test requires an active mapping");
     // Exercise the non-coherent policy on devices with coherent mappings or single-byte atoms.
     allocation->memory_flags &= ~static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -145,8 +145,8 @@ void check_strided_rows(cldnn::memory& buffer, cldnn::stream& stream) {
 void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
     using cldnn::vulkan::vulkan_buffer;
     for (const size_t count : {256, 257}) {
-        auto source = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::device_buffer, false);
-        auto destination = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::device_buffer, false);
+        auto source = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::vk_buffer, false);
+        auto destination = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::vk_buffer, false);
         unmap_for_staging(static_cast<vulkan_buffer&>(*source).get_allocation());
         unmap_for_staging(static_cast<vulkan_buffer&>(*destination).get_allocation());
         destination->fill(stream, 0xA5);
@@ -170,7 +170,7 @@ int main() {
         const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
         OPENVINO_ASSERT(!devices.empty(), "No Vulkan GPU detected");
         auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
-        auto buffer = engine->allocate_memory(byte_layout(4096), cldnn::allocation_type::device_buffer, false);
+        auto buffer = engine->allocate_memory(byte_layout(4096), cldnn::allocation_type::vk_buffer, false);
         unmap_for_staging(static_cast<cldnn::vulkan::vulkan_buffer&>(*buffer).get_allocation());
         auto& stream = engine->get_service_stream();
         buffer->fill(stream);

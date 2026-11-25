@@ -39,7 +39,7 @@ public:
     bool is_the_same_buffer(const memory& lhs, const memory& rhs) const override;
 
     allocation_type get_default_allocation_type() const override {
-        return allocation_type::device_buffer;
+        return allocation_type::vk_buffer;
     }
 
     allocation_type detect_usm_allocation_type(const void* /*memory*/) const override {

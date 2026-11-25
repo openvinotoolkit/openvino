@@ -76,7 +76,7 @@ private:
     uint32_t _max_memory_allocation_count = 1;
     VkDeviceSize _non_coherent_atom_size = 1;
     device_info _info{};
-    memory_capabilities _mem_caps{{allocation_type::device_buffer}};
+    memory_capabilities _mem_caps{{allocation_type::vk_buffer}};
     mutable std::mutex _init_mutex;
     std::mutex _queue_mutex;
 };
