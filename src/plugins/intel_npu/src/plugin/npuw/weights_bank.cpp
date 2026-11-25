@@ -168,9 +168,10 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         // `WeightSharingContextAccessor` owns and manages access to the shared weight memory.
         // It also provides access to `ov::weight_sharing::Context`.
         {
-            auto handle = this->get_handle();
-            auto shared_source =
-                this->request_shared_weight_source_buffer(uid, t.get_element_type(), t.get_shape(), "CPU", handle);
+            // Serialize mapper and context updates among workers in this parallel_for.
+            std::lock_guard weight_sharing_guard(m_weight_sharing_mutex);
+            auto shared_source = this->request_shared_weight_source_buffer(
+                uid, t.get_element_type(), t.get_shape(), "CPU");
             stored_tensor.tensor = tensor_factory(nullptr, t.get_element_type(), t.get_shape(), shared_source);
         }
         // Get ownership of the weights, might be a mmaped object during import
@@ -218,14 +219,10 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         // Instead we create the tensor first, extract the buffer from it, and then register it as a shared weight
         // source buffer.
         //
-        // As this procedure can be called from multiple threads, we must ensure that no one other thread
-        // will register the same shared weight source buffer concurrently.
-        // To solve that problem we first acquire a handle and check if the shared weight source buffer is already
-        // available. Given the current Bank implementation, once we started iterating over uids_to_allocated, the
-        // source buffer must be absent as we haven't registered it yet for this UID.
+        // Registration here is sequential under Bank::m_mutex. The CPU path uses a bank-scoped mutex because its
+        // registration runs in parallel_for.
         ov::Tensor tensor = tensor_factory(remote_ctx, allocated.meta.type, allocated.meta.shape, nullptr);
-        auto handle = this->get_handle();
-        this->register_tensor_as_shared_weight_source(allocated.uid, device, tensor, handle);
+        this->register_tensor_as_shared_weight_source(allocated.uid, device, tensor);
         allocated = {allocated.meta, std::move(tensor), allocated.uid};
     }
 
@@ -302,9 +299,8 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream) {
 
     {
         std::unique_lock guard(m_mutex);
-        auto handle = this->get_handle();
-        if (handle.context) {
-            auto deserialized_uids_by_weight_ctx = this->consume_from_impl(stream, *m_core, handle);
+        if (m_context) {
+            auto deserialized_uids_by_weight_ctx = this->consume_from(stream, *m_core);
             for (auto uid : deserialized_uids_by_weight_ctx) {
                 NPUW_ASSERT(uid >= 0 && "Malformed blob: negative weights bank uid");
                 NPUW_ASSERT(static_cast<uint64_t>(uid) < static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) &&
@@ -317,13 +313,13 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream) {
                 const auto context_ids = ids_mapper.get_ov_context_ids(uid);
                 NPUW_ASSERT(context_ids.has_value() && "Bank::deserialize: Context IDs not found for UID");
                 const auto source_id = context_ids->first;
-                auto m_weight_registry_it = handle.context->m_weight_registry.find(source_id);
-                NPUW_ASSERT(m_weight_registry_it != handle.context->m_weight_registry.end() &&
+                auto m_weight_registry_it = m_context->m_weight_registry.find(source_id);
+                NPUW_ASSERT(m_weight_registry_it != m_context->m_weight_registry.end() &&
                             "Bank::deserialize: Source ID not found in weight registry");
                 const auto& weight_meta_map = m_weight_registry_it->second;
                 NPUW_ASSERT(weight_meta_map.size() == 1 &&
                             "Bank::deserialize: weight_meta_map must contain exactly one entry");
-                auto weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, source_id);
+                auto weight_source = ov::weight_sharing::get_runtime_weight_source(*m_context, source_id);
                 auto shared_source = weight_source.m_weights.lock();
                 NPUW_ASSERT(shared_source &&
                             "Bank::deserialize: WeightSource must provide a valid shared source buffer");
@@ -335,8 +331,8 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream) {
 
                     // insert the restored data into the device bank for consistency
                     const std::string& device = weight_source.m_device;
-                    auto constant_buffer = ov::weight_sharing::get_buffer(*handle.context, shared_source, constant_id);
-                    const auto& ov_transformed_constant = this->get_transformed_constant(device, uid, handle);
+                    auto constant_buffer = ov::weight_sharing::get_buffer(*m_context, shared_source, constant_id);
+                    const auto& ov_transformed_constant = this->get_transformed_constant(device, uid);
 
                     auto& device_bank = m_device_banks[device];
                     auto iter_device = device_bank.storage.find(uid /* not constant_id! */);

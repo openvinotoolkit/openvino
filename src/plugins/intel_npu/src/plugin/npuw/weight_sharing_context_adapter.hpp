@@ -4,11 +4,9 @@
 
 #pragma once
 
-#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -35,6 +33,10 @@ ov::Tensor tensor_factory(std::shared_ptr<ov::IRemoteContext> remote_ctx,
                           const ov::Shape& shape,
                           std::shared_ptr<ov::AlignedBuffer> staging_buffer_ptr = {});
 
+// Maps NPUW transformation UIDs to the OpenVINO weight-sharing context IDs that are represented by the pair of source and constant IDs.
+// The direct mapping is needed to associate transformation UIDs with their corresponding sources of constants in the weight-sharing context during the evaluation procedure.
+// The reverse mapping is needed to serialize to a NPUW blob and deserialize from a NPUw blob using the weight-sharing context.
+// This class is not thread-safe.
 class TransformationWeightContextIDMapper {
 public:
     using UID_Type = int64_t;
@@ -59,42 +61,25 @@ private:
         }
     };
 
-    mutable std::atomic_flag m_context_ids_lock = ATOMIC_FLAG_INIT;
     std::unordered_map<UID_Type, WSContextIDs> m_ov_context_ids;
     std::unordered_map<WSContextIDs, UID_Type, ContextIDsHash> m_transformation_uids;
 };
 
+// Adapts an OpenVINO weight-sharing context for NPUW transformed weights. 
+// It must be called during the evaluations of LazyTensors, to register transformed weights as shared weight sources 
+// in ov::weight_sharing::Context, retains metadata needed to reconstruct transformed tensors, and serializes or restores weights in NPUW blobs.
+// This class does not provide synchronization; the caller ov::npuw::weights::Bank must serialize concurrent access itself.
 class WeightSharingContextAccessor {
 public:
     using UID_Type = TransformationWeightContextIDMapper::UID_Type;
 
     WeightSharingContextAccessor(const std::shared_ptr<ov::weight_sharing::Context>& context) : m_context(context) {}
 
-    struct Handle {
-        friend WeightSharingContextAccessor;
-        ~Handle() = default;
-        Handle(Handle&&) noexcept = default;
-        Handle& operator=(Handle&&) noexcept = default;
-        Handle(const Handle&) = delete;
-        Handle& operator=(const Handle&) = delete;
-
-        std::shared_ptr<ov::weight_sharing::Context> context;
-
-    private:
-        Handle(std::mutex& m, std::shared_ptr<ov::weight_sharing::Context> ctx) : context(ctx), lock(m) {}
-        std::unique_lock<std::mutex> lock;
-    };
-
-    Handle get_handle() {
-        return Handle(m_mutex, m_context);
-    }
-
-    bool has_transformation_buffer(UID_Type transformation_uid, Handle& handle);
+    bool has_transformation_buffer(UID_Type transformation_uid);
     ov::weight_sharing::WeightBuffer request_shared_weight_source_buffer(UID_Type transformation_uid,
                                                                          const element::Type& type,
                                                                          const ov::Shape& shape,
-                                                                         const std::string& device,
-                                                                         Handle& handle);
+                                                                         const std::string& device);
 
     /* TODO CVS-199039, CVS-199076
      * Extracts the tensor data and transforms it into a weight source buffer to register it as a shared weight source.
@@ -107,8 +92,7 @@ public:
      */
     ov::weight_sharing::WeightBuffer register_tensor_as_shared_weight_source(UID_Type transformation_uid,
                                                                              const std::string& device,
-                                                                             const ov::Tensor& tensor,
-                                                                             Handle& handle);
+                                                                             const ov::Tensor& tensor);
 
     bool serialize_native_format(ov::npuw::orc::Stream& stream);
     std::set<UID_Type> consume_from(ov::npuw::orc::Stream& stream, const ov::ICore& core);
@@ -120,29 +104,25 @@ protected:
      * See a comment below
      */
     const ov::op::v0::Constant& get_transformed_constant(const std::string& device,
-                                                         UID_Type transformation_uid,
-                                                         Handle& handle) const;
-    std::set<UID_Type> consume_from_impl(ov::npuw::orc::Stream& stream, const ov::ICore& core, Handle& handle);
+                                                         UID_Type transformation_uid) const;
 
     TransformationWeightContextIDMapper ids_mapper;
 
 private:
+    friend class Bank;
+
     static ov::weight_sharing::WeightBuffer create_shared_buffer(ov::weight_sharing::DataID source_id,
                                                                  std::size_t size);
     static ov::weight_sharing::WeightBuffer create_shared_buffer(ov::weight_sharing::DataID source_id,
                                                                  const ov::Tensor& tensor);
 
     void register_shared_weight_source_for_weight(ov::weight_sharing::WeightBuffer source_buffer,
-                                                  const std::string& device,
-                                                  Handle& handle);
+                                                  const std::string& device);
     void register_transformed_constant(std::shared_ptr<ov::AlignedBuffer> transformation_buffer,
                                        UID_Type transformation_uid,
                                        const std::string& device,
                                        const element::Type& type,
-                                       const ov::Shape& shape,
-                                       Handle& handle);
-    bool serialize_native_format_impl(ov::npuw::orc::Stream& stream, Handle& handle) const;
-    std::mutex m_mutex;
+                                       const ov::Shape& shape);
     std::shared_ptr<ov::weight_sharing::Context> m_context = nullptr;
     std::unordered_map<ov::weight_sharing::DataID, ov::weight_sharing::WeightBuffer> m_shared_sources;
 

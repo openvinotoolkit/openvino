@@ -90,6 +90,7 @@ private:
     void read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;
+    std::mutex m_weight_sharing_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
     int64_t uid_count = 0;
