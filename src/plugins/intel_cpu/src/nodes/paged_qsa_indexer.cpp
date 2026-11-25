@@ -20,7 +20,7 @@
 #include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
-#include "nodes/kernels/sparse_attn/qsa_executor_cache.h"
+#include "nodes/kernels/sparse_attn/qsa_executor_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -101,9 +101,10 @@ void PagedQSAIndexer::createPrimitive() {
     // The executor is shared by the layers of the same configuration.
     const auto cache = context->getParamsCache();
     [[maybe_unused]] const auto [paged_qsa_indexer_executor, lookup_status] =
-        cache->getOrCreate(QsaExecutorKey{config}, [&cache](const QsaExecutorKey& key) {
-            return ov::Extensions::Cpu::XARCH::make_paged_indexer_executor(key.config, cache);
-        });
+        cache->getOrCreate(ov::Extensions::Cpu::qsa::QsaExecutorKey{config},
+                           [&cache](const ov::Extensions::Cpu::qsa::QsaExecutorKey& key) {
+                               return ov::Extensions::Cpu::XARCH::make_paged_indexer_executor(key.config, cache);
+                           });
     CPU_NODE_ASSERT(paged_qsa_indexer_executor, "executor creation fails");
     m_executor = paged_qsa_indexer_executor;
     Node::createPrimitive();

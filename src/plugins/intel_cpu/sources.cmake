@@ -823,6 +823,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_executor.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_executor_cache.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_executor_cache.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_kernel_utils.hpp
@@ -870,8 +872,6 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/x64/selective_ssm_jit_runtime.hpp
     ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.cpp
     ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.h
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_executor_cache.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_executor_cache.h
     ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
     ${CPU_SRC_DIR}/nodes/qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/sparse_pa.cpp

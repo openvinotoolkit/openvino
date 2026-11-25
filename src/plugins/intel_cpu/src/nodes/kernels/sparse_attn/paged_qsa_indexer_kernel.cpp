@@ -20,6 +20,8 @@
 #include "nodes/kernels/sparse_attn/brgemm_scorer.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
+#include "nodes/kernels/sparse_attn/sparse_attn_common.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"

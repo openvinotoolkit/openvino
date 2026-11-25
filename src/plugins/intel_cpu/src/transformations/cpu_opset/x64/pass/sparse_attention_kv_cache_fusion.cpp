@@ -69,8 +69,8 @@ KVCachePattern make_pattern() {
     };
     p.past_k = wrap_type<ov::op::util::ReadValueBase>(only_cache_consumers);
     p.past_v = wrap_type<ov::op::util::ReadValueBase>(only_cache_consumers);
-    // The Convert stays in front of the fused op, which reorders the history by beam_idx itself (the Gather is gone);
-    // another consumer of the Convert would read the history before the reorder.
+    // RemoveMemoryInputConvert drops this Convert in the CPU graph, so another consumer would become a child of the
+    // MemoryInput; MatchSparseSdpaKvCache then rejects the state (it accepts only SparseSDPA and ShapeOf children).
     auto convert_past_k = optional<ov::op::v0::Convert>({p.past_k}, consumers_count(1));
     auto convert_past_v = optional<ov::op::v0::Convert>({p.past_v}, consumers_count(1));
 

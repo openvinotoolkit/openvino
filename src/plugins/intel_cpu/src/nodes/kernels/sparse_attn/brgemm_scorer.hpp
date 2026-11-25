@@ -40,7 +40,7 @@
 #    include <functional>
 #    include <utility>
 
-#    include "nodes/kernels/sparse_attn/qsa_executor_cache.h"
+#    include "nodes/kernels/sparse_attn/qsa_executor_cache.hpp"
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/parallel.hpp"
@@ -365,7 +365,7 @@ public:
     // The scorer of `config` on the brgemm kernels of `cache`, nullptr if there are none: the CPU, the precision or the
     // head counts of the configuration have no brgemm scoring (see getScoreKernels() in qsa_executor_cache.cpp).
     static std::unique_ptr<BrgemmScorer> create(const Config& config, const ov::intel_cpu::MultiCachePtr& cache) {
-        const auto kernels = ov::intel_cpu::node::getScoreKernels(cache, config);
+        const auto kernels = ov::Extensions::Cpu::qsa::getScoreKernels(cache, config);
         if (!kernels.q_k || !kernels.k_q) {
             return nullptr;
         }

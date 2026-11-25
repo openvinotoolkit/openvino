@@ -40,7 +40,7 @@ struct Config {
     bool query_rope = true;          ///< the op applies the RoPE to the query (else it is done in front of the op)
 };
 
-// The cache key of an executor and the cache of the brgemm kernels are in qsa_executor_cache.h: the executor asks
+// The cache key of an executor and the cache of the brgemm kernels are in qsa_executor_cache.hpp: the executor asks
 // for its kernels there.
 
 /// @brief The blocks one brgemm call scores: the M of the k.q kernel, the N of the q.k kernel.

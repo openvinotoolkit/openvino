@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "qsa_executor_cache.h"
+#include "nodes/kernels/sparse_attn/qsa_executor_cache.hpp"
 
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -16,12 +16,10 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov::Extensions::Cpu::qsa {
 
-using ov::Extensions::Cpu::qsa::Config;
-using ov::Extensions::Cpu::qsa::kScoreBlockRows;
-using ov::Extensions::Cpu::qsa::score_tokens_per_call;
-using ov::Extensions::Cpu::qsa::ScoreKernels;
+using ov::intel_cpu::BrgemmKernel;
+using ov::intel_cpu::MultiCachePtr;
 
 size_t QsaExecutorKey::hash() const {
     const auto& c = config;
@@ -180,4 +178,4 @@ ScoreKernels getScoreKernels(const MultiCachePtr& cache, const Config& config) {
     return kernels;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace ov::Extensions::Cpu::qsa
