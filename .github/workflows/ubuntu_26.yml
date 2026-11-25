@@ -106,7 +106,7 @@ jobs:
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_NCC_STYLE=OFF
-            -DENABLE_TESTS=OFF
+            -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
             -DENABLE_INTEL_NPU=OFF
