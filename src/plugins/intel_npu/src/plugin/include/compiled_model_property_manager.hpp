@@ -34,6 +34,14 @@ public:
 
     Config getConfig() const;
 
+    /**
+     * @brief Throws if the compiled model cannot be exported as a raw blob, i.e. without the plugin metadata.
+     * @details A raw blob contains only the ELF main schedule. Anything that would have to be stored as metadata in
+     * order to import the model correctly cannot be represented. Does not lock: it only reads members that are set
+     * at construction time, and it is also called while setting properties, which already holds the lock.
+     */
+    void checkRawBlobExportSupported() const;
+
 private:
     void registerProperties();
 

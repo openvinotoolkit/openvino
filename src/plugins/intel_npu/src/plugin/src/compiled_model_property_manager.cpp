@@ -117,6 +117,24 @@ Config CompiledModelPropertyManager::getConfig() const {
     return _config;
 }
 
+void CompiledModelPropertyManager::checkRawBlobExportSupported() const {
+    OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+    OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF,
+                    "Cannot export a raw blob (",
+                    ov::intel_npu::export_raw_blob.name(),
+                    "): the compiled model does not contain an ELF blob.");
+    OPENVINO_ASSERT(_graph->get_kind() == GraphKind::Weightful,
+                    "Cannot export a raw blob (",
+                    ov::intel_npu::export_raw_blob.name(),
+                    "): the compiled model is a ",
+                    to_string(_graph->get_kind()),
+                    " one and requires metadata to be exported.");
+    OPENVINO_ASSERT(!_batchSize.has_value(),
+                    "Cannot export a raw blob (",
+                    ov::intel_npu::export_raw_blob.name(),
+                    "): the compiled model holds batch information that requires metadata to be exported.");
+}
+
 void CompiledModelPropertyManager::registerProperties() {
     _properties.clear();
 
@@ -252,19 +270,7 @@ void CompiledModelPropertyManager::registerProperties() {
         [this](const ov::Any& value) {
             const bool enableRawBlobExport = value.as<bool>();
             if (enableRawBlobExport) {
-                // A raw blob contains only the ELF main schedule. Anything that would have to be stored as metadata
-                // in order to import the model correctly cannot be represented, thus the request is rejected.
-                OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
-                OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF,
-                                "Cannot enable ", ov::intel_npu::export_raw_blob.name(),
-                                ": the compiled model does not contain an ELF blob.");
-                OPENVINO_ASSERT(_graph->get_kind() == GraphKind::Weightful,
-                                "Cannot enable ", ov::intel_npu::export_raw_blob.name(),
-                                ": the compiled model is a ", to_string(_graph->get_kind()),
-                                " one and requires metadata to be exported.");
-                OPENVINO_ASSERT(!_batchSize.has_value(),
-                                "Cannot enable ", ov::intel_npu::export_raw_blob.name(),
-                                ": the compiled model holds batch information that requires metadata to be exported.");
+                checkRawBlobExportSupported();
             }
             _config.update(ov::intel_npu::export_raw_blob.name(), enableRawBlobExport);
         }

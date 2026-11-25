@@ -95,8 +95,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     const bool rawBlobExportRequested = localConfig.get<EXPORT_RAW_BLOB>();
     if (rawBlobExportRequested) {
-        OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF && _graph->get_kind() == GraphKind::Weightful,
-                        "Requested raw blob export, but the graph is not a weightful ELF one.");
+        // The property may have been set at compilation time, which bypasses the check done by its setter
+        _propertiesManager->checkRawBlobExportSupported();
     }
 
     uint64_t blobSizesBeforeVersioning;
