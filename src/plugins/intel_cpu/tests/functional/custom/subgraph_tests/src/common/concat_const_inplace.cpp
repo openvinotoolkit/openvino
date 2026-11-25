@@ -94,6 +94,7 @@ TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
 }
 
 TEST_P(ConcatConstantInPlaceTest, ReuseRequestWithAlternatingInputs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto compiled = core->compile_model(function, targetDevice, configuration);
     const auto shape = function->input(0).get_shape();
     ov::Tensor a(ov::element::f32, shape);
