@@ -483,8 +483,7 @@ TEST_F(TypePropCol2ImTest, partially_dynamic_output_size_1d) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST_F(TypePropCol2ImTest, partially_dynamic_kernel_size_1d) {
@@ -496,8 +495,7 @@ TEST_F(TypePropCol2ImTest, partially_dynamic_kernel_size_1d) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{1, Dimension::dynamic(), 6, 6}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 6, 6}));
 }
 
 TEST_F(TypePropCol2ImTest, partially_dynamic_output_size_interval_1d) {
@@ -509,8 +507,7 @@ TEST_F(TypePropCol2ImTest, partially_dynamic_output_size_interval_1d) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST_F(TypePropCol2ImTest, invalid_partially_dynamic_output_size_2d) {
