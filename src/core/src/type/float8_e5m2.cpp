@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 
+#include "openvino/core/type/float_util.hpp"
 #include "openvino/reference/fake_convert.hpp"
 
 namespace ov {
@@ -27,7 +28,8 @@ constexpr uint8_t f8e5m2_m_size = 2;     // f8e5m2 mantissa bits size
 constexpr uint8_t f8e5m2_m_mask = 0x03;  // f8e5m2 mantissa bit mask
 
 uint8_t f32_to_f8e5m2_bits(const float value) {
-    auto f16 = static_cast<float16>(value);
+    // round to odd first to avoid double rounding error
+    auto f16 = static_cast<float16>(util::round_to_odd_for_f8(value));
     reference::func::emulate_f8e5m2_on_fp16(&f16, &f16, 1, false);
     return static_cast<uint8_t>((f16.to_bits() >> byte_shift));
 }
