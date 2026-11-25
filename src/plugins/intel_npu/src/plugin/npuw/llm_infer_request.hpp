@@ -54,6 +54,8 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 protected:
+    LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
+                    const std::string& alternate_input_ids_name);
     virtual void prepare_for_new_conversation();
     void prepare_for_new_conversation(int64_t prompt_length);
     void apply_lora();

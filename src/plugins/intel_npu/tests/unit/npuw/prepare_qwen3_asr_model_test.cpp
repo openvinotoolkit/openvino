@@ -650,6 +650,42 @@ TEST(Qwen3ASRInferRequestTest, SharedHeadMatchesUnsharedPrefillAndDecode) {
     EXPECT_TRUE(changed);
 }
 
+TEST_P(Qwen3ASRInferRequestTest, AcceptsDecoderInputIdsForPrefillAndDecode) {
+    auto model = make_stateful_qwen_decoder();
+    model->input("input_ids").get_tensor().set_names({"decoder_input_ids"});
+    ov::Core core;
+    const ov::AnyMap properties{{"NPU_USE_NPUW", "YES"},
+                                {"NPUW_LLM", "YES"},
+                                {"NPUW_QWEN3_ASR", "YES"},
+                                {"NPUW_QWEN3_ASR_MAX_ENCODER_LEN", "16"},
+                                {"NPUW_LLM_MAX_PROMPT_LEN", "16"},
+                                {"NPUW_LLM_MIN_RESPONSE_LEN", "16"},
+                                {"NPUW_LLM_PREFILL_HINT", "STATIC"},
+                                {"NPUW_LLM_GENERATE_PYRAMID", "NO"},
+                                {"NPUW_LLM_SHARED_HEAD", GetParam() ? "YES" : "NO"},
+                                {"NPUW_ONLINE_PIPELINE", "NONE"},
+                                {"NPUW_DEVICES", "CPU"}};
+    auto request = core.compile_model(model, "NPU", properties).create_infer_request();
+    ov::Tensor encoder{ov::element::f32, {1, 1, 64}};
+    std::fill_n(encoder.data<float>(), encoder.get_size(), 0.25f);
+    ov::Tensor beam{ov::element::i32, {1}};
+    beam.data<int32_t>()[0] = 0;
+    request.set_tensor("encoder_hidden_states", encoder);
+    request.set_tensor("beam_idx", beam);
+    for (const std::vector<int64_t>& tokens : {std::vector<int64_t>{1, 2, 3}, std::vector<int64_t>{4}}) {
+        ov::Tensor ids{ov::element::i64, {1, tokens.size()}};
+        std::copy(tokens.begin(), tokens.end(), ids.data<int64_t>());
+        request.set_tensor("decoder_input_ids", ids);
+        ASSERT_NO_THROW(request.infer());
+        const auto logits = request.get_tensor("logits");
+        ASSERT_EQ(logits.get_element_type(), ov::element::f32);
+        ASSERT_GT(logits.get_size(), 0u);
+        for (size_t index = 0; index < logits.get_size(); ++index) {
+            EXPECT_TRUE(std::isfinite(logits.data<const float>()[index]));
+        }
+    }
+}
+
 TEST(Qwen3ASRPropertiesTest, CompiledAndImportedModelExposeOptions) {
     const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
     const auto dir = std::filesystem::temp_directory_path() / ("npuw_qwen_properties_" + std::to_string(nonce));
@@ -689,6 +725,31 @@ TEST(Qwen3ASRPropertiesTest, CompiledAndImportedModelExposeOptions) {
     auto imported = core.import_model(blob, "NPU", import_properties);
     EXPECT_TRUE(imported.get_property("NPUW_QWEN3_ASR").as<bool>());
     EXPECT_EQ(imported.get_property("NPUW_QWEN3_ASR_MAX_ENCODER_LEN").as<uint64_t>(), 16u);
+
+    auto original_request = compiled.create_infer_request();
+    auto imported_request = imported.create_infer_request();
+    ov::Tensor encoder{ov::element::f32, {1, 1, 64}};
+    std::fill_n(encoder.data<float>(), encoder.get_size(), 0.25f);
+    ov::Tensor beam{ov::element::i32, {1}};
+    beam.data<int32_t>()[0] = 0;
+    for (const std::vector<int64_t>& tokens : {std::vector<int64_t>{1, 2, 3}, std::vector<int64_t>{4}}) {
+        ov::Tensor ids{ov::element::i64, {1, tokens.size()}};
+        std::copy(tokens.begin(), tokens.end(), ids.data<int64_t>());
+        for (auto* request : {&original_request, &imported_request}) {
+            request->set_tensor("input_ids", ids);
+            request->set_tensor("beam_idx", beam);
+            request->set_tensor("encoder_hidden_states", encoder);
+            ASSERT_NO_THROW(request->infer());
+        }
+        const auto expected = original_request.get_tensor("logits");
+        const auto actual = imported_request.get_tensor("logits");
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ASSERT_EQ(actual.get_element_type(), ov::element::f32);
+        for (size_t index = 0; index < actual.get_size(); ++index) {
+            ASSERT_TRUE(std::isfinite(actual.data<const float>()[index]));
+            EXPECT_NEAR(actual.data<const float>()[index], expected.data<const float>()[index], 1e-5f);
+        }
+    }
 }
 
 TEST(PrepareQwen3ASRModelTest, RejectsUnsupportedExportInsteadOfSilentlyFreezingAttention) {

@@ -539,6 +539,10 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
 }
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
+    : LLMInferRequest(compiled_model, {}) {}
+
+ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
+                                           const std::string& alternate_input_ids_name)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
     init_ports();
 
@@ -546,15 +550,15 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
     if (input_ids_port.has_value()) {
         m_input_ids_name = layer_names::input_ids;
-    } else if (auto dec_port = ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(),
-                                                                 layer_names::decoder_input_ids);
-               dec_port.has_value()) {
-        m_input_ids_name = layer_names::decoder_input_ids;
+    } else if (!alternate_input_ids_name.empty() &&
+               ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), alternate_input_ids_name)
+                   .has_value()) {
+        m_input_ids_name = alternate_input_ids_name;
     } else {
         OPENVINO_ASSERT(
             ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::inputs_embeds)
                 .has_value(),
-            "Prefill model has no 'input_ids', 'decoder_input_ids', or 'inputs_embeds' input port");
+            "Prefill model has no 'input_ids', 'inputs_embeds', or requested alternate input port");
         m_input_ids_name = layer_names::inputs_embeds;
     }
 

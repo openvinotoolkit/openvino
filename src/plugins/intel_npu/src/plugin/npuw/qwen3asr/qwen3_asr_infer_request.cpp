@@ -13,7 +13,7 @@ constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1u;
 }  // namespace
 
 ov::npuw::Qwen3ASRInferRequest::Qwen3ASRInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
-    : LLMInferRequest(compiled_model) {
+    : LLMInferRequest(compiled_model, decoder_input_ids) {
     OPENVINO_ASSERT(compiled_model->m_kvcache_desc.max_generation_token_len == 1u,
                     "Qwen3-ASR supports one generated token per inference call.");
 }
@@ -27,7 +27,7 @@ void ov::npuw::Qwen3ASRInferRequest::infer() {
     OPENVINO_ASSERT(input_shape.size() == 2u && input_shape[0] == 1u && input_shape[1] > 0u,
                     "Qwen3-ASR input_ids must contain a non-empty, single-batch sequence.");
 
-    auto enc_hs_opt = ov::npuw::util::find_port_by_name(inputs, layer_names::encoder_hidden_states);
+    auto enc_hs_opt = ov::npuw::util::find_port_by_name(inputs, encoder_hidden_states);
     OPENVINO_ASSERT(enc_hs_opt.has_value(), "Qwen3-ASR model must expose 'encoder_hidden_states' input");
     auto enc_hidden_states = get_tensor(enc_hs_opt.value());
 
@@ -86,8 +86,7 @@ void ov::npuw::Qwen3ASRInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_
 
     // Inject encoder_hidden_states (audio features): left-aligned, zero-padded to static size.
     if (enc_hidden_states) {
-        if (const auto enc_it = m_prefill_in_ports.find(layer_names::encoder_hidden_states);
-            enc_it != m_prefill_in_ports.end()) {
+        if (const auto enc_it = m_prefill_in_ports.find(encoder_hidden_states); enc_it != m_prefill_in_ports.end()) {
             auto padded_enc_hs = m_prefill_request->get_tensor(enc_it->second);
             OPENVINO_ASSERT(enc_hidden_states->get_byte_size() <= padded_enc_hs->get_byte_size(),
                             "encoder_hidden_states (",
@@ -198,9 +197,8 @@ void ov::npuw::Qwen3ASRInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input
         }
 
         // Inject encoder_hidden_states once: the static generate model holds it for all steps.
-        if (const auto enc_it = m_kvcache_in_ports.find(layer_names::encoder_hidden_states);
-            enc_it != m_kvcache_in_ports.end()) {
-            auto outer_enc = ov::npuw::util::find_port_by_name(get_inputs(), layer_names::encoder_hidden_states);
+        if (const auto enc_it = m_kvcache_in_ports.find(encoder_hidden_states); enc_it != m_kvcache_in_ports.end()) {
+            auto outer_enc = ov::npuw::util::find_port_by_name(get_inputs(), encoder_hidden_states);
             if (outer_enc.has_value()) {
                 auto user_enc_hs = get_tensor(outer_enc.value());
                 auto kv_enc_hs = m_kvcache_request->get_tensor(enc_it->second);

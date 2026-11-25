@@ -26,6 +26,10 @@ protected:
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids, ov::SoPtr<ov::ITensor> enc_hidden_states);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids);
+
+private:
+    static constexpr const char* decoder_input_ids = "decoder_input_ids";
+    static constexpr const char* encoder_hidden_states = "encoder_hidden_states";
 };
 
 }  // namespace npuw
