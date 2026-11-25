@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -17,6 +18,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
 using BrgemmKernelParams = std::tuple<ov::element::Type,
@@ -238,6 +240,87 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
             run_test_post_scales(rtPrec, M, N, K);
         } else {
             run_test<int8_t>(rtPrec, M, N, K);
+        }
+    }
+}
+
+TEST(BrgemmKernelNativeFP16Test, StridedOperandsAndTailsMatchReference) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(avx512_core_fp16)) {
+        GTEST_SKIP() << "Native FP16 BRGEMM requires AVX512-FP16.";
+    }
+    for (const auto& shape : {std::array<size_t, 3>{1, 1, 1}, {33, 35, 65}, {64, 48, 80}, {33, 96, 129}}) {
+        const size_t M = shape[0];
+        const size_t N = shape[1];
+        const size_t K = shape[2];
+        const size_t lda = K + 5;
+        const size_t ldc = N + 3;
+        for (bool transposed : {false, true}) {
+            const size_t ldb = (transposed ? K : N) + 7;
+            std::vector<ov::float16> a(M * lda, ov::float16(29.0F));
+            std::vector<ov::float16> b((transposed ? N : K) * ldb, ov::float16(-31.0F));
+            auto b_index = [&](size_t k, size_t n) {
+                return transposed ? n * ldb + k : k * ldb + n;
+            };
+            for (size_t m = 0; m < M; ++m) {
+                for (size_t k = 0; k < K; ++k) {
+                    a[m * lda + k] =
+                        ov::float16(static_cast<float>(static_cast<int>((m * 17 + k * 13) % 31) - 15) / 16.0F);
+                }
+            }
+            for (size_t k = 0; k < K; ++k) {
+                for (size_t n = 0; n < N; ++n) {
+                    b[b_index(k, n)] =
+                        ov::float16(static_cast<float>(static_cast<int>((k * 7 + n * 11) % 23) - 11) / 32.0F);
+                }
+            }
+            for (const auto& options :
+                 {std::array<bool, 2>{false, false}, {false, true}, {true, false}, {true, true}}) {
+                const bool accumulate = options[0];
+                const bool fuse_relu = options[1];
+                SCOPED_TRACE(testing::Message() << "M=" << M << " N=" << N << " K=" << K << " transposed=" << transposed
+                                                << " accumulate=" << accumulate << " fuse_relu=" << fuse_relu);
+                ov::intel_cpu::BrgemmKernel
+                    gemm(M, N, K, lda, ldb, ldc, transposed, ov::element::f16, accumulate, fuse_relu);
+                if (!mayiuse(avx512_core_amx_fp16)) {
+                    EXPECT_EQ(gemm.get_scratch_a_size(), 0U)
+                        << "Native FP16 operands must not require an FP32 copy of A.";
+                }
+                std::vector<uint8_t> scratch_a(gemm.get_scratch_a_size());
+                std::vector<uint8_t> scratch_b(gemm.get_scratch_b_size());
+                std::vector<uint8_t> workspace(gemm.get_wsp_size());
+                std::vector<float> c(M * ldc, 777.0F);
+                for (size_t m = 0; m < M; ++m) {
+                    std::fill_n(c.data() + m * ldc, N, 0.25F);
+                }
+                gemm.copy_buffer_b(b.data(), scratch_b.data());
+                const size_t m_block = gemm.get_mblk_size();
+                for (size_t m = 0; m < M; m += m_block) {
+                    gemm.executeGemm(M - m < m_block,
+                                     a.data() + m * lda,
+                                     scratch_b.data(),
+                                     c.data() + m * ldc,
+                                     nullptr,
+                                     nullptr,
+                                     workspace.data(),
+                                     scratch_a.data());
+                }
+                for (size_t m = 0; m < M; ++m) {
+                    for (size_t n = 0; n < N; ++n) {
+                        float expected = accumulate ? 0.25F : 0.0F;
+                        for (size_t k = 0; k < K; ++k) {
+                            expected += static_cast<float>(a[m * lda + k]) * static_cast<float>(b[b_index(k, n)]);
+                        }
+                        if (fuse_relu) {
+                            expected = std::max(expected, 0.0F);
+                        }
+                        ASSERT_FLOAT_EQ(c[m * ldc + n], expected) << "m=" << m << " n=" << n;
+                    }
+                    for (size_t n = N; n < ldc; ++n) {
+                        ASSERT_FLOAT_EQ(c[m * ldc + n], 777.0F);
+                    }
+                }
+            }
         }
     }
 }

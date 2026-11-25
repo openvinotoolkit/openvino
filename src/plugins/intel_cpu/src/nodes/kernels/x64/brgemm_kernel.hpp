@@ -129,10 +129,7 @@ protected:
     size_t packedASize = 0;
     ov::element::Type inType;
     ov::element::Type DType;
-    ov::element::Type weiType;
-    ov::element::Type srcType;
     ScaleType bScaleType = ScaleType::NONE;
-    bool is_avx_f16_only = false;
     bool b_accumulate = false;
     bool post_relu = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
