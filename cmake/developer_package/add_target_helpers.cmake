@@ -2,22 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(ov_filter_paths_from_files files filter_out_paths filtered_files)
-    set(result)
-    foreach(file IN LISTS files)
-        set(excluded FALSE)
-        foreach(filter_out_path IN LISTS filter_out_paths)
-            cmake_path(IS_PREFIX filter_out_path "${file}" NORMALIZE excluded)
-            if(excluded)
-                break()
-            endif()
-        endforeach()
-        if(NOT excluded)
-            list(APPEND result "${file}")
-        endif()
-    endforeach()
-    set(${filtered_files} "${result}" PARENT_SCOPE)
-endfunction()
 
 #[[
 function to create CMake target and setup its options in a declarative style.
