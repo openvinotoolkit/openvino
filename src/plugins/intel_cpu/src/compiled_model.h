@@ -8,6 +8,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -36,6 +37,9 @@ public:
         std::mutex _mutex;
         struct Lock : public std::unique_lock<std::mutex> {
             explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            Lock(GraphGuard& graph, std::try_to_lock_t tag)
+                : std::unique_lock<std::mutex>(graph._mutex, tag),
+                  _graph(graph) {}
             GraphGuard& _graph;
         };
     };

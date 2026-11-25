@@ -10,6 +10,7 @@
 #include <exception>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <ostream>
 #include <utility>
 #include <vector>
@@ -210,20 +211,35 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     int socketId = 0;
 
     size_t graph_idx = 0;
+    std::optional<GraphGuard::Lock> graphLock;
     if (m_graphs.size() > 1) {
         auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
         if (nullptr != streamsExecutor) {
             streamId = streamsExecutor->get_stream_id();
             socketId = std::max(0, streamsExecutor->get_socket_id());
         }
-        // Known limitation: more concurrent app threads than m_graphs.size() can collide on the same
-        // graph_idx and serialize; results stay correct, only parallelism degrades.
         graph_idx = streamId % m_graphs.size();
+
+        if (m_run_sync_in_caller_thread) {
+            // Caller-thread-sync: concurrent app threads can collide on the same home slot (stream-ID
+            // recycling), so probe every slot for a free one before blocking on a possibly-busy one.
+            const size_t num_graphs = m_graphs.size();
+            for (size_t i = 0; i < num_graphs; ++i) {
+                size_t idx = (graph_idx + i) % num_graphs;
+                GraphGuard::Lock candidate(m_graphs[idx], std::try_to_lock);
+                if (candidate.owns_lock()) {
+                    graph_idx = idx;
+                    graphLock.emplace(std::move(candidate));
+                    break;
+                }
+            }
+        }
+    }
+    if (!graphLock) {
+        graphLock.emplace(m_graphs[graph_idx]);
     }
 
-    auto graphLock = GraphGuard::Lock(m_graphs[graph_idx]);
-
-    if (!graphLock._graph.IsReady()) {
+    if (!graphLock->_graph.IsReady()) {
         std::exception_ptr exception;
         auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
         auto makeGraph = [&] {
@@ -243,8 +259,8 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 }
 
                 const std::shared_ptr<const ov::Model> model = m_model;
-                graphLock._graph.Init(model, ctx);
-                graphLock._graph.Activate();
+                graphLock->_graph.Init(model, ctx);
+                graphLock->_graph.Activate();
             } catch (...) {
                 exception = std::current_exception();
             }
@@ -258,7 +274,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
             std::rethrow_exception(exception);
         }
     }
-    return graphLock;
+    return std::move(*graphLock);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
