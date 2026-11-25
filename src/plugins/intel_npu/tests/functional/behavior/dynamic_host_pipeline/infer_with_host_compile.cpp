@@ -153,7 +153,9 @@ protected:
     std::string selectedModelName;
     bool isTargetDevice = false;
     ov::log::Level originalLogLevel = ov::log::Level::ERR;
-    EspcnReferenceCache referenceCache;
+    EspcnReferenceCache referenceCache{[this] {
+        return EspcnReferenceCache::getCompiledModel(selectedModelName);
+    }};
 };
 
 InferWithHostCompileTests::ScopedLogCapture::ScopedLogCapture()
@@ -179,7 +181,7 @@ std::string InferWithHostCompileTests::ScopedLogCapture::str() const {
 void InferWithHostCompileTests::compareInferenceResult(const std::shared_ptr<ov::Model>& model,
                                                        ov::InferRequest& reqDynamic,
                                                        ov::InferRequest& reqReference) {
-    compareTensors(referenceCache.getOutput(selectedModelName, reqReference.get_input_tensor()),
+    compareTensors(referenceCache.getOutput(reqReference.get_input_tensor()),
                    reqDynamic.get_tensor(model->output()));
 }
 

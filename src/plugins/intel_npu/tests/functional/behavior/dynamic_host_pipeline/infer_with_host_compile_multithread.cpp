@@ -4,12 +4,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <condition_variable>
 #include <cstring>
 #include <functional>
 #include <future>
 #include <mutex>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -225,9 +227,37 @@ public:
                                  0.02);
     }
 
-    static void waitAndCompare(ov::InferRequest& reqDynamic, const ov::Tensor& referenceOutputTensor) {
+    // NPU output is bitwise deterministic (verified on NPU4000/NPU5010), so any difference is corruption.
+    static void compareBitwise(const ov::Tensor& goldenOutputTensor, const ov::Tensor& npuOutputTensor) {
+        if (goldenOutputTensor.get_element_type() != npuOutputTensor.get_element_type() ||
+            goldenOutputTensor.get_shape() != npuOutputTensor.get_shape()) {
+            throw std::runtime_error("NPU output type/shape differs from the NPU golden: " +
+                                     npuOutputTensor.get_shape().to_string() + " vs " +
+                                     goldenOutputTensor.get_shape().to_string());
+        }
+        if (std::memcmp(goldenOutputTensor.data(), npuOutputTensor.data(), goldenOutputTensor.get_byte_size()) == 0) {
+            return;
+        }
+        std::ostringstream os;
+        os << "NPU output is not bitwise equal to the serial NPU golden";
+        if (goldenOutputTensor.get_element_type() == ov::element::f32) {
+            const auto* golden = goldenOutputTensor.data<const float>();
+            const auto* actual = npuOutputTensor.data<const float>();
+            size_t mismatches = 0;
+            float maxAbs = 0.f;
+            for (size_t i = 0; i < goldenOutputTensor.get_size(); ++i) {
+                const float diff = std::abs(golden[i] - actual[i]);
+                mismatches += (golden[i] != actual[i]);
+                maxAbs = std::max(maxAbs, diff);
+            }
+            os << ": mismatches=" << mismatches << "/" << goldenOutputTensor.get_size() << " maxAbs=" << maxAbs;
+        }
+        throw std::runtime_error(os.str());
+    }
+
+    static void waitAndCompare(ov::InferRequest& reqDynamic, const ov::Tensor& goldenOutputTensor) {
         reqDynamic.wait();
-        compareWithReference(referenceOutputTensor, reqDynamic.get_output_tensor(0));
+        compareBitwise(goldenOutputTensor, reqDynamic.get_output_tensor(0));
     }
 
     static ov::Tensor makeZeroInputTensor(ov::RemoteContext& zeroContext,
@@ -250,9 +280,22 @@ protected:
         return cfg;
     }
 
-    // Call before the NPU requests start so TEMPLATE does not compete with the host-side VM runtime for CPU.
+    // Serial NPU golden output; call before the NPU requests under test start so it never overlaps them.
     ov::Tensor expectedOutput(const ov::Tensor& input) {
-        return referenceCache.getOutput(selectedModelName, input);
+        auto golden = npuGoldenCache.getOutput(input);
+        anchorAgainstTemplate(input, golden);
+        return golden;
+    }
+
+    // The NPU golden is only trusted after it matches TEMPLATE once per input shape.
+    void anchorAgainstTemplate(const ov::Tensor& input, const ov::Tensor& golden) {
+        {
+            std::lock_guard<std::mutex> lock(anchorMutex);
+            if (!anchoredShapes.insert(input.get_shape().to_string()).second) {
+                return;
+            }
+        }
+        compareWithReference(templateCache.getOutput(input), golden);
     }
 
     ov::Core core;
@@ -260,7 +303,15 @@ protected:
     std::string selectedModelName;
     std::string target_device;
     bool isTargetDevice = false;
-    EspcnReferenceCache referenceCache;
+    EspcnReferenceCache templateCache{[this] {
+        return EspcnReferenceCache::getCompiledModel(selectedModelName);
+    }};
+    // Dedicated model with the base configuration only, so it shares no state with the models under test.
+    EspcnReferenceCache npuGoldenCache{[this] {
+        return core.compile_model(createModelByName(selectedModelName), target_device, configuration);
+    }};
+    std::mutex anchorMutex;
+    std::set<std::string> anchoredShapes;
 };
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
@@ -347,10 +398,11 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
         const auto npuOutputA = npuRequestA.get_output_tensor(0);
         const auto outputType = npuOutputA.get_element_type();
 
-        // Matching request pair stays within the NPU-calibrated tolerance.
-        OV_ASSERT_NO_THROW(compareWithReference(referenceOutputA, npuOutputA));
+        // Matching request pair is bitwise equal to its golden.
+        OV_ASSERT_NO_THROW(compareBitwise(referenceOutputA, npuOutputA));
 
-        // The other request's reference must be rejected, proving swapped outputs are detectable.
+        // The other request's golden must be rejected, both bitwise and at the TEMPLATE anchor tolerance.
+        ASSERT_THROW(compareBitwise(referenceOutputB, npuOutputA), std::runtime_error);
         ASSERT_THROW(ov::test::utils::compare(referenceOutputB, npuOutputA, outputType, 0.02, 0.02),
                      std::runtime_error);
     }
