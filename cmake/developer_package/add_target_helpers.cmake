@@ -58,9 +58,6 @@ function(ov_add_target)
         TYPE # type of target, SHARED|STATIC|EXECUTABLE. SHARED and STATIC correspond to add_library, EXECUTABLE to add_executable
         NAME # name of target
         )
-    set(oneValueOptionalArgs
-        ROOT # Deprecated; passing ROOT is a fatal error.
-    )
     set(multiValueArgs
         SOURCES                       # Explicit source file list
         INCLUDES                      # Extra include directories
@@ -71,11 +68,7 @@ function(ov_add_target)
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
         )
-    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
-
-    if(DEFINED ARG_ROOT)
-        message(FATAL_ERROR "ROOT is no longer supported, use SOURCES instead")
-    endif()
+    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
 
     # sanity checks
     foreach(argName IN LISTS oneValueRequiredArgs)
@@ -249,7 +242,7 @@ endfunction()
 #[[
 Wrapper over ov_add_target that builds a test executable and registers it as a CTest test.
 All supported ov_add_target parameters (SOURCES, LINK_LIBRARIES, INCLUDES, DEFINES, DEPENDENCIES, etc.) are forwarded
-transparently. ROOT is no longer supported; use SOURCES instead.
+transparently.
 
 SOURCE LISTING
 --------------
