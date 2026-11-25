@@ -266,8 +266,11 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
 Output<Node> NodeContext::get_input_from_visible_context(size_t index, bool resolve_sequence_constants) const {
     FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower than number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
+    // FX subgraphs receive outer values as explicit operands and their tensor ids index the subgraph itself, so
+    // they must not be resolved in the outer context.
+    const bool use_external = !m_ext_tensor_map.empty() && m_decoder->decoder_type_name() != "fx";
     auto input_node = input_tensor.get_node_shared_ptr();
-    if (ov::as_type_ptr<v0::Parameter>(input_node)) {
+    if (use_external && ov::as_type_ptr<v0::Parameter>(input_node)) {
         // We need to look into external context for inputs that would be fed into this parameter
         size_t tensor_idx = m_translate_session->decode_tensor_name(input_node->output(0));
         if (m_ext_tensor_map.count(tensor_idx)) {
@@ -277,7 +280,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index, bool reso
     if (resolve_sequence_constants) {
         std::function<Output<Node>(const Output<Node>&)> resolve_constants =
             [&](const Output<Node>& value) -> Output<Node> {
-            if (ov::is_type<v0::Parameter>(value.get_node())) {
+            if (use_external && ov::is_type<v0::Parameter>(value.get_node())) {
                 const auto tensor_id = m_translate_session->decode_tensor_name(value);
                 const auto external = m_ext_tensor_map.find(tensor_id);
                 if (external != m_ext_tensor_map.end()) {

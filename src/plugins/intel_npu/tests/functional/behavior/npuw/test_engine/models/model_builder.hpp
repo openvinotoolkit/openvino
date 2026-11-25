@@ -288,9 +288,11 @@ public:
     // Because the interior and boundary Relu share the same metadesc, ALL blocks stay
     // in one repeated-block family regardless of head/non-head status, allowing
     // isRegularCrossGroupConsumerCase to detect the per-bank connectivity asymmetry.
+    // shared_type applies to all repeated blocks.
     std::shared_ptr<ov::Model> get_model_with_kv_sharing_repeated_blocks(
         std::size_t repetitions,
-        const std::vector<std::size_t>& head_block_indices);
+        const std::vector<std::size_t>& head_block_indices,
+        ov::element::Type shared_type = ov::element::f32);
     std::shared_ptr<ov::Model> get_model_with_multi_output_repeating_blocks(std::size_t repetitions,
                                                                             bool last_block_has_direct_result);
 
