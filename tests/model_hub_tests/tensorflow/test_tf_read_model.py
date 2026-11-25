@@ -12,7 +12,7 @@ import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 #import tensorflow_text  # do not delete, needed for text models. Commented due to ticket 179327
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list, model_list_path
+from models_hub_common.utils import get_models_list, model_list_path, npu_compile_only
 from openvino import Core, PartialShape
 
 from utils import unpack_tf_result, retrieve_inputs_info_for_signature
@@ -86,8 +86,7 @@ class TestTFReadModel(TestConvertModel):
         ov_model = core.read_model(model_path)
         self._reshape_if_required(ov_model, inputs, ie_device)
         compiled = core.compile_model(ov_model, ie_device, self.get_compile_config(ie_device))
-        # Compile-only for NPU device (base _run short-circuits on None)
-        if 'NPU' in (ie_device or ''):
+        if npu_compile_only(ie_device):
             return None
         ov_outputs = compiled(inputs)
         return ov_outputs

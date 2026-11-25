@@ -10,7 +10,7 @@ try:
 except:
     pass
 from models_hub_common.multiprocessing_utils import multiprocessing_run
-from models_hub_common.utils import compare_two_tensors
+from models_hub_common.utils import compare_two_tensors, npu_compile_only
 from openvino import convert_model
 from openvino import Core
 
@@ -61,20 +61,31 @@ class TestConvertModel:
         raise "infer_fw_model is not implemented"
 
     def get_compile_config(self, ie_device):
-        # NPU: compile-only (offline); compiler-in-plugin is required to compile without a device
+        # NPU: compiler-in-plugin is required to compile without a device
         config = dict(self.ov_config)
         if 'NPU' in (ie_device or ''):
             config["NPU_COMPILER_TYPE"] = "PLUGIN"
             npu_platform = os.environ.get("NPU_PLATFORM")
-            if npu_platform:
+            if npu_platform and npu_compile_only(ie_device):
                 config["NPU_PLATFORM"] = npu_platform
+        # TEMP: CPU run with a reduced precision, to tell NPU fp16 error from a systematic mismatch
+        cpu_precision = os.environ.get("CPU_INFERENCE_PRECISION")
+        if cpu_precision and ie_device == "CPU":
+            config["INFERENCE_PRECISION_HINT"] = cpu_precision
         return config
 
     def infer_ov_model(self, ov_model, inputs, ie_device):
         core = Core()
         compiled = core.compile_model(ov_model, ie_device, self.get_compile_config(ie_device))
-        # Compile-only for NPU device
-        if 'NPU' in (ie_device or ''):
+        cpu_precision = os.environ.get("CPU_INFERENCE_PRECISION")
+        if cpu_precision and ie_device == "CPU":
+            # the CPU plugin silently ignores a precision it has no hardware for
+            effective = compiled.get_property("INFERENCE_PRECISION_HINT")
+            print("CPU INFERENCE_PRECISION_HINT: requested {}, effective {}".format(cpu_precision, effective))
+            full_names = {"f16": "float16", "bf16": "bfloat16", "f32": "float32"}
+            assert "'{}'".format(full_names.get(cpu_precision, cpu_precision)) in str(effective), \
+                "CPU ran with {} instead of the requested {}".format(effective, cpu_precision)
+        if npu_compile_only(ie_device):
             return None
         ov_outputs = compiled(inputs)
         return ov_outputs

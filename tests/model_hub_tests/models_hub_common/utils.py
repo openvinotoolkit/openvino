@@ -11,6 +11,10 @@ import numpy as np
 from models_hub_common.constants import test_device
 
 
+def npu_compile_only(ie_device) -> bool:
+    return 'NPU' in (ie_device or '') and os.environ.get('NPU_TEST_MODE', 'compile') != 'infer'
+
+
 def parse_list_file(file_name: str):
     with open(file_name, 'r') as f_in:
         for model_info in f_in:
