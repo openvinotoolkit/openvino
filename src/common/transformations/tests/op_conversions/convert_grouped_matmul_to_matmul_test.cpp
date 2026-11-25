@@ -25,6 +25,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace v0 = ov::op::v0;
@@ -207,6 +208,34 @@ TEST_P(ConvertGroupedMatMulToMatMulCompressed, PreservesExpertQuantization) {
     }
     auto expected = ref_2dx3d_decomposition(activations, weights, offsets, groups, experts);
     model_ref = std::make_shared<ov::Model>(ov::OutputVector{expected}, ov::ParameterVector{activations});
+}
+
+TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_MarkedDequantizationNotSplit) {
+    constexpr size_t groups = 2, width = 8, channels = 256;
+    const std::vector<int32_t> ends{3, 8};
+    auto make_weights = [&](bool folding_disabled) {
+        auto packed = v0::Constant::create(ov::element::u4, ov::Shape{groups, width, channels}, {1});
+        auto converted = std::make_shared<v0::Convert>(packed, ov::element::f16);
+        if (folding_disabled) {
+            ov::pass::disable_constant_folding(converted);
+        }
+        auto scales = v0::Constant::create(ov::element::f16, ov::Shape{groups, width, 1}, {0.125f});
+        auto scaled = std::make_shared<v1::Multiply>(converted, scales);
+        return std::make_shared<v0::Convert>(scaled, f32);
+    };
+    {
+        auto activations = std::make_shared<v0::Parameter>(f32, ov::Shape{static_cast<size_t>(ends.back()), channels});
+        auto offsets = v0::Constant::create(i32, ov::Shape{groups}, ends);
+        auto grouped = std::make_shared<v17::GroupedMatMul>(activations, make_weights(true), offsets);
+        model = std::make_shared<ov::Model>(ov::OutputVector{grouped}, ov::ParameterVector{activations});
+        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+    }
+    {
+        auto activations = std::make_shared<v0::Parameter>(f32, ov::Shape{static_cast<size_t>(ends.back()), channels});
+        auto offsets = v0::Constant::create(i32, ov::Shape{groups}, ends);
+        auto expected = ref_2dx3d_decomposition(activations, make_weights(false), offsets, groups);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{expected}, ov::ParameterVector{activations});
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(QuantizedExperts,

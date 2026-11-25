@@ -26,6 +26,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -45,6 +46,10 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
     bool has_decompression = false;
     while (ov::is_type<v0::Convert>(source) || ov::is_type<v1::Reshape>(source) || ov::is_type<v1::Multiply>(source) ||
            ov::is_type<v1::Subtract>(source)) {
+        // Already marked by MarkDequantization: the clones would lose this non-copyable mark and be constant-folded.
+        if (ov::pass::constant_folding_is_disabled(source)) {
+            return {};
+        }
         has_decompression |= ov::is_type<v1::Multiply>(source);
         source = source->input_value(0).get_node_shared_ptr();
     }
