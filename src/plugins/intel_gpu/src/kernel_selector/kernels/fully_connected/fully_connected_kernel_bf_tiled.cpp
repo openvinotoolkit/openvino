@@ -599,10 +599,21 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
     } else {
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
-            // Keep tile_b <= 8 with 4-byte FP32 running accumulators (FC_ACC_TYPE) + tile-local acc_tmp
-            // so all non-XMX GPUs (including 128-GRF Xe-LP) stay well within register occupancy headroom.
-            // Pick the largest dispatch_bsv <= 16 dividing CeilDiv(batch, 8) (exact or prime batch)
-            // to maximize L3 weight reuse across consecutive workgroups.
+            // Keep register footprint well within 128-GRF occupancy headroom on all non-XMX GPUs (Xe-LP & Xe-LPG):
+            // - For small/medium batches (batch <= 64, multiple of 16) with uncompressed FP16 weights,
+            //   tile_b=16 x tile_ofm=1 (68 GRFs) preserves 16x weight reuse (critical when weights exceed L3)
+            //   while providing 2x sub-group parallelism over tile_b=16 x tile_ofm=2.
+            // - For larger or prime batches, keep tile_b <= 8 x tile_ofm <= 2 (60 GRFs) and pick the largest
+            //   dispatch_bsv <= 16 dividing CeilDiv(batch, 8) to maximize L3 weight reuse.
+            if (!params.compressed && params.quantization == QuantizationType::NONE && batch <= 64 && batch % 16 == 0) {
+                const size_t ifm_size = get_input_bf_size(params).second;
+                const bool realign_fp16_offset = params.inputs[0].GetFirstElementOffset() % 2 != 0;
+                const unsigned int tile_k = (ifm_size % 4 == 0 && !realign_fp16_offset) ? 4U : 2U;
+                const unsigned int dispatch_bsv = static_cast<unsigned int>(batch / 16);
+                const size_t ofm_tiles = CeilDiv(output_f, static_cast<size_t>(simd));
+                const unsigned int dispatch_fsv = (ofm_tiles % 2 == 0) ? 2U : 1U;
+                selector.Case(tune_params(16, 1, 1, tile_k, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED));
+            }
             selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
                 .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
                 .Case([&](const fully_connected_params&) -> tune_params {
