@@ -79,6 +79,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_pa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_sdpa.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/recurrent_cache_replay.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/recurrent_cache_replay.hpp
     ${CMAKE_CURRENT_LIST_DIR}/rope_opt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rope_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/scatter_nd_update.cpp
@@ -121,6 +123,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
 # .cl kernel files are not compiled directly; they are inputs to the ocl
 # codegen step (tracked via DEPENDS for incremental builds).
 set(GPU_OCL_V2_KERNEL_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/recurrent_conv_cache_replay.cl
+    ${CMAKE_CURRENT_LIST_DIR}/recurrent_gdn_cache_replay.cl
     ${CMAKE_CURRENT_LIST_DIR}/col2im.cl
     ${CMAKE_CURRENT_LIST_DIR}/ctc_loss.cl
     ${CMAKE_CURRENT_LIST_DIR}/expert_gemm_common.cl

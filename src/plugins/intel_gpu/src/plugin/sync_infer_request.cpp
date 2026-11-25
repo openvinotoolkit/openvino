@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/recurrent_cache_replay.hpp"
+#include "primitive_inst.h"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 
 #include <algorithm>
@@ -1374,7 +1376,15 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     // A dynamic output binds the full allocation: its logical shape follows each run, writers reinterpret it anyway.
     auto output_memory = is_dynamic ? output_tensor->get_original_memory() : output_tensor->get_memory();
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
-    return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
+    // A replay layer may have dynamic token counts and statically sized bank Results.
+    // Expose an explicitly bound remote bank to its producer before output allocation.
+    bool replay_bank = false;
+    if (!is_dynamic && is_remote_tensor_impl && !convert_needed) {
+        const auto& result = network->get_primitive(internal_name)->get_node();
+        const auto& deps = result.get_dependencies();
+        replay_bank = deps.size() == 1 && deps.front().second > 0 && deps.front().first->is_type<cldnn::recurrent_cache_replay>();
+    }
+    return network->set_output_memory(internal_name, output_memory, replay_bank || (is_dynamic && (is_remote_tensor_impl || user_tensor)));
 }
 
 void SyncInferRequest::init_mappings() {

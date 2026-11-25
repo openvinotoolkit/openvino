@@ -53,6 +53,7 @@
 #include "read_value_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "registry/registry.hpp"
+#include "recurrent_cache_replay_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
@@ -1440,6 +1441,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // allocate_output() params of the nodes that don't use fake_aligned_params, built on the first allocation
     std::optional<kernel_impl_params> alloc_params;
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
+        if (get_node().is_type<recurrent_cache_replay>() &&
+            static_cast<recurrent_cache_replay_inst*>(this)->try_bind_output_memory(actual_layouts[i], i)) {
+            continue;
+        }
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (get_node().is_type<kv_cache>() && i != 1) {
@@ -2562,6 +2567,7 @@ void primitive_inst::prepare_primitive() {
     const bool prev_execution_skipped = can_be_optimized() || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
     const bool output_reallocation_requested = _output_reallocation_requested ||
+        get_node().is_type<recurrent_cache_replay>() ||
         (_remote_permute_output_alias && !get_network().is_output_remote_memory(*_remote_permute_output_alias));
     _output_reallocation_requested = false;
     bool outputs_reallocated = false;
