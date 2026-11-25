@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "alias_validation.h"
 #include "concatenation_inst.h"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -69,6 +70,9 @@ std::string to_string(uint32_t m) {
         {rj_duplicate_root_dep, "duplicate_root_dep"},
         {rj_holder_padding, "holder_padding_or_blocked"},
         {rj_mixed_dynamic, "mixed_dynamic"},
+        {rj_sum_provenance, "sum_provenance"},
+        {rj_sum_writer, "sum_writer"},
+        {rj_sum_root_padded, "sum_root_padded"},
     };
     std::string s;
     for (const auto& n : names) {
@@ -444,11 +448,361 @@ std::string check_b4_prime(const program& p) {
     return err.str();
 }
 
+// =================================================================================================================================
+// P1-C-0: sum class census (read-only, design 18 sections 3.3, 3.5, 3.8)
+// =================================================================================================================================
+namespace {
+
+bool is_sum_origin(edge_origin o, bool include_hypothetical) {
+    return o == edge_origin::onednn_sum || (include_hypothetical && o == edge_origin::hypothetical);
+}
+
+// the writer edge (in-place edge with a sum origin) of member m, nullptr if m has none
+const alias_edge* sum_edge_of(const alias_analysis& aa, const alias_member& m, bool include_hypothetical) {
+    for (size_t ei : aa.edges_from(*m.node, m.id.index)) {
+        const auto& e = aa.edges()[ei];
+        if (is_sum_origin(e.origin, include_hypothetical)) {
+            return &e;
+        }
+    }
+    return nullptr;
+}
+
+}  // namespace
+
+bool sum_root_pool_active(const program& p, std::string* why) {
+    const auto& cfg = p.get_config();
+    auto fail = [&](const std::string& r) {
+        if (why != nullptr) {
+            *why = r;
+        }
+        return false;
+    };
+    if (!cfg.get_enable_sum_root_pool()) {
+        return fail("switch_off");
+    }
+    if (!cfg.get_enable_inplace_conflict_resolution()) {
+        return fail("1a_off");
+    }
+    if (!cfg.get_enable_memory_pool()) {
+        return fail("memory_pool_off");
+    }
+    if (cfg.get_queue_type() != QueueTypes::in_order) {
+        return fail("oooq");
+    }
+    if (p.is_internal_program()) {
+        return fail("internal");
+    }
+    if (p.is_body_program()) {
+        return fail("body");
+    }
+    const auto* report = p.get_inplace_conflict_report();
+    if (report == nullptr) {
+        return fail("no_report");
+    }
+    if (!report->skipped_reason.empty() && report->skipped_reason != "no_candidates") {
+        return fail("1a_skipped:" + report->skipped_reason);
+    }
+    return true;
+}
+
+sum_root_marks_index collect_sum_root_marks(const program& p) {
+    sum_root_marks_index idx;
+    for (auto* node : p.get_processing_order()) {
+        const auto m = onednn_eltwise_fusing_helpers::sum_writer_root_marks(*node);
+        if (!m) {
+            continue;
+        }
+        idx.of_writer[node] = {m->legacy_root, m->owner};
+        idx.writers_marking[m->legacy_root].push_back(node);
+        if (m->owner != m->legacy_root) {
+            idx.writers_marking[m->owner].push_back(node);
+        }
+    }
+    return idx;
+}
+
+bool is_sum_candidate_class(const alias_class& k, const alias_analysis& aa, bool include_hypothetical) {
+    for (const auto& m : k.members) {
+        if (sum_edge_of(aa, m, include_hypothetical) != nullptr) {
+            return true;
+        }
+    }
+    return false;
+}
+
+uint32_t sum_class_reject_mask(const alias_class& k, const alias_analysis& aa, const program& p, const sum_root_marks_index& marks,
+                               const std::function<bool(uint32_t)>& uid_is_ambiguous, bool include_hypothetical, bool admit_padded_root) {
+    uint32_t m = 0;
+    const program_node* root = k.root_node;
+    // L1S-0
+    if (!sum_root_pool_active(p)) {
+        m |= rj_program_level;
+    }
+    // L1S-1
+    if (k.get_placement() != placement::POOL) {
+        m |= rj_placement;
+    }
+    // L1S-2
+    if (root == nullptr || k.root.index != 0 || root->can_be_optimized() || root->is_runtime_skippable() || root->is_dynamic() ||
+        root->is_type<concatenation>() || onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*root) != -1) {
+        m |= rj_root_kind;
+    }
+    // L1S-3 (see the header note: sum marks on the root are not counted before the P1-C-1 deferral)
+    if (root == nullptr || root->is_output() || (!root->can_share_buffer() && marks.writers_marking.count(root) == 0)) {
+        m |= rj_root_not_shareable;
+    }
+    std::unordered_set<const program_node*> member_nodes;
+    std::unordered_set<const program_node*> writer_nodes;   // K members with a sum edge
+    for (const auto& mem : k.members) {
+        member_nodes.insert(mem.node);
+        if (sum_edge_of(aa, mem, include_hypothetical) != nullptr) {
+            writer_nodes.insert(mem.node);
+        }
+    }
+    // L1S-3p
+    for (const auto* w : writer_nodes) {
+        const auto it = marks.of_writer.find(w);
+        if (it == marks.of_writer.end()) {
+            m |= rj_sum_provenance;   // (0) basic never marked this writer
+            continue;
+        }
+        const program_node* l = it->second.first;
+        const program_node* o = it->second.second;
+        if (l != o) {
+            m |= rj_sum_provenance;   // (a) defect B / port difference
+        }
+        if (member_nodes.count(l) == 0 || !(l == root || writer_nodes.count(l) != 0)) {
+            m |= rj_sum_provenance;   // (b)
+        }
+    }
+    if (root != nullptr) {
+        const auto it = marks.writers_marking.find(root);
+        if (it != marks.writers_marking.end()) {
+            for (const auto* w : it->second) {
+                if (writer_nodes.count(w) == 0) {
+                    m |= rj_sum_provenance;   // (c) the root is also the chain root of a writer outside the class
+                    break;
+                }
+            }
+        }
+    }
+    for (const auto& mem : k.members) {
+        const program_node& n = *mem.node;
+        // L1S-4
+        if (&n != root) {
+            const bool by_sum = writer_nodes.count(&n) != 0;
+            bool kind_ok = false;
+            if (mem.edge_count == 1) {
+                const auto& e = aa.edges()[static_cast<size_t>(mem.first_edge)];
+                if (mem.kind == alias_kind::MUST_INPLACE) {
+                    kind_ok = by_sum && is_sum_origin(e.origin, include_hypothetical);
+                } else if (mem.kind == alias_kind::MUST_VIEW) {
+                    kind_ok = e.origin == edge_origin::view;
+                }
+            }
+            if (!kind_ok) {
+                m |= rj_member_kind;
+            }
+        }
+        // L1S-5
+        if (n.is_dynamic() || n.is_runtime_skippable()) {
+            m |= rj_dynamic;
+        }
+        // L1S-6
+        if (!n.may_use_mempool()) {
+            m |= rj_no_mempool;
+        }
+        // L1S-7
+        if (n.get_outputs_count() != 1 || mem.id.index != 0) {
+            m |= rj_multi_output;
+        }
+        // L1S-9
+        if (uid_is_ambiguous(mem.id.uid)) {
+            m |= rj_ambiguous_uid;
+        }
+        // L1S-10
+        if (program_helpers::is_external_buffer_root(n)) {
+            m |= rj_external_root;
+        }
+    }
+    // L1S-8 (per writer)
+    for (const auto* w : writer_nodes) {
+        const alias_edge* e = nullptr;
+        for (const auto& mem : k.members) {
+            if (mem.node == w) {
+                e = sum_edge_of(aa, mem, include_hypothetical);
+                break;
+            }
+        }
+        bool bad = w->is_dynamic() || w->can_share_buffer() || w->is_pool_class_root() || w->has_alias_pool_root();
+        if (e != nullptr && e->provider_node != nullptr) {
+            bad = bad || (w->get_output_layout(0) != e->provider_node->get_output_layout(e->provider_port));
+            if (!include_hypothetical && e->dep_index >= 0) {
+                bad = bad || !onednn_eltwise_fusing_helpers::is_frozen_inplace_post_op(*w, e->dep_index, eltwise_mode::sum);
+            }
+        } else {
+            bad = true;
+        }
+        if (bad) {
+            m |= rj_sum_writer;
+        }
+    }
+    for (const auto* r : k.readers) {
+        // L1S-5
+        if (r->is_dynamic() || r->is_runtime_skippable()) {
+            m |= rj_dynamic;
+        }
+        // L1S-11
+        if (r->is_in_shape_of_subgraph()) {
+            m |= rj_shape_of_reader;
+        }
+        // L1S-8: a reader that is itself an in-place writer into a class tensor
+        if (const int32_t reused = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*r); reused != -1) {
+            if (member_nodes.count(r->get_dependency_with_port(static_cast<size_t>(reused)).first) != 0) {
+                m |= rj_reused_eltw;
+            }
+        }
+    }
+    // L1S-12
+    if (root != nullptr && !admit_padded_root && static_cast<bool>(root->get_output_layout(0).data_padding)) {
+        m |= rj_sum_root_padded;
+    }
+    return m;
+}
+
+std::string sum_census::summary() const {
+    std::ostringstream os;
+    os << "sum classes: candidates=" << candidates << " promoted=0 would_promote=" << would_promote << " rejected=" << rejected
+       << " would_promote_root_bytes=" << would_promote_root_bytes << " downgraded_roots=" << downgraded_roots << " mixed_concat=" << mixed_concat
+       << " padded_roots=" << padded_roots << " no_edge_sum=" << no_edge_sum << " view_owner_closures=" << view_owner_closures << "(not run in P1-C-0)"
+       << " reasons={";
+    bool first = true;
+    for (const auto& kv : reasons) {
+        os << (first ? "" : ",") << to_string(kv.first) << ":" << kv.second;
+        first = false;
+    }
+    os << "} us=" << us;
+    return os.str();
+}
+
+sum_census run_sum_census(const program& p) {
+    sum_census c;
+    const alias_analysis* aa = p.get_alias_analysis();
+    if (aa == nullptr) {
+        return c;
+    }
+    const auto t0 = std::chrono::steady_clock::now();
+    const auto marks = collect_sum_root_marks(p);
+    const auto amb = [&](uint32_t uid) {
+        return aa->uid_is_ambiguous(uid);
+    };
+    const auto* report = p.get_inplace_conflict_report();
+    for (const auto& k : aa->classes()) {
+        if (!is_sum_candidate_class(k, *aa)) {
+            // a class whose root is a downgraded writer feeding a sum is a candidate through its writer members: nothing else to report here
+            continue;
+        }
+        ++c.candidates;
+        sum_class_info info;
+        info.root_id = k.root_node != nullptr ? k.root_node->id() : std::string("?");
+        info.members = k.members.size();
+        info.readers = k.readers.size();
+        for (const auto& m : k.members) {
+            if (sum_edge_of(*aa, m, false) != nullptr) {
+                ++info.writers;
+            }
+            if (m.kind == alias_kind::MUST_VIEW) {
+                ++info.views;
+            }
+            if (m.kind == alias_kind::MUST_SUBREGION) {
+                info.mixed_concat = true;
+            }
+        }
+        if (k.root_node != nullptr) {
+            const auto l = k.root_node->get_output_layout(0);
+            info.root_bytes = l.is_static() ? l.bytes_count() : 0;
+            info.root_padded = static_cast<bool>(l.data_padding);
+            if (report != nullptr) {
+                for (const auto& e : report->entries) {
+                    if (e.writer_id == k.root_node->id() && e.origin == edge_origin::onednn_sum) {
+                        info.downgraded_by_1a = true;
+                    }
+                }
+            }
+        }
+        info.mask = sum_class_reject_mask(k, *aa, p, marks, amb);
+        if (info.mask == 0) {
+            ++c.would_promote;
+            c.would_promote_root_bytes += info.root_bytes;
+        } else {
+            ++c.rejected;
+            for (uint32_t bit = 1; bit != 0 && bit <= rj_sum_root_padded; bit <<= 1) {
+                if (info.mask & bit) {
+                    ++c.reasons[bit];
+                }
+            }
+        }
+        c.downgraded_roots += info.downgraded_by_1a ? 1 : 0;
+        c.mixed_concat += info.mixed_concat ? 1 : 0;
+        c.padded_roots += info.root_padded ? 1 : 0;
+        c.classes.push_back(std::move(info));
+    }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // no_edge_sum: a static node whose frozen list holds a sum on some dependency, while the engine has no onednn_sum edge for it there
+    for (auto* node : p.get_processing_order()) {
+        if (node->is_dynamic()) {
+            continue;
+        }
+        for (const auto& e : node->get_fused_primitives_onednn()) {
+            if (e.op_type != onednn_post_op_type::sum && e.op_type != onednn_post_op_type::optimized_sum) {
+                continue;
+            }
+            bool found = false;
+            for (size_t ei : aa->edges_from(*node, 0)) {
+                const auto& ed = aa->edges()[ei];
+                if (ed.origin == edge_origin::onednn_sum && ed.dep_index == static_cast<int32_t>(e.mem_dep)) {
+                    found = true;
+                    break;
+                }
+            }
+            c.no_edge_sum += found ? 0 : 1;
+        }
+    }
+#endif
+    c.us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count();
+    return c;
+}
+
 }  // namespace class_level
 
 void class_level_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::ClassLevelMemoryDependencies");
     const auto& cfg = p.get_config();
+    // P1-C-0: census only. Reads the graph and the alias engine, writes nothing (no flag, no restriction, no pool field).
+    if (cfg.get_enable_sum_root_pool()) {
+        std::string why;
+        if (!class_level::sum_root_pool_active(p, &why)) {
+            GPU_DEBUG_LOG << "[class_level_memory_dependencies] enable_sum_root_pool ignored: " << why << std::endl;
+        } else {
+            try {
+                [[maybe_unused]] const auto census = class_level::run_sum_census(p);
+                GPU_DEBUG_INFO << "[class_level_memory_dependencies] " << census.summary() << std::endl;
+                for (const auto& ci : census.classes) {
+                    GPU_DEBUG_LOG << "[class_level_memory_dependencies] sum class of " << ci.root_id << " members=" << ci.members << " writers=" << ci.writers
+                                  << " views=" << ci.views << " readers=" << ci.readers << " root_bytes=" << ci.root_bytes
+                                  << " root_padded=" << (ci.root_padded ? 1 : 0) << " origin=" << (ci.downgraded_by_1a ? "downgraded_by_1a" : "natural")
+                                  << " mask=" << class_level::to_string(ci.mask) << std::endl;
+                }
+            } catch (...) {
+#ifndef NDEBUG
+                throw;
+#else
+                GPU_DEBUG_LOG << "[class_level_memory_dependencies] sum census failed (ignored, census is diagnostics only)" << std::endl;
+#endif
+            }
+        }
+    }
     if (!cfg.get_enable_concat_holder_pool()) {
         GPU_DEBUG_IF(cfg.get_enable_dynamic_concat_holder_pool()) {
             GPU_DEBUG_LOG << "[class_level_memory_dependencies] enable_dynamic_concat_holder_pool ignored: enable_concat_holder_pool is off" << std::endl;

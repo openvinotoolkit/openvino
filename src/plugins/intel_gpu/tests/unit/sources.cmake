@@ -115,6 +115,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/reorder_inputs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/reorder_transfer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/select_preferred_formats_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/sum_root_pool_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/test_module_fusing_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/trim_to_outputs_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/activation_si_test.cpp

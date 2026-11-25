@@ -88,25 +88,12 @@ void basic_memory_dependencies::run(program& p) {
             // F5: runs after the single re-freeze point, so the answer is "frozen AND live" (M8 in get_reused_eltwmem_idx) and agrees
             // with the dst bindings of the network. Only the in-place sum is handled here; an in-place mul is bound as a restriction
             // carry-over in pass_manager.h (add_memory_dependency chain) and is not a pool-exempt writer.
-            const int32_t reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*node);
-            bool reused_is_sum = false;
-            if (reused_idx != -1) {
-                for (const auto& fused_op : node->get_fused_primitives()) {
-                    if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() &&
-                        fused_op.outer_dep_start_idx == reused_idx && fused_op.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                        reused_is_sum = true;
-                        break;
-                    }
-                }
-            }
-            if (reused_is_sum) {
-                auto& eltw_node = node->get_dependency(static_cast<size_t>(reused_idx));
+            // P1-C-0: the writer / root / owner resolution lives in onednn_eltwise_fusing_helpers::sum_writer_root_marks (shared with the census).
+            if (const auto marks = onednn_eltwise_fusing_helpers::sum_writer_root_marks(*node)) {
+                auto& eltw_node = *marks->eltw_dep;
                 node->can_share_buffer(false);
-                // Walk up the in-place chain to mark the root buffer owner as non-shareable.
-                auto* root = &eltw_node;
-                while (root->can_be_optimized() && !root->get_dependencies().empty()) {
-                    root = &root->get_dependency(0);
-                }
+                // The chain root buffer owner (legacy walk) is marked as non-shareable.
+                auto* root = marks->legacy_root;
                 root->can_share_buffer(false);
 #ifdef ALIAS_B4_DEBUG_CHECKS
                 legacy_marked.insert(root);
@@ -116,12 +103,7 @@ void basic_memory_dependencies::run(program& p) {
                 // instead of the holder. The owner by edge direction (slot step first) is the real allocator; mark it as well. The old
                 // marking is kept so that no node becomes poolable (neutral transition).
                 // SUNSET: P1-C deletes the old walk above and keeps only this owner-based marking.
-                program_node* owner = const_cast<program_node*>(
-                    program_helpers::resolve_buffer_owner(eltw_node,
-                                                         program_helpers::view_resolution::settled_only,
-                                                         /*collect_path=*/false,
-                                                         /*start_port=*/node->get_dependency_with_port(static_cast<size_t>(reused_idx)).second)
-                        .owner);
+                program_node* owner = marks->owner;
                 if (owner != root) {
                     ++owner_diff_count;
 #ifdef ALIAS_B4_DEBUG_CHECKS

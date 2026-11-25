@@ -633,4 +633,41 @@ int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node
     }
     return -1;   // if -1, no reused input memory
 }
+
+std::optional<sum_writer_marks> onednn_eltwise_fusing_helpers::sum_writer_root_marks(program_node& node) {
+    if (node.get_preferred_impl_type() != impl_types::onednn) {
+        return std::nullopt;
+    }
+    const int32_t reused_idx = get_reused_eltwmem_idx(node);
+    if (reused_idx == -1) {
+        return std::nullopt;
+    }
+    bool reused_is_sum = false;
+    for (const auto& fused_op : node.get_fused_primitives()) {
+        if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() &&
+            fused_op.outer_dep_start_idx == reused_idx && fused_op.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
+            reused_is_sum = true;
+            break;
+        }
+    }
+    if (!reused_is_sum) {
+        return std::nullopt;
+    }
+    sum_writer_marks m;
+    m.reused_idx = reused_idx;
+    m.eltw_dep = &node.get_dependency(static_cast<size_t>(reused_idx));
+    // Walk up the in-place chain to find the root buffer owner (legacy walk: steps to dep(0) of an in-place concat, defect B).
+    auto* root = m.eltw_dep;
+    while (root->can_be_optimized() && !root->get_dependencies().empty()) {
+        root = &root->get_dependency(0);
+    }
+    m.legacy_root = root;
+    m.owner = const_cast<program_node*>(
+        program_helpers::resolve_buffer_owner(*m.eltw_dep,
+                                             program_helpers::view_resolution::settled_only,
+                                             /*collect_path=*/false,
+                                             /*start_port=*/node.get_dependency_with_port(static_cast<size_t>(reused_idx)).second)
+            .owner);
+    return m;
+}
 }  // namespace cldnn

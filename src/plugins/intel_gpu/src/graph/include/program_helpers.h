@@ -11,6 +11,7 @@
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 #include <utility>
@@ -153,7 +154,20 @@ struct program_helpers {
     static buffer_owner resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path = false, int32_t start_port = 0);
 };
 
+// P1-C-0: the nodes basic_memory_dependencies marks non-shareable for an in-place oneDNN sum writer (single implementation, shared with the
+// class-level sum census).
+struct sum_writer_marks {
+    int32_t reused_idx = -1;
+    program_node* eltw_dep = nullptr;
+    program_node* legacy_root = nullptr;  // walk along dep(0) through can_be_optimized nodes only (stops at the first non-cbo node)
+    program_node* owner = nullptr;        // resolve_buffer_owner(eltw_dep, settled_only, start_port = port of the dependency)
+};
+
 struct onednn_eltwise_fusing_helpers {
+    // P1-C-0: preferred onednn AND get_reused_eltwmem_idx != -1 AND the fused eltwise at that index is a sum; otherwise nullopt.
+    // Pure query (writes nothing). Equivalent to the inline logic basic_memory_dependencies had before P1-C.
+    static std::optional<sum_writer_marks> sum_writer_root_marks(program_node& node);
+
     enum class add_fusing_type {
         sum,
         binary_per_tensor,
