@@ -550,9 +550,94 @@ TEST(GQADecompositionTest, padded_query_fixed_capacity_resizes_past_before_state
         // capacity already covers it and must build the growth chain instead of passing past_key/value through.
         EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(stateless_kv->input_value(0).get_node()))
             << "StatelessKV past operand must be pre-grown, not the raw past_key/past_value parameter";
-        EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(stateless_kv->input_value(0).get_node()))
-            << "resize_kv_to_capacity's growth chain ends in a Concat";
+        EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(stateless_kv->input_value(0).get_node())) << "resize_kv_to_capacity's growth chain ends in a Concat";
     }
+}
+
+// qk_output already takes the explicit-attention path (can_fuse_transpose_v is false regardless of capacity
+// growth), so it must reuse the same grown past operand as the plain path above.
+TEST(GQADecompositionTest, padded_query_fixed_capacity_qk_output_resizes_past) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+    cfg.qk_output = QKOutput::BEFORE_SOFTMAX;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    for (const auto& stateless_kv : statelesskvs) {
+        EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(stateless_kv->input_value(0).get_node()))
+            << "qk_output must also feed StatelessKV a pre-grown past operand";
+    }
+}
+
+// Compressed (per-channel) KV without a transposed value layout stays on the fused/compressed SDPA path;
+// capacity growth must still reach StatelessKV's past operand here, same as the plain (unquantized) case.
+TEST(GQADecompositionTest, padded_query_fixed_capacity_per_channel_kv_resizes_past) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+
+    const auto model = decompose_gqa_model(cfg);
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_TRUE(sdpa->get_kv_compressed()) << "per-channel KV must stay on the compressed SDPA path";
+
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    for (const auto& stateless_kv : statelesskvs) {
+        EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(stateless_kv->input_value(0).get_node()))
+            << "compressed KV must also feed StatelessKV a pre-grown past operand";
+    }
+}
+
+// A transposed value layout (present_value wrapped by an output Transpose, reaching StatelessKV via transpose_v
+// fusion) keeps the fusion and its [B,H,D,S] layout -- production hybrid NPU/GPU pipelines depend on this layout
+// for decode performance, so capacity growth must resize axis 3 (not fall back and lose the fusion).
+TEST(GQADecompositionTest, padded_query_fixed_capacity_transposed_value_resizes_axis_3) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+    cfg.transpose_v = true;
+    cfg.should_fuse_transpose_v = true;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    std::shared_ptr<ov::intel_gpu::op::StatelessKV> key_cache;
+    std::shared_ptr<ov::intel_gpu::op::StatelessKV> value_cache;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            if (stateless_kv->get_concat_axis() == 3) {
+                value_cache = stateless_kv;
+            } else {
+                key_cache = stateless_kv;
+            }
+        }
+    }
+    ASSERT_NE(key_cache, nullptr) << "transpose_v fusion must stay engaged for the key cache";
+    ASSERT_NE(value_cache, nullptr) << "transpose_v fusion must stay engaged for the value cache";
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(value_cache->input_value(0).get_node()))
+        << "the transposed value operand must be pre-grown on axis 3, not passed through as the raw parameter";
 }
 
 TEST(GQADecompositionTest, indirect_present_skips_stateless_kv) {
