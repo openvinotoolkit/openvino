@@ -219,12 +219,12 @@
 #  error "sdpa_ocl.cl: PREFETCH_V_L3 needs the PREFILL V input and excludes PREFETCH_V"
 #endif
 // Transposed V (value order {..,3,2}): a plain-SDPA input, f16 (v_tile_t()) or a per-channel i8 or packed 4-bit cache
-// (v_t_i8_read(), one read per cp block pair; 4-bit on SG16 only); the V prefetches, wide V reads and other V block reads
-// assume the [key][value] surface.
-#if V_TRANSPOSED && (IS_PAGED_ATTENTION || (defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL) || (PLAIN_KV_U4 && SG8) || \
+// (v_t_i8_read(), one read per cp block pair); the V prefetches, wide V reads and other V block reads assume the
+// [key][value] surface.
+#if V_TRANSPOSED && (IS_PAGED_ATTENTION || (defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL) || \
                      USE_2D_BLOCK_IO_V_I8 || USE_2D_BLOCK_IO_V_U4 || PREFETCH_V || PREFETCH_V_L3 || (WIDE_READS & 2) || \
                      (KV_COMP_PER_CHANNEL && (sv_key_blocks % 2) != 0))
-#  error "sdpa_ocl.cl: V_TRANSPOSED is an f16, per-channel i8 or SG16 4-bit plain-SDPA input without V prefetch or other V reads"
+#  error "sdpa_ocl.cl: V_TRANSPOSED is an f16 or per-channel i8 / 4-bit plain-SDPA input without V prefetch or other V reads"
 #endif
 
 // Keys are counted in two units that are equal only on Xe2:
@@ -415,7 +415,7 @@
 #  define KV_K_BIAS 1152.0f
 #endif
 // Packed 4-bit V read by block (USE_2D_BLOCK_IO_V_U4) or transposed (V_TRANSPOSED, v_t_i8_read()): the value columns of
-// each 32-column window are permuted like the K depth, so the read needs no shuffle. A window is two 16-column value
+// each 32-column window (16 on SG8) are permuted like the K depth, so the read needs no shuffle. A window is two value
 // blocks, of one subgroup (an even sv_value_blocks) or of two neighbouring ones (one block per subgroup, an even
 // sv_sg_per_wg_values); the block with parity h (((sg_j0_sv >> 4) + cd) & 1) takes nibble h of the window's bytes, so lane
 // L holds column 2L + h of the window, and the epilogue stores every column where it belongs. The host enables the block

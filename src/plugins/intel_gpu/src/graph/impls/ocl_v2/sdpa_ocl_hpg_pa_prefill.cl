@@ -70,9 +70,6 @@
     (!IS_PAGED_ATTENTION && (defined(HAS_SINK_INPUT) || (IS_CAUSAL && (WITH_ATTN_MASK || SLIDING_WINDOW_SIZE))))
 #  error "sdpa_ocl_hpg_pa_prefill.cl: an op the host gate (hpg_pa_prefill()) should have sent to the generic kernel"
 #endif
-#if HPG_PC && V_TRANSPOSED && PLAIN_KV_U4
-#  error "sdpa_ocl_hpg_pa_prefill.cl: a per-channel transposed V is i8 (a 4-bit one would pack two keys per byte)"
-#endif
 #if HPG_TAIL && IS_PAGED_ATTENTION
 #  error "sdpa_ocl_hpg_pa_prefill.cl: a head that is not a multiple of 16 is plain SDPA's (the K page reads have no tail)"
 #endif
@@ -115,8 +112,8 @@
 // vt_mode, a literal of the caller: 0 checks each block against causal_k and the row alignment, 1 reads a tile wholly
 // below causal_k with every row on a dword without checks. With an even lead and key block count the ring takes two
 // blocks per read (hpg_vt_rows2(): a value row's 64 B line at once).
-// A per-channel i8 one (HPG_PC) reads one block at a time, and with vt_mode 2 a whole tile whose rows start off a dword by
-// aligned dwords.
+// A per-channel one (HPG_PC: i8, or 4-bit by byte rows of channel pairs) reads one block at a time, and with vt_mode 2 a
+// whole tile whose rows start off a dword by aligned dwords.
 #if V_TRANSPOSED && HPG_PC
 #  define HPG_VT_ARG , const uint vt_par0, const int vt_mode
 #  define HPG_VT     , vt_par0, vt_mode
@@ -405,9 +402,38 @@ SDPA_OCL_INLINE void FUNC(hpg_v_rows)(HPG_PAGES_ARG const __global half *V, cons
     // aligned dwords shifted down by the row's offset in a whole tile of rows off a dword (vt_mode 2: the fifth dword is
     // inside the pitch, the caller's vt_whole_mis), else a byte per key clamped to causal_k - 1; the codes in half give
     // hpg_sv() the f16 rows' dwords (dword i = keys 2i, 2i + 1; the zp is in the epilogue). A block past causal_k reads
-    // nothing (P is 0 there).
+    // nothing (P is 0 there). A 4-bit V (PLAIN_KV_U4): column c reads byte row c / 2 the same way and takes nibble c % 2
+    // of each key's byte (SDPA_OCL_NEG_X5=4: the other one, negative control).
     #pragma unroll
     for (int g = 0; g < sv_sg_tile_values / SUBGROUP_SIZE; ++g) {
+    #if PLAIN_KV_U4
+        const uint c = col + g * SUBGROUP_SIZE + lane;
+        const __global char *row = (const __global char *)V + (size_t)(c / 2) * ldv + key0;
+        #if NEG_X5 == 4
+        const uint nsh = (c & 1u) ? 0u : 4u;
+        #else
+        const uint nsh = (c & 1u) ? 4u : 0u;
+        #endif
+        uint4 w = (uint4)0;
+        if (vt_mode == 2) {
+            const uint mis = (uint)as_long(row) & 3u;
+            const __global uint *base = (const __global uint *)(row - mis);
+            const uint4 lo = vload4(0, base);
+            const uint4 hi = (uint4)(lo.s123, base[4]);
+            const uint sh = 8u * mis;
+            w = (lo >> sh) | ((hi << 1u) << (31u - sh));
+        } else if (vt_mode == 1 || (key0 + DPAS_K <= causal_k && vt_par0 == 0)) {
+            w = vload4(0, (const __global uint *)row);
+        } else if (key0 < causal_k) {
+            #pragma unroll
+            for (int i = 0; i < DPAS_K; ++i)
+                w[i / 4] |= (uint)(uchar)row[min(key0 + i, causal_k - 1) - key0] << (8 * (i % 4));
+        }
+        half16 h;
+        #pragma unroll
+        for (int i = 0; i < DPAS_K; ++i)
+            h[i] = PLAIN_U4_TO_HALF(w[i / 4], 8 * (i % 4) + nsh);
+    #else
         const __global char *row = (const __global char *)V + (size_t)(col + g * SUBGROUP_SIZE + lane) * ldv + key0;
         half16 h = (half16)0.0h;
         if (vt_mode == 2) {
@@ -425,6 +451,7 @@ SDPA_OCL_INLINE void FUNC(hpg_v_rows)(HPG_PAGES_ARG const __global half *V, cons
             for (int i = 0; i < DPAS_K; ++i)
                 h[i] = convert_half(row[min(key0 + i, causal_k - 1) - key0]);
         }
+    #endif
         #pragma unroll
         for (int i = 0; i < 8; ++i) {
             uint w = as_uint((half2)(h[2 * i], h[2 * i + 1]));

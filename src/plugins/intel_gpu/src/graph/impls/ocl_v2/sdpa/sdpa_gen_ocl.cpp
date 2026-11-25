@@ -1121,10 +1121,9 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     // Causal with a mask is not taken: the kernel's mask row is the query's key position, which the lower-right
     // alignment shifts. Nor a sliding window: the plain window with that shift is not covered by the xe_hpg tests.
-    // A compressed K / V only per channel (HPG_PC, per_channel_kv_supported()): i8, transposed V included, or 4-bit.
+    // A compressed K / V only per channel (HPG_PC, per_channel_kv_supported()): i8 or 4-bit, transposed V included.
     const bool causal_with_mask = desc->is_causal && (desc->attn_mask_val.has_value() || sdpa_has_runtime_attn_mask_input(params));
-    const bool pc = desc->is_kv_compressed && SDPABase::has_per_channel_compressed_kv(params) && per_channel_kv_supported(params) &&
-                    (!plain_kv_u4(params) || !SDPABase::has_transposed_v(params));
+    const bool pc = desc->is_kv_compressed && SDPABase::has_per_channel_compressed_kv(params) && per_channel_kv_supported(params);
     if (causal_with_mask || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) || has_scalar_runtime_attn_mask_input(params) ||
         runtime_scale_layout(params) != nullptr || desc->has_sink_input || (desc->is_kv_compressed && !pc) || desc->sliding_window != 0) {
         return false;

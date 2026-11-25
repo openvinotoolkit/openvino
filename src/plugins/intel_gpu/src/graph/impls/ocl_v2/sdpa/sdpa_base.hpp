@@ -82,7 +82,7 @@ struct SDPABase : public KernelGenerator {
     // has_transposed_v() with what sdpa_ocl's transposed-V readers take, on the sdpa_ocl lane: an f16 uncompressed V
     // (v_tile_t) or a per-channel compressed i8 one (v_t_i8_read).
     static bool transposed_v_reader_ok(const kernel_impl_params& params);
-    // xe_hpg: the opt single-token stage reads a transposed V too (V_TRANSPOSED_READ: f16, or the per-channel i8 cache of
+    // xe_hpg: the opt single-token stage reads a transposed V too (V_TRANSPOSED_READ: f16, or the per-channel cache of
     // opt_single_token_reads_per_channel()), and SDPAOptImpl gives it the op's one-query steps at the heads it takes;
     // elsewhere sdpa_ocl is the one reader.
     static bool opt_single_token_reads_transposed_v(const kernel_impl_params& params);

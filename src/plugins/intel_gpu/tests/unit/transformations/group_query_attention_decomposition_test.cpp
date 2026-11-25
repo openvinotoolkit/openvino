@@ -54,8 +54,7 @@ struct GQAConfig {
     bool static_past_cache = false;
     bool transpose_v = false;
     bool should_fuse_transpose_v = true;
-    bool fuse_transposed_v = true;       // SDPA has a transposed-V reader (the GPU pipeline's gate for sdpa_ocl)
-    bool fuse_transposed_v_4bit = true;  // also for the 4-bit cache (Xe2+; xe_hpg has none)
+    bool fuse_transposed_v = true;  // SDPA has a transposed-V reader (the GPU pipeline's gate for sdpa_ocl)
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -177,7 +176,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
 std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     auto model = make_gqa_model(cfg);
     ov::pass::Manager manager;
-    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.should_fuse_transpose_v, cfg.fuse_transposed_v, cfg.fuse_transposed_v_4bit);
+    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.should_fuse_transpose_v, cfg.fuse_transposed_v);
     manager.run_passes(model);
     return model;
 }
@@ -340,9 +339,9 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     }
     EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
 
-    // The fused cache reaches SDPA as value order {0,1,3,2} only with a transposed-V reader (for a packed 4-bit cache its own
-    // flag), else through an explicit Transpose back to the default layout.
-    const bool sdpa_reads_transposed_v = fused_transpose_v && cfg.fuse_transposed_v && (cfg.kv_cache_bit_width != 4 || cfg.fuse_transposed_v_4bit);
+    // The fused cache reaches SDPA as value order {0,1,3,2} only with a transposed-V reader, else through an explicit
+    // Transpose back to the default layout.
+    const bool sdpa_reads_transposed_v = fused_transpose_v && cfg.fuse_transposed_v;
     if (sdpa) {
         if (sdpa_reads_transposed_v) {
             EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
@@ -635,26 +634,6 @@ TEST(GQADecompositionTest, int4_per_channel_kv_with_transpose_v_is_fused) {
     ASSERT_TRUE(sdpa->get_kv_compressed());
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
     EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
-}
-
-// Without a 4-bit transposed-V reader (xe_hpg) SDPA reads the packed cache through an explicit Transpose.
-TEST(GQADecompositionTest, int4_per_channel_kv_with_transpose_v_without_4bit_reader_transposes_sdpa_value) {
-    GQAConfig cfg;
-    cfg.kv_cache_bit_width = 4;
-    cfg.kv_quant = QuantType::PER_CHANNEL;
-    cfg.out_quant = QuantType::PER_CHANNEL;
-    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
-    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
-    cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = true;
-    cfg.fuse_transposed_v_4bit = false;
-
-    expect_stateless_kv_cache_connections(cfg);
-
-    const auto sdpa = decompose_and_get_sdpa(cfg);
-    ASSERT_NE(sdpa, nullptr);
-    ASSERT_TRUE(sdpa->get_kv_compressed());
-    EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
 }
 
 TEST(GQADecompositionTest, i8_per_channel_kv_with_transpose_v_is_fused) {

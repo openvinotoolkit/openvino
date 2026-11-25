@@ -3518,8 +3518,6 @@ static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
     const auto arch = engine.get_device_info().arch;
     if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no transposed-V reader off the sdpa_ocl lane";
-    if (c.bits == 4 && arch < gpu_arch::xe_hpc)
-        GTEST_SKIP() << "no 4-bit transposed-V reader on xe_hpg";
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     const int B = c.batch, H = c.heads, KVH = c.kv_heads, D = c.head_size;
@@ -3767,10 +3765,14 @@ TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_8q_2kv_d64) {
 TEST(sdpa_gpu_transposed_v_i8, dynamic_prompt_then_decode_32q_8kv_d128) {
     run_sdpa_transposed_v_i8({1, 32, 8, 128, {{513, 513}, {1, 514}, {1, 515}, {1, 516}, {512, 1024}, {1, 1025}, {3, 1032}, {1, 1033}}, true});
 }
-// The packed 4-bit cache (bits 4): i4 symmetric and u4 asymmetric, heads 64 to 512 (80: a half 32-column window), the 2D
-// read (rows of a multiple of 16 B) and the per-lane one, padded rows, dynamic prompt-then-decode sequences.
+// The packed 4-bit cache (bits 4): i4 symmetric and u4 asymmetric, heads 32 to 512 (80: a half 32-column window; 32: on
+// xe_hpg the sdpa_ocl single-token stage, which no other row reaches there), the 2D read (rows of a multiple of 16 B) and
+// the per-lane one, padded rows, dynamic prompt-then-decode sequences.
 TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_1q_18kv_d64_asym) {
     run_sdpa_transposed_v_i8({1, 8, 2, 64, {{1, 18}}, false, true, 0, 4});
+}
+TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_1q_37kv_d32_asym) {
+    run_sdpa_transposed_v_i8({1, 8, 2, 32, {{1, 37}}, false, true, 0, 4});
 }
 TEST(sdpa_gpu_transposed_v_u4, static_8q_2kv_17q_17kv_d64) {
     run_sdpa_transposed_v_i8({1, 8, 2, 64, {{17, 17}}, false, false, 0, 4});

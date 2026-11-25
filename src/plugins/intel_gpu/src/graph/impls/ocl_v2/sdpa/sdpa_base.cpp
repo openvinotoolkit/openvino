@@ -106,13 +106,11 @@ bool SDPABase::transposed_v_reader_ok(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto& v = params.get_input_layout(2);
     // f16 (v_tile_t), or the per-channel i8 cache (v_t_i8_read; on xe_hpg also the xe_hpg PREFILL kernel's and the opt
-    // single-token stage's reads), or the packed 4-bit one (two channels per byte, the same rows; SG16 only: xe_hpg's
-    // readers take no 4-bit transposed V).
+    // single-token stage's reads), or the packed 4-bit one (two channels per byte, the same rows and readers).
     const bool f16_v = !desc->is_kv_compressed && v.data_type == ov::element::f16;
     const bool per_channel_v = desc->is_kv_compressed && has_per_channel_compressed_kv(params);
     const bool i8_per_channel_v = per_channel_v && !is_int4_kv_cache(params) && v.data_type == ov::element::i8;
-    const bool u4_per_channel_v =
-        per_channel_v && is_int4_kv_cache(params) && data_type_traits::is_i8_u8(v.data_type) && params.get_device_info().arch >= cldnn::gpu_arch::xe_hpc;
+    const bool u4_per_channel_v = per_channel_v && is_int4_kv_cache(params) && data_type_traits::is_i8_u8(v.data_type);
     return cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && (f16_v || i8_per_channel_v || u4_per_channel_v) &&
            v.get_partial_shape().size() == 4 && format::is_simple_data_format(v.format);
 }
@@ -129,10 +127,10 @@ bool SDPABase::opt_single_token_reads_per_channel(const kernel_impl_params& para
     const auto& qa = params.typed_desc<scaled_dot_product_attention>()->quantization_attributes;
     const auto k_dt = params.get_input_layout(1).data_type;
     const auto v_dt = params.get_input_layout(2).data_type;
-    // An i8 cache, or a 4-bit one (two channels per i8 / u8 byte, IS_INT4_COMPRESSED) with V as [key][value].
+    // An i8 cache, or a 4-bit one (two channels per i8 / u8 byte, IS_INT4_COMPRESSED).
     const bool i8 = qa.quantization_dt == ov::element::i8 && k_dt == ov::element::i8 && v_dt == ov::element::i8;
     const bool int4 = (qa.quantization_dt == ov::element::u4 || qa.quantization_dt == ov::element::i4) && data_type_traits::is_i8_u8(k_dt) &&
-                      data_type_traits::is_i8_u8(v_dt) && !has_transposed_v(params);
+                      data_type_traits::is_i8_u8(v_dt);
     return qa.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar && params.get_input_layout(0).data_type == ov::element::f16 &&
            (i8 || int4);
 }

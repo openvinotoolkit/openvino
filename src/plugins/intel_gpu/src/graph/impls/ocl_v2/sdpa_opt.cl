@@ -216,9 +216,20 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 
 // V_TRANSPOSED_READ: V order {..,3,2} (a [B, KV heads, head size, S] cache; xe_hpg, SDPAOptGeneratorSingleToken): lane
 // head_size_idx reads the keys of its own V row instead of a block read across the head dim. f16 or the per-channel i8
-// cache, no beam table.
-#if V_TRANSPOSED_READ && (defined(BEAM_TABLE_TYPE) || (IS_KV_COMPRESSED && !KV_COMP_PER_CHANNEL) || IS_INT4_COMPRESSED || SUBGROUP_SIZE != 16)
-#  error "sdpa_opt.cl: V_TRANSPOSED_READ is an f16 or per-channel i8 V without a beam table"
+// cache, or the 4-bit one (a byte row per channel pair: lane head_size_idx reads row head_size_idx / 2 and takes nibble
+// head_size_idx % 2; SDPA_OCL_NEG_X5=4: the other one, negative control); no beam table.
+#if V_TRANSPOSED_READ && (defined(BEAM_TABLE_TYPE) || (IS_KV_COMPRESSED && !KV_COMP_PER_CHANNEL) || SUBGROUP_SIZE != 16)
+#  error "sdpa_opt.cl: V_TRANSPOSED_READ is an f16 or per-channel i8 / 4-bit V without a beam table"
+#endif
+#if V_TRANSPOSED_READ && IS_INT4_COMPRESSED
+#  define V_T_ROW_X(hs) ((hs) / 2)
+#  if defined(NEG_X5) && NEG_X5 == 4
+#    define V_T_NIBBLE(hs) (((hs) & 1) ^ 1)
+#  else
+#    define V_T_NIBBLE(hs) ((hs) & 1)
+#  endif
+#else
+#  define V_T_ROW_X(hs) (hs)
 #endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
@@ -877,7 +888,9 @@ KERNEL(sdpa_opt)(
 #endif
 #endif
 
-#if IS_INT4_COMPRESSED
+#if IS_INT4_COMPRESSED && V_TRANSPOSED_READ
+        const uint nibble_sel_p0 = V_T_NIBBLE(head_size_idx);
+#elif IS_INT4_COMPRESSED
         // Adjacent head packing: byte = head_size_idx/2, nibble = head_size_idx%2
         // val_packed_x: base byte offset for BLOCK_READ (aligned to SUBGROUP_SIZE)
         const uint val_packed_x = (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE;
@@ -921,12 +934,12 @@ KERNEL(sdpa_opt)(
     #endif
 #else
             const uint b_idx = b_v_idx;
-    #if IS_INT4_COMPRESSED
+    #if IS_INT4_COMPRESSED && !V_TRANSPOSED_READ
                 uint value_offset = value_base_p0 + (start_partition_idx + (seq_len * SUBGROUP_SIZE)) * value_pitch;
     #elif defined(INPUT2_DIMS_ORDER)
-                uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+                uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), V_T_ROW_X(head_size_idx));
     #else
-                uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+                uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), V_T_ROW_X(head_size_idx));
     #endif
 #endif
 
@@ -980,7 +993,15 @@ KERNEL(sdpa_opt)(
                 const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
 
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && V_TRANSPOSED_READ
+                // The lane's own byte row: nibble nibble_sel_p0 of each key's byte.
+                INPUT2_TYPE v_byte = value_packed;
+                char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&v_byte);
+                V_DEQUANT_TYPE value_val = (nibble_sel_p0 == 0 ?
+                    CAT(convert_, V_DEQUANT_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s0)) :
+                    CAT(convert_, V_DEQUANT_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s1)));
+                value_val = DEQUANTIZE_KV(value_val, pc_v_zp, pc_v_scale);
+#elif IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                 // INT4 adjacent packing: shuffle to get correct byte, select nibble by lane parity
                 INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_p0);
                 char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
@@ -1025,7 +1046,7 @@ KERNEL(sdpa_opt)(
             const uint b_idx = b_v_idx;
 #endif
 
-#if IS_INT4_COMPRESSED
+#if IS_INT4_COMPRESSED && !V_TRANSPOSED_READ
     #ifdef BEAM_TABLE_TYPE
         #ifdef INPUT2_DIMS_ORDER
             const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, val_packed_x);
@@ -1036,9 +1057,9 @@ KERNEL(sdpa_opt)(
             const uint value_offset = value_base_p0 + (start_partition_idx + seq_len) * value_pitch;
     #endif
 #elif defined(INPUT2_DIMS_ORDER)
-            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, V_T_ROW_X(head_size_idx));
 #else
-            const uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, head_size_idx);
+            const uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, V_T_ROW_X(head_size_idx));
 #endif
 
 #if IS_KV_COMPRESSED && !KV_COMP_PER_CHANNEL
@@ -1054,7 +1075,7 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len]);
             }
 
-#if IS_INT4_COMPRESSED
+#if IS_INT4_COMPRESSED && !V_TRANSPOSED_READ
             const INPUT2_TYPE value_packed = (val_packed_x + sglid < K_HEAD_SIZE / 2)
                 ? VALUE_BLOCK_READ(value_input, value_offset) : (INPUT2_TYPE)0;
 #elif V_TRANSPOSED_READ
@@ -1062,7 +1083,14 @@ KERNEL(sdpa_opt)(
 #else
             const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && V_TRANSPOSED_READ
+            INPUT2_TYPE v_byte = value_packed;
+            char2 v_rem_unpacked = unpack_to_char(*(uint4x2_t*)&v_byte);
+            V_DEQUANT_TYPE value_val = (nibble_sel_p0 == 0 ?
+                CAT(convert_, V_DEQUANT_TYPE)(DECODE_INT4_NIBBLE(v_rem_unpacked.s0)) :
+                CAT(convert_, V_DEQUANT_TYPE)(DECODE_INT4_NIBBLE(v_rem_unpacked.s1)));
+            value_val = DEQUANTIZE_KV(value_val, pc_v_zp, pc_v_scale);
+#elif IS_KV_COMPRESSED && IS_INT4_COMPRESSED
             // INT4 adjacent packing: shuffle to get correct byte, select nibble by lane parity
             INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_p0);
             char2 v_rem_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
