@@ -351,13 +351,44 @@ TEST_F(TypePropReverseSequenceV0Test, dynamic_data_input_dynamic_rank_valid_axes
     EXPECT_EQ(op->get_origin_sequence_axis(), 1);
 }
 
-TEST_F(TypePropReverseSequenceV0Test, dynamic_invalid_negative_batch_axis_and_data_input_dynamic_rank) {
+TEST_F(TypePropReverseSequenceV0Test, dynamic_data_input_dynamic_rank_negative_batch_axis) {
     auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     auto seq_lengths = std::make_shared<Parameter>(element::i32, PartialShape{4});
+    auto op = make_op(data, seq_lengths, -1, 0);
 
-    OV_EXPECT_THROW(auto op = make_op(data, seq_lengths, -1, 0),
+    EXPECT_EQ(op->get_origin_batch_axis(), -1);
+    EXPECT_EQ(op->get_origin_sequence_axis(), 0);
+    EXPECT_EQ(op->get_sequence_axis(), 0);
+
+    // Querying normalized batch axis without static rank throws
+    OV_EXPECT_THROW(op->get_batch_axis(),
                     AssertFailure,
                     HasSubstr("Rank must be static in order to normalize negative axis: -1"));
+
+    // Revalidating with static rank normalizes the negative batch axis (-1 on rank 3 -> axis 2)
+    // Dimension 2 must match seq_lengths size (4)
+    data->set_partial_shape(PartialShape{3, 5, 4});
+    data->validate_and_infer_types();
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_batch_axis(), 2);
+    EXPECT_EQ(op->get_sequence_axis(), 0);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 5, 4}));
+}
+
+TEST_F(TypePropReverseSequenceV0Test, dynamic_data_input_dynamic_to_static_rank_invalid_negative_batch_axis) {
+    auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto seq_lengths = std::make_shared<Parameter>(element::i32, PartialShape{4});
+    auto op = make_op(data, seq_lengths, -10, 0);
+
+    EXPECT_EQ(op->get_origin_batch_axis(), -10);
+
+    // Transition to static rank 3 where -10 is out of bounds [-3, 2]
+    data->set_partial_shape(PartialShape{3, 4, 5});
+    data->validate_and_infer_types();
+    OV_EXPECT_THROW(op->validate_and_infer_types(),
+                    AssertFailure,
+                    HasSubstr("Axis -10 out of the tensor rank range [-3, 2]"));
 }
 
 TEST_F(TypePropReverseSequenceV0Test, dynamic_data_input_dynamic_rank_set_sequence_axis) {
@@ -431,9 +462,19 @@ TEST_F(TypePropReverseSequenceV0Test, default_ctor_set_axes_without_inputs) {
 
     // Negative batch axis without inputs should throw on get_batch_axis()
     op->set_batch_axis(-1);
+    EXPECT_EQ(op->get_origin_batch_axis(), -1);
     OV_EXPECT_THROW(op->get_batch_axis(),
                     AssertFailure,
                     HasSubstr("Rank must be static in order to normalize negative axis: -1"));
+
+    // Attaching inputs with static rank 3 normalizes the negative batch axis
+    auto data = std::make_shared<Parameter>(element::f32, PartialShape{4, 3, 2});
+    auto seq_lengths = std::make_shared<Parameter>(element::i32, PartialShape{2});
+    op->set_arguments(OutputVector{data, seq_lengths});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_batch_axis(), 2);
+    EXPECT_EQ(op->get_sequence_axis(), 2);
 }
 
 TEST_F(TypePropReverseSequenceV0Test, revalidation_dynamic_to_static_rank) {

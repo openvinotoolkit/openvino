@@ -48,10 +48,6 @@ void op::v0::ReverseSequence::validate_and_infer_types() {
         m_normalized_seq_axis = ov::util::try_normalize_axis(m_seq_axis, data_rank, *this);
     } else {
         NODE_VALIDATION_CHECK(this,
-                              m_batch_axis >= 0,
-                              "Rank must be static in order to normalize negative axis: ",
-                              m_batch_axis);
-        NODE_VALIDATION_CHECK(this,
                               m_seq_axis >= 0,
                               "Rank must be static in order to normalize negative axis: ",
                               m_seq_axis);
