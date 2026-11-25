@@ -855,14 +855,17 @@ class TestParallelRunner:
                                 test_name = None
                                 test_log = []
                 log_file.close()
+                returncode = TaskManager.exit_codes.get(log.name)
                 unexpected_exit = False
                 if test_name is not None:
+                    logger.error(
+                        f"Process of {log.name} exited with code {returncode} during test: {test_name}"
+                    )
                     dir = INTERAPTED_DIR
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
                         fix_priority.append((ref_k or 0, test_name))
                 else:
-                    returncode = TaskManager.exit_codes.get(log.name)
                     unexpected_exit = returncode not in (None, 0) and not (returncode == 1 and has_failed_test)
                     if unexpected_exit:
                         unresolved_crashes.append((log.name, returncode))

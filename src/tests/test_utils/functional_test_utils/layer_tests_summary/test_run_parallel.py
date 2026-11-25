@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from itertools import product
+from pathlib import Path
 from subprocess import CompletedProcess, list2cmdline
 from unittest.mock import patch
 
@@ -81,6 +82,28 @@ class TestSuiteBatches(unittest.TestCase):
         runner = self.make_runner("*")
         discovered = runner._TestParallelRunner__get_test_list_by_runtime()
         self.assertEqual(list(discovered), ["Brgemm/Params.simpleGemmTest/Prec=f32"])
+
+    def test_interrupted_batch_reports_exit_code_and_missing_test(self):
+        self.test_list = "Ordinary.\n  interrupted\n  not_started\n"
+        runner = self.make_runner("*")
+        temp_dir = Path(self.work_dir, "temp")
+        temp_dir.mkdir()
+        (temp_dir / "log_10.log").write_text(
+            "[==========] Running 2 tests from 1 test suite.\n"
+            "[ RUN      ] Ordinary.interrupted\n",
+            encoding="utf-8",
+        )
+        with patch.object(run_parallel.TaskManager, "exit_codes", {"log_10.log": 3221225477}), \
+                self.assertLogs(run_parallel.logger, level="ERROR") as messages:
+            self.assertFalse(runner.postprocess_logs())
+        self.assertIn(
+            "ERROR:test_parallel_runner:Process of log_10.log exited with code 3221225477 during test: Ordinary.interrupted",
+            messages.output,
+        )
+        self.assertEqual(
+            Path(self.work_dir, "logs", "not_run_tests.log").read_text(encoding="utf-8"),
+            "Ordinary.not_started\n",
+        )
 
     def test_discovery_accepts_legacy_quoted_filter(self):
         self.test_list = "Ordinary.\n  smoke_first\n"
