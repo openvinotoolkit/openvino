@@ -126,4 +126,80 @@ TEST_F(TransformationTestsF, FuseHadamardIntoFC_NonHadamardConstantNotFused) {
     manager.register_pass<FuseHadamardIntoFC>();
 }
 
+// As emitted by bonsai2_gguf_to_ir.py: [?, ?, K] -> Multiply(signs) -> Reshape([0, 0, K/B, B]) -> MatMul(H) -> Reshape([0, 0, K]) -> FC.
+TEST_F(TransformationTestsF, FuseHadamardIntoFC_Rank3SpecialZeroFused) {
+    constexpr size_t k = 2048, b = 512;
+    const auto s = make_signs(k);
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, static_cast<int64_t>(k)});
+        auto mul =
+            std::make_shared<ov::op::v1::Multiply>(input,
+                                                   ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, k}, std::vector<float>(s.begin(), s.end())));
+        auto split = std::make_shared<ov::op::v1::Reshape>(
+            mul,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, static_cast<int64_t>(k / b), static_cast<int64_t>(b)}),
+            true);
+        auto mm = std::make_shared<ov::op::v0::MatMul>(split, hadamard(b));
+        auto merge = std::make_shared<ov::op::v1::Reshape>(
+            mm,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 0, static_cast<int64_t>(k)}),
+            true);
+        model = std::make_shared<ov::Model>(ov::OutputVector{make_fc(merge, k)}, ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, static_cast<int64_t>(k)});
+        auto fc = make_fc(input, k);
+        fc->get_rt_info()[int2_hadamard_block_key] = static_cast<int64_t>(b);
+        fc->get_rt_info()[int2_hadamard_signs_key] = s;
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+    manager.register_pass<FuseHadamardIntoFC>();
+}
+
+// K == B with the Reshape pair kept, and a source whose last dim is not known yet, as the RMS output in Bonsai 2 9B:
+// [?, 1, ?] -> Reshape([0, 0, 1, B]) -> MatMul(H) -> Reshape([0, 0, K]) -> FC.
+TEST_F(TransformationTestsF, FuseHadamardIntoFC_DynamicSourceLastDimFused) {
+    constexpr size_t k = 1024;
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1, -1});
+        auto split =
+            std::make_shared<ov::op::v1::Reshape>(input, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 1, k}), true);
+        auto mm = std::make_shared<ov::op::v0::MatMul>(split, hadamard(k));
+        auto merge =
+            std::make_shared<ov::op::v1::Reshape>(mm, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 0, k}), true);
+        model = std::make_shared<ov::Model>(ov::OutputVector{make_fc(merge, k)}, ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1, -1});
+        auto fc = make_fc(input, k);
+        fc->get_rt_info()[int2_hadamard_block_key] = static_cast<int64_t>(k);
+        fc->get_rt_info()[int2_hadamard_signs_key] = std::vector<int8_t>{};
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+    manager.register_pass<FuseHadamardIntoFC>();
+}
+
+// K == B with an unpaired flatten in front of the MatMul: [2, 3, 256] -> Reshape([6, 256]) -> MatMul(H) -> FC.
+// Bypassing the Reshape would turn the FC output [6, N] into [2, 3, N].
+TEST_F(TransformationTestsF, FuseHadamardIntoFC_UnpairedReshapeNotFused) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 3, 256});
+    auto flatten =
+        std::make_shared<ov::op::v1::Reshape>(input, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{6, 256}), false);
+    auto mm = std::make_shared<ov::op::v0::MatMul>(flatten, hadamard(256));
+    model = std::make_shared<ov::Model>(ov::OutputVector{make_fc(mm, 256)}, ov::ParameterVector{input});
+    manager.register_pass<FuseHadamardIntoFC>();
+}
+
+// K > B, but the trailing Reshape flattens instead of restoring the source shape:
+// [2, 3, 1024] -> Reshape([-1, 4, 256]) -> MatMul(H) -> Reshape([-1, 1024]) -> FC.
+TEST_F(TransformationTestsF, FuseHadamardIntoFC_ShapeChangingReshapeNotFused) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 3, 1024});
+    auto split =
+        std::make_shared<ov::op::v1::Reshape>(input, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{-1, 4, 256}), false);
+    auto mm = std::make_shared<ov::op::v0::MatMul>(split, hadamard(256));
+    auto merge = std::make_shared<ov::op::v1::Reshape>(mm, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1024}), false);
+    model = std::make_shared<ov::Model>(ov::OutputVector{make_fc(merge, 1024)}, ov::ParameterVector{input});
+    manager.register_pass<FuseHadamardIntoFC>();
+}
+
 }  // namespace

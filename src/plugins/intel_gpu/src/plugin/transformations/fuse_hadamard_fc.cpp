@@ -4,6 +4,7 @@
 
 #include "fuse_hadamard_fc.hpp"
 
+#include <algorithm>
 #include <bitset>
 #include <cmath>
 
@@ -58,6 +59,47 @@ size_t hadamard_block_of(const std::shared_ptr<ov::op::v0::Constant>& c) {
     return b;
 }
 
+// True if Reshape `r` only splits ([..., K] -> [..., K/B, B]) or merges ([..., K/B, B] -> [..., K]) the trailing
+// dims: its target is a constant whose trailing entries multiply to K and whose leading entries each keep the input
+// dim (0 with special_zero, the same static value, or the single -1, which the fixed trailing size then pins).
+bool reshapes_trailing_dims_only(const std::shared_ptr<ov::op::v1::Reshape>& r, size_t K, bool split) {
+    const auto target = ov::as_type_ptr<ov::op::v0::Constant>(r->get_input_node_shared_ptr(1));
+    const auto& in = r->get_input_partial_shape(0);
+    if (!target || in.rank().is_dynamic() || in.rank().get_length() < (split ? 1 : 2)) {
+        return false;
+    }
+    const auto t = target->cast_vector<int64_t>();
+    const auto in_rank = static_cast<size_t>(in.rank().get_length());
+    if (t.size() != (split ? in_rank + 1 : in_rank - 1)) {
+        return false;
+    }
+    const size_t lead = std::min(in_rank, t.size()) - 1;
+    int64_t trailing = 1;
+    for (size_t i = lead; i < t.size(); ++i) {
+        if (t[i] <= 0) {
+            return false;
+        }
+        trailing *= t[i];
+    }
+    if (trailing != static_cast<int64_t>(K)) {
+        return false;
+    }
+    size_t inferred = 0;
+    for (size_t i = 0; i < lead; ++i) {
+        if (t[i] == 0 && r->get_special_zero()) {
+            continue;
+        }
+        if (t[i] == -1) {
+            ++inferred;
+            continue;
+        }
+        if (!in[i].is_static() || in[i].get_length() != t[i]) {
+            return false;
+        }
+    }
+    return inferred <= 1;
+}
+
 }  // namespace
 
 bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -75,9 +117,10 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         const size_t K = static_cast<size_t>(wshape[1].get_length());
 
         // Reshape back to [..., K], absent when K == B
-        auto mm = fc->get_input_node_shared_ptr(0);
-        if (ov::as_type_ptr<ov::op::v1::Reshape>(mm)) {
-            mm = mm->get_input_node_shared_ptr(0);
+        auto back = ov::as_type_ptr<ov::op::v1::Reshape>(fc->get_input_node_shared_ptr(0));
+        auto mm = back ? back->get_input_node_shared_ptr(0) : fc->get_input_node_shared_ptr(0);
+        if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(mm); matmul && matmul->get_transpose_a()) {
+            continue;
         }
         // MatMul / FullyConnected with the H constant
         std::shared_ptr<ov::op::v0::Constant> h;
@@ -90,9 +133,18 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                    << mm->get_type_name() << std::endl;
             continue;
         }
-        // Reshape to [..., K/B, B]
+        // Reshape to [..., K/B, B]. The split and the merge come as a pair (both absent when K == B), and they
+        // may only touch the trailing dims: otherwise bypassing them would change the FC input shape, e.g. an
+        // unrelated flatten [2, 3, K] -> [6, K] in front of the MatMul.
         ov::Output<ov::Node> x = mm->input_value(0);
-        if (auto fwd = ov::as_type_ptr<ov::op::v1::Reshape>(x.get_node_shared_ptr())) {
+        auto fwd = ov::as_type_ptr<ov::op::v1::Reshape>(x.get_node_shared_ptr());
+        if (static_cast<bool>(fwd) != static_cast<bool>(back) ||
+            (fwd && (!reshapes_trailing_dims_only(fwd, K, true) || !reshapes_trailing_dims_only(back, K, false)))) {
+            GPU_DEBUG_TRACE_DETAIL << "[hadamard-fc] " << fc->get_friendly_name() << ": the Reshapes around the Hadamard MatMul change more than the last dim"
+                                   << std::endl;
+            continue;
+        }
+        if (fwd) {
             x = fwd->input_value(0);
         }
         std::vector<int8_t> signs;
@@ -103,7 +155,10 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 sc = constant_behind(mul->input_value(p));
                 data_port = 1 - p;
             }
-            if (sc && ov::shape_size(sc->get_shape()) == K) {
+            // Only a [1, ..., 1, K] sign vector, which does not broadcast the data.
+            const auto& data_shape = mul->get_input_partial_shape(data_port);
+            if (sc && ov::shape_size(sc->get_shape()) == K && !sc->get_shape().empty() && sc->get_shape().back() == K && data_shape.rank().is_static() &&
+                sc->get_shape().size() <= static_cast<size_t>(data_shape.rank().get_length())) {
                 const auto vals = sc->cast_vector<float>();
                 bool ok = true;
                 signs.resize(K);
@@ -118,11 +173,11 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 }
             }
         }
-        // The Reshape to [..., K/B, B] already pins the source's last dim
-        // to K; it only needs to be checked when the graph states it.
         const auto& xs = x.get_partial_shape();
-        if (xs.rank().is_dynamic() || (xs[xs.rank().get_length() - 1].is_static() && static_cast<size_t>(xs[xs.rank().get_length() - 1].get_length()) != K)) {
-            GPU_DEBUG_TRACE_DETAIL << "[hadamard-fc] " << fc->get_friendly_name() << ": source shape " << xs << " does not end in K=" << K << std::endl;
+        const auto& fc_in = fc->get_input_partial_shape(0);
+        if (xs.rank().is_dynamic() || !xs.compatible(fc_in)) {
+            GPU_DEBUG_TRACE_DETAIL << "[hadamard-fc] " << fc->get_friendly_name() << ": source shape " << xs << " does not match the FC input shape " << fc_in
+                                   << std::endl;
             continue;
         }
         fc->input(0).replace_source_output(x);
