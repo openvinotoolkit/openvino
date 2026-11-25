@@ -78,13 +78,13 @@
       }
     },
     "ids/language": {
-      "graph_sha256": "7ed362c3e9e7075ed66b59b20d5ff636605b15f571c0f6c994281a92374a5399",
+      "graph_sha256": "26c0720d859293ecd222dfd2dc0bafff92b4a657042f2a25aff782a2baec0b59",
       "ops": [
-        ["Add","opset1",210],
+        ["Add","opset1",211],
         ["Assign","opset6",64],
         ["Broadcast","opset3",80],
         ["Concat","opset1",231],
-        ["Constant","opset1",1782],
+        ["Constant","opset1",1784],
         ["Convert","opset1",56],
         ["Cos","opset1",16],
         ["CumSum","opset3",1],
@@ -109,11 +109,11 @@
         ["ShapeOf","opset3",59],
         ["Sigmoid","opset1",32],
         ["Sin","opset1",16],
-        ["Slice","opset8",49],
+        ["Slice","opset8",51],
         ["SoftPlus","opset4",24],
         ["Sqrt","opset1",105],
         ["Squeeze","opset1",162],
-        ["Subtract","opset1",3],
+        ["Subtract","opset1",4],
         ["Swish","opset4",80],
         ["Transpose","opset1",208],
         ["Unsqueeze","opset1",197],
@@ -124,12 +124,12 @@
         ["MatMul","4","f32","ggml:30/group:1/weight:bf16",136]
       ],
       "totals": {
-        "edges": 6665,
+        "edges": 6679,
         "inputs": 4,
-        "nodes": 5502,
+        "nodes": 5508,
         "outputs": 1,
         "states": 64,
-        "top_level_nodes": 5502
+        "top_level_nodes": 5508
       }
     }
   },

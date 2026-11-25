@@ -4,7 +4,9 @@
 
 #include "graph_regression_utils.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <map>
@@ -42,6 +44,7 @@ namespace ov_gguf_test {
 namespace {
 using Json = nlohmann::json;
 using Materializer = ov::frontend::gguf::pass::MaterializeGGUFWeights;
+const std::set<std::string> image_separators{"v.image_newline", "v.view_seperator", "model.image_newline"};
 
 class DescriptorTensor : public ov::ITensor {
 public:
@@ -217,6 +220,12 @@ std::shared_ptr<ov::Model> convert_recipe(const Json& recipe) {
             source.data = ov::Tensor(type, storage_shape);
             auto* values = source.data.data<int64_t>();
             std::iota(values, values + source.shape[0], int64_t{0});
+        } else if (image_separators.count(source.source_name)) {
+            OPENVINO_ASSERT(type.is_real() && storage_shape == source.shape && ov::shape_size(storage_shape) <= 65536,
+                            "Invalid synthetic image separator descriptor: ",
+                            source.source_name);
+            source.data = ov::Tensor(type, storage_shape);
+            std::memset(source.data.data(), 0, source.data.get_byte_size());
         } else {
             source.data = ov::make_tensor(
                 ov::SoPtr<ov::ITensor>{std::make_shared<DescriptorTensor>(type, storage_shape, source.source_name)});
@@ -546,6 +555,16 @@ Json runtime_keys(const ov::RTMap& info, bool node = false) {
             result[name] = true;
         } else {
             result[name] = runtime_value(value);
+            if (name == "gguf_mmproj" && result[name].is_object()) {
+                // Separator weight values are floating-point payloads; keep only their length.
+                for (const auto& key : image_separators) {
+                    auto found = result[name].find(key);
+                    if (found != result[name].end() && found->is_string()) {
+                        const auto text = found->get<std::string>();
+                        *found = Json{{"values", std::count(text.begin(), text.end(), ',') + 1}};
+                    }
+                }
+            }
         }
     }
     return result;

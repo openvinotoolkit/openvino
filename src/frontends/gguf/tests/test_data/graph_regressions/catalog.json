@@ -4861,6 +4861,104 @@
         "revision": "8dcb98e52a1d1d02dce9249e5ab15bae8121c666",
         "repository": "unsloth/Qwen3-VL-2B-Instruct-GGUF"
       }
+    },
+    {
+      "id": "lfm2--lfm2.5-colbert-350m-q8_0--edc6aa78",
+      "native_only": "Embedding-only output is not supported by adapt_to_genai.",
+      "architecture": "lfm2",
+      "models": [
+        "LiquidAI/LFM2.5-ColBERT-350M-GGUF/LFM2.5-ColBERT-350M-Q8_0.gguf"
+      ],
+      "recipe": "recipes/lfm2--lfm2.5-colbert-350m-q8_0--edc6aa78.json",
+      "reference": "references/lfm2--lfm2.5-colbert-350m-q8_0--edc6aa78.json",
+      "source": {
+        "repository": "LiquidAI/LFM2.5-ColBERT-350M-GGUF",
+        "revision": "bc240003aba07253e261a8aaf0d2c9683318a967",
+        "filename": "LFM2.5-ColBERT-350M-Q8_0.gguf",
+        "header_sha256": "edc6aa78298966ee58c617607f8a722db6dc8f7b7cf1aede5b9b80d6532a2659"
+      }
+    },
+    {
+      "id": "lfm2--lfm2.5-embedding-350m-q8_0--0bf3f7c0",
+      "native_only": "Embedding-only output is not supported by adapt_to_genai.",
+      "architecture": "lfm2",
+      "models": [
+        "LiquidAI/LFM2.5-Embedding-350M-GGUF/LFM2.5-Embedding-350M-Q8_0.gguf"
+      ],
+      "recipe": "recipes/lfm2--lfm2.5-embedding-350m-q8_0--0bf3f7c0.json",
+      "reference": "references/lfm2--lfm2.5-embedding-350m-q8_0--0bf3f7c0.json",
+      "source": {
+        "repository": "LiquidAI/LFM2.5-Embedding-350M-GGUF",
+        "revision": "a80de9c5b941d429104f0038292a0ef5a860e486",
+        "filename": "LFM2.5-Embedding-350M-Q8_0.gguf",
+        "header_sha256": "0bf3f7c00a292550b55af3ad2e0cb9428f3f49831ff62b0f4d47ceff332013f5"
+      }
+    },
+    {
+      "id": "lfm2--lfm2.5-encoder-230m-q8_0--4cf093c2",
+      "native_only": "Embedding-only output is not supported by adapt_to_genai.",
+      "architecture": "lfm2",
+      "models": [
+        "LiquidAI/LFM2.5-Encoder-230M-GGUF/LFM2.5-Encoder-230M-Q8_0.gguf"
+      ],
+      "recipe": "recipes/lfm2--lfm2.5-encoder-230m-q8_0--4cf093c2.json",
+      "reference": "references/lfm2--lfm2.5-encoder-230m-q8_0--4cf093c2.json",
+      "source": {
+        "repository": "LiquidAI/LFM2.5-Encoder-230M-GGUF",
+        "revision": "bb26e78c7164b386028928ebfcecebcc42467689",
+        "filename": "LFM2.5-Encoder-230M-Q8_0.gguf",
+        "header_sha256": "4cf093c2c483f4870c2487b0d505d56dadf04e4fc0f41584e783d6bc309b3bfa"
+      }
+    },
+    {
+      "id": "lfm2--lfm2.5-encoder-350m-q8_0--64d5787a",
+      "native_only": "Embedding-only output is not supported by adapt_to_genai.",
+      "architecture": "lfm2",
+      "models": [
+        "LiquidAI/LFM2.5-Encoder-350M-GGUF/LFM2.5-Encoder-350M-Q8_0.gguf"
+      ],
+      "recipe": "recipes/lfm2--lfm2.5-encoder-350m-q8_0--64d5787a.json",
+      "reference": "references/lfm2--lfm2.5-encoder-350m-q8_0--64d5787a.json",
+      "source": {
+        "repository": "LiquidAI/LFM2.5-Encoder-350M-GGUF",
+        "revision": "6559103d6c7136150cf989a4eda1462e5ef7b0c4",
+        "filename": "LFM2.5-Encoder-350M-Q8_0.gguf",
+        "header_sha256": "64d5787ad79d3c3399606b9a91cc1385c585860da8bad54d9323eace076cafcf"
+      }
+    },
+    {
+      "id": "lfm3--d1-2b-q4_0--f0d0f4c8",
+      "native_only": "Stateless LFM3 D1 whole-prompt logits have no GenAI adaptation.",
+      "architecture": "lfm3",
+      "models": [
+        "LiquidAI/d1-2B-GGUF/d1-2B-Q4_0.gguf"
+      ],
+      "recipe": "recipes/lfm3--d1-2b-q4_0--f0d0f4c8.json",
+      "reference": "references/lfm3--d1-2b-q4_0--f0d0f4c8.json",
+      "source": {
+        "repository": "LiquidAI/d1-2B-GGUF",
+        "revision": "4a181094d1b6addfaa3a0956f78e7ab2aa406a0c",
+        "filename": "d1-2B-Q4_0.gguf",
+        "header_sha256": "f0d0f4c8283c58a2d2df9ccb9b6add75976ab53cbf04a717f3dfb2391b4e625b"
+      }
+    },
+    {
+      "id": "clip--mmproj-model-f16-4x--f26291db",
+      "architecture": "clip",
+      "models": [
+        "openbmb/MiniCPM-OCR-1.0-gguf/mmproj-model-f16-4x.gguf"
+      ],
+      "recipe": "recipes/clip--mmproj-model-f16-4x--f26291db.json",
+      "reference": "references/clip--mmproj-model-f16-4x--f26291db.json",
+      "projectors": [
+        "vision.minicpm_ocr_1_0"
+      ],
+      "source": {
+        "repository": "openbmb/MiniCPM-OCR-1.0-gguf",
+        "revision": "0133ad8db635210441a55dcf421e25bfb9915142",
+        "filename": "mmproj-model-f16-4x.gguf",
+        "header_sha256": "f26291dbc3764d0880fa2cac77c78fccc1858f59882c8c429d6f52c1f3df33db"
+      }
     }
   ]
 }

@@ -9,7 +9,7 @@ weights are allocated.
 ## Coverage status
 
 The catalog contains original-dimensional profiles for all 47 native architecture
-handlers, including the separate LFM2.5 vocoder, and all 35 supported projector contracts.
+handlers, including the separate LFM2.5 vocoder, and all 36 supported projector contracts.
 It also records the unsupported Gemma3n audio identity in the combined vision checkpoint.
 Tiny numerical fixtures do not substitute for original-dimensional profiles.
 `GGUFGraphRegression.CatalogCoversEveryNativeHandler` and
@@ -43,7 +43,8 @@ not LFS:
   has the same modalities. If its modalities are unknown, retain both modes until
   verified. Projectors and `native_only` cases omit `input_modes`.
   `native_only` records the reason when a case has no GenAI adaptation: embedding-only
-  encoders, noncausal sliding-window DFlash drafts and the standalone LFM2.5 vocoder. These cases keep a native
+  encoders (including LFM2.5 encoder, embedding and ColBERT checkpoints), stateless LFM3 D1
+  models, noncausal sliding-window DFlash drafts and the standalone LFM2.5 vocoder. These cases keep a native
   stateful snapshot; adaptation errors in all other cases fail, never silently fall back.
   Remove the exemption when `adapt_to_genai` gains support for that contract.
 - `schema.json`: shared versioned catalog, recipe and reference definitions.
@@ -66,7 +67,8 @@ The runner converts the recipe with the production frontend and builders. Weight
 descriptors that throw on payload access, so builder selection and weight layout planning
 run without allocating checkpoint-sized weights. The exception is a bounded synthetic
 identity `d2t` vocabulary map for draft models: its type and shape match the descriptor,
-but its values are not the checkpoint's mapping. After conversion, the runner calls the
+but its values are not the checkpoint's mapping. Image separator vectors (`v.image_newline`, `v.view_seperator`,
+`model.image_newline`) are zero-filled the same way; only their length is hashed. After conversion, the runner calls the
 production `adapt_to_genai` entry point, which makes decoders stateful and adapts their IO.
 Every returned model is checked, not just the language model:
 
