@@ -121,7 +121,8 @@ private:
         const element::Type& convertion_before_op2_1,
         const std::pair<element::Type, element::Type>& convertion_before_op2_2,
         const element::Type& convertion_after_op2,
-        const element::Type& convertion_before_result = {});
+        const element::Type& convertion_before_result = {},
+        bool restore_outputs = false);
 };
 
 }  // namespace snippets

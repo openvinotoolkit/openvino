@@ -339,18 +339,22 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
     }
     case ov::element::i8:
     case ov::element::u8: {
-        auto vnclip = [&](const VReg& dst, const VReg& src, float lmul_c, size_t sew) {
+        const bool wrap_i8 = jep_.src_prc[0] == element::i8 && dst_prc == element::i8 && eltwise_data_.size() == 1 &&
+                             any_of(eltwise_data_.front().algo, Algorithm::EltwiseAbs, Algorithm::EltwiseNegative);
+        auto narrow = [&](const VReg& dst, const VReg& src, float lmul_c, size_t sew) {
             const auto needed_lmul = float2lmul(lmul_c * lmul2float(exec_lmul));
             const auto needed_sew = bytes2sew(sew);
             update_vlen(gpr_work_amount, needed_sew, needed_lmul);
-            if (src_prc.is_signed()) {
+            if (wrap_i8) {
+                vnsra_wi(dst, src, 0);
+            } else if (src_prc.is_signed()) {
                 vnclip_wi(dst, src, 0);
             } else {
                 vnclipu_wi(dst, src, 0);
             }
         };
-        vnclip(aux_vec(), dst_vec(), 0.5F, 2);
-        vnclip(dst_vec(), aux_vec(), 0.25F, 1);
+        narrow(aux_vec(), dst_vec(), 0.5F, 2);
+        narrow(dst_vec(), aux_vec(), 0.25F, 1);
 
         vse8_v(dst_vec(), dst_gpr());
         add(dst_gpr(), dst_gpr(), reg_bvlen);
