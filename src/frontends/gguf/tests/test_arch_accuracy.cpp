@@ -1130,11 +1130,11 @@ static void add_sampled_tokens_indices(const std::shared_ptr<ov::Model>& model) 
     model->validate_nodes_and_infer_types();
 }
 
-static std::shared_ptr<ov::Model> to_paged_attention(std::shared_ptr<ov::Model> model, bool prune) {
-    if (!prune)
-        model->get_rt_info().erase(ov::pass::shared_kv_row_selection_key);
+// Without the sampled rows, the model returns logits of all rows and nothing is pruned.
+static std::shared_ptr<ov::Model> to_paged_attention(std::shared_ptr<ov::Model> model, bool sampled) {
     ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(model);
-    add_sampled_tokens_indices(model);
+    if (sampled)
+        add_sampled_tokens_indices(model);
     return model;
 }
 
@@ -1168,7 +1168,7 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
     };
     auto optimized_compiled = compile(optimized);
     auto reference_compiled = compile(reference);
-    // The CPU pipeline prunes only the marked model, deriving its kept rows with Bucketize.
+    // The CPU pipeline prunes only the model with sampled rows, deriving its kept rows with Bucketize.
     const auto has_bucketize = [](const ov::CompiledModel& compiled) {
         const auto ops = compiled.get_runtime_model()->get_ops();
         return std::any_of(ops.begin(), ops.end(), [](const auto& node) {
@@ -1214,20 +1214,26 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
             set_vector(*request, "subsequence_begins", ov::element::i32, begins);
             set_vector(*request, "block_indices", ov::element::i32, std::vector<int32_t>{0, 1});
             set_vector(*request, "block_indices_begins", ov::element::i32, block_begins);
-            set_vector(*request, "sampled_tokens_indices", ov::element::i64, sampled);
             ov::Tensor maximum(ov::element::i32, {});
             *maximum.data<int32_t>() = max_context;
             request->set_tensor("max_context_len", maximum);
-            request->infer();
         }
+        set_vector(actual, "sampled_tokens_indices", ov::element::i64, sampled);
+        actual.infer();
+        expected.infer();
         const auto actual_logits = actual.get_tensor("logits");
         const auto expected_logits = expected.get_tensor("logits");
-        ASSERT_EQ(actual_logits.get_shape(), expected_logits.get_shape());
-        ASSERT_GT(actual_logits.get_size(), 0u);
-        ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(actual_logits.data<const float>(),
-                                                           expected_logits.data<const float>(),
-                                                           actual_logits.get_size()),
-                                        1e-5);
+        ASSERT_EQ(expected_logits.get_size() % ids.size(), 0u);
+        const auto vocab = expected_logits.get_size() / ids.size();
+        ASSERT_EQ(actual_logits.get_size(), sampled.size() * vocab);
+        std::vector<float> sampled_logits;
+        for (const auto index : sampled) {
+            const auto* row = expected_logits.data<const float>() + static_cast<size_t>(index) * vocab;
+            sampled_logits.insert(sampled_logits.end(), row, row + vocab);
+        }
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual_logits.data<const float>(), sampled_logits.data(), sampled_logits.size()),
+            1e-5);
     };
     auto actual = optimized_compiled.create_infer_request();
     auto expected = reference_compiled.create_infer_request();
@@ -1260,8 +1266,6 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionKeepsGenAIInputs) {
         ++shared_kv_attention_count;
         EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(pa->get_input_node_ptr(5)));
         EXPECT_FALSE(ov::is_type<ov::op::v0::Parameter>(pa->get_input_node_ptr(6)));
-        for (const auto input_index : {1, 2})
-            EXPECT_TRUE(ov::is_type<ov::op::v8::Gather>(pa->get_input_node_ptr(input_index)));
     }
     EXPECT_GT(shared_kv_attention_count, 0);
     ASSERT_NO_THROW(model->reshape({{"input_ids", {128}},
@@ -1269,23 +1273,6 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionKeepsGenAIInputs) {
                                     {"past_lens", {2}},
                                     {"subsequence_begins", {3}},
                                     {"sampled_tokens_indices", {2}}}));
-}
-
-TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionSkipsSharedKvPruningWithTokenTypeIds) {
-    using namespace ov::frontend::gguf;
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    FrontEnd frontend;
-    frontend.add_extension(std::make_shared<GenAIExtension>());
-    auto model = frontend.convert(frontend.load(temporary.path));
-
-    auto token_type_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
-    token_type_ids->set_friendly_name("token_type_ids");
-    model->add_parameters({token_type_ids});
-    ASSERT_NO_THROW(
-        ov::pass::SDPAToPagedAttention(false, false, false, false, false, false, false, false).run_on_model(model));
-    add_sampled_tokens_indices(model);
-    EXPECT_FALSE(ov::pass::PruneSharedKVRows().run_on_model(model));
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, Gemma4PagedAttentionSkipsSharedKvPruningWithQueryBias) {

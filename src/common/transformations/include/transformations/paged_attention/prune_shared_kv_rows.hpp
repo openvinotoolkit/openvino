@@ -9,25 +9,23 @@
 
 namespace ov::pass {
 
-inline constexpr char shared_kv_row_selection_key[] = "shared_kv_row_selection";
-
 /**
  * @ingroup ov_transformation_common_api
- * @brief Computes shared-cache PagedAttention layers only for the rows that are sampled.
+ * @brief Computes the layers after shared-cache PagedAttention only for the rows that are selected.
  *
- * Shared-cache layers do not write the KV cache, so only rows that reach sampled logits are
- * needed. The model must declare shared_kv_row_selection in its runtime info, select rows after
- * an earlier attention, and have the sampled_tokens_indices input. For each sequence, the pass
- * keeps the rows from the first sampled row to the end, or the last row when none is sampled.
- * It derives the kept rows and the per-sequence lengths from sampled_tokens_indices, past_lens
- * and subsequence_begins, and remaps sampled_tokens_indices to the kept rows. Models are left
- * unchanged when they have token_type_ids, query-to-query bias, or ambiguous selections, when
- * shared-layer rows reach an output other than through sampled_tokens_indices, or when
- * shared-layer scores are used.
+ * Layers that do not write the KV cache are needed only for rows that reach a row selection on
+ * the outputs, such as the sampled_tokens_indices Gather GenAI adds before the LM head. The pass
+ * finds the region between the selection and the earlier layers in which each row is computed
+ * independently and which contains shared-cache PagedAttention layers. It gathers the selected
+ * rows on every tensor entering the region. For each sequence, it keeps the rows from the first
+ * selected row to the end, or the last row when none is selected, and derives the kept rows and
+ * per-sequence lengths in the graph from the selection, past_lens and subsequence_begins.
+ * Tensors with rows are recognized by the symbol of their leading dimension. The model is left
+ * unchanged when it is not clear that a tensor entering the region has no rows.
  *
- * Before: full rows -> Gather -> shared PA(Q, full K/V, lengths) -> Gather(sampled_tokens_indices)
- * After:  full rows -> Gather(kept rows) -> shared PA(Q, Gather(K/V), kept lengths)
- *                   -> Gather(remapped sampled_tokens_indices)
+ * Before: rows -> shared PA(Q, K/V, lengths) -> ... -> Gather(indices)
+ * After:  Gather(rows, kept) -> shared PA(Q, Gather(K/V, kept), kept lengths) -> ...
+ *                            -> Gather(remapped indices)
  */
 class TRANSFORMATIONS_API PruneSharedKVRows : public ModelPass {
 public:

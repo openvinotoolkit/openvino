@@ -8,8 +8,10 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -69,53 +71,31 @@ std::shared_ptr<PagedAttentionExtension> attention(const Output<Node>& q,
 }
 
 struct Inputs {
-    std::shared_ptr<v0::Parameter> data = parameter("data", element::f32, {-1, 4});
-    std::shared_ptr<v0::Parameter> rows = parameter("rows", element::i64, {-1});
+    std::shared_ptr<v0::Parameter> data = parameter("inputs_embeds", element::f32, {-1, 4});
     std::shared_ptr<v0::Parameter> key = parameter("key_cache", element::f32, {-1, 1, 16, 4});
     std::shared_ptr<v0::Parameter> value = parameter("value_cache", element::f32, {-1, 1, 16, 4});
     std::shared_ptr<v0::Parameter> past = parameter("past_lens", element::i32, {-1});
     std::shared_ptr<v0::Parameter> begins = parameter("subsequence_begins", element::i32, {-1});
     std::shared_ptr<v0::Parameter> sampled = parameter("sampled_tokens_indices", element::i64, {-1});
-    ParameterVector params{data, rows, key, value, past, begins};
+    ParameterVector params{data, key, value, past, begins};
 };
 
-Output<Node> selected_query(const Output<Node>& data, const Output<Node>& indices) {
-    auto shape = v0::Constant::create(element::i64, Shape{2}, {-1, 1});
-    auto rows = std::make_shared<v1::Reshape>(indices, shape, false);
-    auto axis = v0::Constant::create(element::i64, Shape{1}, {0});
-    auto gather = std::make_shared<v8::Gather>(data, rows, axis);
-    auto unsqueeze = std::make_shared<v0::Unsqueeze>(gather, axis);
-    return std::make_shared<v1::Reshape>(unsqueeze, v0::Constant::create(element::i64, Shape{2}, {-1, 4}), false);
+std::shared_ptr<PagedAttentionExtension> shared_layer(Inputs& i, const Output<Node>& hidden, bool shared = true) {
+    auto query = std::make_shared<v1::Multiply>(hidden, v0::Constant::create(element::f32, Shape{1, 4}, {2}));
+    return attention(query, i.data, i.data, i.key, i.value, i.past, i.begins, !shared);
 }
 
-std::shared_ptr<Model> model_with_head(const Output<Node>& hidden, Inputs& i, bool with_sampled = true) {
-    if (!with_sampled)
-        return std::make_shared<Model>(OutputVector{hidden}, i.params);
-    i.params.push_back(i.sampled);
-    auto head = std::make_shared<v8::Gather>(hidden, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
-    return std::make_shared<Model>(OutputVector{head}, i.params);
-}
-
-std::shared_ptr<Model> getModel(bool shared,
-                                bool mark,
-                                bool with_token_types = false,
-                                bool ambiguous = false,
-                                bool with_sampled = true) {
+// Writes the cache, then a shared layer with a residual, then selects the sampled rows.
+std::shared_ptr<Model> getModel(bool shared = true, bool with_sampled = true) {
     Inputs i;
     auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
-    auto query = selected_query(owner->output(0), i.rows);
-    if (ambiguous) {
-        auto other_rows = parameter("other_rows", element::i64, {-1});
-        i.params.push_back(other_rows);
-        query = std::make_shared<v1::Add>(query, selected_query(owner->output(0), other_rows));
+    auto layer = shared_layer(i, owner->output(0), shared);
+    Output<Node> hidden = std::make_shared<v1::Add>(layer->output(0), owner->output(0));
+    if (with_sampled) {
+        i.params.push_back(i.sampled);
+        hidden = std::make_shared<v8::Gather>(hidden, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
     }
-    auto second = attention(query, i.data, i.data, i.key, i.value, i.past, i.begins, !shared);
-    if (with_token_types)
-        i.params.push_back(parameter("token_type_ids", element::i32, {-1}));
-    auto model = model_with_head(second->output(0), i, with_sampled);
-    if (mark)
-        model->get_rt_info()[pass::shared_kv_row_selection_key] = true;
-    return model;
+    return std::make_shared<Model>(OutputVector{hidden}, i.params);
 }
 
 std::shared_ptr<PagedAttentionExtension> shared_attention(const std::shared_ptr<Model>& model) {
@@ -127,8 +107,8 @@ std::shared_ptr<PagedAttentionExtension> shared_attention(const std::shared_ptr<
     return nullptr;
 }
 
-TEST(PruneSharedKVRows, DerivesKeptRowsFromSampledTokens) {
-    const auto model = getModel(true, true);
+TEST(PruneSharedKVRows, GathersSampledRowsIntoSharedLayers) {
+    const auto model = getModel();
     const auto parameters = model->get_parameters();
     const auto find = [&](const std::string& name) {
         for (const auto& parameter : parameters) {
@@ -146,7 +126,9 @@ TEST(PruneSharedKVRows, DerivesKeptRowsFromSampledTokens) {
         EXPECT_TRUE(is_type<v8::Gather>(pa->get_input_node_ptr(index))) << index;
     EXPECT_NE(pa->get_input_node_shared_ptr(5), find("past_lens"));
     EXPECT_NE(pa->get_input_node_shared_ptr(6), find("subsequence_begins"));
-    EXPECT_TRUE(find("rows")->get_output_target_inputs(0).empty());
+    // The residual from the owner layer is gathered too.
+    const auto residual = model->get_results().front()->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0);
+    EXPECT_TRUE(is_type<v8::Gather>(residual->get_input_node_ptr(1)));
     const auto head = model->get_results().front()->get_input_node_shared_ptr(0);
     EXPECT_NE(head->get_input_node_shared_ptr(1), find("sampled_tokens_indices"));
     EXPECT_FALSE(pass::PruneSharedKVRows().run_on_model(model));
@@ -160,65 +142,64 @@ protected:
     }
 };
 
-TEST_F(PruneSharedKVRowsTest, KeepsUnmarkedModelsUnchanged) {
+TEST_F(PruneSharedKVRowsTest, KeepsModelsWithoutRowSelectionUnchanged) {
     model = getModel(true, false);
 }
 
-TEST_F(PruneSharedKVRowsTest, KeepsModelsWithoutSampledTokensUnchanged) {
-    model = getModel(true, true, false, false, false);
+TEST_F(PruneSharedKVRowsTest, KeepsModelsWithoutSharedLayersUnchanged) {
+    model = getModel(false);
 }
 
-TEST_F(PruneSharedKVRowsTest, KeepsIndependentCachesUnchanged) {
-    model = getModel(false, true);
-}
-
-TEST_F(PruneSharedKVRowsTest, KeepsTokenTypeModelsUnchanged) {
-    model = getModel(true, true, true);
-}
-
-TEST_F(PruneSharedKVRowsTest, KeepsQueryBiasModelsUnchanged) {
-    model = getModel(true, true);
-    model->add_parameters({parameter("qq_bias", element::u8, {-1})});
+TEST_F(PruneSharedKVRowsTest, KeepsSharedAttentionWithTokenTypesUnchanged) {
+    model = getModel();
+    shared_attention(model)->input(25).replace_source_output(v0::Constant::create(element::i32, Shape{1}, {1}));
 }
 
 TEST_F(PruneSharedKVRowsTest, KeepsSharedAttentionWithQueryBiasUnchanged) {
-    model = getModel(true, true);
+    model = getModel();
     shared_attention(model)->input(26).replace_source_output(v0::Constant::create(element::u8, Shape{1}, {1}));
 }
 
-TEST_F(PruneSharedKVRowsTest, KeepsSharedRowsOutsideSampledGatherUnchanged) {
-    model = getModel(true, true);
+TEST_F(PruneSharedKVRowsTest, KeepsSharedRowsOutsideSelectionUnchanged) {
+    model = getModel();
     model->add_results({std::make_shared<v0::Result>(shared_attention(model)->output(0))});
 }
 
 TEST_F(PruneSharedKVRowsTest, KeepsUsedSharedScoresUnchanged) {
-    model = getModel(true, true);
+    model = getModel();
     model->add_results({std::make_shared<v0::Result>(shared_attention(model)->output(1))});
 }
 
 TEST_F(PruneSharedKVRowsTest, KeepsSharedLayersWithDifferentLengthsUnchanged) {
     Inputs i;
     auto other_past = parameter("other_past_lens", element::i32, {-1});
-    i.params.push_back(other_past);
+    i.params.insert(i.params.end(), {other_past, i.sampled});
     auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
-    auto first =
-        attention(selected_query(owner->output(0), i.rows), i.data, i.data, i.key, i.value, i.past, i.begins, false);
-    auto second = attention(first->output(0), i.data, i.data, i.key, i.value, other_past, i.begins, false);
-    model = model_with_head(second->output(0), i);
-    model->get_rt_info()[pass::shared_kv_row_selection_key] = true;
+    auto first = shared_layer(i, owner->output(0));
+    auto query = std::make_shared<v1::Multiply>(first->output(0), v0::Constant::create(element::f32, Shape{1, 4}, {2}));
+    auto second = attention(query, i.data, i.data, i.key, i.value, other_past, i.begins, false);
+    auto head = std::make_shared<v8::Gather>(second, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
+    model = std::make_shared<Model>(OutputVector{head}, i.params);
 }
 
-TEST_F(PruneSharedKVRowsTest, KeepsAmbiguousSelectionsUnchanged) {
-    model = getModel(true, true, false, true);
-}
-
-TEST_F(PruneSharedKVRowsTest, KeepsSelectionsBeforeAttentionUnchanged) {
+TEST_F(PruneSharedKVRowsTest, KeepsRowMixingTailUnchanged) {
     Inputs i;
-    auto query = selected_query(i.data, i.rows);
-    auto owner = attention(query, i.data, i.data, i.key, i.value, i.past, i.begins, true);
-    auto shared = attention(owner->output(0), i.data, i.data, i.key, i.value, i.past, i.begins, false);
-    model = model_with_head(shared->output(0), i);
-    model->get_rt_info()[pass::shared_kv_row_selection_key] = true;
+    i.params.push_back(i.sampled);
+    auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
+    auto layer = shared_layer(i, owner->output(0));
+    auto total = std::make_shared<v1::ReduceSum>(layer, v0::Constant::create(element::i64, Shape{1}, {0}), true);
+    auto hidden = std::make_shared<v1::Add>(owner, total);
+    auto head = std::make_shared<v8::Gather>(hidden, i.sampled, v0::Constant::create(element::i64, Shape{}, {0}));
+    model = std::make_shared<Model>(OutputVector{head}, i.params);
+}
+
+TEST_F(PruneSharedKVRowsTest, KeepsUnknownRowsUnchanged) {
+    model = getModel();
+    auto other = parameter("other", element::f32, {-1, 4});
+    const auto pa = shared_attention(model);
+    auto query = pa->input_value(0);
+    pa->input(0).replace_source_output(std::make_shared<v1::Add>(query, other));
+    model->add_parameters({other});
 }
 
 }  // namespace

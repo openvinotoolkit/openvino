@@ -57,7 +57,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "pass/simplify_activation_shapes.hpp"
-#include "transformations/paged_attention/prune_shared_kv_rows.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
@@ -72,69 +71,6 @@ constexpr float NEG_INF = -65504.0f;
 bool has_output_name(const std::shared_ptr<ov::op::v0::Result>& result, const std::string& name) {
     return result->get_friendly_name() == name || result->input_value(0).get_names().count(name) ||
            result->output(0).get_names().count(name);
-}
-
-bool depends_on(const ov::Output<ov::Node>& output, const ov::Node* target) {
-    std::unordered_set<const ov::Node*> visited;
-    std::vector<const ov::Node*> pending{output.get_node()};
-    while (!pending.empty()) {
-        const auto* node = pending.back();
-        pending.pop_back();
-        if (node == target) {
-            return true;
-        }
-        if (!visited.insert(node).second) {
-            continue;
-        }
-        for (const auto& input : node->input_values()) {
-            pending.push_back(input.get_node());
-        }
-    }
-    return false;
-}
-
-std::unordered_set<std::string> get_read_value_ids(const ov::Output<ov::Node>& output) {
-    std::unordered_set<ov::Node*> visited;
-    std::vector<ov::Node*> pending{output.get_node()};
-    std::unordered_set<std::string> ids;
-    while (!pending.empty()) {
-        auto* current = pending.back();
-        pending.pop_back();
-        if (!visited.insert(current).second) {
-            continue;
-        }
-        if (const auto read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(current->shared_from_this())) {
-            ids.insert(read_value->get_variable_id());
-            continue;
-        }
-        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(current->shared_from_this()) ||
-            ov::is_type<ov::op::v3::ShapeOf>(current->shared_from_this()))
-            continue;
-        for (const auto& input : current->input_values()) {
-            pending.push_back(input.get_node());
-        }
-    }
-    return ids;
-}
-
-bool has_shared_kv_row_selection(const std::shared_ptr<ov::Model>& model,
-                                 const std::shared_ptr<ov::op::v0::Parameter>& row_indices) {
-    std::unordered_set<std::string> cache_pairs;
-    for (const auto& node : model->get_ordered_ops()) {
-        const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
-        if (!sdpa) {
-            continue;
-        }
-        const auto key_ids = get_read_value_ids(sdpa->input_value(1));
-        const auto value_ids = get_read_value_ids(sdpa->input_value(2));
-        if (key_ids.size() != 1 || value_ids.size() != 1)
-            continue;
-        const bool shared_cache = !cache_pairs.insert(*key_ids.begin() + "\n" + *value_ids.begin()).second;
-        if (shared_cache && depends_on(sdpa->input_value(0), row_indices.get())) {
-            return true;
-        }
-    }
-    return false;
 }
 
 // translate_get_rows's embedding-table lookup restores ggml's rank-4 form with a fixed
@@ -858,9 +794,6 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // [tokens, 1] (batch_dim=tokens, seq_dim=1), giving indices [0, 1, .., tokens - 1] -- the
     // identity that layout needs, since it already carries one token per row.
     auto inp_out_ids = find_parameter(model, "inp_out_ids");
-    const bool shared_kv_pruning = inp_out_ids && has_shared_kv_row_selection(model, inp_out_ids);
-    if (shared_kv_pruning)
-        model->get_rt_info()[ov::pass::shared_kv_row_selection_key] = true;
     if (inp_out_ids) {
         auto batch_dim = gather_dims(ids_shape, {0});
         auto seq_dim = gather_dims(ids_shape, {1});
@@ -922,10 +855,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const auto& hidden_ps = lm_head ? lm_head->get_input_partial_shape(0) : ov::PartialShape::dynamic();
     if (lm_head && hidden_ps.rank().is_static() && (hidden_ps.size() == 3 || hidden_ps.size() == 4) &&
         hidden_ps[hidden_ps.size() - 1].is_static() && lm_head->get_input_partial_shape(1).size() == 2) {
-        auto head_batch_len = batch_len;
-        if (shared_kv_pruning) {
-            head_batch_len = get_dimensions(lm_head->input_value(0), {0});
-        }
+        // Selected rows may be fewer than the batch when shared-KV layers are pruned.
+        const auto head_batch_len = inp_out_ids ? get_dimensions(lm_head->input_value(0), {0}) : batch_len;
         const auto sequence_and_hidden_dims =
             v0::Constant::create(ov::element::i64, {2}, {int64_t{-1}, hidden_ps[hidden_ps.size() - 1].get_length()});
         const auto hidden_3d_shape =
