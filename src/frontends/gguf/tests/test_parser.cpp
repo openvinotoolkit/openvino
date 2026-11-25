@@ -2195,6 +2195,72 @@ TEST_F(GGUFQ8Projection, NativeFCMatchesCompatibleCPU) {
     EXPECT_EQ(fc->get_input_element_type(1), ov::element::gguf_q8_0);
 }
 
+TEST_F(GGUFQ8Projection, SharedModelCompilesInEitherDeviceOrder) {
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "CPU") == devices.end() ||
+        std::find(devices.begin(), devices.end(), "GPU") == devices.end()) {
+        GTEST_SKIP() << "CPU and GPU devices are required";
+    }
+    const auto path = write_projection_model();
+    ASSERT_FALSE(path.empty());
+    FrontEnd frontend;
+    const auto native = frontend.convert(frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+    std::shared_ptr<ov::op::internal::FullyConnectedCompressed> projection;
+    for (const auto& node : native->get_ordered_ops()) {
+        const auto candidate = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+        if (candidate && candidate->get_input_element_type(1) == ov::element::gguf_q8_0) {
+            projection = candidate;
+            break;
+        }
+    }
+    ASSERT_NE(projection, nullptr);
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(projection->get_input_node_shared_ptr(1));
+    ASSERT_NE(weights, nullptr);
+    const auto raw = static_cast<const uint8_t*>(weights->get_data_ptr());
+    const std::vector<uint8_t> snapshot(raw, raw + weights->get_byte_size());
+    const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 32});
+    auto inputs = projection->input_values();
+    inputs[0] = activation;
+    const auto fc = projection->clone_with_new_inputs(inputs);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+
+    auto compatible = model->clone();
+    ov::util::lower_gguf_q8_0_fc(*compatible);
+    EXPECT_TRUE(ov::is_type<ov::op::v0::MatMul>(compatible->get_results()[0]->get_input_node_ptr(0)));
+
+    for (const auto& order : {std::array{"CPU", "GPU"}, std::array{"GPU", "CPU"}}) {
+        for (const auto* device : order) {
+            SCOPED_TRACE(device);
+            auto compiled = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32),
+                                               ov::enable_profiling(true));
+            auto request = compiled.create_infer_request();
+            ov::Tensor input(ov::element::f32, {1, 32});
+            std::fill_n(input.data<float>(), input.get_size(), 1.f);
+            request.set_input_tensor(input);
+            request.infer();
+            const auto output = request.get_output_tensor();
+            ASSERT_EQ(output.get_shape(), (ov::Shape{1, 32}));
+            ASSERT_EQ(output.get_element_type(), ov::element::f32);
+            for (size_t channel = 0; channel < 32; ++channel) {
+                const auto scale = static_cast<float>(ov::float16::from_bits(static_cast<uint16_t>(0x3c00 + channel)));
+                EXPECT_NEAR(output.data<const float>()[channel], (15.f + static_cast<float>(channel)) * scale, 1e-4f);
+            }
+#ifdef GGUF_GPU_NATIVE_TESTS
+            if (std::string(device) == "GPU") {
+                const auto ops = compiled.get_runtime_model()->get_ordered_ops();
+                EXPECT_TRUE(std::any_of(ops.begin(), ops.end(), [](const auto& op) {
+                    return op->get_rt_info().count("gguf_last_executed_kernels") != 0;
+                }));
+            }
+#endif
+            EXPECT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), fc);
+            ASSERT_EQ(fc->get_input_node_shared_ptr(1), weights);
+            EXPECT_EQ(std::memcmp(weights->get_data_ptr(), snapshot.data(), snapshot.size()), 0);
+        }
+    }
+}
+
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
     GgufWriter complete;
     GgufWriter first;

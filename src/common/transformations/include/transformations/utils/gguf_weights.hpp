@@ -4,7 +4,10 @@
 #include <cstdint>
 #include <cstring>
 
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/constant.hpp"
@@ -57,6 +60,20 @@ inline std::shared_ptr<Node> make_gguf_q8_0_fc_compatible(const op::internal::Fu
     const auto dequantized = decomposition::low_precision_dequantize(code_node, scale_node, {}, target);
     const auto converted = std::make_shared<op::v0::Convert>(dequantized, element::f32);
     return std::make_shared<op::v0::MatMul>(fc.input_value(0), converted, false, true);
+}
+
+inline void lower_gguf_q8_0_fc(Model& model) {
+    for (const auto& node : model.get_ordered_ops()) {
+        const auto fc = as_type_ptr<op::internal::FullyConnectedCompressed>(node);
+        if (!fc) {
+            continue;
+        }
+        if (const auto compatible = make_gguf_q8_0_fc_compatible(*fc)) {
+            compatible->set_friendly_name(node->get_friendly_name());
+            copy_runtime_info(node, compatible);
+            replace_node(node, compatible);
+        }
+    }
 }
 
 }  // namespace ov::util

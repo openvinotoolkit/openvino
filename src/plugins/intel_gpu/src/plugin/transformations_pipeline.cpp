@@ -4,6 +4,8 @@
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 
+#include "transformations/utils/gguf_weights.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -1014,6 +1016,10 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
+
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    ov::util::lower_gguf_q8_0_fc(*func);
+#endif
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
