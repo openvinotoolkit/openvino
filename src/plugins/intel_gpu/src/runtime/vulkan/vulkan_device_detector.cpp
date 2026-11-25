@@ -110,6 +110,7 @@ std::map<std::string, device::ptr> vulkan_device_detector::get_available_devices
         return std::tie(lhs_info.vendor_id, lhs_info.device_id, lhs_info.uuid.uuid, lhs_info.dev_name) <
                std::tie(rhs_info.vendor_id, rhs_info.device_id, rhs_info.uuid.uuid, rhs_info.dev_name);
     });
+    devices = sort_devices(devices);
 
     std::map<std::string, device::ptr> result;
     for (size_t index = 0; index < devices.size(); ++index) {
