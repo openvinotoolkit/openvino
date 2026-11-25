@@ -14,7 +14,6 @@
 #include "vulkan_api.hpp"
 #include "vulkan_engine.hpp"
 #include "vulkan_memory.hpp"
-#include "vulkan_memory_internal.hpp"
 
 namespace cldnn::vulkan {
 namespace {
@@ -33,16 +32,12 @@ private:
     char _message[96]{};
 };
 
-}  // namespace
-
-void detail::check_vulkan_memory_result(VkResult result, const char* operation) {
+void check_vulkan_memory_result(VkResult result, const char* operation) {
     if (result == VK_ERROR_OUT_OF_HOST_MEMORY || result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
         throw vulkan_bad_alloc(operation, result);
     }
     check_vk_result(result, operation);
 }
-
-namespace {
 
 std::optional<vulkan_memory_type_selection> find_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
                                                              uint32_t allowed_types,
@@ -63,10 +58,10 @@ std::optional<vulkan_memory_type_selection> find_memory_type(const VkPhysicalDev
 
 }  // namespace
 
-vulkan_buffer_allocation::ptr detail::allocate_vulkan_buffer(vulkan_engine& engine, size_t requested_size, vulkan_buffer_memory_usage usage) {
+vulkan_buffer_allocation::ptr vulkan_buffer_allocation::create(vulkan_engine& engine, size_t requested_size, vulkan_buffer_memory_usage usage) {
     const VkDeviceSize buffer_size = std::max<VkDeviceSize>(requested_size, 1);
     auto allocation = std::make_shared<vulkan_buffer_allocation>(engine.get_vulkan_device_object(), buffer_size);
-    const VkDevice device = allocation->device;
+    const VkDevice device = allocation->_device;
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -79,7 +74,7 @@ vulkan_buffer_allocation::ptr detail::allocate_vulkan_buffer(vulkan_engine& engi
 
     VkBuffer buffer = VK_NULL_HANDLE;
     check_vulkan_memory_result(vkCreateBuffer(device, &buffer_info, nullptr, &buffer), "vkCreateBuffer");
-    allocation->buffer = buffer;
+    allocation->_buffer = buffer;
 
     VkMemoryRequirements requirements{};
     vkGetBufferMemoryRequirements(device, buffer, &requirements);
@@ -95,16 +90,16 @@ vulkan_buffer_allocation::ptr detail::allocate_vulkan_buffer(vulkan_engine& engi
 
     VkDeviceMemory device_memory = VK_NULL_HANDLE;
     check_vulkan_memory_result(vkAllocateMemory(device, &allocation_info, nullptr, &device_memory), "vkAllocateMemory");
-    allocation->memory = device_memory;
-    allocation->memory_size = allocation_info.allocationSize;
-    allocation->memory_flags = memory_type.flags;
+    allocation->_memory = device_memory;
+    allocation->_memory_size = allocation_info.allocationSize;
+    allocation->_memory_flags = memory_type.flags;
 
     check_vulkan_memory_result(vkBindBufferMemory(device, buffer, device_memory, 0), "vkBindBufferMemory");
 
     if (allocation->is_host_visible()) {
         void* mapped_data = nullptr;
         check_vulkan_memory_result(vkMapMemory(device, device_memory, 0, VK_WHOLE_SIZE, 0, &mapped_data), "vkMapMemory");
-        allocation->mapped_data = mapped_data;
+        allocation->_mapped_data = mapped_data;
     }
 
     return allocation;
@@ -178,57 +173,62 @@ vulkan_non_coherent_range align_vulkan_non_coherent_range(VkDeviceSize offset, V
 }
 
 vulkan_buffer_allocation::vulkan_buffer_allocation(std::shared_ptr<vulkan_device> device_owner, VkDeviceSize size)
-    : device(device_owner->get_device()),
-      size(size),
-      non_coherent_atom_size(device_owner->get_non_coherent_atom_size()),
+    : _device(device_owner->get_device()),
+      _size(size),
+      _non_coherent_atom_size(device_owner->get_non_coherent_atom_size()),
       _device_owner(std::move(device_owner)) {}
 
 vulkan_buffer_allocation::~vulkan_buffer_allocation() {
-    if (mapped_data != nullptr) {
-        vkUnmapMemory(device, memory);
+    unmap();
+    if (_buffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(_device, _buffer, nullptr);
     }
-    if (buffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(device, buffer, nullptr);
+    if (_memory != VK_NULL_HANDLE) {
+        vkFreeMemory(_device, _memory, nullptr);
     }
-    if (memory != VK_NULL_HANDLE) {
-        vkFreeMemory(device, memory, nullptr);
+}
+
+void vulkan_buffer_allocation::unmap() noexcept {
+    if (is_mapped()) {
+        vkUnmapMemory(_device, _memory);
+        _mapped_data = nullptr;
     }
 }
 
 void vulkan_buffer_allocation::flush(VkDeviceSize offset, VkDeviceSize range_size) const {
     OPENVINO_ASSERT(is_mapped(), "[GPU][Vulkan] Cannot flush unmapped memory");
-    OPENVINO_ASSERT(offset <= size, "[GPU][Vulkan] Flush offset exceeds buffer size");
-    const auto normalized_size = range_size == VK_WHOLE_SIZE ? size - offset : range_size;
-    OPENVINO_ASSERT(normalized_size <= size - offset, "[GPU][Vulkan] Flush range exceeds buffer size");
-    if (normalized_size == 0 || (memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0) {
+    OPENVINO_ASSERT(offset <= _size, "[GPU][Vulkan] Flush offset exceeds buffer size");
+    const auto normalized_size = range_size == VK_WHOLE_SIZE ? _size - offset : range_size;
+    OPENVINO_ASSERT(normalized_size <= _size - offset, "[GPU][Vulkan] Flush range exceeds buffer size");
+    if (normalized_size == 0 || is_host_coherent()) {
         return;
     }
-    const auto aligned_range = align_vulkan_non_coherent_range(offset, normalized_size, memory_size, non_coherent_atom_size);
+    const auto aligned_range = align_vulkan_non_coherent_range(offset, normalized_size, _memory_size, _non_coherent_atom_size);
     std::lock_guard<std::mutex> lock(_visibility_mutex);
     VkMappedMemoryRange range{};
     range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    range.memory = memory;
+    range.memory = _memory;
     range.offset = aligned_range.offset;
     range.size = aligned_range.size;
-    detail::check_vulkan_memory_result(vkFlushMappedMemoryRanges(device, 1, &range), "vkFlushMappedMemoryRanges");
+    check_vulkan_memory_result(vkFlushMappedMemoryRanges(_device, 1, &range), "vkFlushMappedMemoryRanges");
 }
 
 void vulkan_buffer_allocation::invalidate(VkDeviceSize offset, VkDeviceSize range_size) const {
     OPENVINO_ASSERT(is_mapped(), "[GPU][Vulkan] Cannot invalidate unmapped memory");
-    OPENVINO_ASSERT(offset <= size, "[GPU][Vulkan] Invalidate offset exceeds buffer size");
-    const auto normalized_size = range_size == VK_WHOLE_SIZE ? size - offset : range_size;
-    OPENVINO_ASSERT(normalized_size <= size - offset, "[GPU][Vulkan] Invalidate range exceeds buffer size");
-    if (normalized_size == 0 || (memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0) {
+    OPENVINO_ASSERT(offset <= _size, "[GPU][Vulkan] Invalidate offset exceeds buffer size");
+    const auto normalized_size = range_size == VK_WHOLE_SIZE ? _size - offset : range_size;
+    OPENVINO_ASSERT(normalized_size <= _size - offset, "[GPU][Vulkan] Invalidate range exceeds buffer size");
+    if (normalized_size == 0 || is_host_coherent()) {
         return;
     }
-    const auto aligned_range = align_vulkan_non_coherent_range(offset, normalized_size, memory_size, non_coherent_atom_size);
+    const auto aligned_range = align_vulkan_non_coherent_range(offset, normalized_size, _memory_size, _non_coherent_atom_size);
     std::lock_guard<std::mutex> lock(_visibility_mutex);
     VkMappedMemoryRange range{};
     range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    range.memory = memory;
+    range.memory = _memory;
     range.offset = aligned_range.offset;
     range.size = aligned_range.size;
-    detail::check_vulkan_memory_result(vkInvalidateMappedMemoryRanges(device, 1, &range), "vkInvalidateMappedMemoryRanges");
+    check_vulkan_memory_result(vkInvalidateMappedMemoryRanges(_device, 1, &range), "vkInvalidateMappedMemoryRanges");
 }
 
 vulkan_buffer_region::vulkan_buffer_region(std::weak_ptr<vulkan_memory_allocator> owner,
@@ -372,21 +372,21 @@ void vulkan_memory_allocator::release(const vulkan_buffer_allocation::ptr& alloc
     block_it->free_ranges.resize(coalesced_count);
 
     const bool fully_empty = block_it->live_regions == 0 && block_it->free_ranges.size() == 1 && block_it->free_ranges.front().offset == 0 &&
-                             block_it->free_ranges.front().size == block_it->allocation->size;
+                             block_it->free_ranges.front().size == block_it->allocation->get_size();
     if (!fully_empty) {
         return;
     }
 
     if (block_it->cacheable) {
         const auto retained_it = std::max_element(_blocks.begin(), _blocks.end(), [&](const block& lhs, const block& rhs) {
-            const auto lhs_size = &lhs != &*block_it && lhs.cacheable && lhs.live_regions == 0 ? lhs.allocation->size : 0;
-            const auto rhs_size = &rhs != &*block_it && rhs.cacheable && rhs.live_regions == 0 ? rhs.allocation->size : 0;
+            const auto lhs_size = &lhs != &*block_it && lhs.cacheable && lhs.live_regions == 0 ? lhs.allocation->get_size() : 0;
+            const auto rhs_size = &rhs != &*block_it && rhs.cacheable && rhs.live_regions == 0 ? rhs.allocation->get_size() : 0;
             return lhs_size < rhs_size;
         });
         if (retained_it == _blocks.end() || retained_it == block_it || !retained_it->cacheable || retained_it->live_regions != 0) {
             return;
         }
-        if (retained_it->allocation->size < block_it->allocation->size) {
+        if (retained_it->allocation->get_size() < block_it->allocation->get_size()) {
             _blocks.erase(retained_it);
             return;
         }

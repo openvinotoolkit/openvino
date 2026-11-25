@@ -14,20 +14,29 @@
 #include "openvino/core/except.hpp"
 #include "vulkan/vulkan_engine.hpp"
 #include "vulkan/vulkan_memory.hpp"
-#include "vulkan/vulkan_memory_internal.hpp"
+
+namespace cldnn::vulkan::test {
+
+class vulkan_buffer_allocation_access {
+public:
+    static void force_staging(vulkan_buffer_allocation& allocation) {
+        allocation.unmap();
+    }
+
+    static void force_non_coherent(vulkan_buffer_allocation& allocation, VkDeviceSize atom_size) {
+        allocation._memory_flags &= ~static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        allocation._non_coherent_atom_size = atom_size;
+    }
+};
+
+}  // namespace cldnn::vulkan::test
 
 namespace {
 
+using cldnn::vulkan::test::vulkan_buffer_allocation_access;
+
 cldnn::layout byte_layout(int64_t count) {
     return {ov::PartialShape{1, 1, 1, count}, ov::element::u8, cldnn::format::bfyx};
-}
-
-void unmap_for_staging(const cldnn::vulkan::vulkan_buffer_allocation::ptr& allocation) {
-    if (allocation->is_mapped()) {
-        // Exercise real staging copies on unified-memory GPUs.
-        vkUnmapMemory(allocation->device, allocation->memory);
-        allocation->mapped_data = nullptr;
-    }
 }
 
 void check_disjoint_locks(cldnn::engine& engine, cldnn::memory& buffer, cldnn::stream& stream, const uint8_t* mapped_base = nullptr) {
@@ -54,15 +63,14 @@ void check_mapped_non_coherent_locks(cldnn::vulkan::vulkan_engine& engine, cldnn
     using namespace cldnn::vulkan;
     const auto atom_size = std::max<VkDeviceSize>(engine.get_non_coherent_atom_size(), 8);
     auto allocator = std::make_shared<vulkan_memory_allocator>(atom_size, atom_size, atom_size, [&](size_t size) {
-        return detail::allocate_vulkan_buffer(engine, size, vulkan_buffer_memory_usage::host_staging);
+        return vulkan_buffer_allocation::create(engine, size, vulkan_buffer_memory_usage::host_staging);
     });
     auto region = allocator->allocate(8);
     const auto& allocation = region->get_allocation();
-    const auto* mapped = static_cast<const uint8_t*>(allocation->mapped_data);
+    const auto* mapped = static_cast<const uint8_t*>(allocation->get_mapped_data());
     OPENVINO_ASSERT(mapped != nullptr, "The non-coherent test requires an active mapping");
     // Exercise the non-coherent policy on devices with coherent mappings or single-byte atoms.
-    allocation->memory_flags &= ~static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    allocation->non_coherent_atom_size = atom_size;
+    vulkan_buffer_allocation_access::force_non_coherent(*allocation, atom_size);
     vulkan_buffer buffer(&engine, byte_layout(static_cast<int64_t>(atom_size)), region, 0, nullptr);
     buffer.fill(stream);
     check_disjoint_locks(engine, buffer, stream, mapped);
@@ -83,12 +91,12 @@ void check_padded_allocation_fallbacks(cldnn::vulkan::vulkan_engine& engine, cld
             if (fail_pooled_allocation && attempted.size() == 1) {
                 throw std::bad_alloc{};
             }
-            return detail::allocate_vulkan_buffer(engine, size, vulkan_buffer_memory_usage::host_staging);
+            return vulkan_buffer_allocation::create(engine, size, vulkan_buffer_memory_usage::host_staging);
         });
         auto region = allocator->allocate(requested);
         OPENVINO_ASSERT(attempted.size() == (fail_pooled_allocation ? 2U : 1U) && attempted.back() == padded && region->get_size() == padded,
                         "Allocation fallback discarded transfer padding");
-        unmap_for_staging(region->get_allocation());
+        vulkan_buffer_allocation_access::force_staging(*region->get_allocation());
         vulkan_buffer buffer(&engine, byte_layout(requested), region, 0, nullptr);
         constexpr uint8_t pattern = 0x5A;
         buffer.fill(stream, pattern);
@@ -147,8 +155,8 @@ void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
     for (const size_t count : {256, 257}) {
         auto source = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::vk_buffer, false);
         auto destination = engine.allocate_memory(byte_layout(count + 4), cldnn::allocation_type::vk_buffer, false);
-        unmap_for_staging(static_cast<vulkan_buffer&>(*source).get_allocation());
-        unmap_for_staging(static_cast<vulkan_buffer&>(*destination).get_allocation());
+        vulkan_buffer_allocation_access::force_staging(*static_cast<vulkan_buffer&>(*source).get_allocation());
+        vulkan_buffer_allocation_access::force_staging(*static_cast<vulkan_buffer&>(*destination).get_allocation());
         destination->fill(stream, 0xA5);
 
         std::vector<uint8_t> expected(count + 4, 0xA5);
@@ -171,7 +179,7 @@ int main() {
         OPENVINO_ASSERT(!devices.empty(), "No Vulkan GPU detected");
         auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
         auto buffer = engine->allocate_memory(byte_layout(4096), cldnn::allocation_type::vk_buffer, false);
-        unmap_for_staging(static_cast<cldnn::vulkan::vulkan_buffer&>(*buffer).get_allocation());
+        vulkan_buffer_allocation_access::force_staging(*static_cast<cldnn::vulkan::vulkan_buffer&>(*buffer).get_allocation());
         auto& stream = engine->get_service_stream();
         buffer->fill(stream);
         check_disjoint_locks(*engine, *buffer, stream);

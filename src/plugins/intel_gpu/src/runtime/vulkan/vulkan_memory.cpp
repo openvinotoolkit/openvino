@@ -10,7 +10,6 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 #include "vulkan_engine.hpp"
-#include "vulkan_memory_internal.hpp"
 #include "vulkan_stream.hpp"
 
 namespace cldnn {
@@ -54,19 +53,19 @@ void vulkan_buffer::validate_range(size_t offset, size_t size, const char* opera
 bool vulkan_buffer::can_access_mapping(size_t offset, size_t size) const {
     const auto& allocation = get_allocation();
     // Staging keeps host cache operations on partial atoms from touching other views.
-    const auto atom_size = allocation->non_coherent_atom_size;
+    const auto atom_size = allocation->get_non_coherent_atom_size();
     return allocation->is_mapped() && (allocation->is_host_coherent() || ((get_offset() + offset) % atom_size == 0 && size % atom_size == 0));
 }
 
 void* vulkan_buffer::mapped_data() const {
     OPENVINO_ASSERT(get_allocation()->is_mapped(), "[GPU][Vulkan] Buffer memory is not mapped");
-    return static_cast<unsigned char*>(get_allocation()->mapped_data) + get_offset();
+    return static_cast<unsigned char*>(get_allocation()->get_mapped_data()) + get_offset();
 }
 
 vulkan_buffer_allocation::ptr vulkan_buffer::allocate_staging(size_t size) const {
     auto* engine = dynamic_cast<vulkan_engine*>(_engine);
     OPENVINO_ASSERT(engine != nullptr, "[GPU][Vulkan] Staging allocation requires a Vulkan engine");
-    return detail::allocate_vulkan_buffer(*engine, size, vulkan_buffer_memory_usage::host_staging);
+    return vulkan_buffer_allocation::create(*engine, size, vulkan_buffer_memory_usage::host_staging);
 }
 
 event::ptr vulkan_buffer::write_staged(const vulkan_stream& queue,
@@ -74,7 +73,7 @@ event::ptr vulkan_buffer::write_staged(const vulkan_stream& queue,
                                        size_t size,
                                        const std::function<void(unsigned char*)>& write) {
     auto staging = allocate_staging(size);
-    write(static_cast<unsigned char*>(staging->mapped_data));
+    write(static_cast<unsigned char*>(staging->get_mapped_data()));
     staging->flush(0, size);
     return queue.enqueue_buffer_copy(staging, 0, get_allocation(), get_offset() + offset, size);
 }
@@ -90,7 +89,7 @@ void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
                 get_allocation()->invalidate(get_offset(), _bytes_count);
             }
         } else {
-            if (_lock_staging == nullptr || _lock_staging->size < _bytes_count) {
+            if (_lock_staging == nullptr || _lock_staging->get_size() < _bytes_count) {
                 _lock_staging = allocate_staging(_bytes_count);
             }
             if (type != mem_lock_type::write && _bytes_count > 0) {
@@ -101,7 +100,7 @@ void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
     }
     _write_access = _write_access || type != mem_lock_type::read;
     ++_lock_count;
-    return direct ? mapped_data() : _lock_staging->mapped_data;
+    return direct ? mapped_data() : _lock_staging->get_mapped_data();
 }
 
 void vulkan_buffer::unlock(const stream& stream) {
@@ -242,7 +241,7 @@ event::ptr vulkan_buffer::copy_to(stream& stream, void* destination, size_t sour
             staging = allocate_staging(size);
             vulkan_stream.enqueue_buffer_copy(get_allocation(), get_offset() + source_offset, staging, 0, size);
             staging->invalidate(0, size);
-            source_bytes = static_cast<const unsigned char*>(staging->mapped_data);
+            source_bytes = static_cast<const unsigned char*>(staging->get_mapped_data());
         }
         auto* destination_bytes = static_cast<unsigned char*>(destination) + destination_offset;
         std::memcpy(destination_bytes, source_bytes, size);

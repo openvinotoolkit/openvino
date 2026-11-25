@@ -158,7 +158,6 @@ set(GPU_RUNTIME_VULKAN_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_memory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_memory.hpp
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_memory_allocator.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_memory_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_required_device_profile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_required_device_profile.hpp
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_stream.cpp

@@ -22,6 +22,10 @@ class vulkan_device;
 class vulkan_memory_allocator;
 class vulkan_stream;
 
+namespace test {
+class vulkan_buffer_allocation_access;
+}
+
 enum class vulkan_buffer_memory_usage {
     device,
     host_staging,
@@ -48,6 +52,8 @@ class vulkan_buffer_allocation {
 public:
     using ptr = std::shared_ptr<vulkan_buffer_allocation>;
 
+    static ptr create(vulkan_engine& engine, size_t requested_size, vulkan_buffer_memory_usage usage);
+
     vulkan_buffer_allocation(std::shared_ptr<vulkan_device> device_owner, VkDeviceSize size);
     ~vulkan_buffer_allocation();
 
@@ -57,36 +63,55 @@ public:
     void flush(VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
     void invalidate(VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
 
-    bool is_host_visible() const {
-        return (memory_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+    VkDevice get_device() const {
+        return _device;
+    }
+
+    VkBuffer get_buffer() const {
+        return _buffer;
+    }
+
+    VkDeviceSize get_size() const {
+        return _size;
+    }
+
+    void* get_mapped_data() const {
+        return _mapped_data;
+    }
+
+    VkDeviceSize get_non_coherent_atom_size() const {
+        return _non_coherent_atom_size;
     }
 
     bool is_mapped() const {
-        return mapped_data != nullptr;
-    }
-
-    bool is_device_local() const {
-        return (memory_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0;
+        return _mapped_data != nullptr;
     }
 
     bool is_host_cached() const {
-        return (memory_flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0;
+        return (_memory_flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0;
     }
 
     bool is_host_coherent() const {
-        return (memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+        return (_memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
     }
 
-    VkDevice device = VK_NULL_HANDLE;
-    VkBuffer buffer = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
-    void* mapped_data = nullptr;
-    VkDeviceSize size = 0;
-    VkDeviceSize memory_size = 0;
-    VkMemoryPropertyFlags memory_flags = 0;
-    VkDeviceSize non_coherent_atom_size = 1;
-
 private:
+    friend class test::vulkan_buffer_allocation_access;
+
+    void unmap() noexcept;
+
+    bool is_host_visible() const {
+        return (_memory_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+    }
+
+    const VkDevice _device;
+    VkBuffer _buffer = VK_NULL_HANDLE;
+    VkDeviceMemory _memory = VK_NULL_HANDLE;
+    void* _mapped_data = nullptr;
+    const VkDeviceSize _size;
+    VkDeviceSize _memory_size = 0;
+    VkMemoryPropertyFlags _memory_flags = 0;
+    VkDeviceSize _non_coherent_atom_size = 1;
     std::shared_ptr<vulkan_device> _device_owner;
     mutable std::mutex _visibility_mutex;
 };
@@ -175,7 +200,7 @@ public:
     event::ptr copy_to(stream& stream, void* destination, size_t source_offset, size_t destination_offset, size_t size, bool blocking) const override;
 
     VkBuffer get_buffer() const {
-        return _region->get_allocation()->buffer;
+        return _region->get_allocation()->get_buffer();
     }
 
     VkDeviceSize get_offset() const {

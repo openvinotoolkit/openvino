@@ -206,12 +206,12 @@ event::ptr vulkan_stream::enqueue_buffer_copy(const std::shared_ptr<vulkan_buffe
                                               const std::shared_ptr<vulkan_buffer_allocation>& destination,
                                               VkDeviceSize destination_offset,
                                               VkDeviceSize size) const {
-    OPENVINO_ASSERT(source->device == _device->get_device() && destination->device == _device->get_device(),
+    OPENVINO_ASSERT(source->get_device() == _device->get_device() && destination->get_device() == _device->get_device(),
                     "[GPU][Vulkan] Buffer copy requires allocations from the stream's device");
     if (size > 0) {
         const VkBufferCopy range{source_offset, destination_offset, size};
         submit([&](VkCommandBuffer commands) {
-            vkCmdCopyBuffer(commands, source->buffer, destination->buffer, 1, &range);
+            vkCmdCopyBuffer(commands, source->get_buffer(), destination->get_buffer(), 1, &range);
         });
     }
     return std::make_shared<vulkan_user_event>(true);
@@ -222,11 +222,11 @@ event::ptr vulkan_stream::enqueue_buffer_fill(const std::shared_ptr<vulkan_buffe
                                               VkDeviceSize size,
                                               uint32_t pattern,
                                               const std::vector<event::ptr>& dependencies) const {
-    OPENVINO_ASSERT(destination->device == _device->get_device(), "[GPU][Vulkan] Buffer fill requires an allocation from the stream's device");
+    OPENVINO_ASSERT(destination->get_device() == _device->get_device(), "[GPU][Vulkan] Buffer fill requires an allocation from the stream's device");
     wait_for(dependencies);
     if (size > 0) {
         submit([&](VkCommandBuffer commands) {
-            vkCmdFillBuffer(commands, destination->buffer, destination_offset, size, pattern);
+            vkCmdFillBuffer(commands, destination->get_buffer(), destination_offset, size, pattern);
         });
     }
     return std::make_shared<vulkan_user_event>(true);

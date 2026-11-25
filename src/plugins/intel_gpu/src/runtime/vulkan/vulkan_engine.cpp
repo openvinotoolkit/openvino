@@ -12,7 +12,6 @@
 #include "openvino/core/except.hpp"
 #include "vulkan_engine_factory.hpp"
 #include "vulkan_memory.hpp"
-#include "vulkan_memory_internal.hpp"
 #include "vulkan_stream.hpp"
 
 namespace cldnn {
@@ -40,7 +39,7 @@ vulkan_engine::vulkan_engine(const device::ptr& device, runtime_types runtime_ty
         preferred_block_size = std::min<uint64_t>(alignment, max_block_size);
     }
     _memory_allocator = std::make_shared<vulkan_memory_allocator>(alignment, preferred_block_size, max_block_size, [this](size_t size) {
-        return detail::allocate_vulkan_buffer(*this, size, vulkan_buffer_memory_usage::device);
+        return vulkan_buffer_allocation::create(*this, size, vulkan_buffer_memory_usage::device);
     });
     _service_stream = std::make_unique<vulkan_stream>(*this);
 }
@@ -75,7 +74,7 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     check_allocatable(layout, type);
 
     auto region = allocate_buffer_region(layout.bytes_count());
-    auto* tracking_address = region->get_allocation()->mapped_data;
+    auto* tracking_address = region->get_allocation()->get_mapped_data();
     if (tracking_address != nullptr) {
         tracking_address = static_cast<unsigned char*>(tracking_address) + region->get_offset();
     } else {
