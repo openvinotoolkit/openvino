@@ -74,6 +74,7 @@ struct SectionAlignment {
  */
 enum class WriteErrc {
     write_failed = 1,  //!< The destination ran out of room (fixed buffer) or a write failed (stream).
+    invalid_blob = 2,  //!< The blob is not a valid HSM container.
 };
 
 /**
@@ -189,6 +190,47 @@ public:
      * @note Called by #IWriter::add_sections(), not directly - see its docs.
      */
     virtual void handle_section(IWriter& writer) const = 0;
+};
+
+/**
+ * @brief Where an #IBlobEncoder writes one whole blob (one HSM container). Offsets are relative to the
+ * blob's first byte.
+ * @note Owned by the writer that hands it out and only borrowed for the duration of
+ * #IBlobEncoder::encode() - never deleted through this interface.
+ */
+class IBlobSink {
+public:
+    /// Adds @p data after the bytes written so far.
+    virtual void write(ov::util::MemoryView data) = 0;
+
+    /// Overwrites bytes already written, e.g. a header filled in last; `offset + data.size()` must be
+    /// `<= written_size()`.
+    virtual void patch(size_t offset, ov::util::MemoryView data) = 0;
+
+    /// Number of bytes written so far.
+    virtual size_t written_size() const = 0;
+
+    /// Position of the blob's first byte in the whole file - use it to align sections to file offsets.
+    virtual size_t origin() const = 0;
+
+    /// False once a write has failed; stays false.
+    virtual bool good() const = 0;
+
+protected:
+    ~IBlobSink() = default;
+};
+
+/**
+ * @brief Produces one whole blob (header, sections, manifest) into an #IBlobSink.
+ * @note Separate from #ISectionEncoder on purpose: a section is a part of a blob, a blob is a whole
+ * container.
+ */
+class IBlobEncoder {
+public:
+    virtual ~IBlobEncoder() = default;
+
+    /// Writes the whole blob to @p sink; runs immediately when handed to a writer.
+    virtual void encode(IBlobSink& sink) const = 0;
 };
 
 }  // namespace v1

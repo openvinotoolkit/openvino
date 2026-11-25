@@ -6,7 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstring>
 #include <limits>
 #include <optional>
@@ -15,6 +17,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "hsm_test_utils.hpp"
 #include "openvino/core/except.hpp"
 
 // DeferredWriter-specific tests
@@ -141,33 +144,6 @@ hsm::DeferredWriter open_buffer_writer(std::byte* dst, size_t size) {
     return std::move(writer).value();
 }
 
-// Fails (writing only half the requested bytes) on a chosen xsputn() call, simulating a stream write
-// that partially succeeds before std::ostream sets badbit - built on std::stringbuf so seeking still
-// works, letting finalize()'s retry be observed.
-class FlakyOnceStreamBuf : public std::stringbuf {
-public:
-    int fail_on_call = -1;  // -1 = never fail
-    int call_count = 0;
-
-protected:
-    std::streamsize xsputn(const char* s, std::streamsize n) override {
-        if (++call_count == fail_on_call) {
-            const auto partial = n / 2;
-            std::stringbuf::xsputn(s, partial);
-            return partial;
-        }
-        return std::stringbuf::xsputn(s, n);
-    }
-};
-
-class AppendOnlyStreamBuf : public std::stringbuf {
-protected:
-    std::streamsize xsputn(const char* s, std::streamsize n) override {
-        seekoff(0, std::ios::end, std::ios::out);
-        return std::stringbuf::xsputn(s, n);
-    }
-};
-
 struct ParsedContainer {
     hsm::Header header{};
     std::vector<hsm::ManifestEntry> entries;
@@ -241,7 +217,6 @@ TEST(HsmDeferredWriterTest, open_stream_rejects_an_already_failed_stream) {
 }
 
 TEST(HsmDeferredWriterTest, open_stream_rejects_a_non_seekable_stream) {
-    struct NonSeekableStreamBuf : std::streambuf {};  // base class's seekoff/seekpos always fail
     NonSeekableStreamBuf buf;
     std::ostream stream(&buf);
     EXPECT_FALSE(hsm::DeferredWriter::open(stream).has_value());
@@ -1141,6 +1116,175 @@ TEST(HsmDeferredWriterTest, every_written_manifest_entry_has_valid_section_bound
     for (const auto& entry : container->entries) {
         EXPECT_TRUE(hsm::is_valid_section_bounds(entry, container->header));
     }
+}
+
+// --- IBlobSink destination ---
+
+namespace {
+
+// IBlobSink over a std::vector, with a chosen origin and an optional capacity limit.
+class VectorBlobSink final : public hsm::IBlobSink {
+public:
+    explicit VectorBlobSink(size_t origin = 0, size_t capacity = std::numeric_limits<size_t>::max())
+        : m_origin{origin},
+          m_capacity{capacity} {}
+
+    void write(ov::util::MemoryView data) override {
+        if (!is_good || data.size() > m_capacity - bytes.size()) {
+            is_good = false;
+        } else {
+            bytes.insert(bytes.end(), data.data(), data.data() + data.size());
+        }
+    }
+    void patch(size_t offset, ov::util::MemoryView data) override {
+        OPENVINO_ASSERT(offset <= bytes.size() && data.size() <= bytes.size() - offset);
+        std::copy_n(data.data(), data.size(), bytes.begin() + offset);
+    }
+    size_t written_size() const override {
+        return bytes.size();
+    }
+    size_t origin() const override {
+        return m_origin;
+    }
+    bool good() const override {
+        return is_good;
+    }
+
+    std::vector<std::byte> bytes;
+    bool is_good = true;
+
+private:
+    size_t m_origin;
+    size_t m_capacity;
+};
+
+hsm::DeferredWriter open_sink_writer(hsm::IBlobSink& sink) {
+    auto writer = hsm::DeferredWriter::open(sink);
+    EXPECT_TRUE(writer.has_value());
+    return std::move(writer).value();
+}
+
+template <class T>
+void append_bytes(std::vector<std::byte>& out, const T& value) {
+    const auto view = ov::util::as_memory_view(value);
+    out.insert(out.end(), view.data(), view.data() + view.size());
+}
+
+}  // namespace
+
+TEST(HsmDeferredWriterTest, open_sink_rejects_a_sink_that_is_not_good) {
+    VectorBlobSink sink;
+    sink.is_good = false;
+    EXPECT_FALSE(hsm::DeferredWriter::open(sink).has_value());
+}
+
+TEST(HsmDeferredWriterTest, open_sink_rejects_a_sink_that_already_has_bytes) {
+    VectorBlobSink sink;
+    sink.bytes.resize(1);
+    EXPECT_FALSE(hsm::DeferredWriter::open(sink).has_value());
+}
+
+TEST(HsmDeferredWriterTest, sink_at_origin_zero_gets_the_same_bytes_as_a_buffer) {
+    const std::string id = "id";
+    const std::string model = "model-bytes";
+    const auto add_sections = [&](hsm::DeferredWriter& writer) {
+        writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(id));
+        writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model), {/*offset_align=*/64});
+    };
+
+    std::vector<std::byte> buffer(k_buffer_capacity);
+    auto buffer_writer = open_buffer_writer(buffer.data(), buffer.size());
+    add_sections(buffer_writer);
+    ASSERT_EQ(buffer_writer.finalize(), std::error_code{});
+
+    VectorBlobSink sink;
+    auto sink_writer = open_sink_writer(sink);
+    add_sections(sink_writer);
+    ASSERT_EQ(sink_writer.finalize(), std::error_code{});
+
+    const auto& header = hsm::Header::view(sink.bytes.data());
+    ASSERT_EQ(sink.bytes.size(), header.container_size);
+    EXPECT_TRUE(std::equal(sink.bytes.begin(), sink.bytes.end(), buffer.begin()));
+}
+
+TEST(HsmDeferredWriterTest, sink_aligns_sections_to_whole_file_offsets) {
+    constexpr size_t origin = 100;
+    constexpr size_t align = 64;
+    VectorBlobSink sink{origin};
+    auto writer = open_sink_writer(sink);
+    const std::string model = "abc";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model), {align});
+    ASSERT_EQ(writer.finalize(), std::error_code{});
+
+    // origin + 32 = 132 rounds up to 192 in the file, so the section starts at 92 in the container.
+    constexpr size_t section_offset = 92;
+    static_assert((origin + section_offset) % align == 0);
+    constexpr size_t manifest_offset = section_offset + align;  // the slot is padded to `align` too
+    constexpr size_t container_size = manifest_offset + sizeof(hsm::ManifestEntry);
+
+    hsm::ManifestEntry entry{};
+    entry.device = hsm::any_device_id;
+    entry.tag = hsm::model_tag;
+    entry.offset = section_offset;
+    entry.size = model.size();
+
+    std::vector<std::byte> expected;
+    append_bytes(expected,
+                 hsm::Header{hsm::BlobMagic::single,
+                             hsm::FormatVersion::major,
+                             hsm::FormatVersion::minor,
+                             container_size,
+                             manifest_offset,
+                             sizeof(hsm::ManifestEntry)});
+    expected.resize(section_offset);
+    append_bytes(expected, model);
+    expected.resize(manifest_offset);
+    append_bytes(expected, entry);
+
+    EXPECT_EQ(sink.bytes, expected);
+}
+
+TEST(HsmDeferredWriterTest, sink_gets_the_unsized_section_header_through_patch) {
+    // Stream output is the reference, proven by
+    // HsmDeferredWriterTest.unsized_section_forces_the_header_to_be_patched_after_the_fact.
+    std::stringstream stream;
+    auto stream_writer = open_writer(stream);
+    stream_writer.add_section(hsm::any_device_id,
+                              hsm::model_tag,
+                              std::make_shared<OwnedStringEncoder>("discovered-at-write-time"));
+    ASSERT_EQ(stream_writer.finalize(), std::error_code{});
+
+    VectorBlobSink sink;
+    auto sink_writer = open_sink_writer(sink);
+    sink_writer.add_section(hsm::any_device_id,
+                            hsm::model_tag,
+                            std::make_shared<OwnedStringEncoder>("discovered-at-write-time"));
+    ASSERT_EQ(sink_writer.finalize(), std::error_code{});
+
+    const auto expected = stream.str();
+    ASSERT_EQ(sink.bytes.size(), expected.size());
+    EXPECT_EQ(std::memcmp(sink.bytes.data(), expected.data(), expected.size()), 0);
+}
+
+TEST(HsmDeferredWriterTest, sink_finalize_does_not_retry_after_an_exception) {
+    int call_count = 0;
+    bool should_throw = true;
+    VectorBlobSink sink;
+    auto writer = open_sink_writer(sink);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, std::make_shared<RetryEncoder>(call_count, should_throw));
+    EXPECT_THROW(writer.finalize(), ov::Exception);
+
+    should_throw = false;
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
+    EXPECT_EQ(call_count, 1);  // the encoder is not run again
+}
+
+TEST(HsmDeferredWriterTest, sink_write_failure_is_reported_by_finalize) {
+    VectorBlobSink sink{0, sizeof(hsm::Header)};  // room for the header only
+    auto writer = open_sink_writer(sink);
+    const std::string model = "model";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
 }
 
 }  // namespace ov::test

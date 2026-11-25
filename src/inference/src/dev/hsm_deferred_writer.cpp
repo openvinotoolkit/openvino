@@ -42,8 +42,19 @@ struct SectionSlot {
     size_t end;
 };
 
-constexpr std::optional<SectionSlot> reserve_slot(size_t cursor, size_t size, SectionAlignment align) {
-    const auto start = ov::util::align_size_up_overflow(cursor, align.offset_align);
+// Aligns `origin + cursor` (a whole-file position) and returns it back relative to the container.
+constexpr std::optional<size_t> align_start(size_t origin, size_t cursor, size_t alignment) {
+    if (cursor > std::numeric_limits<size_t>::max() - origin) {
+        return std::nullopt;
+    } else if (const auto start = ov::util::align_size_up_overflow(origin + cursor, alignment)) {
+        return *start - origin;
+    } else {
+        return std::nullopt;
+    }
+}
+
+constexpr std::optional<SectionSlot> reserve_slot(size_t origin, size_t cursor, size_t size, SectionAlignment align) {
+    const auto start = align_start(origin, cursor, align.offset_align);
     const auto aligned_size = ov::util::align_size_up_overflow(size, align.size_align);
     if (!start || !aligned_size || *aligned_size > std::numeric_limits<size_t>::max() - *start) {
         return std::nullopt;
@@ -113,6 +124,11 @@ void DeferredWriter::write_into(BufferDestination& destination, ov::util::Memory
     }
 }
 
+void DeferredWriter::write_into(SinkDestination& destination, ov::util::MemoryView data) {
+    destination.sink->write(data);
+    destination.size += data.size();
+}
+
 void DeferredWriter::write(ov::util::MemoryView data) {
     if (destination_good()) {
         std::visit(
@@ -151,6 +167,10 @@ void DeferredWriter::patch_into(BufferDestination& destination, size_t offset, o
     std::copy_n(data.data(), data.size(), destination.dst + offset);
 }
 
+void DeferredWriter::patch_into(SinkDestination& destination, size_t offset, ov::util::MemoryView data) {
+    destination.sink->patch(offset, data);
+}
+
 void DeferredWriter::patch(size_t offset, ov::util::MemoryView data) {
     std::visit(
         [&](auto& destination) {
@@ -167,12 +187,21 @@ size_t DeferredWriter::written_size() const {
         m_destination);
 }
 
+size_t DeferredWriter::origin() const {
+    const auto* destination = std::get_if<SinkDestination>(&m_destination);
+    return destination ? destination->sink->origin() : 0;
+}
+
 bool DeferredWriter::is_good(const StreamDestination& destination) {
     return static_cast<bool>(*destination.stream);
 }
 
 bool DeferredWriter::is_good(const BufferDestination& destination) {
     return destination.good;
+}
+
+bool DeferredWriter::is_good(const SinkDestination& destination) {
+    return destination.good && destination.sink->good();
 }
 
 bool DeferredWriter::destination_good() const {
@@ -193,6 +222,9 @@ void DeferredWriter::reset_destination() {
                        destination.size = 0;
                        destination.good = true;
                    },
+                   [](SinkDestination& destination) {
+                       destination.good = !std::exchange(destination.started, true);
+                   },
                },
                m_destination);
 }
@@ -203,6 +235,9 @@ void DeferredWriter::fail_destination() {
                        destination.stream->setstate(std::ios::failbit);
                    },
                    [](BufferDestination& destination) {
+                       destination.good = false;
+                   },
+                   [](SinkDestination& destination) {
                        destination.good = false;
                    },
                },
@@ -221,7 +256,7 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
         std::copy_n(reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), entry.inline_bytes.data());
         return entry;
     }
-    const auto slot = reserve_slot(written_size(), payload.size(), align);
+    const auto slot = reserve_slot(origin(), written_size(), payload.size(), align);
     if (slot) {
         write_zeros(slot->start - written_size());  // pad to the aligned start
     } else {
@@ -244,7 +279,7 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
     entry.device = device;
     entry.tag = tag.tag;
     entry.tag_reserved = tag.bytes;
-    const auto slot = reserve_slot(written_size(), payload.size, align);
+    const auto slot = reserve_slot(origin(), written_size(), payload.size, align);
     if (slot) {
         write_zeros(slot->start - written_size());
     } else {
@@ -278,7 +313,7 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
     entry.device = device;
     entry.tag = tag.tag;
     entry.tag_reserved = tag.bytes;
-    const auto start = ov::util::align_size_up_overflow(written_size(), align.offset_align);
+    const auto start = align_start(origin(), written_size(), align.offset_align);
     if (start) {
         write_zeros(*start - written_size());
     } else {
@@ -316,6 +351,12 @@ DeferredWriter::DeferredWriter(std::byte* dst, size_t capacity) noexcept
       m_result{},
       m_has_unsized_section{false} {}
 
+DeferredWriter::DeferredWriter(IBlobSink& sink) noexcept
+    : m_destination{SinkDestination{&sink}},
+      m_sections{},
+      m_result{},
+      m_has_unsized_section{false} {}
+
 std::optional<DeferredWriter> DeferredWriter::open(std::ostream& stream) {
     if (stream.tellp() == std::streampos(-1)) {
         return std::nullopt;
@@ -331,6 +372,14 @@ std::optional<DeferredWriter> DeferredWriter::open(std::byte* dst, size_t size) 
     } else {
         DeferredWriter writer{dst, size};
         return writer.destination_good() ? std::optional<DeferredWriter>{std::move(writer)} : std::nullopt;
+    }
+}
+
+std::optional<DeferredWriter> DeferredWriter::open(IBlobSink& sink) {
+    if (!sink.good() || sink.written_size() != 0) {
+        return std::nullopt;
+    } else {
+        return DeferredWriter{sink};
     }
 }
 
@@ -403,7 +452,7 @@ std::error_code DeferredWriter::finalize() {
             auto body_size = sizeof(Header);
             for (const auto& section : m_sections) {
                 if (!section.tag.is_inline()) {
-                    if (const auto slot = reserve_slot(body_size, payload_size(section), section.align)) {
+                    if (const auto slot = reserve_slot(origin(), body_size, payload_size(section), section.align)) {
                         body_size = slot->end;
                     } else {
                         fail_destination();
