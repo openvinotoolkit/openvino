@@ -73,6 +73,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_cm, true, "Enable/Disable C
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, output_reclaim_min_size, 32 * 1024 * 1024, "Output buffers of dynamic primitives up to this many bytes are kept when the shape shrinks instead of being reallocated")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, const_prop_chunk_size, 0, "Constant propagation evaluates constants in chunks of about this many bytes and releases folded constant inputs after each chunk. 0 evaluates them in one network. Only for programs whose topology is not reused")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, false, "Enforce asymmetric mode for dynamically quantized activations")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, could_use_flashattn_v2, true, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Apply dynamic quantization only when batch size is larger than this value in OneDNN")

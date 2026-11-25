@@ -81,6 +81,12 @@ ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& con
     return ctx;
 }
 
+// ProgramBuilder drops its topology after the build, so constant propagation may evaluate the
+// constants in chunks and release their inputs after each chunk.
+ExecutionConfig make_default_config(const std::string& device_id) {
+    return ExecutionConfig({ov::device::id(device_id), ov::intel_gpu::const_prop_chunk_size(size_t{512} << 20)});
+}
+
 }  // namespace
 
 #define FACTORY_DECLARATION(op_version, op_name) \
@@ -281,7 +287,7 @@ Plugin::Plugin() {
 
     // Set default configs for each device
     for (const auto& device : m_device_map) {
-        m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
+        m_configs_map.insert({device.first, make_default_config(device.first)});
     }
 
     // Set common info for compiled_model_runtime_properties
@@ -386,7 +392,7 @@ void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_ma
         const auto it = id_map.find(internal_id);
         OPENVINO_ASSERT(it != id_map.end(), "[GPU] Core did not assign an id for enumerated device \"", internal_id, "\", so it could not be addressed.");
         renamed_devices[it->second] = device;
-        renamed_configs.emplace(it->second, ExecutionConfig(ov::device::id(it->second)));
+        renamed_configs.emplace(it->second, make_default_config(it->second));
     }
     m_device_map = std::move(renamed_devices);
     m_configs_map = std::move(renamed_configs);

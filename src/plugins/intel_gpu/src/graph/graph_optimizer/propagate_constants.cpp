@@ -19,7 +19,6 @@
 #    include "graph/impls/onednn/utils.hpp"
 #    include "reorder_inst.h"
 #endif  // ENABLE_ONEDNN_FOR_GPU
-#include <cstdlib>
 #include <functional>
 #include <list>
 #include <unordered_map>
@@ -250,12 +249,11 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
     // Constants are evaluated in chunks of independent constant subgraphs. Running them all in one
     // network keeps every input (e.g. compressed weights) alive next to every output (e.g. their
     // reordered copies), so the peak is about twice the weights. After each chunk, inputs whose
-    // only users are constants are released, as the program drops them afterwards anyway.
-    // OV_GPU_CONST_PROP_CHUNK_MB=0 restores the single network.
-    size_t chunk_bytes = size_t{512} << 20;
-    if (const char* env = std::getenv("OV_GPU_CONST_PROP_CHUNK_MB")) {
-        chunk_bytes = static_cast<size_t>(std::strtoull(env, nullptr, 10)) << 20;
-    }
+    // only users are constants are released, as the program drops them afterwards anyway. Releasing
+    // clears the memory of the data primitives, which the topology shares, so it is only enabled by
+    // const_prop_chunk_size, which the plugin sets as it drops the topology after the build. The
+    // default 0 keeps the single network and releases nothing.
+    const size_t chunk_bytes = config.get_const_prop_chunk_size();
 
     // union-find over the constant subgraph
     std::unordered_map<program_node*, program_node*> parent;
@@ -347,6 +345,7 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
         ExecutionConfig cf_config = config.clone();
         cf_config.set_property(ov::intel_gpu::optimize_data(false));
         cf_config.set_property(ov::intel_gpu::custom_outputs(chunk_outputs));
+        cf_config.set_property(ov::intel_gpu::const_prop_chunk_size(0));
         cf_config.finalize(engine);
         auto prog = program::build_program(engine, chunk_nodes, cf_config, task_executor, true, onednn_impls);
         network::ptr net = network::allocate_network(engine, prog, true, true);

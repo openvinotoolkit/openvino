@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 
 using namespace cldnn;
@@ -126,4 +127,96 @@ TEST(propagate_constants, permute_1_0_reorder_fc) {
     for (size_t i = 0; i < output_ref_ptr.size(); ++i) {
         ASSERT_EQ(output_ptr[i], output_ref_ptr[i]);
     }
+}
+
+// Constants evaluated in chunks (const_prop_chunk_size) must give the same results as one network.
+// The constant subgraphs here are three independent components, so a 1-byte chunk size puts each
+// into its own chunk:
+//   a0 + a1 -> a_sum                     only constant users: a0 and a1 are released
+//   b + e -> b_sum, b * e -> b_prod      inputs shared by two constants: b and e are released
+//   k + k2 -> k_sum, k is also read by out_k2 at runtime: k is kept, k2 is released
+static void test_chunked_constants(bool is_caching_test) {
+    auto& engine = get_test_engine();
+    const layout in_layout{ov::PartialShape{1, 4}, data_types::f32, format::bfyx};
+
+    auto make_mem = [&](const std::vector<float>& values) {
+        auto mem = engine.allocate_memory(in_layout);
+        set_values(mem, values);
+        return mem;
+    };
+    auto input = make_mem({1.f, 2.f, 3.f, 4.f});
+
+    auto make_topology = [&]() {
+        return topology(input_layout("input", in_layout),
+                        data("a0", make_mem({1.f, 1.f, 1.f, 1.f})),
+                        data("a1", make_mem({2.f, 2.f, 2.f, 2.f})),
+                        data("b", make_mem({1.f, 2.f, 3.f, 4.f})),
+                        data("e", make_mem({2.f, 2.f, 2.f, 2.f})),
+                        data("k", make_mem({10.f, 20.f, 30.f, 40.f})),
+                        data("k2", make_mem({1.f, 1.f, 1.f, 1.f})),
+                        eltwise("a_sum", input_info("a0"), input_info("a1"), eltwise_mode::sum),
+                        eltwise("b_sum", input_info("b"), input_info("e"), eltwise_mode::sum),
+                        eltwise("b_prod", input_info("b"), input_info("e"), eltwise_mode::prod),
+                        eltwise("k_sum", input_info("k"), input_info("k2"), eltwise_mode::sum),
+                        eltwise("out_a", input_info("input"), input_info("a_sum"), eltwise_mode::sum),
+                        eltwise("out_b1", input_info("input"), input_info("b_sum"), eltwise_mode::sum),
+                        eltwise("out_b2", input_info("input"), input_info("b_prod"), eltwise_mode::sum),
+                        eltwise("out_k1", input_info("input"), input_info("k_sum"), eltwise_mode::sum),
+                        eltwise("out_k2", input_info("input"), input_info("k"), eltwise_mode::sum));
+    };
+    const std::map<std::string, std::vector<float>> expected = {
+        {"out_a", {4.f, 5.f, 6.f, 7.f}},
+        {"out_b1", {4.f, 6.f, 8.f, 10.f}},
+        {"out_b2", {3.f, 6.f, 9.f, 12.f}},
+        {"out_k1", {12.f, 23.f, 34.f, 45.f}},
+        {"out_k2", {11.f, 22.f, 33.f, 44.f}},
+    };
+
+    auto run = [&](topology& topo, size_t chunk_size) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::const_prop_chunk_size(chunk_size));
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), expected.size());
+        for (const auto& [id, values] : expected) {
+            cldnn::mem_lock<float, mem_lock_type::read> output(outputs.at(id).get_memory(), get_test_stream());
+            ASSERT_EQ(std::vector<float>(output.begin(), output.end()), values) << id;
+        }
+    };
+    auto data_mem = [](const topology& topo, const primitive_id& id) {
+        return std::static_pointer_cast<data>(topo.at(id))->mem;
+    };
+
+    // Without chunking nothing is released, so the topology can be built again.
+    auto topo = make_topology();
+    run(topo, 0);
+    for (const auto& id : {"a0", "a1", "b", "e", "k", "k2"}) {
+        ASSERT_NE(data_mem(topo, id), nullptr) << id;
+    }
+    run(topo, 0);
+
+    // With chunking the inputs of folded constants are released unless a runtime primitive reads them.
+    auto chunked_topo = make_topology();
+    run(chunked_topo, 1);
+    for (const auto& id : {"a0", "a1", "b", "e", "k2"}) {
+        ASSERT_EQ(data_mem(chunked_topo, id), nullptr) << id;
+    }
+    ASSERT_NE(data_mem(chunked_topo, "k"), nullptr);
+
+    // A chunk size larger than all constants keeps the single network, which releases nothing.
+    auto single_chunk_topo = make_topology();
+    run(single_chunk_topo, size_t{1} << 20);
+    for (const auto& id : {"a0", "a1", "b", "e", "k", "k2"}) {
+        ASSERT_NE(data_mem(single_chunk_topo, id), nullptr) << id;
+    }
+}
+
+TEST(propagate_constants, chunked_evaluation) {
+    test_chunked_constants(false);
+}
+
+TEST(propagate_constants, chunked_evaluation_cached) {
+    test_chunked_constants(true);
 }
