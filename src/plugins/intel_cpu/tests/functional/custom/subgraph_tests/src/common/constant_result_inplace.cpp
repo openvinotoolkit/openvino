@@ -12,6 +12,7 @@
 
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "utils/infer_request_reuse.hpp"
 
 namespace ov {
 namespace test {
@@ -82,6 +83,19 @@ TEST_P(ConstantResultInPlaceTest, PreserveConstantResultAcrossInferences) {
         {"SNIPPETS_MODE", enable_snippets ? "ENABLE" : "DISABLE"},
     };
     auto compiled = core.compile_model(model, "CPU", config);
+    auto make_inputs = [&](float scale) {
+        std::vector<ov::Tensor> inputs{ov::Tensor(ov::element::f32, shape)};
+        std::transform(input_values.begin(), input_values.end(), inputs[0].data<float>(), [scale](float x) {
+            return x * scale;
+        });
+        if (!constant_branch) {
+            inputs.emplace_back(ov::element::f32, shape);
+            std::copy(constant_values.begin(), constant_values.end(), inputs.back().data<float>());
+        }
+        return inputs;
+    };
+    ASSERT_NO_FATAL_FAILURE(check_reused_request(core, model, config, compiled, make_inputs(1.f), make_inputs(1.25f)));
+
     std::vector<float> baseline;
     for (size_t call = 0; call < 10; ++call) {
         auto request = compiled.create_infer_request();
@@ -105,33 +119,6 @@ TEST_P(ConstantResultInPlaceTest, PreserveConstantResultAcrossInferences) {
             for (size_t i = 0; i < size; ++i) {
                 ASSERT_EQ(values[i], baseline[i]) << "Call " << call + 1 << ", element " << i;
             }
-        }
-    }
-    // Different inputs must also match a fresh compilation with the same configuration.
-    for (size_t call = 0; call < 3; ++call) {
-        auto fresh = core.compile_model(model, "CPU", config);
-        const auto infer = [&](ov::CompiledModel& compiled_model) {
-            auto request = compiled_model.create_infer_request();
-            auto input = ov::Tensor(ov::element::f32, shape);
-            for (size_t i = 0; i < size; ++i) {
-                input.data<float>()[i] = input_values[i] * (1.0f + 0.25f * call);
-            }
-            request.set_input_tensor(0, input);
-            if (!constant_branch) {
-                auto branch_tensor = ov::Tensor(ov::element::f32, shape);
-                std::copy(constant_values.begin(), constant_values.end(), branch_tensor.data<float>());
-                request.set_input_tensor(1, branch_tensor);
-            }
-            request.infer();
-            const auto result = request.get_output_tensor();
-            const auto* values = result.data<const float>();
-            return std::vector<float>(values, values + result.get_size());
-        };
-        const auto actual = infer(compiled);
-        const auto expected = infer(fresh);
-        ASSERT_EQ(actual.size(), expected.size());
-        for (size_t i = 0; i < actual.size(); ++i) {
-            ASSERT_EQ(actual[i], expected[i]) << "Different input " << call << ", element " << i;
         }
     }
 }
