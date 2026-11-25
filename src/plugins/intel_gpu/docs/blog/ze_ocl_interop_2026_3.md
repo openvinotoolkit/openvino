@@ -7,7 +7,7 @@ OpenVINO 2026.3 introduces Level Zero - OpenCL interoperability enabling users t
 
 ## How to enable Level Zero - OpenCL interoperability
 
-OpenVINO GPU plugin with Level Zero runtime detects if interoperability is supported on current system and enables it automatically. User must ensure that currently installed Intel GPU driver supports and enables "Level Zero executing OpenCL" (LEO) feature.
+OpenVINO GPU plugin with Level Zero runtime detects if interoperability is supported on current system and enables it automatically. User must ensure that currently installed Intel GPU driver supports `cl_intel_level_zero_interop` and enables "Level Zero executing OpenCL" (LEO) feature.
 
 ## Level Zero - OpenCL interoperability design
 
