@@ -1403,7 +1403,7 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_cache_key_is_computed_once_acro
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {
     m_cpu_profiling_info = [] {
-        ov::ProfilingInfo info;
+        ov::ProfilingInfo info{};
         info.status = ov::ProfilingInfo::Status::EXECUTED;
         info.real_time = std::chrono::microseconds(7);
         info.cpu_time = std::chrono::microseconds(5);
@@ -1440,7 +1440,7 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_error_is_deferred_to_the_
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_of_a_failed_inference_does_not_return_the_previous_one) {
     m_cpu_profiling_info = [] {
-        ov::ProfilingInfo info;
+        ov::ProfilingInfo info{};
         info.node_name = "cpu_node";
         return std::vector<ov::ProfilingInfo>{info};
     };

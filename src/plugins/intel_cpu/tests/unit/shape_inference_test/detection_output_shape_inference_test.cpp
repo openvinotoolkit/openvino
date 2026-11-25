@@ -28,7 +28,7 @@ std::shared_ptr<Node> create_detection_output(const PartialShape& box_logits_sha
 }
 
 TEST(StaticShapeInferenceTest, detection_output_v0_top_k) {
-    op::v0::DetectionOutput::Attributes attrs;
+    op::v0::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {-1};
     attrs.top_k = 7;
     attrs.normalized = true;
@@ -53,7 +53,7 @@ TEST(StaticShapeInferenceTest, detection_output_v0_top_k) {
 }
 
 TEST(StaticShapeInferenceTest, detection_output_v0_no_share_location) {
-    op::v0::DetectionOutput::Attributes attrs;
+    op::v0::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {-1};
     attrs.top_k = -1;
     attrs.normalized = true;
@@ -79,7 +79,7 @@ TEST(StaticShapeInferenceTest, detection_output_v0_no_share_location) {
 }
 
 TEST(StaticShapeInferenceTest, detection_output_v0_basic) {
-    op::v0::DetectionOutput::Attributes attrs;
+    op::v0::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {200};
     attrs.num_classes = 2;
     attrs.normalized = true;
@@ -105,7 +105,7 @@ TEST(StaticShapeInferenceTest, detection_output_v0_basic) {
 TEST(StaticShapeInferenceTest, detection_output_v0_default_ctor) {
     auto op = std::make_shared<op::v0::DetectionOutput>();
 
-    op::v0::DetectionOutput::Attributes attrs;
+    op::v0::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {200};
     attrs.num_classes = 2;
     attrs.normalized = true;
@@ -123,7 +123,7 @@ TEST(StaticShapeInferenceTest, detection_output_v0_default_ctor) {
 }
 
 TEST(StaticShapeInferenceTest, detection_output_v8_top_k) {
-    op::v8::DetectionOutput::Attributes attrs;
+    op::v8::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {-1};
     attrs.top_k = 7;
     attrs.normalized = true;
@@ -147,7 +147,7 @@ TEST(StaticShapeInferenceTest, detection_output_v8_top_k) {
 }
 
 TEST(StaticShapeInferenceTest, detection_output_v8_no_share_location) {
-    op::v8::DetectionOutput::Attributes attrs;
+    op::v8::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {-1};
     attrs.top_k = -1;
     attrs.normalized = true;
@@ -172,7 +172,7 @@ TEST(StaticShapeInferenceTest, detection_output_v8_no_share_location) {
 }
 
 TEST(StaticShapeInferenceTest, detection_output_v8_basic) {
-    op::v8::DetectionOutput::Attributes attrs;
+    op::v8::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {200};
     attrs.normalized = true;
     auto op = create_detection_output<op::v8::DetectionOutput>(PartialShape{4, 20},
@@ -197,7 +197,7 @@ TEST(StaticShapeInferenceTest, detection_output_v8_basic) {
 TEST(StaticShapeInferenceTest, detection_output_v8_default_ctor) {
     auto op = std::make_shared<op::v8::DetectionOutput>();
 
-    op::v8::DetectionOutput::Attributes attrs;
+    op::v8::DetectionOutput::Attributes attrs{};
     attrs.keep_top_k = {200};
     attrs.normalized = true;
     op->set_attrs(attrs);

@@ -54,7 +54,7 @@ std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_
 
     if (desc->num_classes == -1) {
         ov::op::v8::DetectionOutput op;
-        ov::op::util::DetectionOutputBase::AttributesBase attrs;
+        ov::op::util::DetectionOutputBase::AttributesBase attrs{};
         attrs.top_k = desc->top_k;
         attrs.variance_encoded_in_target = desc->variance_encoded_in_target;
         attrs.keep_top_k = { desc->keep_top_k };
@@ -65,7 +65,7 @@ std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_
         output_shapes = ov::op::v8::shape_infer(&op, input_shapes);
     } else {
         ov::op::v0::DetectionOutput op;
-        ov::op::v0::DetectionOutput::Attributes attrs;
+        ov::op::v0::DetectionOutput::Attributes attrs{};
         attrs.num_classes = desc->num_classes;
         attrs.top_k = desc->top_k;
         attrs.variance_encoded_in_target = desc->variance_encoded_in_target;
