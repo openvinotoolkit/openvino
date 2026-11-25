@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-25-06-10-16-000-45546792977",
+  "timestamp": "2026-11-25T06:10:16Z",
+  "run_id": "45546792977",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/45546792977",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "40224",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40224",
+  "author": "ankitm3k",
+  "category": "Network",
+  "title": "Windows CPU functional tests artifact upload fails with ENOTFOUND DNS error",
+  "signature": "failed to createartifact unable to make request enotfound|Network",
+  "signature_hash": "272cc033ad86cee8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Python unit tests",
+      "conclusion": "failure",
+      "symptom": "All 95 pytest tests passed, but the upload-artifact step failed with 'Failed to CreateArtifact: Unable to make request: ENOTFOUND'"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status job failed because an upstream job (Python unit tests) failed"
+    }
+  ],
+  "key_errors": [
+    "======================== 95 passed, 4 skipped in 3.14s ========================",
+    "##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github"
+  ],
+  "root_cause": "The Python unit tests themselves completed successfully (95 passed, 4 skipped). The job failure is caused entirely by the subsequent 'Upload test results' step (ababushk/upload-artifact action) failing with a DNS resolution error (ENOTFOUND) while attempting to create the artifact upload request to GitHub's Actions artifact service. This is a transient network/infrastructure issue on the Windows self-hosted runner, unrelated to the PR's GPU transformation code change.",
+  "reproduction_steps": "N/A - not reproducible locally; requires GitHub Actions runner network conditions. Re-running the job on GitHub Actions is sufficient to confirm transience.",
+  "recommended_actions": [
+    "Re-run the failed 'Python unit tests' job; a transient DNS resolution failure is very unlikely to recur.",
+    "No code changes needed in the PR (src/plugins/intel_gpu/.../group_query_attention_decomposition.cpp) - the failure is unrelated to the GQA transformation fix.",
+    "If ENOTFOUND recurs frequently on Windows runners, escalate to the CI infrastructure team to investigate DNS/network reliability on the self-hosted Windows pool."
+  ],
+  "prevention_strategies": "Add retry logic around artifact upload steps on Windows self-hosted runners, or monitor DNS resolution health on the runner pool. This is largely outside the control of individual PR authors.",
+  "historical_context": "This is the second occurrence of this exact signature (ENOTFOUND during CreateArtifact) recorded in the CI Doctor MQ pattern database (first seen 2026-08-13, PR #37392, also a Windows job). Multiple related artifact-upload network/infrastructure failures (ECONNREFUSED, FinalizeArtifact ENOTFOUND, getaddrinfo EAI_AGAIN) have also been recorded as separate but related patterns, indicating recurring flakiness in the artifact upload path on Windows runners."
+}
