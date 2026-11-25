@@ -21,7 +21,7 @@ import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
 from openvino import opset8 as opset
-from openvino.tools.benchmark.utils.utils import parse_devices
+from openvino.tools.benchmark.utils.utils import parse_devices, parse_input_output_precision
 import openvino as ov
 
 def get_executable(sample_language):
@@ -121,6 +121,16 @@ def test_parse_devices_with_empty_entries():
     assert parse_devices('MULTI:CPU,,GPU') == ['MULTI', 'CPU', 'GPU']
     assert parse_devices('MULTI:CPU, ,GPU') == ['MULTI', 'CPU', 'GPU']
     assert parse_devices('HETERO:CPU,') == ['HETERO', 'CPU']
+
+
+def test_parse_input_output_precision_with_colon_in_tensor_names():
+    assert parse_input_output_precision('input:f32') == {'input': 'f32'}
+    assert parse_input_output_precision('encoder:input:f16') == {'encoder:input': 'f16'}
+    assert parse_input_output_precision('encoder:input:0:f16') == {'encoder:input:0': 'f16'}
+    assert parse_input_output_precision('encoder:input:0:f16,output:bf16') == {
+        'encoder:input:0': 'f16',
+        'output': 'bf16',
+    }
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
