@@ -53,6 +53,27 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
                                      PoolingLayerInfo* pool_info,
                                      Pooling3dLayerInfo* pool3d_info,
                                      bool ignoreOutShapeErrors) {
+    // ACL implements CEIL_TORCH as CEIL. For any input size, the last CEIL window
+    // starts before the trailing padding if pad_end + stride <= kernel on every axis.
+    // Otherwise, select oneDNN before dummy-shape validation can hide a mismatch.
+    if (ignoreOutShapeErrors && poolingAttrs.algorithm == Algorithm::PoolingAvg &&
+        poolingAttrs.rounding == op::RoundingType::CEIL_TORCH) {
+        // Auto padding depends on the concrete input shape and is not known here.
+        bool mayDropLastWindow = poolingAttrs.auto_pad;
+        bool hasPadding = false;
+        for (size_t i = 0; i < poolingAttrs.kernel.size(); ++i) {
+            mayDropLastWindow |= poolingAttrs.data_pad_end[i] > poolingAttrs.kernel[i] - poolingAttrs.stride[i];
+            hasPadding |= poolingAttrs.data_pad_begin[i] != 0 || poolingAttrs.data_pad_end[i] != 0;
+        }
+        // Preserve the NCHW ceil-average padding accuracy workaround below.
+        const bool needsPaddingWorkaround =
+            dataLayout == DataLayout::NCHW && hasPadding && !poolingAttrs.exclude_pad;
+        if (mayDropLastWindow || needsPaddingWorkaround) {
+            DEBUG_LOG("Dynamic CEIL_TORCH AvgPool requires oneDNN shape or padding handling.");
+            return false;
+        }
+    }
+
     unsigned int pad_left =
         (poolingAttrs.data_pad_begin.size() >= 2U) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
     unsigned int pad_right =
