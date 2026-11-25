@@ -558,6 +558,12 @@ bool crop_in_place_optimization::match(const program_node& node,
                            (!is_runtime && !node.get_dependencies().empty() &&
                             node.get_dependency(0).is_dynamic());
 
+    // Loop and If do not run do_runtime_in_place_crop(), so a dynamic crop offset stays 0.
+    if (dyn_aware && !node.get_dependencies().empty() &&
+        (node.get_dependency(0).is_type<loop>() || node.get_dependency(0).is_type<condition>())) {
+        return false;
+    }
+
     const auto& crop_layout = crop_params.get_output_layout();
     for (const auto* user : node.get_users()) {
         // If the user node's output shape is already static, the padding
@@ -569,7 +575,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (user->is_type<concatenation>() && !user->is_output()) {
             return false;
         }
-        if (user->is_type<loop>() || user->is_type<non_max_suppression>()) {
+        if (user->is_type<loop>() || user->is_type<condition>() || user->is_type<non_max_suppression>()) {
             return false;
         }
         // Read_value and assign don't handle data paddings internally, thus disable
