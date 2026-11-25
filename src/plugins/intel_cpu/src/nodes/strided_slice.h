@@ -130,8 +130,7 @@ private:
     bool isAxesSpecified = false;
 
     bool isConstantInput[6] = {false};
-    bool shapeHasDataDependency = false;
-    bool hasConstAttrInputs = true;
+    bool hasRuntimeAttrInputs = false;
 
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;
