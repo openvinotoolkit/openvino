@@ -13,6 +13,74 @@ namespace ov {
 namespace test {
 namespace Pooling {
 
+// Alternate shapes whose last CEIL window starts inside and outside the trailing padding.
+const std::vector<poolSpecificParams> paramsAvgV14CeilTorchDynamic = {
+        {utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 1}, {1, 1},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, false},
+        {utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 1}, {1, 1},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, true},
+        {utils::PoolingTypes::AVG, {1, 1}, {2, 2}, {0, 0}, {0, 0},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, true},
+        {utils::PoolingTypes::AVG, {3, 2}, {2, 2}, {1, 1}, {1, 1},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, true},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14CeilTorchDynamic_CPU_4D, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvgV14CeilTorchDynamic),
+                                 ::testing::Values(InputShape{{1, 3, -1, -1},
+                                                             {{1, 3, 4, 4}, {1, 3, 5, 5}, {1, 3, 6, 6},
+                                                              {1, 3, 7, 7}, {1, 3, 5, 5}, {1, 3, 4, 4}}}),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(false),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_any"}),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(ov::AnyMap{},
+                                                   ov::AnyMap{ov::hint::inference_precision(ov::element::f32)})),
+                         AvgPoolingV14LayerCPUTest::getTestCaseName);
+
+const std::vector<poolSpecificParams> paramsAvgV14CeilTorchDynamicAcl = {
+        {utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, false},
+        {utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, true},
+        {utils::PoolingTypes::AVG, {3, 3}, {2, 2}, {1, 1}, {1, 1},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, true},
+        {utils::PoolingTypes::AVG, {3, 3}, {1, 1}, {0, 0}, {0, 0},
+         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, true},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14CeilTorchDynamicAcl_CPU_4D, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvgV14CeilTorchDynamicAcl),
+                                 ::testing::Values(InputShape{{1, 3, -1, -1},
+                                                             {{1, 3, 4, 4}, {1, 3, 5, 5}, {1, 3, 5, 6},
+                                                              {1, 3, 6, 5}, {1, 3, 7, 7}, {1, 3, 4, 4}}}),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(false),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "acl"}),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(ov::AnyMap{},
+                                                   ov::AnyMap{ov::hint::inference_precision(ov::element::f32)})),
+                         AvgPoolingV14LayerCPUTest::getTestCaseName);
+
+// oneDNN's ACL backend handles this padded include-padding case accurately.
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14CeilTorchDynamicPadding_CPU_4D, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Values(poolSpecificParams{
+                                         utils::PoolingTypes::AVG, {3, 3}, {2, 2}, {1, 1}, {1, 1},
+                                         ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT, false}),
+                                 ::testing::Values(InputShape{{1, 3, -1, -1},
+                                                             {{1, 3, 4, 4}, {1, 3, 5, 5}, {1, 3, 5, 6},
+                                                              {1, 3, 6, 5}, {1, 3, 7, 7}, {1, 3, 4, 4}}}),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(false),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "acl"}),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(ov::AnyMap{},
+                                                   ov::AnyMap{ov::hint::inference_precision(ov::element::f32)})),
+                         AvgPoolingV14LayerCPUTest::getTestCaseName);
+
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D_2x2kernel = {
         maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
                                                           ov::element::Type_t::i32, 0,
