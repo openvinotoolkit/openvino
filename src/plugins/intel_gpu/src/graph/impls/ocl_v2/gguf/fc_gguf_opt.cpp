@@ -237,17 +237,6 @@ GgufTranscodeTarget transcode_target(element::Type_t t, size_t N) {
 // subclasses (FCGGUFQ{4k,5k,6k,40,41,80}SgGenerator) are in the shared header:
 //   fc_gguf_shuffle_gen.hpp
 
-// Q4_K / Q6_K "weight shuffle" path: when enabled, the weight was reordered once (compile_model) into
-// the SG-transposed plane-separated layout that the sub-group-block-read GEMV kernels (fc_gguf_gemv_opt.cl) and the shuffle-aware prefill transcode consume
-// with fully coalesced weight loads. Same total bytes, bit-exact. Default ON; set OV_GPU_GGUF_SHUFFLE=0 to disable. Must match the RepackGGUFWeightsShuffle
-// transform gate so the transform and the impl agree which nodes are shuffled.
-bool gguf_shuffle_enabled() {
-    if (const char* env = std::getenv("OV_GPU_GGUF_SHUFFLE")) {
-        return std::atol(env) != 0;
-    }
-    return true;
-}
-
 // SG weight-shuffle format classification (shared by the transcode generator, the shuffle GEMV
 // generators and the impl gate). Two families take the shuffle layout:
 //   * K-block formats (Q4_K / Q5_K / Q6_K): native 256-elem block == one SG super-block.
@@ -256,28 +245,12 @@ bool gguf_shuffle_enabled() {
 bool gguf_is_small_shuffle_format(element::Type_t t) {
     return t == element::Type_t::gguf_q4_0 || t == element::Type_t::gguf_q4_1 || t == element::Type_t::gguf_q8_0;
 }
-bool gguf_is_kblock_shuffle_format(element::Type_t t) {
-    return t == element::Type_t::gguf_q4_k || t == element::Type_t::gguf_q5_k || t == element::Type_t::gguf_q6_k;
-}
-// Geometric + env gate. MUST match RepackGGUFWeightsShuffle's gate so the transform and the impl agree
-// which nodes are shuffled: shuffle env on, a shuffle-eligible format, N % 16 == 0 (SG grouping) and K
-// a whole number of 256-elem super-blocks.
-bool gguf_shuffle_applicable(element::Type_t t, size_t N, size_t K) {
-    if (!gguf_shuffle_enabled()) {
-        return false;
-    }
-    if (!gguf_is_small_shuffle_format(t) && !gguf_is_kblock_shuffle_format(t)) {
-        return false;
-    }
-    return (N % GGUF_GEMV_SG_SIZE == 0) && (K % 256 == 0);
-}
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // Opt-in f16 prefill (OV_GPU_GGUF_PREFILL_F16=1, default on). When on, the prefill transcode kernel
 // fully dequantises the GGUF weight into an f16 scratchpad and the direct dnnl::matmul runs as a plain
 // f16 x f16 GEMM (no WOQ scales) instead of the default i4/i8 weight-only-quantised path. This trades
 // ~2-4x more weight bandwidth for reference-precision compute; useful for numeric comparison against
-// the i8/i4 WOQ path. The transcode generator reads this directly (like gguf_shuffle_enabled) and the
+// the i8/i4 WOQ path. The transcode generator reads this directly and the
 // impl mirrors it into m_prefill_f16 so both sides agree.
 bool gguf_prefill_f16_enabled() {
     if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_F16")) {
@@ -597,7 +570,7 @@ protected:
         // buffer. Shuffled Q4_K/Q5_K/Q6_K now use the same requant path as non-shuffled formats:
         // GGUF_SHUFFLE=1 enables coalesced reads of the shuffled layout; TRANSCODE_TO_F16=0 so the
         // decoded blk_vals go through asymmetric (Q4_K: u4) or symmetric (Q5_K/Q6_K: s8) requant.
-        const bool shuffled = gguf_shuffle_applicable(in1.data_type, N, K);
+        const bool shuffled = params.typed_desc<fully_connected>()->gguf_weights_shuffled;
         // Small-block formats (Q4_0/Q4_1/Q8_0) shuffle 8 native 32-elem blocks into one 256-elem
         // super-block, so the transcode work-item owns a 256-elem super-block (GGUF_BLOCK_ELEM=256,
         // GGUF_BLOCK_BYTES = 8 * native bytes). K-block formats keep their native 256-elem block.
@@ -1602,21 +1575,7 @@ public:
         add_stage(gguf_stage, params);
         const auto wet = params.input_layouts[1].data_type;
 
-        // Weight-shuffle gate for Q4_K / Q5_K / Q6_K (native 256-elem block) and the small-block formats
-        // Q4_0 / Q4_1 / Q8_0 (native 32-elem block, grouped 8-to-a super-block): the RepackGGUFWeightsShuffle
-        // transform reordered the weight into the SG layout iff shuffle env on, static weight, N % 16 == 0
-        // and K % 256 == 0. gguf_shuffle_applicable() shares the same formula so the transform and impl
-        // stay in lockstep. When shuffled, decode uses the SG GEMV and prefill uses the shuffle-aware
-        // transcode + f16 matmul.
-        const bool shuffle_applicable = [&]() {
-            if (params.input_layouts[1].is_dynamic()) {
-                return false;
-            }
-            const auto& wl = params.input_layouts[1];
-            const size_t N = wl.get_shape()[0];
-            const size_t K = wl.get_shape()[1];
-            return gguf_shuffle_applicable(wl.data_type, N, K);
-        }();
+        const bool shuffle_applicable = params.typed_desc<fully_connected>()->gguf_weights_shuffled;
 
     #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& weight_shape = params.input_layouts[1].get_shape();

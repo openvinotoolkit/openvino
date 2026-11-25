@@ -209,6 +209,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     bool transpose_b_zp = true;
     /// @brief Physical weights layout (NK / KN follow weights_transposed; GNK is [K / gs, N, gs]).
     ov::intel_gpu::op::FcWeightsLayout weights_layout = ov::intel_gpu::op::FcWeightsLayout::NK;
+    bool gguf_weights_shuffled = false;
 
 
     size_t hash() const override {
@@ -219,6 +220,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, transpose_b_scale);
         seed = hash_combine(seed, transpose_b_zp);
         seed = hash_combine(seed, static_cast<uint8_t>(weights_layout));
+        seed = hash_combine(seed, gguf_weights_shuffled);
         seed = hash_combine(seed, bias.is_valid());
         seed = hash_combine(seed, compressed_weights);
         seed = hash_combine(seed, !decompression_scale.is_valid());
@@ -246,6 +248,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                transpose_b_scale == rhs_casted.transpose_b_scale &&
                transpose_b_zp == rhs_casted.transpose_b_zp &&
                weights_layout == rhs_casted.weights_layout &&
+               gguf_weights_shuffled == rhs_casted.gguf_weights_shuffled &&
                bias.is_valid() == rhs_casted.bias.is_valid() &&
                compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
@@ -286,6 +289,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << make_data(&weights_layout, sizeof(weights_layout));
         ob << hadamard_block;
         ob << hadamard_signs;
+        ob << gguf_weights_shuffled;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -319,6 +323,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> make_data(&weights_layout, sizeof(weights_layout));
         ib >> hadamard_block;
         ib >> hadamard_signs;
+        ib >> gguf_weights_shuffled;
         OPENVINO_ASSERT(ov::intel_gpu::op::fc_weights_layout_is_consistent(weights_layout, weights_transposed),
                         "[GPU] Loaded FullyConnected has inconsistent weights_layout");
     }

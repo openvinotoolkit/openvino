@@ -894,9 +894,10 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     }
     auto scale = engine.allocate_memory({ov::PartialShape{1}, data_types::f32, format::bfyx});
     set_values(scale, {1.f});
+    auto fc_primitive = fully_connected("fc", input_info("input"), "weights", "", "scale", "", precision);
+    fc_primitive.gguf_weights_shuffled = packed->get_rt_info().count("intel_gpu_gguf_weights_shuffled") != 0;
     topology topology(input_layout("input", {input_shape, precision, format::bfyx}),
-                      data("weights", weights), data("scale", scale),
-                      fully_connected("fc", input_info("input"), "weights", "", "scale", "", precision));
+                      data("weights", weights), data("scale", scale), fc_primitive);
     const bool has_post_activation = GetParam().post_activation != activation_func::none;
     const std::string output_id = GetParam().post_eltwise ? "binary_relu" : has_post_activation ? "post" : "fc";
     if (has_post_activation)

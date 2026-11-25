@@ -69,6 +69,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      op->get_transpose_b_zp(),
                                      op->get_weights_layout());
 
+    fc.gguf_weights_shuffled = op->get_input_node_shared_ptr(1)->get_rt_info().count("intel_gpu_gguf_weights_shuffled") != 0;
     if (has_scalar_zp) {
         fc.decompression_zero_point_scalar = zp_value;
     }
