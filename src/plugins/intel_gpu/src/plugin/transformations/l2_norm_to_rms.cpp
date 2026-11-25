@@ -128,7 +128,7 @@ ConvertPowerHalfToSqrt::ConvertPowerHalfToSqrt() {
         return output.get_element_type().is_real();
     });
     auto power = wrap_type<ov::op::v1::Power>({x, opt_convert}, [](const ov::Output<ov::Node>& output) {
-        const auto node = output.get_node();
+        const auto* node = output.get_node();
         if (output.get_element_type() != node->get_input_element_type(0)) {
             return false;
         }
