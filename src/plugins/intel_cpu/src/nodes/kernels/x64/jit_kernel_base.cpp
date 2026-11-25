@@ -291,7 +291,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
     Xbyak::Label lEnd;
     auto r32Ones = getReg32();
     Xbyak::Reg64 r64Ones(r32Ones.getIdx());
-    auto elPerVec = static_cast<uint32_t>(x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize);
+    auto elPerVec = static_cast<uint32_t>(16 / typeSize);
 
     mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
     for (uint32_t i = 0; i < elPerVec; i++) {
@@ -316,7 +316,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
                                      const uint64_t typeSize) {
     OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not fill data with type size ", typeSize);
     Xbyak::Label lEnd;
-    auto elPerVec = static_cast<uint32_t>(x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize);
+    auto elPerVec = static_cast<uint32_t>(16 / typeSize);
     auto r32Ones = getReg32();
     Xbyak::Reg64 r64Ones(r32Ones.getIdx());
     Xbyak::Xmm xmmDstMask(ymmDstMask.getIdx());
@@ -353,7 +353,7 @@ void JitKernelBase::load(const Xbyak::Xmm& v_dst,
                          const size_t typeSize,
                          const bool zeroFilling) {
     OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not load data with type size ", typeSize);
-    const uint8_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
+    const uint8_t elPerVec = 16 / typeSize;
     Xbyak::Label lEnd;
     if (zeroFilling) {
         pxor(v_dst, v_dst);
@@ -383,7 +383,7 @@ void JitKernelBase::load(const Xbyak::Ymm& v_dst,
                          const size_t typeSize,
                          const bool zeroFilling) {
     OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not load data with type size ", typeSize);
-    const size_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
+    const size_t elPerXmm = 16 / typeSize;
     Xbyak::Label lEnd;
     if (zeroFilling) {
         uni_vpxor(v_dst, v_dst, v_dst);
@@ -423,7 +423,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
                           const size_t typeSize) {
     OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not store data with type size ", typeSize);
     Xbyak::Label lEnd;
-    const size_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
+    const size_t elPerVec = 16 / typeSize;
 
     for (size_t i = 0; i < elPerVec; i++) {
         cmp(rToStoreNum, i);
@@ -450,7 +450,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
     OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not store data with type size ", typeSize);
     Xbyak::Label lEnd;
     Xbyak::Xmm xmmSrc(v_src.getIdx());
-    const size_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
+    const size_t elPerXmm = 16 / typeSize;
 
     for (int i = 0; i < 2; i++) {
         Xbyak::Label lPerm;
@@ -490,7 +490,7 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     auto rAux = getReg64();
     auto r32Aux = Xbyak::Reg32(rAux.getIdx());
     const uint8_t typeSize = sizeof(int);
-    const uint8_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
+    const uint8_t elPerVec = 16 / typeSize;
 
     for (uint8_t i = 0; i < elPerVec; i++) {
         cmp(rToStoreNum, i);

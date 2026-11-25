@@ -68,7 +68,7 @@ template <>
 struct reg_traits_by_size<16> {
     using type = Xbyak::Xmm;
     constexpr static size_t size = 16;  // in bytes
-    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa = dnnl::impl::cpu::x64::cpu_isa_t::sse41;
+    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa = dnnl::impl::cpu::x64::cpu_isa_t::avx2;
 };
 
 template <>

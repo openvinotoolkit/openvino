@@ -472,7 +472,7 @@ private:
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        int lane = v_len / cpu_isa_traits_t<sse41>::vlen;
+        int lane = v_len / 16;
         uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
         L(main_loop_label);
         {

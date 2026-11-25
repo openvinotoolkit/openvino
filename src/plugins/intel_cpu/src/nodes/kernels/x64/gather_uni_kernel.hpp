@@ -149,7 +149,7 @@ protected:
         typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using Vmask =
         typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Opmask>::type;
-    static const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::vlen;
+    static const uint32_t vlenXmm = 16;
     static const uint32_t indicesTypeSize = sizeof(uint32_t);
     static const uint8_t idxTypeShift = 2;
     uint8_t dataTypeShift = 0;

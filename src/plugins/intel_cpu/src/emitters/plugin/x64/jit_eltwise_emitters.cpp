@@ -841,7 +841,7 @@ namespace {
 enum class I32ComparePredicate : uint8_t { EQ, NE, GT, GE, LT, LE };
 
 // Compares packed i32 values and sets each result to 1 or 0. AVX-512 maps every predicate to a vpcmpd immediate.
-// SSE4.1 and AVX2 only provide integer "equal" and "greater", so LT and GE swap the operands, and NE, LE and GE
+// AVX2 only provide integer "equal" and "greater", so LT and GE swap the operands, and NE, LE and GE
 // invert the mask with vpandn against an integer 1.
 template <x64::cpu_isa_t isa, typename Vmm>
 void emit_i32_compare(x64::jit_generator_t* h,
@@ -849,7 +849,7 @@ void emit_i32_compare(x64::jit_generator_t* h,
                       const Vmm& dst,
                       const Vmm& lhs,
                       const Vmm& rhs,
-                      const std::vector<size_t>& aux_vec_idxs,
+                      [[maybe_unused]] const std::vector<size_t>& aux_vec_idxs,
                       const Xbyak::Address& one_i32,
                       I32ComparePredicate predicate) {
     if constexpr (isa == x64::avx512_core) {
@@ -883,38 +883,21 @@ void emit_i32_compare(x64::jit_generator_t* h,
         const bool is_equal = any_of(predicate, I32ComparePredicate::EQ, I32ComparePredicate::NE);
         const Vmm& src0 = swap ? rhs : lhs;
         const Vmm& src1 = swap ? lhs : rhs;
-        if constexpr (isa == x64::sse41) {
-            // The two-operand form overwrites its first operand, which may alias src1, so compare in aux
-            auto vmm_aux = Vmm(aux_vec_idxs[0]);
-            h->movups(vmm_aux, src0);
-            if (is_equal) {
-                h->pcmpeqd(vmm_aux, src1);
-            } else {
-                h->pcmpgtd(vmm_aux, src1);
-            }
-            if (invert) {
-                h->pandn(vmm_aux, one_i32);
-            } else {
-                h->psrld(vmm_aux, 31);
-            }
-            h->movups(dst, vmm_aux);
+        if (is_equal) {
+            h->vpcmpeqd(dst, src0, src1);
         } else {
-            if (is_equal) {
-                h->vpcmpeqd(dst, src0, src1);
-            } else {
-                h->vpcmpgtd(dst, src0, src1);
-            }
-            if (invert) {
-                h->vpandn(dst, dst, one_i32);
-            } else {
-                h->vpsrld(dst, dst, 31);
-            }
+            h->vpcmpgtd(dst, src0, src1);
+        }
+        if (invert) {
+            h->vpandn(dst, dst, one_i32);
+        } else {
+            h->vpsrld(dst, dst, 31);
         }
     }
 }
 
-size_t i32_compare_aux_vecs_count(x64::cpu_isa_t isa) {
-    return isa == x64::sse41 ? 1 : 0;
+size_t i32_compare_aux_vecs_count([[maybe_unused]] x64::cpu_isa_t isa) {
+    return 0;
 }
 }  // namespace
 
