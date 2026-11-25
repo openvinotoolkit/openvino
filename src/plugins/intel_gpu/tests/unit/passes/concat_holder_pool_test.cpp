@@ -1801,8 +1801,16 @@ TEST(concat_holder_pool_onednn, tb11_promoted_holder_next_to_an_unrelated_sum) {
     ASSERT_NE(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(prog.get_node("W")), -1) << "precondition: W carries the in-place sum\n" << dump_nodes(prog);
     EXPECT_TRUE(prog.get_node("C").is_pool_class_root()) << dump_nodes(prog);
     EXPECT_EQ(class_level::check_b4_prime(prog), "");
+    // Switch aware (P1-C, OV_GPU_ENABLE_SUM_ROOT_POOL=1): the chain root X of the unrelated sum may be a promoted sum class root (POOL_AS_ROOT,
+    // zero-alloc members never). With the sum switch off nothing here may carry a class route (the original B4' expectation).
+    const bool sum_pool = class_level::sum_root_pool_active(prog);
     for (auto id : {"W", "X"}) {
-        EXPECT_NE(route_of(prog.get_node(id)), primitive_inst::alloc_route::POOL_AS_ROOT) << id;
+        const bool promoted_sum_root = sum_pool && std::string(id) == "X" && prog.get_node(id).is_pool_class_root();
+        if (promoted_sum_root) {
+            EXPECT_EQ(route_of(prog.get_node(id)), primitive_inst::alloc_route::POOL_AS_ROOT) << id;
+        } else {
+            EXPECT_NE(route_of(prog.get_node(id)), primitive_inst::alloc_route::POOL_AS_ROOT) << id;
+        }
         EXPECT_NE(route_of(prog.get_node(id)), primitive_inst::alloc_route::ZERO_ALLOC_MEMBER) << id;
     }
     const auto o_off = run_f16(*net_off, onednn_inputs(eng, false));
@@ -1852,9 +1860,10 @@ TEST(concat_holder_pool_onednn, tb23_b4_prime_reports_a_class_route_on_the_sum_d
     auto& prog = *net_on->get_program();
     ASSERT_NE(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(prog.get_node("W")), -1);
     ASSERT_EQ(class_level::check_b4_prime(prog), "");
+    const uint32_t original_root_uid = prog.get_node("X").get_alias_pool_root_uid();   // invalid, or X's own state when the sum root pool promoted it
     prog.get_node("X").set_alias_pool_root_uid(static_cast<uint32_t>(prog.get_node("C").get_unique_id()));  // X becomes a zero-allocation member
     EXPECT_NE(class_level::check_b4_prime(prog), "") << "dependency of the sum writer must never be a class member";
-    prog.get_node("X").set_alias_pool_root_uid(program_node::invalid_alias_pool_root_uid);
+    prog.get_node("X").set_alias_pool_root_uid(original_root_uid);   // restore the original value, not "invalid"
     EXPECT_EQ(class_level::check_b4_prime(prog), "");
 }
 
@@ -2166,6 +2175,37 @@ TEST(concat_holder_pool, C_19c_output_view_owner_before_holder_never_shares) {
     const bool gap_in_legacy = !off.get_node("H").has_memory_dependency(off.get_node("Y").get_unique_id());
     if (!gap_in_legacy) {
         GTEST_SKIP() << "construction not formed: the LEGACY restriction of H already contains Y (the gap is not present)\n" << dump_nodes(off);
+    }
+    {   // N2 attribution: the Y in R(H) comes from L3 step (5) and nothing else. Build R0 from the switch-off program (LEGACY restrictions), materialize the
+        // class of H once without and once with the production view-owner callback; only the second contains Y.
+        std::vector<program_node*> nodes(off.get_processing_order().begin(), off.get_processing_order().end());
+        std::map<const program_node*, size_t> idx_of;
+        class_level::simple_restriction_store r0;
+        for (size_t i = 0; i < nodes.size(); i++) {
+            idx_of[nodes[i]] = i;
+            r0.uids.push_back(static_cast<uint32_t>(nodes[i]->get_unique_id()));
+            r0.sets.push_back(nodes[i]->get_memory_dependencies());
+            std::sort(r0.sets.back().begin(), r0.sets.back().end());
+        }
+        const auto* aa_off = off.get_alias_analysis();
+        const alias_class* kh = aa_off != nullptr ? aa_off->class_of(off.get_node("H")) : nullptr;
+        if (kh == nullptr) {
+            GTEST_SKIP() << "construction not formed: no alias class of H in the switch-off program";
+        }
+        class_level::promoted_class pc;
+        pc.root = idx_of.at(&off.get_node("H"));
+        for (const auto& m : kh->members) {
+            pc.members.push_back(idx_of.at(m.node));
+        }
+        const uint32_t y_uid = static_cast<uint32_t>(off.get_node("Y").get_unique_id());
+        auto without = r0;
+        auto with = r0;
+        class_level::materialize_class_restrictions(without, {pc}, nullptr);
+        const auto fn = class_level::make_program_view_owner_fn(nodes);
+        const size_t closures = class_level::materialize_class_restrictions(with, {pc}, &fn);
+        EXPECT_FALSE(without.contains(pc.root, y_uid)) << "without step (5) Y is not in R(H): the gap is real";
+        EXPECT_TRUE(with.contains(pc.root, y_uid)) << "the production callback (step 5) adds Y to R(H)";
+        EXPECT_GT(closures, 0u);
     }
     EXPECT_TRUE(on.get_node("H").has_memory_dependency(on.get_node("Y").get_unique_id())) << "L3 step (5) must add the owner Y of the view r1 to R(H)\n" << dump_nodes(on);
     EXPECT_TRUE(on.get_node("Y").has_memory_dependency(on.get_node("H").get_unique_id())) << "... and H to R(Y)";

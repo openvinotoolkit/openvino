@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <map>
@@ -25,6 +26,7 @@
 #include "alias_analysis.h"
 #include "alias_validation.h"
 #include "exec_axis.h"
+#include "class_level_memory_dependencies.h"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/activation.hpp"
@@ -54,6 +56,11 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace {
+
+inline bool sum_root_pool_env_forced() {
+    const char* v = std::getenv("OV_GPU_ENABLE_SUM_ROOT_POOL");
+    return v != nullptr && *v != '\0' && std::string(v) != "0" && std::string(v) != "false";
+}
 
 ExecutionConfig make_cfg(engine& eng, const std::vector<std::string>& outputs) {
     ExecutionConfig config = get_test_default_config(eng);
@@ -646,6 +653,9 @@ ExecutionConfig opt_cfg(engine& eng, const fc_graph& g, bool resolution_on, Queu
     config.set_property(ov::intel_gpu::force_implementations(g.forced));
     config.set_property(ov::intel_gpu::queue_type(q));
     config.set_property(ov::intel_gpu::enable_inplace_conflict_resolution(resolution_on));
+    // both sides of the E7 comparison (and every other test here) run with the sum root pool explicitly off; OV_GPU_ENABLE_SUM_ROOT_POOL
+    // overrides this (env is applied after user properties), see sum_root_pool_env_forced()
+    config.set_property(ov::intel_gpu::enable_sum_root_pool(false));
     return config;
 }
 
@@ -1095,8 +1105,16 @@ TEST(inplace_conflict_resolution, C2b_middle_link_downgraded_new_root_is_not_poo
     EXPECT_EQ(rep->kept, 1u);
     expect_downgraded(*prog, "W1", outer_dep(*prog, "W1"));
     expect_kept(*prog, "W2", outer_dep(*prog, "W2"));
-    // W1 is now the root of the {W1 -> W2} chain: not poolable (basic_memory_dependencies marks the root and the writer)
-    EXPECT_FALSE(prog->get_node("W1").can_share_buffer()) << "the new chain root must stay off the pool";
+    // W1 is now the root of the {W1 -> W2} chain. Switch off (P1-C off): not poolable (basic_memory_dependencies marks the root and the
+    // writer). Switch on and the class promoted (P1-C-1): the new root is the pool class root, can_share_buffer is true and the route is
+    // POOL_AS_ROOT; the writer stays off the pool either way.
+    if (class_level::sum_root_pool_active(*prog) && prog->get_node("W1").is_pool_class_root()) {
+        EXPECT_TRUE(prog->get_node("W1").can_share_buffer()) << "a promoted new chain root enters the pool";
+        EXPECT_EQ(primitive_inst::allocation_route(prog->get_node("W1"), 0, prog->get_node("W1").can_be_optimized()),
+                  primitive_inst::alloc_route::POOL_AS_ROOT);
+    } else {
+        EXPECT_FALSE(prog->get_node("W1").can_share_buffer()) << "the new chain root must stay off the pool";
+    }
     EXPECT_FALSE(prog->get_node("W2").can_share_buffer());
     network net(prog, 0);
     EXPECT_EQ(mismatches(run_net(net, eng, g), run_reference(eng, g)), 0u);
@@ -1105,6 +1123,9 @@ TEST(inplace_conflict_resolution, C2b_middle_link_downgraded_new_root_is_not_poo
 // ---- E7: Safe neutrality: switch on and off give identical frozen lists, restrictions, can_share_buffer and bit-identical outputs -------
 namespace {
 void run_e7(const fc_graph& g) {
+    if (sum_root_pool_env_forced()) {
+        GTEST_SKIP() << "OV_GPU_ENABLE_SUM_ROOT_POOL overrides the explicit enable_sum_root_pool(false) of both sides (not covered)";
+    }
     auto& eng = get_test_engine();
     bool skipped = false;
     std::string why_not;

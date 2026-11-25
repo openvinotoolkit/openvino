@@ -15,6 +15,7 @@
 #include "test_utils.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <map>
@@ -53,6 +54,18 @@ using namespace ::tests;
 namespace {
 
 using fusing = onednn_eltwise_fusing_helpers;
+
+// PluginConfig::apply_env_options runs after the user properties, so OV_GPU_ENABLE_SUM_ROOT_POOL=1 overrides an explicit
+// enable_sum_root_pool(false) and a test that needs the switch off cannot hold. Such a test is skipped (counted as "not covered").
+inline bool sum_root_pool_env_forced() {
+    const char* v = std::getenv("OV_GPU_ENABLE_SUM_ROOT_POOL");
+    return v != nullptr && *v != '\0' && std::string(v) != "0" && std::string(v) != "false";
+}
+#define SKIP_IF_SUM_ROOT_POOL_ENV_FORCED()                                                                                  \
+    do {                                                                                                                    \
+        if (sum_root_pool_env_forced())                                                                                     \
+            GTEST_SKIP() << "OV_GPU_ENABLE_SUM_ROOT_POOL overrides the explicit switch-off this test needs (not covered)"; \
+    } while (0)
 
 layout lay(const ov::PartialShape& s) {
     return layout{s, data_types::f32, format::bfyx};
@@ -425,6 +438,7 @@ TEST(sum_root_pool_census, C0_4_oooq_bit_identical_with_the_switch_on) {
 }
 
 TEST(sum_root_pool_census, C0_5_program_level_predicate) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
     auto& eng = get_test_engine();
     std::string why;
     {  // active: in_order, switch on, 1a on, report present
@@ -1260,6 +1274,7 @@ TEST(sum_root_pool_p1c1_onednn, C_1_chain_root_enters_pool) {
 
 // C-2: after the class died a later node takes R's block; nothing alive in the class interval does.
 TEST(sum_root_pool_p1c1_onednn, C_2_root_block_reused_after_class_death) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
     P1C0_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     auto g = chain2_graph(eng, view_kind::none, true);
@@ -1356,6 +1371,141 @@ TEST(sum_root_pool_p1c1_onednn, C_3_C_5_class_interval_is_covered_in_restriction
     EXPECT_GT(checked, 0u);
     run_real(net, eng, g);
     EXPECT_TRUE(sum_lifetime_violations(net).empty());
+}
+
+// C-5c (N6): the physical half of C-5 on its own, so that an empty check is reported as SKIP ("not covered") instead of passing silently: no node of the
+// chain2 graph that executes inside the class interval has an internal buffer on this device (the C-3/C-5 run prints internal buffers=0), so the check
+// "an internal buffer never aliases the block of R" has nothing to look at here. It runs for real as soon as a graph with such a node is used.
+TEST(sum_root_pool_p1c1_onednn, C_5c_internal_buffers_inside_the_class_interval_never_alias_the_root) {
+    P1C0_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto g = chain2_graph(eng, view_kind::none, true);
+    auto prog = build_real(eng, g, true);
+    P1C1_REQUIRE(count_formed_writers(*prog, g) == 2, "both oneDNN sums must form");
+    auto& R = prog->get_node("O");
+    P1C1_REQUIRE(R.is_pool_class_root(), "the class of O was not promoted (switch off or env override)");
+    const auto sp = span_of_class(*prog, "O");
+    network net(prog, 0);
+    size_t internal_checked = 0, i = 0;
+    for (auto* n : prog->get_processing_order()) {
+        const size_t pos = i++;
+        if (pos < sp.birth || pos > sp.death || n == &R) {
+            continue;
+        }
+        for (const auto& im : net.get_primitive(n->id())->get_intermediates_memories()) {
+            if (im != nullptr) {
+                EXPECT_NE(im->buffer_ptr(), buf_of(net, "O")) << n->id();
+                ++internal_checked;
+            }
+        }
+    }
+    if (internal_checked == 0) {
+        GTEST_SKIP() << "empty check: no node inside the class interval has an internal buffer (not covered)";
+    }
+    run_real(net, eng, g);
+    EXPECT_TRUE(sum_lifetime_violations(net).empty());
+}
+
+// C-22 (N3): a reader of a class member forced to the cpu impl (activation has a cpu impl): the class must not be promoted (fb_maybe_cpu / cpu rule), the
+// flags stay those of the switch off, and the outputs equal the switch-off run (a cpu reader reads at its own time on the host).
+TEST(sum_root_pool_p1c1_onednn, C_22_cpu_reader_of_a_class_member_keeps_the_class_legacy) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
+    P1C0_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto make = [&] {
+        auto g = chain2_graph(eng, view_kind::none, false);
+        g.forced["a1"] = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu};   // a1 reads S1, a member of the sum class
+        return g;
+    };
+    auto g_on = make();
+    auto g_off = make();
+    auto on = build_real(eng, g_on, true);
+    auto off = build_real(eng, g_off, false);
+    P1C1_REQUIRE(count_formed_writers(*on, g_on) >= 1, "no oneDNN sum formed");
+    P1C1_REQUIRE(on->get_node("a1").get_preferred_impl_type() == impl_types::cpu ||
+                     (on->get_node("a1").get_selected_impl() && on->get_node("a1").get_selected_impl()->is_cpu()),
+                 "a1 is not on the cpu impl");
+    for (auto* n : on->get_processing_order()) {
+        EXPECT_FALSE(n->is_pool_class_root()) << n->id() << ": a class with a cpu reader must not be promoted";
+        auto& m = off->get_node(n->id());
+        EXPECT_EQ(n->can_share_buffer(), m.can_share_buffer()) << n->id();
+        EXPECT_EQ(n->get_memory_dependencies(), m.get_memory_dependencies()) << n->id() << ": restrictions equal the switch off";
+    }
+    network n_on(on, 0), n_off(off, 0);
+    EXPECT_EQ(run_real(n_on, eng, g_on), run_real(n_off, eng, g_off));
+    EXPECT_TRUE(sum_lifetime_violations(n_on).empty());
+}
+
+// C-23 (N4): a static sum class inside a network that also has a dynamic branch. The program is dynamic as a whole; the static class is still a valid
+// candidate (MAY envelope of the dynamic part does not touch it): outputs of both branches equal the switch-off run and the lifetime oracle is clean.
+TEST(sum_root_pool_p1c1_onednn, C_23_static_sum_class_in_a_network_with_a_dynamic_branch) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
+    P1C0_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto make = [&] {
+        auto g = chain2_graph(eng, view_kind::none, true);
+        g.t.add(input_layout("in_dyn", layout{ov::PartialShape{-1, 16}, data_types::f16, format::bfyx}));
+        g.t.add(activation("d1", input_info("in_dyn"), activation_func::abs));
+        g.t.add(reorder("out_dyn", input_info("d1"), format::bfyx, data_types::f32));
+        g.inputs.push_back("in_dyn");
+        g.shapes["in_dyn"] = ov::PartialShape{5, 16};
+        g.outs.push_back("out_dyn");
+        return g;
+    };
+    auto g_on = make();
+    auto g_off = make();
+    auto on = build_real(eng, g_on, true);
+    auto off = build_real(eng, g_off, false);
+    P1C1_REQUIRE(count_formed_writers(*on, g_on) == 2, "both oneDNN sums must form");
+    P1C1_REQUIRE(on->get_node("d1").is_dynamic(), "the dynamic branch is not dynamic");
+    std::string why;
+    std::cout << "[C-23] sum_root_pool_active=" << class_level::sum_root_pool_active(*on, &why) << " (" << why << ") O promoted=" << on->get_node("O").is_pool_class_root() << "\n";
+    network n_on(on, 0), n_off(off, 0);
+    const auto o_on = run_real(n_on, eng, g_on);
+    const auto o_off = run_real(n_off, eng, g_off);
+    EXPECT_EQ(o_on, o_off);
+    EXPECT_TRUE(sum_lifetime_violations(n_on).empty());
+}
+
+// C-24 (N5): a binary_mul_inplace reader/writer of a class member. The mul writer writes into S1 (a member of the sum class): the class has a MAY_INPLACE
+// member and must not be promoted (L1-8 / provenance), flags equal the switch off, outputs equal the switch-off run. Not formed -> SKIP.
+TEST(sum_root_pool_p1c1_onednn, C_24_mul_inplace_writer_into_a_class_member_blocks_the_class) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
+    P1C0_SKIP_IF_NO_IMMAD();
+    auto& eng = get_test_engine();
+    auto make = [&] {
+        fc_graph g;
+        g.t.add(input_layout("in3", f16_lay()));
+        g.t.add(input_layout("in1", f16_lay()));
+        g.inputs = {"in3", "in1"};
+        add_fc(g, eng, "O", "in3", 1, impl_types::ocl);
+        add_fc_dims(g, eng, "W1", "in1", 0, impl_types::onednn, 16, 16);
+        g.t.add(eltwise("S1", {input_info("W1"), input_info("O")}, eltwise_mode::sum));
+        g.t.add(activation("a1", input_info("S1"), activation_func::abs));
+        add_fc_dims(g, eng, "Wm", "a1", 4, impl_types::onednn, 16, 16);
+        g.t.add(eltwise("M", {input_info("Wm"), input_info("S1")}, eltwise_mode::prod));
+        add_fc_dims(g, eng, "Zb", "M", 5, impl_types::ocl, 16, 16);
+        g.t.add(reorder("out_Zb", input_info("Zb"), format::bfyx, data_types::f32));
+        g.outs = {"out_Zb"};
+        g.writers = {"W1"};
+        return g;
+    };
+    auto g_on = make();
+    auto g_off = make();
+    auto on = build_real(eng, g_on, true);
+    auto off = build_real(eng, g_off, false);
+    P1C1_REQUIRE(count_formed_writers(*on, g_on) == 1, "the oneDNN sum of W1 must form");
+    const auto idx = fusing::get_reused_eltwmem_idx(on->get_node("Wm"));
+    P1C1_REQUIRE(idx != -1, "the in-place mul of Wm did not form (binary_mul_inplace needs a oneDNN build with the post-op)");
+    EXPECT_FALSE(on->get_node("O").is_pool_class_root()) << "a class with a mul_inplace writer into one of its members must not be promoted";
+    for (auto* n : on->get_processing_order()) {
+        auto& m = off->get_node(n->id());
+        EXPECT_EQ(n->can_share_buffer(), m.can_share_buffer()) << n->id();
+        EXPECT_EQ(n->get_memory_dependencies(), m.get_memory_dependencies()) << n->id();
+    }
+    network n_on(on, 0), n_off(off, 0);
+    EXPECT_EQ(run_real(n_on, eng, g_on), run_real(n_off, eng, g_off));
+    EXPECT_TRUE(sum_lifetime_violations(n_on).empty());
 }
 
 // C-6 / C-7: a REJECTED class leaves every flag and restriction as the switch off (theorem F). The rejected class here is a real one: the oneDNN sum
@@ -1499,6 +1649,7 @@ TEST(sum_root_pool_p1c1_onednn, C_6b_rejected_class_with_a_skippable_view_equals
 // C-7: with the switch off, and with the switch on but a program-level predicate that is false (1a off), the legacy marking path runs and the result is
 // bit-identical to the plain switch off; outputs equal.
 TEST(sum_root_pool_p1c1_onednn, C_7_switch_off_is_bit_identical) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
     P1C0_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     auto g = chain2_graph(eng, view_kind::none, false);
@@ -1521,6 +1672,7 @@ TEST(sum_root_pool_p1c1_onednn, C_7_switch_off_is_bit_identical) {
 
 // C-8: outputs of the two configurations are elementwise equal (and the A/B row is printed).
 TEST(sum_root_pool_p1c1_onednn, C_8_ab_outputs_elementwise_equal) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
     P1C0_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     for (bool with_view : {false, true}) {
@@ -1553,6 +1705,7 @@ TEST(sum_root_pool_p1c1_onednn, C_8_ab_outputs_elementwise_equal) {
 // C-9: W1 is downgraded by 1a (its sum would be overwritten while O still has a reader): W1 stops being a writer, becomes the root of the {W1 -> W2}
 // class as legacy_root(W2) (in `marked`), and is promoted.
 TEST(sum_root_pool_p1c1_onednn, C_9_downgraded_writer_becomes_root) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
     P1C0_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     auto g = chain_mid_graph(eng);
@@ -1586,6 +1739,7 @@ TEST(sum_root_pool_p1c1_onednn, C_9_downgraded_writer_becomes_root) {
 // binary_add, so the attn FC output becomes the NEW chain root (the 15.1 GB ETC of Pattern C); two MLP-style sums (3 hops each) chain on it:
 // {P_far -> P_mlp1 -> P_mlp2}. At least two writers (design: C-10 variant with >= 2 writers, the real DiT block has one MLP writer per block).
 TEST(sum_root_pool_p1c1_onednn, C_10_dit_block_ab) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
     P1C0_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     auto make = [&] {
@@ -1641,21 +1795,23 @@ TEST(sum_root_pool_p1c1_onednn, C_10_dit_block_ab) {
     EXPECT_TRUE(sum_lifetime_violations(n_on).empty());
 }
 
-// C-16 / C-16b: a sum root with padding (L1S-12, kAdmitPaddedSumRoot). R is a conv whose consumer is a padded 3x3 conv (prepare_padding pads R); the
-// oneDNN sum then writes into R. C-16b: the pool block of R is filled with garbage before the run; the kernel that writes R leaves the padding untouched,
-// so the outputs must still equal the switch-off run (direct, zero-initialised allocation). Not formed -> SKIP (and the preset is flipped to false).
+// C-16 / C-16b: a sum root with padding (L1S-12, kAdmitPaddedSumRoot).
+// N1 investigation (P1-C-1 test hardening): in this pipeline a padded R can never be the dependency of a formed oneDNN sum.
+//  (a) R an OCL conv with a padded consumer: the sum into W does not fuse at all (S stays a separate eltwise, also without padding at S).
+//  (b) R an activation with a padded consumer (Cp, prepare_padding): the sum forms, but the pipeline inserts "R_padding_reorder_W", an unpadded
+//      copy of R, and that reorder is the sum dependency; the padded R is only read by the reorder and by Cp.
+// So C-16 characterises (b): the padded R is not a sum root, the sum root is the unpadded reorder, outputs equal the switch-off run. C-16b (a dirty
+// padding region of a pooled padded root) needs a formed sum into a padded root and is not constructible: GTEST_SKIP, kAdmitPaddedSumRoot stays false.
 namespace {
 
-topology topo_padded_root(engine& eng, bool cp_reads_r = true) {
+topology topo_padded_root(engine& eng) {
     topology t;
-    t.add(input_layout("in1", f16_lay_c(32)));
     t.add(input_layout("in2", f16_lay_c(32)));
-    t.add(cldnn::data("w_r", make_conv_weights(eng, 32, 32, 1)));
     t.add(cldnn::data("w_c", make_conv_weights(eng, 32, 32, 3)));
     t.add(cldnn::data("w_w", make_conv_weights(eng, 32, 32, 3)));
-    add_conv_p(t, "R", "in2", "w_r", 0);
-    add_conv_p(t, "Cp", cp_reads_r ? "R" : "in2", "w_c", 1);   // pads R
-    add_conv_p(t, "W", "in1", "w_w", 1);
+    t.add(activation("R", input_info("in2"), activation_func::relu));
+    add_conv_p(t, "Cp", "R", "w_c", 1);   // pads R
+    add_conv_p(t, "W", "in2", "w_w", 1);
     t.add(eltwise("S", {input_info("W"), input_info("R")}, eltwise_mode::sum));
     t.add(reorder("out_J", input_info("S"), format::bfyx, data_types::f32));
     t.add(reorder("out_Cp", input_info("Cp"), format::bfyx, data_types::f32));
@@ -1675,34 +1831,40 @@ ExecutionConfig padded_cfg(engine& eng, bool sum_switch) {
 
 }  // namespace
 
-TEST(sum_root_pool_p1c1_onednn, C_16_C_16b_padded_sum_root) {
+TEST(sum_root_pool_p1c1_onednn, C_16_padded_r_never_becomes_a_sum_root) {
     P1C0_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     auto t_on = topo_padded_root(eng);
     auto t_off = topo_padded_root(eng);
     auto on = program::build_program(eng, t_on, padded_cfg(eng, true), false, false);
     auto off = program::build_program(eng, t_off, padded_cfg(eng, false), false, false);
-    P1C1_REQUIRE(fusing::sum_writer_root_marks(on->get_node("W")).has_value(), "the oneDNN sum of W into R did not form (a padded R and the unpadded W output differ)");
+    P1C1_REQUIRE(fusing::sum_writer_root_marks(on->get_node("W")).has_value(), "the oneDNN sum of W into R did not form");
     auto& R = on->get_node("R");
     P1C1_REQUIRE(static_cast<bool>(R.get_output_layout(0).data_padding), "R carries no padding");
-    EXPECT_EQ(R.is_pool_class_root(), class_level::kAdmitPaddedSumRoot) << "a padded root is promoted only if kAdmitPaddedSumRoot (preset flipped to false in P1-C-1)";
+    auto& W = on->get_node("W");
+    const auto idx = fusing::get_reused_eltwmem_idx(W);
+    ASSERT_NE(idx, -1);
+    const auto& dep = W.get_dependency(static_cast<size_t>(idx));
+    // the sum dependency is an unpadded node (the padding-stripping reorder), not the padded R
+    EXPECT_NE(dep.id(), "R");
+    EXPECT_FALSE(static_cast<bool>(dep.get_output_layout(0).data_padding)) << "sum dependency " << dep.id() << " must be unpadded";
+    EXPECT_FALSE(R.is_pool_class_root() && !class_level::kAdmitPaddedSumRoot && class_level::sum_root_pool_active(*on) &&
+                 on->get_alias_analysis()->class_of(R) != nullptr && class_level::is_sum_candidate_class(*on->get_alias_analysis()->class_of(R), *on->get_alias_analysis()))
+        << "a padded node must not be the root of a sum class";
     network n_on(on, 0), n_off(off, 0);
-    auto run = [&](network& n, bool dirty) {
-        if (dirty) {   // garbage in the whole block of R (padding included)
-            auto m = n.get_primitive("R")->output_memory_ptr();
-            mem_lock<uint8_t, mem_lock_type::write> lock(m, get_test_stream());
-            std::fill(lock.begin(), lock.end(), static_cast<uint8_t>(0x7B));
-        }
-        n.set_input_data("in1", conv_input(eng, 32, 1));
+    auto run = [&](network& n) {
         n.set_input_data("in2", conv_input(eng, 32, 2));
         auto outs = n.execute();
         auto mem = outs.at("out_J").get_memory();
         mem_lock<float, mem_lock_type::read> lock(mem, get_test_stream());
         return std::vector<float>(lock.begin(), lock.end());
     };
-    const auto ref = run(n_off, false);
-    EXPECT_EQ(run(n_on, true), ref) << "C-16b: a dirty padding region of the pooled root must not change the result";
-    EXPECT_EQ(run(n_on, true), ref) << "second run";
+    EXPECT_EQ(run(n_on), run(n_off));
+}
+
+TEST(sum_root_pool_p1c1_onednn, C_16b_dirty_padding_of_a_pooled_padded_sum_root) {
+    GTEST_SKIP() << "not constructible (N1): a padded R is never the dependency of a formed oneDNN sum in this pipeline (see the comment above C_16); "
+                    "kAdmitPaddedSumRoot stays false. Not covered";
 }
 
 // C-21: a sum class and a concat holder class (both switches on) whose lifetimes intersect: the cross-class closure (I-B1 across classes) holds, the two
@@ -1829,6 +1991,7 @@ TEST(sum_root_pool_p1c1_onednn, C_19_output_view_owner_before_sum_root_never_sha
     const auto o_off = run_real(n_off, eng, g_off);
     EXPECT_NE(buf_of(n_on, "R"), buf_of(n_on, "Y")) << "R must not take the block of Y while the output view of Y is alive";
     EXPECT_EQ(o_on.at("out_Zb"), o_off.at("out_Zb")) << "the non-view output equals the switch-off run";
+    EXPECT_EQ(o_on.at("r1"), o_off.at("r1")) << "the output view r1 of Y keeps the data of Y (equals the switch-off run): R did not take the block of Y";
     EXPECT_TRUE(sum_lifetime_violations(n_on).empty());
 }
 
@@ -1930,6 +2093,7 @@ TEST(sum_root_pool_p1c1_onednn, C_13_sum_into_crop_view_of_root) {
 
 // C-14: the estimate (program::get_estimated_device_mem_usage) differs between the two configurations; the exact relation is measured and reported.
 TEST(sum_root_pool_p1c1_onednn, C_14_estimate_differs_by_promoted_roots) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
 #ifndef GPU_DEBUG_CONFIG
     GTEST_SKIP() << "the held-bytes snapshot used as the reference needs GPU_DEBUG_CONFIG";
 #else
@@ -1952,6 +2116,7 @@ TEST(sum_root_pool_p1c1_onednn, C_14_estimate_differs_by_promoted_roots) {
 
 // C-15: the root is the first poolable node of the graph (the first compute node after the inputs): lock the behaviour.
 TEST(sum_root_pool_p1c1_onednn, C_15_root_is_first_poolable_node) {
+    SKIP_IF_SUM_ROOT_POOL_ENV_FORCED();
     P1C0_SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
     auto g_on = chain_graph(eng);

@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "alias_analysis.h"
+#include "class_level_memory_dependencies.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -348,7 +349,13 @@ void expect_defect_b_flag_diff(engine& eng, const topology& t, const ExecutionCo
     }
     auto full = build_to_pmd(eng, t, cfg, pmd_mode::full);
     const auto after = non_shareable_set(*full);
+    const bool sum_pool = class_level::sum_root_pool_active(*full);
     for (const auto& id : head) {
+        // P1-C: a promoted sum chain root is deliberately shareable (pool class root); that is the one allowed loss of a HEAD mark
+        if (sum_pool && full->get_node(id).is_pool_class_root()) {
+            EXPECT_TRUE(full->get_node(id).can_share_buffer()) << tag << ": promoted root " << id;
+            continue;
+        }
         EXPECT_TRUE(after.count(id) != 0) << tag << ": HEAD-marked node " << id << " lost its mark";
     }
     std::set<std::string> added;
@@ -1526,7 +1533,13 @@ TEST(alias_analysis, A6a_sum_writer_joins_addend_class) {
     EXPECT_EQ(c->root_node, &prog->get_node("X")) << dump_aa(aa);
     EXPECT_KIND(c, prog, "X", alias_kind::NONE, offset_tag::ZERO, alias_role::allocator);
     EXPECT_KIND(c, prog, "W", alias_kind::MUST_INPLACE, offset_tag::ZERO, alias_role::zero_alloc_member);
-    EXPECT_FALSE(prog->get_node("X").can_share_buffer()) << "legacy marking of the chain root";
+    // legacy marking of the chain root; with the P1-C sum root pool active (OV_GPU_ENABLE_SUM_ROOT_POOL) and the class promoted, the root
+    // is the pool class root and shareable (route POOL_AS_ROOT). The writer W stays off the pool either way.
+    if (class_level::sum_root_pool_active(*prog) && prog->get_node("X").is_pool_class_root()) {
+        EXPECT_TRUE(prog->get_node("X").can_share_buffer()) << "promoted chain root";
+    } else {
+        EXPECT_FALSE(prog->get_node("X").can_share_buffer()) << "legacy marking of the chain root";
+    }
     EXPECT_FALSE(prog->get_node("W").can_share_buffer());
 }
 
@@ -1660,9 +1673,28 @@ TEST(alias_analysis, A14b_build_is_pure_read_sum_graph_and_no_flag_added_vs_head
     auto cfg = opt_cfg(eng, forced);
     auto legacy = build_to_pmd(eng, t, cfg, pmd_mode::legacy_only);
     auto full = build_to_pmd(eng, t, cfg, pmd_mode::full);
-    const auto sl = take_snapshot(*legacy);
-    const auto sf = take_snapshot(*full);
-    EXPECT_TRUE(sl == sf) << diff_snapshot(sl, sf);
+    if (class_level::sum_root_pool_active(*legacy)) {
+        // P1-C active: basic_memory_dependencies deferred the root marks; the legacy-only pipeline has no class pass, so apply the backfill
+        // (what the pass does on every exit) to reach the "basic + backfill" state, then compare with the full pipeline. Only the promoted
+        // sum roots may differ in can_share_buffer (true in full); restrictions of the promoted classes are rewritten by design.
+        class_level::sum_root_backfill bf;
+        class_level::collect_sum_root_marks(*legacy, &bf.marked);
+        bf.apply();
+        const auto sl = take_snapshot(*legacy);
+        const auto sf = take_snapshot(*full);
+        for (const auto& kv : sl.shareable) {
+            const auto& n = full->get_node(kv.first);
+            if (n.is_pool_class_root()) {
+                EXPECT_TRUE(sf.shareable.at(kv.first)) << "promoted root " << kv.first << " is shareable in the full pipeline";
+            } else {
+                EXPECT_EQ(kv.second, sf.shareable.at(kv.first)) << "can_share_buffer differs for non-promoted node " << kv.first;
+            }
+        }
+    } else {
+        const auto sl = take_snapshot(*legacy);
+        const auto sf = take_snapshot(*full);
+        EXPECT_TRUE(sl == sf) << diff_snapshot(sl, sf);
+    }
     expect_defect_b_flag_diff(eng, t, cfg, {}, "A14b");
 }
 

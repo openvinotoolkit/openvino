@@ -30,6 +30,7 @@
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
+#include "class_level_memory_dependencies.h"
 #include "program_node.h"
 #include "primitive_inst.h"
 #include "fully_connected_inst.h"
@@ -205,6 +206,12 @@ struct T1Param {
     int k;
 };
 
+// P1-C (OV_GPU_ENABLE_SUM_ROOT_POOL=1 / enable_sum_root_pool): a promoted sum chain root is the pool class root (shareable, route POOL_AS_ROOT);
+// otherwise the LEGACY marking (non-shareable) holds. The assertions below are switch aware; with the switch off nothing changes.
+static bool promoted_sum_root(program& prog, program_node& n) {
+    return class_level::sum_root_pool_active(prog) && n.is_pool_class_root();
+}
+
 struct T1Obs {
     int hops = -1;
     add_fusing_type live = add_fusing_type::not_supported;
@@ -261,6 +268,7 @@ void run_t1(engine& engine, const T1Param& prm, T1Obs& obs) {
     obs.live = onednn_eltwise_fusing_helpers::get_add_fusing_type(p, *fused_sum(p));
     obs.frozen = frozen_sum(p);
     obs.x_share = X.can_share_buffer();
+    const bool x_promoted = promoted_sum_root(*prog, X);
 
     std::cout << "[T1] family=" << prm.family << " k=" << prm.k << " hops=" << obs.hops << " live=" << fusing_str(obs.live)
               << " frozen_sum=" << obs.frozen << " X.can_share_buffer=" << obs.x_share << "\n" << dump(path);
@@ -271,7 +279,12 @@ void run_t1(engine& engine, const T1Param& prm, T1Obs& obs) {
     if (obs.live != add_fusing_type::sum) {
         EXPECT_EQ(obs.live, add_fusing_type::binary_per_tensor) << dump(path);
     }
-    EXPECT_EQ(obs.x_share, !bound_predicts_sum(obs.hops)) << "hops=" << obs.hops << "\n" << dump(path);
+    if (x_promoted) {
+        EXPECT_TRUE(obs.x_share) << "promoted sum chain root enters the pool, hops=" << obs.hops << "\n" << dump(path);
+        EXPECT_EQ(primitive_inst::allocation_route(X, 0, X.can_be_optimized()), primitive_inst::alloc_route::POOL_AS_ROOT);
+    } else {
+        EXPECT_EQ(obs.x_share, !bound_predicts_sum(obs.hops)) << "hops=" << obs.hops << "\n" << dump(path);
+    }
 }
 
 std::vector<T1Param> t1_params() {
@@ -532,15 +545,25 @@ void run_dit(bool mha6) {
         EXPECT_EQ(attn_live, add_fusing_type::binary_per_tensor) << dump(attn_path);
         EXPECT_FALSE(attn_frozen) << dump(attn_path);
         // FLIP AFTER Phase 3a: X.can_share_buffer() becomes false (X is the root of the Y chain).
-        EXPECT_TRUE(X.can_share_buffer());
+        EXPECT_TRUE(X.can_share_buffer());   // X is not a chain root here, so P1-C does not change it
     } else {
         EXPECT_EQ(attn_hops, 6) << dump(attn_path);
         EXPECT_EQ(attn_live, add_fusing_type::sum) << dump(attn_path);
         EXPECT_TRUE(attn_frozen);
-        EXPECT_FALSE(X.can_share_buffer());
+        if (promoted_sum_root(*prog, X)) {
+            EXPECT_TRUE(X.can_share_buffer()) << "promoted root of the {X, Y, Z} chain";
+            EXPECT_EQ(primitive_inst::allocation_route(X, 0, X.can_be_optimized()), primitive_inst::alloc_route::POOL_AS_ROOT);
+        } else {
+            EXPECT_FALSE(X.can_share_buffer());
+        }
     }
-    // Y is the root of the Z sum chain, Z is the chain tail.
-    EXPECT_FALSE(Y.can_share_buffer());
+    // Y is the root of the Z sum chain (25-hop case), Z is the chain tail. P1-C: a promoted Y is the pool class root (Pattern C fixed).
+    if (!mha6 && promoted_sum_root(*prog, Y)) {
+        EXPECT_TRUE(Y.can_share_buffer()) << "promoted root Y of the broken attn chain";
+        EXPECT_EQ(primitive_inst::allocation_route(Y, 0, Y.can_be_optimized()), primitive_inst::alloc_route::POOL_AS_ROOT);
+    } else {
+        EXPECT_FALSE(Y.can_share_buffer());
+    }
     EXPECT_FALSE(Z.can_share_buffer());
 
     // (d) runtime aliasing
