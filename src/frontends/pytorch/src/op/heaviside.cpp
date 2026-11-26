@@ -7,7 +7,6 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/greater.hpp"
-#include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
 #include "utils.hpp"
 
@@ -29,7 +28,6 @@ OutputVector translate_heaviside(const NodeContext& context) {
     auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
     one = context.mark_node(std::make_shared<v1::ConvertLike>(one, input));
 
-    const auto is_negative = context.mark_node(std::make_shared<v1::Less>(input, zero));
     const auto is_zero = context.mark_node(std::make_shared<v1::Equal>(input, zero));
     const auto is_positive = context.mark_node(std::make_shared<v1::Greater>(input, zero));
     // x == x is false iff x is NaN. Needed because Greater(NaN, 0) is true here, while
@@ -38,7 +36,6 @@ OutputVector translate_heaviside(const NodeContext& context) {
 
     auto result = context.mark_node(std::make_shared<v1::Select>(is_positive, one, zero));
     result = context.mark_node(std::make_shared<v1::Select>(is_zero, values, result));
-    result = context.mark_node(std::make_shared<v1::Select>(is_negative, zero, result));
     result = context.mark_node(std::make_shared<v1::Select>(is_self_equal, result, zero));
 
     if (!context.input_is_none(2)) {
