@@ -10,6 +10,40 @@ enum class ReplayStage { gather, compute };
 size_t subgroup(gpu_arch arch) {
     return one_of(arch, {gpu_arch::gen9, gpu_arch::gen11, gpu_arch::xe_lp, gpu_arch::xe_hp, gpu_arch::xe_hpg}) ? 8 : 16;
 }
+
+bool overlaps(const cldnn::memory& bank, const cldnn::memory::ptr& other) {
+    if (!other || !other->buffer_ptr() || other->size() == 0)
+        return false;
+    const auto a = reinterpret_cast<uintptr_t>(bank.buffer_ptr());
+    const auto b = reinterpret_cast<uintptr_t>(other->buffer_ptr());
+    return a <= b ? b - a < bank.size() : a - b < other->size();
+}
+
+void validate_writable_banks(const primitive_inst& inst, bool conv) {
+    const auto& network = inst.get_network();
+    const auto input_ids = network.get_input_ids();
+    for (const size_t port : {3, 6, 7, 8}) {
+        const auto index = conv ? 0 : port;
+        const auto bank = inst.input_memory_ptr(index);
+        const auto* producer = inst.dependencies()[index].first;
+        OPENVINO_ASSERT(producer->is_input() && bank && bank->buffer_ptr() &&
+                            (bank->get_allocation_type() == allocation_type::usm_device ||
+                             bank->get_allocation_type() == allocation_type::usm_host),
+                        "Replay requires a writable USM cache input");
+        for (size_t i = 0; i < inst.inputs_memory_count(); ++i)
+            OPENVINO_ASSERT(i == index || !overlaps(*bank, inst.input_memory_ptr(i)),
+                            "Replay cache overlaps another input");
+        OPENVINO_ASSERT(!overlaps(*bank, inst.output_memory_ptr()), "Replay cache overlaps the compute output");
+        for (const auto& id : input_ids) {
+            const auto input = network.get_primitive(id);
+            OPENVINO_ASSERT(input.get() == producer || !overlaps(*bank, input->output_memory_ptr()),
+                            "Replay cache overlaps another model input");
+        }
+        if (conv)
+            break;
+    }
+}
+
 class ReplayGenerator : public KernelGenerator {
     bool m_conv;
     ReplayStage m_stage;
@@ -50,16 +84,8 @@ class ReplayGenerator : public KernelGenerator {
         Arguments args;
         if (params.is_dynamic())
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        // The bank arguments point at the updated-bank outputs. For a distinct
-        // binding execute() initializes the output with the original bank.
-        uint32_t bank_output = 1;
-        for (uint32_t i = 0; i < params.input_layouts.size(); ++i) {
-            const bool bank = m_conv ? i == 0 : i == 3 || i == 6 || i == 7 || i == 8;
-            if (bank)
-                args.push_back({ArgumentDescriptor::Types::OUTPUT, bank_output++});
-            else
-                args.push_back({ArgumentDescriptor::Types::INPUT, i});
-        }
+        for (uint32_t i = 0; i < params.input_layouts.size(); ++i)
+            args.push_back({ArgumentDescriptor::Types::INPUT, i});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         for (uint32_t i = 0; i < 5; ++i)
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
@@ -165,28 +191,10 @@ class CacheReplayImpl : public PrimitiveImplOCL {
         kernel_dump_info.clear_entries();
         update_rt_params(inst);
         const bool conv = inst.get_impl_params()->typed_desc<recurrent_cache_replay>()->history > 0;
+        validate_writable_banks(inst, conv);
         auto& gather = conv ? conv_gather : gdn_gather;
         auto& compute = conv ? conv_compute : gdn_compute;
         std::vector<event::ptr> dependencies = events;
-        // All persisted outputs use the corresponding input layout, including its
-        // offset and pitches. Preserve inactive rows and partial destination tails.
-        auto& stream = inst.get_network().get_stream();
-        size_t bank_index = 0;
-        for (size_t input : {3, 6, 7, 8}) {
-            const auto src = inst.dep_memory_ptr(conv ? 0 : input);
-            const auto dst = inst.output_memory_ptr(++bank_index);
-            OPENVINO_ASSERT(src->get_layout() == dst->get_layout(), "Replay bank layout changed at dispatch");
-            GPU_DEBUG_TRACE_DETAIL << "Replay bank " << bank_index
-                                   << " direct=" << inst.get_network().get_engine().is_the_same_buffer(*src, *dst)
-                                   << std::endl;
-            if (!inst.get_network().get_engine().is_the_same_buffer(*src, *dst)) {
-                stream.wait_for_events(events);
-                if (auto copy = dst->copy_from(stream, *src, false))
-                    dependencies.push_back(copy);
-            }
-            if (conv)
-                break;
-        }
         auto run = [&](Stage::Ptr& stage) {
             auto& kernel = stage->kd;
             if (kernel.need_dispatch_data_update) {

@@ -5,16 +5,26 @@
 #include "intel_gpu/op/recurrent_cache_replay.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ov::intel_gpu {
 namespace {
 namespace ops = ov::opset13;
 using Subgraph = ov::op::util::SubGraphOp;
+using Writebacks = std::unordered_map<const Node*, std::shared_ptr<ops::Assign>>;
+
+constexpr const char* replay_cache_state_prefix = "__ggml_replay_cache_";
+const std::vector<size_t>& bank_ports(bool conv) {
+    static const std::vector<size_t> convolution{0};
+    static const std::vector<size_t> gdn{3, 6, 7, 8};
+    return conv ? convolution : gdn;
+}
 
 struct Match {
     std::unordered_map<const Node*, Output<Node>> boundary;
@@ -166,7 +176,7 @@ bool rank_four(const Output<Node>& value) {
     return value.get_node() && value.get_partial_shape().rank() == 4;
 }
 
-// A bank Result always has the same writeback tail. The full match below
+// A bank update always has the same writeback tail. The full match below
 // validates the axes, reset, row mapping, and update computation.
 Output<Node> bank_update(const ops::ScatterNDUpdate* write) {
     auto values = write->input_value(2);
@@ -254,23 +264,57 @@ bool replay_matches(const OutputVector& outputs, const OutputVector& args, bool 
     for (size_t i = 0; i < outputs.size(); ++i)
         if (!outputs_match(reference[i], outputs[i], match))
             return false;
+
+    std::unordered_set<const Node*> region;
+    for (const auto& [_, node] : match.nodes)
+        region.insert(node);
+
+    // No original-bank read may remain live after replacing the computation
+    // and removing the Assign sinks. Check intermediate readers as well.
+    OutputVector pending;
+    for (size_t port : bank_ports(conv)) {
+        if (std::count(args.begin(), args.end(), args[port]) != 1)
+            return false;
+        pending.push_back(args[port]);
+    }
+    std::unordered_set<const Node*> visited;
+    for (size_t cursor = 0; cursor < pending.size(); ++cursor) {
+        const auto value = pending[cursor];
+        if (std::find(outputs.begin(), outputs.end(), value) != outputs.end())
+            continue;
+        for (const auto& reader : value.get_target_inputs()) {
+            auto* node = reader.get_node();
+            if (!visited.insert(node).second)
+                continue;
+            if (!region.count(node) || !node->get_control_dependents().empty() || !node->get_control_dependencies().empty())
+                return false;
+            for (const auto& output : node->outputs()) {
+                if (std::find(args.begin(), args.end(), output) != args.end())
+                    return false;
+                pending.push_back(output);
+            }
+        }
+    }
     return true;
 }
 
-void replace_replay(OutputVector outputs, const std::shared_ptr<Node>& fused, bool conv) {
+void replace_replay(Model& model,
+                    const Writebacks& writebacks,
+                    const OutputVector& outputs,
+                    const std::shared_ptr<Node>& fused,
+                    bool conv) {
     fused->set_friendly_name(outputs[0].get_node()->get_friendly_name());
     ov::copy_runtime_info(outputs[0].get_node_shared_ptr(), fused);
-    for (size_t i = 0; i < outputs.size(); ++i)
-        outputs[i].replace(fused->output(i));
+    auto computation = outputs[0];
+    computation.replace(fused->output(0));
+    for (size_t i = 1; i < outputs.size(); ++i) {
+        const auto& sink = writebacks.at(outputs[i].get_node());
+        model.remove_sink(sink);
+        model.remove_variable(sink->get_variable());
+    }
     ov::disable_conversion(fused, element::f16);
-    for (size_t port : (conv ? std::vector<size_t>{0} : std::vector<size_t>{3, 6, 7, 8})) {
+    for (size_t port : bank_ports(conv)) {
         ov::mark_as_precision_sensitive(fused->input(port));
-        auto bank = fused->input_value(port).get_node_shared_ptr();
-        while (ov::is_type<ops::Reshape>(bank)) {
-            ov::disable_conversion(bank, element::f16);
-            ov::mark_as_precision_sensitive(bank->input(0));
-            bank = bank->input_value(0).get_node_shared_ptr();
-        }
     }
 }
 template <typename Op>
@@ -282,7 +326,12 @@ Op* find_consumer(const Output<Node>& value) {
     return nullptr;
 }
 
-bool fuse_conv(const Output<Node>& bank_result, const ops::ScatterNDUpdate& write, const ops::Concat& update) {
+bool fuse_conv(Model& model,
+               const Writebacks& writebacks,
+               const std::unordered_set<const Node*>& live,
+               const Output<Node>& bank_result,
+               const ops::ScatterNDUpdate& write,
+               const ops::Concat& update) {
     const auto history = ov::as_type<ops::Slice>(update.get_input_node_ptr(0));
     if (!history || !ov::is_type<ops::Concat>(history->get_input_node_ptr(0)))
         return false;
@@ -325,29 +374,61 @@ bool fuse_conv(const Output<Node>& bank_result, const ops::ScatterNDUpdate& writ
         }))
         return false;
     OutputVector outputs{convolution, bank_result};
-    if (!replay_matches(outputs, args, true))
+    if (!live.count(convolution.get_node()) || !replay_matches(outputs, args, true))
         return false;
     auto fused = std::make_shared<op::RecurrentConvCacheReplayUpdate>(args, weight_shape[3].get_length() - 1);
-    replace_replay(outputs, fused, true);
+    replace_replay(model, writebacks, outputs, fused, true);
     return true;
 }
 } // namespace
 
 bool RecurrentReplayFusion::run_on_model(const std::shared_ptr<Model>& model) {
-    const auto results = model->get_results();
-    std::unordered_multimap<const ops::Slice*, Output<Node>> banks;
-    for (const auto& result : results) {
-        const auto value = result->input_value(0);
-        const auto write = bank_write(value);
-        if (!write || !rank_four(bank_input(write)))
+    const auto sinks = model->get_sinks();
+    if (sinks.empty())
+        return false;
+
+    std::unordered_map<std::string, size_t> variable_users;
+    for (const auto& node : model->get_ordered_ops())
+        if (const auto* access = dynamic_cast<const ov::op::util::VariableExtension*>(node.get()))
+            ++variable_users[access->get_variable_id()];
+
+    // A fused writer must remain live after its Assign sinks are removed.
+    // A consumer of only the output shape can let the GPU prune its computation.
+    std::vector<const Node*> pending;
+    for (const auto& result : model->get_results())
+        pending.push_back(result.get());
+    std::unordered_set<const Node*> live;
+    while (!pending.empty()) {
+        const auto* node = pending.back();
+        pending.pop_back();
+        if (ov::is_type<ov::op::util::ShapeOfBase>(node) || !live.insert(node).second)
             continue;
-        if (const auto destination = destination_rows(write))
+        for (size_t i = 0; i < node->get_input_size(); ++i)
+            pending.push_back(node->get_input_node_ptr(i));
+    }
+
+    Writebacks writebacks;
+    std::unordered_multimap<const ops::Slice*, Output<Node>> banks;
+    for (const auto& sink : sinks) {
+        const auto assign = ov::as_type_ptr<ops::Assign>(sink);
+        if (!assign || !assign->get_control_dependencies().empty() || !assign->get_control_dependents().empty())
+            continue;
+        const auto value = assign->input_value(0);
+        const auto write = bank_write(value);
+        const auto bank = write ? bank_input(write) : Output<Node>{};
+        if (!rank_four(bank) || !ov::is_type<ops::Parameter>(bank.get_node()) ||
+            assign->get_variable_id() != replay_cache_state_prefix + bank.get_node()->get_friendly_name() ||
+            variable_users[assign->get_variable_id()] != 1 || value.get_target_inputs().size() != 1)
+            continue;
+        if (const auto destination = destination_rows(write)) {
+            writebacks.emplace(value.get_node(), assign);
             banks.emplace(destination, value);
+        }
     }
 
     bool changed = false;
-    for (const auto& result : results) {
-        auto state_out = result->input_value(0);
+    for (const auto& [_, sink] : writebacks) {
+        auto state_out = sink->input_value(0);
         const auto write = bank_write(state_out);
         if (!write || !rank_four(bank_input(write)))
             continue;
@@ -357,7 +438,7 @@ bool RecurrentReplayFusion::run_on_model(const std::shared_ptr<Model>& model) {
 
         if (const auto update = ov::as_type<ops::Concat>(updated.get_node())) {
             try {
-                changed |= fuse_conv(state_out, *write, *update);
+                changed |= fuse_conv(*model, writebacks, live, state_out, *write, *update);
             } catch (const ov::Exception&) {
                 // Reject candidates with incompatible input shapes or types.
             }
@@ -383,7 +464,10 @@ bool RecurrentReplayFusion::run_on_model(const std::shared_ptr<Model>& model) {
             }
         }
 
-        // The loop inputs and bank Results identify the region's boundary.
+        if (!live.count(attention.get_node()))
+            continue;
+
+        // The loop inputs and bank writebacks identify the region's boundary.
         const auto type = attention.get_element_type();
         OutputVector args{
             tensor_input(loop->input_value(3), type, true), tensor_input(loop->input_value(4), type, true),
@@ -393,7 +477,7 @@ bool RecurrentReplayFusion::run_on_model(const std::shared_ptr<Model>& model) {
         if (!std::all_of(args.begin(), args.end(), rank_four))
             continue;
 
-        // Candidate pending-bank Results share the state bank's row/reset
+        // Candidate pending-bank writebacks share the state bank's row/reset
         // metadata and store K, V, or the packed gate and beta prefix.
         const auto destination = destination_rows(write);
         if (!destination)
@@ -448,7 +532,7 @@ bool RecurrentReplayFusion::run_on_model(const std::shared_ptr<Model>& model) {
                 float q_eps = 1e-6f, k_eps = 1e-6f;
                 const bool normalized = fuse_norm(args, q_eps, k_eps);
                 auto fused = std::make_shared<op::RecurrentGatedDeltaNetReplayUpdate>(args, normalized, q_eps, k_eps);
-                replace_replay(outputs, fused, false);
+                replace_replay(*model, writebacks, outputs, fused, false);
                 changed = true;
             }
         } catch (const ov::Exception&) {

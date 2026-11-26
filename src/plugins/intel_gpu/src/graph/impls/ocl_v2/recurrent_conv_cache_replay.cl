@@ -30,8 +30,8 @@ KERNEL(recurrent_conv_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
     if (index >= (size_t)N * F) return;
     const int mapping = index / F;
     const size_t feature = index % F;
-    const int source = FUNC(row_index)(row_map[2 * mapping + 1],OUTPUT1_SIZE_Y);
-    staged[index] = FUNC(reset_source)(reset_rows, J, source, OUTPUT1_SIZE_Y) ? 0.0f : convert_float(cache[OUTPUT1_GET_INDEX(0, 0, source, feature)]);
+    const int source = FUNC(row_index)(row_map[2 * mapping + 1],INPUT0_SIZE_Y);
+    staged[index] = FUNC(reset_source)(reset_rows, J, source, INPUT0_SIZE_Y) ? 0.0f : convert_float(cache[INPUT0_GET_INDEX(0, 0, source, feature)]);
 #else
     const size_t group = get_group_id(0), lane = get_local_id(0), local_size = get_local_size(0);
     const size_t output_count = (size_t)B * T * C;
@@ -43,7 +43,7 @@ KERNEL(recurrent_conv_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
         const size_t index = group * local_size + lane;
         if (index >= output_count) return;
         const int c = index % C, t = (index / C) % T, b = index / ((size_t)T * C);
-        const int replay = (int)clamp((long)control[b],-(long)(HISTORY+P),(long)P), destination = FUNC(row_index)(row_map[2 * b],OUTPUT1_SIZE_Y);
+        const int replay = (int)clamp((long)control[b],-(long)(HISTORY+P),(long)P), destination = FUNC(row_index)(row_map[2 * b],INPUT0_SIZE_Y);
         float sum = 0.0f;
         for (int j = 0; j <= HISTORY; ++j) {
             const int column = t + j;
@@ -53,7 +53,7 @@ KERNEL(recurrent_conv_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
         }
         output[OUTPUT_GET_INDEX(0, b, t, c)] = TO_OUTPUT_TYPE(sum);
         if (keep && t < P)
-            cache[OUTPUT1_GET_INDEX(0, 0, destination, (HISTORY + t) * C + c)] =
+            cache[INPUT0_GET_INDEX(0, 0, destination, (HISTORY + t) * C + c)] =
                 convert_float(input[INPUT2_GET_INDEX(0, b, t, c)]);
         return;
     }
@@ -64,7 +64,7 @@ KERNEL(recurrent_conv_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
         const int source_column = keep ? column : T + column;
         const float value = source_column < HISTORY ? staged[b * F + FUNC(row_index)(clamp((long)control[b],-(long)(HISTORY+P),(long)P) + source_column,HISTORY + P) * C + c]
                                                     : convert_float(input[INPUT2_GET_INDEX(0, b, source_column - HISTORY, c)]);
-        cache[OUTPUT1_GET_INDEX(0, 0, FUNC(row_index)(row_map[2 * b],OUTPUT1_SIZE_Y), column * C + c)] = value;
+        cache[INPUT0_GET_INDEX(0, 0, FUNC(row_index)(row_map[2 * b],INPUT0_SIZE_Y), column * C + c)] = value;
         return;
     }
     const size_t tiles = (F + local_size - 1) / local_size;
@@ -73,18 +73,18 @@ KERNEL(recurrent_conv_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
     const size_t feature = (remaining % tiles) * local_size + lane;
     if (feature >= F) return;
     if (work_row < N - B) {
-        const int mapping = B + work_row, destination = FUNC(row_index)(row_map[2 * mapping],OUTPUT1_SIZE_Y);
-        cache[OUTPUT1_GET_INDEX(0, 0, destination, feature)] = staged[mapping * F + feature];
+        const int mapping = B + work_row, destination = FUNC(row_index)(row_map[2 * mapping],INPUT0_SIZE_Y);
+        cache[INPUT0_GET_INDEX(0, 0, destination, feature)] = staged[mapping * F + feature];
     } else {
         const int reset_index = work_row - (N - B);
         if (reset_index >= J) return;
-        const int destination = FUNC(row_index)(reset_rows[reset_index],OUTPUT1_SIZE_Y);
+        const int destination = FUNC(row_index)(reset_rows[reset_index],INPUT0_SIZE_Y);
         for (int i = 0; i < N; ++i) {
-            if (FUNC(row_index)(row_map[2 * i],OUTPUT1_SIZE_Y) != destination) continue;
+            if (FUNC(row_index)(row_map[2 * i],INPUT0_SIZE_Y) != destination) continue;
             if (i >= B || feature < (size_t)(HISTORY + (keep ? T : 0)) * C) return;
             break;
         }
-        cache[OUTPUT1_GET_INDEX(0, 0, destination, feature)] = 0.0f;
+        cache[INPUT0_GET_INDEX(0, 0, destination, feature)] = 0.0f;
     }
 #endif
 }

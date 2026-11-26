@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "reorder_inst.h"
-#include "intel_gpu/primitives/recurrent_cache_replay.hpp"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
@@ -271,16 +270,6 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
 }
 
 void reorder_inst::on_execute() {
-    // A terminal identity reorder can forward the producer event when the
-    // replay primitive has already written its bank into this Result.
-    if (is_output() && dependencies().size() == 1 && dependencies()[0].second > 0 &&
-        dependencies()[0].first->get_node().is_type<recurrent_cache_replay>() &&
-        get_node().as<reorder>().is_simple_reorder() && output_memory_ptr() && input_memory_ptr() &&
-        get_network().get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
-        output_memory().get_layout().identical(input_memory().get_layout())) {
-        set_flag(ExecutionFlags::SKIP);
-        return;
-    }
     update_output_memory();
 }
 

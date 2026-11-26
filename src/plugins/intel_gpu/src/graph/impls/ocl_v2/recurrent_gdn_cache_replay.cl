@@ -130,14 +130,14 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, s
 #define VF ((size_t)P * V_HEAD_NUM * V_HEAD_DIM)
 #define GF ((size_t)2 * P * V_HEAD_NUM * GATE_DIM)
 #define TOTAL_FEATURES (SF + KF + VF + GF)
-#define READ_BANK(bank, row, f) ((bank) == 0 ? state_bank[OUTPUT1_GET_INDEX(0,0,row,f)] : \
-    (bank) == 1 ? key_bank[OUTPUT2_GET_INDEX(0,0,row,f)] : \
-    (bank) == 2 ? value_bank[OUTPUT3_GET_INDEX(0,0,row,f)] : gate_bank[OUTPUT4_GET_INDEX(0,0,row,f)])
+#define READ_BANK(bank, row, f) ((bank) == 0 ? state_bank[INPUT3_GET_INDEX(0,0,row,f)] : \
+    (bank) == 1 ? key_bank[INPUT6_GET_INDEX(0,0,row,f)] : \
+    (bank) == 2 ? value_bank[INPUT7_GET_INDEX(0,0,row,f)] : gate_bank[INPUT8_GET_INDEX(0,0,row,f)])
 #define WRITE_BANK(bank, row, f, value) do { \
-    if ((bank) == 0) state_bank[OUTPUT1_GET_INDEX(0,0,row,f)] = (value); \
-    else if ((bank) == 1) key_bank[OUTPUT2_GET_INDEX(0,0,row,f)] = (value); \
-    else if ((bank) == 2) value_bank[OUTPUT3_GET_INDEX(0,0,row,f)] = (value); \
-    else gate_bank[OUTPUT4_GET_INDEX(0,0,row,f)] = (value); \
+    if ((bank) == 0) state_bank[INPUT3_GET_INDEX(0,0,row,f)] = (value); \
+    else if ((bank) == 1) key_bank[INPUT6_GET_INDEX(0,0,row,f)] = (value); \
+    else if ((bank) == 2) value_bank[INPUT7_GET_INDEX(0,0,row,f)] = (value); \
+    else gate_bank[INPUT8_GET_INDEX(0,0,row,f)] = (value); \
 } while (0)
 
 // Gather accepts negative indices. Keep all memory accesses inside the bank
@@ -188,9 +188,9 @@ KERNEL(recurrent_gdn_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
     while (offset >= (size_t)N * widths[bank]) offset -= (size_t)N * widths[bank++];
     const int mapping = offset / widths[bank];
     const size_t feature = offset % widths[bank];
-    const int destination = FUNC(row_index)(row_map[2 * mapping],OUTPUT1_SIZE_Y), source = FUNC(row_index)(row_map[2 * mapping + 1],OUTPUT1_SIZE_Y);
-    if (mapping < B && ((bank == 0 && FUNC(direct_state)(row_map,N,mapping,source,destination,OUTPUT1_SIZE_Y)) || (bank != 0 && control[mapping] == 0))) return;
-    staged[index] = FUNC(reset_source)(reset_rows, J, source, OUTPUT1_SIZE_Y) ? 0.0f : READ_BANK(bank, source, feature);
+    const int destination = FUNC(row_index)(row_map[2 * mapping],INPUT3_SIZE_Y), source = FUNC(row_index)(row_map[2 * mapping + 1],INPUT3_SIZE_Y);
+    if (mapping < B && ((bank == 0 && FUNC(direct_state)(row_map,N,mapping,source,destination,INPUT3_SIZE_Y)) || (bank != 0 && control[mapping] == 0))) return;
+    staged[index] = FUNC(reset_source)(reset_rows, J, source, INPUT3_SIZE_Y) ? 0.0f : READ_BANK(bank, source, feature);
 #else
     const size_t group = get_group_id(0), lane = get_sub_group_local_id();
     const int value_blocks = (V_HEAD_DIM + V_BLOCK_SIZE - 1) / V_BLOCK_SIZE;
@@ -204,12 +204,12 @@ KERNEL(recurrent_gdn_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
         int mapping = -1, destination;
         if (work_row < N - B) {
             mapping = B + work_row;
-            destination = FUNC(row_index)(row_map[2 * mapping],OUTPUT1_SIZE_Y);
+            destination = FUNC(row_index)(row_map[2 * mapping],INPUT3_SIZE_Y);
         } else {
             const int reset_index = work_row - (N - B);
             if (reset_index >= J) return;
-            destination = FUNC(row_index)(reset_rows[reset_index],OUTPUT1_SIZE_Y);
-            if (lane == 0) for (int i = 0; i < N; ++i) if (FUNC(row_index)(row_map[2 * i],OUTPUT1_SIZE_Y) == destination) { mapping = i; break; }
+            destination = FUNC(row_index)(reset_rows[reset_index],INPUT3_SIZE_Y);
+            if (lane == 0) for (int i = 0; i < N; ++i) if (FUNC(row_index)(row_map[2 * i],INPUT3_SIZE_Y) == destination) { mapping = i; break; }
             mapping = sub_group_broadcast(mapping, 0);
             if (mapping >= B) return;
         }
@@ -230,22 +230,22 @@ KERNEL(recurrent_gdn_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
     const int block = group % value_blocks;
     const int h = (group / value_blocks) % V_HEAD_NUM;
     const int b = group / (value_blocks * V_HEAD_NUM);
-    const int source = FUNC(row_index)(row_map[2 * b + 1],OUTPUT1_SIZE_Y), destination = FUNC(row_index)(row_map[2 * b],OUTPUT1_SIZE_Y);
+    const int source = FUNC(row_index)(row_map[2 * b + 1],INPUT3_SIZE_Y), destination = FUNC(row_index)(row_map[2 * b],INPUT3_SIZE_Y);
     const int hk = GROUPED_HEADS ? h / (V_HEAD_NUM / K_HEAD_NUM) : h % K_HEAD_NUM;
     const int hq = GROUPED_HEADS ? h / (V_HEAD_NUM / Q_HEAD_NUM) : h % Q_HEAD_NUM;
     const int first_v = block * V_BLOCK_SIZE;
     const int replay = (int)clamp((long)control[b], (long)0, (long)P);
-    const bool direct = FUNC(direct_state)(row_map,N,b,source,destination,OUTPUT1_SIZE_Y);
-    const bool source_reset = FUNC(reset_source)(reset_rows, J, source, OUTPUT1_SIZE_Y);
+    const bool direct = FUNC(direct_state)(row_map,N,b,source,destination,INPUT3_SIZE_Y);
+    const bool source_reset = FUNC(reset_source)(reset_rows, J, source, INPUT3_SIZE_Y);
 #define LOAD_STATE(key, value) (source_reset ? 0.0f : direct ? \
-    state_bank[OUTPUT1_GET_INDEX(0,0,source,(h * V_HEAD_DIM + (value)) * K_HEAD_DIM + (key))] : \
+    state_bank[INPUT3_GET_INDEX(0,0,source,(h * V_HEAD_DIM + (value)) * K_HEAD_DIM + (key))] : \
     staged[b * SF + (h * V_HEAD_DIM + (value)) * K_HEAD_DIM + (key)])
 #define STORE_STATE_VECTOR() do { \
     for (int column = 0; column < V_BLOCK_SIZE; ++column) \
         for (int chunk = 0; chunk < K_CHUNKS; ++chunk) \
             for (int element = 0; element < 8; ++element) { \
                 const int key_index = lane_k_base + chunk * 8 + element; \
-                state_bank[OUTPUT1_GET_INDEX(0,0,destination,(h * V_HEAD_DIM + first_v + column) * K_HEAD_DIM + key_index)] = state[column][chunk][element]; \
+                state_bank[INPUT3_GET_INDEX(0,0,destination,(h * V_HEAD_DIM + first_v + column) * K_HEAD_DIM + key_index)] = state[column][chunk][element]; \
             } \
 } while (0)
 #if K_HEAD_DIM == 128 && V_HEAD_DIM % V_BLOCK_SIZE == 0
@@ -309,17 +309,17 @@ KERNEL(recurrent_gdn_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
                 if (block == 0 && h == key_owner)
                     for (int chunk = 0; chunk < K_CHUNKS; ++chunk)
                         for (int element = 0; element < 8; ++element)
-                            key_bank[OUTPUT2_GET_INDEX(0,0,destination,(t * K_HEAD_NUM + hk) * K_HEAD_DIM + lane_k_base + chunk * 8 + element)] = key[chunk][element];
+                            key_bank[INPUT6_GET_INDEX(0,0,destination,(t * K_HEAD_NUM + hk) * K_HEAD_DIM + lane_k_base + chunk * 8 + element)] = key[chunk][element];
                 if (lane == 0) for (int column = 0; column < V_BLOCK_SIZE; ++column)
-                    value_bank[OUTPUT3_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * V_HEAD_DIM + first_v + column)] = value[column];
+                    value_bank[INPUT7_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * V_HEAD_DIM + first_v + column)] = value[column];
                 if (block == 0) {
                     if (GATE_DIM == 1) {
-                        if (lane == 0) gate_bank[OUTPUT4_GET_INDEX(0,0,destination,t * V_HEAD_NUM + h)] = convert_float(g[INPUT4_GET_INDEX(b,t,h,0)]);
+                        if (lane == 0) gate_bank[INPUT8_GET_INDEX(0,0,destination,t * V_HEAD_NUM + h)] = convert_float(g[INPUT4_GET_INDEX(b,t,h,0)]);
                     } else {
                         for (int gi = lane; gi < GATE_DIM; gi += SUBGROUP_SIZE)
-                            gate_bank[OUTPUT4_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * GATE_DIM + gi)] = convert_float(g[INPUT4_GET_INDEX(b,t,h,gi)]);
+                            gate_bank[INPUT8_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * GATE_DIM + gi)] = convert_float(g[INPUT4_GET_INDEX(b,t,h,gi)]);
                     }
-                    if (lane == 0) gate_bank[OUTPUT4_GET_INDEX(0,0,destination,((P + t) * V_HEAD_NUM + h) * GATE_DIM)] = beta_value;
+                    if (lane == 0) gate_bank[INPUT8_GET_INDEX(0,0,destination,((P + t) * V_HEAD_NUM + h) * GATE_DIM)] = beta_value;
                 }
             }
         }
@@ -337,7 +337,7 @@ KERNEL(recurrent_gdn_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
         if (!pending && t == 0 && keep)
             for (int column = 0; column < V_BLOCK_SIZE && first_v + column < V_HEAD_DIM; ++column)
                 for (int ki = 0; ki < K_HEAD_DIM; ++ki)
-                    state_bank[OUTPUT1_GET_INDEX(0,0,destination,(h * V_HEAD_DIM + first_v + column) * K_HEAD_DIM + ki)] = state[column][ki];
+                    state_bank[INPUT3_GET_INDEX(0,0,destination,(h * V_HEAD_DIM + first_v + column) * K_HEAD_DIM + ki)] = state[column][ki];
         float key[K_HEAD_DIM], query[K_HEAD_DIM], decay[K_HEAD_DIM];
         float key_scale = 1.0f, query_scale = SCALE_FACTOR;
         if (!pending) FUNC(prepare_qk)((__global INPUT0_TYPE*)q, (__global INPUT1_TYPE*)k,
@@ -350,12 +350,12 @@ KERNEL(recurrent_gdn_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
             decay[ki] = exp(gate);
             const int key_owner = GROUPED_HEADS ? hk * (V_HEAD_NUM / K_HEAD_NUM) : hk;
             if (!pending && t < P && block == 0 && h == key_owner)
-                key_bank[OUTPUT2_GET_INDEX(0,0,destination,(t * K_HEAD_NUM + hk) * K_HEAD_DIM + ki)] = key[ki];
+                key_bank[INPUT6_GET_INDEX(0,0,destination,(t * K_HEAD_NUM + hk) * K_HEAD_DIM + ki)] = key[ki];
             if (!pending && t < P && block == 0 && (GATE_DIM != 1 || ki == 0))
-                gate_bank[OUTPUT4_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * GATE_DIM + gi)] = gate;
+                gate_bank[INPUT8_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * GATE_DIM + gi)] = gate;
         }
         const float beta_value = pending ? staged[N * (SF + KF + VF) + b * GF + ((P + t) * V_HEAD_NUM + h) * GATE_DIM] : convert_float(beta[INPUT5_GET_INDEX(b,t,h,0)]);
-        if (!pending && t < P && block == 0) gate_bank[OUTPUT4_GET_INDEX(0,0,destination,((P + t) * V_HEAD_NUM + h) * GATE_DIM)] = beta_value;
+        if (!pending && t < P && block == 0) gate_bank[INPUT8_GET_INDEX(0,0,destination,((P + t) * V_HEAD_NUM + h) * GATE_DIM)] = beta_value;
         for (int column = 0; column < V_BLOCK_SIZE && first_v + column < V_HEAD_DIM; ++column) {
             const int vi = first_v + column;
             const float value = pending ? staged[N * (SF + KF) + b * VF + (t * V_HEAD_NUM + h) * V_HEAD_DIM + vi] : convert_float(v[INPUT2_GET_INDEX(b,t,h,vi)]);
@@ -366,14 +366,14 @@ KERNEL(recurrent_gdn_cache_replay)(OPTIONAL_SHAPE_INFO_ARG
             for (int ki = 0; ki < K_HEAD_DIM; ++ki) { state[column][ki] = fma(key[ki],delta,state[column][ki]); if (!pending) result = fma(state[column][ki],query[ki],result); }
             if (!pending) {
                 output[OUTPUT_GET_INDEX(b,t,h,vi)] = TO_OUTPUT_TYPE(result);
-                if (t < P) value_bank[OUTPUT3_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * V_HEAD_DIM + vi)] = value;
+                if (t < P) value_bank[INPUT7_GET_INDEX(0,0,destination,(t * V_HEAD_NUM + h) * V_HEAD_DIM + vi)] = value;
             }
         }
     }
     if (!keep)
         for (int column = 0; column < V_BLOCK_SIZE && first_v + column < V_HEAD_DIM; ++column)
             for (int ki = 0; ki < K_HEAD_DIM; ++ki)
-                state_bank[OUTPUT1_GET_INDEX(0,0,destination,(h * V_HEAD_DIM + first_v + column) * K_HEAD_DIM + ki)] = state[column][ki];
+                state_bank[INPUT3_GET_INDEX(0,0,destination,(h * V_HEAD_DIM + first_v + column) * K_HEAD_DIM + ki)] = state[column][ki];
 #endif
 #endif
 }

@@ -71,9 +71,7 @@ void RecurrentConvCacheReplayUpdate::validate_and_infer_types() {
             "History bank must contain W committed and positive P pending columns");
     }
     controls(this, 1, 4, 5, x[1]);
-    set_output_size(2);
     set_output_type(0, get_input_element_type(2), x);
-    set_output_type(1, element::f32, get_input_partial_shape(0));
 }
 bool RecurrentConvCacheReplayUpdate::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("history", m_history);
@@ -130,11 +128,7 @@ void RecurrentGatedDeltaNetReplayUpdate::validate_and_infer_types() {
                               "Pending bank capacities must agree");
     }
     controls(this, 9, 10, 11, v[0]);
-    set_output_size(5);
     set_output_type(0, get_input_element_type(0), v);
-    size_t out = 1;
-    for (size_t port : {3, 6, 7, 8})
-        set_output_type(out++, element::f32, get_input_partial_shape(port));
 }
 bool RecurrentGatedDeltaNetReplayUpdate::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("fuse_qk_l2norm", m_fuse_qk_l2norm);

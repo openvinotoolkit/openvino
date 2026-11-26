@@ -10,9 +10,7 @@ struct recurrent_cache_replay : primitive_base<recurrent_cache_replay> {
     recurrent_cache_replay(const primitive_id& id, const std::vector<input_info>& inputs, int64_t history = 0,
                            bool norm = false, float qe = 1e-6f, float ke = 1e-6f, bool grouped = false)
         : primitive_base(id, inputs), history(history), fuse_qk_l2norm(norm), q_l2_norm_eps(qe), k_l2_norm_eps(ke),
-          grouped_heads(grouped) {
-        num_outputs = history > 0 ? 2 : 5;
-    }
+          grouped_heads(grouped) {}
     size_t hash() const override {
         auto value = primitive::hash();
         value = hash_combine(value, history);

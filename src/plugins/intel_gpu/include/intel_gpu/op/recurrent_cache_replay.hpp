@@ -6,8 +6,7 @@
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_gpu::op {
-// Outputs are the convolution and updated history bank. A matching caller-owned
-// USM output can share the input storage when all original readers are inside this group.
+// Returns the convolution and updates the caller-owned USM history input in place.
 class RecurrentConvCacheReplayUpdate : public ov::op::Op {
   public:
     OPENVINO_OP("RecurrentConvCacheReplayUpdate", "gpu_opset");

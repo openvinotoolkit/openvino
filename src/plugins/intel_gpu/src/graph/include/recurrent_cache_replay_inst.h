@@ -34,11 +34,6 @@ class typed_primitive_inst<recurrent_cache_replay> : public typed_primitive_inst
 
     static std::string to_string(const recurrent_cache_replay_node& node);
     typed_primitive_inst(network& network, const recurrent_cache_replay_node& node);
-    bool try_bind_output_memory(const layout& actual_layout, size_t idx);
-
-  private:
-    bool try_bind_cache_output(const layout& actual_layout, size_t idx);
-    std::array<memory::ptr, 4> _bound_banks{};
 };
 
 using recurrent_cache_replay_inst = typed_primitive_inst<recurrent_cache_replay>;
