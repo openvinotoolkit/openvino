@@ -19,8 +19,8 @@ OutputVector translate_deg2rad(const NodeContext& context) {
 
     // Define π with double precision and compute conversion factor (π / 180)
     const double pi_val = 3.14159265358979323846;
-    auto conversion_factor = context.mark_node(
-        ov::op::v0::Constant::create(ov::element::f64, Shape{}, {pi_val / 180.0}))->output(0);
+    auto conversion_factor =
+        context.mark_node(ov::op::v0::Constant::create(ov::element::f64, Shape{}, {pi_val / 180.0}))->output(0);
     conversion_factor = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(conversion_factor, input));
 
     // Apply the multiplication operation to convert degrees to radians
