@@ -120,6 +120,7 @@
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/fake_quantize.h"
+#    include "nodes/gated_residual.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
@@ -271,6 +272,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
+    INTEL_CPU_NODE(GatedResidual, Type::GatedResidual);
     INTEL_CPU_NODE(QSAIndexer, Type::QSAIndexer);
     INTEL_CPU_NODE(SparseSDPA, Type::SparseSDPA);
     INTEL_CPU_NODE(PagedQSAIndexer, Type::PagedQSAIndexer);
