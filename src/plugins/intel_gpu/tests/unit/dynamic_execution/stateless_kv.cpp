@@ -164,7 +164,7 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     if (has_cur_len) {
         stateless_kv_inputs.emplace_back("cur_seq_len");
     }
-    auto stateless_kv_prim = stateless_kv("stateless_kv", stateless_kv_inputs, 2, params.is_seq_len_present_len, 0, params.has_pos_idx);
+    auto stateless_kv_prim = stateless_kv("stateless_kv", stateless_kv_inputs, 2, params.is_seq_len_present_len, -1, params.has_pos_idx);
     stateless_kv_prim.num_outputs = 2;
     stateless_kv_prim.output_data_types = {data_types::f32, data_types::f32};
 
@@ -280,11 +280,18 @@ static int64_t swa_get_front_idx(int64_t seq_len, int64_t capacity, int64_t wind
 }
 
 struct stateless_kv_swa_runtime_params : stateless_kv_runtime_params {
-    stateless_kv_swa_runtime_params(int64_t new_token_len, int64_t past_seq_len, int64_t cur_seq_len, bool reuse_present_buffer, bool use_caching = false)
+    stateless_kv_swa_runtime_params(int64_t new_token_len,
+                                    int64_t past_seq_len,
+                                    int64_t cur_seq_len,
+                                    bool reuse_present_buffer,
+                                    bool use_caching = false,
+                                    bool is_swc = true)
         : stateless_kv_runtime_params{new_token_len, past_seq_len, cur_seq_len, false, false, use_caching},
-          reuse_present_buffer(reuse_present_buffer) {}
+          reuse_present_buffer(reuse_present_buffer),
+          is_swc(is_swc) {}
 
     bool reuse_present_buffer;
+    bool is_swc;
 };
 
 class stateless_kv_swa_runtime : public testing::TestWithParam<stateless_kv_swa_runtime_params> {};
@@ -311,9 +318,11 @@ TEST_P(stateless_kv_swa_runtime, swa_memory) {
     const auto past_seq_len = params.seq_len;
     const auto present_seq_len = past_seq_len + new_seq_len;
     const auto padded_seq_len = past_seq_len + new_token_size;
-    const auto past_front_idx = swa_get_front_idx(past_seq_len, past_capacity, window_size);
-    const auto present_front_idx = swa_get_front_idx(present_seq_len, past_capacity, window_size);
-    const auto padded_front_idx = swa_get_front_idx(padded_seq_len, past_capacity, window_size);
+    const auto past_front_idx = params.is_swc ? swa_get_front_idx(past_seq_len, past_capacity, window_size) : 0;
+    const auto present_front_idx = params.is_swc ? swa_get_front_idx(present_seq_len, past_capacity, window_size) : 0;
+    const auto padded_front_idx = params.is_swc ? swa_get_front_idx(padded_seq_len, past_capacity, window_size) : 0;
+    // A non-SWC cache grows the present buffer instead of rolling.
+    const auto present_capacity = params.is_swc ? past_capacity : std::max(past_capacity, padded_seq_len);
     const auto is_capacity_overflow = padded_front_idx > past_front_idx;
     const auto past_resident_len = past_seq_len - past_front_idx;
     const auto present_resident_len = present_seq_len - present_front_idx;
@@ -329,7 +338,7 @@ TEST_P(stateless_kv_swa_runtime, swa_memory) {
     if (has_cur_len) {
         stateless_kv_inputs.emplace_back("cur_seq_len");
     }
-    auto stateless_kv_prim = stateless_kv("stateless_kv", stateless_kv_inputs, 2, params.is_seq_len_present_len, window_size);
+    auto stateless_kv_prim = stateless_kv("stateless_kv", stateless_kv_inputs, 2, params.is_seq_len_present_len, window_size, false, params.is_swc);
     stateless_kv_prim.num_outputs = 2;
     stateless_kv_prim.output_data_types = {data_types::f32, data_types::f32};
 
@@ -376,10 +385,10 @@ TEST_P(stateless_kv_swa_runtime, swa_memory) {
     ASSERT_NE(sdpa, nullptr);
     ASSERT_NE(result, nullptr);
     EXPECT_TRUE(engine.is_the_same_buffer(*present, *result));
-    EXPECT_TRUE(engine.is_the_same_buffer(*present, *past));
+    EXPECT_EQ(engine.is_the_same_buffer(*present, *past), present_capacity == past_capacity);
     ASSERT_EQ(params.reuse_present_buffer, !is_capacity_overflow);
     EXPECT_EQ(engine.is_the_same_buffer(*sdpa, *present), params.reuse_present_buffer);
-    ASSERT_EQ(present->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, past_capacity, head_size}));
+    ASSERT_EQ(present->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, present_capacity, head_size}));
     ASSERT_EQ(sdpa->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, sdpa_buffer_seq_len, head_size}));
 
     const auto present_ref = make_token_values(batch, heads, head_size, present_resident_len, present_front_idx, present_resident_len);
@@ -411,12 +420,22 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                          stateless_kv_swa_runtime_params{3, 16, 2, false},   // ovrflow and token 1 rolls
                                          stateless_kv_swa_runtime_params{16, 0, 1, true},    // empty past, fills capacity without rolling
                                          stateless_kv_swa_runtime_params{16, 29, 5, false},  // overflow crosses multiple eviction boundaries, token 5 rolls
-                                         stateless_kv_swa_runtime_params{3, 15, 1, false, true}),
+                                         stateless_kv_swa_runtime_params{3, 15, 1, false, true},
+                                         stateless_kv_swa_runtime_params{1, 0, -1, true, false, false},
+                                         stateless_kv_swa_runtime_params{1, 10, -1, true, false, false},
+                                         stateless_kv_swa_runtime_params{3, 3, -1, true, false, false},
+                                         stateless_kv_swa_runtime_params{3, 13, -1, true, false, false},
+                                         stateless_kv_swa_runtime_params{3, 12, 2, true, false, false},
+                                         stateless_kv_swa_runtime_params{3, 12, 2, true, true, false},
+                                         stateless_kv_swa_runtime_params{3, 15, -1, true, false, false},   // non-SWC overflow and grows
+                                         stateless_kv_swa_runtime_params{4, 14, 2, true, false, false},    // non-SWC overflow and grows with padding
+                                         stateless_kv_swa_runtime_params{3, 15, -1, true, true, false}),
                          [](const testing::TestParamInfo<stateless_kv_swa_runtime_params>& info) {
                              const auto& params = info.param;
                              return std::string{"Past"} + std::to_string(params.seq_len) + "_NewToken" + std::to_string(params.new_token_len) +
                                     (params.cur_seq_len != -1 ? "_Cur" + std::to_string(params.cur_seq_len) : "") +
-                                    (params.reuse_present_buffer ? "_ReusePresent" : "_SeparateSDPA") + (params.use_caching ? "_cached" : "");
+                                    (params.reuse_present_buffer ? "_ReusePresent" : "_SeparateSDPA") + (params.use_caching ? "_cached" : "") +
+                                    (params.is_swc ? "" : "_NonSWC");
                          });
 
 TEST(stateless_kv_runtime, swa_runtime_state_refresh) {
@@ -428,7 +447,7 @@ TEST(stateless_kv_runtime, swa_runtime_state_refresh) {
     const auto new_token_layout = layout{ov::PartialShape{1, 2, 1, 4}, data_types::f32, format::bfyx};
     const auto seq_len_layout = layout{ov::PartialShape{1}, data_types::i64, format::bfyx};
 
-    auto primitive = stateless_kv("stateless_kv", {input_info("past"), input_info("new_token"), input_info("past_len")}, 2, false, window_size);
+    auto primitive = stateless_kv("stateless_kv", {input_info("past"), input_info("new_token"), input_info("past_len")}, 2, false, window_size, false, true);
     primitive.num_outputs = 2;
     primitive.output_data_types = {data_types::f32, data_types::f32};
 
@@ -560,7 +579,7 @@ TEST(stateless_kv_runtime, swa_shape_changes) {
     const auto new_token_dyn_layout = layout{ov::PartialShape{-1, heads, new_token_len, head_size}, data_types::f32, format::bfyx};
     const auto seq_len_layout = layout{ov::PartialShape{1}, data_types::i64, format::bfyx};
 
-    auto stateless_kv_prim = stateless_kv("stateless_kv", {input_info("past"), input_info("new_token"), input_info("past_len")}, 2, false, window_size);
+    auto stateless_kv_prim = stateless_kv("stateless_kv", {input_info("past"), input_info("new_token"), input_info("past_len")}, 2, false, window_size, false, true);
     stateless_kv_prim.num_outputs = 2;
     stateless_kv_prim.output_data_types = {data_types::f32, data_types::f32};
 
