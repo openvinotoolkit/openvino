@@ -25,9 +25,14 @@ jobs:
     with:
       target-branch: ${{ inputs.target-branch }}
 
+  msbuild:
+    uses: ./.github/workflows/msbuild.yml
+    with:
+      target-branch: ${{ inputs.target-branch }}
+
   Overall_Status:
     name: ci/gha_overall_status_windows_cc
-    needs: [old_baseline]
+    needs: [old_baseline, msbuild]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
