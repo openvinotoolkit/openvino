@@ -283,6 +283,37 @@ void RemoteContextImpl::add_to_cache(size_t hash, cldnn::memory::ptr memory) {
     m_memory_cache.add(hash, memory);
 }
 
+size_t RemoteContextImpl::SharedConstantKeyHash::operator()(const SharedConstantKey& key) const {
+    size_t seed = cldnn::hash_combine(0, key.source);
+    seed = cldnn::hash_combine(seed, key.constant_id);
+    return cldnn::hash_combine(seed, key.layout.hash());
+}
+
+cldnn::memory::ptr RemoteContextImpl::get_or_create_shared_constant(const std::shared_ptr<ov::AlignedBuffer>& source,
+                                                                    ov::weight_sharing::DataID constant_id,
+                                                                    const cldnn::layout& layout,
+                                                                    const std::function<cldnn::memory::ptr()>& create) {
+    std::lock_guard<std::mutex> lock(m_shared_constants_mutex);
+    const SharedConstantKey key{source.get(), constant_id, layout};
+    auto it = m_shared_constants.find(key);
+    if (it != m_shared_constants.end()) {
+        // A buffer allocated at the address of a released one has an equal key, but a different owner
+        const auto& cached = it->second;
+        const bool same_source = !cached.source.owner_before(source) && !source.owner_before(cached.source);
+        if (auto memory = cached.memory.lock(); memory && same_source) {
+            return memory;
+        }
+    }
+
+    for (auto entry = m_shared_constants.begin(); entry != m_shared_constants.end();) {
+        const bool released = entry->second.memory.expired() || entry->second.source.expired();
+        entry = released ? m_shared_constants.erase(entry) : std::next(entry);
+    }
+    auto memory = create();
+    m_shared_constants[key] = SharedConstant{source, memory};
+    return memory;
+}
+
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_surface(const ov::element::Type type, const ov::Shape& shape, const ov::AnyMap& params) {
     uint32_t plane = extract_object(params, ov::intel_gpu::va_plane);
 
