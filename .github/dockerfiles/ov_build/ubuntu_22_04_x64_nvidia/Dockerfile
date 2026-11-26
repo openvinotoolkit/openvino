@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/nvidia/cuda:11.8.0-runtime-ubuntu22.04
+FROM ${REGISTRY}/nvidia/cuda:12.2.2-runtime-ubuntu22.04
 
 USER root
 
@@ -56,10 +56,10 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Install CUDA
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb
-RUN apt-get update && apt-get install -y cuda-runtime-11-8 cuda-11-8 && apt-get install -y \
-    libcudnn8=8.9.4.*-1+cuda11.8 \
-    libcudnn8-dev=8.9.4.*-1+cuda11.8 \
-    libcudnn8-samples=8.9.4.*-1+cuda11.8 \
+RUN apt-get update && apt-get install -y cuda-runtime-12-2 cuda-12-2 && apt-get install -y \
+    libcudnn8=8.9.4.*-1+cuda12.2 \
+    libcudnn8-dev=8.9.4.*-1+cuda12.2 \
+    libcudnn8-samples=8.9.4.*-1+cuda12.2 \
     libcutensor1=1.7.0.1-1 \
     libcutensor-dev=1.7.0.1-1 \
     cuda-drivers
