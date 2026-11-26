@@ -2815,6 +2815,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_bias) 
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_dynamic_bias) {
     const auto model = convert_model("com.microsoft/dynamic_quantize_matmul_dynamic_bias.onnx");
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_element_type().is_dynamic()) {
+            param->set_element_type(ov::element::f32);
+        }
+    }
+    model->validate_nodes_and_infer_types();
     auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> input_A{1.29292f, 2.47473f, 3.291903f, 4.1728944f, 5.213912031f, 6.12931230f};
