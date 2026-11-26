@@ -17,7 +17,6 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
         MakeJitConstant("SCALE_TABLE", np.scaleTable),
         MakeJitConstant("EPSILON", np.epsilon),
         MakeJitConstant(toString(np.normMode), ""),
-        MakeJitConstant("THRESHOLD", 0.0001F),
     });
 
     auto activation_dt = GetActivationType(np);
