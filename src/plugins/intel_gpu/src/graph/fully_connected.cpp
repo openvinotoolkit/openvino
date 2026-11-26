@@ -46,6 +46,12 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
 
     auto input_layout = impl_param.get_input_layout();
 
+    // The 2-bit weight (TernOCL) kernels read and write plain row-major tensors: do not pick the yxfb output
+    // below for a static batch of 16, which leaves them no implementation (the FC falls back to the reference kernel).
+    if (impl_param.input_layouts.size() > 1 && impl_param.input_layouts[1].data_type == data_types::u2) {
+        return format::bfyx;
+    }
+
     // for 3d output we have to chose bfyx format
     if (impl_param.typed_desc<fully_connected>()->input_size == 3) {
         return format::bfyx;
