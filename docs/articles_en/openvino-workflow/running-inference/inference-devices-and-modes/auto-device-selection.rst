@@ -410,14 +410,10 @@ try to use GPU first, and then use CPU if GPU is busy:
 
 .. note::
 
-   When CPU is included in the device candidate list with ``CUMULATIVE_THROUGHPUT``, CPU inference
-   threads can compete with the host threads of other devices (for example, GPU) for physical CPU
-   cores, which may reduce the throughput of those devices. In cumulative mode, CPU pinning
-   (``ENABLE_CPU_PINNING``) is enabled by default, which can make the contention worse.
-
-   To reduce the impact, set ``ov::hint::enable_cpu_reservation(true)`` for a device. Reserved CPU
-   cores are not used by other plugins or compiled models. The effect depends on the platform and
-   the device configuration, so verify it on your target platform before enabling it.
+   With ``CUMULATIVE_THROUGHPUT``, CPU inference threads (CPU pinning is enabled by default) can compete
+   with the host threads of other devices, such as GPU, and reduce their throughput. To mitigate this,
+   set ``ov::hint::enable_cpu_reservation(true)`` for the GPU, so that the reserved CPU cores are not
+   used by other plugins or compiled models. This property is supported only by the CPU and GPU devices.
 
 If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, ``CUMULATIVE_THROUGHPUT`` mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <query-device-properties>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
 
