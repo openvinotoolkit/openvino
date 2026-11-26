@@ -95,17 +95,22 @@ interface. Select the mode with `GenAIAdaptOptions::input`:
 
 | Mode | Inputs | Output |
 |---|---|---|
-| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,T,vocab]` |
-| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,T,vocab]` |
+| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,N,vocab]` |
+| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,N,vocab]` |
 
 `EMBEDS_TO_LOGITS` also returns the token lookup as `text_embeddings` and, for architectures with
 per-layer token embeddings, `text_embeddings_per_layer`.
 
+- The number of output rows `N` depends on the model and attention backend. Standard SDPA decoders
+  generally select the last token per sequence; PagedAttention can expose a row for each token.
 - The leading dimensions are derived from the live inputs, so one graph serves both SDPA and
   `ov::pass::SDPAToPagedAttention`.
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
   slice-before-matmul optimization projects only the sampled rows during prefill.
+  A scalar output scale is moved to the activation input when the head has no other consumers;
+  softcap output chains remain recognizable without expanding compressed weights.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
+  Noncausal sliding-window attention is not supported by GenAI adaptation.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states
   (`lfm2`, `lfm2moe`) get a dynamic batch, follow `beam_idx` and mask
   left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
