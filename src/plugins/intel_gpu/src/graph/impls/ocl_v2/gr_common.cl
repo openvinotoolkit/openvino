@@ -267,8 +267,11 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 // run on the scratch (used above the GPU_GR_PD_ROW_THRESHOLD row count).
 //
 // One subgroup owns 16 rows x GR_DQ_KCH columns; lane l owns row 16 * tile + l.
+// GR_DQ_PACKED: instead of row-major, the K32 tile layout of the single READ kernel (GR_WD_PACKED in gr_read_dpas.cl): the B operand
+// of K32 step s and 16-row tile t (lane l: row 16 t + l, dwords i = 0..15 holding the k pairs) is the 1 KB block at
+// (s * N / 16 + t) * 512 halves, dword i of lane l at i * 16 + l, so one K32 step of all N rows is N * 64 contiguous bytes.
 // JIT: GR_DEQUANT_WEIGHTS, GR_W_TYPE, GR_DQ_N, GR_DQ_K, GR_DQ_KCH, GR_DQ_NRAW (dwords per raw load), GR_DQ_RB (row bytes), GR_DQ_GS32
-// (group size / 32), GR_DQ_PERCH (one group).
+// (group size / 32), GR_DQ_PERCH (one group), GR_DQ_PACKED.
 // Dispatch: gws = [N / 16 * 16, K / GR_DQ_KCH, 1], lws = [16, 1, 1].
 
 #if GR_W_TYPE == GR_WT_F16
@@ -294,8 +297,14 @@ KERNEL(gr_dequant_weights)(const __global uchar* w, const __global ushort* scale
         const half2 zpv = GR_WQ_ZP2(zp, GR_WQ_G((k >> 5) + s_, GR_DQ_GS32), GR_DQ_N, n0, lane);
 #endif
         const uint16 b = GR_WQ_DEQ32(rw, s_ * GR_WQ_RAW_PER_K32, zpv, scv);
+#if GR_DQ_PACKED
+        __global uint* t_ = (__global uint*)(out + ((size_t)((k >> 5) + s_) * (GR_DQ_N / 16) + n0 / 16) * 512);
+        intel_sub_group_block_write8(t_, b.lo);
+        intel_sub_group_block_write8(t_ + 128, b.hi);
+#else
         // the B operand dwords are (k, k + 1) pairs in k order, i.e. already the row-major f16 layout
         vstore16(b, 0, (__global uint*)(out + (size_t)(n0 + lane) * GR_DQ_K + k + 32 * s_));
+#endif
     }
 }
 #endif  // GR_DEQUANT_WEIGHTS
