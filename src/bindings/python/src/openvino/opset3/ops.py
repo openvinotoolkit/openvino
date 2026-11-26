@@ -282,9 +282,9 @@ def gru_cell(
     :param hidden_size:             The number of hidden units for recurrent cell.
                                     Specifies hidden state size.
     :param activations:             The vector of activation functions used inside recurrent cell.
-    :param activation_alpha:        The vector of alpha parameters for activation functions in
+    :param activations_alpha:       The vector of alpha parameters for activation functions in
                                     order respective to activation list.
-    :param activation_beta:         The vector of beta parameters for activation functions in order
+    :param activations_beta:        The vector of beta parameters for activation functions in order
                                     respective to activation list.
     :param clip:                    The value defining clipping range [-clip, clip] on input of
                                     activation functions.
@@ -418,9 +418,9 @@ def rnn_cell(
     :param hidden_size:             The number of hidden units for recurrent cell.
                                     Specifies hidden state size.
     :param activations:             The vector of activation functions used inside recurrent cell.
-    :param activation_alpha:        The vector of alpha parameters for activation functions in
+    :param activations_alpha:       The vector of alpha parameters for activation functions in
                                     order respective to activation list.
-    :param activation_beta:         The vector of beta parameters for activation functions in order
+    :param activations_beta:        The vector of beta parameters for activation functions in order
                                     respective to activation list.
     :param clip:                    The value defining clipping range [-clip, clip] on input of
                                     activation functions.

@@ -55,6 +55,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_IM2COL", op::translate_im2col},
         {"GGML_OP_L2_NORM", op::translate_l2_norm},
         {"GGML_OP_LOG", op::translate_1to1_match_1_input<v0::Log>},
+        {"GGML_OP_MEAN", op::translate_mean},
         {"GGML_OP_MUL", op::translate_1to1_match_2_inputs<v1::Multiply>},
         {"GGML_OP_MUL_MAT", op::translate_mulmat},
         {"GGML_OP_MUL_MAT_ID", op::translate_mul_mat_id},

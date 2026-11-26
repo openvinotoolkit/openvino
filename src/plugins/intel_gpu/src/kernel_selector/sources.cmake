@@ -883,6 +883,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/arg_max_min_common.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/bf16_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/f8_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/fetch_data.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/fetch_weights.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/generic_vector_ops.cl
@@ -900,7 +901,6 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/detection_output_common.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/dynamic_quantize_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/f4_utils.cl
-    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/f8_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/fetch_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/fully_connected_gpu_bf_tiled_common.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/fully_connected_gpu_bf_tiled_dyn_b_core.cl
