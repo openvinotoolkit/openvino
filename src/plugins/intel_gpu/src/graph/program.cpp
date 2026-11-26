@@ -25,6 +25,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "alias_analysis.h"
+#include "oooq_gate_shadow.h"
 #include "alias_validation.h"
 #include "class_level_memory_dependencies.h"
 #include "intel_gpu/graph/tensor_conversion.hpp"
@@ -831,10 +832,18 @@ void program::prepare_memory_dependencies() {
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
+    // P2-shadow (observation only, default off): snapshot of the restrictions before oooq; compared right after the alias classes are built.
+    std::unique_ptr<oooq_gate_shadow::snapshot> oooq_gate_s0;
+    if (oooq_gate_shadow::enabled()) {
+        oooq_gate_s0 = oooq_gate_shadow::take_snapshot(*this);
+    }
     apply_opt_pass<oooq_memory_dependencies>();
     // Phase 0.5a: behaviour-neutral. Builds the alias classes once (all queue types: OOOQ classes carry fb_oooq for shadow validation),
     // after every restriction pass and before the restrictions are published. Nothing reads it yet.
     _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
+    if (oooq_gate_s0) {
+        oooq_gate_shadow::finish(*this, std::move(oooq_gate_s0), _alias_analysis.get());
+    }
 #ifdef INPLACE_CONFLICT_DEBUG_CHECKS
     // Phase 1a D6 (Debug): after refreeze_onednn_inplace_post_ops every surviving oneDNN sum writer is war-Safe on the final graph (design 17
     // §3.2 I-1a-1; lemma 1: the graph does not change between the pass and this point). Covers onednn_sum and onednn_mul.
