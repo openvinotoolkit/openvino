@@ -874,4 +874,12 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     }
 }
 
+#if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+void Convolution::initializeUnsignedOc1JitZeroPoint(uint8_t zeroPoint) {
+    CPU_NODE_ASSERT(inputZeroPoints.empty() && legacyInputZeroPoints.empty(), "input zero points are already set");
+    m_attrs.inputZeroPoint = zeroPoint;
+    m_attrs.inputZeroPointsType = ZeroPointsType::PerTensorUnsignedOc1Jit;
+}
+#endif
+
 }  // namespace ov::intel_cpu::node

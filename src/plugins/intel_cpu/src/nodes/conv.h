@@ -66,6 +66,10 @@ public:
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, size_t inputZpSize);
 
+#if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+    void initializeUnsignedOc1JitZeroPoint(uint8_t zeroPoint);
+#endif
+
     const VectorDims& getWeightDims() {
         return getInputShapeAtPort(WEIGHTS).getDims();
     }

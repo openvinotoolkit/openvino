@@ -28,6 +28,9 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "onednn/dnnl.h"
 #endif
+#if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#    include "nodes/executors/acl/acl_conv.hpp"
+#endif
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -939,10 +942,68 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
     }
 }
 
+#if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+void GraphOptimizer::FuseUnsignedOc1ConvolutionZeroPoint(Graph& graph) {
+    const auto& graphNodes = graph.GetNodes();
+    for (const auto& node : graphNodes) {
+        const auto conv = std::dynamic_pointer_cast<Convolution>(node);
+        if (!conv || conv->getAlgorithm() != Algorithm::ConvolutionCommon || conv->isDynamicNode() ||
+            conv->getParentEdges().size() != 2 || conv->getChildEdges().size() != 1 ||
+            conv->getChildEdgeAt(0)->getChild()->getType() != Type::Subgraph ||
+            conv->getOriginalInputPrecisionAtPort(1) != ov::element::i8 ||
+            !conv->getParentEdgeAt(1)->getParent()->isConstant() ||
+            conv->getOriginalOutputPrecisionAtPort(0) != ov::element::f32 ||
+            !conv->memoryFormatFilter.input.empty() ||
+            !ACLConvolutionExecutor::supportsOc1JitGeometry(conv->getInputShapeAtPort(0).getStaticDims(),
+                                                           conv->getInputShapeAtPort(1).getStaticDims(),
+                                                           conv->getOutputShapeAtPort(0).getStaticDims(),
+                                                           conv->getStride(),
+                                                           conv->getDilation(),
+                                                           conv->getPaddingL(),
+                                                           conv->getPaddingR())) {
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndZeroPoints_ConvNode);
+        const auto subtract = conv->getParentEdgeAt(0)->getParent();
+        if (subtract->getType() != Type::Eltwise || subtract->getAlgorithm() != Algorithm::EltwiseSubtract ||
+            !subtract->getFusedWith().empty() || subtract->getParentEdges().size() != 2 ||
+            subtract->getChildEdges().size() != 1 ||
+            subtract->getOriginalInputPrecisionAtPort(0) != ov::element::u8 ||
+            subtract->getOriginalOutputPrecisionAtPort(0) != ov::element::f32 ||
+            subtract->getInputShapeAtPort(0) != subtract->getOutputShapeAtPort(0)) {
+            continue;
+        }
+
+        const auto zpEdge = subtract->getParentEdgeAt(1);
+        const auto zpNode = std::dynamic_pointer_cast<node::Input>(zpEdge->getParent());
+        if (!zpNode || !zpNode->isConstant() || zpNode->getOriginalOutputPrecisionAtPort(0) != ov::element::u8) {
+            continue;
+        }
+        const auto memory = zpNode->getMemoryPtr();
+        OPENVINO_ASSERT(memory && memory->getData(), "zero point blob not allocated");
+        const auto count = subtract->getInputShapeAtPort(1).getElementsCount();
+        const auto* zeroPoints = static_cast<const uint8_t*>(memory->getData());
+        if (count == 0 ||
+            !std::all_of(zeroPoints, zeroPoints + count, [zeroPoints](uint8_t zp) { return zp == zeroPoints[0]; })) {
+            continue;
+        }
+
+        // The compiled epilogue remains separate; the JIT returns the unscaled accumulator in FP32.
+        conv->initializeUnsignedOc1JitZeroPoint(zeroPoints[0]);
+        conv->setOriginalInputPrecisionAtPort(0, ov::element::u8);
+        graph.RemoveEdge(zpEdge);
+        graph.DropNode(subtract);
+    }
+}
+#endif
+
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
-// zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+    FuseUnsignedOc1ConvolutionZeroPoint(graph);
+#    endif
     return;
 #endif
 

@@ -43,6 +43,9 @@ private:
 
     static void DropDoubleReorders(Graph& graph);
     static void FuseConvolutionAndZeroPoints(Graph& graph);
+#if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+    static void FuseUnsignedOc1ConvolutionZeroPoint(Graph& graph);
+#endif
     void FuseBroadcastAndEltwise(Graph& graph);
     static void FuseEltwiseAndSimple(Graph& graph);
     static void FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph);

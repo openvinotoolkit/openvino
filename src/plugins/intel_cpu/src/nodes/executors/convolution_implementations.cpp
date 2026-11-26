@@ -80,6 +80,9 @@ static const TypeMapping aclLowpConvTypeMapping {
     {{_u8, _u8 | _i8, _i32 | _dynamic, _u8},                      {bypass(), bypass(), bypass(), bypass()}},
     {{_i8, _i8, _i32 | _dynamic, _i8},                            {bypass(), bypass(), bypass(), bypass()}},
     {{_i8, _i8, _f32 | _dynamic, _f32},                           {bypass(), bypass(), bypass(), bypass()}},
+#if defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+    {{_u8, _i8,  _f32 | _dynamic, _f32},                           {bypass(), bypass(), bypass(), bypass()}},
+#endif
 };
 // clang-format on
 struct CreateOptimalConfigDefault {
@@ -269,6 +272,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(config.attrs.inputZeroPointsType != ZeroPointsType::PerTensorUnsignedOc1Jit,
+                       UNSUPPORTED_BY_EXECUTOR);
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
                 return true;
