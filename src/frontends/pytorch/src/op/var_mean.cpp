@@ -93,7 +93,8 @@ OutputVector translate_var_mean_fx(const NodeContext& context) {
     if (!context.input_is_none(1)) {
         axes = context.get_input(1);
     }
-    int32_t correction = 0;
+    // correction=None in the aten.*.correction schemas means Bessel correction (1), as in PyTorch
+    int32_t correction = 1;
     if (context.has_attribute("correction")) {
         correction = context.get_attribute<int32_t>("correction");
     }
@@ -112,7 +113,8 @@ OutputVector translate_var_fx(const NodeContext& context) {
     if (!context.input_is_none(1)) {
         axes = context.get_input(1);
     }
-    int32_t correction = 0;
+    // correction=None in the aten.*.correction schemas means Bessel correction (1), as in PyTorch
+    int32_t correction = 1;
     if (context.has_attribute("correction")) {
         correction = context.get_attribute<int32_t>("correction");
     }
@@ -137,7 +139,8 @@ OutputVector translate_std_fx(const NodeContext& context) {
     if (!context.input_is_none(1)) {
         axes = context.get_input(1);
     }
-    int32_t correction = 0;
+    // correction=None in the aten.*.correction schemas means Bessel correction (1), as in PyTorch
+    int32_t correction = 1;
     if (context.has_attribute("correction")) {
         correction = context.get_attribute<int32_t>("correction");
     }
@@ -148,6 +151,11 @@ OutputVector translate_std_fx(const NodeContext& context) {
     auto res = translate_var_mean_common(context, data, axes, correction, keepdim);
 
     return {context.mark_node(std::make_shared<v0::Sqrt>(res[0]))};
+}
+
+OutputVector translate_std_mean_fx(const NodeContext& context) {
+    auto res = translate_var_mean_fx(context);
+    return {context.mark_node(std::make_shared<v0::Sqrt>(res[0])), res[1]};
 }
 
 OutputVector translate_std(const NodeContext& context) {
