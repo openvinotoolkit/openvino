@@ -24,8 +24,10 @@
 #include "openvino/op/cum_sum.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/log_softmax.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
@@ -99,9 +101,13 @@ KeptRows keep_sampled_rows(const Output<Node>& sampled, const Output<Node>& past
     const auto all_rows =
         std::make_shared<v8::Slice>(all_begins, vector(-1), vector(std::numeric_limits<int64_t>::max()), vector(1));
     const auto raw_sampled = to_i64(sampled);
-    const auto sampled_i64 = std::make_shared<v1::Select>(std::make_shared<v1::Less>(raw_sampled, scalar(0)),
-                                                          std::make_shared<v1::Add>(raw_sampled, all_rows),
-                                                          raw_sampled);
+    const auto normalized = std::make_shared<v1::Select>(std::make_shared<v1::Less>(raw_sampled, scalar(0)),
+                                                         std::make_shared<v1::Add>(raw_sampled, all_rows),
+                                                         raw_sampled);
+    // Out-of-range indices select zeros; as the row count they belong to no sequence.
+    const auto in_range = std::make_shared<v1::LogicalAnd>(std::make_shared<v1::GreaterEqual>(normalized, scalar(0)),
+                                                           std::make_shared<v1::Less>(normalized, all_rows));
+    const auto sampled_i64 = std::make_shared<v1::Select>(in_range, normalized, all_rows);
     const auto sampled_sequence = std::make_shared<v3::Bucketize>(sampled_i64, ends, element::i64, false);
 
     const auto sequences = std::make_shared<v0::Squeeze>(std::make_shared<v3::ShapeOf>(ends, element::i64));
@@ -127,9 +133,13 @@ KeptRows keep_sampled_rows(const Output<Node>& sampled, const Output<Node>& past
     const auto rows =
         std::make_shared<v1::Subtract>(gather(ends, kept_sequence),
                                        std::make_shared<v1::Subtract>(gather(kept_ends, kept_sequence), kept_ids));
-    const auto sampled_rows =
-        std::make_shared<v1::Subtract>(gather(kept_ends, sampled_sequence),
-                                       std::make_shared<v1::Subtract>(gather(ends, sampled_sequence), sampled_i64));
+    const auto sampled_lookup =
+        std::make_shared<v1::Minimum>(sampled_sequence, std::make_shared<v1::Subtract>(sequences, scalar(1)));
+    const auto sampled_rows = std::make_shared<v1::Select>(
+        in_range,
+        std::make_shared<v1::Subtract>(gather(kept_ends, sampled_lookup),
+                                       std::make_shared<v1::Subtract>(gather(ends, sampled_lookup), sampled_i64)),
+        total);
 
     const auto skipped = std::make_shared<v1::Subtract>(lengths, counts);
     const auto kept_past = std::make_shared<v1::Add>(to_i64(past_lens), skipped);
@@ -137,7 +147,7 @@ KeptRows keep_sampled_rows(const Output<Node>& sampled, const Output<Node>& past
     return {rows,
             std::make_shared<v0::Convert>(kept_past, past_lens.get_element_type()),
             std::make_shared<v0::Convert>(kept_begins, begins.get_element_type()),
-            std::make_shared<v0::Convert>(sampled_rows, sampled.get_element_type())};
+            sampled_rows};
 }
 
 // Rows are the leading axis of tensors whose first dimension carries the row symbol.

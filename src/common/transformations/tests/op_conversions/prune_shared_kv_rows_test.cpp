@@ -16,7 +16,9 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -104,8 +106,9 @@ std::shared_ptr<PagedAttentionExtension> shared_layer(Inputs& i, const Output<No
 }
 
 // Writes the cache, then a shared layer with a residual, then selects the sampled rows.
-std::shared_ptr<Model> getModel(bool shared = true, bool with_sampled = true) {
+std::shared_ptr<Model> getModel(bool shared = true, bool with_sampled = true, element::Type index_type = element::i64) {
     Inputs i;
+    i.sampled = parameter("sampled_tokens_indices", index_type, {-1});
     auto owner = attention(i.data, i.data, i.data, i.key, i.value, i.past, i.begins, true);
     auto layer = shared_layer(i, owner->output(0), shared);
     Output<Node> hidden = std::make_shared<v1::Add>(layer->output(0), owner->output(0));
@@ -182,9 +185,12 @@ TEST_F(PruneSharedKVRowsTest, GathersSampledRowsIntoSharedLayersReference) {
     const auto starts = std::make_shared<v8::Slice>(begins, vector(0), vector(-1), vector(1));
     const auto ends = std::make_shared<v8::Slice>(begins, vector(1), vector(max), vector(1));
     const auto total_rows = std::make_shared<v8::Slice>(begins, vector(-1), vector(max), vector(1));
-    const auto sampled = std::make_shared<v1::Select>(std::make_shared<v1::Less>(i.sampled, scalar(0)),
-                                                      std::make_shared<v1::Add>(i.sampled, total_rows),
-                                                      i.sampled);
+    const auto normalized = std::make_shared<v1::Select>(std::make_shared<v1::Less>(i.sampled, scalar(0)),
+                                                         std::make_shared<v1::Add>(i.sampled, total_rows),
+                                                         i.sampled);
+    const auto in_range = std::make_shared<v1::LogicalAnd>(std::make_shared<v1::GreaterEqual>(normalized, scalar(0)),
+                                                           std::make_shared<v1::Less>(normalized, total_rows));
+    const auto sampled = std::make_shared<v1::Select>(in_range, normalized, total_rows);
     const auto sampled_sequence = std::make_shared<v3::Bucketize>(sampled, ends, element::i64, false);
     const auto sequence_count = std::make_shared<v0::Squeeze>(std::make_shared<v3::ShapeOf>(ends, element::i64));
     const auto sequence_ids = std::make_shared<v4::Range>(scalar(0), sequence_count, scalar(1), element::i64);
@@ -207,9 +213,13 @@ TEST_F(PruneSharedKVRowsTest, GathersSampledRowsIntoSharedLayersReference) {
     const auto kept_rows =
         std::make_shared<v1::Subtract>(rows_of(ends, kept_sequence),
                                        std::make_shared<v1::Subtract>(rows_of(kept_ends, kept_sequence), kept_ids));
-    const auto sampled_rows =
-        std::make_shared<v1::Subtract>(rows_of(kept_ends, sampled_sequence),
-                                       std::make_shared<v1::Subtract>(rows_of(ends, sampled_sequence), sampled));
+    const auto sampled_lookup =
+        std::make_shared<v1::Minimum>(sampled_sequence, std::make_shared<v1::Subtract>(sequence_count, scalar(1)));
+    const auto sampled_rows = std::make_shared<v1::Select>(
+        in_range,
+        std::make_shared<v1::Subtract>(rows_of(kept_ends, sampled_lookup),
+                                       std::make_shared<v1::Subtract>(rows_of(ends, sampled_lookup), sampled)),
+        kept_count);
     const auto past = std::make_shared<v1::Add>(std::make_shared<v0::Convert>(i.past, element::i64),
                                                 std::make_shared<v1::Subtract>(lengths, counts));
     const auto kept_past = std::make_shared<v0::Convert>(past, element::i32);
@@ -223,8 +233,17 @@ TEST_F(PruneSharedKVRowsTest, GathersSampledRowsIntoSharedLayersReference) {
     auto query = std::make_shared<v1::Multiply>(owner_rows, v0::Constant::create(element::f32, Shape{1, 4}, {2}));
     auto layer = attention(query, data_rows, data_rows, i.key, i.value, kept_past, kept_begins, false);
     auto hidden = std::make_shared<v1::Add>(layer->output(0), owner_rows);
-    auto head = rows_of(hidden, std::make_shared<v0::Convert>(sampled_rows, element::i64));
+    auto head = rows_of(hidden, sampled_rows);
     model_ref = std::make_shared<Model>(OutputVector{head}, i.params);
+}
+
+TEST(PruneSharedKVRows, WidensNarrowSelectionIndices) {
+    const auto model = getModel(true, true, element::i8);
+    ASSERT_TRUE(pass::PruneSharedKVRows().run_on_model(model));
+    // Remapped rows may exceed the range of the original index type, such as -1 over 300 rows.
+    const auto head = model->get_results().front()->get_input_node_shared_ptr(0);
+    EXPECT_EQ(head->get_input_element_type(1), element::i64);
+    EXPECT_EQ(model->get_parameters().back()->get_element_type(), element::i8);
 }
 
 TEST_F(PruneSharedKVRowsTest, KeepsSharedAttentionWithXAttentionUnchanged) {

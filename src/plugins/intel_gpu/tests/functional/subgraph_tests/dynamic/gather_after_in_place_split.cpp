@@ -30,13 +30,13 @@ public:
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        const auto& data = function->inputs()[0];
+        const auto data = function->input(0);
         ov::test::utils::InputGenerateData in_data;
         in_data.start_from = -10;
         in_data.range = 20;
         in_data.resolution = 16;
         inputs.insert({data.get_node_shared_ptr(), ov::test::utils::create_and_fill_tensor(data.get_element_type(), targetInputStaticShapes[0], in_data)});
-        const auto& indices = function->inputs()[1];
+        const auto indices = function->input(1);
         ov::Tensor identity(ov::element::i64, targetInputStaticShapes[1]);
         for (size_t i = 0; i < identity.get_size(); ++i)
             identity.data<int64_t>()[i] = static_cast<int64_t>(i);

@@ -1104,9 +1104,16 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
         const auto vocab = expected_logits.get_size() / ids.size();
         ASSERT_EQ(actual_logits.get_size(), sampled.size() * vocab);
         std::vector<float> sampled_logits;
+        const auto rows = static_cast<int64_t>(ids.size());
         for (const auto index : sampled) {
-            const auto* row = expected_logits.data<const float>() + static_cast<size_t>(index) * vocab;
-            sampled_logits.insert(sampled_logits.end(), row, row + vocab);
+            const auto row = index < 0 ? index + rows : index;
+            if (row < 0 || row >= rows) {
+                // Gather-8 returns zeros for out-of-range indices.
+                sampled_logits.insert(sampled_logits.end(), vocab, 0.f);
+                continue;
+            }
+            const auto* data = expected_logits.data<const float>() + static_cast<size_t>(row) * vocab;
+            sampled_logits.insert(sampled_logits.end(), data, data + vocab);
         }
         ov_gguf_test::expect_nmse_below(
             ov_gguf_test::nmse(actual_logits.data<const float>(), sampled_logits.data(), sampled_logits.size()),
@@ -1119,8 +1126,9 @@ TEST(GGUFMultimodalBackboneAdaptation, Gemma4PrunedPagedAttentionMatchesUnpruned
     const std::vector<int64_t> prompt{1, 2, 3, 4, 5};
     const std::vector<int64_t> positions{0, 1, 2, 0, 1};
     // Last rows, a speculative-decoding suffix, a sequence with no sampled rows, all rows (echo),
-    // and rows that do not form a suffix.
-    for (const auto& sampled : std::vector<std::vector<int64_t>>{{2, 4}, {1, 2, 4}, {4}, {0, 1, 2, 3, 4}, {0, 2, 4}})
+    // rows that do not form a suffix, and negative and out-of-range indices.
+    for (const auto& sampled :
+         std::vector<std::vector<int64_t>>{{2, 4}, {1, 2, 4}, {4}, {0, 1, 2, 3, 4}, {0, 2, 4}, {-6, -1, 2, 5}})
         compare(actual, expected, prompt, positions, {0, 0}, {0, 3, 5}, {0, 1, 2}, sampled, 3);
     compare(actual, expected, {6, 7, 8}, {3, 4, 2}, {3, 2}, {0, 2, 3}, {0, 1, 2}, {1, 2}, 5);
 }
