@@ -71,6 +71,12 @@ CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
                         property.first);
         propertyDescriptorIt->second.set(property.second);
     }
+
+    // NPU_EXPORT_RAW_BLOB can also be provided when the model is compiled (or imported), in which case it does not go
+    // through its setter. Check it here, so that a compiled model can only hold it if it can be exported as a raw blob.
+    if (_config.get<EXPORT_RAW_BLOB>()) {
+        checkRawBlobExportSupported();
+    }
 }
 
 void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {

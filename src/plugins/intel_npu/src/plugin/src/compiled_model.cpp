@@ -94,10 +94,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
     const auto localConfig = _propertiesManager->getConfig();
 
     const bool rawBlobExportRequested = localConfig.get<EXPORT_RAW_BLOB>();
-    if (rawBlobExportRequested) {
-        // The property may have been set at compilation time, which bypasses the check done by its setter
-        _propertiesManager->checkRawBlobExportSupported();
-    }
 
     uint64_t blobSizesBeforeVersioning;
     std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;

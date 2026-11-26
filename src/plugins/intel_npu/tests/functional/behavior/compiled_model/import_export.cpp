@@ -192,42 +192,30 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfRawBlobIfMultipleOfPageSiz
     ASSERT_TRUE(size % 4096 == 0) << "Size of the blob should be multiple of 4096";
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
+// NPU_EXPORT_RAW_BLOB passed at compilation time does not go through the compiled model property setter, so it is
+// checked when the compiled model is created. A weightless model needs metadata (e.g. the init blob sizes) to be
+// imported, so it cannot be exported as a raw blob and the compilation is rejected.
+TEST_P(OVCompiledGraphImportExportTestNPU, ExportRawBlobSetAtCompilationOnWeightlessModelThrows) {
     ov::Core core;
-    std::stringstream sstream;
 
-    auto rawBlobConfig = configuration;
-    rawBlobConfig.emplace(ov::intel_npu::export_raw_blob(true));
-    rawBlobConfig.emplace(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
+    auto config = configuration;
+    config.emplace(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
+    config.emplace(ov::enable_weightless(true));
+    config.emplace(ov::intel_npu::export_raw_blob(true));
 
-    {
-        // WS
-        std::stringstream modelIR, weights;
-        ov::pass::Serialize serialzePass(
-            modelIR,
-            weights);  // serialization needed to re-read the model with WeightlessCacheAttribute set
-        auto model = ov::test::utils::make_conv_pool_relu();
-        serialzePass.run_on_model(model);
-        const auto& weightsStr = weights.str();
-        ov::Tensor weightsTensor(ov::element::u8, ov::Shape{weightsStr.size()}, weightsStr.c_str());
-        model = core.read_model(modelIR.str(), weightsTensor);
+    std::stringstream modelIR, weights;
+    ov::pass::Serialize serialzePass(
+        modelIR,
+        weights);  // serialization needed to re-read the model with WeightlessCacheAttribute set
+    auto model = ov::test::utils::make_conv_pool_relu();
+    serialzePass.run_on_model(model);
+    const auto& weightsStr = weights.str();
+    ov::Tensor weightsTensor(ov::element::u8, ov::Shape{weightsStr.size()}, weightsStr.c_str());
+    model = core.read_model(modelIR.str(), weightsTensor);
 
-        rawBlobConfig.emplace(ov::enable_weightless(true));
-        OV_EXPECT_THROW(core.compile_model(model, target_device, rawBlobConfig).export_model(sstream),
-                        ov::Exception,
-                        testing::HasSubstr("Requested raw blob export, but the graph is not a weightful ELF one."));
-        rawBlobConfig.erase(ov::enable_weightless.name());
-    }
-
-    if (ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()) != ov::intel_npu::Platform::NPU3720) {
-        // HostCompile
-        auto model = createCustomNetModel();
-        rawBlobConfig.emplace(ov::intel_npu::compilation_mode(HostCompile_Interpreter));
-        OV_EXPECT_THROW(core.compile_model(model, target_device, rawBlobConfig).export_model(sstream),
-                        ov::Exception,
-                        testing::HasSubstr("Requested raw blob export, but the graph is not a weightful ELF one."));
-        rawBlobConfig.erase(ov::intel_npu::compilation_mode.name());
-    }
+    OV_EXPECT_THROW(core.compile_model(model, target_device, config),
+                    ov::Exception,
+                    testing::HasSubstr("requires metadata to be exported"));
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModel) {
