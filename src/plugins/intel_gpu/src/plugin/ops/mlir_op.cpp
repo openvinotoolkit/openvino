@@ -31,6 +31,11 @@ static void CreateMLIROp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
 
     cldnn::mlir_primitive primitive(layer_name, inputs, op, std::move(shape_infer_f), num_outputs, get_output_data_types(op));
 
+    // Fill the required input formats from the input orders of the compiled program.
+    for (const auto& [i, order] : program->get_input_orders()) {
+        primitive.required_input_fmts.emplace(i, cldnn::mlir_primitive::format_from_dim_order(order));
+    }
+
     p.add_primitive(*op, primitive);
 }
 

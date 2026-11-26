@@ -551,6 +551,18 @@ void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("GATE_WEIGHT_DT", moe_weight_code(gate_wdt));
     jit.make("UP_WEIGHT_DT", moe_weight_code(up_wdt));
     jit.make("DOWN_WEIGHT_DT", moe_weight_code(down_wdt));
+
+    // Zero points are packed only when they are 4-bit themselves: GGUF Q4_1/Q4_K pair u4 weights with u8 zero points.
+    const auto zp_int4 = [&](MOE3GemmInputIndex zp_idx) {
+        if (!desc->_config.has_zp) {
+            return false;
+        }
+        const auto zp_dt = params.get_input_layout(static_cast<size_t>(zp_idx)).data_type;
+        return zp_dt == ov::element::u4 || zp_dt == ov::element::i4;
+    };
+    jit.make("GATE_ZP_INT4", zp_int4(MOE3GemmInputIndex::ZP_0) ? 1 : 0);
+    jit.make("UP_ZP_INT4", zp_int4(MOE3GemmInputIndex::ZP_1) ? 1 : 0);
+    jit.make("DOWN_ZP_INT4", zp_int4(MOE3GemmInputIndex::ZP_2) ? 1 : 0);
 }
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
