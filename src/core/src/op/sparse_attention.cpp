@@ -5,7 +5,18 @@
 #include "openvino/op/sparse_attention.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/reference/sparse_attention.hpp"
 #include "sparse_attention_shape_inference.hpp"
+
+namespace {
+std::vector<int64_t> key_lengths(const ov::Tensor& t) {
+    std::vector<int64_t> v(t.get_size());
+    for (size_t i = 0; i < v.size(); i++)
+        v[i] = t.get_element_type() == ov::element::i32 ? t.data<const int32_t>()[i] : t.data<const int64_t>()[i];
+    return v;
+}
+}  // namespace
 
 namespace ov::op::v17 {
 
@@ -147,6 +158,65 @@ std::shared_ptr<Node> SparseAttention::clone_with_new_inputs(const OutputVector&
     OV_OP_SCOPE(v17_SparseAttention_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<SparseAttention>(new_args, m_key_block_size, m_query_block_size, m_causal);
+}
+
+bool SparseAttention::has_evaluate() const {
+    const auto et = get_input_element_type(0);
+    return et == element::f32 || et == element::f16;
+}
+
+bool SparseAttention::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v17_SparseAttention_evaluate);
+    if (!has_evaluate())
+        return false;
+    const auto& qs = inputs[0].get_shape();      // [N, H, L, E]
+    const auto& kshape = inputs[1].get_shape();  // [N, Hkv, S, E]
+    const auto& vs = inputs[2].get_shape();      // [N, Hkv, S, Ev]
+    const auto& is = inputs[3].get_shape();      // [N, Hs, Lq, KB]
+    const size_t N = qs[0], H = qs[1], L = qs[2], E = qs[3], Hkv = kshape[1], S = kshape[2], Ev = vs[3];
+    const size_t Hs = is[1], Lq = is[2], KB = is[3];
+    outputs[0].set_shape({N, H, L, Ev});
+    std::vector<int32_t> idx(inputs[3].get_size()), cnt(inputs[4].get_size());
+    for (size_t i = 0; i < idx.size(); i++)
+        idx[i] = inputs[3].get_element_type() == element::i32
+                     ? inputs[3].data<const int32_t>()[i]
+                     : static_cast<int32_t>(inputs[3].data<const int64_t>()[i]);
+    for (size_t i = 0; i < cnt.size(); i++)
+        cnt[i] = inputs[4].get_element_type() == element::i32
+                     ? inputs[4].data<const int32_t>()[i]
+                     : static_cast<int32_t>(inputs[4].data<const int64_t>()[i]);
+    const auto kl = inputs.size() > 5 ? key_lengths(inputs[5]) : std::vector<int64_t>{};
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        ov::reference::sparse_attention<T>(inputs[0].data<const T>(),
+                                           inputs[1].data<const T>(),
+                                           inputs[2].data<const T>(),
+                                           idx.data(),
+                                           cnt.data(),
+                                           kl.empty() ? nullptr : kl.data(),
+                                           kl.size(),
+                                           inputs.size() > 6 ? inputs[6].data<const T>() : nullptr,
+                                           inputs.size() > 7 ? inputs[7].data<const T>() : nullptr,
+                                           outputs[0].data<T>(),
+                                           N,
+                                           H,
+                                           Hkv,
+                                           L,
+                                           S,
+                                           E,
+                                           Ev,
+                                           Hs,
+                                           Lq,
+                                           KB,
+                                           static_cast<size_t>(m_key_block_size),
+                                           static_cast<size_t>(m_query_block_size),
+                                           m_causal);
+    };
+    if (inputs[0].get_element_type() == element::f32)
+        run(float{});
+    else
+        run(ov::float16{});
+    return true;
 }
 
 }  // namespace ov::op::v17
