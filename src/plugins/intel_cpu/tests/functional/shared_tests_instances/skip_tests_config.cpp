@@ -338,8 +338,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
-            // GatherMatmul is not supported on 32-bit ARM
-            std::regex(R"(.*smoke_GroupedMatMul.*)"),
             // Issue: 144998
             std::regex(R"(.*smoke_CachingSupportCase_CPU.*_(i8|u8).*)"),
             std::regex(R"(.*smoke_Hetero_CachingSupportCase.*_(i8|u8).*)"),

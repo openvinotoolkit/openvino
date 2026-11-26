@@ -13,6 +13,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -23,15 +24,18 @@
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToGroupedMatMulCompressed(
-    const std::vector<ov::element::Type>& supported_weights_types) {
+    const std::vector<ov::element::Type>& supported_weights_types,
+    const SupportsPredicate& supports_config) {
     using namespace ov::pass::pattern;
     using ov::op::internal::GroupedMatMulCompressed;
 
     auto data_2d_m = any_input(rank_equals(2));
     auto data_3d_m = any_input(rank_equals(3));
     auto offsets_m = any_input();
-    auto weights_block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
+    auto weights_block = std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(
+        supported_weights_types,
+        std::set<size_t>{3},
+        /*allow_reshaped_decompression_constants=*/true);
 
     // v17::GroupedMatMul has two legal input arities. Match both with a single Or root so
     // one MatcherPass covers 2D x 3D (with offsets) and 3D x 3D (no offsets). Rank is
@@ -41,10 +45,31 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
     auto gmm_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{gmm_no_offsets_m, gmm_with_offsets_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
+        auto pattern_map = m.get_pattern_value_map();
         auto gmm = ov::as_type_ptr<ov::op::v17::GroupedMatMul>(m.get_match_root());
         if (!gmm || transformation_callback(gmm)) {
             return false;
+        }
+
+        // Scale / zero point constants may have their 1-dims squeezed and restored by a Reshape.
+        // Replace the matched constants with ones carrying the restored shape so that the shared
+        // helper sees the full-rank decompression constants.
+        for (const auto& [const_name, reshape_name] :
+             {std::pair<const char*, const char*>{"mul_const", "mul_reshape"},
+              std::pair<const char*, const char*>{"sub_const", "sub_reshape"}}) {
+            const auto reshape = weights_block->get_anchor(reshape_name, pattern_map);
+            if (!reshape.has_value()) {
+                continue;
+            }
+            const auto& pattern_const = weights_block->get_registered_anchors().at(const_name);
+            const auto matched_const = ov::as_type_ptr<ov::op::v0::Constant>(
+                pattern_map.at(pattern_const.get_node_shared_ptr()).get_node_shared_ptr());
+            if (!matched_const || !reshape->get_partial_shape().is_static() ||
+                ov::shape_size(reshape->get_shape()) != ov::shape_size(matched_const->get_shape())) {
+                return false;
+            }
+            pattern_map[pattern_const.get_node_shared_ptr()] =
+                std::make_shared<ov::op::v0::Constant>(*matched_const, reshape->get_shape());
         }
 
         // If the CompressedWeightsBlock matched a Transpose on the weights branch, the
@@ -63,10 +88,12 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
                         "GroupedMatMul mat_b must be rank 3, got rank ",
                         weights_shape.size());
 
-        // If the scale/zero-point has one extra dimension (rank 4), the K axis has been split
+        // If the weights constant has one extra dimension (rank 4), the K axis has been split
         // into sub-groups that each share a scale, e.g. shape [G, N, K/group_size, group_size].
-        const auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
-        const bool grouped = scale_shape.size() == weights_shape.size() + 1;
+        // Derive this from the weights constant rather than from the scale: the scale may be a
+        // scalar (or otherwise broadcast) and then carries no information about grouping.
+        const auto weights_const_shape = weights_block->get_anchor("weights", pattern_map).value().get_shape();
+        const bool grouped = weights_const_shape.size() == weights_shape.size() + 1;
 
         ov::NodeVector result_nodes;
         // `batched_weights=true` selects a final weights rank of 3 in the shared helper, which
@@ -104,6 +131,18 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
                 new_gmm = GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale, gmm_input_zp);
             } else {
                 new_gmm = GroupedMatMulCompressed::make_3d(data_value, gmm_input_b, gmm_input_scale);
+            }
+        }
+
+        if (supports_config) {
+            const size_t IC = *(weights_shape.rbegin());
+            const size_t OC = *(weights_shape.rbegin() + 1);
+            size_t G = 1;
+            if (grouped) {
+                G = has_transpose ? *(weights_const_shape.rbegin() + 2) : *(weights_const_shape.rbegin() + 1);
+            }
+            if (!supports_config(ov::as_type_ptr<GroupedMatMulCompressed>(new_gmm), IC, OC, G)) {
+                return false;
             }
         }
 

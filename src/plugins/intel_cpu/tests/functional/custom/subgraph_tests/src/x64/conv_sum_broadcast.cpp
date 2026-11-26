@@ -132,7 +132,7 @@ public:
     }
 
 protected:
-    bool primTypeCheck(std::string primType) const override {
+    bool primTypeCheck(const std::string& primType) const override {
         bool skip_amx = false;
         switch (runtimeType) {
             case ov::element::Type_t::f32:
@@ -184,7 +184,7 @@ public:
     }
 
 protected:
-    bool primTypeCheck(std::string primType) const override {
+    bool primTypeCheck(const std::string& primType) const override {
         auto isaType = getISA(runtimeType == ov::element::Type_t::f32);
         if (isaType == "")
             return primType == "ref";
@@ -315,7 +315,7 @@ public:
     }
 
 protected:
-    bool primTypeCheck(std::string primType) const override {
+    bool primTypeCheck(const std::string& primType) const override {
         auto isaType = getISA(runtimeType == ov::element::Type_t::f32);
         if (isaType == "")
             return primType == "ref";

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
 #include "shared_test_classes/single_op/grouped_matmul.hpp"
 
 #include <algorithm>
@@ -128,9 +129,11 @@ void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& target
                 cum += static_cast<int32_t>(tpe[g]);
                 offsets[g] = cum;
             }
-            OPENVINO_ASSERT(offsets[G - 1] == static_cast<int32_t>(T),
+            // offsets[G-1] < T is legal: the rows past the last offset belong to no group and the
+            // reference defines them as zero.
+            OPENVINO_ASSERT(offsets[G - 1] <= static_cast<int32_t>(T),
                             "tokens_per_expert[", iter, "] sums to ", offsets[G - 1],
-                            " but T=", T);
+                            " which exceeds T=", T);
         } else {
             // Even distribution: offsets[g] = ceil(T*(g+1)/G), last clamped to T.
             for (size_t g = 0; g < G; ++g) {
@@ -164,16 +167,12 @@ std::string GroupedMatMulLayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void GroupedMatMulLayerTest::SetUp() {
-    const auto& [shape_params, elem_type, _targetDevice, expected_primitive] = GetParam();
-    shape_params_ = shape_params;
-    act_type_ = elem_type;
+    std::tie(shape_params_, act_type_, targetDevice, expected_primitive_) = GetParam();
     model_name_ = "GroupedMatMul";
-    expected_primitive_ = expected_primitive;
-    targetDevice = _targetDevice;
     GroupedMatMulTestBase::SetUp();
 }
 
-std::shared_ptr<ov::Node> GroupedMatMulLayerTest::build_weights() {
+std::shared_ptr<ov::Node> GroupedMatMulPlainBase::build_weights() {
     ov::test::utils::InputGenerateData b_data;
     b_data.range = 2;
     b_data.resolution = 128;
@@ -218,27 +217,31 @@ void GroupedMatMulCompressedLayerTest::SetUp() {
     act_type_ = act_type;
     model_name_ = "GroupedMatMulCompressed";
     expected_primitive_ = expected_primitive;
-    weights_prec_ = weights_prec;
-    decomp_prec_ = decomp_prec;
-    scale_prec_ = scale_prec;
-    multiply_type_ = multiply_type;
-    subtract_type_ = subtract_type;
-    reshape_on_decomp_ = reshape_on_decomp;
-    group_size_ = group_size;
+    m_weights_prec = weights_prec;
+    m_decomp_prec = decomp_prec;
+    m_scale_prec = scale_prec;
+    m_multiply_type = multiply_type;
+    m_subtract_type = subtract_type;
+    m_reshape_on_decomp = reshape_on_decomp;
+    m_group_size = group_size;
     targetDevice = _targetDevice;
     configuration.insert(additional_config.begin(), additional_config.end());
     GroupedMatMulTestBase::SetUp();
 
-    // Loosen tolerance for low-bit weight-compressed variants; dequantization
-    // introduces additional rounding error compared to the uncompressed path.
-    if (weights_prec_ == ov::element::u4 || weights_prec_ == ov::element::i4) {
+    set_compressed_thresholds();
+}
+
+void GroupedMatMulCompressedBase::set_compressed_thresholds() {
+    if (m_weights_prec == ov::element::u3) {
+        abs_threshold = 0.4f;
+    } else if (m_weights_prec == ov::element::u4 || m_weights_prec == ov::element::i4) {
         abs_threshold = 0.2f;
-    } else if (weights_prec_ == ov::element::u8 || weights_prec_ == ov::element::i8) {
+    } else if (m_weights_prec == ov::element::u8 || m_weights_prec == ov::element::i8) {
         abs_threshold = 0.1f;
     }
 }
 
-std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerTest::build_weights() {
+std::shared_ptr<ov::Node> GroupedMatMulCompressedBase::build_weights() {
     // b_shape is the pre-transposed weight shape [G, N, K].
     // We pass the PLANAR shape [G, K, N] to initMatMulDecompressionSubgraphQuantization
     // with transpose_weights=true so the internal constant is laid out as [G, N, K]
@@ -250,15 +253,15 @@ std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerTest::build_weights() {
 
     return ov::test::utils::initMatMulDecompressionSubgraphQuantization(
         b_planar,
-        group_size_,
+        m_group_size,
         act_type_,
-        weights_prec_,
-        decomp_prec_,
-        scale_prec_,
+        m_weights_prec,
+        m_decomp_prec,
+        m_scale_prec,
         true,              // transpose_weights: constant stored as [G, N, K]
-        multiply_type_,
-        subtract_type_,
-        reshape_on_decomp_,
+        m_multiply_type,
+        m_subtract_type,
+        m_reshape_on_decomp,
         false,             // insert_transpose_node: omit trailing Transpose → output [G, N, K]
         1);                // seed
 }

@@ -19,6 +19,7 @@
 #include "config.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gathermatmul.h"
+#include "nodes/grouped_matmul.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -36,6 +37,7 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 
 namespace ov::intel_cpu {
@@ -46,9 +48,37 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
 
-    // Convert public GroupedMatMul-17 into the internal GatherMatmul
-    // Must run before the compression pass.
+    // Convert public GroupedMatMul-17 into the internal GatherMatmul.
+    // Must run before ConvertGatherMatmulToGatherMatmulCompressed, so that a lowered op still gets
+    // its weights compressed (this is what the architectures without the native node rely on).
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertGroupedMatMulToGatherMatmul);
+    // What the native GroupedMatMul node can execute stays out of the lowering; everything else (e.g.
+    // non-constant weights, any op on non-x64) is still lowered to GatherMatmul.
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            std::string error_message;
+            return ov::intel_cpu::node::GroupedMatMul::isSupportedOperation(node, error_message);
+        },
+        ov::pass::ConvertGroupedMatMulToGatherMatmul);
+
+    // Fold the weights dequantization subgraph of the natively supported GroupedMatMul into
+    // GroupedMatMulCompressed. The order relative to the lowering above doesn't matter on x64: the
+    // callback already keeps the native ops out of the lowering, and the ops it still lowers have
+    // non-constant weights, so they have nothing to compress.
+    CPU_REGISTER_PASS_X64(manager,
+                          ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed,
+                          ov::intel_cpu::node::GroupedMatMul::getSupportedCompressedWeightsTypes(),
+                          [&config](const std::shared_ptr<ov::op::internal::GroupedMatMulCompressed>& grouped_matmul,
+                                    size_t IC,
+                                    size_t OC,
+                                    size_t G) {
+                              return ov::intel_cpu::node::GroupedMatMul::isSupportedCompressedOperation(grouped_matmul,
+                                                                                                        IC,
+                                                                                                        OC,
+                                                                                                        G,
+                                                                                                        config);
+                          });
 
     // TransformMoeBlockToGatherMatmuls
     CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
