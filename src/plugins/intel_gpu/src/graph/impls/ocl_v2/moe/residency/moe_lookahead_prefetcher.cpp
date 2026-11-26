@@ -66,7 +66,10 @@ void consume(PrefetchTask& task) {
 
 size_t worker_count() {
     const auto* value = std::getenv("MOE_LES_WORKERS");
-    if (!value || std::string_view(value) == "1") {
+    if (!value) {
+        return 4;
+    }
+    if (std::string_view(value) == "1") {
         return 1;
     }
     if (std::string_view(value) == "4") {
