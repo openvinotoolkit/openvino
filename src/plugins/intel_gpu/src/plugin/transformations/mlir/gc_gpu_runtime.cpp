@@ -342,7 +342,8 @@ private:
 
 class GcGpuProgram final : public MLIRGpuProgram {
 public:
-    GcGpuProgram(::gc::gpu::GpuCompiler& compiler, ::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id) {
+    GcGpuProgram(::gc::gpu::GpuCompiler& compiler, ::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id, InputOrders input_orders)
+        : MLIRGpuProgram(std::move(input_orders)) {
         const bool dump = is_debug();
         if (dump) {
             OPENVINO_MLIR_DEBUG_PRINT("-------------- Source MLIR --------------");
@@ -494,8 +495,8 @@ void register_mlir_gpu_runtime() {
     GcGpuRuntime::register_self();
 }
 
-std::shared_ptr<MLIRGpuProgram> create_gpu_program(::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id) {
-    return std::make_shared<GcGpuProgram>(::gc::gpu::GpuCompiler::get(), std::move(module), device_id);
+std::shared_ptr<MLIRGpuProgram> create_gpu_program(::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id, InputOrders input_orders) {
+    return std::make_shared<GcGpuProgram>(::gc::gpu::GpuCompiler::get(), std::move(module), device_id, std::move(input_orders));
 }
 
 }  // namespace ov::intel_gpu::mlir
