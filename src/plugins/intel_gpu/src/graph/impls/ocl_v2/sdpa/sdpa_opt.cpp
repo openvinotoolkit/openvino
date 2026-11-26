@@ -48,9 +48,11 @@ bool use_multi_token_stage(const RuntimeParams& params) {
 }
 
 // Micro single-token kernel has no key partitions, so it is used for one query row only.
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 bool single_query_row(const RuntimeParams& params) {
     return get_target_seq_len(params) <= 1;
 }
+#endif
 
 }  // namespace
 

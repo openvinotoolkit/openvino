@@ -92,7 +92,8 @@ JitConstants GatherMatmulBatchedGemmGenerator::get_jit_constants(const kernel_im
                 jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
                 jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u8));
             } else {
-                jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::f16));
+                // Must match the micro-GEMM ZP type: expert_gemm_compute.cl strides the per-expert ZP pointer with it.
+                jit.make("WEIGHT_ZP_DT", to_ocl_type(zp_layout.data_type));
             }
         }
     } else {

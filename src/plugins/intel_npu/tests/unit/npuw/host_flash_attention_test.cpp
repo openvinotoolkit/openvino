@@ -6,23 +6,45 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <limits>
 #include <memory>
+#include <numeric>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "intel_npu/ops/flash_attention_tile.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "variable_state.hpp"
+
+#define private public
+#include "compiled_model.hpp"
+#undef private
+#include "attn/attn_subgraph.hpp"
+#include "llm_test_helpers.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 
@@ -904,3 +926,524 @@ TEST(HostFlashAttentionHistorySizeTest, GenerateTakesHistoryAsIs) {
     EXPECT_EQ(selector.this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::GENERATE);
     EXPECT_EQ(selector.context_length(), 37 + 1);
 }
+
+TEST(HostFlashAttentionHistorySizeTest, PreservesExactHistory) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(16);
+    for (const int64_t history : {19, 31, 32, 0}) {
+        selector.prepare(history);
+        EXPECT_EQ(selector.history_length(), history);
+        EXPECT_EQ(selector.context_length(), 16 + ((history + 15) / 16) * 16);
+    }
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, PreservesExactHistory) {
+    auto rq = make_position_ids_request({1, 16});
+    ov::Tensor ids(ov::element::i64, {1, 16});
+    std::iota(ids.data<int64_t>(), ids.data<int64_t>() + ids.get_size(), int64_t{19});
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq);
+    ASSERT_NE(selector, nullptr);
+    selector->prepare(19);
+    EXPECT_EQ(selector->history_length(), 19);
+    EXPECT_EQ(selector->context_length(), 48);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, PrefillZeroIdsWithoutHistoryHasNoPast) {
+    auto rq = make_position_ids_request({1, QUERY_SIZE});
+    ov::Tensor ids(ov::element::i64, {1, QUERY_SIZE});
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(QUERY_SIZE, *rq);
+    ASSERT_NE(selector, nullptr);
+    selector->prepare(0);
+    EXPECT_EQ(selector->context_length(), QUERY_SIZE);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, PrefillZeroIdsAfterResetHasNoStalePast) {
+    auto rq = make_position_ids_request({1, QUERY_SIZE});
+    ov::Tensor ids(ov::element::i64, {1, QUERY_SIZE});
+    const int64_t history = 2 * QUERY_SIZE + 3;
+    std::iota(ids.data<int64_t>(), ids.data<int64_t>() + ids.get_size(), history);
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(QUERY_SIZE, *rq);
+    ASSERT_NE(selector, nullptr);
+    selector->prepare(history);
+    EXPECT_EQ(selector->context_length(), 4 * QUERY_SIZE);
+
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    selector->prepare(0);
+    EXPECT_EQ(selector->context_length(), QUERY_SIZE);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, PrefillZeroIdsWithHistoryThrows) {
+    auto rq = make_position_ids_request({1, QUERY_SIZE});
+    ov::Tensor ids(ov::element::i64, {1, QUERY_SIZE});
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(QUERY_SIZE, *rq);
+    ASSERT_NE(selector, nullptr);
+    EXPECT_THROW(selector->prepare(19), ov::Exception);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, GenerateZeroIdsWithoutHistoryStartsAtPositionZero) {
+    auto rq = make_position_ids_request({1, 1});
+    ov::Tensor ids(ov::element::i64, {1, 1});
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(1, *rq);
+    ASSERT_NE(selector, nullptr);
+    selector->prepare(0);
+    EXPECT_EQ(selector->context_length(), 1);
+}
+
+namespace {
+
+class HFACpuCompiledModel;
+
+class HFACpuInferRequest final : public ov::ISyncInferRequest {
+public:
+    HFACpuInferRequest(const std::shared_ptr<const HFACpuCompiledModel>& model, ov::InferRequest request);
+    void infer() override;
+    void check_tensors() const override {}
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+
+private:
+    ov::InferRequest m_cpu;
+};
+
+class HFACpuCompiledModel final : public ov::ICompiledModel {
+public:
+    HFACpuCompiledModel(const std::shared_ptr<const ov::Model>& model,
+                        const std::shared_ptr<const ov::IPlugin>& plugin,
+                        ov::CompiledModel cpu,
+                        size_t id)
+        : ov::ICompiledModel(model, plugin),
+          m_model(model),
+          m_cpu(std::move(cpu)),
+          m_id(id) {}
+    void export_model(std::ostream& stream) const override {
+        ov::npuw::s11n::write(stream, m_id);
+        m_cpu.export_model(stream);
+    }
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        return m_model;
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name) const override {
+        return m_cpu.get_property(name);
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        auto self = std::static_pointer_cast<const HFACpuCompiledModel>(shared_from_this());
+        return std::make_shared<HFACpuInferRequest>(self, m_cpu.create_infer_request());
+    }
+    mutable std::atomic<size_t> infer_count{0};
+
+private:
+    std::shared_ptr<const ov::Model> m_model;
+    mutable ov::CompiledModel m_cpu;
+    size_t m_id;
+};
+
+HFACpuInferRequest::HFACpuInferRequest(const std::shared_ptr<const HFACpuCompiledModel>& model,
+                                       ov::InferRequest request)
+    : ov::ISyncInferRequest(model),
+      m_cpu(std::move(request)) {
+    for (const auto& port : model->inputs()) {
+        set_tensor(port, ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
+    }
+    for (const auto& port : model->outputs()) {
+        set_tensor(port, ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
+    }
+}
+
+void HFACpuInferRequest::infer() {
+    const auto model = std::static_pointer_cast<const HFACpuCompiledModel>(get_compiled_model());
+    for (size_t i = 0; i < model->inputs().size(); ++i) {
+        m_cpu.set_input_tensor(i, ov::make_tensor(get_tensor(model->inputs()[i])));
+    }
+    for (size_t i = 0; i < model->outputs().size(); ++i) {
+        m_cpu.set_output_tensor(i, ov::make_tensor(get_tensor(model->outputs()[i])));
+    }
+    m_cpu.infer();
+    ++model->infer_count;
+}
+
+std::shared_ptr<ov::Model> build_hfa_runtime_model(size_t past_capacity = PAST_LEN, bool transposed_v = false) {
+    auto sdpa = transposed_v ? build_sdpa_model_transposed_v(QUERY_SIZE, past_capacity)
+                             : build_sdpa_model(QUERY_SIZE, past_capacity);
+    auto attention = sdpa->get_results().back()->input_value(0);
+    auto transpose =
+        std::make_shared<ov::op::v1::Transpose>(attention,
+                                                ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(
+        transpose,
+        ov::op::v0::Constant::create(ov::element::i64, {3}, {BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}),
+        false);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, sdpa->get_parameters());
+    annotate_mask_rt_info(model, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
+    return model;
+}
+
+class HostFlashAttentionRuntimeTest : public ::testing::Test {
+protected:
+    void TearDown() override {
+        if (!m_plan.empty()) {
+            std::filesystem::remove(m_plan);
+        }
+    }
+
+    void SetUp() override {
+        m_cpu.add_extension(std::make_shared<ov::OpExtension<ov::intel_npu::op::FlashAttentionTile>>());
+        m_plugin = std::make_shared<PosIdsNullPlugin>();
+        m_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+        m_plugin->set_core(m_core);
+        ON_CALL(*m_core, get_supported_property(testing::_, testing::_, testing::_))
+            .WillByDefault([](const std::string&, const ov::AnyMap& props, bool) {
+                return props;
+            });
+        auto property = [](const std::string& name) -> ov::Any {
+            if (name == ov::available_devices.name()) {
+                return std::vector<std::string>{};
+            }
+            if (name == ov::supported_properties.name() || name == ov::internal::supported_properties.name()) {
+                return std::vector<ov::PropertyName>{};
+            }
+            if (name == ov::intel_npu::compiler_version.name()) {
+                return int64_t{0};
+            }
+            if (name == ov::device::architecture.name()) {
+                return std::string{};
+            }
+            return {};
+        };
+        ON_CALL(*m_core, get_property(testing::_, testing::_))
+            .WillByDefault([property](const std::string&, const std::string& name) {
+                return property(name);
+            });
+        ON_CALL(*m_core, get_property(testing::_, testing::_, testing::_))
+            .WillByDefault([property](const std::string&, const std::string& name, const ov::AnyMap&) {
+                return property(name);
+            });
+        ON_CALL(*m_core,
+                compile_model(testing::Matcher<const std::shared_ptr<const ov::Model>&>(testing::_),
+                              testing::Matcher<const std::string&>(testing::_),
+                              testing::Matcher<const ov::AnyMap&>(testing::_)))
+            .WillByDefault(
+                [this](const std::shared_ptr<const ov::Model>& model, const std::string&, const ov::AnyMap&) {
+                    return compile_cpu(model);
+                });
+        ON_CALL(*m_core,
+                import_model(testing::Matcher<std::istream&>(testing::_),
+                             testing::Matcher<const std::string&>(testing::_),
+                             testing::Matcher<const ov::AnyMap&>(testing::_)))
+            .WillByDefault([this](std::istream& stream, const std::string&, const ov::AnyMap&) {
+                size_t id = 0;
+                ov::npuw::s11n::read(stream, id);
+                auto cpu = m_cpu.import_model(stream, "CPU");
+                return ov::SoPtr<ov::ICompiledModel>{
+                    std::make_shared<HFACpuCompiledModel>(m_models.at(id), m_plugin, std::move(cpu), id)};
+            });
+    }
+
+    ov::SoPtr<ov::ICompiledModel> compile_cpu(const std::shared_ptr<const ov::Model>& model) {
+        const size_t id = m_models.size();
+        m_models.push_back(model);
+        auto cpu = m_cpu.compile_model(model, "CPU", {{ov::hint::inference_precision.name(), ov::element::f32}});
+        return {std::make_shared<HFACpuCompiledModel>(model, m_plugin, std::move(cpu), id)};
+    }
+
+    std::shared_ptr<ov::npuw::CompiledModel> compile(bool fused,
+                                                     bool short_tiles = false,
+                                                     bool alternating_masks = false) {
+        std::vector<std::shared_ptr<ov::Model>> models;
+        ov::ParameterVector parameters;
+        ov::OutputVector outputs;
+        for (size_t call = 0; call < (alternating_masks ? 3u : 2u); ++call) {
+            auto model = build_hfa_runtime_model(PAST_LEN, !fused);
+            if (call != 0) {
+                const auto suffix = "." + std::to_string(call);
+                for (const auto& node : model->get_ops()) {
+                    node->set_friendly_name(node->get_friendly_name() + suffix);
+                }
+                for (const auto& parameter : model->get_parameters()) {
+                    parameter->output(0).set_names({parameter->output(0).get_any_name() + suffix});
+                }
+            }
+            if (call == 2) {
+                model->replace_parameter(model->get_parameters().size() - 1, models.front()->get_parameters().back());
+            }
+            for (const auto& parameter : model->get_parameters()) {
+                if (std::find(parameters.begin(), parameters.end(), parameter) == parameters.end()) {
+                    parameters.push_back(parameter);
+                }
+            }
+            outputs.push_back(model->get_results()[0]->input_value(0));
+            models.push_back(model);
+        }
+        m_reference_model = std::make_shared<ov::Model>(outputs, parameters);
+        m_plan = std::filesystem::temp_directory_path() /
+                 ("hfa_plan_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".xml");
+        {
+            std::ofstream plan(m_plan);
+            plan << "<ensemble gflops=\"1\"><partitioning>";
+            std::vector<std::vector<std::shared_ptr<ov::Node>>> grouped_layers;
+            for (const auto& model : models) {
+                plan << "<group gflops=\"1\" tag=\"attn\"";
+                if (alternating_masks) {
+                    plan << " repeated=\"hfa\"";
+                }
+                plan << ">";
+                grouped_layers.emplace_back();
+                for (const auto& node : model->get_ordered_ops()) {
+                    if (ov::is_type<ov::op::v0::Parameter>(node) || ov::is_type<ov::op::v0::Constant>(node) ||
+                        ov::is_type<ov::op::v0::Result>(node)) {
+                        continue;
+                    }
+                    grouped_layers.back().push_back(node);
+                    plan << "<layer name=\"" << node->get_friendly_name() << "\"/>";
+                    const auto inputs = node->input_values();
+                    if (std::any_of(inputs.begin(), inputs.end(), [](const auto& input) {
+                            return ov::is_type<ov::op::v0::Parameter>(input.get_node());
+                        })) {
+                        plan << "<input name=\"" << node->get_friendly_name() << "\"/>";
+                    }
+                }
+                plan << "<output name=\"" << model->get_results()[0]->input_value(0).get_node()->get_friendly_name()
+                     << "\"/></group>";
+            }
+            plan << "</partitioning>";
+            if (alternating_masks) {
+                plan << "<repeated><block id=\"hfa\">";
+                for (size_t layer = 0; layer < grouped_layers.front().size(); ++layer) {
+                    plan << "<match>";
+                    for (const auto& layers : grouped_layers) {
+                        OPENVINO_ASSERT(layers.size() == grouped_layers.front().size());
+                        OPENVINO_ASSERT(layers[layer]->get_type_info() ==
+                                        grouped_layers.front()[layer]->get_type_info());
+                        plan << "<layer name=\"" << layers[layer]->get_friendly_name() << "\"/>";
+                    }
+                    plan << "</match>";
+                }
+                plan << "</block></repeated>";
+            }
+            plan << "</ensemble>";
+            OPENVINO_ASSERT(plan.good(), "Could not write the HFA partition plan");
+        }
+        auto compiled =
+            std::make_shared<ov::npuw::CompiledModel>(m_reference_model->clone(),
+                                                      m_plugin,
+                                                      ov::AnyMap{{"NPU_USE_NPUW", "YES"},
+                                                                 {"NPUW_DEVICES", "CPU"},
+                                                                 {"NPUW_UNFOLD_IREQS", "NO"},
+                                                                 {"NPUW_FOLD", "YES"},
+                                                                 {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                                                 {"NPUW_FALLBACK_EXEC", "NO"},
+                                                                 {"NPUW_PLAN", m_plan.string()},
+                                                                 {"NPUW_ONLINE_PIPELINE", "REP"},
+                                                                 {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                                                                 {"NPUW_ONLINE_KEEP_BLOCKS", "1"},
+                                                                 {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+                                                                 {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
+                                                                 {"NPUW_ATTN", "HFA"},
+                                                                 {"NPUW_ATTN_HFA_FUSED", fused ? "YES" : "NO"},
+                                                                 {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}});
+        m_hfa = nullptr;
+        for (size_t idx = 0; idx < compiled->m_compiled_submodels.size(); ++idx) {
+            auto& desc = compiled->m_compiled_submodels[idx];
+            if (desc.replaced_by.value_or(idx) != idx) {
+                continue;
+            }
+            if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
+                m_hfa = hfa;
+                if (short_tiles) {
+                    auto short_hfa =
+                        ov::npuw::function::HostFlashAttention::from(build_hfa_runtime_model(QUERY_SIZE / 2, !fused),
+                                                                     fused,
+                                                                     true);
+                    OPENVINO_ASSERT(short_hfa.has_value());
+                    hfa->_past_tile_size = short_hfa->_past_tile_size;
+                    hfa->set_compiled_tile_model(compile_cpu(short_hfa->_tile_model));
+                    if (short_hfa->_masked_tile_model) {
+                        hfa->set_compiled_masked_tile_model(compile_cpu(short_hfa->_masked_tile_model));
+                    }
+                }
+            }
+        }
+        OPENVINO_ASSERT(m_hfa != nullptr, "Runtime fixture must contain an HFA function");
+        return compiled;
+    }
+
+    void check(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
+               int64_t history,
+               const ov::SoPtr<ov::IAsyncInferRequest>& existing_request = {},
+               bool alternating_masks = false) {
+        ASSERT_NE(m_hfa, nullptr);
+        auto request = existing_request ? existing_request : compiled->create_infer_request();
+        bool history_set = false;
+        for (const auto& state : request->query_state()) {
+            if (state->get_name() == ov::npuw::HistorySizeState::name) {
+                ov::Tensor tensor(ov::element::i64, {1});
+                tensor.data<int64_t>()[0] = history;
+                state->set_state(ov::get_tensor_impl(tensor));
+                history_set = true;
+            }
+        }
+        ASSERT_TRUE(history_set);
+        auto reference =
+            m_cpu.compile_model(m_reference_model, "CPU", {{ov::hint::inference_precision.name(), ov::element::f32}})
+                .create_infer_request();
+        for (const auto& port : compiled->inputs()) {
+            ov::Tensor tensor(port.get_element_type(), port.get_shape());
+            auto* data = tensor.data<float>();
+            const auto name = port.get_any_name();
+            const size_t call = alternating_masks ? (name.back() == '2' ? 2 : name.back() == '1' ? 1 : 0) : 0;
+            for (size_t i = 0; i < tensor.get_size(); ++i) {
+                data[i] = static_cast<float>(1 + i % 7 + 3 * call) / 32.0f;
+            }
+            if (name.find("past_key_values") != std::string::npos) {
+                const bool transposed_value =
+                    name.find(".value") != std::string::npos && m_hfa->_sdpa_attention_info._v_seq_dim == 3;
+                for (size_t i = 0; i < tensor.get_size(); ++i) {
+                    const size_t slot = (i / (transposed_value ? 1 : HEAD_DIM)) % PAST_LEN;
+                    if (static_cast<int64_t>(slot) >= history) {
+                        data[i] = name.find(".key") != std::string::npos ? 16.0f : 128.0f;
+                    } else if (alternating_masks && slot == 1 && name.find(".value") != std::string::npos) {
+                        data[i] += 2.0f + static_cast<float>(call);
+                    }
+                }
+            } else if (name.find("mask.0") != std::string::npos) {
+                const bool excludes_slot_one = alternating_masks && name == "mask.0.1";
+                for (size_t q = 0; q < QUERY_SIZE; ++q) {
+                    for (size_t k = 0; k < PAST_LEN + QUERY_SIZE; ++k) {
+                        data[q * (PAST_LEN + QUERY_SIZE) + k] =
+                            ((k < static_cast<size_t>(history) && !(excludes_slot_one && k == 1)) ||
+                             (k >= PAST_LEN && k <= PAST_LEN + q))
+                                ? 0.0f
+                                : std::numeric_limits<float>::lowest();
+                    }
+                }
+            }
+            request->set_tensor(port, ov::get_tensor_impl(tensor));
+            reference.set_tensor(name, tensor);
+        }
+        ASSERT_NO_THROW(request->infer());
+        ASSERT_NO_THROW(reference.infer());
+        for (size_t output = 0; output < compiled->outputs().size(); ++output) {
+            auto actual = request->get_tensor(compiled->outputs()[output]);
+            auto expected = reference.get_output_tensor(output);
+            ASSERT_EQ(actual->get_shape(), expected.get_shape());
+            for (size_t i = 0; i < expected.get_size(); ++i) {
+                ASSERT_NEAR(actual->data<float>()[i], expected.data<float>()[i], 1e-4f)
+                    << "output " << output << " element " << i;
+            }
+        }
+    }
+
+    size_t count(const ov::SoPtr<ov::ICompiledModel>& model) {
+        return model ? std::static_pointer_cast<HFACpuCompiledModel>(model._ptr)->infer_count.load() : 0;
+    }
+
+    ov::Core m_cpu;
+    std::shared_ptr<PosIdsNullPlugin> m_plugin;
+    std::shared_ptr<testing::NiceMock<ov::MockICore>> m_core;
+    std::vector<std::shared_ptr<const ov::Model>> m_models;
+    std::shared_ptr<ov::Model> m_reference_model;
+    std::filesystem::path m_plan;
+    ov::npuw::compiled::HostFlashAttention* m_hfa = nullptr;
+};
+
+TEST_F(HostFlashAttentionRuntimeTest, FusedPartialHistory) {
+    auto compiled = compile(true);
+    ASSERT_NE(m_hfa, nullptr);
+    ASSERT_TRUE(m_hfa->_compiled_masked_tile_model);
+    EXPECT_EQ(m_hfa->_compiled_masked_tile_model->inputs().size(), m_hfa->_compiled_tile_model->inputs().size() + 1);
+    check(compiled, QUERY_SIZE + 3);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), count(m_hfa->_compiled_final_tile_model));
+    EXPECT_EQ(count(m_hfa->_compiled_masked_tile_model), count(m_hfa->_compiled_final_tile_model));
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, FusedShortTilesPartialHistorySkipsUpperTile) {
+    auto compiled = compile(true, true);
+    check(compiled, QUERY_SIZE / 2 + 3);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), count(m_hfa->_compiled_final_tile_model));
+    EXPECT_EQ(count(m_hfa->_compiled_masked_tile_model), count(m_hfa->_compiled_final_tile_model));
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, FusedShortTilesSkipsUpperTile) {
+    auto compiled = compile(true, true);
+    check(compiled, 3);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), 0u);
+    EXPECT_EQ(count(m_hfa->_compiled_masked_tile_model), count(m_hfa->_compiled_final_tile_model));
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, FusedAlignedHistoryDoesNotUseMaskedTile) {
+    auto compiled = compile(true);
+    check(compiled, PAST_LEN);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), (PAST_LEN / QUERY_SIZE) * count(m_hfa->_compiled_final_tile_model));
+    EXPECT_EQ(count(m_hfa->_compiled_masked_tile_model), 0u);
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, FusedEmptyHistoryWithPastCapacity) {
+    auto compiled = compile(true);
+    auto request = compiled->create_infer_request();
+    check(compiled, 0, request);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), 0u);
+    EXPECT_EQ(count(m_hfa->_compiled_masked_tile_model), 0u);
+    check(compiled, QUERY_SIZE + 3, request);
+    check(compiled, 0, request);
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, NonFusedEmptyHistoryWithPastCapacity) {
+    auto compiled = compile(false);
+    auto request = compiled->create_infer_request();
+    check(compiled, 0, request);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), 0u);
+    check(compiled, QUERY_SIZE + 3, request);
+    check(compiled, 0, request);
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, NonFusedPartialHistorySkipsUpperTile) {
+    auto compiled = compile(false, true);
+    check(compiled, 3);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), count(m_hfa->_compiled_final_tile_model));
+    EXPECT_FALSE(m_hfa->_compiled_masked_tile_model);
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, FusedFoldedCallsWithAlternatingMasks) {
+    auto compiled = compile(true, false, true);
+    ASSERT_EQ(compiled->outputs().size(), 3u);
+    ASSERT_EQ(compiled->m_compiled_submodels.size(), 3u);
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        ASSERT_TRUE(desc.replaced_by.has_value());
+        ASSERT_EQ(*desc.replaced_by, 0u);
+    }
+    ASSERT_NE(m_hfa, nullptr);
+    ASSERT_TRUE(m_hfa->_compiled_masked_tile_model);
+    check(compiled, 3, {}, true);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), 0u);
+    EXPECT_EQ(count(m_hfa->_compiled_masked_tile_model), 3u);
+    EXPECT_EQ(count(m_hfa->_compiled_final_tile_model), 3u);
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, MaskedTileExportImport) {
+    auto compiled = compile(true);
+    std::stringstream stream;
+    ASSERT_NO_THROW(compiled->export_model(stream));
+    auto imported = ov::npuw::CompiledModel::import_model(stream, m_plugin, {});
+    m_hfa = nullptr;
+    for (auto& desc : imported->m_compiled_submodels) {
+        if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
+            m_hfa = hfa;
+        }
+    }
+    ASSERT_NE(m_hfa, nullptr);
+    ASSERT_TRUE(m_hfa->_compiled_masked_tile_model);
+    check(imported, QUERY_SIZE + 3);
+}
+
+}  // namespace

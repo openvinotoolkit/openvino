@@ -64,12 +64,14 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
         }
     }
 
+    // https://oneapi-src.github.io/oneDNN/dev_guide_int8_computations.html?highlight=128#inputs-of-the-same-type-s8
+    const auto src_wdt = srcWeightDesc->getPrecision();
+    const auto dst_wdt = dstWeightDesc->getPrecision();
+    const bool shiftSignedToUnsigned = needShiftSignedToUnsigned && src_wdt.is_integral_number() &&
+                                       src_wdt.is_signed() && dst_wdt.is_integral_number() && !dst_wdt.is_signed();
+
     auto create = [&]() {
-        // https://oneapi-src.github.io/oneDNN/dev_guide_int8_computations.html?highlight=128#inputs-of-the-same-type-s8
-        auto src_wdt = srcWeightDesc->getPrecision();
-        auto dst_wdt = dstWeightDesc->getPrecision();
-        if (needShiftSignedToUnsigned && src_wdt.is_integral_number() && src_wdt.is_signed() &&
-            dst_wdt.is_integral_number() && !dst_wdt.is_signed()) {
+        if (shiftSignedToUnsigned) {
             assert(src_wdt.bitwidth() == dst_wdt.bitwidth());
 
             // prevent reorderData from doing conversion
@@ -106,9 +108,10 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
 
     MemoryPtr ptr;
     if (globalWeightCache && dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        ptr = MemoryPtr(
-            *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
-                                             create));
+        // The signed-to-unsigned shift changes the produced data, so it must be part of the key.
+        const auto key = DnnlExtensionUtils::computeWeightsStringHash(weightsMem, srcWeightDesc, dstWeightDesc) +
+                         (shiftSignedToUnsigned ? "_shift" : "");
+        ptr = MemoryPtr(*globalWeightCache->findOrCreate(key, create));
     } else {
         ptr = create();
     }

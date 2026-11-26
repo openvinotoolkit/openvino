@@ -30,9 +30,9 @@ endif()
 
 ov_option (CMAKE_COMPILE_WARNING_AS_ERROR "Enable warnings as errors" ${CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT})
 
-ov_dependent_option (ENABLE_QSPECTRE "Enable Qspectre mitigation" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
+ov_dependent_option (ENABLE_QSPECTRE "Enable Qspectre mitigation" OFF "MSVC" OFF)
 
-ov_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
+ov_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "MSVC" OFF)
 
 ov_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
 
@@ -46,7 +46,7 @@ ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN3
 
 ov_dependent_option (ENABLE_PDB_IN_RELEASE "Enables PDB files for Release build" OFF "WIN32" OFF)
 
-ov_dependent_option (ENABLE_STATIC_LIBS_PDB "Keeps debug information of developer package static libraries in separate PDB files when CMAKE_MSVC_DEBUG_INFORMATION_FORMAT is Embedded" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
+ov_dependent_option (ENABLE_STATIC_LIBS_PDB "Keeps debug information of developer package static libraries in separate PDB files when CMAKE_MSVC_DEBUG_INFORMATION_FORMAT is Embedded" OFF "MSVC" OFF)
 
 # Defines CPU capabilities
 

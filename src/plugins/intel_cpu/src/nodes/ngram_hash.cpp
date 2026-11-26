@@ -26,7 +26,6 @@
 #include "openvino/reference/ngram_hash_function.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -60,10 +59,7 @@ void NgramHash::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    m_precision = getOriginalInputPrecisionAtPort(0);
-    if (none_of(m_precision, ov::element::i32, ov::element::i64)) {
-        m_precision = ov::element::i32;
-    }
+    m_precision = ov::element::i32;
     addSupportedPrimDesc({{LayoutType::ncsp, m_precision}},
                          {{LayoutType::ncsp, ov::element::i32}},
                          impl_desc_type::ref_any);
@@ -121,12 +117,7 @@ struct NgramHash::NgramHashExecute {
 
 void NgramHash::execute([[maybe_unused]] const dnnl::stream& strm) {
     NgramHashContext ctx = {*this};
-    OV_SWITCH(intel_cpu,
-              NgramHashExecute,
-              ctx,
-              m_precision,
-              OV_CASE(ov::element::i32, int32_t),
-              OV_CASE(ov::element::i64, int64_t))
+    OV_SWITCH(intel_cpu, NgramHashExecute, ctx, m_precision, OV_CASE(ov::element::i32, int32_t))
 }
 
 void NgramHash::executeDynamicImpl(const dnnl::stream& strm) {
