@@ -19,6 +19,7 @@ struct sdpa_compressed_kv_test_params {
     ov::element::Type kv_cache_precision;
     int64_t kv_head_size;
     int64_t expected_head_size;
+    std::vector<int64_t> v_order = {0, 1, 2, 3};
 };
 
 class sdpa_compressed_kv_test : public testing::TestWithParam<sdpa_compressed_kv_test_params> {};
@@ -29,10 +30,15 @@ TEST_P(sdpa_compressed_kv_test, shape_infer) {
     auto& engine = get_test_engine();
 
     constexpr int64_t head_size = 64;
+    const ov::PartialShape kv_shape{1, 2, 16, p.kv_head_size};
+    auto v_shape = kv_shape;
+    for (size_t axis = 0; axis < p.v_order.size(); ++axis) {
+        v_shape[p.v_order[axis]] = kv_shape[axis];
+    }
     const std::vector<layout> input_layouts = {
         layout{ov::PartialShape{1, 4, 8, head_size}, data_types::f16, format::bfyx},
-        layout{ov::PartialShape{1, 2, 16, p.kv_head_size}, data_types::i8, format::bfyx},
-        layout{ov::PartialShape{1, 2, 16, p.kv_head_size}, data_types::i8, format::bfyx},
+        layout{kv_shape, data_types::i8, format::bfyx},
+        layout{v_shape, data_types::i8, format::bfyx},
         layout{ov::PartialShape{1, 2, 1, head_size}, data_types::f16, format::bfyx},
         layout{ov::PartialShape{1, 2, 1, head_size}, data_types::f16, format::bfyx},
     };
@@ -55,7 +61,7 @@ TEST_P(sdpa_compressed_kv_test, shape_infer) {
     qa.group_sizes = {1, 1, UINT64_MAX, 1};
     qa.scales_zp_output_order = {0, 1, 2, 3};
     const std::vector<int64_t> order = {0, 1, 2, 3};
-    auto sdpa_prim = std::make_shared<scaled_dot_product_attention>("output", input_prim_ids, true, -1, order, order, order, order, qa, true);
+    auto sdpa_prim = std::make_shared<scaled_dot_product_attention>("output", input_prim_ids, true, -1, order, order, p.v_order, order, qa, true);
     auto& sdpa_node = prog.get_or_create(sdpa_prim);
     for (const auto& input_prim : input_prims) {
         auto& input_node = prog.get_or_create(input_prim);
@@ -79,6 +85,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              {ov::element::i4, ov::element::i4, 32, 64},
                              {ov::element::i8, ov::element::f16, 64, 64},
                              {ov::element::i8, ov::element::i8, 64, 64},
+                             {ov::element::u4, ov::element::f16, 32, 64, {0, 1, 3, 2}},
+                             {ov::element::i4, ov::element::i4, 32, 64, {0, 1, 3, 2}},
+                             {ov::element::i4, ov::element::f16, 32, 64, {0, 2, 3, 1}},
+                             {ov::element::i8, ov::element::f16, 64, 64, {0, 1, 3, 2}},
                          }));
 
 }  // namespace shape_infer_tests

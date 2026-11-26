@@ -3616,6 +3616,8 @@ struct sdpa_transposed_v_test_params {
     int seq_kv;
     int batch;
     bool is_causal;
+    bool int4kv = false;
+    bool per_channel = false;
 };
 
 struct sdpa_transposed_v_test : public ::testing::TestWithParam<sdpa_transposed_v_test_params> {
@@ -3772,6 +3774,156 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_transposed_v,
                              return "h" + std::to_string(info.param.head_size) + "_n" + std::to_string(info.param.num_heads) + "_sq" +
                                     std::to_string(info.param.seq_q) + "_sk" + std::to_string(info.param.seq_kv) + "_b" + std::to_string(info.param.batch) +
                                     (info.param.is_causal ? "_causal" : "_full");
+                         });
+
+struct sdpa_transposed_v_int4_test : public ::testing::TestWithParam<sdpa_transposed_v_test_params> {
+    void compare_with_reference() {
+        const auto& params = GetParam();
+        ASSERT_TRUE(params.int4kv);
+        ASSERT_EQ(params.head_size % 2, 0);
+
+        auto& engine = get_test_engine();
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        const auto head_size = params.head_size;
+        const auto num_heads = params.num_heads;
+        const auto seq_q = params.seq_q;
+        const auto seq_kv = params.seq_kv;
+        const auto batch = params.batch;
+        const auto packed_head_size = head_size / 2;
+        const layout q_layout({batch, num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+        const layout ref_kv_layout({batch, num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+        const layout ref_v_layout(ov::PartialShape{batch, num_heads, seq_kv, -1}, data_types::f16, format::bfyx);
+        const layout packed_k_layout({batch, num_heads, seq_kv, packed_head_size}, data_types::i8, format::bfyx);
+        const layout packed_v_layout({batch, num_heads, packed_head_size, seq_kv}, data_types::i8, format::bfyx);
+        const auto scale_shape = params.per_channel ? ov::PartialShape{batch, num_heads, 1, head_size} : ov::PartialShape{batch, num_heads, seq_kv, 1};
+        const layout scale_layout(scale_shape, data_types::f16, format::bfyx);
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto ref_k_mem = engine.allocate_memory(ref_kv_layout);
+        auto ref_v_mem = engine.allocate_memory(ref_kv_layout);
+        auto packed_k_mem = engine.allocate_memory(packed_k_layout);
+        auto packed_v_mem = engine.allocate_memory(packed_v_layout);
+        auto k_scale_mem = engine.allocate_memory(scale_layout);
+        auto v_scale_mem = engine.allocate_memory(scale_layout);
+        set_values(q_mem, rg.generate_random_1d<ov::float16>(q_layout.count(), -1.0f, 1.0f));
+
+        const auto fill_kv = [&](const memory::ptr& ref, const memory::ptr& packed, const memory::ptr& scale_mem, bool transpose) {
+            const auto values = rg.generate_random_1d<int8_t>(ref_kv_layout.count(), -8, 7, 1);
+            const auto scales = rg.generate_random_1d<ov::float16>(scale_layout.count(), 0.0625, 0.125, 64);
+            std::vector<ov::float16> dequantized(values.size());
+            std::vector<int8_t> bytes(values.size() / 2);
+            for (size_t byte_idx = 0; byte_idx < bytes.size(); ++byte_idx) {
+                const auto low = values[2 * byte_idx];
+                const auto high = values[2 * byte_idx + 1];
+                const size_t batch_head = byte_idx / (seq_kv * packed_head_size);
+                const size_t token = byte_idx / packed_head_size % seq_kv;
+                const size_t channel = byte_idx % packed_head_size;
+                const size_t scale_idx = params.per_channel ? batch_head * head_size + 2 * channel : batch_head * seq_kv + token;
+                const size_t high_scale_idx = params.per_channel ? scale_idx + 1 : scale_idx;
+                dequantized[2 * byte_idx] = ov::float16(low * static_cast<float>(scales[scale_idx]));
+                dequantized[2 * byte_idx + 1] = ov::float16(high * static_cast<float>(scales[high_scale_idx]));
+                const size_t dst = transpose ? (batch_head * packed_head_size + channel) * seq_kv + token : byte_idx;
+                bytes[dst] = static_cast<int8_t>((low & 0x0F) | ((high & 0x0F) << 4));
+            }
+            set_values(ref, dequantized);
+            set_values(packed, bytes);
+            set_values(scale_mem, scales);
+        };
+        fill_kv(ref_k_mem, packed_k_mem, k_scale_mem, false);
+        fill_kv(ref_v_mem, packed_v_mem, v_scale_mem, true);
+
+        const std::vector<int64_t> plain_order{0, 1, 2, 3};
+        const std::vector<int64_t> transposed_order{0, 1, 3, 2};
+        const auto run_sdpa = [&](const std::string& kernel, bool compressed) {
+            const auto& k_mem = compressed ? packed_k_mem : ref_k_mem;
+            const auto& v_mem = compressed ? packed_v_mem : ref_v_mem;
+            topology topo;
+            topo.add(input_layout("q", q_layout));
+            topo.add(input_layout("k", k_mem->get_layout()));
+            topo.add(input_layout("v", compressed ? v_mem->get_layout() : ref_v_layout));
+            std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
+            scaled_dot_product_attention::QuantizationAttributes quantization;
+            if (compressed) {
+                topo.add(input_layout("k_scale", scale_layout));
+                topo.add(input_layout("v_scale", scale_layout));
+                inputs.emplace_back("k_scale");
+                inputs.emplace_back("v_scale");
+                quantization.quantization_dt = ov::element::i4;
+                quantization.scale_dt = ov::element::f16;
+                constexpr auto whole_dim = std::numeric_limits<uint64_t>::max();
+                quantization.group_sizes = params.per_channel ? std::vector<uint64_t>{1, 1, whole_dim, 1} : std::vector<uint64_t>{1, 1, 1, whole_dim};
+                quantization.scales_zp_output_order = {0, 1, 2, 3};
+            }
+            topo.add(scaled_dot_product_attention("sdpa",
+                                                  inputs,
+                                                  params.is_causal,
+                                                  -1,
+                                                  plain_order,
+                                                  plain_order,
+                                                  compressed ? transposed_order : plain_order,
+                                                  plain_order,
+                                                  quantization,
+                                                  compressed,
+                                                  /*causal_lower_right=*/true));
+
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, kernel}}}));
+            if (compressed) {
+                config.set_property(ov::hint::kv_cache_precision(ov::element::i4));
+            }
+
+            auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+            const auto inst = net->get_primitive("sdpa");
+            if (compressed) {
+                const auto output_shape = inst->get_output_layout().get_shape();
+                OPENVINO_ASSERT(output_shape == q_layout.get_shape(),
+                                "Unexpected SDPA output shape for packed transposed V: ",
+                                output_shape,
+                                "; expected ",
+                                q_layout.get_shape());
+                net->set_input_data("k_scale", k_scale_mem);
+                net->set_input_data("v_scale", v_scale_mem);
+            }
+            net->set_input_data("q", q_mem);
+            net->set_input_data("k", k_mem);
+            net->set_input_data("v", v_mem);
+            auto result = net->execute().at("sdpa").get_memory();
+            const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+            EXPECT_EQ(kernels.find(kernel), 0u) << "Executed kernels: " << kernels;
+            return result;
+        };
+
+        const auto ref_mem = run_sdpa("sdpa_ref", false);
+        const auto test_mem = run_sdpa("sdpa_opt", true);
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> test_data(test_mem, get_test_stream());
+        ASSERT_EQ(ref_data.size(), test_data.size());
+        ASSERT_GT(ref_data.size(), 0u);
+        for (size_t index = 0; index < ref_data.size(); ++index) {
+            ASSERT_NEAR(static_cast<float>(test_data[index]), static_cast<float>(ref_data[index]), 2e-2f) << "Mismatch at index " << index;
+        }
+        ASSERT_GE(cosineSimilarity(ref_data, test_data), 0.99f);
+    }
+};
+
+TEST_P(sdpa_transposed_v_int4_test, opt) {
+    const auto p = GetParam();
+    if (p.per_channel)
+        GTEST_SKIP() << "SDPA opt not supporting per channel INT4";
+    compare_with_reference();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_transposed_v_int4,
+                         sdpa_transposed_v_int4_test,
+                         ::testing::Values(sdpa_transposed_v_test_params{128, 4, 1, 64, 1, false, /*int4kv=*/true, /*per_channel=*/false},
+                                           sdpa_transposed_v_test_params{128, 4, 1, 64, 1, false, /*int4kv=*/true, /*per_channel=*/true},
+                                           sdpa_transposed_v_test_params{128, 4, 16, 65, 1, false, /*int4kv=*/true, /*per_channel=*/false},
+                                           sdpa_transposed_v_test_params{128, 4, 16, 65, 1, false, /*int4kv=*/true, /*per_channel=*/true}),
+                         [](const testing::TestParamInfo<sdpa_transposed_v_test_params>& info) {
+                             return std::string(info.param.seq_q == 1 ? "decode" : "prefill") + (info.param.per_channel ? "_per_channel" : "_per_token");
                          });
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
