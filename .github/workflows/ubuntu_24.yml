@@ -420,7 +420,7 @@ jobs:
     name: Megakernel integration test
     needs: [ Docker, Smart_CI, Megakernel_Build ]
     #if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' && fromJSON(needs.smart_ci.outputs.affected_components).GPU.test }}
-    if: ${{ always() }}
+    if: ${{ success() }}
     timeout-minutes: 30
     runs-on:
       group: Intel-GPU
@@ -429,7 +429,10 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: --group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128
       volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - ${{ github.workspace }}:${{ github.workspace }}
+    env:
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Download megakernel integration test
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
