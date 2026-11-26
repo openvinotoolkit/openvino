@@ -1896,8 +1896,10 @@ public:
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
-        const bool split_les = _les_owner && predict && _weight_provider->is_offloaded() &&
-                       _weight_provider->resident_capacity() > 0;
+        const bool demand_les = _les_owner && predict && _weight_provider->is_offloaded() &&
+                    _weight_provider->resident_capacity() > 0;
+        const bool split_les = demand_les && token_num == 1;
+        const bool compare = demand_les && moe_otd::les_prediction_compare_enabled();
         std::vector<uint32_t> experts;
         if (split_les) {
             stream.finish();
@@ -1905,11 +1907,11 @@ public:
         if (predict) {
             enqueue_lookahead_prediction(events, instance, token_num);
         }
-        if (split_les) {
+        if (split_les || compare) {
             experts.resize(token_num * static_cast<size_t>(max_topk));
             stream.enqueue_barrier({stream.enqueue_marker({}, true)});
             scratch.topk_id->copy_to(stream, experts.data(), 0, 0, experts.size() * sizeof(uint32_t), true);
-            if (_lookahead && moe_otd::les_prediction_compare_enabled()) {
+            if (compare) {
                 _lookahead->record_recall(instance.id(), experts);
             }
             for (auto expert : experts) {
@@ -1921,13 +1923,19 @@ public:
         }
         auto batch_mem_ptr = scratch.topk_id;
         if (!split_les) {
+            if (demand_les) {
+                _lookahead->demand_partitioned(instance.id());
+                _lookahead->prefetcher().drain();
+            }
             batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
+            if (predict) {
+                if (!demand_les) {
+                    _lookahead->demand_partitioned(instance.id());
+                }
+                _lookahead->prefetch(&instance);
+            }
             if (!batch_mem_ptr) {
                 return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
-            }
-            if (predict) {
-                _lookahead->demand_partitioned(instance.id());
-                _lookahead->prefetch(&instance);
             }
         }
 
