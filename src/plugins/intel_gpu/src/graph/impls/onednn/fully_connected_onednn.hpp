@@ -22,7 +22,7 @@ namespace onednn {
 
 struct FullyConnectedImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::fc")
-    FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
+    FullyConnectedImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {
@@ -135,7 +135,25 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
+        if (get_shape_type() == shape_types::dynamic_shape && !supports_shape_agnostic_impl(node)) {
+            LOG_AND_RETURN_FALSE(node);
+        }
+
         return is_supported_post_ops(node);
+    }
+
+    // The shape-agnostic matmul is built once with runtime dims. oneDNN post-op attributes are not created for
+    // dynamic nodes, so fused ops would be dropped; compressed / >2D weights and padded tensors are not handled.
+    static bool supports_shape_agnostic_impl(const program_node& node) {
+        const auto& fc_node = node.as<fully_connected>();
+        const auto fc_prim = fc_node.get_primitive();
+        if (fc_prim->compressed_weights || fc_prim->weights_rank != 2 || !node.get_fused_primitives().empty()) {
+            return false;
+        }
+        // Dynamic padding (e.g. from runtime buffer fusing) is resolved only at execution time, so check it explicitly.
+        const auto& input_padding = fc_node.get_input_layout(0).data_padding;
+        const auto& output_padding = fc_node.get_output_layout(0).data_padding;
+        return !input_padding && !input_padding.is_dynamic() && !output_padding && !output_padding.is_dynamic();
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {

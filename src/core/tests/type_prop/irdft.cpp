@@ -431,6 +431,21 @@ TEST(type_prop, irdft_invalid_axes) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::IRDFT>(data, axes),
                     Exception,
                     HasSubstr("Axes input must be 1D tensor."));
+
+    axes = op::v0::Constant::create(element::i64, Shape{0}, {});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::IRDFT>(data, axes),
+                    Exception,
+                    HasSubstr("Axes input must not be empty."));
+
+    auto signal_size = op::v0::Constant::create(element::i64, Shape{0}, {});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::IRDFT>(data, axes, signal_size),
+                    Exception,
+                    HasSubstr("Axes input must not be empty."));
+
+    auto axes_param = std::make_shared<op::v0::Parameter>(element::i64, Shape{0});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::IRDFT>(data, axes_param),
+                    Exception,
+                    HasSubstr("Axes input must not be empty."));
 }
 
 TEST(type_prop, irdft_invalid_signal_size) {
