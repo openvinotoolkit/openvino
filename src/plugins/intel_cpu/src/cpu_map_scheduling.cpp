@@ -99,7 +99,9 @@ bool check_cpu_pinning(const bool cpu_pinning,
 
     result_value = cpu_pinning_changed ? cpu_pinning : true;
     if (!cpu_pinning_changed && !cpu_reservation) {
-        if ((proc_type_table[0][LP_EFFICIENT_CORE_PROC] == 0) && hyper_cores_in_stream()) {
+        constexpr int min_lp_ecores_for_default_pinning = 4;
+        if ((proc_type_table[0][LP_EFFICIENT_CORE_PROC] < min_lp_ecores_for_default_pinning) &&
+            hyper_cores_in_stream()) {
             result_value = false;
         }
     }

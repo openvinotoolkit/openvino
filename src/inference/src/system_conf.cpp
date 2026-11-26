@@ -39,6 +39,7 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
 #include "os/cpu_map_info.hpp"
+#include "system_conf_internal.hpp"
 
 #ifdef __APPLE__
 #    include <sys/sysctl.h>
@@ -433,7 +434,7 @@ int get_org_numa_id(int numa_node_id) {
     return -1;
 }
 
-std::vector<int> get_core_type_count() {
+std::vector<int> get_cpu_frequency_group_counts() {
     return {};
 }
 
@@ -508,7 +509,7 @@ int get_org_numa_id(int numa_node_id) {
     return -1;
 }
 
-std::vector<int> get_core_type_count() {
+std::vector<int> get_cpu_frequency_group_counts() {
     return {};
 }
 
@@ -692,7 +693,7 @@ int get_org_numa_id(int numa_node_id) {
     return numa_node_id;
 }
 
-std::vector<int> get_core_type_count() {
+std::vector<int> get_cpu_frequency_group_counts() {
     CPU& cpu = cpu_info();
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     if (cpu._cpu_mapping_table.empty() || cpu._cpu_freq_table.empty()) {
@@ -706,18 +707,17 @@ std::vector<int> get_core_type_count() {
         }
     }
 
-    std::vector<std::set<int>> frequencies(HYPER_THREADING_PROC + 1);
+    std::vector<std::set<int>> frequencies(LP_EFFICIENT_CORE_PROC - MAIN_CORE_PROC + 1);
     for (const auto& row : cpu._cpu_mapping_table) {
         const int core_type = row[CPU_MAP_CORE_TYPE];
-        if (core_type < MAIN_CORE_PROC || core_type > HYPER_THREADING_PROC) {
+        if (core_type < MAIN_CORE_PROC || core_type > LP_EFFICIENT_CORE_PROC) {
             continue;
         }
         const auto freq = cpu_frequencies.find(row[CPU_MAP_PROCESSOR_ID]);
         if (freq == cpu_frequencies.end()) {
             return {};
         }
-        frequencies[core_type].insert(freq->second);
-        frequencies[ALL_PROC].insert(freq->second);
+        frequencies[core_type - MAIN_CORE_PROC].insert(freq->second);
     }
 
     std::vector<int> counts;

@@ -478,7 +478,7 @@ CpuPinningTestCase cpu_pinning_lpe_mock_set_false = {
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
     false,
 };
-CpuPinningTestCase cpu_pinning_lpe_mock_set_default = {
+CpuPinningTestCase cpu_pinning_lpe_2_mock_set_default = {
     false,
     false,
     {},
@@ -487,12 +487,25 @@ CpuPinningTestCase cpu_pinning_lpe_mock_set_default = {
      {0, MAIN_CORE_PROC, 6, 0, 0},
      {0, EFFICIENT_CORE_PROC, 8, 0, 0},
      {0, LP_EFFICIENT_CORE_PROC, 2, 0, 0}},
+    false,
+};
+CpuPinningTestCase cpu_pinning_lpe_4_mock_set_default = {
+    false,
+    false,
+    {},
+    {{18, 6, 8, 4, 0, 0, 0}},
+    {{1, ALL_PROC, 18, 0, 0},
+     {0, MAIN_CORE_PROC, 6, 0, 0},
+     {0, EFFICIENT_CORE_PROC, 8, 0, 0},
+     {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0}},
     cpu_pinning_with_lpe_cores,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_CpuPinningLpe,
                          CpuPinningTests,
-                         ::testing::Values(cpu_pinning_lpe_mock_set_false, cpu_pinning_lpe_mock_set_default));
+                         ::testing::Values(cpu_pinning_lpe_mock_set_false,
+                                           cpu_pinning_lpe_2_mock_set_default,
+                                           cpu_pinning_lpe_4_mock_set_default));
 
 #if defined(__linux__)
 INSTANTIATE_TEST_SUITE_P(smoke_CpuPinning,
