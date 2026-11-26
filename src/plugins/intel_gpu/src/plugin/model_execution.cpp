@@ -98,6 +98,9 @@ void Plugin::validate_custom_layer_config(const ov::AnyMap& user_config) {
 }
 
 ov::Any Plugin::get_model_metric(const std::string& name, const ov::AnyMap& options, const cldnn::device_info& device_info) const {
+    if (name == ov::range_for_async_infer_requests) {
+        return decltype(ov::range_for_async_infer_requests)::value_type{1, 2, 1};
+    }
     if (name == ov::optimal_batch_size) {
         return decltype(ov::optimal_batch_size)::value_type{get_optimal_batch_size(options)};
     }

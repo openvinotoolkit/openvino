@@ -6,7 +6,7 @@ ov_add_test_target(
     NAME ov_gpu_vulkan_runtime_smoke
     SOURCES runtime_smoke.cpp
     DEPENDENCIES openvino_intel_gpu_plugin
-    LINK_LIBRARIES openvino::runtime)
+    LINK_LIBRARIES openvino::runtime gtest)
 
 # Android's system loader does not use desktop Vulkan driver manifests.
 if(NOT ANDROID)
@@ -19,6 +19,6 @@ endif()
 ov_add_test_target(
     NAME ov_gpu_vulkan_memory_smoke
     SOURCES memory_smoke.cpp ${GPU_PLUGIN_VULKAN_CONTEXT_SOURCES}
-    LINK_LIBRARIES openvino_intel_gpu_runtime openvino::reference openvino::runtime openvino::runtime::dev Vulkan::Vulkan)
+    LINK_LIBRARIES openvino_intel_gpu_runtime openvino::reference openvino::runtime openvino::runtime::dev Vulkan::Vulkan gtest_main)
 ov_gpu_set_runtime_interface_for(ov_gpu_vulkan_memory_smoke RUNTIME VULKAN)
 ov_set_threading_interface_for(ov_gpu_vulkan_memory_smoke)

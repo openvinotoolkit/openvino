@@ -5,13 +5,12 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <new>
 #include <vector>
 
+#include "gtest/gtest.h"
 #include "intel_gpu/runtime/device_query.hpp"
-#include "openvino/core/except.hpp"
 #include "vulkan/vulkan_engine.hpp"
 #include "vulkan/vulkan_memory.hpp"
 
@@ -54,9 +53,11 @@ void check_disjoint_locks(cldnn::engine& engine, cldnn::memory& buffer, cldnn::s
     std::array<uint8_t, 8> actual{};
     buffer.copy_to(stream, actual.data(), 0, 0, actual.size(), true);
     constexpr std::array<uint8_t, 8> expected{0, 11, 12, 21, 22, 0, 0, 0};
-    OPENVINO_ASSERT(actual == expected, "Unlocking a staged subbuffer lost a write to a disjoint view");
-    OPENVINO_ASSERT(mapped_base == nullptr || (first_data != mapped_base + 1 && second_data != mapped_base + 3),
-                    "Partial non-coherent atoms must use staging while the backing allocation stays mapped");
+    EXPECT_EQ(actual, expected) << "Unlocking a staged subbuffer lost a write to a disjoint view";
+    if (mapped_base != nullptr) {
+        EXPECT_NE(first_data, mapped_base + 1);
+        EXPECT_NE(second_data, mapped_base + 3);
+    }
 }
 
 void check_mapped_non_coherent_locks(cldnn::vulkan::vulkan_engine& engine, cldnn::stream& stream) {
@@ -68,7 +69,7 @@ void check_mapped_non_coherent_locks(cldnn::vulkan::vulkan_engine& engine, cldnn
     auto region = allocator->allocate(8);
     const auto& allocation = region->get_allocation();
     const auto* mapped = static_cast<const uint8_t*>(allocation->get_mapped_data());
-    OPENVINO_ASSERT(mapped != nullptr, "The non-coherent test requires an active mapping");
+    ASSERT_NE(mapped, nullptr) << "The non-coherent test requires an active mapping";
     // Exercise the non-coherent policy on devices with coherent mappings or single-byte atoms.
     vulkan_buffer_allocation_access::force_non_coherent(*allocation, atom_size);
     vulkan_buffer buffer(&engine, byte_layout(static_cast<int64_t>(atom_size)), region, 0, nullptr);
@@ -76,7 +77,7 @@ void check_mapped_non_coherent_locks(cldnn::vulkan::vulkan_engine& engine, cldnn
     check_disjoint_locks(engine, buffer, stream, mapped);
     const auto* whole_atom = buffer.lock(stream, cldnn::mem_lock_type::read);
     buffer.unlock(stream);
-    OPENVINO_ASSERT(whole_atom == mapped, "An entire non-coherent atom must retain direct mapping access");
+    EXPECT_EQ(whole_atom, mapped) << "An entire non-coherent atom must retain direct mapping access";
 }
 
 void check_padded_allocation_fallbacks(cldnn::vulkan::vulkan_engine& engine, cldnn::stream& stream) {
@@ -94,8 +95,9 @@ void check_padded_allocation_fallbacks(cldnn::vulkan::vulkan_engine& engine, cld
             return vulkan_buffer_allocation::create(engine, size, vulkan_buffer_memory_usage::host_staging);
         });
         auto region = allocator->allocate(requested);
-        OPENVINO_ASSERT(attempted.size() == (fail_pooled_allocation ? 2U : 1U) && attempted.back() == padded && region->get_size() == padded,
-                        "Allocation fallback discarded transfer padding");
+        ASSERT_EQ(attempted.size(), fail_pooled_allocation ? 2U : 1U);
+        EXPECT_EQ(attempted.back(), padded);
+        ASSERT_EQ(region->get_size(), padded) << "Allocation fallback discarded transfer padding";
         vulkan_buffer_allocation_access::force_staging(*region->get_allocation());
         vulkan_buffer buffer(&engine, byte_layout(requested), region, 0, nullptr);
         constexpr uint8_t pattern = 0x5A;
@@ -104,7 +106,7 @@ void check_padded_allocation_fallbacks(cldnn::vulkan::vulkan_engine& engine, cld
         buffer.copy_to(stream, output.data(), 0, 0, output.size(), true);
         std::array<uint8_t, requested> expected;
         expected.fill(pattern);
-        OPENVINO_ASSERT(output == expected, "The padded fallback did not preserve every staged byte");
+        EXPECT_EQ(output, expected) << "The padded fallback did not preserve every staged byte";
     };
     check_fallback(requested, false);
     check_fallback(preferred, true);
@@ -114,12 +116,8 @@ void check_padded_allocation_fallbacks(cldnn::vulkan::vulkan_engine& engine, cld
         attempted.push_back(size);
         throw std::bad_alloc{};
     });
-    try {
-        allocator.allocate(requested);
-        OPENVINO_THROW("The allocation failure was swallowed");
-    } catch (const std::bad_alloc&) {
-        OPENVINO_ASSERT(attempted == std::vector<size_t>{padded}, "An already padded request must not retry");
-    }
+    EXPECT_THROW(allocator.allocate(requested), std::bad_alloc);
+    EXPECT_EQ(attempted, std::vector<size_t>{padded}) << "An already padded request must not retry";
 }
 
 void check_strided_rows(cldnn::memory& buffer, cldnn::stream& stream) {
@@ -143,11 +141,11 @@ void check_strided_rows(cldnn::memory& buffer, cldnn::stream& stream) {
     for (size_t row = 0; row < rows; ++row) {
         buffer.copy_to(stream, output.data(), buffer_offset + row * columns, row * stride, columns, true);
     }
-    OPENVINO_ASSERT(output == expected, "Staged strided transfer changed payload or padding");
+    EXPECT_EQ(output, expected) << "Staged strided transfer changed payload or padding";
     std::array<uint8_t, 2> boundaries{1, 1};
     buffer.copy_to(stream, boundaries.data(), buffer_offset - 1, 0, 1, true);
     buffer.copy_to(stream, boundaries.data(), buffer_offset + rows * columns, 1, 1, true);
-    OPENVINO_ASSERT((boundaries == std::array<uint8_t, 2>{}), "Staged upload changed adjacent bytes");
+    EXPECT_EQ(boundaries, (std::array<uint8_t, 2>{})) << "Staged upload changed adjacent bytes";
 }
 
 void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
@@ -167,31 +165,24 @@ void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
         source->copy_to(stream, *destination, 1, 2, count, true);
         std::vector<uint8_t> result(expected.size());
         destination->copy_to(stream, result.data(), 0, 0, result.size(), true);
-        OPENVINO_ASSERT(result == expected, "Device copy changed the payload or adjacent bytes");
+        EXPECT_EQ(result, expected) << "Device copy changed the payload or adjacent bytes";
     }
+}
+
+TEST(VulkanMemorySmoke, ChecksStagedTransfersAndAllocations) {
+    const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
+    auto buffer = engine->allocate_memory(byte_layout(4096), cldnn::allocation_type::vk_buffer, false);
+    vulkan_buffer_allocation_access::force_staging(*static_cast<cldnn::vulkan::vulkan_buffer&>(*buffer).get_allocation());
+    auto& stream = engine->get_service_stream();
+    buffer->fill(stream);
+    check_disjoint_locks(*engine, *buffer, stream);
+    check_strided_rows(*buffer, stream);
+    check_device_copies(*engine, stream);
+    auto& vulkan_engine = static_cast<cldnn::vulkan::vulkan_engine&>(*engine);
+    check_mapped_non_coherent_locks(vulkan_engine, stream);
+    check_padded_allocation_fallbacks(vulkan_engine, stream);
 }
 
 }  // namespace
-
-int main() {
-    try {
-        const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
-        OPENVINO_ASSERT(!devices.empty(), "No Vulkan GPU detected");
-        auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
-        auto buffer = engine->allocate_memory(byte_layout(4096), cldnn::allocation_type::vk_buffer, false);
-        vulkan_buffer_allocation_access::force_staging(*static_cast<cldnn::vulkan::vulkan_buffer&>(*buffer).get_allocation());
-        auto& stream = engine->get_service_stream();
-        buffer->fill(stream);
-        check_disjoint_locks(*engine, *buffer, stream);
-        check_strided_rows(*buffer, stream);
-        check_device_copies(*engine, stream);
-        auto& vulkan_engine = static_cast<cldnn::vulkan::vulkan_engine&>(*engine);
-        check_mapped_non_coherent_locks(vulkan_engine, stream);
-        check_padded_allocation_fallbacks(vulkan_engine, stream);
-        std::cout << "Vulkan staged memory checks passed\n";
-        return 0;
-    } catch (const std::exception& error) {
-        std::cerr << error.what() << '\n';
-        return 1;
-    }
-}

@@ -156,7 +156,7 @@ void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_ma
 
 void Plugin::set_property(const ov::AnyMap &config) {
     if (!supports_model_execution()) {
-        OPENVINO_ASSERT(!config.contains(ov::intel_gpu::config_file.name()), "[GPU] Custom layer configuration is unavailable");
+        OPENVINO_ASSERT(config.find(ov::intel_gpu::config_file.name()) == config.end(), "[GPU] Custom layer configuration is unavailable");
     }
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
         config.set_user_property(user_config, OptionVisibility::RELEASE);
@@ -365,10 +365,6 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     if (name == ov::device::capabilities) {
         return supports_model_execution() ? get_device_capabilities(device_info) : std::vector<std::string>{};
     }
-    if (name == ov::range_for_async_infer_requests) {
-        std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
-        return decltype(ov::range_for_async_infer_requests)::value_type {range};
-    }
     if (name == ov::range_for_streams) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, device_info.num_ccs == 1 ? 2 : device_info.num_ccs);
         return decltype(ov::range_for_streams)::value_type {range};
@@ -376,21 +372,13 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     if (name == ov::intel_gpu::memory_statistics) {
         const auto& ctx = get_default_context(device_id, false);
         if (!ctx->is_initialized()) {
-            decltype(ov::intel_gpu::memory_statistics)::value_type res;
-            auto add_zero_mem_usage = [&res](auto alloc_type) {
-                std::ostringstream oss;
-                oss << alloc_type;
-                res[oss.str()] = 0;
-            };
-            add_zero_mem_usage(cldnn::allocation_type::unknown);
-            add_zero_mem_usage(cldnn::allocation_type::cl_mem);
-            add_zero_mem_usage(cldnn::allocation_type::usm_host);
-            add_zero_mem_usage(cldnn::allocation_type::usm_shared);
-            add_zero_mem_usage(cldnn::allocation_type::usm_device);
-            if (ctx->get_device().get_mem_caps().support_allocation_type(cldnn::allocation_type::vk_buffer)) {
-                add_zero_mem_usage(cldnn::allocation_type::vk_buffer);
+            decltype(ov::intel_gpu::memory_statistics)::value_type statistics;
+            for (const auto type : ctx->get_device().get_mem_caps().get_memory_statistics_types()) {
+                std::ostringstream name;
+                name << type;
+                statistics[name.str()] = 0;
             }
-            return res;
+            return statistics;
         }
         return decltype(ov::intel_gpu::memory_statistics)::value_type{ctx->get_engine().get_memory_statistics()};
     }
@@ -512,7 +500,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
     auto properties = supported_properties;
     if (!supports_model_execution()) {
         const auto model_property = [](const auto& property) {
-            return property == ov::optimal_batch_size.name() || property == ov::max_batch_size.name() || property == ov::intel_gpu::config_file.name();
+            return property == ov::range_for_async_infer_requests.name() || property == ov::optimal_batch_size.name() ||
+                   property == ov::max_batch_size.name() || property == ov::intel_gpu::config_file.name();
         };
         properties.erase(std::remove_if(properties.begin(), properties.end(), model_property), properties.end());
     }

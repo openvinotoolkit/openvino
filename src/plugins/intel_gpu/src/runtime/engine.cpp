@@ -242,21 +242,10 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
 
 std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     std::map<std::string, uint64_t> statistics;
-    const auto add_stat = [&](allocation_type type) {
-        auto idx = static_cast<size_t>(type);
-        auto value = _memory_usage_data[idx].load();
-        std::ostringstream oss;
-        oss << type;
-        statistics[oss.str()] = value;
-    };
-
-    add_stat(allocation_type::unknown);
-    add_stat(allocation_type::cl_mem);
-    add_stat(allocation_type::usm_host);
-    add_stat(allocation_type::usm_shared);
-    add_stat(allocation_type::usm_device);
-    if (supports_allocation(allocation_type::vk_buffer)) {
-        add_stat(allocation_type::vk_buffer);
+    for (const auto type : _device->get_mem_caps().get_memory_statistics_types()) {
+        std::ostringstream name;
+        name << type;
+        statistics[name.str()] = get_used_device_memory(type);
     }
     return statistics;
 }
