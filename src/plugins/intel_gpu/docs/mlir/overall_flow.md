@@ -82,12 +82,10 @@ The feature is disabled by default and gated twice:
 * at **build time** by `-DENABLE_MLIR_FOR_GPU=ON` (default `OFF`) - when off, no MLIR related
   *implementations* are compiled (no pattern matching/conversion/unit tests/inference logic). The MLIR-related
   *definitions* are still included to the build though (`MLIROp` or `cldnn::mlir_primitive` header files) to
-  avoid sudden broken includes. The option requires `ENABLE_GPU_DEBUG_CAPS` (i.e. `ENABLE_DEBUG_CAPS=ON`),
-  since all the runtime knobs of the feature are DEBUG options and the path would otherwise be impossible
-  to switch on.
+  avoid sudden broken includes.
 * at **runtime** by `ov::intel_gpu::enable_mlir` property (env variable `OV_GPU_ENABLE_MLIR`) which is also
-  `false` by default. The option is `DEBUG_GLOBAL`, i.e. it applies to all models of the process and is
-  settable via the env variable only - neither the public API nor the GPU config file accept it.
+  `false` by default. The option is `RELEASE_INTERNAL`, i.e. it is available in any build type but is settable
+  via the env variable (or the GPU config file in debug-caps builds) only - the public API does not accept it.
 
 ## Supported subgraphs
 
@@ -104,9 +102,9 @@ option (`OV_GPU_MLIR_PATTERNS` env variable):
   `OV_GPU_MLIR_PATTERNS='mart=MatMul,Add,Reshape,Transpose;rms=Power,ReduceMean,Add,Sqrt,Divide'` would match
   projection subgraphs.
 
-`mlir_patterns` is a per-model `DEBUG` option, so unlike `enable_mlir` it can also be set via the GPU
-config file. Verbose logging of the pipeline is controlled by `ov::intel_gpu::mlir_debug`
-(`OV_GPU_MLIR_DEBUG`), which is `DEBUG_GLOBAL` like `enable_mlir`.
+`mlir_patterns` is a `RELEASE_INTERNAL` option as well (a development/testing knob, its format may change or it
+may be removed). Verbose logging of the pipeline is controlled by `ov::intel_gpu::mlir_debug`
+(`OV_GPU_MLIR_DEBUG`), which is `DEBUG_GLOBAL`, i.e. it is available in debug-caps builds only.
 
 ## See also
 
