@@ -443,7 +443,9 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
 }
 
 void Transformations::UpToLpt() {
-    ov::util::lower_gguf_fc(*model, {ov::element::gguf_q8_0, ov::element::gguf_q4_0, ov::element::gguf_q4_1});
+    ov::util::lower_gguf_fc(*model,
+                          {ov::element::gguf_q8_0, ov::element::gguf_q4_0, ov::element::gguf_q4_1,
+                           ov::element::gguf_q6_k, ov::element::gguf_q4_k, ov::element::gguf_q5_k});
 
     using namespace ov::pass::low_precision;
     static const std::set<levels>& supported_fq_levels = {levels::int4,

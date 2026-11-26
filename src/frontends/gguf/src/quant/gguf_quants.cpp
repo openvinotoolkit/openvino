@@ -38,15 +38,7 @@ static inline float zp_from_offset(float offset, float scale) {
 }
 
 // 6-bit packed sub-scale/min extraction for K-quants (Q4_K/Q5_K 12-byte scale block).
-static inline void get_scale_min_k4(int j, const uint8_t* q, uint8_t* d, uint8_t* m) {
-    if (j < 4) {
-        *d = q[j] & 63;
-        *m = q[j + 4] & 63;
-    } else {
-        *d = (q[j + 4] & 0xF) | ((q[j - 4] >> 6) << 4);
-        *m = (q[j + 4] >> 4) | ((q[j - 0] >> 6) << 4);
-    }
-}
+using ov::util::get_gguf_k_scale_min;
 
 // Writes per-block zero-points in whichever representation the destination tensor selected:
 //   - u8  -> INTEGER zp: keeps the dequant in the low-precision form the CPU plugin fuses into
@@ -229,52 +221,10 @@ void unpack_256_4(const uint8_t* data, uint8_t* dst) {
 // With a u8 zp, faithfully decode one 32-value group to f32 and requantize it to a NEW u4 grid
 // (see requantize_group_u4). Only 32 f32 values are live per worker.
 void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
-    const uint64_t bytes_per_block = kQ4K_BLOCK_BYTES;
-    const uint64_t n_super_block = tensor.bsize / bytes_per_block;
-    auto data = static_cast<const uint8_t*>(tensor.weights_data);
-    auto weights = static_cast<uint8_t*>(weights_arr.data());
-    auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
-    const ZeroPointWriter zp_out(zp_arr);
-    if (zp_out.is_integer()) {
-        // An integer zero-point means this tensor is being requantized onto a new u4 grid below.
+    if (zp_arr.get_element_type() == ov::element::u8) {
         notify_lossy_weight_approximation(LossyWeightApproximation::Q4_REQUANT);
     }
-
-    ov::parallel_for(n_super_block, [&](size_t i) {
-        const uint8_t* block_data = data + i * bytes_per_block;
-        const float d = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data)));
-        const float dmin = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data + 1)));
-        OPENVINO_ASSERT(std::isfinite(d) && std::isfinite(dmin),
-                        "[GGUF] Q4_K block ",
-                        i,
-                        " has non-finite scale metadata");
-        const uint8_t* qs1 = block_data + 4;
-
-        for (int j = 0; j < 8; ++j) {
-            // 8 sub-blocks: 6-bit scale and 6-bit min packed in 12 bytes.
-            uint8_t sc_raw, m_raw;
-            get_scale_min_k4(j, qs1, &sc_raw, &m_raw);
-            const float sc = d * sc_raw;
-            const float mn = dmin * m_raw;
-            if (!zp_out.is_integer()) {
-                scales[i * 8 + j] = ov::float16(sc);
-                zp_out.store(i * 8 + j, zp_from_offset(mn, sc));
-                continue;
-            }
-
-            uint8_t source_q[32];
-            const uint8_t* source = block_data + 16 + (j / 2) * 32;
-            for (int k = 0; k < 32; ++k) {
-                source_q[k] = (j % 2 == 0) ? (source[k] & 0x0F) : (source[k] >> 4);
-            }
-            uint8_t zp_value = 0;
-            requantize_group_u4(source_q, sc, mn, scales[i * 8 + j], zp_value, weights + i * 128 + j * 16);
-            zp_out.store_integer(i * 8 + j, zp_value);
-        }
-        if (!zp_out.is_integer()) {
-            unpack_256_4(block_data + 16, weights + i * 128);
-        }
-    });
+    ov::util::unpack_gguf_q4_k(tensor.weights_data, tensor.bsize, weights_arr, scales_arr, zp_arr);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -292,31 +242,29 @@ static void dequant_row_q45_k_f32(const uint8_t* row, size_t cols, float* y) {
     constexpr uint64_t bpb = HAS_QH ? kQ5K_BLOCK_BYTES : kQ4K_BLOCK_BYTES;
     for (size_t b = 0; b < cols / 256; ++b, y += 256) {
         const uint8_t* blk = row + b * bpb;
+        if constexpr (HAS_QH) {
+            ov::util::dequantize_gguf_q5_k_block(blk, y);
+            continue;
+        }
         const float d = static_cast<float>(ov::float16::from_bits(*((const uint16_t*)blk)));
         const float dmin = static_cast<float>(ov::float16::from_bits(*((const uint16_t*)blk + 1)));
         const uint8_t* sc = blk + 4;
-        const uint8_t* qh = blk + 16;
-        const uint8_t* ql = HAS_QH ? blk + 48 : blk + 16;
+        const uint8_t* ql = blk + 16;
         int is = 0;
-        uint8_t u1 = 1, u2 = 2;
         float* yy = y;
         for (int j = 0; j < 256; j += 64) {
             uint8_t s1, m1, s2, m2;
-            get_scale_min_k4(is + 0, sc, &s1, &m1);
-            get_scale_min_k4(is + 1, sc, &s2, &m2);
+            get_gguf_k_scale_min(is + 0, sc, &s1, &m1);
+            get_gguf_k_scale_min(is + 1, sc, &s2, &m2);
             const float d1 = d * s1, mn1 = dmin * m1, d2 = d * s2, mn2 = dmin * m2;
             for (int l = 0; l < 32; ++l) {
-                const int hi = (HAS_QH && (qh[l] & u1)) ? 16 : 0;
-                yy[l] = d1 * static_cast<float>((ql[l] & 0xF) + hi) - mn1;
+                yy[l] = d1 * static_cast<float>(ql[l] & 0xF) - mn1;
             }
             for (int l = 0; l < 32; ++l) {
-                const int hi = (HAS_QH && (qh[l] & u2)) ? 16 : 0;
-                yy[32 + l] = d2 * static_cast<float>((ql[l] >> 4) + hi) - mn2;
+                yy[32 + l] = d2 * static_cast<float>(ql[l] >> 4) - mn2;
             }
             ql += 32;
             is += 2;
-            u1 <<= 2;
-            u2 <<= 2;
             yy += 64;
         }
     }
@@ -361,27 +309,7 @@ void gguf_fill_q5_k_i8(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor
                         scales.get_element_type() == ov::element::f16 &&
                         scales.get_size() == tensor.num_weights / group_size,
                     "[GGUF] invalid Q5_K symmetric requantization buffers");
-    auto* dst = weights.data<int8_t>();
-    auto* scale_data = scales.data<ov::float16>();
-    ov::parallel_for(tensor.num_weights / 256, [&](size_t block) {
-        std::array<float, 256> values;
-        dequant_row_q45_k_f32<true>(tensor.weights_data + block * kQ5K_BLOCK_BYTES, 256, values.data());
-        for (size_t offset = 0; offset < 256; offset += group_size) {
-            float amax = 0.0f;
-            for (size_t k = offset; k < offset + group_size; ++k) {
-                OPENVINO_ASSERT(std::isfinite(values[k]), "[GGUF] cannot requantize non-finite Q5_K values");
-                amax = std::max(amax, std::fabs(values[k]));
-            }
-            const ov::float16 scale_f16(amax / 127.0f);
-            const float scale = static_cast<float>(scale_f16);
-            OPENVINO_ASSERT(std::isfinite(scale), "[GGUF] Q5_K symmetric scale exceeds f16 range");
-            scale_data[(block * 256 + offset) / group_size] = scale_f16;
-            for (size_t k = offset; k < offset + group_size; ++k) {
-                const float code = scale > 0.0f ? std::round(values[k] / scale) : 0.0f;
-                dst[block * 256 + k] = static_cast<int8_t>(std::clamp(code, -127.0f, 127.0f));
-            }
-        }
-    });
+    ov::util::unpack_gguf_q5_k_i8(tensor.weights_data, tensor.bsize, weights, scales);
     if (tensor.num_weights != 0) {
         notify_lossy_weight_approximation(LossyWeightApproximation::Q5_K_SYMMETRIC_REQUANT);
     }
@@ -500,9 +428,9 @@ void fill_q5_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
         uint8_t u1 = 1, u2 = 2;
         for (int j = 0; j < 256; j += 64) {
             uint8_t sc, m;
-            get_scale_min_k4(is + 0, scales_data, &sc, &m);
+            get_gguf_k_scale_min(is + 0, scales_data, &sc, &m);
             const float d1 = d * sc, m1 = dmin * m;
-            get_scale_min_k4(is + 1, scales_data, &sc, &m);
+            get_gguf_k_scale_min(is + 1, scales_data, &sc, &m);
             const float d2 = d * sc, m2 = dmin * m;
             uint8_t q1[32], q2[32];
             for (int l = 0; l < 32; ++l) {
@@ -641,35 +569,7 @@ void fill_q2_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
 // 16 sub-blocks of 16 with i8 scale each. Values in [0..63]; center = 32 → i8 [-32..31].
 // Output: i8 weights (value - 32) + f16 scales. No zero-point.
 void fill_q6_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
-    const uint64_t bytes_per_block = kQ6K_BLOCK_BYTES;
-    const uint64_t n_super_block = tensor.bsize / bytes_per_block;
-    auto data = static_cast<const uint8_t*>(tensor.weights_data);
-    auto weights = static_cast<int8_t*>(weights_arr.data());
-    auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
-    // Each super-block writes a disjoint 256-element region, so parallelize like the other fill_*
-    // functions (Q6_K is used for the largest tensors -- output/embed -- so the serial loop left
-    // most cores idle on the biggest weight in the model).
-    ov::parallel_for(n_super_block, [&](size_t i) {
-        const uint8_t* block_data = data + i * bytes_per_block;
-        const float d = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data + 104)));  // (128+64+16)/2
-        for (size_t j = 0; j < 16; j++) {
-            scales[j + i * 16] = ov::float16(d * static_cast<float>(*((int8_t*)(block_data + 128 + 64 + j))));
-        }
-        const uint8_t* ql = block_data;
-        const uint8_t* qh = block_data + 128;
-        for (int64_t j = 0; j < 32; ++j) {
-            weights[i * 256 + j] = static_cast<int8_t>(((ql[j] & 0xF) | (((qh[j] >> 0) & 3) << 4)) - 32);
-            weights[i * 256 + j + 32] = static_cast<int8_t>(((ql[32 + j] & 0xF) | (((qh[j] >> 2) & 3) << 4)) - 32);
-            weights[i * 256 + j + 64] = static_cast<int8_t>(((ql[j] >> 4) | (((qh[j] >> 4) & 3) << 4)) - 32);
-            weights[i * 256 + j + 96] = static_cast<int8_t>(((ql[32 + j] >> 4) | (((qh[j] >> 6) & 3) << 4)) - 32);
-            weights[i * 256 + j + 128] =
-                static_cast<int8_t>(((ql[64 + j] & 0xF) | (((qh[32 + j] >> 0) & 3) << 4)) - 32);
-            weights[i * 256 + j + 160] =
-                static_cast<int8_t>(((ql[96 + j] & 0xF) | (((qh[32 + j] >> 2) & 3) << 4)) - 32);
-            weights[i * 256 + j + 192] = static_cast<int8_t>(((ql[64 + j] >> 4) | (((qh[32 + j] >> 4) & 3) << 4)) - 32);
-            weights[i * 256 + j + 224] = static_cast<int8_t>(((ql[96 + j] >> 4) | (((qh[32 + j] >> 6) & 3) << 4)) - 32);
-        }
-    });
+    ov::util::unpack_gguf_q6_k(tensor.weights_data, tensor.bsize, weights_arr, scales_arr);
 }
 
 // MXFP4 (gpt-oss): per-32 block = 1-byte E8M0 scale + 16 bytes of 4-bit E2M1 indices.

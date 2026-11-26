@@ -2393,7 +2393,8 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
                 << error.what();
             RecordProperty("cpu_compile", "unsupported_weight_type");
         }
-        if (test_case.type == GGUF_TYPE_Q8_0 || test_case.type == GGUF_TYPE_Q4_0 || test_case.type == GGUF_TYPE_Q4_1) {
+        if (test_case.type == GGUF_TYPE_Q8_0 || test_case.type == GGUF_TYPE_Q4_0 || test_case.type == GGUF_TYPE_Q4_1 ||
+            test_case.type == GGUF_TYPE_Q6_K || test_case.type == GGUF_TYPE_Q4_K || test_case.type == GGUF_TYPE_Q5_K) {
             EXPECT_TRUE(cpu_supports_fc);
             EXPECT_TRUE(cpu_compiles);
         }
@@ -2409,9 +2410,12 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
             const auto output = cpu_request.get_output_tensor();
             ASSERT_EQ(output.get_shape(), (ov::Shape{2, channels}));
             ASSERT_EQ(output.get_element_type(), ov::element::f32);
-            if (test_case.type == GGUF_TYPE_Q4_1) {
+            if (test_case.type == GGUF_TYPE_Q4_1 || test_case.type == GGUF_TYPE_Q6_K ||
+                test_case.type == GGUF_TYPE_Q4_K || test_case.type == GGUF_TYPE_Q5_K) {
+                const bool q6_k = test_case.type == GGUF_TYPE_Q6_K;
+                const bool q5_k = test_case.type == GGUF_TYPE_Q5_K;
                 GgufTensor source{};
-                source.type = GGUF_TYPE_Q4_1;
+                source.type = test_case.type;
                 source.ndim = 2;
                 source.dim[0] = width;
                 source.dim[1] = channels;
@@ -2419,11 +2423,18 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
                 source.bsize = payload.size();
                 source.weights_data = payload.data();
                 WeightTensors tensors;
-                tensors.weight = ov::Tensor(ov::element::u32, {channels, width / 8});
-                tensors.scales = ov::Tensor(ov::element::f16, {channels, width / 32});
-                tensors.zero_point = ov::Tensor(ov::element::u8, {channels, width / 32});
-                gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
-                const auto legacy_weights = make_weight_node(tensors, GGUF_TYPE_Q4_1, "blk.0.ffn_up.weight");
+                tensors.weight = ov::Tensor(q6_k || q5_k ? ov::element::i8 : ov::element::u32,
+                                            {channels, q6_k || q5_k ? width : width / 8});
+                tensors.scales = ov::Tensor(ov::element::f16, {channels, width / (q6_k ? 16 : 32)});
+                if (q6_k) {
+                    gguf_fill_sym(source, tensors.weight, tensors.scales);
+                } else if (q5_k) {
+                    gguf_fill_q5_k_i8(source, tensors.weight, tensors.scales);
+                } else {
+                    tensors.zero_point = ov::Tensor(ov::element::u8, {channels, width / 32});
+                    gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
+                }
+                const auto legacy_weights = make_weight_node(tensors, test_case.type, "blk.0.ffn_up.weight");
                 const auto converted = std::make_shared<ov::op::v0::Convert>(legacy_weights, ov::element::f32);
                 const auto legacy_fc = std::make_shared<ov::op::v0::MatMul>(activation, converted, false, true);
                 const auto legacy_model = std::make_shared<ov::Model>(ov::OutputVector{legacy_fc},
@@ -2435,6 +2446,26 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
                 ASSERT_EQ(reference.get_shape(), output.get_shape());
                 for (size_t index = 0; index < output.get_size(); ++index) {
                     EXPECT_NEAR(output.data<const float>()[index], reference.data<const float>()[index], 1e-4f);
+                }
+                const auto native_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(fc);
+                ASSERT_TRUE(native_fc);
+                const auto lowered = ov::util::make_gguf_fc_compatible(
+                    *native_fc, {weights->get_element_type()});
+                ASSERT_TRUE(lowered);
+                const auto lowered_model = std::make_shared<ov::Model>(ov::OutputVector{lowered},
+                                                                       ov::ParameterVector{activation});
+                auto gpu_lowered = core.compile_model(lowered_model, "GPU", precision).create_infer_request();
+                auto gpu_legacy = core.compile_model(legacy_model, "GPU", precision).create_infer_request();
+                gpu_lowered.set_input_tensor(input);
+                gpu_legacy.set_input_tensor(input);
+                gpu_lowered.infer();
+                gpu_legacy.infer();
+                const auto gpu_output = gpu_lowered.get_output_tensor();
+                const auto gpu_reference = gpu_legacy.get_output_tensor();
+                ASSERT_EQ(gpu_output.get_shape(), output.get_shape());
+                ASSERT_EQ(gpu_reference.get_shape(), output.get_shape());
+                for (size_t index = 0; index < gpu_output.get_size(); ++index) {
+                    EXPECT_NEAR(gpu_output.data<const float>()[index], gpu_reference.data<const float>()[index], 1e-4f);
                 }
             } else {
                 for (size_t channel = 0; channel < channels; ++channel) {
