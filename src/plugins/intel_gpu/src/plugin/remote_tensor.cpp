@@ -36,7 +36,7 @@ struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
 namespace ov::intel_gpu {
 
 namespace {
-static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
+ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     return ov::util::can_compute_byte_strides(element_type, shape) ? ov::util::get_dense_byte_strides(element_type, shape) : ov::Strides{};
 }
 
