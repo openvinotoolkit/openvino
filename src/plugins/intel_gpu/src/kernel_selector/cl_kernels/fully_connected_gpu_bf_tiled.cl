@@ -139,14 +139,6 @@ KERNEL(quantize_input)(
 #define TO_FC_ACC_VEC_TYPE(x)      TO_ACCUMULATOR_VEC_TYPE(x)
 #endif
 
-// Amortize half->float merge over 2 K-tiles (32 K-elements) on uncompressed FP16 workloads
-// while keeping each FP16 partial sum bounded to 32 elements to prevent large-K stagnation.
-#if FC_ACC_NEEDS_PROMOTION && !DECOMPRESSION_SCALE_POST_OP && !COMPRESSED_WEIGHTS && !USE_SLM
-#define FC_ACC_MERGE_TILES 2
-#else
-#define FC_ACC_MERGE_TILES 1
-#endif
-
 #if OUTPUT_3D
 #if defined(INPUT0_HAS_FEATURE_PAD) && INPUT0_HAS_FEATURE_PAD
 #define USE_PER_ROW_INPUT_OFFSET 1
@@ -189,6 +181,15 @@ KERNEL(quantize_input)(
 #else
     // For REALIGN_FP16_OFFSET one feature is processed separately before entering main loop to correct alignment.
     #define MAIN_LOOP_ELEMENTS_COUNT  (IFM_SIZE - 1)
+#endif
+
+// Amortize half->float merge over 2 K-tiles (32 K-elements) on larger uncompressed FP16 workloads
+// while keeping small tiles / short reductions at 1 K-tile (16 elements) for maximum precision.
+#if FC_ACC_NEEDS_PROMOTION && !DECOMPRESSION_SCALE_POST_OP && !COMPRESSED_WEIGHTS && !USE_SLM && \
+    (TILE_B >= 8) && (MAIN_LOOP_ELEMENTS_COUNT >= 4 * TILE_IFM * SIMD)
+#define FC_ACC_MERGE_TILES 2
+#else
+#define FC_ACC_MERGE_TILES 1
 #endif
 
 #define INPUT_ELEMENTS_COUNT IFM_SIZE
