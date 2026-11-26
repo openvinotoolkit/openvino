@@ -21,6 +21,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::pattern;
+using ov::pass::operator|;
 using ov::pass::pattern::op::Or;
 
 namespace ov::intel_gpu {
@@ -194,7 +195,7 @@ ConvolutionMatcher::ConvolutionMatcher() {
     auto conv_m = wrap_type<ov::op::v1::Convolution>({input_m, any_input(has_static_rank())});
     auto group_conv_m = wrap_type<ov::op::v1::GroupConvolution>({input_m, any_input(has_static_dim(0))});
     auto bias_val_m = wrap_type<ov::op::v0::Constant>();
-    auto convolution_m = std::make_shared<Or>(OutputVector{conv_m, group_conv_m});
+    auto convolution_m = conv_m | group_conv_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
