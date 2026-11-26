@@ -118,7 +118,7 @@ public:
     size_t get_offset() const {
         return _offset;
     }
-    void seek_current_ptr(std::streamsize size) {
+    virtual void seek_current_ptr(std::streamsize size) {
         // Get current stream position
         std::streampos current_pos = _stream.tellg();
         // Advance stream position

@@ -45,12 +45,11 @@ private:
     bool open_encrypted_model(const ov::EncryptionCallbacks& callbacks);
 
     cldnn::engine& m_engine;
-    PayloadInfo m_info;
-    std::string m_requirements;
-    std::optional<runtime::hsm::Section> m_info_section;
-    std::optional<runtime::hsm::Section> m_requirements_section;
+    std::optional<PayloadInfo> m_info;
+    std::optional<std::string> m_requirements;
+    std::optional<ov::CacheMode> m_cache_mode;
     std::optional<runtime::hsm::Section> m_model;
-    runtime::hsm::ManifestEntry m_model_entry{};
+    runtime::hsm::OffsetType m_model_offset = 0;
     std::string m_plaintext;
     ov::Tensor m_model_tensor;
     std::unique_ptr<std::streambuf> m_buffer;

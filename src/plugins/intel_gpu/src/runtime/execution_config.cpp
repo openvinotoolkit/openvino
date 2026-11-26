@@ -175,12 +175,14 @@ bool ExecutionConfig::visit_attributes(ov::AttributeVisitor& visitor) {
     auto properties = m_user_properties;
     properties.erase(ov::intel_gpu::export_hsm_format.name());
     visitor.on_attribute("m_user_properties", properties);
-    if (const auto it = m_user_properties.find(ov::intel_gpu::export_hsm_format.name()); it != m_user_properties.end())
+    if (const auto it = m_user_properties.find(ov::intel_gpu::export_hsm_format.name()); it != m_user_properties.end()) {
         properties.insert(*it);
+    }
     m_user_properties = std::move(properties);
     for (auto& [name, option] : m_options_map) {
-        if (name != ov::intel_gpu::export_hsm_format.name())
+        if (name != ov::intel_gpu::export_hsm_format.name()) {
             visitor.on_attribute(name + "__internal", option);
+        }
     }
     return true;
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/compiled_model/import_export.hpp"
 #include "behavior/ov_plugin/caching_tests.hpp"
 
 #include <algorithm>
@@ -11,12 +10,19 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "behavior/compiled_model/import_export.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "intel_gpu/plugin/hsm_common.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/pass/manager.hpp"
@@ -25,10 +31,6 @@
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_io.hpp"
-#include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 using namespace ov::test::behavior;
 
@@ -220,7 +222,8 @@ TEST_P(GPUHsmRegressionTest, RejectsTensorPrefixOfLargerMappedFile) {
     const auto path = cache_path.string() + ".mapped";
     {
         std::ofstream file(path, std::ios::binary);
-        file.write(blob.data(), blob.size());
+        ASSERT_LE(blob.size(), static_cast<uintmax_t>(std::numeric_limits<std::streamsize>::max()));
+        file.write(blob.data(), static_cast<std::streamsize>(blob.size()));
         ASSERT_TRUE(file.good());
     }
     auto mapping = ov::load_mmap_object(path);
@@ -258,6 +261,34 @@ TEST_P(GPUHsmRegressionTest, EncryptedPayloadRoundTripsThroughOffsetStreamAndTen
     expect_same_inference(from_tensor);
 }
 
+TEST_P(GPUHsmRegressionTest, ForwardOnlyStreamRejectsHsmButReadsLegacy) {
+    class ForwardOnlyBuffer final : public std::stringbuf {
+    public:
+        explicit ForwardOnlyBuffer(const std::string& data) : std::stringbuf(data, std::ios::in) {}
+
+    protected:
+        pos_type seekoff(off_type /*offset*/, std::ios_base::seekdir /*direction*/, std::ios_base::openmode /*mode*/) override {
+            return pos_type(off_type(-1));
+        }
+        pos_type seekpos(pos_type /*position*/, std::ios_base::openmode /*mode*/) override {
+            return pos_type(off_type(-1));
+        }
+    };
+
+    ForwardOnlyBuffer hsm_buffer(export_blob(compile(false)));
+    std::istream hsm_stream(&hsm_buffer);
+    OV_EXPECT_THROW(core.import_model(hsm_stream, target_device, configuration),
+                    ov::Exception,
+                    ::testing::HasSubstr("HSM import requires a seekable input stream"));
+
+    auto legacy_config = configuration;
+    legacy_config[ov::intel_gpu::export_hsm_format.name()] = false;
+    ForwardOnlyBuffer legacy_buffer(export_blob(core.compile_model(model, target_device, legacy_config)));
+    std::istream legacy_stream(&legacy_buffer);
+    auto imported = core.import_model(legacy_stream, target_device, configuration);
+    expect_same_inference(imported);
+}
+
 TEST_P(GPUHsmRegressionTest, AlignedTensorImportRetainsStorageWithZeroCopyRequested) {
     struct RestoreZeroCopySetting {
         RestoreZeroCopySetting() {
@@ -293,7 +324,7 @@ TEST_P(GPUHsmRegressionTest, RejectsMissingMalformedAndTruncatedSections) {
     namespace gpu_hsm = ov::intel_gpu::hsm;
     const auto original = export_blob(compile(false));
     std::vector<std::pair<std::string, std::string>> invalid;
-    for (const auto& id : {gpu_hsm::payload_info, gpu_hsm::runtime_requirements, gpu_hsm::model}) {
+    for (const auto& id : {gpu_hsm::payload_info, gpu_hsm::runtime_requirements, gpu_hsm::compile_options, gpu_hsm::model}) {
         invalid.emplace_back("missing tag " + std::to_string(id.tag.id()),
                              hsm_repack(original, [&](std::vector<HsmEntry>& entries) {
                                  entries.erase(std::remove_if(entries.begin(), entries.end(), [&](const HsmEntry& entry) {

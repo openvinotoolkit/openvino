@@ -71,7 +71,7 @@ public:
     // [DO NOT CHANGE THIS CONSTANT] changing it breaks import of every previously exported blob.
     static constexpr uint64_t runtime_requirements_magic = 0x4F5645505F525251ULL;
 
-    // Upper bound on the persisted descriptor size, rejects corrupted size fields before allocating.
+    // Upper bound on descriptor bytes before allocation, independent of memory alignment.
     static constexpr size_t runtime_requirements_max_size = 4096;
 
     void set_property(const ov::AnyMap& properties) override {
@@ -104,7 +104,7 @@ public:
     }
 
 private:
-    void export_payload(cldnn::BinaryOutputBuffer& buffer) const;
+    void export_payload(cldnn::BinaryOutputBuffer& ob) const;
 
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;

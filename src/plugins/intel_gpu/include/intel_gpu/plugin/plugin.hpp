@@ -33,9 +33,6 @@ private:
                                                          const std::shared_ptr<RemoteContextImpl>& context) const;
     void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const;
     void register_primitives() const;
-    bool is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) const;
-    void set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) const;
-    void create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const;
     std::string get_device_id_from_config(const ov::AnyMap& config) const;
     std::string get_device_id(const ov::AnyMap& config) const;
     std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
@@ -49,12 +46,6 @@ private:
 
     bool is_metric(const std::string& name) const;
     ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
-
-    // Reads an HSM blob in place from @p blob when @p model is null; otherwise reads @p model, backed by @p blob if set.
-    std::shared_ptr<ov::ICompiledModel> import_blob(std::istream* model,
-                                                    const ov::Tensor* blob,
-                                                    const ov::SoPtr<ov::IRemoteContext>& context,
-                                                    const ov::AnyMap& config) const;
 
 public:
     Plugin();
