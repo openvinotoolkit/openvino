@@ -11,7 +11,6 @@
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/primitives/input_layout.hpp"
-#include "intel_gpu/primitives/paged_attention.hpp"
 #include "mvn_inst.h"
 #include "pass_manager.h"
 #include "program_node.h"
@@ -174,18 +173,12 @@ namespace {
 const std::set<std::string>& bf16_fallback_excluded_types() {
     static const std::set<std::string> excluded_types = {
         "input_layout", "data", "reorder", "assign", "read_value", "loop", "condition", "kv_cache",
-        "lstm", "lstm_dynamic_input", "lstm_dynamic_timeloop"
+        "lstm", "lstm_dynamic_input", "lstm_dynamic_timeloop", "paged_attention", "scaled_dot_product_attention"
     };
     return excluded_types;
 }
 
-bool needs_bf16_to_f32_input(const program_node& node, size_t index) {
-    if (!node.is_type<paged_attention>())
-        return true;
-    return index == paged_attention::QUERY || index == paged_attention::KEY || index == paged_attention::VALUE;
-}
-
-bool has_bf16_data_type(const program_node& node) {
+bool has_bf16_data_type(program_node& node) {
     const auto& input_layouts = node.get_input_layouts();
     return node.get_output_layout().data_type == data_types::bf16 ||
            std::any_of(input_layouts.begin(), input_layouts.end(), [](const layout& value) {
@@ -209,14 +202,6 @@ bool add_required_reorders::needs_bf16_fallback(program_node& node) {
         !params->inner_progs.empty() || !params->inner_nets.empty()) {
         return false;
     }
-    if (node.is_type<paged_attention>()) {
-        const auto& key_cache_layout = params->get_input_layout(paged_attention::KEY_CACHE);
-        const auto& value_cache_layout = params->get_input_layout(paged_attention::VALUE_CACHE);
-        if (key_cache_layout.data_type == data_types::bf16 || value_cache_layout.data_type == data_types::bf16) {
-            return false;
-        }
-    }
-
     bool found_ocl_manager = false;
     const auto shape_type = ImplementationManager::get_shape_type(*params);
     for (const auto& manager : node.type()->get_all_implementations()) {
@@ -244,7 +229,7 @@ bool add_required_reorders::try_bf16_fallback(program& p, program_node& node) {
     auto fp32_params = *native_params;
     bool needs_fallback = false;
     for (size_t idx = 0; idx < fp32_params.input_layouts.size(); ++idx) {
-        if (fp32_params.input_layouts[idx].data_type == data_types::bf16 && needs_bf16_to_f32_input(node, idx)) {
+        if (fp32_params.input_layouts[idx].data_type == data_types::bf16) {
             if (node.get_dependency(idx).is_constant())
                 return false;
             fp32_params.input_layouts[idx].data_type = data_types::f32;
@@ -313,7 +298,7 @@ bool add_required_reorders::try_bf16_fallback(program& p, program_node& node) {
     }
     node.set_output_layout(fp32_params.output_layouts[0], false);
     for (size_t idx = 0; idx < native_params->input_layouts.size(); ++idx) {
-        if (native_params->input_layouts[idx].data_type != data_types::bf16 || !needs_bf16_to_f32_input(node, idx))
+        if (native_params->input_layouts[idx].data_type != data_types::bf16)
             continue;
         const auto dependency = node.get_dependency_with_port(idx);
         auto conversion = std::make_shared<reorder>(unique_id(node.id() + "_input_fp32_" + std::to_string(idx)),
