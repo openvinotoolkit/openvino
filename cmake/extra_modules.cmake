@@ -174,18 +174,7 @@ endif()\n")
             endif()
             if(BUILD_${module_name})
                 message(STATUS "Register ${module_name} to be built in build-modules/${module_name}")
-                set(_ov_saved_cxx_flags "${CMAKE_CXX_FLAGS}")
-
-                # External modules may still assign u8"" literals to std::string, which C++20 char8_t forbids.
-                # openvino_contrib has migrated to C++20 and no longer needs this shim; CVS-199298: remove
-                # the rest once GenAI (the other OPENVINO_EXTRA_MODULES consumer) migrates too.
-                if(CMAKE_CXX_STANDARD GREATER_EQUAL 20 AND module_path IN_LIST user_extra_modules
-                    AND(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-                    AND NOT module_path MATCHES "/openvino_contrib/")
-                    string(APPEND CMAKE_CXX_FLAGS " -fno-char8_t")
-                endif()
                 add_subdirectory("${module_path}" "build-modules/${module_name}")
-                set(CMAKE_CXX_FLAGS "${_ov_saved_cxx_flags}")
             endif()
         endif()
     endforeach()
