@@ -19,6 +19,9 @@
 #include "config.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gathermatmul.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/gated_residual.h"
+#endif
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -35,6 +38,7 @@
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
+#include "transformations/op_conversions/convert_gated_residual_to_compressed.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 
@@ -89,6 +93,13 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
             return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, G, config);
         });
+
+    CPU_REGISTER_PASS_X64(manager,
+                          pass::ConvertGatedResidualToCompressed,
+                          ov::intel_cpu::node::GatedResidual::getSupportedCompressedWeightsTypes(),
+                          [](const std::shared_ptr<ov::op::internal::GatedResidual>& gated_residual) {
+                              return ov::intel_cpu::node::GatedResidual::isSupportedCompressedOperation(gated_residual);
+                          });
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::MoveFCReshapeToWeights<ov::op::internal::FullyConnected>);
