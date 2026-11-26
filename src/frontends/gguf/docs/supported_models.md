@@ -48,7 +48,7 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `llama-embed` | Llama-Nemotron-Embed-1B-v2 Q4_K_M | Per-token embeddings; mean/first/last pooling; causal or bidirectional |
 | `maincoder` | Maincoder-1B Q4_K_M | NORMAL RoPE, QK-norm after RoPE |
 | `mamba2` | Mamba2-2.7B Q8_0 | Mamba 2 mixer, tied or separate output; one-sequence greedy decoding |
-| `mellum` | Mellum2-12B-A2.5B-Instruct Q4_K_M | MoE with normalized expert weights |
+| `mellum` | Mellum2-12B-A2.5B-Instruct Q4_K_M; Mellum2.1-12B-A2.5B-Instruct Q4_K_M | MoE with normalized expert weights; YaRN on full-attention layers only, plain RoPE on sliding layers |
 | `minicpm` | MiniCPM-2B-sft Q4_0 | Embedding/residual scales, inverse logit scale |
 | `minimax-m2` | MiniMax-M2.1-REAP-50 Q2_K | Full-width QK-norm, partial RoPE, normalized experts; see [memory limits](quantization.md#memory-and-packaging-limits) |
 | `mistral3` | Devstral Small 2 24B; Ministral-3-3B-Instruct-2512 Q4_K_M | Dense, NORMAL RoPE, attention temperature |

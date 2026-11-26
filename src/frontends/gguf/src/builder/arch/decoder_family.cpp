@@ -167,6 +167,15 @@ DecoderParameters resolve_decoder_parameters(const GgufMetadata& metadata,
         p.attention.sliding_rope.freq_base = p.attention.rope.freq_base;
         p.attention.sliding_rope.freq_scale = p.attention.rope.freq_scale;
     }
+    // llama.cpp Mellum rotates sliding layers with plain RoPE, without YaRN.
+    if (p.architecture == "mellum") {
+        auto& sliding = p.attention.sliding_rope;
+        sliding.freq_scale = 1.0f;
+        sliding.ext_factor = 0.0f;
+        sliding.attn_factor = 1.0f;
+        sliding.beta_fast = 32.0f;
+        sliding.beta_slow = 1.0f;
+    }
     if (p.architecture == "dflash" && metadata.has(p.architecture + ".hidden_activation")) {
         const auto activation = metadata.get_str(p.architecture + ".hidden_activation");
         OPENVINO_ASSERT(
