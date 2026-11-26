@@ -286,6 +286,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
 
 set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/divide_pythondiv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/integer_remainder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/paged_qsa_indexer.cpp

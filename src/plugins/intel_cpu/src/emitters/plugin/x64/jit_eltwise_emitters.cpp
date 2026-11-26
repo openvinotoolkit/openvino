@@ -485,6 +485,89 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->uni_vroundps(vmm_dst, vmm_src, 2);
 }
 
+namespace {
+// Computes the i32 remainder dst = src0 - q * src1, where q is src0 / src1 rounded toward zero (Mod) or toward
+// negative infinity (FloorMod). There is no vector integer division, so q is computed in f64 on each half of the
+// vector. Every i32 value is exact in f64, and the f64 quotient never rounds across an integer, so q is exact.
+// The product and the difference are computed in i32 and wrap, so INT_MIN / -1, whose quotient does not fit
+// into i32, gives a remainder of 0.
+template <x64::cpu_isa_t isa, typename Vmm>
+void emit_i32_remainder(x64::jit_generator_t* h,
+                        const Vmm& dst,
+                        const Vmm& src0,
+                        const Vmm& src1,
+                        const std::vector<size_t>& aux_vec_idxs,
+                        bool floor) {
+    const Vmm q(aux_vec_idxs[0]);
+    const Vmm aux0(aux_vec_idxs[1]);
+    const Vmm aux1(aux_vec_idxs[2]);
+    if constexpr (isa == x64::sse41) {
+        // cvtdq2pd converts the low two lanes, so the high two lanes are moved down with pshufd first
+        h->cvtdq2pd(q, src0);
+        h->cvtdq2pd(aux1, src1);
+        h->divpd(q, aux1);
+        if (floor) {
+            h->roundpd(q, q, 1);
+        }
+        h->cvttpd2dq(q, q);
+        h->pshufd(aux0, src0, 0xEE);
+        h->cvtdq2pd(aux0, aux0);
+        h->pshufd(aux1, src1, 0xEE);
+        h->cvtdq2pd(aux1, aux1);
+        h->divpd(aux0, aux1);
+        if (floor) {
+            h->roundpd(aux0, aux0, 1);
+        }
+        h->cvttpd2dq(aux0, aux0);
+        h->punpcklqdq(q, aux0);
+        h->pmulld(q, src1);
+        if (dst.getIdx() != src0.getIdx()) {
+            h->movups(dst, src0);
+        }
+        h->psubd(dst, q);
+    } else {
+        using Half = std::conditional_t<isa == x64::avx2, Xmm, Ymm>;
+        auto round_and_convert = [&](const Vmm& v) {
+            if (floor) {
+                if constexpr (isa == x64::avx2) {
+                    h->vroundpd(v, v, 1);
+                } else {
+                    h->vrndscalepd(v, v, 1);
+                }
+            }
+            h->vcvttpd2dq(Half(v.getIdx()), v);
+        };
+        auto extract_high = [&](const Half& to, const Vmm& from) {
+            if constexpr (isa == x64::avx2) {
+                h->vextracti128(to, from, 1);
+            } else {
+                h->vextracti64x4(to, from, 1);
+            }
+        };
+
+        h->vcvtdq2pd(q, Half(src0.getIdx()));
+        h->vcvtdq2pd(aux1, Half(src1.getIdx()));
+        h->vdivpd(q, q, aux1);
+        round_and_convert(q);
+        extract_high(Half(aux0.getIdx()), src0);
+        h->vcvtdq2pd(aux0, Half(aux0.getIdx()));
+        extract_high(Half(aux1.getIdx()), src1);
+        h->vcvtdq2pd(aux1, Half(aux1.getIdx()));
+        h->vdivpd(aux0, aux0, aux1);
+        round_and_convert(aux0);
+        if constexpr (isa == x64::avx2) {
+            h->vinserti128(q, q, Half(aux0.getIdx()), 1);
+        } else {
+            h->vinserti64x4(q, q, Half(aux0.getIdx()), 1);
+        }
+        h->vpmulld(q, q, src1);
+        h->vpsubd(dst, src0, q);
+    }
+}
+
+constexpr size_t i32_remainder_aux_vecs_count = 3;
+}  // namespace
+
 /// FLOOR_MOD ///
 jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator_t* host,
                                              x64::cpu_isa_t host_isa,
@@ -501,7 +584,7 @@ size_t jit_floor_mod_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_floor_mod_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -524,6 +607,12 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_src0 = Vmm(in_vec_idxs[0]);
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_remainder<isa>(h, vmm_dst, vmm_src0, vmm_src1, aux_vec_idxs, true);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
     if (isa == x64::sse41) {
@@ -547,7 +636,7 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 size_t jit_floor_mod_emitter::aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? i32_remainder_aux_vecs_count : 1;
 }
 
 /// MOD ///
@@ -564,7 +653,7 @@ size_t jit_mod_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -585,6 +674,12 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     auto vmm_src0 = Vmm(in_vec_idxs[0]);
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_remainder<isa>(h, vmm_dst, vmm_src0, vmm_src1, aux_vec_idxs, false);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
     if (isa == x64::sse41) {
@@ -608,7 +703,7 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 }
 
 size_t jit_mod_emitter::aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? i32_remainder_aux_vecs_count : 1;
 }
 
 /// MAXIMUM ///
