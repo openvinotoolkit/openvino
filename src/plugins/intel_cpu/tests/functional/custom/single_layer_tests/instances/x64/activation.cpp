@@ -98,6 +98,37 @@ const auto basicCases5D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU_Blocked, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
 
+/* ============= Clamp with NaN and inf ============= */
+// NaN must be propagated, +-inf is clamped to the bounds
+class ClampNanLayerCPUTest : public ActivationLayerCPUTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        ActivationLayerCPUTest::generate_inputs(targetInputStaticShapes);
+        auto* data = inputs.begin()->second.data<float>();
+        data[0] = std::numeric_limits<float>::quiet_NaN();
+        data[1] = -std::numeric_limits<float>::quiet_NaN();
+        data[2] = std::numeric_limits<float>::infinity();
+        data[3] = -std::numeric_limits<float>::infinity();
+    }
+};
+
+TEST_P(ClampNanLayerCPUTest, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Eltwise");
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ClampNan_CPU, ClampNanLayerCPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(basic3D())),
+        ::testing::Values(activationShapes()),
+        ::testing::Values(std::make_pair(Clamp, std::vector<float>{-2.0f, 2.0f})),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(ov::element::f32),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams3D())),
+        ::testing::Values(false)),
+    ClampNanLayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace Activation
 }  // namespace test

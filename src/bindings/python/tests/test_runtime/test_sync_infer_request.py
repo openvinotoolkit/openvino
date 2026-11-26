@@ -336,6 +336,94 @@ def test_infer_bf16_input_from_float_array(device, numpy_dtype, share_inputs, as
     assert np.array_equal(result[0], data.astype(np.float32))
 
 
+@pytest.mark.parametrize("numpy_dtype", [np.float16, np.int16, np.uint16])
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("as_dict", [True, False])
+@pytest.mark.parametrize("contiguous", [True, False])
+def test_infer_bf16_input_from_16bit_array_keeps_raw_bits(device, numpy_dtype, share_inputs, as_dict, contiguous):
+    # 2-byte arrays are taken as raw bf16 bits, e.g. bf16 data stored as uint16
+    bits = np.array([0x3F80, 0xC000, 0x0000, 0x7F80], dtype=np.uint16)  # 1.0, -2.0, 0.0, inf
+    if not contiguous:
+        bits = np.stack([bits, np.zeros_like(bits)], axis=1)[:, 0]
+    data = bits.view(numpy_dtype)
+    param = ops.parameter([4], Type.bf16)
+    model = Model([ops.convert(param, Type.f32)], [param])
+    request = Core().compile_model(model, device).create_infer_request()
+
+    result = request.infer({0: data} if as_dict else [data], share_inputs=share_inputs)
+
+    assert np.array_equal(request.get_input_tensor(0).data.view(np.uint16), bits)
+    assert np.array_equal(result[0], np.array([1.0, -2.0, 0.0, np.inf], dtype=np.float32))
+
+
+@pytest.mark.parametrize("byte_order_dtype", [">u2", ">i2", ">f2"])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_bf16_input_from_16bit_array_keeps_raw_bits_any_byte_order(device, byte_order_dtype, share_inputs):
+    bits = np.array([0x3F80, 0xC000, 0x0000, 0x7F80], dtype=np.uint16)  # 1.0, -2.0, 0.0, inf
+    data = bits.view(np.dtype(byte_order_dtype).newbyteorder("=")).astype(byte_order_dtype)
+    param = ops.parameter([4], Type.bf16)
+    request = Core().compile_model(Model([param], [param]), device).create_infer_request()
+
+    request.infer({0: data}, share_inputs=share_inputs)
+
+    assert np.array_equal(request.get_input_tensor(0).data.view(np.uint16), bits)
+
+
+@pytest.mark.parametrize("numpy_dtype", [np.int8, np.uint8, np.int32, np.int64, np.bool_])
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("as_dict", [True, False])
+def test_infer_bf16_input_from_int_array(device, numpy_dtype, share_inputs, as_dict):
+    param = ops.parameter([4], Type.bf16)
+    model = Model([ops.convert(param, Type.f32)], [param])
+    request = Core().compile_model(model, device).create_infer_request()
+    # The values are exact in bf16, so the model must return them unchanged
+    data = np.array([1, 0, 1, 1] if numpy_dtype == np.bool_ else [1, 2, 3, 0], dtype=numpy_dtype)
+
+    result = request.infer({0: data} if as_dict else [data], share_inputs=share_inputs)
+
+    assert np.array_equal(result[0], data.astype(np.float32))
+
+
+@pytest.mark.parametrize("numpy_dtype", [np.int32, np.int64, np.uint8])
+@pytest.mark.parametrize("layout", ["contiguous", "transposed", "strided"])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_bf16_input_from_2d_int_array(device, numpy_dtype, layout, share_inputs):
+    base = np.arange(12, dtype=numpy_dtype).reshape(3, 4)
+    if layout == "transposed":
+        data = base.T  # shape (4, 3), Fortran order
+    elif layout == "strided":
+        data = np.arange(24, dtype=numpy_dtype).reshape(4, 6)[:, ::2]  # shape (4, 3), every other column
+    else:
+        data = base.T.copy()
+    assert data.shape == (4, 3)
+    assert data.flags["C_CONTIGUOUS"] == (layout == "contiguous")
+    param = ops.parameter([4, 3], Type.bf16)
+    model = Model([ops.convert(param, Type.f32)], [param])
+    request = Core().compile_model(model, device).create_infer_request()
+
+    result = request.infer({0: data}, share_inputs=share_inputs)
+
+    # Small integers are exact in bf16, so the model must return them unchanged and in the same order
+    assert np.array_equal(result[0], data.astype(np.float32))
+
+
+@pytest.mark.parametrize("data", [
+    np.array([257, 65535, -129, 2**24 + 1], dtype=np.int32),
+    np.array([2**32 + 2**24 + 1, -(2**63), 2**62 + 2**40 + 1, -(2**40) - 3], dtype=np.int64),
+    np.array([2**63 + 2**40 + 1, 2**64 - 1, 2**33 + 1, 0], dtype=np.uint64),
+])
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_bf16_input_from_int_array_rounds_like_constant(device, data, share_inputs):
+    # Integers that are not exact in bf16 must get the same bits as OpenVINO's own integer -> bf16 conversion
+    param = ops.parameter(list(data.shape), Type.bf16)
+    request = Core().compile_model(Model([param], [param]), device).create_infer_request()
+
+    request.infer([data], share_inputs=share_inputs)
+
+    expected = ops.constant(data, dtype=Type.bf16).data.view(np.uint16)
+    assert np.array_equal(request.get_input_tensor(0).data.view(np.uint16), expected)
+
+
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_bf16_input_rounds_like_constant(device, share_inputs):
     # Values that need rounding must get the same bf16 bits as OpenVINO's own f32 -> bf16 conversion

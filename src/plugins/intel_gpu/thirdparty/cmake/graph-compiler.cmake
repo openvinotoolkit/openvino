@@ -11,7 +11,7 @@ find_package(GraphCompiler QUIET CONFIG)
 if (NOT GraphCompiler_FOUND)
   option(GRAPH_COMPILER_DYLINK "Use dynamic linking with GraphCompiler" OFF)
   set(GRAPH_COMPILER_REPO "https://github.com/intel/graph-compiler" CACHE STRING "GraphCompiler repository URL")
-  set(GRAPH_COMPILER_TAG "v1" CACHE STRING "GraphCompiler git tag/branch")
+  set(GRAPH_COMPILER_TAG "4d5f6790b2bfeb98bfc2d3b142258b44bf8376a7" CACHE STRING "GraphCompiler git tag/branch")
   message(STATUS "GraphCompiler not found, fetching from: ${GRAPH_COMPILER_REPO}")
   include(FetchContent)
   FetchContent_Declare(
