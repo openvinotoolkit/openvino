@@ -35,8 +35,8 @@ namespace v8 = ov::op::v8;
 namespace {
 // GatherCompressed computes the scale / zero point index of a weights element as
 // flat_idx / (weights_size / param_size), so each value has to cover a contiguous block of the flattened weights.
-// Multiply broadcasting makes every scale / zero point dim either 1 or equal to the weights dim, so the parameter
-// shape has to be the leading weights dims followed by ones.
+// Multiply / Subtract broadcasting makes every scale / zero point dim 1, equal to the weights dim or (for a weights dim
+// of 1) greater than it, so the parameter shape has to be the leading weights dims followed by ones.
 bool is_blocked_decompression_param(const ov::Shape& weights_shape, ov::Shape param_shape) {
     if (param_shape.size() > weights_shape.size()) {
         return false;
