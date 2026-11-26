@@ -355,14 +355,14 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
     static std::unique_ptr<primitive_impl> create(const typed_program_node<stateless_kv>& arg, const kernel_impl_params& impl_param) {
         auto params = static_canonicalize_shapes(impl_param);
         const auto& primitive = params.typed_desc<stateless_kv>();
-        const auto swa = primitive->window_size > 0;
+        const auto swa = primitive->sliding_window_cache;
         std::vector<kernel_selector::kernel_data> kernels_data;
         std::vector<stateless_kv_stage> stages;
         kernels_data.reserve(swa ? swa_stage_count : 1);
         stages.reserve(swa ? swa_stage_count : 1);
         const auto new_layout = get_seq_dynamic_layout(params.get_input_layout(1), primitive->concat_axis);
 
-        if (primitive->window_size > 0) {
+        if (swa) {
             OPENVINO_ASSERT(!primitive->has_pos_idx, "[GPU] stateless_kv doesn't support window_size together with pos_idx");
             auto& kernel_selector = concat_kernel_selector_t::Instance();
             const auto past_view_layout = get_seq_dynamic_layout(params.get_input_layout(0), primitive->concat_axis);
