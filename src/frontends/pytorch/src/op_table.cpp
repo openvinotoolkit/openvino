@@ -309,6 +309,7 @@ OP_CONVERTER(translate_view_as_real);
 OP_CONVERTER(translate_weight_norm);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_xlogy);
+OP_CONVERTER(translate_xlogy_);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
 OP_CONVERTER(translate_quantized_cat);
@@ -825,7 +826,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::wait", op::skip_node},
         {"aten::where", op::translate_where},
         {"aten::xlogy", op::translate_xlogy},
-        {"aten::xlogy_", op::inplace_op<op::translate_xlogy>},
+        {"aten::xlogy_", op::translate_xlogy_},
         {"aten::zero", op::translate_zeros_like},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},

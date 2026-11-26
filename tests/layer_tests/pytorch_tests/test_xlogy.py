@@ -212,6 +212,32 @@ class TestXlogyInplace(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
 
+class TestXlogyInplaceMixedTypes(PytorchLayerTest):
+    # x.xlogy_(y) with float32 x and float64 y computes in float64 but writes back float32,
+    # so the following matmul with a float32 weight must still convert.
+    def _prepare_input(self):
+        return (np.array([[0.0, 1.0], [2.0, 3.0]], dtype=np.float32),
+                np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64))
+
+    def create_model(self):
+        class aten_xlogy_mixed(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.w = torch.tensor([[1.0, 0.5], [0.25, 2.0]], dtype=torch.float32)
+
+            def forward(self, x, y):
+                x.xlogy_(y)
+                return x @ self.w, x
+
+        return aten_xlogy_mixed(), "aten::xlogy_"
+
+    @pytest.mark.parametrize("trace_model", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_xlogy_inplace_mixed_types(self, trace_model, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=trace_model)
+
+
 class TestXlogyOut(PytorchLayerTest):
     def _prepare_input(self):
         x = np.array([0.0, 1.0, 2.0], dtype=np.float32)

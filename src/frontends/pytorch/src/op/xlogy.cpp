@@ -19,8 +19,10 @@ namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
-OutputVector translate_xlogy(const NodeContext& context) {
+namespace {
+OutputVector translate_xlogy_common(const NodeContext& context, bool inplace) {
     // aten::xlogy(Tensor self, Tensor other, *, Tensor? out=None) -> Tensor
+    // aten::xlogy_(Tensor(a!) self, Tensor other) -> Tensor(a!)
     // xlogy(x, y) = 0 when x == 0 and y is not NaN; NaN when y is NaN; otherwise x * log(y)
     num_inputs_check(context, 2, 3);
     Output<Node> x;
@@ -61,12 +63,25 @@ OutputVector translate_xlogy(const NodeContext& context) {
     const auto y_is_nan = context.mark_node(std::make_shared<v10::IsNaN>(y));
     const auto y_not_nan = context.mark_node(std::make_shared<v1::LogicalNot>(y_is_nan));
     const auto use_zero = context.mark_node(std::make_shared<v1::LogicalAnd>(x_is_zero, y_not_nan));
-    auto result = context.mark_node(std::make_shared<v1::Select>(use_zero, zero, x_log_y));
+    Output<Node> result = context.mark_node(std::make_shared<v1::Select>(use_zero, zero, x_log_y));
 
-    if (!context.input_is_none(2)) {
+    if (inplace) {
+        // In-place xlogy keeps the dtype of self: float32 self with float64 other computes in float64 and casts back.
+        result = context.mark_node(std::make_shared<v1::ConvertLike>(result, x_in));
+        context.mutate_input(0, result);
+    } else if (!context.input_is_none(2)) {
         context.mutate_input(2, result);
     }
     return {result};
+}
+}  // namespace
+
+OutputVector translate_xlogy(const NodeContext& context) {
+    return translate_xlogy_common(context, false);
+}
+
+OutputVector translate_xlogy_(const NodeContext& context) {
+    return translate_xlogy_common(context, true);
 }
 
 }  // namespace ov::frontend::pytorch::op
