@@ -35,25 +35,6 @@
 #include <dlfcn.h>
 #endif
 
-#if __cplusplus > 201703L
-namespace rapidjson {
-
-template <typename Encoding, typename Allocator>
-concept NeedsMemberComparison =
-    !requires(const GenericMemberIterator<false, Encoding, Allocator>& it) {
-        it.template operator==<false>(it);
-    };
-
-template <typename Encoding, typename Allocator>
-    requires NeedsMemberComparison<Encoding, Allocator>
-inline bool operator==(GenericMemberIterator<false, Encoding, Allocator> lhs,
-                       GenericMemberIterator<false, Encoding, Allocator> rhs) {
-    return static_cast<GenericMemberIterator<true, Encoding, Allocator>>(lhs) ==
-           static_cast<GenericMemberIterator<true, Encoding, Allocator>>(rhs);
-}
-}  // namespace rapidjson
-#endif
-
 namespace kernel_selector {
 
 class TuningCache::Impl {
