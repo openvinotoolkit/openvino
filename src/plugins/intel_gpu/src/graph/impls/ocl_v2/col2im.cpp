@@ -13,7 +13,7 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 
-static std::vector<size_t> get_orig_size(const kernel_impl_params& params) {
+std::vector<size_t> get_orig_size(const kernel_impl_params& params) {
     constexpr size_t spatial_dims = 2;
     const auto& desc = params.typed_desc<col2im>();
 

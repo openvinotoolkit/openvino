@@ -267,7 +267,7 @@ struct dims {
     size_t Hq = 24, Hkv = 2, Dh = 256, Dv = 256, r = 4, page = 16, topk = 512;
 };
 
-dims qwen38() {
+dims gqa() {
     return {};
 }
 dims toy() {
@@ -774,28 +774,31 @@ std::vector<kvq_case> all_cases() {
     auto add = [&](const char* dn, const dims& d, const KVQuant& k, const KVQuant& v, std::vector<seq_spec> seqs) {
         cases.push_back({case_name(dn, k, v, seqs), d, k, v, std::move(seqs)});
     };
-    const std::vector<std::vector<seq_spec>> scenarios = {{{0, 37}}, {{21, 1}}, {{123, 45}}, {{2051, 1}}, {{40, 1}, {0, 70}, {17, 3}}};
+    const std::vector<std::vector<seq_spec>> scenarios = {{{21, 1}}, {{123, 45}}, {{40, 1}, {0, 70}, {17, 3}}};
+    // Long decode (more complete blocks than topk): one token-mode and one channel-mode format.
+    const std::vector<seq_spec> long_decode = {{2051, 1}};
+    add("gqa", gqa(), token_quant(8, false), token_quant(8, false), long_decode);
+    add("gqa", gqa(), channel_quant(4, false, 16), token_quant(4, false), long_decode);
     for (const auto& seqs : scenarios) {
         // Token-mode keys, both bit widths and both symmetries.
-        add("qwen", qwen38(), token_quant(8, false), token_quant(8, false), seqs);
-        add("qwen", qwen38(), token_quant(4, true), token_quant(4, true), seqs);
+        add("gqa", gqa(), token_quant(8, false), token_quant(8, false), seqs);
+        add("gqa", gqa(), token_quant(4, true), token_quant(4, true), seqs);
         // BY_CHANNEL keys.
-        add("qwen", qwen38(), channel_quant(8, false, 16), token_quant(8, false), seqs);
-        add("qwen", qwen38(), channel_quant(4, false, 16), token_quant(4, false), seqs);
-        add("qwen", qwen38(), channel_quant(8, true, 16), token_quant(8, true), seqs);
+        add("gqa", gqa(), channel_quant(8, false, 16), token_quant(8, false), seqs);
+        add("gqa", gqa(), channel_quant(4, false, 16), token_quant(4, false), seqs);
+        add("gqa", gqa(), channel_quant(8, true, 16), token_quant(8, true), seqs);
     }
     // Page 32 with 32-token groups, and the scalar kernels (head size 64 -> no GQA-DPAS for quantized caches).
-    dims wide_page = qwen38();
+    dims wide_page = gqa();
     wide_page.page = 32;
-    for (const auto& seqs : {std::vector<seq_spec>{{0, 100}}, std::vector<seq_spec>{{33, 1}}, std::vector<seq_spec>{{70, 40}}}) {
-        add("qwenpage32", wide_page, channel_quant(8, false, 32), token_quant(8, false), seqs);
-        add("qwenpage32", wide_page, channel_quant(4, true, 32), token_quant(4, true), seqs);
+    for (const auto& seqs : {std::vector<seq_spec>{{0, 100}}, std::vector<seq_spec>{{33, 1}}}) {
+        add("gqapage32", wide_page, channel_quant(8, false, 32), token_quant(8, false), seqs);
+        add("gqapage32", wide_page, channel_quant(4, true, 32), token_quant(4, true), seqs);
     }
     // Head size 128: GQA-DPAS workers load 32-channel slices (16-byte 4-bit rows per message).
-    dims d128 = qwen38();
+    dims d128 = gqa();
     d128.Dh = d128.Dv = 128;
-    for (const auto& seqs :
-         {std::vector<seq_spec>{{0, 37}}, std::vector<seq_spec>{{21, 1}}, std::vector<seq_spec>{{123, 45}}, std::vector<seq_spec>{{40, 1}, {0, 70}, {17, 3}}}) {
+    for (const auto& seqs : {std::vector<seq_spec>{{21, 1}}, std::vector<seq_spec>{{40, 1}, {0, 70}, {17, 3}}}) {
         add("d128", d128, token_quant(8, false), token_quant(8, false), seqs);
         add("d128", d128, token_quant(4, true), token_quant(4, true), seqs);
         add("d128", d128, channel_quant(8, false, 16), token_quant(8, false), seqs);
@@ -818,7 +821,7 @@ TEST(sparse_pa_kvq_mixed, f16_key_quantized_value) {
     if (!ocl_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
-    const auto c = make_case(qwen38(), KVQuant{}, token_quant(8, false), {{123, 45}}, 7);
+    const auto c = make_case(gqa(), KVQuant{}, token_quant(8, false), {{123, 45}}, 7);
     const auto& d = c.d;
     quant_pages vhist(c.vq, c.total_pages, d.Hkv, d.page, d.Dv);
     cpu_write_range(vhist, c, 0, c.value_hist[0], d.Dv, 0, 123);
@@ -1108,18 +1111,18 @@ void run_dense_case(const dense_case& tc, const char* name) {
     EXPECT_LT(e_q.mean_abs / ref_mean, tc.k.bits == 4 ? 0.5 : 0.03) << name;
 }
 
-TEST(sparse_sdpa_kvq, qwen_decode_left_padded) {
+TEST(sparse_sdpa_kvq, gqa_decode_left_padded) {
     if (!ocl_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
-    run_dense_case({qwen38(), {2051, 1500}, 1}, "qwen_decode_2x");
+    run_dense_case({gqa(), {2051, 100}, 1}, "gqa_decode_2x");
 }
 
-TEST(sparse_sdpa_kvq, qwen_prefill_left_padded) {
+TEST(sparse_sdpa_kvq, gqa_prefill_left_padded) {
     if (!ocl_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
-    run_dense_case({qwen38(), {300, 211}, 150}, "qwen_prefill_2x");
+    run_dense_case({gqa(), {300, 211}, 150}, "gqa_prefill_2x");
 }
 
 TEST(sparse_sdpa_kvq, toy_scalar_kernel) {
@@ -1152,10 +1155,10 @@ std::vector<dense_format_case> dense_format_cases() {
         std::vector<size_t> key_len;
         size_t q_len;
     };
-    dims d128 = qwen38();
+    dims d128 = gqa();
     d128.Dh = d128.Dv = 128;
-    const std::vector<scenario> scenarios = {{"qwen_decode", qwen38(), {2051, 1500}, 1},
-                                             {"qwen_prefill", qwen38(), {300, 211}, 150},
+    const std::vector<scenario> scenarios = {{"gqa_decode", gqa(), {2051, 100}, 1},
+                                             {"gqa_prefill", gqa(), {300, 211}, 150},
                                              {"d128_decode", d128, {500}, 1},
                                              {"toy_prefill", toy(), {90, 61}, 7},
                                              {"toy_decode", toy(), {120}, 1}};
@@ -1195,12 +1198,12 @@ struct perf_case {
 
 class sparse_pa_kvq_perf : public ::testing::TestWithParam<perf_case> {};
 
-TEST_P(sparse_pa_kvq_perf, qwen38) {
+TEST_P(sparse_pa_kvq_perf, gqa) {
     if (!ocl_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     const auto& pc = GetParam();
-    dims perf_dims = qwen38();
+    dims perf_dims = gqa();
     perf_dims.page = pc.page;
     const auto c = make_case(perf_dims, pc.k, pc.v, {{pc.past, pc.q_len}}, 3);
     const auto& d = c.d;

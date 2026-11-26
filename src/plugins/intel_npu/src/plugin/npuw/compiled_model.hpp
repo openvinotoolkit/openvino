@@ -156,6 +156,7 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
     friend class CompiledModelDescSerializationAccess;
+    friend class GQACompiledModel;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
