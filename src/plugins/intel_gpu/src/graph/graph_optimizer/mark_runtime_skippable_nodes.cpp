@@ -60,7 +60,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             // Check pattern
             auto impl_params = node.get_kernel_impl_params();
             if (node.has_fused_primitives() || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
-                node.get_dependency(1).is_constant() || node.get_dependency(1).is_type<data>()) {
+                impl_params->get_input_layout(0).data_padding.is_dynamic() || node.get_dependency(1).is_constant() || node.get_dependency(1).is_type<data>()) {
                 return;
             }
             auto idx_rank = impl_params->get_input_layout(1).get_partial_shape().size();
