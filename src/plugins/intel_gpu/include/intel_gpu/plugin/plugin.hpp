@@ -43,6 +43,7 @@ private:
     std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
 
     static std::vector<ov::PropertyName> get_caching_properties();
+    static bool supports_runtime_property(const std::string& name);
     static std::vector<ov::PropertyName> get_supported_properties();
     static std::vector<ov::PropertyName> get_supported_internal_properties();
     static std::vector<std::string> get_device_capabilities(const cldnn::device_info& info);

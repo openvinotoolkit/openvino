@@ -498,13 +498,13 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
     };
 
     auto properties = supported_properties;
-    if (!supports_model_execution()) {
-        const auto model_property = [](const auto& property) {
-            return property == ov::range_for_async_infer_requests.name() || property == ov::optimal_batch_size.name() ||
-                   property == ov::max_batch_size.name() || property == ov::intel_gpu::config_file.name();
-        };
-        properties.erase(std::remove_if(properties.begin(), properties.end(), model_property), properties.end());
-    }
+    const auto model_execution = supports_model_execution();
+    const auto unsupported_property = [model_execution](const auto& property) {
+        return !supports_runtime_property(property) ||
+               (!model_execution && (property == ov::range_for_async_infer_requests.name() || property == ov::optimal_batch_size.name() ||
+                                     property == ov::max_batch_size.name() || property == ov::intel_gpu::config_file.name()));
+    };
+    properties.erase(std::remove_if(properties.begin(), properties.end(), unsupported_property), properties.end());
     return properties;
 }
 

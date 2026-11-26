@@ -88,6 +88,10 @@ bool Plugin::supports_model_execution() {
     return true;
 }
 
+bool Plugin::supports_runtime_property(const std::string& /*name*/) {
+    return true;
+}
+
 void Plugin::validate_custom_layer_config(const ov::AnyMap& user_config) {
     // Check that custom layers config can be loaded
     if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {

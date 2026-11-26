@@ -56,6 +56,16 @@ TEST_F(VulkanRuntimeSmoke, AdvertisesOnlySupportedModelProperties) {
     EXPECT_EQ(m_core.get_property(m_device_name, ov::compatibility_check), ov::CompatibilityCheck::UNSUPPORTED);
 }
 
+TEST_F(VulkanRuntimeSmoke, RejectsUnavailablePciInfo) {
+    const auto properties = m_core.get_property(m_device_name, ov::supported_properties);
+    EXPECT_EQ(std::find(properties.begin(), properties.end(), ov::device::pci_info.name()), properties.end());
+    expect_ov_exception(
+        [&] {
+            m_core.get_property(m_device_name, ov::device::pci_info);
+        },
+        "[GPU] Property DEVICE_PCI_INFO is not in a list of supported properties");
+}
+
 TEST_F(VulkanRuntimeSmoke, CopiesRemoteTensorsAndReportsMemoryUsage) {
     const auto tracked_buffer_bytes = [&] {
         return m_core.get_property(m_device_name, ov::intel_gpu::memory_statistics).at("vk_buffer");

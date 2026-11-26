@@ -11,6 +11,11 @@ bool Plugin::supports_model_execution() {
     return false;
 }
 
+bool Plugin::supports_runtime_property(const std::string& name) {
+    // Vulkan does not query PCI bus information.
+    return name != ov::device::pci_info.name();
+}
+
 void Plugin::register_primitives() {}
 
 void Plugin::validate_custom_layer_config(const ov::AnyMap& /*config*/) {}
