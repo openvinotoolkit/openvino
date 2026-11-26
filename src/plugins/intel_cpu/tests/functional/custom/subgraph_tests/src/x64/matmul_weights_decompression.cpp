@@ -117,6 +117,27 @@ const std::vector<MatMulDecompressionShapeParams>& input_shapes_basic_u3 = input
 const std::vector<MatMulDecompressionShapeParams>& input_shapes_amx_u3 = input_shapes_amx_u2;
 const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MatMulCompressedWeights_fp16_fallback,
+    MatmulWeightsDecompression,
+    ::testing::Combine(::testing::Values(MatMulDecompressionShapeParams{{{-1, -1, 256}, {{1, 17, 256}, {1, 1, 256}}},
+                                                                        {256, 64},
+                                                                        32UL}),
+                       ::testing::Values(ov::element::u4, ov::element::u8),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(true),
+                       ::testing::Values(DecompressionType::full),
+                       ::testing::Values(DecompressionType::full),
+                       ::testing::Values(false),
+                       ::testing::Values(ov::AnyMap{ov::hint::inference_precision(ov::element::f16),
+                                                    ov::hint::dynamic_quantization_group_size(0)},
+                                         ov::AnyMap{ov::hint::inference_precision(ov::element::f16),
+                                                    ov::hint::dynamic_quantization_group_size(32)}),
+                       ::testing::ValuesIn(fusing_params),
+                       ::testing::Values(true)),
+    MatmulWeightsDecompression::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),

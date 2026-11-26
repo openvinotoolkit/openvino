@@ -104,7 +104,6 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    // f16 is accepted only for fp8 weights, see isSupportedCompressedOperation()
     return {Type_t::f32, Type_t::bf16, Type_t::f16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
@@ -194,14 +193,6 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             }
             // Same shape limits as the other weights decompression paths.
             return IC >= 4 && OC != 1;
-        }
-
-        bool useMatmulPrim = false;
-        CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-        // At the moment there is no implementation supporting integer weights decompression with f16 input
-        // (subject to change once we completely switch to dnnl::matmul).
-        if (!useMatmulPrim && op->get_input_element_type(DATA) == ov::element::f16) {
-            return false;
         }
 
         if (ov::with_cpu_x86_avx512_core_amx() && config.inferencePrecision == ov::element::bf16) {

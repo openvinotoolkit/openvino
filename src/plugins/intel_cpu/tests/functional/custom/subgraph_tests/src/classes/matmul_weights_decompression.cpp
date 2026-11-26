@@ -146,11 +146,12 @@ void MatmulWeightsDecompression::check_results() {
     auto fc = result->get_input_node_shared_ptr(0);
     // Handle precision conversion before output
     auto type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-    if (type == "Reorder" || type == "Convert" || type == "Subgraph")
+    while (type == "Reorder" || type == "Convert" || type == "Subgraph") {
         fc = fc->get_input_node_shared_ptr(0);
+        type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+    }
 
-    type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-    EXPECT_EQ(type, "FullyConnected");
+    ASSERT_EQ(type, "FullyConnected");
 
 #if defined(OPENVINO_ARCH_X86_64)
     if (use_matmul_decompression_impl &&

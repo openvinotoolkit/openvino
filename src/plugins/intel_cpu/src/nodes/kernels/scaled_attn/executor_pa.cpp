@@ -934,9 +934,11 @@ struct MHAHelper {
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
             void* q_gemm_ptr = q_ptr;
-            if (_brgemm_fp32) {
-                q_gemm_ptr = _qk_scratch_a.ptr<float>(ithr);
-                cvt_copy(static_cast<float*>(q_gemm_ptr), q_ptr, q_cnt, S, query.stride(1), S);
+            if constexpr (precision_of<DATA_TYPE>::value == ov::element::f16) {
+                if (_brgemm_fp32) {
+                    q_gemm_ptr = _qk_scratch_a.ptr<float>(ithr);
+                    cvt_copy(static_cast<float*>(q_gemm_ptr), q_ptr, q_cnt, S, query.stride(1), S);
+                }
             }
             if (_params.is_sage_attn) {
                 // local_q shape [block_size, S + sizeof(float)]
@@ -1108,14 +1110,16 @@ struct MHAHelper {
                     v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
                 }
                 void* w_gemm_ptr = w_ptr + v_blk * _block_size;
-                if (_brgemm_fp32) {
-                    w_gemm_ptr = _wv_scratch_a.ptr<float>(ithr);
-                    cvt_copy(static_cast<float*>(w_gemm_ptr),
-                             w_ptr + v_blk * _block_size,
-                             q_cnt,
-                             _block_size,
-                             2 * _new_score_stride,
-                             _block_size);
+                if constexpr (precision_of<DATA_TYPE>::value == ov::element::f16) {
+                    if (_brgemm_fp32) {
+                        w_gemm_ptr = _wv_scratch_a.ptr<float>(ithr);
+                        cvt_copy(static_cast<float*>(w_gemm_ptr),
+                                 w_ptr + v_blk * _block_size,
+                                 q_cnt,
+                                 _block_size,
+                                 2 * _new_score_stride,
+                                 _block_size);
+                    }
                 }
                 if (v_blk == 0) {
                     _wv_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
