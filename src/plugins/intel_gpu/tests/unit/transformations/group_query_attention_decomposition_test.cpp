@@ -15,6 +15,7 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -68,7 +69,7 @@ struct GQAConfig {
     // rows (S > 1) and a query_seqlens Parameter is wired in, exercising the StatelessKV cur_len path.
     bool query_seqlens = false;
     int64_t sequence_length = 1;
-    bool present_key_slice = false;  // routes present key through a Slice before its Result
+    bool present_key_slice = false;                    // routes present key through a Slice before its Result
     bool present_value_nonzero_consumer_port = false;  // present_value feeds its consumer's input port 1, not 0
 };
 
@@ -209,9 +210,7 @@ std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig&
     return get_decomposed_sdpa(decompose_gqa_model(cfg));
 }
 
-void expect_stateless_kv_cache_connections(const GQAConfig& cfg,
-                                          const std::shared_ptr<ov::Model>& model,
-                                          bool expect_restored_v_layout = false) {
+void expect_stateless_kv_cache_connections(const GQAConfig& cfg, const std::shared_ptr<ov::Model>& model, bool expect_restored_v_layout = false) {
     const auto parameters = model->get_parameters();
     const bool need_qk_output = cfg.qk_output != QKOutput::NONE;
     EXPECT_EQ(parameters[3]->get_partial_shape().is_static(), cfg.static_past_cache);
@@ -498,10 +497,8 @@ TEST(GQADecompositionTest, padded_query_uses_stateless_kv_present_length) {
     for (const auto& stateless_kv : statelesskvs) {
         ASSERT_EQ(stateless_kv->get_input_size(), 4u);
         // Input 2 is the total seqlens (present length); input 3 is query_seqlens as cur_len.
-        EXPECT_TRUE(ov::is_type<ov::op::v1::Reshape>(stateless_kv->input_value(2).get_node()))
-            << "StatelessKV present length is not the total seqlens_1d";
-        EXPECT_EQ(stateless_kv->input_value(3).get_node_shared_ptr(), parameters.back())
-            << "StatelessKV cur_len is not query_seqlens";
+        EXPECT_TRUE(ov::is_type<ov::op::v1::Reshape>(stateless_kv->input_value(2).get_node())) << "StatelessKV present length is not the total seqlens_1d";
+        EXPECT_EQ(stateless_kv->input_value(3).get_node_shared_ptr(), parameters.back()) << "StatelessKV cur_len is not query_seqlens";
     }
 }
 
@@ -754,8 +751,7 @@ TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
     ASSERT_EQ(sdpa->get_input_size(), 5u) << "Q, K, V, K scale, V scale";
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
     EXPECT_EQ(sdpa->get_quantization_attrs().scale_dt, ov::element::f16);
-    EXPECT_EQ(sdpa->get_quantization_attrs().group_sizes,
-              (std::vector<uint64_t>{1, 1, std::numeric_limits<uint64_t>::max(), 1}));
+    EXPECT_EQ(sdpa->get_quantization_attrs().group_sizes, (std::vector<uint64_t>{1, 1, std::numeric_limits<uint64_t>::max(), 1}));
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
     EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::StatelessKV>(sdpa->input_value(1).get_node_shared_ptr()));
@@ -821,8 +817,7 @@ TEST(GQADecompositionTest, int4_i8_cache_uses_u4_zp8) {
     ASSERT_NE(sdpa, nullptr);
     ASSERT_TRUE(sdpa->get_kv_compressed());
     ASSERT_EQ(sdpa->get_input_size(), 7u) << "Q, K, V, K scale, V scale, K zero point, V zero point";
-    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type,
-              ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type, ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
@@ -844,8 +839,7 @@ TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
     ASSERT_NE(sdpa, nullptr);
     ASSERT_TRUE(sdpa->get_kv_compressed());
     ASSERT_EQ(sdpa->get_input_size(), 7u) << "Q, K, V, K scale, V scale, K zero point, V zero point";
-    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type,
-              ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type, ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::u8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::u8);
@@ -883,7 +877,7 @@ TEST(GQADecompositionTest, sliding_window_cache_transpose_v_fused) {
 // mistake that port index for one of the consumer's own output indices.
 TEST(GQADecompositionTest, present_value_nonzero_consumer_port_does_not_crash) {
     GQAConfig cfg;
-    cfg.should_fuse_transpose_v = true;
+    cfg.supports_immad = true;
     cfg.present_value_nonzero_consumer_port = true;
 
     EXPECT_NO_THROW(decompose_gqa_model(cfg));
