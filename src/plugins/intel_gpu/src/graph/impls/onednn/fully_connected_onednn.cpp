@@ -403,11 +403,11 @@ public:
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
                     const auto weights_layout_for_zp = arg.get_dependency(1).get_output_layout();
-                    auto ngroups = get_ngroups(weights_layout_for_zp, dzp_layout, prim->weights_transposed);
+                    const auto [ngroups, zero_point_group_size] = get_scale_groups(weights_layout_for_zp, dzp_layout, prim->weights_transposed);
                     if (ngroups == 1 && !has_batch_dim) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
-                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
+                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {zero_point_group_size, 1}, _dzp_data_type);
                     }
                 }
             }
@@ -518,12 +518,12 @@ public:
                     auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
-                    auto ngroups = get_ngroups(weights_layout, dzp_layout, prim->weights_transposed);
+                    const auto [ngroups, zero_point_group_size] = get_scale_groups(weights_layout, dzp_layout, prim->weights_transposed);
                     if (ngroups == 1 && dzp_rank <= 2 && !has_batch_dim) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {zero_point_group_size, 1}, dzp_data_type);
                     }
                 }
             }

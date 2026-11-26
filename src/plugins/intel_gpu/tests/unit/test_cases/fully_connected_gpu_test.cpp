@@ -2,36 +2,127 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/crop.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/softmax.hpp"
-#include "intel_gpu/primitives/tile.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
-#include "intel_gpu/runtime/layout.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "test_utils.h"
-#include "random_generator.hpp"
-#include "network_test.h"
-#include <intel_gpu/runtime/utils.hpp>
-#include <intel_gpu/primitives/input_layout.hpp>
-#include "intel_gpu/primitives/fully_connected.hpp"
-#include <intel_gpu/primitives/quantize.hpp>
+#include <cmath>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
+#include <intel_gpu/runtime/utils.hpp>
 
-#include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
-
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "network_test.h"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/runtime/core.hpp"
-
-#include <cmath>
+#include "primitive_inst_test_helper.h"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
+
+namespace {
+void test_runtime_weights_lru_buffer(bool large_buffer, bool is_caching_test) {
+    auto& engine = get_test_engine();
+    const layout input_layout_value{ov::PartialShape{1, 32}, data_types::f32, format::bfyx};
+    const layout weights_layout{ov::PartialShape{64, 32}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_value);
+    auto weights = engine.allocate_memory(weights_layout);
+    set_values(input, std::vector<float>(32, 1.f));
+    set_values(weights, std::vector<float>(64 * 32, 1.f));
+    topology topology{input_layout("input", {ov::PartialShape{ov::Dimension(1, 10), 32}, data_types::f32, format::bfyx}),
+                      input_layout("weights", weights_layout),
+                      fully_connected("fc", input_info("input"), "weights")};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(
+        ov::intel_gpu::allow_new_shape_infer(true),
+        ov::intel_gpu::use_onednn(false),
+        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl}}}));
+    // An internal program keeps weights reordering in FC instead of inserting a preceding Reorder.
+    auto prog = program::build_program(engine, topology, config, true);
+    if (is_caching_test) {
+        membuf buffer;
+        {
+            std::ostream output(&buffer);
+            BinaryOutputBuffer ob(output);
+            ob.set_stream(get_test_stream_ptr().get());
+            prog->save(ob);
+        }
+        {
+            std::istream input(&buffer);
+            BinaryInputBuffer ib(input, engine);
+            prog = std::make_shared<program>(engine, config);
+            prog->load(ib);
+        }
+    }
+    auto network = std::make_shared<cldnn::network>(prog, true, true);
+    network->set_input_data("input", input);
+    network->set_input_data("weights", weights);
+    network->execute().at("fc").get_memory();
+    auto inst = network->get_primitive("fc");
+    ASSERT_TRUE(inst->get_impl()->is_dynamic());
+    ASSERT_NE(inst->get_impl()->get_weights_reorder_kernel_params(), nullptr);
+    const auto expected_layout = inst->get_impl_params()->weights_layout.value();
+    ASSERT_EQ(inst->dep_memory_ptr(1)->buffer_ptr(), weights->buffer_ptr());
+    ASSERT_FALSE(weights->get_layout().compatible(expected_layout));
+    ASSERT_NE(PrimitiveInstTestHelper::get_cached_weights(inst, expected_layout), nullptr);
+
+    const auto storage_layout = expected_layout.clone_with_other_shape(ov::PartialShape{128, 32});
+    auto storage = engine.allocate_memory(storage_layout);
+    ASSERT_GE(storage->size(), expected_layout.bytes_count());
+    const auto cached_layout = large_buffer ? storage_layout : expected_layout.clone_with_other_shape(ov::PartialShape{1, 1});
+    // Keep backing storage large enough to run the old condition safely; the cached view exposes the tested capacity.
+    auto lru_memory = engine.reinterpret_buffer(*storage, cached_layout);
+    if (large_buffer) {
+        ASSERT_GE(lru_memory->size(), expected_layout.bytes_count());
+    } else {
+        ASSERT_LT(lru_memory->size(), expected_layout.bytes_count());
+    }
+    // Runtime-only weights give this network a one-entry cache. Evict the reordered layout.
+    PrimitiveInstTestHelper::cache_weights(inst, lru_memory);
+    ASSERT_EQ(PrimitiveInstTestHelper::get_cached_weights(inst, expected_layout), nullptr);
+    set_values(weights, std::vector<float>(64 * 32, 2.f));
+    // Check the allocation before execution can switch to an asynchronously compiled implementation.
+    PrimitiveInstTestHelper::update_weights(inst);
+    auto reordered = PrimitiveInstTestHelper::get_cached_weights(inst, expected_layout);
+    ASSERT_NE(reordered, nullptr);
+    EXPECT_GE(reordered->size(), expected_layout.bytes_count());
+    EXPECT_EQ(reordered->buffer_ptr() == lru_memory->buffer_ptr(), large_buffer);
+    auto output = network->execute().at("fc").get_memory();
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    ASSERT_EQ(result.size(), 64u);
+    for (size_t i = 0; i < result.size(); ++i) {
+        EXPECT_FLOAT_EQ(result[i], 64.f);
+    }
+}
+}  // namespace
+
+TEST(fully_connected_gpu, runtime_weights_lru_undersized_view) {
+    test_runtime_weights_lru_buffer(false, false);
+}
+
+TEST(fully_connected_gpu, runtime_weights_lru_large_buffer) {
+    test_runtime_weights_lru_buffer(true, false);
+}
+
+TEST(fully_connected_gpu, runtime_weights_lru_undersized_view_cached) {
+    test_runtime_weights_lru_buffer(false, true);
+}
+
+TEST(fully_connected_gpu, runtime_weights_lru_large_buffer_cached) {
+    test_runtime_weights_lru_buffer(true, true);
+}
 
 TEST(fully_connected_gpu, dynamic_byxf) {
     auto& engine = get_test_engine();
@@ -5355,28 +5446,26 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     }
 }
 
-class fully_connected_onednn_expert_zero_points_test
-    : public testing::TestWithParam<std::tuple<int64_t, bool, bool, int64_t>> {};
+class fully_connected_onednn_expert_zero_points_test : public testing::TestWithParam<std::tuple<int64_t, bool, bool, std::pair<int64_t, int64_t>>> {};
 
 TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP() << "oneDNN compressed FC requires IMMAD support.";
 
-    const auto [experts, transpose_b_param, is_caching_test, group_per_channel] = GetParam();
+    const auto [experts, transpose_b_param, is_caching_test, decompression_groups] = GetParam();
+    const auto scale_groups = decompression_groups.first;
+    const auto zero_point_groups = decompression_groups.second;
     constexpr int64_t tokens = 2;
     constexpr int64_t ofm = 16;
     constexpr int64_t ifm = 64;
-    const auto scale_groups = group_per_channel;
-    const auto scale_group_size = ifm / scale_groups;
+    const auto zero_point_group_size = ifm / zero_point_groups;
     const size_t weights_rank = experts == 1 ? 2 : 3;
     const auto weights_shape = experts == 1 ? ov::PartialShape{ofm, ifm}
                                            : ov::PartialShape{experts, ofm, ifm};
     const auto zp_shape = experts == 1
-                                  ? (transpose_b_param ? ov::PartialShape{ofm, scale_groups}
-                                                      : ov::PartialShape{scale_groups, ofm})
-                                  : (transpose_b_param ? ov::PartialShape{experts, ofm, scale_groups}
-                                                       : ov::PartialShape{experts, scale_groups, ofm});
+                              ? (transpose_b_param ? ov::PartialShape{ofm, zero_point_groups} : ov::PartialShape{zero_point_groups, ofm})
+                              : (transpose_b_param ? ov::PartialShape{experts, ofm, zero_point_groups} : ov::PartialShape{experts, zero_point_groups, ofm});
     const auto scale_shape = experts == 1
                                  ? (transpose_b_param ? ov::PartialShape{ofm, scale_groups}
                                                       : ov::PartialShape{scale_groups, ofm})
@@ -5390,14 +5479,14 @@ TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
     set_values<ov::float16>(input, std::vector<ov::float16>(experts * tokens * ifm, ov::float16(1.0f)));
     set_values<uint8_t>(weights, std::vector<uint8_t>(experts * ofm * ifm, 9));
     set_values<ov::float16>(scale, std::vector<ov::float16>(experts * ofm * scale_groups, ov::float16(1.0f)));
-    std::vector<uint8_t> zp_values(experts * ofm * scale_groups);
+    std::vector<uint8_t> zp_values(experts * ofm * zero_point_groups);
     const bool transpose_zp_layout = transpose_b_param;
     const auto zp_idx = [=](int64_t expert, int64_t group, int64_t oc) {
-        return transpose_zp_layout ? static_cast<size_t>(expert * ofm * scale_groups + oc * scale_groups + group)
-                                   : static_cast<size_t>(expert * scale_groups * ofm + group * ofm + oc);
+        return transpose_zp_layout ? static_cast<size_t>(expert * ofm * zero_point_groups + oc * zero_point_groups + group)
+                                   : static_cast<size_t>(expert * zero_point_groups * ofm + group * ofm + oc);
     };
     for (int64_t expert = 0; expert < experts; ++expert) {
-        for (int64_t group = 0; group < scale_groups; ++group) {
+        for (int64_t group = 0; group < zero_point_groups; ++group) {
             for (int64_t oc = 0; oc < ofm; ++oc) {
                 zp_values[zp_idx(expert, group, oc)] = static_cast<uint8_t>((expert + group + oc) % 8);
             }
@@ -5429,8 +5518,8 @@ TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
             for (int64_t oc = 0; oc < ofm; ++oc) {
                 const auto idx = (expert * tokens + token) * ofm + oc;
                 float expected = 0.0f;
-                for (int64_t group = 0; group < scale_groups; ++group) {
-                    expected += static_cast<float>(scale_group_size * (9 - zp_values[zp_idx(expert, group, oc)]));
+                for (int64_t group = 0; group < zero_point_groups; ++group) {
+                    expected += static_cast<float>(zero_point_group_size * (9 - zp_values[zp_idx(expert, group, oc)]));
                 }
                 EXPECT_FLOAT_EQ(static_cast<float>(result[idx]), expected)
                     << "expert=" << expert << ", token=" << token << ", oc=" << oc;
@@ -5444,7 +5533,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          testing::Combine(testing::Values(int64_t{1}, int64_t{64}),
                                           testing::Bool(),
                                           testing::Bool(),
-                                          testing::Values(int64_t{1}, int64_t{2})));
+                                          testing::ValuesIn(std::vector<std::pair<int64_t, int64_t>>{{1, 1}, {2, 2}, {1, 4}, {4, 1}})));
 
 // Rounds the values to what the given data type can hold, so that the reference uses the same inputs as the GPU.
 static std::vector<float> round_to_data_type(std::vector<float> values, data_types dt) {
