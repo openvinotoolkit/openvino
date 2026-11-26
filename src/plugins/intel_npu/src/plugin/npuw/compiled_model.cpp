@@ -240,13 +240,8 @@ std::string queue_options_str(const ov::AnyMap& config) {
 
 ov::AnyMap make_submodel_import_config(const std::string& device, const ::intel_npu::Config& cfg) {
     ov::AnyMap import_config;
-    const bool in_order = ov::npuw::util::in_order_enabled();
-    if (ov::npuw::util::starts_with(device, "NPU") && (cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || in_order)) {
+    if (ov::npuw::util::starts_with(device, "NPU") && cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         import_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
-    }
-    if (ov::npuw::util::starts_with(device, "NPU") && ov::npuw::util::shared_queue_enabled()) {
-        // PROTOTYPE: one queue for all submodels, see shared_queue_enabled() / submit_all_enabled()
-        import_config["NPU_SHARED_COMMON_QUEUE"] = "YES";
     }
     return import_config;
 }
@@ -2476,13 +2471,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
         }
     }
 
-    const bool in_order = ov::npuw::util::in_order_enabled();
-    if (ov::npuw::util::starts_with(device, "NPU") && (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || in_order)) {
+    if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
-    }
-    if (ov::npuw::util::starts_with(device, "NPU") && ov::npuw::util::shared_queue_enabled()) {
-        // PROTOTYPE: one queue for all submodels, see shared_queue_enabled() / submit_all_enabled()
-        device_config["NPU_SHARED_COMMON_QUEUE"] = "YES";
     }
 
     if (ov::npuw::util::starts_with(device, "NPU")) {
@@ -2799,20 +2789,21 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         });
     }
 
-    const bool submit_all = ov::npuw::util::submit_all_enabled() || ov::npuw::util::exec_list_enabled_for(m_name);
-    if (submit_all) {
+    // Execution lists need one request per subgraph
+    const bool exec_list = ov::npuw::util::exec_list_enabled_for(m_name);
+    if (exec_list) {
         const bool spatial_unpack_ok = no_spatial_unpack();
         const bool failsafe_ok = no_failsafe_concern();
         const bool behavior_ok = no_subgraph_behavior_concern();
         if (!spatial_unpack_ok || !failsafe_ok || !behavior_ok) {
-            LOG_EXEC(m_name << ": SUBMIT_ALL/EXEC_LIST requested but unfold is not possible (spatial/unpack ok="
+            LOG_EXEC(m_name << ": EXEC_LIST requested but unfold is not possible (spatial/unpack ok="
                             << spatial_unpack_ok << ", failsafe ok=" << failsafe_ok
                             << ", runtime behaviors ok=" << behavior_ok << "); falling back to JustInferRequest");
         }
     }
 
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if ((m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || submit_all) && no_spatial_unpack() && no_failsafe_concern() &&
+    if ((m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || exec_list) && no_spatial_unpack() && no_failsafe_concern() &&
         no_subgraph_behavior_concern()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {

@@ -99,28 +99,12 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         LOG_VERB("Done");
     }
 
-    if (ov::npuw::util::submit_all_enabled()) {
-        m_submit_all = true;
-        for (std::size_t i = 0; i < m_num_submodels; i++) {
-            if (m_subrequests[i] && !ov::npuw::util::starts_with(m_npuw_model->submodel_device(i), "NPU")) {
-                m_submit_all = false;
-                break;
-            }
-        }
-        LOG_EXEC(m_npuw_model->m_name << ": OPENVINO_NPUW_SUBMIT_ALL "
-                                      << (m_submit_all ? "active: no host barriers between subgraphs"
-                                                       : "ignored: not all subgraphs run on NPU")
-                                      << ", max in flight=" << ov::npuw::util::submit_all_depth() << " (0 = unlimited)");
-    }
-
     if (ov::npuw::util::exec_list_enabled_for(m_npuw_model->m_name)) {
-        create_execution_lists();
+        create_execution_list();
     }
 }
 
-void ov::npuw::UnfoldInferRequest::create_execution_lists() {
-    const auto max_executes = ov::npuw::util::exec_list_max(m_npuw_model->m_name);
-
+void ov::npuw::UnfoldInferRequest::create_execution_list() {
     // Check every subgraph first: falling back is only possible before the first append(), since an
     // appended request is owned by its list and can't run on its own anymore.
     std::vector<std::pair<std::size_t, std::shared_ptr<::intel_npu::IExecutionListFactory>>> members;
@@ -135,29 +119,25 @@ void ov::npuw::UnfoldInferRequest::create_execution_lists() {
             members.emplace_back(idx, std::move(factory));
         }
     } catch (const std::exception& ex) {
-        LOG_EXEC(m_npuw_model->m_name << ": execution lists not used: " << ex.what());
+        LOG_EXEC(m_npuw_model->m_name << ": execution list not used: " << ex.what());
+        return;
+    }
+    if (members.empty()) {
         return;
     }
 
     // No prepare() here: it would allocate device-visible buffers for every global parameter that is
-    // not bound yet (e.g. a full KV cache per attention call). The lists record on their first
+    // not bound yet (e.g. a full KV cache per attention call). The list records on its first
     // start_async(), after infer() has bound everything.
-    for (const auto& [idx, factory] : members) {
-        if (m_exec_lists.empty() || (max_executes > 0 && m_exec_lists.back().executes == max_executes)) {
-            // All lists of this request share one command queue, owned by the request
-            m_exec_lists.push_back({idx, idx, 0u, factory->create_execution_list(this)});
-        }
-        m_exec_lists.back().list->append(m_subrequests[idx]._ptr);
-        m_exec_lists.back().last = idx;
-        m_exec_lists.back().executes++;
+    m_exec_list = {members.front().first, members.front().first, 0u, members.front().second->create_execution_list()};
+    for (const auto& member : members) {
+        m_exec_list.list->append(m_subrequests[member.first]._ptr);
+        m_exec_list.last = member.first;
+        m_exec_list.executes++;
     }
-    for (const auto& el : m_exec_lists) {
-        LOG_EXEC(m_npuw_model->m_name << ": execution list Subgraph[" << el.first << ".." << el.last << "], "
-                                      << el.executes << " graph executes (recorded on first infer)");
-    }
-    LOG_EXEC(m_npuw_model->m_name << ": execution lists active, " << m_exec_lists.size()
-                                  << " execution list(s), max graph executes per list=" << max_executes
-                                  << " (0 = unlimited)");
+    LOG_EXEC(m_npuw_model->m_name << ": execution list active, Subgraph[" << m_exec_list.first << ".."
+                                  << m_exec_list.last << "], " << m_exec_list.executes
+                                  << " graph executes (recorded on first infer)");
 }
 
 bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
@@ -186,54 +166,20 @@ void ov::npuw::UnfoldInferRequest::infer() {
         previous_idx.clear();
     };
 
-    if (!m_exec_lists.empty()) {
-        // PROTOTYPE: each list is one submission on its own queue; barriers inside it order the executes
-        for (auto& el : m_exec_lists) {
-            for (std::size_t idx = el.first; idx <= el.last; idx++) {
-                if (m_subrequests[idx]) {
-                    prepare(idx);
-                }
+    if (m_exec_list.list) {
+        // PROTOTYPE: one submission on the list's own queue; barriers inside it order the executes
+        const auto& el = m_exec_list;
+        for (std::size_t idx = el.first; idx <= el.last; idx++) {
+            if (m_subrequests[idx]) {
+                prepare(idx);
             }
-            const std::string tag = " [execution list Subgraph[" + std::to_string(el.first) + ".." +
-                                    std::to_string(el.last) + "], " + std::to_string(el.executes) + " graph executes]";
-            exec_trace(el.first, m_subrequests[el.first], "start_async()", tag);
-            el.list->start_async();
-            el.list->wait();
-            exec_trace(el.last, m_subrequests[el.last], "wait() returned", tag);
         }
-    } else if (m_submit_all) {
-        // PROTOTYPE: all subgraphs sit on one in-order NPU queue (NPU_SHARED_COMMON_QUEUE +
-        // NPU_RUN_INFERENCES_SEQUENTIALLY) fed by one start thread, so the device orders every
-        // producer before its consumers. Submit everything, then wait once in submission order.
-        // OPENVINO_NPUW_SUBMIT_ALL_DEPTH optionally caps the number of requests in flight.
-        const std::size_t max_in_flight = ov::npuw::util::submit_all_depth();
-        RqPtrs submitted_requests;
-        std::size_t next_to_wait = 0u;
-        auto wait_oldest = [&]() {
-            submitted_requests[next_to_wait]->wait();
-            exec_trace(previous_idx[next_to_wait], submitted_requests[next_to_wait], "wait() returned");
-            next_to_wait++;
-        };
-        prepare(0);
-        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
-            auto& subr = m_subrequests[idx];
-            if (!subr) {
-                prepare(idx + 1);
-                continue;
-            }
-            if (max_in_flight > 0 && submitted_requests.size() - next_to_wait >= max_in_flight) {
-                wait_oldest();
-            }
-            exec_trace(idx, subr, "start_async()");
-            subr->start_async();
-            submitted_requests.push_back(subr);
-            previous_idx.push_back(idx);
-            prepare(idx + 1);
-        }
-        while (next_to_wait < submitted_requests.size()) {
-            wait_oldest();
-        }
-        previous_idx.clear();
+        const std::string tag = " [execution list Subgraph[" + std::to_string(el.first) + ".." +
+                                std::to_string(el.last) + "], " + std::to_string(el.executes) + " graph executes]";
+        exec_trace(el.first, m_subrequests[el.first], "start_async()", tag);
+        el.list->start_async();
+        el.list->wait();
+        exec_trace(el.last, m_subrequests[el.last], "wait() returned", tag);
     } else if (do_async) {
         std::size_t past_repl_id = 0u;
         RqPtrs previous_requests;

@@ -43,33 +43,14 @@ bool starts_with(const std::string& str, const std::string& prefix);
 // Case-insensitive substring search.
 bool contains_ignore_case(const std::string& str, const std::string& substr);
 
-// PROTOTYPE (OPENVINO_NPUW_SUBMIT_ALL=YES): run NPUW models through UnfoldInferRequest with all
-// NPU submodels on one shared in-order command queue, so infer() submits every subgraph up front
-// and waits once at the end instead of at every function boundary. Read once per process.
-bool submit_all_enabled();
-// PROTOTYPE (OPENVINO_NPUW_SUBMIT_ALL_DEPTH=N): with submit-all active, keep at most N subgraph
-// requests in flight (wait for the oldest before submitting more). 0 / unset = no limit.
-std::size_t submit_all_depth();
-// PROTOTYPE (OPENVINO_NPUW_SHARED_QUEUE=YES): only put NPU submodels on the shared common command
-// queue (NPU_SHARED_COMMON_QUEUE), without changing request types or submission. Implied by submit-all.
-bool shared_queue_enabled();
-// PROTOTYPE (OPENVINO_NPUW_IN_ORDER=YES): only enable in-order execution (NPU_RUN_INFERENCES_SEQUENTIALLY)
-// on NPU submodels, keeping NPUW's submission pattern. Sync infer() calls become start_async()+wait(),
-// as the NPU plugin only accepts start_async() in that mode. Implied by submit-all.
-bool in_order_enabled();
-// PROTOTYPE: run all subgraphs of an infer() as NPU execution lists (one command list per list, on a
-// queue owned by the infer request), selected per stage by model name:
+// PROTOTYPE: run all subgraphs of an infer() as one NPU execution list (one command list, one submission),
+// selected per stage by model name:
 //   - OPENVINO_NPUW_EXEC_LIST for the prefill models: GQA "<name>_gqa_prefill<N>", LLM "<name>_prefill";
 //   - OPENVINO_NPUW_EXEC_LIST_GENERATE for the generate models: GQA "<name>_gqa_generate<N>", LLM generate
 //     variants "<name>_kv<N>".
 // On by default for both stages; set the variable to NO to turn a stage off. Other models (e.g. the LLM head
 // "<name>_lm_head") are not affected.
 bool exec_list_enabled_for(const std::string& model_name);
-// PROTOTYPE: at most N graph executes per execution list, the rest go to further lists submitted one
-// after another. Unset or 0 = one list for the whole infer(). Per stage, as for exec_list_enabled_for():
-// OPENVINO_NPUW_EXEC_LIST_MAX for prefill, OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX for generate.
-std::size_t exec_list_max(const std::string& model_name);
-
 // Strictly parses `str` as a positive base-10 integer (std::from_chars; whole string
 // consumed, no sign accepted, unlike std::stoull). Returns nullopt for anything else,
 // including an empty string or 0.

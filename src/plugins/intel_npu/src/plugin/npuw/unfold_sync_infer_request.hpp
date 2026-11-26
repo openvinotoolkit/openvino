@@ -38,21 +38,16 @@ public:
 private:
     void infer() override;
 
-    // PROTOTYPE: submit every subgraph without host barriers, then wait once (see
-    // ov::npuw::util::submit_all_enabled()). Only set when all active subgraphs run on NPU,
-    // since ordering then comes from the shared in-order NPU command queue.
-    bool m_submit_all = false;
-
-    // PROTOTYPE (see ov::npuw::util::exec_list_enabled_for()): consecutive subgraphs [first, last]
-    // recorded into one NPU execution list. When set, infer() runs only through these lists.
+    // PROTOTYPE (see ov::npuw::util::exec_list_enabled_for()): all subgraphs [first, last] recorded into
+    // one NPU execution list. When set, infer() runs only through it.
     struct ExecList {
         std::size_t first = 0u;
         std::size_t last = 0u;
         std::size_t executes = 0u;
         std::shared_ptr<::intel_npu::IExecutionList> list;
     };
-    void create_execution_lists();
-    std::vector<ExecList> m_exec_lists;
+    void create_execution_list();
+    ExecList m_exec_list;
 };
 
 }  // namespace npuw

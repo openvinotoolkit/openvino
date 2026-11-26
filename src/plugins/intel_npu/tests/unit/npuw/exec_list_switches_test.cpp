@@ -9,16 +9,12 @@
 #include "util.hpp"
 
 using ov::npuw::util::exec_list_enabled_for;
-using ov::npuw::util::exec_list_max;
 
 namespace {
 
 // The switches are read once per process, so the tests only hold with their defaults
 bool switches_at_defaults() {
-    for (const char* name : {"OPENVINO_NPUW_EXEC_LIST",
-                             "OPENVINO_NPUW_EXEC_LIST_GENERATE",
-                             "OPENVINO_NPUW_EXEC_LIST_MAX",
-                             "OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX"}) {
+    for (const char* name : {"OPENVINO_NPUW_EXEC_LIST", "OPENVINO_NPUW_EXEC_LIST_GENERATE"}) {
         if (std::getenv(name) != nullptr) {
             return false;
         }
@@ -56,11 +52,3 @@ TEST(NPUWExecListSwitchesTest, OtherModelsDoNotUseExecutionLists) {
     EXPECT_FALSE(exec_list_enabled_for("Model0_prefill_extra"));
 }
 
-TEST(NPUWExecListSwitchesTest, DefaultMaxGraphExecutesPerList) {
-    if (!switches_at_defaults()) {
-        GTEST_SKIP() << "OPENVINO_NPUW_EXEC_LIST* is set";
-    }
-    // 0 = one list for the whole infer()
-    EXPECT_EQ(exec_list_max("Model0_prefill"), 0u);
-    EXPECT_EQ(exec_list_max("Model0_kv1152"), 0u);
-}

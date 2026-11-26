@@ -1121,17 +1121,9 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
 }
 
 void ov::npuw::JustInferRequest::run_blocking(std::size_t idx, const RqPtr& request, const std::string& extra) {
-    if (ov::npuw::util::in_order_enabled()) {
-        // PROTOTYPE: NPU_RUN_INFERENCES_SEQUENTIALLY only accepts start_async(), see in_order_enabled()
-        exec_trace(idx, request, "start_async()", extra);
-        request->start_async();
-        request->wait();
-        exec_trace(idx, request, "wait() returned", extra);
-    } else {
-        exec_trace(idx, request, "infer()", extra);
-        request->infer();
-        exec_trace(idx, request, "infer() returned", extra);
-    }
+    exec_trace(idx, request, "infer()", extra);
+    request->infer();
+    exec_trace(idx, request, "infer() returned", extra);
 }
 
 void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t idx) {
