@@ -43,10 +43,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                                 ov::template_plugin::export_hsm_format(true)})),
                          OVCompiledModelHsmBlobTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVCompiledModelHeaderlessHsmCacheTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::Values(ov::AnyMap{ov::template_plugin::export_hsm_format(true)})),
-                         OVCompiledModelHeaderlessHsmCacheTest::getTestCaseName);
-
 }  // namespace

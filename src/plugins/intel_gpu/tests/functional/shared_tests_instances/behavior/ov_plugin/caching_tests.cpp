@@ -289,8 +289,11 @@ TEST_P(GPUHsmRegressionTest, ReplacingModelAtSamePathInvalidatesHsmCache) {
     const auto original_size = std::filesystem::file_size(xml);
     auto first = core.compile_model(xml, target_device, config);
     ASSERT_FALSE(first.get_property(ov::loaded_from_cache));
-    ASSERT_TRUE(is_hsm(export_blob(first)));
-    EXPECT_FALSE(is_hsm(read_cache_blob()));
+    const auto cache_blob = read_cache_blob();
+    ASSERT_TRUE(is_hsm(cache_blob));
+    EXPECT_EQ(cache_blob, export_blob(first));
+    std::stringstream stream(cache_blob);
+    EXPECT_TRUE(core.import_model(stream, target_device, configuration));
     ASSERT_TRUE(core.compile_model(xml, target_device, config).get_property(ov::loaded_from_cache));
 
     ov::serialize(replacement, xml, bin);
@@ -311,10 +314,18 @@ TEST_P(GPUHsmRegressionTest, CacheHitsUsePerCallExportFormat) {
         core.set_property(ov::enable_mmap(use_mmap));
         for (const bool use_hsm : {false, true}) {
             SCOPED_TRACE(::testing::Message() << "mmap=" << use_mmap << ", HSM=" << use_hsm);
+            ov::test::utils::removeFilesWithExt(ov::util::path_to_string(cache_path), "blob");
             core.set_property(target_device, ov::intel_gpu::export_hsm_format(!use_hsm));
             const ov::AnyMap config{ov::cache_path(cache_path), ov::intel_gpu::export_hsm_format(use_hsm)};
             auto first = core.compile_model(model, target_device, config);
-            EXPECT_EQ(is_hsm(export_blob(first)), use_hsm);
+            EXPECT_FALSE(first.get_property(ov::loaded_from_cache));
+            const auto exported = export_blob(first);
+            EXPECT_EQ(is_hsm(exported), use_hsm);
+            const auto cached_blob = read_cache_blob();
+            EXPECT_EQ(is_hsm(cached_blob), use_hsm);
+            if (use_hsm) {
+                EXPECT_EQ(cached_blob, exported);
+            }
             auto cached = core.compile_model(model, target_device, config);
             EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
             EXPECT_EQ(is_hsm(export_blob(cached)), use_hsm);

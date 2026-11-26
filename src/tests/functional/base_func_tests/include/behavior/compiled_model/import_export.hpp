@@ -133,9 +133,6 @@ protected:
     ov::Tensor reference;
 };
 
-// These tests also require Core's cache file to be a standalone HSM blob.
-class OVCompiledModelHeaderlessHsmCacheTest : public OVCompiledModelHsmBlobTest {};
-
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -106,12 +106,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_serialization,
                                             ::testing::Values(ov::AnyMap{ov::intel_cpu::export_hsm_format(true)})),
                          OVCompiledModelHsmBlobTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_serialization,
-                         OVCompiledModelHeaderlessHsmCacheTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(ov::AnyMap{ov::intel_cpu::export_hsm_format(true)})),
-                         OVCompiledModelHeaderlessHsmCacheTest::getTestCaseName);
-
 TEST_P(OVCompiledModelGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(model, target_device);

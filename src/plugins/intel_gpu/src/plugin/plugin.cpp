@@ -137,6 +137,14 @@ private:
     off_type m_offset = 0;
 };
 
+std::optional<uint64_t> extract_cache_source_id(ov::AnyMap& properties) {
+    auto source = properties.extract(ov::internal::cache_source_id.name());
+    if (source.empty()) {
+        return std::nullopt;
+    }
+    return source.mapped().as<uint64_t>();
+}
+
 void set_gpu_user_properties(ExecutionConfig& config, ov::AnyMap properties) {
     // Keep the transition switch writable without accepting other internal options.
     if (auto hsm = properties.extract(ov::intel_gpu::export_hsm_format.name()); !hsm.empty()) {
@@ -366,6 +374,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
+    const auto cache_source_id = extract_cache_source_id(user_config);
     set_gpu_user_properties(config, std::move(user_config));
 
     auto transformed_model = clone_and_transform_model(model, config, context);
@@ -380,7 +389,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
-        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context);
+        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context, cache_source_id);
     }
 }
 
@@ -398,6 +407,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
+    const auto cache_source_id = extract_cache_source_id(user_config);
     set_gpu_user_properties(config, std::move(user_config));
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
@@ -411,7 +421,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
 
-    return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context);
+    return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context, cache_source_id);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
@@ -565,6 +575,7 @@ std::shared_ptr<CompiledModel> import_blob(std::istream* model,
 
     config_properties.erase(ov::hint::compiled_blob.name());
     auto weight_sharing_context = extract_weight_sharing_context(config_properties);
+    const auto cache_source_id = extract_cache_source_id(config_properties);
     ExecutionConfig config = configs.at(device_id);
     set_gpu_user_properties(config, std::move(config_properties));
     config.apply_weightless_options();
@@ -576,6 +587,8 @@ std::shared_ptr<CompiledModel> import_blob(std::istream* model,
     std::optional<hsm::ReaderHandler> hsm_reader;
     const auto init_hsm_reader = [&](const ov::runtime::hsm::Reader& reader) {
         hsm_reader.emplace(reader, engine);
+        OPENVINO_ASSERT(!cache_source_id || hsm_reader->source_id() == cache_source_id,
+                        "[GPU] Cached HSM payload does not match the source file");
         OPENVINO_ASSERT(!loaded_from_cache || !encryption_callbacks.encrypt || hsm_reader->is_encrypted(),
                         "[GPU] Cached HSM payload is not encrypted");
     };
@@ -644,7 +657,13 @@ std::shared_ptr<CompiledModel> import_blob(std::istream* model,
         }
     }
 
-    return std::make_shared<CompiledModel>(*ib, plugin, context_impl, config, loaded_from_cache, weight_sharing_context);
+    return std::make_shared<CompiledModel>(*ib,
+                                           plugin,
+                                           context_impl,
+                                           config,
+                                           loaded_from_cache,
+                                           weight_sharing_context,
+                                           hsm_reader ? hsm_reader->source_id() : std::nullopt);
 }
 }  // namespace
 
@@ -762,7 +781,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
                                            "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
-    if (is_metric(name)) {
+    if (name != ov::internal::emit_hsm_format.name() && is_metric(name)) {
         return get_metric(name, options);
     }
 
@@ -773,7 +792,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);
-    if (name == ov::intel_gpu::export_hsm_format) {
+    if (name == ov::internal::emit_hsm_format || name == ov::intel_gpu::export_hsm_format) {
         return c.get_property(ov::intel_gpu::export_hsm_format.name(), OptionVisibility::RELEASE_INTERNAL).as<bool>();
     }
     return c.get_property(name, OptionVisibility::RELEASE);
@@ -964,7 +983,7 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() {
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
-        // Separate formats and invalidate entries created without Core's cache header.
+        // Separate legacy and HSM cache entries.
         ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), PropertyMutability::RW},
     };
 
@@ -1035,7 +1054,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
         ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-        // Keep Core's cache header for source validation regardless of the GPU payload format.
+        ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::cache_source_id.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},

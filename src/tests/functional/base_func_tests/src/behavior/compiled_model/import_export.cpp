@@ -869,6 +869,7 @@ void OVCompiledModelHsmBlobTest::SetUp() {
 
     core = ov::test::utils::create_core();
     core.set_property(target_device, configuration);
+    ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
 
     model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
     cache_path = "hsm_blob_cache_" + ov::test::utils::generateTestFilePrefix();
@@ -920,8 +921,7 @@ void OVCompiledModelHsmBlobTest::expect_same_inference(ov::CompiledModel& actual
     ov::test::utils::compare(reference, hsm_infer(actual, input));
 }
 
-TEST_P(OVCompiledModelHeaderlessHsmCacheTest, cache_blob_is_identical_to_exported_blob) {
-    ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
+TEST_P(OVCompiledModelHsmBlobTest, cache_blob_is_identical_to_exported_blob) {
     auto compiled = compile(true);
     const auto exported = export_blob(compiled);
 
@@ -929,7 +929,7 @@ TEST_P(OVCompiledModelHeaderlessHsmCacheTest, cache_blob_is_identical_to_exporte
     EXPECT_EQ(read_cache_blob(), exported);
 }
 
-TEST_P(OVCompiledModelHeaderlessHsmCacheTest, cache_blob_is_imported_via_import_model) {
+TEST_P(OVCompiledModelHsmBlobTest, cache_blob_is_imported_via_import_model) {
     compile(true);
     const auto blob = read_cache_blob();
 
@@ -943,7 +943,7 @@ TEST_P(OVCompiledModelHeaderlessHsmCacheTest, cache_blob_is_imported_via_import_
     expect_same_inference(from_tensor);
 }
 
-TEST_P(OVCompiledModelHeaderlessHsmCacheTest, exported_blob_is_loaded_from_cache) {
+TEST_P(OVCompiledModelHsmBlobTest, exported_blob_is_loaded_from_cache) {
     // The extra section makes the exported blob distinguishable from what the cache itself would write.
     const auto exported = hsm_repack(export_blob(compile(false)), add_unknown_sections);
     compile(true);
@@ -988,7 +988,6 @@ TEST_P(OVCompiledModelHsmBlobTest, exported_blob_is_a_valid_container_of_the_cur
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelImportExportTestP);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelHsmBlobTest);
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelHeaderlessHsmCacheTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelGraphUniqueNodeNamesTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVExecGraphSerializationTest);
 
