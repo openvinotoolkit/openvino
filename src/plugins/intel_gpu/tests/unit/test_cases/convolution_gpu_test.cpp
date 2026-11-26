@@ -1947,6 +1947,11 @@ static void test_convolution_dynamic_runtime_weights(bool use_onednn, QueueTypes
     if (use_onednn && !engine.get_device_info().supports_immad) {
         GTEST_SKIP();
     }
+#ifndef ENABLE_ONEDNN_FOR_GPU
+    if (use_onednn) {
+        GTEST_SKIP();
+    }
+#endif
 
     tests::random_generator rg(GET_SUITE_NAME);
     const int64_t in_f = 3;
