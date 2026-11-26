@@ -209,6 +209,8 @@ private:
      * (unless "force_all_evaluations" was also set to true). However, some validity checks will still be performed.
      * @param force_all_evaluations Forces all evaluations to be performed. This flag has a higher priority than
      * "skip_all_evaluations". This is meant to be used when validating the whole CRE is desired.
+     * @param current_depth The current depth reached by recursively calling this method. Reaching a depth higher than a
+     * max threshold will lead to an exception throw. This is done to prevent a security vulnerability.
      */
     ov::CompatibilityCheck evaluate(
         std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
@@ -219,7 +221,8 @@ private:
         std::unordered_map<SectionID, ov::CompatibilityCheck>& instance_evaluation_results,
         const Delimiter end_delimiter,
         const bool skip_all_evaluations = false,
-        const bool force_all_evaluations = false) const;
+        const bool force_all_evaluations = false,
+        const size_t current_depth = 0) const;
 
     /**
      * @note If stitched together using "AND"s, these subexpression form the whole expression.

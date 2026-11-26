@@ -351,6 +351,13 @@ TEST_F(CRETests, EqualityOperatorsOnComplexExpressions) {
     ASSERT_TRUE(cre1 == make_complex_cre_1());
 }
 
+TEST_F(CRETests, MaxEvaluationDepth) {
+    std::vector<std::shared_ptr<CREToken>> brackets(150, CRE::OPEN_PTR);
+    brackets.push_back(COMPILER_VERSION_TOKEN);
+    brackets.insert(brackets.end(), 150, CRE::CLOSE_PTR);
+    OV_EXPECT_THROW(CRE{brackets}, ov::Exception, _);
+}
+
 TEST_F(CRETests, ToStringEmpty) {
     CRE cre;
     ASSERT_EQ(cre.to_string(), "");

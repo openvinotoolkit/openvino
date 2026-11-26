@@ -6,6 +6,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/memory.hpp"
 #include "utils.hpp"
 
 namespace intel_npu {

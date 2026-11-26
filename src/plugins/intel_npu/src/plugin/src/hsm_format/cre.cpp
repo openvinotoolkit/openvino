@@ -27,6 +27,8 @@ constexpr std::string_view CLOSE_TOKEN_NAME = "CLOSE";
 constexpr std::string_view UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE = "Unsupported \"ov::CompatibilityCheck\" value";
 constexpr std::string_view CRE_UNEXPECTED_END_MESSAGE = "The CRE ended unexpectedly";
 
+constexpr size_t EVALUATION_DEPTH_LIMIT = 128;
+
 std::string compatibility_check_to_string(const ov::CompatibilityCheck value) {
     switch (value) {
     case ov::CompatibilityCheck::SUPPORTED:
@@ -500,7 +502,11 @@ ov::CompatibilityCheck CRE::evaluate(
     std::unordered_map<SectionID, ov::CompatibilityCheck>& instance_evaluation_results,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations,
-    const bool force_all_evaluations) const {
+    const bool force_all_evaluations,
+    const size_t current_depth) const {
+    OPENVINO_ASSERT(current_depth < EVALUATION_DEPTH_LIMIT,
+                    "Depth limit reached. The CRE may contain too many open brackets.");
+
     std::function<ov::CompatibilityCheck(ov::CompatibilityCheck, ov::CompatibilityCheck)> logical_function =
         first_operand_function;
     ov::CompatibilityCheck result(ov::CompatibilityCheck::SUPPORTED);
@@ -603,7 +609,8 @@ ov::CompatibilityCheck CRE::evaluate(
                                             instance_evaluation_results,
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation,
-                                            force_all_evaluations);
+                                            force_all_evaluations,
+                                            current_depth + 1);
             CRE_ASSERT(is_close_special_token(*expression_iterator),
                        "Expected a closed parrenthesis token during CRE evaluation. Received: ",
                        *expression_iterator);
