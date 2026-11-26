@@ -399,12 +399,12 @@ void DFT::fft(float* inBuffer,
         };
     } else {
         blockIteration = [&](const size_t block, const size_t numBlocks, const size_t nextIterationBlockSize) {
-            float* curInpBufferPtr = inBuffer + block * nextIterationBlockSize * 2;
-            float* curOutBufferPtr = outBuffer + block * nextIterationBlockSize;
-
-            for (size_t block = 0; block < numBlocks; ++block) {
-                float twiddleReal = twiddlesFFT[(numBlocks + block - 1) * 2];
-                float twiddleImag = twiddlesFFT[(numBlocks + block) * 2 - 1];
+            const size_t stageNumBlocks = nComplex / nextIterationBlockSize;
+            for (size_t i = block; i < block + numBlocks; ++i) {
+                float* curInpBufferPtr = inBuffer + i * nextIterationBlockSize * 2;
+                float* curOutBufferPtr = outBuffer + i * nextIterationBlockSize;
+                float twiddleReal = twiddlesFFT[(stageNumBlocks + i - 1) * 2];
+                float twiddleImag = twiddlesFFT[(stageNumBlocks + i) * 2 - 1];
 
                 for (size_t pair = 0; pair < nextIterationBlockSize; pair += 2) {
                     const float evenReal = curInpBufferPtr[pair];

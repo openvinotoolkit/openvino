@@ -492,9 +492,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)"),
             
                 std::regex(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)"),
-            // Issue 108803: bug in CPU scalar implementation
-            std::regex(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)"),
-            std::regex(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*)"),
             // Issue 88764, 91647, 108802: accuracy issue
             std::regex(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)"),
             // Compressed weights are not supported
