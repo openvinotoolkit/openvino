@@ -606,6 +606,21 @@ void jitUniGatherKernel<isa>::calcSrcShiftLongBlock(Vmm* /*vAuxPool*/, bool /*sh
     OPENVINO_THROW("Unsupported case.");
 }
 
+// use it only for batchDims > 0.
+// For beforeAxisSize == 1 the batch index is 0 and vSrcBeforeAxisSum is not loaded
+template <x64::cpu_isa_t isa>
+void jitUniGatherKernel<isa>::calcBatchIdx(Vmm& vBatchIdx, Vmm& vSrcBeforeAxisSum, Vmm& vTmp) {
+    if (jcp.beforeAxisSize != 1LU) {
+        uni_vcvtdq2ps(vBatchIdx, vSrcBeforeAxisSum);
+        uni_vcvtdq2ps(vTmp, vmmSrcAfterBatchSizeB);
+        uni_vdivps(vBatchIdx, vBatchIdx, vTmp);
+        uni_vroundps(vBatchIdx, vBatchIdx, 0x1);
+        uni_vcvtps2dq(vBatchIdx, vBatchIdx);
+    } else {
+        uni_vpxor(vBatchIdx, vBatchIdx, vBatchIdx);
+    }
+}
+
 // Requires vAuxPool length 3.
 // Returns calculated shifts in vAuxPool[0] and mask in vAuxPool[1].
 template <x64::cpu_isa_t isa>
@@ -631,11 +646,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShort(Vmm* vAuxPool, bool shiftFirst) 
     vpcmpeqd(kDstMask, vAux0, vAux0);
     if (jcp.batchDims > 0LU) {
         // Calculate indices batch sum.
-        uni_vcvtdq2ps(vAux0, vmmSrcBeforeAxisSumB);
-        uni_vcvtdq2ps(vDstShifts, vmmSrcAfterBatchSizeB);
-        uni_vdivps(vAux0, vAux0, vDstShifts);
-        uni_vroundps(vAux0, vAux0, 0x1);
-        uni_vcvtps2dq(vAux0, vAux0);
+        calcBatchIdx(vAux0, vmmSrcBeforeAxisSumB, vDstShifts);
 
         uni_vpmulld(vAux0, vAux0, vmmSpecIdxSizeB);
         uni_vpaddd(vAux0, vAux0, vmmSpecIdxB);
@@ -745,11 +756,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
     vpcmpeqd(kDstMask, vAux0, vAux0);
     if (jcp.batchDims > 0LU) {
         // Calculate indices batch sum.
-        uni_vcvtdq2ps(vAux0, vAux1);
-        uni_vcvtdq2ps(vDstShifts, vmmSrcAfterBatchSizeB);
-        uni_vdivps(vAux0, vAux0, vDstShifts);
-        uni_vroundps(vAux0, vAux0, 0x1);
-        uni_vcvtps2dq(vAux0, vAux0);
+        calcBatchIdx(vAux0, vAux1, vDstShifts);
 
         uni_vpmulld(vAux0, vAux0, vmmSpecIdxSizeB);
         uni_vpaddd(vAux0, vAux0, vmmSpecIdxB);
