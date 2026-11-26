@@ -143,6 +143,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
     m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
     m_config.finalize(context.get(), nullptr);
+    m_compiled_with_inorder_lifetime = compiled_with_inorder_lifetime;
     OPENVINO_ASSERT(!compiled_with_inorder_lifetime || m_config.get_queue_type() == ov::intel_gpu::QueueTypes::in_order,
                     "[GPU] The model cache was compiled for an in-order queue with GPU_ENABLE_INORDER_LIFETIME_RESTRICTIONS, but the queue type was "
                     "overridden to out-of-order on import: its memory restrictions are not valid for out-of-order execution.");
@@ -157,6 +158,7 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
         : m_context(graph->m_context)
         , m_config(graph->m_config)
         , m_stream_id(stream_id)
+        , m_compiled_with_inorder_lifetime(graph->m_compiled_with_inorder_lifetime)
         , primitiveIDs(graph->primitiveIDs)
         , inputPrimitiveIDs(graph->inputPrimitiveIDs)
         , prevPrimitiveIDs(graph->prevPrimitiveIDs)
@@ -239,7 +241,8 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     // P2-a P-G2b: the restrictions of a program compiled with GPU_ENABLE_INORDER_LIFETIME_RESTRICTIONS assume that the device executes in enqueue
     // order. The queue type of an external queue is detected from the handle and ignores the config, so check the stream that was actually
     // created (compile and import paths both end here).
-    if (m_config.get_enable_inorder_lifetime_restrictions() && m_config.get_queue_type() == ov::intel_gpu::QueueTypes::in_order) {
+    if ((m_config.get_enable_inorder_lifetime_restrictions() && m_config.get_queue_type() == ov::intel_gpu::QueueTypes::in_order) ||
+        m_compiled_with_inorder_lifetime) {
         OPENVINO_ASSERT(m_network->get_stream().get_queue_type() == ov::intel_gpu::QueueTypes::in_order,
                         "[GPU] GPU_ENABLE_INORDER_LIFETIME_RESTRICTIONS requires an in-order queue, but the stream uses an out-of-order queue "
                         "(e.g. an external out-of-order queue passed through the remote context).");

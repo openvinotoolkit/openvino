@@ -106,9 +106,15 @@ void inorder_lifetime_memory_dependencies::run(program& p) {
     });
 
     size_t added = 0;
-    size_t added_pool = 0;   // statistics: new directed entries between two nodes that really take a pool block (mirrors allocate_output's routing)
+    // statistics only (the sweep does not use them): new directed entries between two nodes that
+    //   (strict) can share a buffer, are not outputs, may use the pool and are not a non-skippable view, or
+    //   (loose) the old definition that also counts dynamic can_be_optimized nodes as pool users
+    size_t added_pool = 0, added_pool_strict = 0;
     const auto pool_user = [](const program_node& n) {
         return n.may_use_mempool() && n.can_share_buffer() && !n.is_output() && (!n.can_be_optimized() || n.is_runtime_skippable() || n.is_dynamic());
+    };
+    const auto pool_user_strict = [](const program_node& n) {
+        return n.may_use_mempool() && n.can_share_buffer() && !n.is_output() && !(n.can_be_optimized() && !n.is_runtime_skippable());
     };
     const auto link = [&](const program_node* a, const program_node* b) {
         if (a == b || a->get_unique_id() == b->get_unique_id()) {
@@ -120,15 +126,82 @@ void inorder_lifetime_memory_dependencies::run(program& p) {
             ma->add_memory_dependency(*mb);
             ++added;
             added_pool += (pool_user(*ma) && pool_user(*mb)) ? 1 : 0;
+            added_pool_strict += (pool_user_strict(*ma) && pool_user_strict(*mb)) ? 1 : 0;
         }
         if (!mb->has_memory_dependency(static_cast<uint32_t>(ma->get_unique_id()))) {
             mb->add_memory_dependency(*ma);
             ++added;
             added_pool += (pool_user(*ma) && pool_user(*mb)) ? 1 : 0;
+            added_pool_strict += (pool_user_strict(*ma) && pool_user_strict(*mb)) ? 1 : 0;
         }
     };
 
+    if (mut.may_members_use_member_interval) {
+        // experiment path: every pool allocator is swept with its own interval (root allocators: the class interval, may_allocate members: member_interval)
+        struct item {
+            const alias_class* k;
+            const program_node* node;
+            uint64_t birth, death;
+        };
+        std::vector<item> items;
+        for (const auto& c : eligible) {
+            for (const auto& m : c.k->members) {
+                if ((m.role != alias_role::allocator && m.role != alias_role::may_allocate_member) || !m.node->may_use_mempool() || !m_lt.eligible(*m.node)) {
+                    continue;
+                }
+                uint64_t b = c.birth, d = c.death;
+                if (m.role == alias_role::may_allocate_member && !(c.k->root_node == m.node && c.k->root.index == m.id.index)) {
+                    const auto mi = m_lt.member_interval(*m.node, m.id.index);
+                    if (!mi.known) {
+                        continue;
+                    }
+                    b = mi.birth;
+                    d = (mi.death_inf && !mut.no_infinity) ? kInf : static_cast<uint64_t>(mi.death);
+                }
+                items.push_back({c.k, m.node, b, d});
+            }
+        }
+        for (size_t i = 0; i < items.size(); ++i) {
+            for (size_t j = i + 1; j < items.size(); ++j) {
+                if (items[i].k != items[j].k && items[i].birth <= items[j].death && items[j].birth <= items[i].death) {
+                    link(items[i].node, items[j].node);
+                }
+            }
+        }
+        if (!mut.no_point_sweep) {
+            for (const auto& it : items) {
+                for (const auto& nd : nodes) {
+                    const program_node& n = *nd.node;
+                    if (nd.pos < it.birth || nd.pos > it.death || !n.may_use_mempool() || !m_lt.eligible(n)) {
+                        continue;
+                    }
+                    bool member = false;
+                    for (size_t port = 0; port < std::max<size_t>(1, n.get_outputs_count()); ++port) {
+                        member = member || aa->class_of(n, static_cast<int32_t>(port)) == it.k;
+                    }
+                    if (!member) {
+                        link(it.node, &n);
+                    }
+                }
+            }
+        }
+        if (m_added != nullptr) {
+            *m_added = added;
+        }
+        GPU_DEBUG_LOG << "[inorder_lifetime_memory_dependencies] experiment path (member intervals): added_beyond_g " << added << std::endl;
+        return;
+    }
+
     // class x class: closed intervals that intersect (infinity = unbounded)
+    const auto usable_allocators = [&](const alias_class& k) {
+        std::vector<const program_node*> v;
+        for (const auto* x : m_lt.pool_allocators(k)) {
+            if (m_lt.eligible(*x)) {
+                v.push_back(x);
+            }
+        }
+        return v;
+    };
     std::vector<const cls*> active;
     for (const auto& c : eligible) {
         active.erase(std::remove_if(active.begin(), active.end(),
@@ -137,8 +210,10 @@ void inorder_lifetime_memory_dependencies::run(program& p) {
                                     }),
                      active.end());
         for (const auto* a : active) {
-            for (const auto* x : m_lt.pool_allocators(*a->k)) {
-                for (const auto* y : m_lt.pool_allocators(*c.k)) {
+            const auto xs = usable_allocators(*a->k);
+            const auto ys = usable_allocators(*c.k);
+            for (const auto* x : xs) {
+                for (const auto* y : ys) {
                     link(x, y);
                 }
             }
@@ -164,7 +239,7 @@ void inorder_lifetime_memory_dependencies::run(program& p) {
                 if (member) {
                     continue;
                 }
-                for (const auto* x : m_lt.pool_allocators(*c.k)) {
+                for (const auto* x : usable_allocators(*c.k)) {
                     link(x, &n);
                 }
             }
@@ -175,7 +250,7 @@ void inorder_lifetime_memory_dependencies::run(program& p) {
         *m_added = added;
     }
     GPU_DEBUG_LOG << "[inorder_lifetime_memory_dependencies] eligible classes " << eligible.size() << " of " << aa->classes().size()
-                  << ", added_beyond_g " << added << " (between real pool users: " << added_pool << ")" << std::endl;
+                  << ", added_beyond_g " << added << " (between pool users, strict " << added_pool_strict << ", loose " << added_pool << ")" << std::endl;
 }
 
 }  // namespace cldnn

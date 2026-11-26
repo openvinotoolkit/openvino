@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -21,13 +22,18 @@
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/condition.hpp"
+#include "intel_gpu/primitives/lora.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "program_node.h"
+#include "program_wrapper.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -121,15 +127,23 @@ void write(const std::string& path, const std::string& text) {
 }
 
 void dump_one(engine& eng, const std::string& dir, const std::string& tag, const topology& topo, QueueTypes q, const std::vector<std::string>& outputs,
-              bool dynamic) {
+              bool dynamic, bool pools = false) {
     ExecutionConfig cfg = get_test_default_config(eng);
+    if (pools) {
+        // P1-B-S, P1-B-D and P1-C switches on (all exist at the baseline commit); the P2-a switch is never touched
+        cfg.set_property(ov::intel_gpu::enable_concat_holder_pool(true));
+        cfg.set_property(ov::intel_gpu::enable_dynamic_concat_holder_pool(true));
+        cfg.set_property(ov::intel_gpu::enable_sum_root_pool(true));
+    }
     cfg.set_property(ov::intel_gpu::optimize_data(true));
     cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     cfg.set_property(ov::intel_gpu::queue_type(q));
     if (q == QueueTypes::out_of_order) {
         cfg.set_user_property({ov::intel_gpu::use_onednn(false)}, ov::OptionVisibility::RELEASE_INTERNAL);
     }
+#ifdef GPU_DEBUG_CONFIG
     cfg.set_user_property({ov::intel_gpu::dump_alloc_trace(2)});
+#endif
     auto prog = program::build_program(eng, topo, cfg, false, false);
     ASSERT_EQ(prog->get_config().get_queue_type(), q) << tag;
     std::ostringstream md;
@@ -173,6 +187,146 @@ void dump_one(engine& eng, const std::string& dir, const std::string& tag, const
 
 }  // namespace
 
+namespace {
+// memory dependencies of graphs that are only compiled (state / lora) or compiled and run through a condition; a build failure is written to the
+// file as text so that the two binaries are compared on it as well
+std::string memdeps_text(program& prog) {
+    std::ostringstream md;
+    for (auto* n : prog.get_processing_order()) {
+        md << "primitive: " << n->id() << "(unique_id:" << n->get_unique_id() << ") restricted list: ";
+        for (auto uid : n->get_memory_dependencies()) {
+            md << uid << ",";
+        }
+        md << "\n";
+    }
+    return md.str();
+}
+
+void dump_build_only(engine& eng, const std::string& dir, const std::string& tag, const std::function<topology()>& make, QueueTypes q, bool pools, bool hand = false) {
+    ExecutionConfig cfg = get_test_default_config(eng);
+    cfg.set_property(ov::intel_gpu::optimize_data(true));
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg.set_property(ov::intel_gpu::queue_type(q));
+    if (q == QueueTypes::out_of_order) {
+        cfg.set_user_property({ov::intel_gpu::use_onednn(false)}, ov::OptionVisibility::RELEASE_INTERNAL);
+    }
+    if (pools) {
+        cfg.set_property(ov::intel_gpu::enable_concat_holder_pool(true));
+        cfg.set_property(ov::intel_gpu::enable_dynamic_concat_holder_pool(true));
+        cfg.set_property(ov::intel_gpu::enable_sum_root_pool(true));
+    }
+    try {
+        if (hand) {
+            // the pipeline cannot compile this graph here (kernel build failure): hand graph, no optimizations, the restriction passes run by hand
+            cfg.set_property(ov::intel_gpu::optimize_data(false));
+            auto prog = program::build_program(eng, make(), cfg, false, /*no_optimizations=*/true);
+            for (auto* n : prog->get_processing_order()) {
+                n->get_output_layouts(false);
+                n->set_unique_id();
+            }
+            program_wrapper::prepare_memory_dependencies(*prog);
+            write(dir + "/" + tag + ".memdeps.txt", memdeps_text(*prog));
+            return;
+        }
+        auto prog = program::build_program(eng, make(), cfg, false, false);
+        write(dir + "/" + tag + ".memdeps.txt", memdeps_text(*prog));
+    } catch (const std::exception& e) {
+        write(dir + "/" + tag + ".memdeps.txt", std::string("build_failed: ") + e.what() + "\n");
+    }
+}
+
+topology state_topology() {
+    topology t;
+    t.add(input_layout("in", l4(4)));
+    t.add(read_value{"rv", {input_info("in")}, "v0", {l4(4)}});
+    t.add(activation("X", input_info("rv"), activation_func::abs));
+    t.add(assign("as", {input_info("X")}, "v0", l4(4)));
+    return t;
+}
+
+topology lora_topology() {
+    topology t;
+    t.add(input_layout("main", layout{ov::PartialShape{1, 1, 256}, data_types::f32, format::bfyx}));
+    t.add(input_layout("input", layout{ov::PartialShape{1, 1, 128}, data_types::f32, format::bfyx}));
+    t.add(input_layout("a", layout{ov::PartialShape{16, 128}, data_types::f32, format::bfyx}));
+    t.add(input_layout("alpha", layout{ov::PartialShape{1, 16}, data_types::f32, format::bfyx}));
+    t.add(input_layout("b", layout{ov::PartialShape{256, 16}, data_types::f32, format::bfyx}));
+    t.add(activation("fc_like", input_info("main"), activation_func::relu));
+    t.add(lora("lora", {input_info("fc_like"), input_info("input"), input_info("a"), input_info("alpha"), input_info("b")}, true));
+    t.add(activation("O", input_info("lora"), activation_func::abs));
+    return t;
+}
+
+void dump_condition(engine& eng, const std::string& dir, const std::string& tag, QueueTypes q, bool pools) {
+    const layout dl{data_types::f32, format::bfyx, tensor{1, 1, 4, 1}};
+    const layout pl{data_types::u8, format::bfyx, tensor{1, 1, 1, 1}};
+    ExecutionConfig cfg = get_test_default_config(eng);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg.set_property(ov::intel_gpu::queue_type(q));
+    if (q == QueueTypes::out_of_order) {
+        cfg.set_user_property({ov::intel_gpu::use_onednn(false)}, ov::OptionVisibility::RELEASE_INTERNAL);
+    }
+    if (pools) {
+        cfg.set_property(ov::intel_gpu::enable_concat_holder_pool(true));
+        cfg.set_property(ov::intel_gpu::enable_dynamic_concat_holder_pool(true));
+        cfg.set_property(ov::intel_gpu::enable_sum_root_pool(true));
+    }
+#ifdef GPU_DEBUG_CONFIG
+    cfg.set_user_property({ov::intel_gpu::dump_alloc_trace(2)});
+#endif
+    try {
+        auto branch = [&](bool pass_through, const std::string& in_id, const std::string& out_id) {
+            topology b;
+            b.add(input_layout(in_id, dl));
+            if (pass_through) {
+                b.add(reorder(out_id, input_info(in_id), dl.format, dl.data_type));
+            } else {
+                b.add(activation(out_id, input_info(in_id), activation_func::abs));
+            }
+            condition::branch br;
+            br.inner_program = program::build_program(eng, b, cfg, false, false, true);
+            br.input_map.insert({"input", in_id});
+            br.output_map.insert({0, out_id});
+            return br;
+        };
+        topology t;
+        t.add(input_layout("predicate", pl));
+        t.add(input_layout("input", dl));
+        t.add(condition("cond", {input_info("predicate"), input_info("input")}, branch(true, "bi_t", "o_t"), branch(false, "bi_f", "o_f")));
+        t.add(activation("tail", input_info("cond"), activation_func::abs));
+        auto prog = program::build_program(eng, t, cfg, false, false);
+        write(dir + "/" + tag + ".memdeps.txt", memdeps_text(*prog));
+        network net(prog, 0);
+        std::ostringstream out;
+        for (const uint8_t pr : {uint8_t{1}, uint8_t{0}, uint8_t{1}}) {
+            auto pred = eng.allocate_memory(pl);
+            set_values(pred, std::vector<uint8_t>{pr});
+            auto in = eng.allocate_memory(dl);
+            set_values(in, std::vector<float>{1.f, -2.f, 3.f, -4.f});
+            net.set_input_data("predicate", pred);
+            net.set_input_data("input", in);
+            auto outs = net.execute();
+            out << "tail pred " << int(pr) << ":";
+            for (float x : read_f32(outs.at("tail"))) {
+                out << " " << x;
+            }
+            out << "\n";
+        }
+        write(dir + "/" + tag + ".out.txt", out.str());
+#ifdef GPU_DEBUG_CONFIG
+        std::ostringstream tr;
+        for (const auto& rec : net.get_alloc_trace_records()) {
+            tr << rec.node_id << ":" << rec.port << " " << rec.bytes << " pooled=" << rec.pooled << " " << rec.reason << "\n";
+        }
+        write(dir + "/" + tag + ".trace.txt", tr.str());
+#endif
+    } catch (const std::exception& e) {
+        write(dir + "/" + tag + ".memdeps.txt", std::string("build_or_run_failed: ") + e.what() + "\n");
+    }
+}
+
+}  // namespace
+
 TEST(l31_dump, DISABLED_corpus) {
     const char* dir = std::getenv("OV_GPU_L31_DUMP_DIR");
     ASSERT_NE(dir, nullptr) << "set OV_GPU_L31_DUMP_DIR";
@@ -193,5 +347,17 @@ TEST(l31_dump, DISABLED_corpus) {
     for (const auto& it : corpus) {
         dump_one(eng, dir, std::string(it.name) + ".in_order", it.make(), QueueTypes::in_order, it.outs, it.dyn);
         dump_one(eng, dir, std::string(it.name) + ".ooo", it.make(), QueueTypes::out_of_order, it.outs, it.dyn);
+        // the P1 switches (concat holder pool, dynamic holder pool, sum root pool) on, the P2-a switch untouched
+        dump_one(eng, dir, std::string(it.name) + ".in_order.pools", it.make(), QueueTypes::in_order, it.outs, it.dyn, true);
+        dump_one(eng, dir, std::string(it.name) + ".ooo.pools", it.make(), QueueTypes::out_of_order, it.outs, it.dyn, true);
+    }
+    for (const bool pools : {false, true}) {
+        const std::string sfx = pools ? ".pools" : "";
+        dump_build_only(eng, dir, "state.in_order" + sfx, state_topology, QueueTypes::in_order, pools);
+        dump_build_only(eng, dir, "state.ooo" + sfx, state_topology, QueueTypes::out_of_order, pools);
+        dump_build_only(eng, dir, "lora.in_order" + sfx, lora_topology, QueueTypes::in_order, pools, true);
+        dump_build_only(eng, dir, "lora.ooo" + sfx, lora_topology, QueueTypes::out_of_order, pools, true);
+        dump_condition(eng, dir, "condition.in_order" + sfx, QueueTypes::in_order, pools);
+        dump_condition(eng, dir, "condition.ooo" + sfx, QueueTypes::out_of_order, pools);
     }
 }

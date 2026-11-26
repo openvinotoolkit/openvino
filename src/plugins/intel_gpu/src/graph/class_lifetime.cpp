@@ -5,6 +5,7 @@
 #include "class_lifetime.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <limits>
 #include <set>
 #include <utility>
@@ -21,7 +22,16 @@ namespace cldnn {
 namespace {
 
 const class_interval kUnknownInterval{};
-thread_local inorder_lifetime_mutations g_mutations;
+inorder_lifetime_mutations default_mutations() {
+    inorder_lifetime_mutations m;
+#ifdef ENABLE_DEBUG_CAPS
+    // E4 experiment switch (Debug caps only, default off): OV_GPU_P2A_MAY_MEMBER_INTERVAL=1
+    const char* v = std::getenv("OV_GPU_P2A_MAY_MEMBER_INTERVAL");
+    m.may_members_use_member_interval = v != nullptr && v[0] == '1';
+#endif
+    return m;
+}
+thread_local inorder_lifetime_mutations g_mutations = default_mutations();
 const std::vector<const program_node*> kNoNodes{};
 
 }  // namespace

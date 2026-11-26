@@ -126,6 +126,39 @@ TEST_F(InorderLifetimeQueueGuard, L24b_external_out_of_order_queue_with_inorder_
         EXPECT_THROW(core.compile_model(model, remote_context), ov::Exception);
     }
 }
+
+// L24c (M2). The blob was compiled with the switch on; the import call overrides the switch to OFF and uses an external out-of-order queue. The
+// restrictions inside the blob are still the in-order ones, so the guard must fire although the runtime switch is off.
+TEST_F(InorderLifetimeQueueGuard, L24c_import_with_the_switch_overridden_off_and_an_external_ooo_queue_throws) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    std::stringstream blob;
+    {
+        env_guard env;
+        set_compile_env(env, "in-order", true);
+        ov::CompiledModel compiled;
+        OV_ASSERT_NO_THROW(compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+        OV_ASSERT_NO_THROW(compiled.export_model(blob));
+    }
+    auto ocl_instance = std::make_shared<OpenCL>();
+    auto remote_context = ov::intel_gpu::ocl::ClContext(core, ocl_instance->_queue.get());
+    {   // control: a blob compiled WITHOUT the switch imports fine on the same external queue
+        std::stringstream plain;
+        {
+            env_guard env;
+            set_compile_env(env, "in-order", false);
+            ov::CompiledModel compiled;
+            OV_ASSERT_NO_THROW(compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+            OV_ASSERT_NO_THROW(compiled.export_model(plain));
+        }
+        env_guard env;
+        set_compile_env(env, "in-order", false);
+        OV_ASSERT_NO_THROW(core.import_model(plain, remote_context));
+    }
+    env_guard env;
+    set_compile_env(env, "in-order", false);   // runtime switch overridden to off (and queue kept in-order)
+    EXPECT_THROW(core.import_model(blob, remote_context), ov::Exception);
+}
 #endif  // OV_GPU_WITH_OCL_RT
 
 }  // namespace

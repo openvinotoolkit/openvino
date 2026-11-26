@@ -5,6 +5,8 @@
 #include "oooq_gate_shadow.h"
 
 #include <algorithm>
+#include <atomic>
+#include <fstream>
 #include <cstdlib>
 #include <limits>
 #include <map>
@@ -539,6 +541,63 @@ oooq_gate_shadow_report oooq_gate_shadow::compute(const program& p, const snapsh
     return r;
 }
 
+#ifdef ENABLE_DEBUG_CAPS
+namespace {
+// Experiment E1 (Debug caps only, report only): OV_GPU_RESTRICTION_DUMP=<prefix> writes <prefix>.<n> for every program the shadow looks at.
+//   N <id> <uid> <type> pos=<p|-> pool=<may_use_mempool> cbo=<> rs=<> dyn=<> cbs=<can_share_buffer> out=<is_output> elig=<class_lifetimes node eligibility>
+//   P <id> <port> root=<class root id> role=<alloc|zero|may|-> civ=<lo>,<hi|inf> miv=<lo>,<hi|inf|?>   (class interval / member interval)
+//   R <id> <restricted ids separated by TAB>
+void dump_restrictions(const program& p, const alias_analysis& aa) {
+    const char* prefix = std::getenv("OV_GPU_RESTRICTION_DUMP");
+    if (prefix == nullptr || prefix[0] == '\0') {
+        return;
+    }
+    static std::atomic<int> counter{0};
+    std::ofstream f(std::string(prefix) + "." + std::to_string(counter++));
+    const auto axis = exec_axis::build(p);
+    const auto lt = class_lifetimes::build(p, aa, axis);
+    std::unordered_map<uint32_t, std::string> id_of;
+    for (const auto* n : p.get_processing_order()) {
+        id_of.emplace(static_cast<uint32_t>(n->get_unique_id()), n->id());
+    }
+    auto iv_str2 = [](const class_interval& iv) {
+        if (!iv.known) {
+            return std::string("?");
+        }
+        return std::to_string(iv.birth) + "," + (iv.death_inf ? std::string("inf") : std::to_string(iv.death));
+    };
+    for (const auto* n : p.get_processing_order()) {
+        const auto pos = axis.position(*n);
+        f << "N " << n->id() << " " << n->get_unique_id() << " " << type_of(*n) << " pos=" << (pos ? std::to_string(*pos) : std::string("-")) << " pool=" << n->may_use_mempool()
+          << " cbo=" << n->can_be_optimized() << " rs=" << n->is_runtime_skippable() << " dyn=" << n->is_dynamic() << " cbs=" << n->can_share_buffer()
+          << " out=" << n->is_output() << " elig=" << lt.eligible(*n) << "\n";
+        for (size_t port = 0; port < std::max<size_t>(1, n->get_outputs_count()); ++port) {
+            const auto* c = aa.class_of(*n, static_cast<int32_t>(port));
+            if (c == nullptr) {
+                continue;
+            }
+            std::string role = "-";
+            for (const auto& m : c->members) {
+                if (m.node == n && m.id.index == port) {
+                    role = m.role == alias_role::allocator ? "alloc" : m.role == alias_role::zero_alloc_member ? "zero" : "may";
+                }
+            }
+            f << "P " << n->id() << " " << port << " root=" << (c->root_node ? c->root_node->id() : std::string("-")) << " role=" << role << " civ=" << iv_str2(lt.interval_of(*c))
+              << " miv=" << iv_str2(lt.member_interval(*n, static_cast<uint16_t>(port))) << "\n";
+        }
+        f << "R " << n->id() << " ";
+        bool first = true;
+        for (const uint32_t uid : n->get_memory_dependencies()) {
+            auto it = id_of.find(uid);
+            f << (first ? "" : "\t") << (it == id_of.end() ? "uid" + std::to_string(uid) : it->second);
+            first = false;
+        }
+        f << "\n";
+    }
+}
+}  // namespace
+#endif
+
 void oooq_gate_shadow::finish(const program& p, std::unique_ptr<snapshot> s0, const alias_analysis* aa) noexcept {
     try {
         if (!s0) {
@@ -551,6 +610,9 @@ void oooq_gate_shadow::finish(const program& p, std::unique_ptr<snapshot> s0, co
             return;
         }
         store_report(p, compute(p, *s0, *aa));
+#ifdef ENABLE_DEBUG_CAPS
+        dump_restrictions(p, *aa);
+#endif
     } catch (...) {
         try {
             oooq_gate_shadow_report r;

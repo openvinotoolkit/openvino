@@ -88,6 +88,9 @@ private:
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
     uint16_t m_stream_id;
+    // P2-a P-G2b: the imported blob was compiled with GPU_ENABLE_INORDER_LIFETIME_RESTRICTIONS on an in-order queue; its restrictions stay valid only for
+    // in-order execution even if the runtime switch is overridden to off on import. Inherited by the per-stream copies.
+    bool m_compiled_with_inorder_lifetime = false;
     uint32_t m_state = 0;
     std::condition_variable m_cv;
     std::mutex m_infer_mutex;

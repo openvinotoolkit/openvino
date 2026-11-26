@@ -70,6 +70,9 @@ struct inorder_lifetime_mutations {
     bool no_unmodeled_alias = false;       // li_unmodeled_alias does not make a class ineligible
     bool no_cpu_exclusion = false;         // (maybe-)CPU classes are judged by interval like any other
     bool no_same_class_retention = false;  // same-class pairs are filtered out of oooq too
+    // E2 / E4 experiment (NOT a design change): non-root members that allocate on their own (MAY envelope) are swept with their own member_interval
+    // instead of the interval of their whole class
+    bool may_members_use_member_interval = false;
 };
 class scoped_inorder_lifetime_mutations {
 public:

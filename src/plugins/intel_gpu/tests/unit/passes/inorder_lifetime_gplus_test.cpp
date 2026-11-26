@@ -17,6 +17,7 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -32,7 +33,12 @@
 #include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
@@ -41,6 +47,7 @@
 #include "intel_gpu/primitives/shape_of.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
+#include "program_helpers.h"
 #include "program_node.h"
 #include "program_wrapper.h"
 
@@ -59,6 +66,9 @@ struct run_opts {
     bool concat_pool = false;
     bool dyn_concat_pool = false;
     bool sum_root = false;
+    bool member_interval_hook = false;   // E2 / E4 experiment hook (compile time only)
+    std::vector<std::string> custom_outputs;
+    ov::intel_gpu::ImplForcingMap forced;
 };
 
 struct run_result {
@@ -82,7 +92,15 @@ ExecutionConfig make_cfg(engine& eng, const run_opts& o) {
     config.set_property(ov::intel_gpu::enable_dynamic_concat_holder_pool(o.dyn_concat_pool));
     config.set_property(ov::intel_gpu::enable_sum_root_pool(o.sum_root));
     config.set_property(ov::intel_gpu::enable_alias_shadow_validation(true));
+    if (!o.custom_outputs.empty()) {
+        config.set_property(ov::intel_gpu::custom_outputs(o.custom_outputs));
+    }
+    if (!o.forced.empty()) {
+        config.set_property(ov::intel_gpu::force_implementations(o.forced));
+    }
+#ifdef GPU_DEBUG_CONFIG
     config.set_user_property({ov::intel_gpu::dump_alloc_trace(1)});
+#endif
     return config;
 }
 
@@ -98,6 +116,16 @@ memory::ptr filled(engine& eng, const layout& l, float seed) {
     return m;
 }
 
+memory::ptr filled_f16(engine& eng, const layout& l, float seed) {
+    auto m = eng.allocate_memory(l);
+    std::vector<ov::float16> v(l.count());
+    for (size_t i = 0; i < v.size(); ++i) {
+        v[i] = ov::float16(seed * 0.01f + static_cast<float>(i % 17) * 0.0125f);
+    }
+    set_values(m, v);
+    return m;
+}
+
 std::vector<float> read_f32(const network_output& o) {
     auto m = o.get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> p(m, get_test_stream());
@@ -106,9 +134,20 @@ std::vector<float> read_f32(const network_output& o) {
 
 using feed_fn = std::function<void(engine&, network&, int)>;
 
-run_result run_pipeline(engine& eng, const topology& topo, const feed_fn& feed, int rounds, const std::vector<std::string>& outputs, const run_opts& o) {
+run_result run_pipeline(engine& eng, const topology& topo, const feed_fn& feed, int rounds, const std::vector<std::string>& outputs, const run_opts& o,
+                        const std::function<void(program&)>& inspect = nullptr) {
     run_result r;
+    inorder_lifetime_mutations hook;
+    hook.may_members_use_member_interval = o.member_interval_hook;
+    std::unique_ptr<scoped_inorder_lifetime_mutations> guard;
+    if (o.member_interval_hook) {
+        guard = std::make_unique<scoped_inorder_lifetime_mutations>(hook);
+    }
     auto prog = program::build_program(eng, topo, make_cfg(eng, o), false, false);
+    guard.reset();
+    if (inspect) {
+        inspect(*prog);
+    }
     std::map<uint32_t, std::string> id_of;
     for (auto* n : prog->get_processing_order()) {
         id_of[static_cast<uint32_t>(n->get_unique_id())] = n->id();
@@ -473,6 +512,11 @@ TEST(inorder_lifetime_gplus, L1_pattern_a_four_siblings) {
         only_off += c.on.edges.count(e) ? 0 : 1;
     }
     EXPECT_GT(only_off, 0u) << "the switch relaxed no restriction on a Pattern A graph";
+#ifdef GPU_DEBUG_CONFIG
+    EXPECT_LT(c.on.pooled_bytes, c.off.pooled_bytes) << "Pattern A siblings must share blocks with the switch on (B0/D0 pool statistics)";
+#else
+    std::cout << "[ G+ ] L1: the pool byte assertion is compiled out without GPU_DEBUG_CONFIG (uncovered)" << std::endl;
+#endif
 }
 
 // L2. Multi input join A -> X -> B, A -> u, B -> u.
@@ -560,28 +604,59 @@ TEST(inorder_lifetime_gplus, L13_static_inplace_concat_with_the_holder_pool) {
     compare_case("L13 concat in place (holder pool off)", eng, make, feed, 1, {"out", "outK"}, o);
 }
 
-// L14. oneDNN residual sum chain with the P1-C switch.
+// L14. oneDNN residual sum chain with the P1-C switch: x_proj -> f1 -> f2 -> p (oneDNN FC) ; res = sum(p, x_proj). The case asserts that the pipeline
+// really formed an in-place oneDNN sum (otherwise it skips).
 TEST(inorder_lifetime_gplus, L14_sum_chain_with_the_sum_root_pool) {
     auto& eng = get_test_engine();
     REQUIRE_OCL(eng);
     if (!eng.get_device_info().supports_immad) {
         GTEST_SKIP() << "oneDNN post-ops need supports_immad (uncovered)";
     }
-    auto make = [] {
+    const layout in_l{ov::PartialShape{32, 16}, data_types::f16, format::bfyx};
+    auto weights = [&](int variant) {
+        layout l{ov::PartialShape{16, 16}, data_types::f16, format::bfyx};
+        auto mem = eng.allocate_memory(l);
+        std::vector<ov::float16> v(l.count());
+        for (size_t k = 0; k < v.size(); k++) {
+            v[k] = ov::float16(static_cast<float>((k * (5 + variant)) % 7) * 0.03125f - 0.0625f);
+        }
+        set_values(mem, v);
+        return mem;
+    };
+    ov::intel_gpu::ImplForcingMap forced;
+    auto make = [&] {
         topology t;
-        t.add(input_layout("in", lay(16, 16)));
-        t.add(activation("a0", input_info("in"), activation_func::relu));
-        t.add(activation("a1", input_info("a0"), activation_func::abs));
-        t.add(eltwise("s1", {input_info("a1"), input_info("a0")}, eltwise_mode::sum));
-        t.add(activation("a2", input_info("s1"), activation_func::relu));
-        t.add(eltwise("s2", {input_info("a2"), input_info("s1")}, eltwise_mode::sum));
-        t.add(reorder("out", input_info("s2"), format::bfyx, data_types::f32));
+        t.add(input_layout("in", in_l));
+        auto add_fc = [&](const std::string& id, const std::string& in, int variant, impl_types it) {
+            t.add(data(id + "_w", weights(variant)));
+            t.add(fully_connected(id, input_info(in), id + "_w"));
+            forced[id] = ov::intel_gpu::ImplementationDesc{format::bfyx, "", it};
+        };
+        add_fc("x_proj", "in", 1, impl_types::ocl);
+        add_fc("f1", "x_proj", 2, impl_types::ocl);
+        add_fc("f2", "f1", 3, impl_types::ocl);
+        add_fc("p", "f2", 0, impl_types::onednn);
+        t.add(eltwise("res", {input_info("p"), input_info("x_proj")}, eltwise_mode::sum));
+        add_fc("Z", "res", 9, impl_types::ocl);
+        t.add(reorder("out_Z", input_info("Z"), format::bfyx, data_types::f32));
         return t;
     };
-    auto feed = [](engine& e, network& n, int r) { n.set_input_data("in", filled(e, lay(16, 16), 1.f + r)); };
+    (void)make();   // fills `forced`
     run_opts o;
     o.sum_root = true;
-    compare_case("L14 residual chain (sum_root_pool on)", eng, make, feed, 1, {"out"}, o);
+    o.forced = forced;
+    bool sum_formed = false;
+    {
+        auto prog = program::build_program(eng, make(), make_cfg(eng, o), false, false);
+        for (auto* n : prog->get_processing_order()) {
+            sum_formed = sum_formed || onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*n) != -1;
+        }
+    }
+    if (!sum_formed) {
+        GTEST_SKIP() << "no oneDNN in-place sum was formed by the pipeline for this graph (uncovered, the case would pass vacuously)";
+    }
+    auto feed = [&](engine& e, network& n, int r) { n.set_input_data("in", filled_f16(e, in_l, 1.f + r)); };
+    compare_case("L14 residual chain (sum_root_pool on)", eng, make, feed, 1, {"out_Z"}, o);
 }
 
 // L15. mul_inplace needs the gated-MLP pattern with the oneDNN post-op: not constructible without a matching fused pipeline.
@@ -935,9 +1010,9 @@ TEST(inorder_lifetime_gplus, L32_mutations_are_detected) {
 }
 
 
-// L30. With G+ on, the L3 step (5) closure of the promoted (eligible) classes adds nothing: G+ already closed the view owners. The count is only
+// L30 (WEAK CHECK: the count is also 0 with the switch off on this graph, i.e. it does not prove that G+ closes a gap). With G+ on, the L3 step (5) closure of the promoted (eligible) classes adds nothing: G+ already closed the view owners. The count is only
 // available in the class-level pass's log line, so the log is captured (the pass cannot be changed by this stage).
-TEST(inorder_lifetime_gplus, L30_l3_step5_closures_are_zero_for_eligible_promoted_classes) {
+TEST(inorder_lifetime_gplus, L30_WEAK_closure_count_is_zero_but_also_zero_without_the_switch) {
     auto& eng = get_test_engine();
     REQUIRE_OCL(eng);
     auto make = [] {
@@ -963,7 +1038,9 @@ TEST(inorder_lifetime_gplus, L30_l3_step5_closures_are_zero_for_eligible_promote
         testing::internal::CaptureStderr();
         try {
             auto cfg = make_cfg(eng, o);
+#ifdef GPU_DEBUG_CONFIG
             cfg.set_property(ov::intel_gpu::verbose(4));
+#endif
             auto prog = program::build_program(eng, make(), cfg, false, false);
         } catch (...) {
         }
@@ -983,4 +1060,319 @@ TEST(inorder_lifetime_gplus, L30_l3_step5_closures_are_zero_for_eligible_promote
     }
     EXPECT_GT(promoted_on, 0u) << "no class was promoted: the case is vacuous";
     EXPECT_EQ(on, 0);
+}
+
+// PO-4. A multi-output node whose port 1 class is eligible but whose port 2 class is not (shape_of reader) is not eligible as a NODE. The oooq filter
+// retains its entries, so the class x class sweep must not add anything for it either. Fault injection: after the compile the entries (dq, Z) and
+// (X, Z) are erased and the sweep is re-run on its own: the entry of the eligible control pair comes back, the one of the multi-output node must not.
+TEST(inorder_lifetime_gplus, PO4_multi_output_node_with_an_ineligible_port_gets_no_sweep_entries) {
+    auto& eng = get_test_engine();
+    REQUIRE_OCL(eng);
+    dynamic_quantize::Attributes cfg;
+    cfg.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    cfg.quantization_dt = data_types::i8;
+    cfg.scale_dt = data_types::f16;
+    cfg.zp_dt = data_types::f16;
+    cfg.group_sizes = {1, 1, 32};
+    cfg.scales_zp_output_order = {0, 1, 2};
+    cfg.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    const ov::PartialShape in_ps{-1, 4, 32};
+    const ov::PartialShape sc_ps{-1, 4, 1};
+    topology t;
+    t.add(input_layout("input", layout{in_ps, data_types::f32, format::bfyx}));
+    t.add(reorder("reorder_1", input_info("input"), layout{in_ps, data_types::f16, format::bfyx}));
+    t.add(dynamic_quantize("dq", input_info("reorder_1"), cfg));
+    t.add(reorder("reorder_data", input_info("dq", 0), layout{in_ps, data_types::f16, format::bfyx}));
+    t.add(reorder("reorder_scale", input_info("dq", 1), layout{sc_ps, data_types::f16, format::bfyx}));
+    t.add(reorder("reorder_zp", input_info("dq", 2), layout{sc_ps, data_types::f16, format::bfyx}));
+    t.add(shape_of("S", input_info("dq", 2), data_types::i32));
+    t.add(input_layout("in2", layout{ov::PartialShape{-1, 4, 32}, data_types::f32, format::bfyx}));
+    t.add(activation("X", input_info("in2"), activation_func::relu));
+    t.add(activation("Z", input_info("X"), activation_func::abs));
+    t.add(activation("OZ", input_info("Z"), activation_func::abs));
+    const std::vector<primitive_id> order = {"input", "reorder_1", "dq", "reorder_data", "reorder_scale", "reorder_zp", "S", "in2", "X", "Z", "OZ"};
+    auto prog = hand(eng, t, {"reorder_data", "reorder_scale", "reorder_zp", "OZ"}, true, order);
+    for (const char* id : {"reorder_1", "reorder_data", "reorder_scale", "reorder_zp"}) {
+        prog->get_node(id).can_be_optimized(true);
+    }
+    program_wrapper::prepare_memory_dependencies(*prog);
+
+    ASSERT_NE(prog->get_alias_analysis(), nullptr);
+    const auto& aa = *prog->get_alias_analysis();   // the pass walks the program's own analysis: the engine must be built from the same object
+    const auto axis = exec_axis::build(*prog);
+    ASSERT_TRUE(axis.valid());
+    const auto lt = class_lifetimes::build(*prog, aa, axis);
+    auto& dq = prog->get_node("dq");
+    ASSERT_GE(dq.get_outputs_count(), 3u);
+    const auto* c0 = aa.class_of(dq, 0);
+    const auto* c1 = aa.class_of(dq, 1);
+    ASSERT_NE(c0, nullptr);
+    ASSERT_NE(c1, nullptr);
+    ASSERT_EQ(lt.class_ineligible_mask(*c0), 0u) << "precondition: the port 0 class is eligible, mask " << lt.class_ineligible_mask(*c0) << " fallback " << c0->fallback;
+    ASSERT_NE(lt.class_ineligible_mask(*c1), 0u) << "precondition: a class rooted at port 1 is ineligible (fb_nonzero_port_root)";
+    ASSERT_FALSE(lt.eligible(dq)) << "precondition: the node is not eligible";
+    bool allocates_port0 = false;
+    for (const auto* a : lt.pool_allocators(*c0)) {
+        allocates_port0 = allocates_port0 || a == &dq;
+    }
+    ASSERT_TRUE(allocates_port0) << "precondition: dq is a pool allocator of the eligible port 0 class";
+    ASSERT_TRUE(lt.eligible(prog->get_node("Z")));
+    ASSERT_TRUE(lt.eligible(prog->get_node("X")));
+    ASSERT_TRUE(has(*prog, "dq", "Z"));
+    const auto erase = [&](const std::string& a, const std::string& b) {
+        for (const auto& pr : {std::make_pair(a, b), std::make_pair(b, a)}) {
+            auto& v = const_cast<std::vector<uint32_t>&>(prog->get_node(pr.first).get_memory_dependencies());
+            v.erase(std::remove(v.begin(), v.end(), static_cast<uint32_t>(prog->get_node(pr.second).get_unique_id())), v.end());
+        }
+    };
+    erase("dq", "Z");
+    ASSERT_FALSE(has(*prog, "dq", "Z"));
+    // control pair of eligible nodes whose classes overlap on the axis: reorder_scale's class (output, infinite) and Z's class
+    const bool control_present = has(*prog, "X", "dq") || has(*prog, "Z", "X");
+    (void)control_present;
+    size_t added = 0;
+    inorder_lifetime_memory_dependencies(lt, &added).run(*prog);
+    EXPECT_FALSE(has(*prog, "dq", "Z")) << "the sweep added an entry for a node that is not eligible (PO-4)";
+    EXPECT_FALSE(has(*prog, "Z", "dq"));
+}
+
+// ===================================================================================================================================
+// fix round: B (hardening) and E2 / E3 (experiments)
+// ===================================================================================================================================
+
+// L2 white-box: A -> X -> B, A -> u, B -> u. Every restriction a diamond needs is present in both directions with the switch on.
+TEST(inorder_lifetime_gplus, L2b_diamond_entries_are_present_in_both_directions) {
+    auto& eng = get_test_engine();
+    REQUIRE_OCL(eng);
+    auto make = [] {
+        topology t;
+        t.add(input_layout("in", lay(4, 8)));
+        t.add(activation("A", input_info("in"), activation_func::relu));
+        t.add(activation("X", input_info("A"), activation_func::relu));
+        t.add(activation("B", input_info("X"), activation_func::abs));
+        t.add(eltwise("u", {input_info("A"), input_info("B")}, eltwise_mode::sum));
+        t.add(activation("O", input_info("u"), activation_func::abs));
+        return t;
+    };
+    hand_case c{make, {"O"}, {"in", "A", "X", "B", "u", "O"}, nullptr};
+    auto on = build_and_run(eng, c, true);
+    EXPECT_TRUE(both(*on, "A", "X")) << "A must outlive X (read by u)";
+    EXPECT_TRUE(both(*on, "A", "B")) << "A is read by u together with B";
+}
+
+// L10 (may_alias): the answers of network::may_alias for every (output, input) pair are identical with the switch off and on.
+TEST(inorder_lifetime_gplus, L10b_may_alias_answers_are_unchanged) {
+    auto& eng = get_test_engine();
+    REQUIRE_OCL(eng);
+    auto make = [] {
+        topology t;
+        t.add(input_layout("in1", lay(4, 8)));
+        t.add(input_layout("in2", lay(4, 8)));
+        t.add(activation("A", input_info("in1"), activation_func::relu));
+        t.add(eltwise("O1", {input_info("A"), input_info("in1")}, eltwise_mode::sum));   // writer that reads its own input
+        t.add(activation("B", input_info("in2"), activation_func::abs));
+        t.add(activation("O2", input_info("B"), activation_func::abs));
+        return t;
+    };
+    std::map<std::string, bool> answers[2];
+    for (int sw = 0; sw < 2; ++sw) {
+        run_opts o;
+        o.lifetime = sw == 1;
+        o.optimize = false;
+        auto prog = program::build_program(eng, make(), make_cfg(eng, o), false, false);
+        network net(prog, 0);
+        for (const auto* out : {"O1", "O2"}) {
+            for (const auto* in : {"in1", "in2"}) {
+                answers[sw][std::string(out) + "<-" + in] = net.may_alias(out, in);
+            }
+        }
+    }
+    EXPECT_EQ(answers[0], answers[1]);
+    size_t trues = 0;
+    for (const auto& kv : answers[0]) {
+        trues += kv.second ? 1 : 0;
+    }
+    std::cout << "[ G+ ] L10b may_alias: " << answers[0].size() << " pairs compared, " << trues << " answer true" << std::endl;
+}
+
+// C2 deep view chain (depth 4) plus a runtime-skippable sibling: entries with an ineligible endpoint, and same-class pairs, are identical to the
+// switch-off run. Pairs with both endpoints eligible in different classes may differ (reported).
+TEST(inorder_lifetime_gplus, C2_deep_view_chain_leaf_filter_changes_only_eligible_pairs) {
+    auto& eng = get_test_engine();
+    REQUIRE_OCL(eng);
+    auto make = [] {
+        topology t;
+        t.add(input_layout("in", lay(4, 8)));
+        t.add(input_layout("in2", lay(4, 8)));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(reorder("v1", input_info("P"), format::bfyx, data_types::f32));
+        t.add(reorder("v2", input_info("v1"), format::bfyx, data_types::f32));
+        t.add(reorder("v3", input_info("v2"), format::bfyx, data_types::f32));
+        t.add(reorder("v4", input_info("v3"), format::bfyx, data_types::f32));
+        t.add(activation("E", input_info("v4"), activation_func::abs));
+        t.add(activation("B1", input_info("in2"), activation_func::relu));
+        t.add(activation("B2", input_info("B1"), activation_func::abs));
+        t.add(eltwise("O", {input_info("E"), input_info("B2")}, eltwise_mode::sum));
+        return t;
+    };
+    hand_case c{make, {"O"}, {"in", "in2", "P", "v1", "v2", "v3", "v4", "B1", "E", "B2", "O"}, [](program& p) {
+                    for (const auto* id : {"v1", "v2", "v3", "v4"}) {
+                        p.get_node(id).can_be_optimized(true);
+                    }
+                    p.get_node("v3").set_runtime_skippable(true);
+                }};
+    auto off = build_and_run(eng, c, false);
+    auto on = build_and_run(eng, c, true);
+    auto aa = alias_analysis::build(*on);
+    const auto lt = class_lifetimes::build(*on, aa, exec_axis::build(*on));
+    size_t checked = 0, relaxed = 0;
+    for (auto* x : on->get_processing_order()) {
+        for (auto* y : on->get_processing_order()) {
+            if (x == y) {
+                continue;
+            }
+            const bool free_pair = lt.eligible(*x) && lt.eligible(*y) && lt.classes_disjoint(*x, *y);
+            if (free_pair) {
+                relaxed += has(*off, x->id(), y->id()) != has(*on, x->id(), y->id()) ? 1 : 0;
+                continue;
+            }
+            ++checked;
+            EXPECT_EQ(has(*off, x->id(), y->id()), has(*on, x->id(), y->id())) << "(" << x->id() << ", " << y->id() << ")";
+        }
+    }
+    EXPECT_GT(checked, 0u);
+    std::cout << "[ G+ ] C2 deep chain: " << checked << " constrained pairs identical, " << relaxed << " free pairs differ" << std::endl;
+}
+
+// E2 / L26 (non-vacuous). The root P has a runtime-skippable gather r (aliases P when it skips) and a LATE reader Lr (a concat with Qb). A class Q
+// (Qa -> Qb) executes inside the interval of P's class but after the last reader of r. With the class wide interval the sweep restricts (r, Qa)
+// although HEAD does not (G+ adds it); with the experiment hook (r swept with member_interval) it does not. Rounds alternate skip / executed.
+namespace {
+topology gather_topology() {
+    topology t;
+    t.add(input_layout("in1", layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}));
+    t.add(input_layout("idx", layout{ov::PartialShape::dynamic(2), data_types::i32, format::bfyx}));
+    t.add(activation("P", input_info("in1"), activation_func::relu));
+    t.add(reshape("idxs", input_info("idx"), false, {-1}, {-1}, reshape::reshape_mode::base));
+    t.add(gather("r", input_info("P"), input_info("idxs"), 1, 3, ov::Shape{}, 0, true));
+    t.add(activation("Ur", input_info("r"), activation_func::abs));
+    t.add(activation("Qa", input_info("Ur"), activation_func::relu));
+    t.add(activation("Qb", input_info("Qa"), activation_func::abs));
+    t.add(concatenation("Lr", {input_info("P"), input_info("Qb")}, 1));
+    t.add(activation("out", input_info("Lr"), activation_func::abs));
+    return t;
+}
+void gather_feed(engine& e, network& n, int round) {
+    const bool skip_round = round % 2 == 0;
+    const int64_t len = skip_round ? 1 : 11, idx_len = skip_round ? 1 : 6;
+    n.set_input_data("in1", filled(e, layout{ov::PartialShape{1, len, 8}, data_types::f32, format::bfyx}, 1.f + round));
+    auto idx = e.allocate_memory(layout{ov::PartialShape{1, idx_len}, data_types::i32, format::bfyx});
+    std::vector<int32_t> v(static_cast<size_t>(idx_len));
+    for (size_t i = 0; i < v.size(); ++i) {
+        v[i] = static_cast<int32_t>(i);
+    }
+    set_values(idx, v);
+    n.set_input_data("idx", idx);
+}
+}  // namespace
+
+TEST(inorder_lifetime_gplus, E2_may_member_swept_by_its_class_interval_adds_an_entry_the_member_interval_does_not) {
+    auto& eng = get_test_engine();
+    REQUIRE_OCL(eng);
+    std::map<std::string, size_t> pos;
+    auto inspect = [&](program& p) {
+        const auto axis = exec_axis::build(p);
+        for (const auto* id : {"P", "r", "Ur", "Qa", "Qb", "Lr", "out"}) {
+            try {
+                if (auto q = axis.position(p.get_node(id))) {
+                    pos[id] = *q;
+                }
+            } catch (...) {
+            }
+        }
+    };
+    run_opts base;
+    base.optimize = false;
+    auto ref_o = base;
+    ref_o.pool = false;
+    const int rounds = 4;
+    const auto ref = run_pipeline(eng, gather_topology(), gather_feed, rounds, {"out"}, ref_o);
+    const auto off = run_pipeline(eng, gather_topology(), gather_feed, rounds, {"out"}, base);
+    auto on_o = base;
+    on_o.lifetime = true;
+    const auto on = run_pipeline(eng, gather_topology(), gather_feed, rounds, {"out"}, on_o, inspect);
+    auto hook_o = on_o;
+    hook_o.member_interval_hook = true;
+    const auto hook = run_pipeline(eng, gather_topology(), gather_feed, rounds, {"out"}, hook_o);
+    std::string have;
+    for (const auto& kv : pos) {
+        have += kv.first + "=" + std::to_string(kv.second) + " ";
+    }
+    ASSERT_TRUE(pos.count("r") && pos.count("Qa") && pos.count("Lr")) << "the optimizer did not keep r / Qa / Lr under these names; have: " << have;
+    EXPECT_LT(pos["P"], pos["r"]);
+    EXPECT_LT(pos["Ur"], pos["Qa"]) << "Q must execute after the last reader of r";
+    EXPECT_LT(pos["Qb"], pos["Lr"]) << "Lr (late reader of P) must execute after Q";
+    const auto e = [](const run_result& r, const char* a, const char* b) { return r.edges.count({a, b}) != 0; };
+    std::cout << "[ G+ ] E2 (r,Qa) restricted: off " << e(off, "r", "Qa") << " on " << e(on, "r", "Qa") << " on+hook " << e(hook, "r", "Qa") << "; entries off/on/hook "
+              << off.edges.size() << "/" << on.edges.size() << "/" << hook.edges.size() << std::endl;
+    EXPECT_FALSE(e(off, "r", "Qa")) << "HEAD does not restrict (r, Qa): r is dead before Qa starts";
+    EXPECT_TRUE(e(on, "r", "Qa") && e(on, "Qa", "r")) << "G+ with the class wide interval restricts (r, Qa)";
+    EXPECT_FALSE(e(hook, "r", "Qa") || e(hook, "Qa", "r")) << "with member_interval the entry disappears";
+    // the owner P of the class stays restricted against Q in all variants that matter: P itself is swept with the class interval
+    EXPECT_TRUE(e(hook, "P", "Qa") || e(on, "P", "Qa"));
+    // independent check of the added entry (L26): P's class is {P, r}; its readers are r, Lr and Ur; Qa lives from its own position to its reader Qb.
+    // The manual intervals use positions and user lists only, no class_lifetimes
+    EXPECT_LE(pos["P"], pos["Qa"]);
+    EXPECT_GE(pos["Lr"], pos["Qb"]);   // [P, Lr] contains [Qa, Qb]: the class wide interval overlaps Q ...
+    EXPECT_LT(pos["Ur"], pos["Qa"]);   // ... while r's own interval [r, Ur] does not: the added entry is over-approximation, not a HEAD gap
+    // correctness: all variants equal the memory_pool=false reference on every round (r skips in even rounds, executes in odd rounds), V2b clean
+    EXPECT_EQ(ref.outs, off.outs);
+    EXPECT_EQ(ref.outs, on.outs);
+    EXPECT_EQ(ref.outs, hook.outs);
+    EXPECT_EQ(on.v2b_defects, 0u);
+    EXPECT_EQ(hook.v2b_defects, 0u);
+#ifdef GPU_DEBUG_CONFIG
+    EXPECT_LE(hook.pooled_bytes, on.pooled_bytes) << "member intervals must not need more pool bytes than the class wide interval";
+#endif
+    std::cout << "[ G+ ] E2 pooled bytes off/on/hook " << off.pooled_bytes << "/" << on.pooled_bytes << "/" << hook.pooled_bytes << ", v2b reads on/hook " << on.v2b_reads
+              << "/" << hook.v2b_reads << std::endl;
+}
+
+// E3. P1C-V1 end to end: the output view Y of P has a user U, and a later chain is reachable from P through U. HEAD's restriction folding stops at
+// the output view; with the switch on the class of P lives to infinity.
+TEST(inorder_lifetime_gplus, E3_output_view_with_a_user_end_to_end) {
+    auto& eng = get_test_engine();
+    REQUIRE_OCL(eng);
+    auto make = [] {
+        topology t;
+        t.add(input_layout("in", lay(16, 16)));
+        t.add(activation("P", input_info("in"), activation_func::relu));
+        t.add(reshape("Y", input_info("P"), false, {1, 16, 256}, ov::PartialShape{1, 16, 256}, reshape::reshape_mode::base));
+        t.add(activation("U", input_info("Y"), activation_func::abs));
+        t.add(activation("B1", input_info("U"), activation_func::relu));
+        t.add(activation("B2", input_info("B1"), activation_func::abs));
+        t.add(activation("B3", input_info("B2"), activation_func::relu));
+        t.add(activation("O2", input_info("B3"), activation_func::abs));
+        return t;
+    };
+    auto feed = [](engine& e, network& n, int r) { n.set_input_data("in", filled(e, lay(16, 16), 1.f + r)); };
+    // outputs: Y (the view) and O2 ; compare outputs of Y against the reference by name
+    case_result c;
+    run_opts base;
+    base.optimize = true;
+    base.custom_outputs = {"Y", "O2"};
+    auto ref_o = base;
+    ref_o.pool = false;
+    auto on_o = base;
+    on_o.lifetime = true;
+    c.ref = run_pipeline(eng, make(), feed, 1, {"Y", "O2"}, ref_o);
+    c.off = run_pipeline(eng, make(), feed, 1, {"Y", "O2"}, base);
+    c.on = run_pipeline(eng, make(), feed, 1, {"Y", "O2"}, on_o);
+    std::cout << "[ G+ ] E3 switch off: outputs equal reference " << (c.off.outs == c.ref.outs) << ", v2b defects " << c.off.v2b_defects << "; switch on: outputs equal reference "
+              << (c.on.outs == c.ref.outs) << ", v2b defects " << c.on.v2b_defects << std::endl;
+    EXPECT_EQ(c.on.outs, c.ref.outs);
+    EXPECT_EQ(c.on.v2b_defects, 0u);
+    if (c.off.outs == c.ref.outs && c.off.v2b_defects == 0) {
+        std::cout << "[ G+ ] E3: the construction is CLEAN with the switch off (no P1C-V1 corruption reproduced here)" << std::endl;
+    }
 }
