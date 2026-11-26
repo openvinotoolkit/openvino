@@ -34,11 +34,6 @@ on:
         type: string
         required: false
         default: ''
-      run_python_custom_layer_tests:
-        description: 'Run Python custom-layer tests on the GPU runner'
-        type: boolean
-        required: false
-        default: false
 
 permissions: read-all
 
@@ -70,14 +65,6 @@ jobs:
       NEO_CACHE_MAX_SIZE: 10737418240 # 10GB
     steps:
 
-      - name: Fetch the wheel installation action
-        if: ${{ inputs.run_python_custom_layer_tests }}
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          sparse-checkout: .github/actions/install_ov_wheels
-          submodules: 'false'
-
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
@@ -88,13 +75,6 @@ jobs:
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO artifacts (wheels)
-        if: ${{ inputs.run_python_custom_layer_tests }}
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
       - name: Extract OpenVINO packages
@@ -167,23 +147,6 @@ jobs:
             test_filter='*smoke*'
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter 
-
-      - name: Install OpenVINO Python wheels
-        if: ${{ inputs.run_python_custom_layer_tests }}
-        uses: ./.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino'
-
-      - name: OpenVINO GPU Python custom-layer tests
-        if: ${{ inputs.run_python_custom_layer_tests }}
-        env:
-          TEST_DEVICE: GPU
-          TEST_RESULTS_DIR: ${{ steps.run_tests.outputs.test_results_dir }}
-        run: |
-          python3 -m pip install -c "${INSTALL_TEST_DIR}/bindings/python/constraints.txt" pytest
-          python3 -m pytest -v "${INSTALL_TEST_DIR}/pyopenvino/tests/test_runtime/test_custom_layer_gpu.py" \
-            --junitxml="${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/TEST-python-gpu-custom-layer.xml"
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main

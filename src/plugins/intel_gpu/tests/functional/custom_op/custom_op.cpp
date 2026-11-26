@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -63,6 +65,88 @@ public:
         return true;
     }
 };
+
+class CustomOpInputWorkSize : public ov::op::Op {
+public:
+    OPENVINO_OP("CustomOpInputWorkSize", "gpu_opset");
+
+    CustomOpInputWorkSize() = default;
+    explicit CustomOpInputWorkSize(const ov::Output<ov::Node>& input) : Op({input}) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        set_output_type(0, get_input_element_type(0), ov::Shape{1, 1, 1, 4});
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return std::make_shared<CustomOpInputWorkSize>(inputs.at(0));
+    }
+};
+
+class CustomOpInputWorkSizeTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        auto path = ov::test::utils::generateTestFilePrefix() + "_input_work_size";
+        ASSERT_TRUE(std::filesystem::create_directory(path));
+        directory = std::move(path);
+        std::ofstream kernel(directory / "copy.cl");
+        kernel << R"(
+__kernel void copy_input(__global const INPUT0_TYPE* input, __global OUTPUT0_TYPE* output) {
+    const size_t index = get_global_id(0);
+    output[index] = input[index];
+})";
+        ASSERT_TRUE(kernel.good());
+        std::ofstream config(directory / "custom.xml");
+        config << R"(
+<CustomLayer name="CustomOpInputWorkSize" type="SimpleGPU" version="1">
+    <Kernel entry="copy_input"><Source filename="copy.cl"/></Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+    <WorkSizes dim="input" global="F,1,1"/>
+</CustomLayer>)";
+        ASSERT_TRUE(config.good());
+    }
+
+    void TearDown() override {
+        if (!directory.empty()) {
+            std::error_code error;
+            std::filesystem::remove_all(directory, error);
+            EXPECT_FALSE(error);
+        }
+    }
+
+    std::filesystem::path directory;
+};
+
+TEST_F(CustomOpInputWorkSizeTest, smoke_UsesInputFeatureCount) {
+    // Using the output F would copy only one of the four elements.
+    const ov::Shape input_shape{1, 4, 1, 1};
+    const ov::Shape output_shape{1, 1, 1, 4};
+    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto custom = std::make_shared<CustomOpInputWorkSize>(parameter);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{custom}, ov::ParameterVector{parameter});
+
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       ov::test::utils::DEVICE_GPU,
+                                       {{"CONFIG_FILE", (directory / "custom.xml").string()}});
+    auto request = compiled.create_infer_request();
+    ov::Tensor input(ov::element::f32, input_shape);
+    for (size_t i = 0; i < input.get_size(); ++i) {
+        input.data<float>()[i] = static_cast<float>(i + 1);
+    }
+    request.set_input_tensor(input);
+    request.infer();
+
+    const auto output = request.get_output_tensor();
+    ASSERT_EQ(output.get_shape(), output_shape);
+    for (size_t i = 0; i < input.get_size(); ++i) {
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], input.data<const float>()[i]) << "element " << i;
+    }
+}
 
 static std::shared_ptr<ov::Model> get_simple_model_with_custom_op() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});

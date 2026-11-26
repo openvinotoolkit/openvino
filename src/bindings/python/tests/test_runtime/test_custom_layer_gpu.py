@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 import openvino.opset14 as ops
-from openvino import Core, DiscreteTypeInfo, Model, Op, PartialShape, Shape
+from openvino import Core, DiscreteTypeInfo, Model, Op, Shape
 
 gpu_only = pytest.mark.skipif(
     os.environ.get("TEST_DEVICE") not in ["GPU"],
@@ -16,7 +16,7 @@ gpu_only = pytest.mark.skipif(
 )
 
 
-def make_custom_op_type(type_name, output_shape=None):
+def make_custom_op_type(type_name):
     """Build an Op whose type name the GPU plugin resolves against a CustomLayer entry."""
 
     class CustomLayerOp(Op):
@@ -29,8 +29,7 @@ def make_custom_op_type(type_name, output_shape=None):
                 self.constructor_validate_and_infer_types()
 
         def validate_and_infer_types(self):
-            shape = self.get_input_partial_shape(0) if output_shape is None else PartialShape(output_shape)
-            self.set_output_type(0, self.get_input_element_type(0), shape)
+            self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
         def clone_with_new_inputs(self, new_inputs):
             return CustomLayerOp(new_inputs)
@@ -171,32 +170,3 @@ def test_custom_layer_same_producer_on_two_ports(device, tmp_path):
     result = compiled(data)[0]
 
     assert np.array_equal(result, data * 2)
-
-
-@gpu_only
-def test_custom_layer_static_work_sizes_use_input_shape(device, tmp_path):
-    config = write_config(
-        tmp_path,
-        """<CustomLayer name="CustomLayerInputWorkSizes" type="SimpleGPU" version="1">
-    <Kernel entry="copy">
-        <Source filename="copy.cl"/>
-    </Kernel>
-    <Buffers>
-        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
-        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
-    </Buffers>
-    <WorkSizes dim="input" global="F,1,1"/>
-</CustomLayer>""",
-        {"copy.cl": COPY_KERNEL},
-    )
-
-    # Using the output F instead of the input F would copy only the first value.
-    input_shape = [1, 4, 1, 1]
-    output_shape = [1, 1, 1, 4]
-    param = ops.parameter(Shape(input_shape), dtype=np.float32, name="data")
-    custom = make_custom_op_type("CustomLayerInputWorkSizes", output_shape)([param.output(0)])
-    model = Model([custom.output(0)], [param], "input_work_sizes")
-
-    data = np.arange(1, 5, dtype=np.float32).reshape(input_shape)
-    compiled = Core().compile_model(model, device, {"CONFIG_FILE": config})
-    np.testing.assert_array_equal(compiled(data)[0], data.reshape(output_shape))
