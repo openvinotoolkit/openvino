@@ -110,6 +110,7 @@ void dequant(TDST* dst,
             auto* p_zps = p_scales + K;
             s = s + sizeof(float) * 2 * K;
             attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
+            dst += N * K;
         } else {
             OPENVINO_THROW("dequant: i8 doesn't support by-channel quantization.");
         }
@@ -421,6 +422,7 @@ struct MHAHelper {
     ov::Extensions::Cpu::PagedAttnQuantParams _params;
     size_t _new_score_stride = 0;
     bool AarchF16 = false;
+    bool _brgemm_fp32 = false;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
@@ -672,6 +674,14 @@ struct MHAHelper {
         //   aka: M:1~block_size, N:S, K:block_size
         // Because K and V are from cache, can use M2'=rnd_up(M2, block_size) to simplify logic
         auto in_type = precision_of<DATA_TYPE>::value;
+#    if defined(OPENVINO_ARCH_X86_64)
+        // The node owns the FP32 layout on CPUs without AMX-FP16. BRGEMM must
+        // receive that layout rather than widen already packed FP16 operands.
+        _brgemm_fp32 = in_type == ov::element::f16 &&
+                       !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
+                       !_params.is_sage_attn;
+#    endif
+        const auto brgemm_type = _brgemm_fp32 ? ov::element::Type_t::f32 : in_type;
         this->H = H;
         this->S = S;
         this->SV = SV;
@@ -690,11 +700,7 @@ struct MHAHelper {
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        if (_params.quant_key_bychannel || _params.quant_value_bychannel) {
-            _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
-        } else {
-            _output.resize<float>({_nthr, _block_size, H, SV});
-        }
+        _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
 
         // to ensure qk s8s8 s32 has enough buffer
         if (_params.is_sage_attn && H * std::max(S, SV) < _block_size) {
@@ -711,6 +717,7 @@ struct MHAHelper {
             _wv_gemm.resize(_block_size);
             _wv_gemm_acc.resize(_block_size);
             size_t wv_stride = q_is_xf16 ? _output.stride(1) : H * SV;
+            const size_t wv_lda = _brgemm_fp32 ? _block_size : (q_is_xf16 ? 2 : 1) * _new_score_stride;
             for (size_t i = 0; i < _block_size; i++) {
                 if (_params.is_sage_attn) {
                     // [M, K] x [N, K]^T
@@ -737,33 +744,23 @@ struct MHAHelper {
                     _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                                  _block_size,
                                                                  S,
-                                                                 H * S,
+                                                                 _brgemm_fp32 ? S : H * S,
                                                                  _block_size,
                                                                  _new_score_stride,
                                                                  false,
-                                                                 in_type);
+                                                                 brgemm_type);
                 }
                 _wv_gemm[i] =
-                    std::make_shared<BrgemmKernel>(i + 1,
-                                                   SV,
-                                                   _block_size,
-                                                   // if it's bf16, the stride needs double due to reuse float buffer
-                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
-                                                   SV,
-                                                   wv_stride,
-                                                   false,
-                                                   in_type);
-                _wv_gemm_acc[i] =
-                    std::make_shared<BrgemmKernel>(i + 1,
-                                                   SV,
-                                                   _block_size,
-                                                   // if it's bf16, the stride needs double due to reuse float buffer
-                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
-                                                   SV,
-                                                   wv_stride,
-                                                   false,
-                                                   in_type,
-                                                   true);
+                    std::make_shared<BrgemmKernel>(i + 1, SV, _block_size, wv_lda, SV, wv_stride, false, brgemm_type);
+                _wv_gemm_acc[i] = std::make_shared<BrgemmKernel>(i + 1,
+                                                                 SV,
+                                                                 _block_size,
+                                                                 wv_lda,
+                                                                 SV,
+                                                                 wv_stride,
+                                                                 false,
+                                                                 brgemm_type,
+                                                                 true);
             }
 
             // wsp is used to compute beta when K is blocked
@@ -771,10 +768,15 @@ struct MHAHelper {
             _wsp.resize(_nthr * _wsp_size_per_thread);
 
             // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
-            _qk_scratch_a.resize<DATA_TYPE>(
-                {_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
-            _wv_scratch_a.resize<DATA_TYPE>(
-                {_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+            if (_brgemm_fp32) {
+                _qk_scratch_a.resize<float>({_nthr, _block_size * S});
+                _wv_scratch_a.resize<float>({_nthr, _block_size * _block_size});
+            } else {
+                _qk_scratch_a.resize<DATA_TYPE>(
+                    {_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+                _wv_scratch_a.resize<DATA_TYPE>(
+                    {_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+            }
 
 #    if defined(OPENVINO_ARCH_X86_64)
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
@@ -809,6 +811,11 @@ struct MHAHelper {
     }
 
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
+        if (_brgemm_fp32) {
+            _qk_scratch_b.resize<float>({batch, kv_len_in_blocks, Hk, _block_size * S});
+            _wv_scratch_b.resize<float>({batch, kv_len_in_blocks, Hk, _block_size * SV});
+            return;
+        }
         // append the scale after the tokens
         if (_params.is_sage_attn) {
             size_t padded_S = std::max((S + sizeof(float) / sizeof(int8_t)), rnd_up(S, 64));
@@ -926,6 +933,13 @@ struct MHAHelper {
         }
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
+            void* q_gemm_ptr = q_ptr;
+            if constexpr (precision_of<DATA_TYPE>::value == ov::element::f16) {
+                if (_brgemm_fp32) {
+                    q_gemm_ptr = _qk_scratch_a.ptr<float>(ithr);
+                    cvt_copy(static_cast<float*>(q_gemm_ptr), q_ptr, q_cnt, S, query.stride(1), S);
+                }
+            }
             if (_params.is_sage_attn) {
                 // local_q shape [block_size, S + sizeof(float)]
                 auto local_q = _quantized_q.slice(0, ithr, ithr + 1).reshape({_block_size, S + sizeof(float)});
@@ -962,18 +976,18 @@ struct MHAHelper {
                                                      dst_f32,
                                                      scale_b,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
-                                                     _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                                                     _qk_scratch_a ? _qk_scratch_a.ptr_v(ithr) : nullptr);
 #    endif
                 } else {
-                    auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
+                    auto* k_ptr = qk_scratch_b.ptr_v(k_blk, hk);
                     _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
-                                                     q_ptr,
+                                                     q_gemm_ptr,
                                                      k_ptr,
                                                      c_ptr + k_blk * _block_size,
                                                      nullptr,
                                                      nullptr,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
-                                                     _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                                                     _qk_scratch_a ? _qk_scratch_a.ptr_v(ithr) : nullptr);
                 }
             }
 
@@ -1089,31 +1103,42 @@ struct MHAHelper {
                         continue;
                     }
                 }
-                DATA_TYPE* v_ptr = nullptr;
+                void* v_ptr = nullptr;
                 if (q_is_xf16 || !q_cache_is_same) {
-                    v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
+                    v_ptr = wv_scratch_b.ptr_v(v_blk, hk);
                 } else {
                     v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
                 }
+                void* w_gemm_ptr = w_ptr + v_blk * _block_size;
+                if constexpr (precision_of<DATA_TYPE>::value == ov::element::f16) {
+                    if (_brgemm_fp32) {
+                        w_gemm_ptr = _wv_scratch_a.ptr<float>(ithr);
+                        cvt_copy(static_cast<float*>(w_gemm_ptr),
+                                 w_ptr + v_blk * _block_size,
+                                 q_cnt,
+                                 _block_size,
+                                 2 * _new_score_stride,
+                                 _block_size);
+                    }
+                }
                 if (v_blk == 0) {
                     _wv_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
-                                                     w_ptr + v_blk * _block_size,
+                                                     w_gemm_ptr,
                                                      v_ptr,
                                                      fp32_out_ptr,
                                                      nullptr,
                                                      nullptr,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
-                                                     _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                                                     _wv_scratch_a ? _wv_scratch_a.ptr_v(ithr) : nullptr);
                 } else {
-                    _wv_gemm_acc[q_cnt - 1]->executeGemm(
-                        q_cnt < _block_size,
-                        w_ptr + v_blk * _block_size,
-                        v_ptr,
-                        fp32_out_ptr,
-                        nullptr,
-                        nullptr,
-                        _wsp.data() + ithr * _wsp_size_per_thread,
-                        _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                    _wv_gemm_acc[q_cnt - 1]->executeGemm(q_cnt < _block_size,
+                                                         w_gemm_ptr,
+                                                         v_ptr,
+                                                         fp32_out_ptr,
+                                                         nullptr,
+                                                         nullptr,
+                                                         _wsp.data() + ithr * _wsp_size_per_thread,
+                                                         _wv_scratch_a ? _wv_scratch_a.ptr_v(ithr) : nullptr);
                 }
             }
             if (q_is_xf16) {
@@ -1423,7 +1448,7 @@ struct MHAHelper {
             }
         }
 
-        memset(_output.ptr<float>(ithr), 0, q_len * H * SV * sizeof(float));
+        memset(_output.ptr<float>(ithr), 0, q_len * _output.stride(1) * sizeof(float));
         for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {
@@ -1754,6 +1779,49 @@ struct MHA {
 
             const auto ithr = static_cast<size_t>(parallel_get_thread_num());
             const size_t valid_len = item.valid_block_len;
+            if constexpr (precision_of<DATA_TYPE>::value == ov::element::f16) {
+                if (_helper._brgemm_fp32) {
+                    auto* k_ptr = k_cache.ptr_v(block_number, hk);
+                    auto* k_dst = _helper._qk_scratch_b.template ptr<float>(batch_in_reorder, kv_block, hk);
+                    auto* tmp = reinterpret_cast<DATA_TYPE*>(_helper._output.template ptr<float>(ithr));
+                    if constexpr (KEY_PREC != ov::element::f16) {
+                        // Preserve the existing FP16 rounding after cache dequantization.
+                        dequant<DATA_TYPE, KEY_PREC>(tmp,
+                                                     k_ptr,
+                                                     valid_len,
+                                                     _helper.S,
+                                                     _helper._block_size,
+                                                     _helper._params.key_group_size,
+                                                     _helper._params.quant_key_bychannel);
+                        k_ptr = tmp;
+                    }
+                    transpose_16NxK<float, ov::element::f16>(k_dst,
+                                                             k_ptr,
+                                                             nullptr,
+                                                             valid_len,
+                                                             _helper.S,
+                                                             _helper._block_size,
+                                                             _helper._block_size,
+                                                             _helper.S,
+                                                             0,
+                                                             false);
+                    auto* v_ptr = v_cache.ptr_v(block_number, hk);
+                    auto* v_dst = _helper._wv_scratch_b.template ptr<float>(batch_in_reorder, kv_block, hk);
+                    if constexpr (VALUE_PREC == ov::element::f16) {
+                        dequant<float, VALUE_PREC>(v_dst, v_ptr, valid_len, _helper.SV, _helper._block_size, 0, false);
+                    } else {
+                        dequant<DATA_TYPE, VALUE_PREC>(tmp,
+                                                       v_ptr,
+                                                       valid_len,
+                                                       _helper.SV,
+                                                       _helper._block_size,
+                                                       _helper._params.value_group_size,
+                                                       _helper._params.quant_value_bychannel);
+                        cvt_copy(v_dst, tmp, 1, _helper._block_size * _helper.SV, 0, 0);
+                    }
+                    return;
+                }
+            }
             if (_helper._params.is_sage_attn) {
 #    if defined(OPENVINO_ARCH_X86_64)
                 sage_attn_transpose_k(item,

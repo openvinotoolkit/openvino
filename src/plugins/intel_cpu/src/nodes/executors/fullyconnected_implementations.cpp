@@ -69,6 +69,8 @@ static const TypeMapping dnnlFCTypeMapping {
     // {src, wei, bia, dst}                                   pt<src, wei, bias, dst>
     {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},               {bypass(), bypass(), use<3>(), bypass()}},
     {{_f16, _f16, _any, _f16 | _f32},                         {bypass(), bypass(), use<3>(), bypass()}},
+    // Widen f16 activations at the node boundary while retaining compressed weights.
+    {{_f16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1 | _u2 | _u3, _any, _any}, {just<f32>(), bypass(), just<f32>(), just<f32>()}},
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            {bypass(), bypass(), use<0>(), use<0>()}},
     // compresses float weights which do not match input data precision
