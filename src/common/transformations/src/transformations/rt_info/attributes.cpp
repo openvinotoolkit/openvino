@@ -4,6 +4,8 @@
 
 #include "transformations/rt_info/attributes.hpp"
 
+#include "transformations/rt_info/nonconvertible_divide.hpp"
+
 ov::pass::Attributes::Attributes() {
     register_factory<ov::FusedNames>();
     register_factory<PrimitivesPriority>();
@@ -17,6 +19,7 @@ ov::pass::Attributes::Attributes() {
     register_factory<OldApiMapElementType>();
     register_factory<LayoutAttribute>();
     register_factory<Decompression>();
+    register_factory<NonconvertibleDivide>();
     register_factory<ov::preprocess::TensorInfoMemoryType>();
     register_factory<StridesPropagation>();
     register_factory<PreprocessingAttribute>();
