@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     auto batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
     if (llama_decode(c, batch))
         return 6;
-    const int32_t dim = llama_model_n_embd(m);
+    const int32_t dim = llama_model_n_embd_out(m);
     const int32_t count = static_cast<int32_t>(tokens.size());
     std::ofstream out(argv[2], std::ios::binary);
     out.write(reinterpret_cast<const char*>(&dim), sizeof(dim));
