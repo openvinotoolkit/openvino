@@ -74,11 +74,18 @@ inline void multiplyAndBroadcastScales(std::vector<float>& dstScales,
     }
 }
 
+// True when the FakeQuantize output stage is a per-tensor unit scale and an integral shift, so the shift can be
+// folded into the input shift (the destination zero point of a quantized executor).
+inline bool canFoldFakeQuantizeOutputShift(const std::vector<float>& fqOutputScale,
+                                           const std::vector<float>& fqOutputShift) {
+    return fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
+           fqOutputShift[0] == std::trunc(fqOutputShift[0]);
+}
+
 inline void foldFakeQuantizeOutputShift(std::vector<float>& fqInputShift,
                                         const std::vector<float>& fqOutputScale,
                                         const std::vector<float>& fqOutputShift) {
-    if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
-        fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
+    if (canFoldFakeQuantizeOutputShift(fqOutputScale, fqOutputShift)) {
         for (auto& v : fqInputShift) {
             v += fqOutputShift[0];
         }
