@@ -140,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_f16_3d3d_static,
                          ::testing::Combine(::testing::ValuesIn(shapes_3d_3d_static),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(expected_primitive("GroupedMatMul", "Gemm"))),
+                                            ::testing::Values(expected_primitive("GroupedMatMul", "MatMul"))),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 // The native 2Dx3D implementation (oneDNN grouped_gemm) supports only f16 activations, so with f32 inference
@@ -222,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_3d3d_static,
                                             ::testing::Values(true),
                                             ::testing::Values(128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "Gemm")),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "MatMul")),
                                             ::testing::Values(ov::AnyMap{})),
                          GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
 
