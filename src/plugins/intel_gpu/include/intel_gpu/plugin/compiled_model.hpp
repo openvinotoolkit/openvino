@@ -33,7 +33,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
-                  const bool loaded_from_cache,
+                  bool loaded_from_cache,
                   ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
     ~CompiledModel() override {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());

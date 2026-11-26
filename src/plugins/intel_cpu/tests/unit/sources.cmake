@@ -11,6 +11,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_zero_dims_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rt_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/weights_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/dummy_node.hpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/enforce_inference_precision_bf16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/inplace_resolve_io.cpp
@@ -35,6 +36,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_rms_norm_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp
@@ -123,6 +125,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/reshape_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/reverse_sequence_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/reverse_shape_inference_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/rgb_bgr_to_nv12_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/rms_norm_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/rnn_cell_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/rnn_seq_shape_inference_test.cpp
@@ -199,6 +202,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/lowered/buffer_allocation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/convert_matmul_test_3d_weight.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/convert_to_interaction.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/mlp_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/qkv_proj_fusion_test.cpp
 )
 
@@ -216,9 +220,11 @@ set(CPU_UNIT_TESTS_ARM_SRCS
 )
 
 set(CPU_UNIT_TESTS_AARCH64_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_fp16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/snipptes_mark_skipped.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/adjust_gemm_copy_b_loop_ports.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/gemm_blocking.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/scaled_attn_mha_single_token_gqa_test.cpp
 )
 
 set(CPU_UNIT_TESTS_MLAS_SRCS
@@ -275,6 +281,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_rms_norm_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp

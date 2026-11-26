@@ -61,7 +61,7 @@ inline bool expert_gemm_compute(
 #ifdef WEIGHT_COMPRESSED_INT4
     weight_scales += expert_id * m_gemm * NUM_GROUPS;
 #    ifdef WEIGHT_ZP_DT
-#        ifdef WEIGHT_COMPRESSED_ZP_INT4
+#        if WEIGHT_COMPRESSED_ZP_INT4
     weight_zps += expert_id * m_gemm * NUM_GROUPS / 2;
 #        else
     weight_zps += expert_id * m_gemm * NUM_GROUPS;

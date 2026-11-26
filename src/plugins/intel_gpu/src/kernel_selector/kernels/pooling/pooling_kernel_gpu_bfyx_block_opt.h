@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*p*/) const override;
     JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
     DispatchData SetDefault(const pooling_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {

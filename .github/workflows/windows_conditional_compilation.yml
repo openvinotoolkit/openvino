@@ -74,9 +74,10 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
+      CCACHE_SECONDARY_STORAGE: "file:///C:/mount/caches/ccache/shared/windows/vs2022/x86_64/Release_collect|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -137,15 +138,14 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+        run: |
+          ccache --version
+          $config = ccache --show-config | Out-String
+          Write-Output $config
+          if (-not $config.Contains($env:CCACHE_SECONDARY_STORAGE)) {
+            Write-Error "ccache remote storage is not configured: expected $env:CCACHE_SECONDARY_STORAGE"
+            exit 1
+          }
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -160,7 +160,6 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DBUILD_SHARED_LIBS=OFF `
-            -DCMAKE_CXX_STANDARD=20 `
             -DENABLE_TESTS=ON `
             -DENABLE_NCC_STYLE=OFF `
             -DENABLE_PROFILING_ITT=FULL `
@@ -183,7 +182,8 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Show ccache stats
-        run: '& ccache --show-stats'
+        if: ${{ !cancelled() }}
+        run: '& ccache --show-stats --verbose'
 
       - name: Cmake install - OpenVINO
         run: |
@@ -346,12 +346,6 @@ jobs:
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
 
-      # We have to specify additional flags here
-      # to limit MSBuild, cl.exe, and link.exe parallelization.
-      # Default values don't respect Kubernetes pod CPU limits.
-      # They will be set too high for big VMs
-      # shared with other jobs, which will cause
-      # "Compiler is out of heap memory" errors.
       - name: CMake configure - CC ON
         run: |
           cmake `
@@ -368,15 +362,14 @@ jobs:
             -DENABLE_OV_JAX_FRONTEND=OFF `
             -DENABLE_OV_ONNX_FRONTEND=OFF `
             -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
-            -DCMAKE_CXX_FLAGS="/cgthreads${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} /MP${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
-            -DCMAKE_C_FLAGS="/cgthreads${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} /MP${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
-            -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
-            -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
-            -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - CC ON
+        env:
+          UseMultiToolTask: 'true'
+          EnforceProcessCountAcrossBuilds: 'true'
+          MultiProcMaxCount: ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}
         run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
 
       - name: List bin files
