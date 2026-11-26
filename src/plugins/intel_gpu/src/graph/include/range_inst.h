@@ -35,7 +35,7 @@ public:
     static layout calc_output_layout(range_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(range_node const& node);
 
-    typed_primitive_inst(network& network, range_node const& desc);
+    typed_primitive_inst(network& network, const range_node& node);
 };
 
 using range_inst = typed_primitive_inst<range>;

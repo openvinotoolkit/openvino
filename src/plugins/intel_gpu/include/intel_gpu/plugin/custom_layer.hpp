@@ -16,10 +16,7 @@ using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
 using CustomLayerMap = std::map<std::string, CustomLayerPtr>;
 class CustomLayer{
 public:
-    static void LoadFromFile(
-        const std::string configFile,
-        CustomLayerMap& customLayers,
-        bool can_be_missed = false);
+    static void LoadFromFile(std::string configFile, CustomLayerMap& customLayers, bool can_be_missed = false);
 
     enum ParamType {
         Input,
@@ -54,7 +51,9 @@ public:
     const std::vector<std::string>& GlobalSizeRules()const { return m_globalSizeRules; }
     const std::vector<std::string>& LocalSizeRules()const { return m_localSizeRules; }
     const std::vector<KerenlParam>& KernelParams()const { return m_kernelParams; }
-    int InputDimSourceIndex() { return m_wgDimInputIdx; }
+    int InputDimSourceIndex() const {
+        return m_wgDimInputIdx;
+    }
 
 protected:
     CustomLayer() : m_wgDimInputIdx(0) {}

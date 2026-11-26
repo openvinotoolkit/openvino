@@ -214,6 +214,47 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
 template std::vector<layout> deconvolution_inst::calc_output_layouts<ov::PartialShape>(deconvolution_node const& node,
                                                                                        const kernel_impl_params& impl_param);
 
+ov::CoordinateDiff deconvolution_inst::get_pads_begin(const kernel_impl_params& impl_param) {
+    const auto desc = impl_param.typed_desc<deconvolution>();
+    if (desc->auto_pad != ov::op::PadType::SAME_UPPER && desc->auto_pad != ov::op::PadType::SAME_LOWER) {
+        return desc->pad;
+    }
+
+    // Shapes may be extended with trailing 1s for the kernels, so take the spatial dims that follow
+    // the batch and feature dims (the group, output and input feature dims for weights).
+    const auto num_spatial = desc->stride.size();
+    const auto& weights_layout = impl_param.get_input_layout(1);
+    const bool grouped_weights = desc->grouped_weights_shape || format::is_grouped(weights_layout.format);
+    auto get_spatial_dims = [&](const layout& l, size_t offset) {
+        const auto& pshape = l.get_partial_shape();
+        if (pshape.rank().is_dynamic()) {
+            return ov::PartialShape::dynamic(num_spatial);
+        }
+        OPENVINO_ASSERT(pshape.size() >= offset + num_spatial, "[GPU] Unexpected rank of ", pshape, " for deconvolution ", desc->id);
+        return ov::PartialShape(std::vector<ov::Dimension>(pshape.begin() + offset, pshape.begin() + offset + num_spatial));
+    };
+
+    ov::op::v1::ConvolutionBackpropData op;
+    op.set_strides(desc->stride);
+    auto dilations = desc->dilations;
+    dilations.resize(num_spatial, 1);
+    op.set_dilations(dilations);
+    auto out_padding = desc->out_padding;
+    out_padding.resize(num_spatial, 0);
+    op.set_output_padding(out_padding);
+    op.set_auto_pad(desc->auto_pad);
+
+    ov::CoordinateDiff pads_begin(num_spatial, 0);
+    ov::CoordinateDiff pads_end(num_spatial, 0);
+    ov::op::convolution::apply_auto_pad(&op,
+                                        get_spatial_dims(impl_param.get_input_layout(0), 2),
+                                        get_spatial_dims(weights_layout, grouped_weights ? 3 : 2),
+                                        get_spatial_dims(impl_param.get_output_layout(0), 2),
+                                        pads_begin.begin(),
+                                        pads_end.begin());
+    return pads_begin;
+}
+
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     auto desc = node.get_primitive();
     auto strd = desc->stride;

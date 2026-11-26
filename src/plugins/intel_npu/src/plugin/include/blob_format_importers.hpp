@@ -11,6 +11,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -47,12 +48,14 @@ public:
      * @param network_name The resulted graph object will use this network name.
      * @param core The OV core. The weights separation feature may depend on this object to extract the original
      * weights.
+     * @param vclFunctionsProvider Supplies the VCL entry points provider, forwarded to the parser factory.
      * @return A graph object. The type of graph depends on the content of the blob. E.g. a "weightless" graph will be
      * returned if the weights separation feature was detected.
      */
     std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                          const std::string_view network_name,
-                                         const std::shared_ptr<ov::ICore>& core);
+                                         const std::shared_ptr<ov::ICore>& core,
+                                         const VCLFunctionTableProvider& vclFunctionsProvider);
 
     /**
      * @brief Uses the metadata of the resulted graph object to build a minimalistic OV model.
@@ -92,7 +95,7 @@ private:
     /**
      * @brief If a batch size a stored, this method will be used to extract it.
      */
-    virtual std::optional<int> extract_batch_size() const = 0;
+    virtual std::optional<int64_t> extract_batch_size() const = 0;
 
     /**
      * @brief If input/output layouts were stored, this method will be used to extract them.
@@ -111,7 +114,7 @@ private:
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
      */
     std::shared_ptr<const ov::Model> m_original_model;
-    std::optional<int> m_batch_size;
+    std::optional<int64_t> m_batch_size;
     std::shared_ptr<IGraph> m_graph;
 };
 
@@ -134,5 +137,38 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const Config& config);
 
 }  // namespace blob_format_importer_factory
+
+namespace blob_format_importer_utils {
+
+/**
+ * @brief Checks that the I/O descriptors of the main schedule don't describe init schedule weights.
+ * @details The init schedule weights descriptors belong to the init schedules only. Their flags are derived from the
+ * argument names found in the blob, so an argument of the main schedule using such a name must be rejected. Otherwise,
+ * it would be dropped from the imported model and treated as an init schedule buffer by the inference request.
+ *
+ * @param metadata The I/O descriptors of the main schedule.
+ * @throws ov::Exception if at least one descriptor is marked as an init schedule weights descriptor.
+ */
+void validate_main_schedule_descriptors(const NetworkMetadata& metadata);
+
+/**
+ * @brief Checks that the batch size declared by the blob metadata is consistent with the compiled schedule.
+ * @details A batch size, either static (greater than 0) or dynamic ("utils::DYNAMIC_BATCH_SIZE"), means that the
+ * batching is handled by the plugin: the model has been compiled with a batch of 1 and the plugin runs the schedule
+ * once per batch slice. Therefore, every I/O descriptor is expected to have a static batch dimension equal to 1 in the
+ * compiled schedule (so no dynamic rank, scalar or dynamic batch dimension is accepted), and no state or shape tensor
+ * descriptor is expected, as these cannot be combined with the plugin batching. Dynamic dimensions other than the batch
+ * are accepted. The main schedule weights are not checked.
+ *
+ * @param metadata The I/O descriptors of the main schedule.
+ * @param batch_size The batch size declared by the blob metadata, if any. No value means that the batching is not
+ * handled by the plugin and nothing is checked. "utils::DYNAMIC_BATCH_SIZE" marks a dynamic batch, which is checked
+ * as a static one.
+ * @throws ov::Exception if the batch size is 0 or lower than "utils::DYNAMIC_BATCH_SIZE", or if a descriptor
+ * doesn't have a static compiled batch dimension equal to 1.
+ */
+void validate_batch_size(const NetworkMetadata& metadata, const std::optional<int64_t>& batch_size);
+
+}  // namespace blob_format_importer_utils
 
 }  // namespace intel_npu

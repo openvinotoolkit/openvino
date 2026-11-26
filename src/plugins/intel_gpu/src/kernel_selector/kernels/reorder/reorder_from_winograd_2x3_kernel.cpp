@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,11 +42,11 @@ ReorderFromWinograd2x3Kernel::DispatchData ReorderFromWinograd2x3Kernel::SetDefa
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    dispatchData.gws[0] = static_cast<size_t>(output.Feature().v * output.Batch().v);
+    dispatchData.gws[0] = (output.Feature().v * output.Batch().v);
     dispatchData.gws[1] = static_cast<size_t>(output.X().v / output_tile_width);
-    dispatchData.gws[2] = static_cast<size_t>(output.Y().v);
+    dispatchData.gws[2] = output.Y().v;
 
-    dispatchData.lws[0] = input.Feature().v > 32 ? 32 : static_cast<size_t>(input.Feature().v);
+    dispatchData.lws[0] = input.Feature().v > 32 ? 32 : input.Feature().v;
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 

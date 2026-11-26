@@ -1,9 +1,10 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mvn_kernel_base.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "kernel_selector_utils.h"
@@ -13,16 +14,16 @@ namespace kernel_selector {
 bool MVNKernelBase::Validate(const Params& params) const {
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
-    for (const auto& fused_op : orgParams.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(params.layerID);
-        }
+    if (std::any_of(orgParams.fused_ops.begin(), orgParams.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;
 }
 
-JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData) const {
+JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData /*unused*/) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstants({
@@ -99,7 +100,7 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params) const {
     return {kd};
 }
 
-Datatype MVNKernelBase::GetActivationType(const mvn_params& params) const {
+Datatype MVNKernelBase::GetActivationType(const mvn_params& params) {
     if (params.inputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
     }
