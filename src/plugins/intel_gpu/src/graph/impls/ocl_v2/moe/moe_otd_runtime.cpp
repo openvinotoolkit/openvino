@@ -209,14 +209,17 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
     auto& pool = staging_pool ? *staging_pool : local_pool;
     auto& staging = pool.chunks;
     std::vector<cldnn::event::ptr> events;
+    std::vector<cldnn::event::ptr> device_uploads;
     auto& cursor = pool.cursor;
     std::exception_ptr error;
     auto* perf = get_perf_counters();
     try {
         for (const auto& plan : plans) {
             if (plan.source_memory) {
-                events.push_back(plan.memory->copy_from(transfer_stream, *plan.source_memory, plan.source,
-                                                       plan.destination, plan.bytes, false));
+                auto& upload = device_uploads.emplace_back();
+                upload = plan.memory->copy_from(transfer_stream, *plan.source_memory, plan.source,
+                                                plan.destination, plan.bytes, false);
+                events.push_back(upload);
                 if (uploaded_bytes) {
                     *uploaded_bytes += plan.bytes;
                 }
@@ -227,6 +230,7 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                 auto& buffer = staging[cursor++ % staging.size()];
                 if (buffer.upload) {
                     buffer.upload->wait();
+                    buffer.upload.reset();
                 }
                 auto bytes = std::min(chunk_bytes, plan.bytes - offset);
                 if (!buffer.memory) {
@@ -262,6 +266,7 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
         if (buffer.upload) {
             try {
                 buffer.upload->wait();
+                buffer.upload.reset();
             } catch (...) {
                 if (!error) {
                     error = std::current_exception();
@@ -269,7 +274,7 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
             }
         }
     }
-    for (const auto& event : events) {
+    for (const auto& event : device_uploads) {
         try {
             if (event) {
                 event->wait();
