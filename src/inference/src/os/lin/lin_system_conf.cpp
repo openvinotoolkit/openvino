@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-#include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -287,7 +286,9 @@ CPU::CPU() {
         }
     }
 
-    if (custom::info::core_types().size() > 1) {
+    if ((_proc_type_table[0][MAIN_CORE_PROC] > 0) + (_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) +
+            (_proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) >
+        1) {
         _cpu_freq_table.reserve(_cpu_mapping_table.size());
         for (const auto& cpu : _cpu_mapping_table) {
             const int cpu_id = cpu[CPU_MAP_PROCESSOR_ID];
