@@ -526,6 +526,56 @@ TEST_F(GGUFParser, RawWeightsPublicIrRoundTrip) {
     }
 }
 
+TEST_F(GGUFParser, NativeQ4KGatherMatchesLegacyOnCPU) {
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "CPU") == devices.end())
+        GTEST_SKIP() << "CPU plugin is unavailable";
+
+    auto bytes = load_npy<uint8_t>("q4_k_qbytes");
+    GgufWeight source;
+    source.shape = {4, 256};
+    source.qtype = GGUF_TYPE_Q4_K;
+    source.source_name = "token_embd.weight";
+    source.data = ov::Tensor(ov::element::u8, {bytes.size()}, bytes.data());
+    const auto legacy = make_weight_node(unpack_gguf_weight(source), source.qtype, source.source_name);
+    source.preserve_raw = true;
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(make_weight_node(source));
+    ASSERT_TRUE(weights);
+    ASSERT_EQ(weights->get_byte_size(), bytes.size());
+
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    const auto scale = ov::op::v0::Constant::create(ov::element::f16, {}, {1});
+    const auto gather = std::make_shared<ov::op::internal::GatherCompressed>(weights, indices, axis, 0, scale);
+    const auto native = std::make_shared<ov::op::v0::Convert>(gather, ov::element::f32);
+    const auto reference = std::make_shared<ov::op::v8::Gather>(legacy, indices, axis);
+    const auto compile = [&](const ov::Output<ov::Node>& output) {
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{indices});
+        return core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    };
+    auto actual_request = compile(native).create_infer_request();
+    auto reference_request = compile(reference).create_infer_request();
+    for (std::vector<int32_t> rows : {std::vector<int32_t>{0}, {3, 1, 3, 2}}) {
+        ov::Tensor input(ov::element::i32, {rows.size()}, rows.data());
+        actual_request.set_input_tensor(input);
+        reference_request.set_input_tensor(input);
+        actual_request.infer();
+        reference_request.infer();
+        const auto actual = actual_request.get_output_tensor();
+        const auto expected = reference_request.get_output_tensor();
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{rows.size(), 256}));
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ASSERT_EQ(actual.get_element_type(), expected.get_element_type());
+        for (size_t index = 0; index < actual.get_size(); ++index) {
+            ASSERT_FLOAT_EQ(actual.data<const float>()[index], expected.data<const float>()[index]) << index;
+        }
+    }
+    EXPECT_EQ(gather->get_input_node_shared_ptr(0), weights);
+    EXPECT_EQ(weights->get_element_type(), ov::element::gguf_q4_k);
+    EXPECT_EQ(std::memcmp(weights->get_data_ptr(), bytes.data(), bytes.size()), 0);
+}
+
 TEST_F(GGUFParser, InternalCompressedOpsPublicIrRoundTrip) {
     const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 256});
     const auto weights = ov::op::v0::Constant::create(ov::element::u8, {1, 256}, {0});

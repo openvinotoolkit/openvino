@@ -442,7 +442,44 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
     return true;
 }
 
+static void lower_gguf_q4_k_gather(ov::Model& model) {
+    for (const auto& node : model.get_ordered_ops()) {
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node);
+        if (!convert || convert->get_convert_element_type() != ov::element::f32)
+            continue;
+        const auto gather = ov::as_type_ptr<ov::op::internal::GatherCompressed>(convert->get_input_node_shared_ptr(0));
+        if (!gather || gather->get_input_element_type(0) != ov::element::gguf_q4_k ||
+            gather->get_input_size() != 4 || gather->get_batch_dims() != 0 ||
+            gather->get_input_element_type(3) != ov::element::f16)
+            continue;
+        const auto weight = ov::as_type_ptr<ov::op::v0::Constant>(gather->get_input_node_shared_ptr(0));
+        const auto axis = ov::as_type_ptr<ov::op::v0::Constant>(gather->get_input_node_shared_ptr(2));
+        const auto unit_scale = ov::as_type_ptr<ov::op::v0::Constant>(gather->get_input_node_shared_ptr(3));
+        if (!weight || !axis || ov::shape_size(axis->get_shape()) != 1 || axis->cast_vector<int64_t>().front() != 0 ||
+            !unit_scale || !unit_scale->get_shape().empty() || unit_scale->cast_vector<float>().front() != 1.f)
+            continue;
+        const auto& shape = weight->get_shape();
+        if (shape.size() != 2 || !shape[0] || !shape[1] || shape[1] % ov::element::gguf_q4_k.block_elem_count() != 0)
+            continue;
+
+        ov::Tensor codes(ov::element::u4, shape);
+        ov::Tensor scales(ov::element::f16, {shape[0], shape[1] / 32});
+        ov::Tensor zero_points(ov::element::f16, scales.get_shape());
+        ov::util::unpack_gguf_q4_k(static_cast<const uint8_t*>(weight->get_data_ptr()),
+                                 weight->get_byte_size(), codes, scales, zero_points);
+        const auto to_f32 = [](const ov::Tensor& tensor) {
+            return std::make_shared<ov::op::v0::Convert>(std::make_shared<ov::op::v0::Constant>(tensor), ov::element::f32);
+        };
+        const auto replacement = std::make_shared<ov::op::internal::GatherCompressed>(
+            std::make_shared<ov::op::v0::Constant>(codes), gather->input_value(1), gather->input_value(2), 0,
+            to_f32(scales), to_f32(zero_points));
+        ov::copy_runtime_info({gather, convert}, replacement);
+        ov::replace_node_update_name(convert, replacement);
+    }
+}
+
 void Transformations::UpToLpt() {
+    lower_gguf_q4_k_gather(*model);
     ov::util::lower_gguf_fc(*model,
                           {ov::element::gguf_q8_0, ov::element::gguf_q4_0, ov::element::gguf_q4_1,
                            ov::element::gguf_q6_k, ov::element::gguf_q4_k, ov::element::gguf_q5_k});
