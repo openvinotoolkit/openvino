@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
@@ -19,7 +18,8 @@ namespace ov::intel_cpu {
 /// Checked: past_lens >= 0; subsequence_begins starts at 0, never decreases and ends at `num_tokens` (every token
 /// belongs to a sequence); block_indices_begins starts at >= 0, never decreases and stays within the block_indices
 /// tensor; every sequence fits the pages it owns (past + q <= pages * page_size); every used block id is below
-/// `num_pages`.
+/// `num_pages`; the flattened slots (block * page_size + offset, below num_pages * page_size) fit int32, the type of
+/// the slot mappings of the kernels.
 ///
 /// @param num_tokens  tokens of the call (the rows of the per-token inputs)
 /// @param page_size   tokens per page of the caches
@@ -37,6 +37,12 @@ inline void check_paged_page_table(const PlainTensor& past_lens,
     const size_t num_seq = subsequence_begins.size(0) - 1;
     OPENVINO_ASSERT(past_lens.size(0) >= num_seq, "[CPU] paged attention: past_lens has fewer entries than sequences");
     OPENVINO_ASSERT(page_size > 0, "[CPU] paged attention: the page size must be positive");
+    OPENVINO_ASSERT(num_pages <= (uint64_t{1} << 31) / page_size,
+                    "[CPU] paged attention: ",
+                    num_pages,
+                    " pages of ",
+                    page_size,
+                    " tokens have slots beyond the int32 range");
     const auto* past = past_lens.ptr<int32_t>();
     const auto* token_begins = subsequence_begins.ptr<int32_t>();
     const auto* page_begins = block_indices_begins.ptr<int32_t>();
@@ -61,8 +67,7 @@ inline void check_paged_page_table(const PlainTensor& past_lens,
                     "[CPU] paged attention: subsequence_begins must cover the tokens of the call");
     OPENVINO_ASSERT(static_cast<size_t>(page_begins[num_seq]) <= block_indices.size(0),
                     "[CPU] paged attention: block_indices_begins exceeds the size of block_indices");
-    constexpr uint64_t kMaxPages = uint64_t{1} << 31;
-    const auto page_limit = static_cast<uint32_t>(std::min<uint64_t>(num_pages, kMaxPages));
+    const auto page_limit = static_cast<uint32_t>(num_pages);  // at most 2^31, see the slot check above
     const int32_t first_page = page_begins[0];
     const int32_t last_page = page_begins[num_seq];
     uint32_t out_of_range = 0;
