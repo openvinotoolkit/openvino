@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <locale>
 #include <map>
 #include <optional>
 #include <set>
@@ -21,6 +22,7 @@
 #include "lfm3_audio_generator.hpp"
 #include "lfm3_projector_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "openvino/op/constant.hpp"
 #include "projector_adapter.hpp"
 #include "qwen3tts_projector.hpp"
 
@@ -91,12 +93,13 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "minicpmv4_7", EncoderTopology::MINICPM46, 0, ProjectorLayout::PackedPatches},
     {"audio", "qwen3a", EncoderTopology::QWEN3_AUDIO},
     {"audio", "qwen3tts_spkenc", EncoderTopology::QWEN3_SPEAKER},
+    {"vision", "minicpm_ocr_1_0", EncoderTopology::MINICPM46},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN, ProjectorLayout::Image},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
     {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN, ProjectorLayout::BatchedImage},
     {"vision", "internvl", EncoderTopology::INTERNVL, 0, ProjectorLayout::BatchedImage},
-    {"vision", "resampler", EncoderTopology::RESAMPLER},
+    {"vision", "resampler", EncoderTopology::RESAMPLER, SWAPPED_FFN},
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
     {"vision", "qwen3vl_merger", EncoderTopology::QWEN, 0, ProjectorLayout::SplitMerger},
@@ -493,7 +496,10 @@ private:
             if (g.tensors().has(p + "attn_post_norm.weight"))
                 z = encoder_norm(z, p + "attn_post_norm", c, false);
             x = add(x, z);
-            const bool legacy_swap = swappable && g.tensors().require(p + "ffn_down.weight").ne(0) == c.width;
+            const auto down = swappable ? g.tensors().require(p + "ffn_down.weight") : GgufValue{};
+            // A square resampler FFN is ambiguous, so preserve canonical ordering.
+            const bool legacy_swap =
+                down && down.ne(0) == c.width && (c.topology != EncoderTopology::RESAMPLER || down.ne(1) != c.width);
             z = ffn(encoder_norm(x, p + "ln2", c),
                     p + (legacy_swap ? "ffn_down" : "ffn_up"),
                     p + (legacy_swap ? "ffn_up" : "ffn_down"),
@@ -1576,6 +1582,25 @@ public:
         auto graph = g.finish();
         graph->model_adapters = std::move(adapters);
         write_mmproj_config(*graph, ctx.metadata, config);
+        for (const auto& name : {"v.image_newline", "v.view_seperator", "model.image_newline"}) {
+            const auto found = ctx.weights->weights.find(name);
+            if (found == ctx.weights->weights.end())
+                continue;
+            const auto& tensor = found->second.data;
+            OPENVINO_ASSERT(tensor.get_element_type().is_real(),
+                            "[GGUF] image separator must have floating-point weights: ",
+                            name);
+            const auto values = ov::op::v0::Constant(tensor).cast_vector<float>();
+            std::ostringstream stream;
+            stream.imbue(std::locale::classic());
+            stream.precision(std::numeric_limits<float>::max_digits10);
+            for (size_t i = 0; i < values.size(); ++i) {
+                if (i)
+                    stream << ',';
+                stream << values[i];
+            }
+            graph->mmproj_config[name] = stream.str();
+        }
         return graph;
     }
 

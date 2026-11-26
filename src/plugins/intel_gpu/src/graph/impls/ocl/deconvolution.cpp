@@ -42,7 +42,7 @@ public:
         auto dilation = primitive->dilations;
         dilation.resize(spatial_rank, 1);
 
-        const auto& pad = primitive->pad;
+        const auto pad = deconvolution_inst::get_pads_begin(impl_param);
         const auto& groups = primitive->groups;
 
         auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(impl_param, primitive->grouped_weights_shape);

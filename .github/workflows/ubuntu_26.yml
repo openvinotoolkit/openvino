@@ -7,6 +7,13 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  merge_group:
   push:
     branches:
       - master
@@ -106,10 +113,25 @@ jobs:
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_NCC_STYLE=OFF
-            -DENABLE_TESTS=OFF
+            -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
-            -DENABLE_INTEL_NPU=OFF
+            -DENABLE_INTEL_NPU=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+  Overall_Status:
+    name: ci/gha_overall_status_ubuntu_26
+    needs: [Smart_CI, Docker, Build]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

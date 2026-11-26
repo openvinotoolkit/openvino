@@ -10,10 +10,42 @@
 #include <utility>
 
 #include "common/conversion_context.hpp"
+#include "intel_gpu/primitives/mlir_primitive.hpp"
+#include "mlir/Dialect/Utils/IndexingUtils.h"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
+
+namespace {
+
+// A malformed request is a converter bug, so fail right away instead of silently ignoring the hint.
+void validate_requested_order(const ov::Input<ov::Node>& input, ArrayRef<int64_t> order) {
+    // Verify the requested order is valid for this input (static rank, permutation of the rank)
+    const auto rank = input.get_partial_shape().rank();
+    OPENVINO_ASSERT(rank.is_static() && order.size() == static_cast<size_t>(rank.get_length()) && mlir::isPermutationVector(order),
+                    "[GPU] MLIR: invalid physical order requested for input ",
+                    input.get_index(),
+                    " of ",
+                    input.get_node()->get_friendly_name());
+    // The order must have a cldnn format: rethrow with the context of the request.
+    const std::vector<size_t> dim_order(order.begin(), order.end());
+    try {
+        cldnn::mlir_primitive::format_from_dim_order(dim_order);
+    } catch (const ov::Exception& e) {
+        OPENVINO_THROW("[GPU] MLIR: no cldnn format for the physical order ",
+                       ov::util::vector_to_string(dim_order),
+                       " requested for input ",
+                       input.get_index(),
+                       " of ",
+                       input.get_node()->get_friendly_name(),
+                       ":\n",
+                       e.what());
+    }
+}
+
+}  // namespace
 
 std::string GraphConverter::rt_info_convertor() {
     return "__mlir_convertor";
@@ -28,7 +60,23 @@ GraphConverter::GraphConverter(mlir::MLIRContext* context, mlir::OpBuilder* bloc
           },
           [this](const Dimension& dim) {
               return get_dimension_value(dim);
+          },
+          [this](const ov::Input<ov::Node>& input, DimOrder order) {
+              request_input_order(input, std::move(order));
           }) {}
+
+void GraphConverter::request_input_order(const ov::Input<ov::Node>& input, DimOrder order) {
+    validate_requested_order(input, order);
+
+    const auto source = input.get_source_output();
+    const auto [it, inserted] = requested_orders.emplace(source, order);
+    OPENVINO_ASSERT(inserted || it->second == order, "[GPU] MLIR: conflicting physical orders are requested for ", source);
+}
+
+ArrayRef<int64_t> GraphConverter::get_requested_order(const ov::Output<ov::Node>& source) const {
+    const auto it = requested_orders.find(source);
+    return it == requested_orders.end() ? ArrayRef<int64_t>{} : ArrayRef<int64_t>(it->second);
+}
 
 SmallVector<mlir::Value> GraphConverter::getInputs(const NodePtr& node) {
     SmallVector<mlir::Value> out;

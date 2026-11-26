@@ -100,6 +100,21 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
+// Copies host data to usm_device memory through the builder's usm_host staging buffer, in pieces of at most 64 MiB.
+// The data may be a memory-mapped model file, which some drivers cannot copy to usm_device directly (DG2 on Windows:
+// clEnqueueMemcpyINTEL returns CL_OUT_OF_RESOURCES).
+static void upload_to_device(ProgramBuilder& p, cldnn::memory& dst, const char* src, size_t size) {
+    constexpr size_t max_staging_bytes = 64 * 1024 * 1024;
+    auto& stream = p.get_engine().get_service_stream();
+    auto staging = p.get_constant_staging_buffer(std::min(size, max_staging_bytes));
+    for (size_t offset = 0; offset < size;) {
+        const size_t n = std::min(staging->size(), size - offset);
+        std::memcpy(staging->buffer_ptr(), src + offset, n);
+        dst.copy_from(stream, *staging, 0, offset, n, true);
+        offset += n;
+    }
+}
+
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
@@ -202,13 +217,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             const auto src_et = op->get_output_element_type(0);
             const auto dst_et = ov::element::Type(out_dtype);
             if (mem->get_allocation_type() == cldnn::allocation_type::usm_device) {
-                // A lock of usm_device memory would copy it to the host first, so upload with one copy instead
+                // A lock of usm_device memory would copy it to the host first, so upload it instead
                 if (src_et == dst_et) {
-                    mem->copy_from(stream, data, 0, 0, bufSize, true);
+                    upload_to_device(p, *mem, data, bufSize);
                 } else {
                     std::vector<char> converted(bufSize);
                     convert_and_copy(data, src_et, converted.data(), dst_et, upload_count, constLayout);
-                    mem->copy_from(stream, converted.data(), 0, 0, bufSize, true);
+                    upload_to_device(p, *mem, converted.data(), bufSize);
                 }
             } else {
                 cldnn::mem_lock<char> lock{mem, stream};
