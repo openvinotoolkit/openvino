@@ -329,6 +329,10 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
     // (ternocl_int2_dpas_prefill.hpp). Shared by the clones of an impl; the row-major weight copies are keyed by the
     // packed weights buffer, so FCs that share an impl through the cache keep their own.
     size_t _dpas_min_m = 0;
+    // Binary u1 weights in OpenVINO's layout (no repack): dp4a GEMV for M <= 2, the DPAS GEMM above.
+    bool _u1 = false;
+    std::array<kernel::ptr, 2> _u1_gemv, _u1_gemv_quant;
+    static constexpr size_t kU1GemvCols = 8;  // output columns per subgroup in the u1 GEMV
     struct DpasState {
         std::mutex m;
         kernel::ptr to_rows_w, to_rows_s, quant, gemm, gemm_tall;
@@ -337,6 +341,10 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
     std::shared_ptr<DpasState> _dpas;
 
     bool use_dpas(size_t M) const {
+        if (_u1) {
+            // the dp4a GEMV is SLM-bound past 2 rows (4096 x 4096: M 1/2/5/8 = 63/78/173/358 us vs DPAS ~100 us)
+            return M > 2;
+        }
         return _dpas_min_m != 0 && M >= _dpas_min_m && _N % dpas_cols(M) == 0 && _K % 128 == 0;  // u2: whole tiles
     }
     // Long-K FCs (down projection) at M >= 512 take a tall tile walked column-first: 2 row blocks x 8
@@ -400,6 +408,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         ob << _had_block;
         ob << _int8_prefill;
         ob << _dpas_min_m;
+        ob << _u1;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -414,6 +423,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         ib >> _had_block;
         ib >> _int8_prefill;
         ib >> _dpas_min_m;
+        ib >> _u1;
         _postop = static_cast<TernoclPostop>(postop);
         const auto* params = reinterpret_cast<const kernel_impl_params*>(ib.getKernelImplParams());
         OPENVINO_ASSERT(params != nullptr, "[GPU] ternocl int2: kernel_impl_params are required to load the impl");
@@ -445,7 +455,11 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         if (_had_block != 0) {
             descs.emplace_back(M * _K, ov::element::f16);
         }
-        if (use_dpas(M)) {
+        if (_u1 && M <= 2) {
+            descs.emplace_back(M * _K, ov::element::u8);           // XQ int8 activations, dp4a order
+            descs.emplace_back(M * (_K / 128), ov::element::f32);  // scale
+            descs.emplace_back(M * (_K / 128), ov::element::f32);  // 0.5 * sum * scale
+        } else if (use_dpas(M)) {
             const size_t Mp = (M + dpas_rows(M) - 1) / dpas_rows(M) * dpas_rows(M);
             descs.emplace_back(Mp * _K, ov::element::i8);           // XD: int8 activations, DPAS A layout
             descs.emplace_back((_K / 128) * Mp, ov::element::f32);  // XS [K/128][Mp]
@@ -584,6 +598,60 @@ protected:
         return stream.enqueue_kernel(*l.gemm, d, a, deps, instance.is_output());
     }
 
+    event::ptr execute_u1_gemv(typed_primitive_inst<fully_connected>& instance,
+                               memory::cptr in,
+                               std::vector<event::ptr> deps,
+                               size_t M) {
+        auto& stream = instance.get_network().get_stream();
+        auto& kq = _u1_gemv_quant[M - 1];
+        auto& kg = _u1_gemv[M - 1];
+        if (!kg) {
+            const std::string opts = "-cl-std=CL3.0 -DU1=1 -DN=" + std::to_string(_N) + " -DK=" + std::to_string(_K) +
+                                     " -DMR=" + std::to_string(M) + " -DGROWS=" + std::to_string(kU1GemvCols) +
+                                     epi_opts();
+            const auto prog = _programs->get_program(*_engine, kTernoclDpasPrefillSource, opts);
+            kq = make_kernel(*_engine, prog, "quant_gemv_u1");
+            kg = make_kernel(*_engine, prog, "gemv_u1");
+        }
+        const auto& im = instance.get_intermediates_memories();
+        const auto& xq = im.at(0);
+        const auto& xs = im.at(1);
+        const auto& xz = im.at(2);
+        {
+            kernel_arguments_desc d;
+            d.workGroups.global = {M * (_K / 128) * 16, 1, 1};
+            d.workGroups.local = {16, 1, 1};
+            d.arguments = {{argument_desc::Types::INPUT, 0},
+                           {argument_desc::Types::OUTPUT, 0},
+                           {argument_desc::Types::OUTPUT, 1},
+                           {argument_desc::Types::OUTPUT, 2}};
+            kernel_arguments_data a;
+            a.inputs = {in};
+            a.outputs = {xq, xs, xz};
+            stream.set_arguments(*kq, d, a);
+            deps = {stream.enqueue_kernel(*kq, d, a, deps, false)};
+        }
+        kernel_arguments_desc d;
+        d.workGroups.global = {ceil_div(_N, 8 * kU1GemvCols) * 128, 1, 1};
+        d.workGroups.local = {128, 1, 1};
+        // XQ, XS, XZ, W, S, Y, Other, Bias
+        d.arguments = {{argument_desc::Types::INPUT, 0},
+                       {argument_desc::Types::INPUT, 1},
+                       {argument_desc::Types::INPUT, 2},
+                       {argument_desc::Types::INPUT, 3},
+                       {argument_desc::Types::INPUT, 4},
+                       {argument_desc::Types::OUTPUT, 0},
+                       {argument_desc::Types::INPUT, 5},
+                       {argument_desc::Types::INPUT, 6}};
+        memory::cptr other = ternocl_postop_reads_other(_postop) ? instance.dep_memory_ptr(_other_dep) : in;
+        memory::cptr bias = _postop == TernoclPostop::bias ? instance.bias_memory() : in;
+        kernel_arguments_data a;
+        a.inputs = {xq, xs, xz, instance.weights_memory(), instance.dep_memory_ptr(_scale_dep), other, bias};
+        a.outputs = {instance.output_memory_ptr(0)};
+        stream.set_arguments(*kg, d, a);
+        return stream.enqueue_kernel(*kg, d, a, deps, instance.is_output());
+    }
+
     event::ptr execute_dpas(typed_primitive_inst<fully_connected>& instance,
                             memory::cptr in,
                             std::vector<event::ptr> deps,
@@ -594,7 +662,7 @@ protected:
         std::lock_guard<std::mutex> lock(st.m);
         if (!st.gemm) {
             const std::string base = "-cl-std=CL3.0 -cl-intel-256-GRF-per-thread -DN=" + std::to_string(_N) +
-                                     " -DK=" + std::to_string(_K) + epi_opts();
+                                     " -DK=" + std::to_string(_K) + epi_opts() + (_u1 ? " -DU1=1" : "");
             const std::string opts = base + " -DRB=4 -DSGR=1 -DROWFAST=1";
             const auto prog = _programs->get_program(*_engine, kTernoclDpasPrefillSource, opts);
             st.to_rows_w = make_kernel(*_engine, prog, "weights_to_rows");
@@ -616,15 +684,18 @@ protected:
         auto it = st.rows.find(wmem->buffer_ptr());
         if (it == st.rows.end()) {
             auto& engine = network.get_engine();
-            memory::ptr wr = engine.allocate_memory(
-                layout{ov::PartialShape{static_cast<int64_t>(_N * _K / 4)}, data_types::u8, format::bfyx},
-                allocation_type::usm_device,
-                false);
+            // u1 weights are read in place; only the scales get a row-major copy.
+            memory::ptr wr =
+                _u1 ? nullptr
+                    : engine.allocate_memory(
+                          layout{ov::PartialShape{static_cast<int64_t>(_N * _K / 4)}, data_types::u8, format::bfyx},
+                          allocation_type::usm_device,
+                          false);
             memory::ptr sr = engine.allocate_memory(
                 layout{ov::PartialShape{static_cast<int64_t>(_N * groups)}, data_types::f16, format::bfyx},
                 allocation_type::usm_device,
                 false);
-            for (int which = 0; which < 2; ++which) {
+            for (int which = _u1 ? 1 : 0; which < 2; ++which) {
                 auto& k = which == 0 ? st.to_rows_w : st.to_rows_s;
                 kernel_arguments_desc d;
                 d.workGroups.global = {_N, which == 0 ? _K / 16 : groups, 1};
@@ -681,7 +752,7 @@ protected:
         memory::cptr other = ternocl_postop_reads_other(_postop) ? instance.dep_memory_ptr(_other_dep) : in;
         memory::cptr bias = _postop == TernoclPostop::bias ? instance.bias_memory() : in;
         kernel_arguments_data a;
-        a.inputs = {xd, xs, xz, it->second.first, it->second.second, other, bias};
+        a.inputs = {xd, xs, xz, _u1 ? wmem : memory::cptr(it->second.first), it->second.second, other, bias};
         a.outputs = {instance.output_memory_ptr(0)};
         a.scalars = &sc;
         auto& gemm = dpas_tall(M) ? st.gemm_tall : st.gemm;
@@ -724,6 +795,9 @@ protected:
             in = rotated;
         }
 
+        if (_u1 && M <= 2) {
+            return execute_u1_gemv(instance, in, deps, M);
+        }
         if (use_dpas(M)) {
             return execute_dpas(instance, in, deps, M);
         }
@@ -796,6 +870,10 @@ public:
         auto impl =
             std::make_unique<fully_connected_ternocl_int2>(downcast<ocl_engine>(prog.get_engine()), *desc, N, K, *postop, other_dep, scale_dep, out_f32, int8);
         impl->_dpas_min_m = prog.get_config().get_ternocl_prequant_prefill_min_m();
+        if (wei_layout.data_type == data_types::u1) {
+            impl->_u1 = true;  // weights stay in OpenVINO's u1 layout
+            return impl;
+        }
         auto packed_layout = wei_layout;
         packed_layout.format = format::is_os_yx_isv16_ternary;
         impl->_weights_reorder_params = std::make_shared<WeightsReorderParams>(wei_layout, packed_layout);
@@ -823,7 +901,8 @@ std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const kernel_impl_params& params) const {
-    if (params.input_layouts.size() < 2 || params.input_layouts[1].data_type != data_types::u2) {
+    if (params.input_layouts.size() < 2 ||
+        (params.input_layouts[1].data_type != data_types::u2 && params.input_layouts[1].data_type != data_types::u1)) {
         return stock_ocl_manager(*this, get_shape_type(params)).create_impl(params);
     }
     OPENVINO_NOT_IMPLEMENTED;
