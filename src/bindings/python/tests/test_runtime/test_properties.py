@@ -611,6 +611,8 @@ def test_properties_qos_in_config_dict():
     assert config["QOS"].value == props.QoS.ECO
 
 
+# The qos_info tests below need a device that supports QOS (NPU with the command queue QoS driver extension).
+# Python tests do not run on such a device in CI, so these tests are always skipped there and must be run manually,
 def skip_if_qos_not_supported(core, device):
     # QOS is registered only by devices (and drivers) that support Quality of Service
     if props.qos() not in core.get_property(device, props.supported_properties):
