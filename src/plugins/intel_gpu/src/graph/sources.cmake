@@ -11,6 +11,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/alias_oracle.cpp
     ${CMAKE_CURRENT_LIST_DIR}/alias_validation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/oooq_gate_shadow.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/class_lifetime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/exec_axis.cpp
     ${CMAKE_CURRENT_LIST_DIR}/arg_max_min.cpp
     ${CMAKE_CURRENT_LIST_DIR}/assign.cpp

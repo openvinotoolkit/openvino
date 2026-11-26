@@ -15,6 +15,7 @@
 #include <unordered_set>
 
 #include "alias_analysis.h"
+#include "class_lifetime.h"
 #include "data_inst.h"
 #include "exec_axis.h"
 #include "input_layout_inst.h"
@@ -232,11 +233,14 @@ std::unique_ptr<oooq_gate_shadow::snapshot> oooq_gate_shadow::take_snapshot(cons
 
 namespace {
 
-struct class_life {
-    bool known = false;
-    bool conservative = false;
-    int64_t lo = kInf, hi = -1;
-};
+// Shadow policy (not a lifetime computation): classes the oracle refuses to judge. fb_oooq is ignored (it is the reason the gate exists).
+bool class_conservative(const alias_class& c) {
+    return (c.fallback & ~static_cast<uint32_t>(fb_oooq)) != 0 || (c.domain & dm_persistent) != 0;
+}
+
+std::pair<int64_t, int64_t> to_pair(const class_interval& iv) {
+    return {static_cast<int64_t>(iv.birth), iv.death_inf ? kInf : static_cast<int64_t>(iv.death)};
+}
 
 struct node_life {
     bool classless = false, conservative = false, unknown = false;
@@ -284,88 +288,8 @@ oooq_gate_shadow_report oooq_gate_shadow::compute(const program& p, const snapsh
     const auto& nodes = s0.nodes;
     const size_t N = nodes.size();
 
-    // ---- lifetimes ----
-    std::unordered_map<const alias_class*, class_life> clife;
-    auto life_of_class = [&](const alias_class* c) -> const class_life& {
-        auto it = clife.find(c);
-        if (it != clife.end()) {
-            return it->second;
-        }
-        class_life cl;
-        cl.known = true;
-        if ((c->fallback & ~static_cast<uint32_t>(fb_oooq)) != 0 || (c->domain & dm_persistent) != 0) {
-            cl.conservative = true;
-        }
-        bool any_pos = false, inf = (c->domain & dm_user_output) != 0;
-        auto touch = [&](const program_node* n, bool is_reader) {
-            auto pos = axis.position(*n);
-            if (!pos) {
-                if (!is_reader && (n->is_type<data>() || n->is_constant())) {
-                    return;
-                }
-                cl.known = false;
-                return;
-            }
-            any_pos = true;
-            cl.lo = std::min<int64_t>(cl.lo, is_reader ? cl.lo : *pos);
-            cl.hi = std::max<int64_t>(cl.hi, *pos);
-            if (!is_reader && n->is_output()) {
-                inf = true;
-            }
-        };
-        for (const auto& m : c->members) {
-            touch(m.node, false);
-        }
-        for (const auto* rd : c->readers) {
-            touch(rd, true);
-        }
-        if (!any_pos) {
-            cl.known = false;
-        }
-        if (inf) {
-            cl.hi = kInf;
-        }
-        return clife.emplace(c, cl).first->second;
-    };
-
-    auto own_interval = [&](const program_node& n, uint16_t port, bool& known) -> std::pair<int64_t, int64_t> {
-        const auto pos = axis.position(n);
-        if (!pos) {
-            known = false;
-            return {0, 0};
-        }
-        int64_t hi = *pos;
-        bool inf = false;
-        std::vector<std::pair<const program_node*, uint16_t>> work{{&n, port}};
-        std::set<std::pair<const program_node*, uint16_t>> seen;
-        while (!work.empty()) {
-            const auto t = work.back();
-            work.pop_back();
-            if (!seen.insert(t).second) {
-                continue;
-            }
-            inf = inf || t.first->is_output();
-            if (auto tp = axis.position(*t.first)) {
-                hi = std::max<int64_t>(hi, *tp);
-            }
-            aa.for_each_tensor_user(*t.first, t.second, [&](const program_node& u, size_t) {
-                if (u.is_type<shape_of>()) {
-                    return;
-                }
-                const auto up = axis.position(u);
-                if (!up) {
-                    known = false;
-                } else {
-                    hi = std::max<int64_t>(hi, *up);
-                }
-            });
-            for (const size_t ei : aa.edges_into(*t.first, t.second)) {
-                const auto& e = aa.edges()[ei];
-                work.emplace_back(e.member_node, e.member_port);
-            }
-        }
-        return {*pos, inf ? kInf : hi};
-    };
+    // ---- lifetimes: the class_lifetimes engine (single implementation, P2-a S1) ----
+    const auto lt = class_lifetimes::build(p, aa, axis);
 
     std::vector<node_life> life(N);
     std::vector<size_t> cand;   // nodes that may use the pool
@@ -392,23 +316,22 @@ oooq_gate_shadow_report oooq_gate_shadow::compute(const program& p, const snapsh
                 continue;
             }
             l.cls.push_back(c);
-            const auto& cl = life_of_class(c);
+            const auto& cl = lt.interval_of(*c);
             if (!cl.known) {
                 l.unknown = true;
             } else if (c->root_node == &n && c->root.index == port) {
-                l.iv.emplace_back(cl.lo, cl.hi);   // the allocator of the class: its block holds every member
+                l.iv.push_back(to_pair(cl));   // the allocator of the class: its block holds every member
             } else {
                 // A non-root member that allocates (MAY envelope) only needs its own block from its own position until the last reader of
                 // its tensor and of everything downstream that aliases it; the upstream half of the class lives in the root's block.
-                bool known = true;
-                const auto own = own_interval(n, static_cast<uint16_t>(port), known);
-                if (known) {
-                    l.iv.push_back(own);
+                const auto own = lt.member_interval(n, static_cast<uint16_t>(port));
+                if (own.known) {
+                    l.iv.push_back(to_pair(own));
                 } else {
                     l.unknown = true;
                 }
             }
-            l.conservative = l.conservative || cl.conservative;
+            l.conservative = l.conservative || class_conservative(*c);
         }
         if (l.cls.empty()) {
             l.classless = true;

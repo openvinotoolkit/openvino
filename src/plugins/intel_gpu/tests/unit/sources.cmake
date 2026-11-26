@@ -87,6 +87,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/alias_oracle_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/alias_validation_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/oooq_gate_shadow_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/class_lifetime_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/basic_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/clamp_fp16_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/concat_holder_pool_leak_test.cpp
