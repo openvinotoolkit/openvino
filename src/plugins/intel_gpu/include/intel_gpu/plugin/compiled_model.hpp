@@ -126,7 +126,7 @@ private:
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
 
 private:
-    // Expert predictors (ov::intel_gpu::moe_les_predictors), compiled once and executed by a network per graph
+    // Expert predictors (ov::intel_gpu::les_predictor): one program, executed by a network per graph
     std::vector<cldnn::les_predictor> m_les_predictors;
     void attach_les_predictors(Graph& graph) const;
 };

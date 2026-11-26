@@ -70,11 +70,11 @@ class primitive_inst;
 class ICompilationContext;
 struct network;
 
-/// @brief Lookahead expert scheduling (ov::intel_gpu::moe_les_predictors): the expert predictor of one MoE layer, a
-/// separate network that runs on the stream of the network that owns it.
+/// @brief Lookahead expert scheduling (ov::intel_gpu::les_predictor): the expert predictor of one MoE layer, an
+/// independent subgraph of the predictors network, which runs on the stream of the network that owns it.
 struct les_predictor {
     int layer = -1;                    // 0-based decoder layer of the MoE layer whose experts it predicts
-    program::ptr prog;                 // static shapes, one token
+    program::ptr prog;                 // the program of all predictors, static shapes, one token
     primitive_id hidden_id;            // input: hidden states input of the previous MoE layer, [1, hidden_size]
     primitive_id prev_id;              // optional input: hidden states input of MoE layer `layer` at the last token
                                        // of the previous execution, empty if the predictor has no such input
@@ -83,7 +83,7 @@ struct les_predictor {
     int64_t hidden_size = 0;
 
     // Per network
-    std::shared_ptr<network> net;
+    std::shared_ptr<network> net;      // the predictors network, shared by the predictors of all layers
     layout input_layout;               // layout of both inputs in the network
     memory::ptr prev;                  // value of the prev_id input
     memory::ptr hidden;                // memory bound to the hidden_id input, and its source
@@ -189,6 +189,10 @@ public:
     /// @note User should call set_input_data() for every @ref input_layout defined in source @ref topology
     /// before network execution.
     std::map<primitive_id, network_output> execute(const std::vector<event::ptr>& dependencies = {});
+
+    /// @brief Executes only the primitives that the output `output_id` depends on, e.g. one of several independent
+    /// subgraphs of the network. The inputs of the other subgraphs must be set too, to valid memory of any content.
+    void execute_subgraph(const primitive_id& output_id);
 
     void validate_primitives();
     void preallocate_shape_info_buffers();
@@ -332,6 +336,8 @@ private:
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
     std::map<int, std::shared_ptr<les_predictor>> _les_predictors;
+    // execution order of the primitives each output depends on, see execute_subgraph()
+    std::unordered_map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>> _subgraph_exec_orders;
 
     /// @brief Invalidate the recording of the previous iteration
     void invalidate_recording();

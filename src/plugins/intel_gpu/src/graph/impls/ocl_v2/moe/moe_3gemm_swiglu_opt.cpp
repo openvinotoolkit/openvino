@@ -799,8 +799,8 @@ public:
     // so the buffer must outlive the per-call scratch_buffers.
     memory::ptr _expert_index_buffer;
 
-    // --- Lookahead expert scheduling (ov::intel_gpu::moe_les_predictors) ---
-    // The expert predictors are separate networks on the stream of this network (network::get_les_predictor). In a
+    // --- Lookahead expert scheduling (ov::intel_gpu::les_predictor) ---
+    // The expert predictors are subgraphs of a network on the stream of this network (network::get_les_predictor). In a
     // decode step of one token, the predictor of the next MoE layer runs on the hidden states of this layer before its
     // batched GEMV, and this layer prefetches the predicted experts of the next one. Every execution saves the last row
     // of the hidden states of this layer as the previous token input of its own predictor.
@@ -894,7 +894,7 @@ public:
             p->hidden_source = hidden.get();
             p->net->set_input_data(p->hidden_id, p->hidden);
         }
-        p->net->execute();
+        p->net->execute_subgraph(p->output_id);  // only the predictor of the next layer
         return true;
     }
 

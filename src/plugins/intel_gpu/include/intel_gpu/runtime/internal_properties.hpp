@@ -145,6 +145,16 @@ static constexpr Property<bool, PropertyMutability::RW> enable_sdpa_micro{"GPU_E
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECORD_REPLAY"};
+// Lookahead expert scheduling (LES) of MoE offloading (OFFLOAD_RATIO > 0): prefetch the experts predicted for the next
+// MoE layer in decode steps. Same names as in PR 40237.
+static constexpr Property<bool, PropertyMutability::RW> moe_lookahead_prefetch{"GPU_MOE_LOOKAHEAD_PREFETCH"};
+// LES expert predictor: an ov::Model with the predictor heads of the MoE layers, independent subgraphs that run
+// separately from the compiled model, one head at a time. The head of the MoE layer of decoder layer L (0-based) is the
+// subgraph of the output named `les_experts.<L>` (the indices of the predicted experts, [?, k], any k); its inputs are
+// the Parameters that output depends on, [?, hidden_size]: the hidden states input of the previous MoE layer, and
+// optionally the previous token input, which has "prev" in its friendly name: the hidden states input of MoE layer L
+// at the last token of the previous inference, kept by the plugin. Used only with moe_lookahead_prefetch.
+static constexpr Property<std::shared_ptr<ov::Model>, PropertyMutability::RW> les_predictor{"GPU_LES_PREDICTOR"};
 
 /**
  * @brief [EXPERIMENTAL] Enables MLIR-based Graph Compiler execution for supported subgraphs.

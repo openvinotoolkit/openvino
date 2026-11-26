@@ -189,23 +189,6 @@ static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOC
 static constexpr Property<size_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};
 
 /**
- * @brief Lookahead expert scheduling (LES) for MoE offloading (@ref ov::intel_gpu::offload_ratio): expert predictors,
- * one ov::Model per MoE layer, that run separately from the compiled model. The plugin uses them only if experts are
- * offloaded (OFFLOAD_RATIO > 0), and only in decode steps of one token: the predictor of MoE layer L runs on the hidden
- * states of the previous MoE layer before its experts are computed, and the plugin prefetches the predicted experts of
- * layer L while the previous MoE layer runs. A predictor model has:
- *  - rt_info `les_moe_layer`: the 0-based number of the decoder layer L whose MoE experts it predicts;
- *  - input `les_hidden` [?, hidden_size]: the hidden states input of the previous MoE layer (the router input);
- *  - optional input `les_prev_hidden` [1, hidden_size]: the hidden states input of MoE layer L at the last token of the
- *    previous inference, kept by the plugin (zeros before the first inference);
- *  - one output: the indices of the predicted experts, an integer tensor [?, num_predicted_experts].
- * The predictors are not exported with the compiled model: do not combine them with the model cache (ov::cache_dir).
- * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
- */
-static constexpr Property<std::vector<std::shared_ptr<ov::Model>>, PropertyMutability::WO> moe_les_predictors{
-    "MOE_LES_PREDICTORS"};
-
-/**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
 namespace memory_type {

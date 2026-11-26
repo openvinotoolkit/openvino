@@ -86,22 +86,31 @@ void CompiledModel::attach_les_predictors(Graph& graph) const {
     }
     auto main = graph.get_network();
     auto& engine = main->get_engine();
+    // One network for the predictors of all layers, on the same in-order stream as the main network: a predictor
+    // enqueued by a MoE layer is ordered after the hidden states it reads, and completes with the synchronization of
+    // that layer. Every predictor runs as a subgraph of this network.
+    auto net = std::make_shared<cldnn::network>(m_les_predictors.front().prog, main->get_stream_ptr(), graph.get_stream_id());
+    std::map<cldnn::primitive_id, cldnn::layout> input_layouts;
+    const auto input_ids = net->get_input_ids();
+    const auto layouts = net->get_input_layouts();
+    for (size_t i = 0; i < input_ids.size(); ++i) {
+        input_layouts[input_ids[i]] = layouts[i];
+    }
     std::map<int, std::shared_ptr<cldnn::les_predictor>> predictors;
+    cldnn::memory::ptr placeholder;
     for (const auto& proto : m_les_predictors) {
         auto p = std::make_shared<cldnn::les_predictor>(proto);
-        // The same in-order stream as the main network: a predictor enqueued by a MoE layer is ordered after the
-        // hidden states it reads, and completes with the synchronization of that layer
-        p->net = std::make_shared<cldnn::network>(p->prog, main->get_stream_ptr(), graph.get_stream_id());
-        const auto input_ids = p->net->get_input_ids();
-        const auto input_layouts = p->net->get_input_layouts();
-        for (size_t i = 0; i < input_ids.size(); ++i) {
-            if (input_ids[i] == p->hidden_id) {
-                p->input_layout = input_layouts[i];
-            }
+        p->net = net;
+        p->input_layout = input_layouts.at(p->hidden_id);
+        // The hidden states input is bound to the MoE layer input when the predictor runs; until then any valid
+        // memory, so that the arguments of the network can be set
+        if (!placeholder) {
+            placeholder = engine.allocate_memory(p->input_layout, true);
         }
+        net->set_input_data(p->hidden_id, placeholder);
         if (!p->prev_id.empty()) {
             p->prev = engine.allocate_memory(p->input_layout, true);  // zeros before the first execution
-            p->net->set_input_data(p->prev_id, p->prev);
+            net->set_input_data(p->prev_id, p->prev);
         }
         predictors[p->layer] = std::move(p);
     }
