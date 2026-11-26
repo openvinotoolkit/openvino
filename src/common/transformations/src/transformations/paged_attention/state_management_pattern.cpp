@@ -977,17 +977,21 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28);
         if (relative_bias) {
-            const auto shape = relative_bias->table.get_partial_shape();
-            const auto shifted = std::make_shared<v1::Subtract>(relative_bias->table, relative_bias->sink);
-            const auto transposed =
-                std::make_shared<v1::Transpose>(shifted, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
-            const auto flattened = std::make_shared<v1::Reshape>(
-                transposed,
-                v0::Constant::create(element::i64,
-                                     Shape{3},
-                                     std::vector<int64_t>{0, shape[1].get_length(), shape[3].get_length()}),
-                true);
-            pa_arguments.push_back(std::make_shared<v0::Convert>(flattened, sdpa_node->get_input_element_type(3)));
+            const auto heads = relative_bias->table.get_partial_shape()[1].get_length();
+            const auto flatten = [&](const ov::Output<ov::Node>& value) {
+                const auto transposed =
+                    std::make_shared<v1::Transpose>(value, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+                return std::make_shared<v1::Reshape>(
+                    transposed,
+                    v0::Constant::create(element::i64,
+                                         Shape{3},
+                                         std::vector<int64_t>{0, heads, value.get_partial_shape()[3].get_length()}),
+                    true);
+            };
+            // Subtracting after the reshape keeps GPU from fusing the per-row sink into the table MatMul.
+            const auto shifted =
+                std::make_shared<v1::Subtract>(flatten(relative_bias->table), flatten(relative_bias->sink));
+            pa_arguments.push_back(std::make_shared<v0::Convert>(shifted, sdpa_node->get_input_element_type(3)));
         }
 
         auto paged_attention =
