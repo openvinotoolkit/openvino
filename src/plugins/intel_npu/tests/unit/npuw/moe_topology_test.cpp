@@ -553,6 +553,15 @@ TEST(GenericMoETopologyTest, FullDevicePipelineAcceptsBothTopKIndexTypes) {
             ASSERT_EQ(before[0].get_shape(), after[0].get_shape());
             for (size_t i = 0; i < before[0].get_size(); ++i)
                 EXPECT_NEAR(before[0].data<float>()[i], after[0].data<float>()[i], 1e-5f);
+            size_t packed_gathers = 0;
+            for (const auto& node : graph.model->get_ordered_ops()) {
+                const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node);
+                if (gather && gather->get_input_element_type(0) == ov::element::i4) {
+                    ++packed_gathers;
+                    EXPECT_EQ(gather->get_input_shape(0).size(), 2u);
+                }
+            }
+            EXPECT_EQ(packed_gathers, 3u);
         }
     }
 }

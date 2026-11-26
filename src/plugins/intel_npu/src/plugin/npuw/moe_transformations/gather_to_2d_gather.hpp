@@ -12,12 +12,13 @@ namespace npuw {
 namespace pass {
 
 /**
- * @brief Transform 3D Gather to 2D Gather sequence for hardware optimization
+ * @brief Transform rank-3 Gathers and marked higher-rank device-routed weights into 2D Gathers.
  *
  * This pass transforms:
- *   Gather(weights[N, M, K], indices[I]) -> output[I, M, K]
+ *   Gather(weights[N, D1, ..., Dr, K], indices[I]) -> output[I, D1, ..., Dr, K]
  *
  * Into equivalent sequence:
+ *   Let M = D1 * ... * Dr.
  *   0. indices_i32 = Convert(indices[I]) -> [I] (i32) -- only inserted when the source
  *      indices are not already i32 (e.g. i64)
  *   1. reshaped_indices = Reshape(indices_i32) -> [I, 1]
@@ -27,7 +28,7 @@ namespace pass {
  *   5. flat_indices = Reshape(new_indices) -> [I*M]
  *   6. flat_weights = Reshape(weights) -> [N*M, K]
  *   7. gathered_flat = Gather(flat_weights, flat_indices, axis=0) -> [I*M, K]
- *   8. output = Reshape(gathered_flat) -> [I, M, K]
+ *   8. output = Reshape(gathered_flat) -> [I, D1, ..., Dr, K]
  *
  * This transformation enables better hardware support for Gather operations
  * by converting multi-dimensional gather into flattened 2D gather.

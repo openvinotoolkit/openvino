@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "../logging.hpp"
+#include "moe_topology.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/ops.hpp"
 
@@ -27,16 +28,17 @@ namespace {
 struct GatherInfo {
     std::shared_ptr<ov::op::v8::Gather> gather_node;
     int64_t N;  // num_experts (data dim 0)
-    int64_t M;  // feature_dim (data dim 1)
-    int64_t K;  // hidden_dim (data dim 2)
+    int64_t M;  // product of the dimensions between the expert and innermost axes
+    int64_t K;  // innermost data dimension
     int64_t I;  // num_selected (indices size)
+    ov::Shape output_shape;
 };
 
 // ============================================================================
 // Helper functions
 // ============================================================================
 
-// Check if a Gather node is valid for 3D->2D transformation
+// Check if an expert-axis Gather can be flattened into a 2D Gather.
 std::optional<GatherInfo> validate_gather_for_transform(const std::shared_ptr<ov::op::v8::Gather>& gather) {
     if (!gather) {
         return std::nullopt;
@@ -57,28 +59,34 @@ std::optional<GatherInfo> validate_gather_for_transform(const std::shared_ptr<ov
         return std::nullopt;
     }
 
-    // Check data shape: should be 3D [N, M, K] with static dimensions
+    // Collapse all dimensions between the expert and innermost axes into M.
     auto data_shape = data_input.get_partial_shape();
-    if (!data_shape.rank().is_static() || data_shape.rank().get_length() != 3) {
+    if (!data_shape.is_static() || data_shape.size() < 3) {
         return std::nullopt;
     }
-    if (!data_shape[0].is_static() || !data_shape[1].is_static() || !data_shape[2].is_static()) {
+    if (data_shape.size() > 3 && gather->get_rt_info().count(ov::npuw::moe::device_routed_weight_gather_tag) == 0) {
         return std::nullopt;
     }
-
+    constexpr int64_t kInt32Max = std::numeric_limits<int32_t>::max();
+    int64_t M = 1;
+    for (size_t dim = 1; dim + 1 < data_shape.size(); ++dim) {
+        const auto size = data_shape[dim].get_length();
+        if (size <= 0 || M > kInt32Max / size) {
+            return std::nullopt;
+        }
+        M *= size;
+    }
     int64_t N = data_shape[0].get_length();
-    int64_t M = data_shape[1].get_length();
-    int64_t K = data_shape[2].get_length();
+    int64_t K = data_shape[data_shape.size() - 1].get_length();
 
     // Only transform if both M and K are not 1 (otherwise transformation is not beneficial)
-    if (M == 1 || K == 1) {
+    if (N <= 0 || M == 1 || K <= 1) {
         return std::nullopt;
     }
 
     // Flattened indices are computed as (index * M + [0, M)) in i32; skip the rewrite if N*M
     // can't be represented in i32 to avoid silently wrong results from overflow.
-    constexpr int64_t kInt32Max = std::numeric_limits<int32_t>::max();
-    if (M != 0 && N > kInt32Max / M) {
+    if (N > kInt32Max / M) {
         return std::nullopt;
     }
 
@@ -90,6 +98,10 @@ std::optional<GatherInfo> validate_gather_for_transform(const std::shared_ptr<ov
     if (!indices_shape[0].is_static()) {
         return std::nullopt;
     }
+    const auto I = indices_shape[0].get_length();
+    if (I > std::numeric_limits<int64_t>::max() / M) {
+        return std::nullopt;
+    }
 
     // Only i32/i64 indices are supported; i64 gets canonicalized to i32 in build_shared_new_indices.
     auto indices_et = indices_input.get_element_type();
@@ -98,7 +110,7 @@ std::optional<GatherInfo> validate_gather_for_transform(const std::shared_ptr<ov
     }
 
     // Valid gather - return info
-    return GatherInfo{gather, N, M, K, indices_shape[0].get_length()};
+    return GatherInfo{gather, N, M, K, I, gather->get_output_shape(0)};
 }
 
 // Sibling Gathers that read the same indices tensor share an identical indices-transform
@@ -264,8 +276,7 @@ std::vector<ov::Output<ov::Node>> build_shared_new_indices(const std::vector<Gat
     return new_indices_per_branch;
 }
 
-// Build one branch's Gather itself (steps 5-8: flatten indices/weights, 2D Gather, reshape
-// back to [I, M, K]), given the new_indices this branch was assigned by the shared prefix.
+// Build one branch's Gather itself and restore its original output shape.
 void build_gather_suffix(const GatherInfo& info, const ov::Output<ov::Node>& new_indices) {
     auto gather = info.gather_node;
     auto data_input = gather->input_value(0);
@@ -288,9 +299,9 @@ void build_gather_suffix(const GatherInfo& info, const ov::Output<ov::Node>& new
     auto gathered_flat = std::make_shared<ov::op::v8::Gather>(flat_weights, flat_indices, gather_axis);
     gathered_flat->set_friendly_name(gather_name + "/gathered_flat");
 
-    // Step 8: Reshape to final output [I, M, K]
+    // Step 8: Restore the original Gather output shape.
     auto output_shape =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{info.I, info.M, info.K});
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{info.output_shape.size()}, info.output_shape);
     auto final_output = std::make_shared<ov::op::v1::Reshape>(gathered_flat, output_shape, false);
     final_output->set_friendly_name(gather_name + "/output");
 
