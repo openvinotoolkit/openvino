@@ -28,7 +28,7 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
 GEMMA3NV_FAMILIES = ("gemma3nv", "gemma3nv_uir", "gemma3nv_attention")
 TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
-            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "qwen3a", "qwen3tts_spkenc", "gemma3nv", "gemma4a", "deepseekocr", "deepseekocr2",
+            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "minicpm_ocr_1_0_4x", "qwen3a", "qwen3tts_spkenc", "gemma3nv", "gemma4a", "deepseekocr", "deepseekocr2",
             "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", "gemma3nv_attention",
             "gemma3nv_uir", *REGRIDDED)
 
@@ -495,7 +495,7 @@ def write_grid_model(path, family):
     else:
         w.add_uint32(key + "image_size", 8)
         w.add_uint32(key + "patch_size", 24 if low_contrast else 2)
-        w.add_uint32(key + "projector.scale_factor", 4 if family in {"minicpmv4_6", "minicpmv4_7"} and "_4x" not in variants else 2)
+        w.add_uint32(key + "projector.scale_factor", 4 if family in {"minicpmv4_6", "minicpmv4_7", "minicpm_ocr_1_0"} and "_4x" not in variants else 2)
         w.add_uint32(key + "image_min_pixels", 16)
         w.add_uint32(key + "image_max_pixels", 4096)
         w.add_array(key + "image_mean", [.5, .5, .5])
@@ -574,7 +574,7 @@ def write_grid_model(path, family):
                 w.add_uint32(key + "spatial_merge_size", 2)
                 norm("mm.input_norm", width, False)
                 linear("mm.patch_merger", width * 4, width, False)
-        elif family in {"minicpmv4_6", "minicpmv4_7"}:
+        elif family in {"minicpmv4_6", "minicpmv4_7", "minicpm_ocr_1_0"}:
             tensor("v.position_embd.weight", (4900, width))
             w.add_array(key + "wa_layer_indexes", [0])
             p = "v.vit_merger."
@@ -706,7 +706,7 @@ def grid_inputs(family, width, height, seed=42):
     if family.startswith(("pixtral", "gemma4")):
         result.update(position_x=cols.astype(np.int32).reshape(1, 1, 1, -1),
                       position_y=rows.astype(np.int32).reshape(1, 1, 1, -1))
-    if family in {"minicpmv4_6", "minicpmv4_7"}:
+    if family in {"minicpmv4_6", "minicpmv4_7", "minicpm_ocr_1_0"}:
         result["position_ids"] = (70 * (70 * rows // h) + 70 * cols // w).astype(np.int32).reshape(1, 1, 1, -1)
         order = merge_window_order(h, w)
         result["window_indices"] = np.array(order, np.int32).reshape(1, 1, 1, -1)
