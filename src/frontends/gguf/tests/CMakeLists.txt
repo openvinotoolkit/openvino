@@ -171,6 +171,9 @@ if(ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "OCL")
         target_compile_definitions(${TARGET_NAME} PRIVATE GGUF_GPU_RAW_OCL_TESTS=1)
     endif()
     add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
+elseif(ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "ZE")
+    target_compile_definitions(${TARGET_NAME} PRIVATE GGUF_GPU_ZE_FALLBACK_TESTS=1)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
 endif()
 
 # Install the reference data next to the test binary (found via getExecutableDirectory()):

@@ -2632,6 +2632,91 @@ INSTANTIATE_TEST_SUITE_P(
     });
 #endif
 
+#ifdef GGUF_GPU_ZE_FALLBACK_TESTS
+class GGUFZeDenseFallback : public GGUFProjection,
+                            public testing::WithParamInterface<std::pair<GgufTensorType, const char*>> {};
+
+TEST_P(GGUFZeDenseFallback, CompilesNativeFileProjectionWithoutMutatingSource) {
+    const auto [type, fixture] = GetParam();
+    ov::Core core;
+    try {
+        RecordProperty("device", core.get_property("GPU", ov::device::full_name));
+    } catch (const ov::Exception& error) {
+        GTEST_SKIP() << error.what();
+    }
+    constexpr size_t width = 256;
+    constexpr size_t channels = 4;
+    const auto payload = load_npy<uint8_t>(std::string(fixture) + "_qbytes");
+    const auto path = write_projection_model(width, type, payload, channels);
+    ASSERT_FALSE(path.empty());
+    FrontEnd frontend;
+    const auto graph = frontend.convert(frontend.load(path, ov::AnyMap{ov::hint::gguf_native_weights(true)}));
+    std::shared_ptr<ov::op::internal::FullyConnectedCompressed> projection;
+    const std::string weight_type = std::string("gguf_") + fixture;
+    for (const auto& node : graph->get_ordered_ops()) {
+        const auto candidate = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(node);
+        if (candidate && candidate->get_input_element_type(1).get_type_name() == weight_type) {
+            projection = candidate;
+            break;
+        }
+    }
+    ASSERT_TRUE(projection);
+    const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, width});
+    auto inputs = projection->input_values();
+    inputs[0] = activation;
+    const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(projection->clone_with_new_inputs(inputs));
+    ASSERT_TRUE(fc);
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+    ASSERT_TRUE(weights);
+    ASSERT_EQ(weights->get_byte_size(), payload.size());
+    ASSERT_EQ(std::memcmp(weights->get_data_ptr(), payload.data(), payload.size()), 0);
+    const auto make_model = [&](const std::shared_ptr<ov::Node>& output) {
+        return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{activation});
+    };
+    const auto model = make_model(fc);
+    const auto lowered = ov::util::make_gguf_fc_compatible(*fc, {weights->get_element_type()});
+    ASSERT_TRUE(lowered);
+    const auto precision = ov::hint::inference_precision(ov::element::f32);
+    EXPECT_EQ(core.query_model(model, "GPU", precision).count(fc->get_friendly_name()), 1u);
+    auto actual = core.compile_model(model, "GPU", precision).create_infer_request();
+    auto reference = core.compile_model(make_model(lowered), "GPU", precision).create_infer_request();
+    for (const size_t rows : {1u, 33u}) {
+        SCOPED_TRACE(rows);
+        ov::Tensor input(ov::element::f32, {rows, width});
+        std::fill_n(input.data<float>(), input.get_size(), 0.f);
+        for (size_t row = 0; row < rows; ++row) {
+            input.data<float>()[row * width + (7 * row + 13) % width] = 1.f;
+        }
+        actual.set_input_tensor(input);
+        reference.set_input_tensor(input);
+        actual.infer();
+        reference.infer();
+        const auto result = actual.get_output_tensor();
+        const auto expected = reference.get_output_tensor();
+        ASSERT_EQ(result.get_shape(), (ov::Shape{rows, channels}));
+        ASSERT_EQ(result.get_shape(), expected.get_shape());
+        for (size_t index = 0; index < result.get_size(); ++index) {
+            EXPECT_NEAR(result.data<const float>()[index], expected.data<const float>()[index], 1e-4f);
+        }
+    }
+    EXPECT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), fc);
+    ASSERT_EQ(fc->get_input_node_shared_ptr(1), weights);
+    EXPECT_EQ(std::memcmp(weights->get_data_ptr(), payload.data(), payload.size()), 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(Ze,
+                         GGUFZeDenseFallback,
+                         testing::Values(std::make_pair(GGUF_TYPE_Q4_0, "q4_0"),
+                                         std::make_pair(GGUF_TYPE_Q4_1, "q4_1"),
+                                         std::make_pair(GGUF_TYPE_Q4_K, "q4_k"),
+                                         std::make_pair(GGUF_TYPE_Q5_K, "q5_k"),
+                                         std::make_pair(GGUF_TYPE_Q6_K, "q6_k"),
+                                         std::make_pair(GGUF_TYPE_Q8_0, "q8_0")),
+                         [](const testing::TestParamInfo<GGUFZeDenseFallback::ParamType>& info) {
+                             return info.param.second;
+                         });
+#endif
+
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
     GgufWriter complete;
     GgufWriter first;

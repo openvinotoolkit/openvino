@@ -1018,7 +1018,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
 #if !defined(OV_GPU_WITH_OCL_RT)
-    ov::util::lower_gguf_fc(*func, {ov::element::gguf_q8_0, ov::element::gguf_q4_1});
+    ov::util::lower_gguf_fc(*func,
+                           {ov::element::gguf_q8_0,
+                            ov::element::gguf_q4_0,
+                            ov::element::gguf_q4_1,
+                            ov::element::gguf_q4_k,
+                            ov::element::gguf_q5_k,
+                            ov::element::gguf_q6_k});
 #endif
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
