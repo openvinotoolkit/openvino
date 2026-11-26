@@ -25,7 +25,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                             bool asymmetric,
                                                             bool precomputed_reduction,
                                                             bool use_gs128_for_int8_per_token,
-                                                            bool use_gs128_for_linear_attention)
+                                                            bool use_gs128_for_linear_attention,
+                                                            ov::hint::ExecutionMode execution_mode)
  {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
@@ -112,8 +113,10 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto scale_dtype = m_fc->get_input_element_type(3);
         if (weight_dtype.is_integral()) {
             config.quantization_dt = element::i8;
-        } else if (cldnn::one_of(weight_dtype, {element::f8e4m3, element::f8e5m2, element::f4e2m1})) {
+        } else if (cldnn::one_of(weight_dtype, {element::f8e4m3, element::f8e5m2})) {
             config.quantization_dt = weight_dtype;
+        } else if (weight_dtype == element::f4e2m1) {
+            config.quantization_dt = execution_mode == ov::hint::ExecutionMode::PERFORMANCE ? element::f4e2m1 : element::f8e4m3;
         } else {
             OPENVINO_THROW("Unexpected weight data type: ", weight_dtype);
         }

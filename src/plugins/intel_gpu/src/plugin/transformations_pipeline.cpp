@@ -1999,6 +1999,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
             const bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction() != 0U;
+            const auto execution_mode = config.get_execution_mode();
 
             // WA: hybrid linear-attention (Mamba2 / Gated DeltaNet) models are unstable
             // under per-token INT8 dyn-quant on `linear_attn.out_proj`. Force gs=128 for
@@ -2105,7 +2106,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
-                                                                                    use_gs128_for_linear_attention);
+                                                                                    use_gs128_for_linear_attention,
+                                                                                    execution_mode);
                 // Deduplicate identical DynamicQuantize nodes sharing same input
                 manager.register_pass<ov::pass::SharedOpOptimization>();
             }
