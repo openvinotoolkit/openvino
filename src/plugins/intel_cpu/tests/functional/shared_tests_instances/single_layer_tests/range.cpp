@@ -28,4 +28,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, RangeLayerTest,
                                 ::testing::ValuesIn(model_types),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RangeLayerTest::getTestCaseName);
+
+// Every sign combination of the span and the step, including start == stop. When the step points away from stop,
+// the output is empty.
+INSTANTIATE_TEST_SUITE_P(smoke_StepSign,
+                         RangeLayerTest,
+                         ::testing::Combine(::testing::Values(0.0f, 5.0f),
+                                            ::testing::Values(0.0f, 5.0f, -3.0f),
+                                            ::testing::Values(1.0f, -1.0f, 2.0f, -2.0f),
+                                            ::testing::Values(ov::element::f32, ov::element::i32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         RangeLayerTest::getTestCaseName);
 }  // namespace
