@@ -4,9 +4,11 @@
 
 set(TARGET_NAME ov_subgraphs_dumper_tests)
 
+include(sources.cmake)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES ${OV_SUBGRAPHS_DUMPER_TEST_SOURCES}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/
         LINK_LIBRARIES
