@@ -25,19 +25,9 @@ jobs:
     with:
       target-branch: ${{ inputs.target-branch }}
 
-  my_pr:
-    uses: ./.github/workflows/my_pr.yml
-    with:
-      target-branch: ${{ inputs.target-branch }}
-
-  strict_thread_cap:
-    uses: ./.github/workflows/strict_thread_cap.yml
-    with:
-      target-branch: ${{ inputs.target-branch }}
-
   Overall_Status:
     name: ci/gha_overall_status_windows_cc
-    needs: [old_baseline, my_pr, strict_thread_cap]
+    needs: [old_baseline]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
