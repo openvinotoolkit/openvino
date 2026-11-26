@@ -396,12 +396,13 @@ protected:
 
         const ov::Shape shape{1, 16, 64};
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        std::vector<float> x_weight_values(shape.back() * shape.back());
-        for (size_t i = 0; i < x_weight_values.size(); ++i) {
-            x_weight_values[i] = static_cast<float>(static_cast<int>(i % 13) - 6) / 64.f;
+        // Identity weight: the f16 MatMul is exact up to the f16 rounding of the input. With a mixed-sign weight, the
+        // f16 MatMul error of near-zero outputs, scaled by the large gamma (up to ~56), exceeds the threshold on iGPU.
+        std::vector<float> identity(shape.back() * shape.back(), 0.f);
+        for (size_t i = 0; i < shape.back(); ++i) {
+            identity[i * shape.back() + i] = 1.f;
         }
-        auto x =
-            std::make_shared<ov::op::v0::MatMul>(input, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{shape.back(), shape.back()}, x_weight_values));
+        auto x = std::make_shared<ov::op::v0::MatMul>(input, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{shape.back(), shape.back()}, identity));
 
         auto weight = std::make_shared<ov::op::v0::Parameter>(ov::element::u16, ov::Shape{shape.back()});
         auto zero_point = ov::op::v0::Constant::create(ov::element::u16, ov::Shape{}, {127});
