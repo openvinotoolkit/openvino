@@ -62,7 +62,7 @@ public:
                                allocation_type::usm_shared,
                                allocation_type::usm_device,
                                _additional_statistics_type};
-        auto end = types.end();
+        decltype(types)::const_iterator end = types.cend();
         if (_additional_statistics_type == allocation_type::unknown || !support_allocation_type(_additional_statistics_type)) {
             --end;
         }

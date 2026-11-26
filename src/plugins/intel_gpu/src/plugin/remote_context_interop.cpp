@@ -12,7 +12,7 @@
 
 namespace ov::intel_gpu {
 
-ov::PartialShape RemoteTensorImpl::make_partial_shape(const ov::Shape& shape, const ov::element::Type&) {
+ov::PartialShape RemoteTensorImpl::make_partial_shape(const ov::Shape& shape, const ov::element::Type& /*type*/) {
     return ov::PartialShape{shape};
 }
 
