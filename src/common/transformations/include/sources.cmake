@@ -92,6 +92,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gated_residual_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gelu_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/glu_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/group_normalization_fusion.hpp
@@ -202,6 +203,7 @@ set(OP_CONVERSIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_embedding_bag_packed15_downgrade.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_quantized_legacy.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gated_residual_to_compressed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_0d.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_downgrade.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_matmul_to_compressed.hpp
@@ -294,6 +296,7 @@ set(PAGED_ATTENTION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_qsa_indexer_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_sparse_attention_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.hpp

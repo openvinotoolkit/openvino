@@ -133,12 +133,154 @@ trade-offs after optimization:
   There are three modes: INT8_ASYM, INT8_SYM, and NONE, which retains
   the original floating-point precision of the model weights (``INT8_ASYM`` is default value).
 
+* ``ignored_scope`` - excludes selected layers from compression to preserve accuracy. See
+  :ref:`Exclude layers from compression <wc_ignored_scope>`.
 
+* ``scoped_configs`` - assigns custom compression settings (``mode`` and ``group_size``) to
+  selected layers. See
+  :ref:`Set per-layer compression settings <wc_scoped_configs>`.
 
 .. tip::
 
    NNCF enables you to stack the supported optimization methods. For example, AWQ,
    Scale Estimation and GPTQ methods may be enabled all together to achieve better accuracy.
+
+.. _wc_ignored_scope:
+
+Exclude layers from compression (ignored_scope)
+###############################################
+
+The ``ignored_scope`` parameter excludes selected layers from compression, for example, the
+last layer of the model. Excluded layers keep their original floating-point precision.
+
+Layers are selected with ``nncf.Scope`` by the following rules:
+
+* ``names`` - a list of node names.
+* ``patterns`` - a list of regular expressions matched against node names.
+* ``types`` - a list of operation types. The types follow the framework of the model, for
+  example, ``MatMul`` or ``Convolution`` for OpenVINO models.
+* ``subgraphs`` - a list of ``nncf.Subgraph`` objects. All nodes along all simple paths in the
+  graph from the input to the output nodes are selected.
+
+By default, each rule must match at least one node of the model, otherwise an error is raised.
+Set ``validate=False`` to skip this check.
+
+.. note::
+
+   ``nncf.Scope`` is available starting with NNCF 3.5.0. In earlier versions, use
+   ``nncf.IgnoredScope``, which accepts the same arguments.
+
+Examples:
+
+.. code-block:: python
+
+   import nncf
+
+   # Exclude by node name
+   names = ["layer_1", "layer_2", "layer_3"]
+   compressed_model = nncf.compress_weights(
+     model,
+     mode=nncf.CompressWeightsMode.INT4_SYM,
+     ignored_scope=nncf.Scope(names=names),
+   )
+
+   # Exclude by operation type
+   types = ["Convolution"]
+   compressed_model = nncf.compress_weights(
+     model,
+     mode=nncf.CompressWeightsMode.INT4_SYM,
+     ignored_scope=nncf.Scope(types=types),
+   )
+
+   # Exclude by regular expression
+   regex = [".*layer_.*"]
+   compressed_model = nncf.compress_weights(
+     model,
+     mode=nncf.CompressWeightsMode.INT4_SYM,
+     ignored_scope=nncf.Scope(patterns=regex),
+   )
+
+   # Exclude by subgraph
+   subgraph = nncf.Subgraph(inputs=["layer_1", "layer_2"], outputs=["layer_3"])
+   compressed_model = nncf.compress_weights(
+     model,
+     mode=nncf.CompressWeightsMode.INT4_SYM,
+     ignored_scope=nncf.Scope(subgraphs=[subgraph]),
+   )
+
+.. _wc_scoped_configs:
+
+Set per-layer compression settings (scoped_configs)
+###################################################
+
+.. note::
+
+   ``scoped_configs`` is available starting with NNCF 3.5.0.
+
+The ``scoped_configs`` parameter is a list of ``nncf.ScopedConfig`` objects. Each of them
+assigns a compression ``mode`` and ``group_size`` to selected layers, while the rest of the model
+is compressed with the main settings. If ``group_size`` is not set, the default group size of
+the given ``mode`` is used. The value ``-1`` means per-channel quantization.
+
+A scoped config selects layers by the same rules as ``ignored_scope``: ``names``, ``patterns``,
+``types`` and ``subgraphs``, and also accepts the ``validate`` argument.
+
+In the example below, a Mixture-of-Experts model is compressed to INT4 with the main settings,
+which covers the experts, while the attention and router layers are kept in 8 bits to preserve
+accuracy:
+
+.. code-block:: python
+
+   import nncf
+
+   compressed_model = nncf.compress_weights(
+     model,
+     # Main settings: applied to all layers that are not matched by a scoped config,
+     # including the experts
+     mode=nncf.CompressWeightsMode.INT4_SYM,
+     group_size=64,
+     ratio=1.0,
+     scoped_configs=[
+       # Keep the attention and router layers in INT8 per-channel to preserve accuracy
+       nncf.ScopedConfig(
+         patterns=[".*self_attn.*", ".*router.*"],
+         mode=nncf.CompressWeightsMode.INT8_ASYM,
+         group_size=-1,
+       ),
+       # Compress the expert down projections to asymmetric INT4 with a larger group size
+       nncf.ScopedConfig(
+         patterns=[".*mlp.down_proj.*"],
+         mode=nncf.CompressWeightsMode.INT4_ASYM,
+         group_size=128,
+       ),
+     ],
+   )
+
+The compression settings of a layer are selected as follows:
+
+.. list-table::
+   :widths: 35 65
+   :header-rows: 1
+
+   * - Layer matched by
+     - Result
+   * - One or more scoped configs
+     - Compressed with the settings of the scoped config. If several scoped configs match the
+       layer, the last one in the list is applied.
+   * - ``ignored_scope`` and a scoped config
+     - Compressed with the settings of the scoped config. Scoped configs take precedence over
+       ``ignored_scope``.
+   * - ``ignored_scope`` only
+     - Not compressed.
+   * - Neither
+     - Compressed with the main settings: ``mode``, ``group_size``, ``ratio``, ``backup_mode``
+       and ``all_layers``. The ``ratio`` is counted only over these layers.
+
+Limitations:
+
+* Codebook compression modes are not supported by scoped configs. Passing one raises an error.
+* If the ``mode`` of a scoped config is not supported for the data type of a layer's weights,
+  the scoped config is not applied to that layer, and NNCF logs a warning.
 
 4-bit Weight Quantization with GPTQ
 ###################################

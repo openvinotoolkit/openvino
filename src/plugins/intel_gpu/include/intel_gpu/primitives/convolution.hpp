@@ -207,6 +207,8 @@ struct convolution : public primitive_base<convolution> {
     input_info activations_zero_points;
     /// @brief Primitive id containing compensation.
     input_info compensation;
+    /// @brief All activations zero-point values are equal. Selects the oneDNN zero-point mask, so it is part of the impl cache key.
+    bool activations_zero_point_per_tensor = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -227,6 +229,7 @@ struct convolution : public primitive_base<convolution> {
         seed = hash_combine(seed, !weights_zero_points.is_valid());
         seed = hash_combine(seed, !activations_zero_points.is_valid());
         seed = hash_combine(seed, !compensation.is_valid());
+        seed = hash_combine(seed, activations_zero_point_per_tensor);
         return seed;
     }
 
@@ -236,6 +239,9 @@ struct convolution : public primitive_base<convolution> {
         }
 
         auto rhs_casted = downcast<const convolution>(rhs);
+        if (activations_zero_point_per_tensor != rhs_casted.activations_zero_point_per_tensor) {
+            return false;
+        }
 
         #define cmp_fields(name) name == rhs_casted.name
         return cmp_fields(stride) &&
@@ -277,6 +283,7 @@ struct convolution : public primitive_base<convolution> {
         ob << weights_zero_points;
         ob << activations_zero_points;
         ob << compensation;
+        ob << activations_zero_point_per_tensor;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -298,6 +305,7 @@ struct convolution : public primitive_base<convolution> {
         ib >> weights_zero_points;
         ib >> activations_zero_points;
         ib >> compensation;
+        ib >> activations_zero_point_per_tensor;
     }
 
 protected:
