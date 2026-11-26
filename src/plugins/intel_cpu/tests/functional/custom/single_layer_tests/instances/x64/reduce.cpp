@@ -28,34 +28,76 @@ namespace test {
 namespace Reduce {
 namespace {
 
-std::string getReduceImplType(const ov::CompiledModel& compiled) {
+using ReductionType = ov::test::utils::ReductionType;
+
+std::shared_ptr<ov::Model> makeReduceModel(const ov::Shape& shape,
+                                           const std::vector<int>& axes,
+                                           ReductionType reductionType,
+                                           const std::vector<cpu_memory_format_t>& formats = {}) {
+    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    const auto axesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+    const auto reduce = ov::test::utils::make_reduce(parameter, axesNode, true, reductionType);
+    if (!formats.empty()) {
+        reduce->get_rt_info() = CPUTestsBase::makeCPUInfo(formats, formats, {});
+    }
+    return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{parameter});
+}
+
+ov::CompiledModel compileReduceModel(const std::shared_ptr<ov::Model>& model) {
+    ov::Core core;
+    return core.compile_model(model,
+                              ov::test::utils::DEVICE_CPU,
+                              {{ov::hint::inference_precision.name(), ov::element::f32}});
+}
+
+std::shared_ptr<ov::Node> getReduceExecNode(const ov::CompiledModel& compiled) {
     for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
         const auto& info = node->get_rt_info();
         const auto layerType = info.find(ov::exec_model_info::LAYER_TYPE);
         if (layerType != info.end() && layerType->second.as<std::string>() == "Reduce") {
-            return info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+            return node;
         }
     }
-    return {};
+    return nullptr;
+}
+
+void checkReduceImplementation(const ov::Node& node, const char* expectedPrefix) {
+    const auto implType = node.get_rt_info().at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+    EXPECT_EQ(implType.find(expectedPrefix), 0U) << implType;
+}
+
+void compareReduceWithReference(const ov::Model& model, ov::InferRequest& request) {
+    ov::TensorVector expected{ov::Tensor(ov::element::f32, model.get_output_shape(0))};
+    ASSERT_TRUE(model.evaluate(expected, ov::TensorVector{request.get_input_tensor()}));
+    request.infer();
+    const auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.get_shape(), expected[0].get_shape());
+    for (size_t i = 0; i < actual.get_size(); ++i) {
+        EXPECT_EQ(actual.data<const float>()[i], expected[0].data<const float>()[i]) << "Output index: " << i;
+    }
 }
 
 using ReduceNaNCase = std::tuple<ov::Shape, std::vector<int>, cpu_memory_format_t>;
-using ReduceNaNParams = std::tuple<ov::test::utils::ReductionType, ReduceNaNCase>;
+using ReduceNaNParams = std::tuple<ReductionType, ReduceNaNCase>;
 
 class ReduceNaNCPUTest : public testing::TestWithParam<ReduceNaNParams> {};
 
 TEST_P(ReduceNaNCPUTest, IgnoreNaN) {
+    if (!ov::with_cpu_x86_avx2()) {
+        GTEST_SKIP() << "Reduce JIT requires AVX2";
+    }
     const auto& [reductionType, testCase] = GetParam();
     const auto& [shape, axes, format] = testCase;
-    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    const auto axesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
-    const auto reduce = ov::test::utils::make_reduce(parameter, axesNode, true, reductionType);
-    reduce->get_rt_info() = CPUTestsBase::makeCPUInfo({format}, {format}, {});
-    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{parameter});
-    ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       ov::test::utils::DEVICE_CPU,
-                                       {{ov::hint::inference_precision.name(), ov::element::f32}});
+    const auto model = makeReduceModel(shape, axes, reductionType, {format});
+    auto compiled = compileReduceModel(model);
+    const auto execNode = getReduceExecNode(compiled);
+    ASSERT_NE(execNode, nullptr);
+    checkReduceImplementation(*execNode, "jit_");
+    // The producer's output layout is the layout consumed by the Reduce data input.
+    const auto& inputInfo = execNode->get_input_node_ptr(0)->get_rt_info();
+    const auto inputLayout = inputInfo.at(ov::exec_model_info::OUTPUT_LAYOUTS).as<std::string>();
+    EXPECT_EQ(CPUTestsBase::cpu_str2fmt(inputLayout.c_str()), format) << inputLayout;
+
     auto request = compiled.create_infer_request();
     auto input = request.get_input_tensor();
     const auto size = input.get_size();
@@ -64,15 +106,7 @@ TEST_P(ReduceNaNCPUTest, IgnoreNaN) {
     for (size_t i = 0; i < size; ++i) {
         data[i] = values[i % 5];
     }
-
-    ov::TensorVector expected{ov::Tensor(ov::element::f32, model->get_output_shape(0))};
-    ASSERT_TRUE(model->evaluate(expected, ov::TensorVector{input}));
-    request.infer();
-    const auto actual = request.get_output_tensor();
-    ASSERT_EQ(actual.get_size(), expected[0].get_size());
-    for (size_t i = 0; i < actual.get_size(); ++i) {
-        EXPECT_EQ(actual.data<const float>()[i], expected[0].data<const float>()[i]) << "Output index: " << i;
-    }
+    compareReduceWithReference(*model, request);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -83,19 +117,15 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(ReduceNaNCase{{5}, {0}, x},
                         ReduceNaNCase{{33}, {0}, x},
                         ReduceNaNCase{{1, 3, 2, 3}, {3}, nchw},
+                        ReduceNaNCase{{1, 3, 4, 4}, {1}, nhwc},
                         ReduceNaNCase{{1, 19, 2, 17}, {1, 2, 3}, ov::with_cpu_x86_avx512_core() ? nChw16c : nChw8c})));
 
 TEST(smoke_ReduceMaxNaN, ReferenceFallback) {
-    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 2, 1, 1, 1});
-    const auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 2});
-    const auto reduce = ov::test::utils::make_reduce(parameter, axes, true, ov::test::utils::ReductionType::Max);
-    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{parameter});
-    ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       ov::test::utils::DEVICE_CPU,
-                                       {{ov::hint::inference_precision.name(), ov::element::f32}});
-    const auto implType = getReduceImplType(compiled);
-    ASSERT_EQ(implType.find("ref"), 0U) << implType;
+    const auto model = makeReduceModel({2, 2, 2, 1, 1, 1}, {0, 2}, ReductionType::Max);
+    auto compiled = compileReduceModel(model);
+    const auto execNode = getReduceExecNode(compiled);
+    ASSERT_NE(execNode, nullptr);
+    checkReduceImplementation(*execNode, "ref");
 
     auto request = compiled.create_infer_request();
     auto input = request.get_input_tensor();
@@ -104,61 +134,52 @@ TEST(smoke_ReduceMaxNaN, ReferenceFallback) {
     const float values[] = {8.0F, nan, nan, nan, nan, 5.0F, nan, nan};
     ASSERT_EQ(input.get_size(), 8U);
     std::copy_n(values, input.get_size(), input.data<float>());
-
-    ov::TensorVector expected{ov::Tensor(ov::element::f32, model->get_output_shape(0))};
-    ASSERT_TRUE(model->evaluate(expected, ov::TensorVector{input}));
-    request.infer();
-    const auto actual = request.get_output_tensor();
-    ASSERT_EQ(actual.get_shape(), expected[0].get_shape());
-    EXPECT_EQ(actual.data<const float>()[0], expected[0].data<const float>()[0]) << "Mixed finite and NaN group";
-    EXPECT_EQ(actual.data<const float>()[1], expected[0].data<const float>()[1]) << "All-NaN group";
+    compareReduceWithReference(*model, request);
 }
 
-struct ReduceMinNonFiniteCase {
+struct ReduceNonFiniteCase {
+    ReductionType reductionType;
     ov::Shape shape;
     std::vector<int> axes;
     bool expectJit;
 };
 
-class ReduceMinNonFiniteCPUTest : public testing::TestWithParam<ReduceMinNonFiniteCase> {};
+class ReduceNonFiniteCPUTest : public testing::TestWithParam<ReduceNonFiniteCase> {};
 
-TEST_P(ReduceMinNonFiniteCPUTest, ReturnsPositiveInfinity) {
-    const auto& [shape, axes, expectJit] = GetParam();
+TEST_P(ReduceNonFiniteCPUTest, KeepsInitialValue) {
+    const auto& [reductionType, shape, axes, expectJit] = GetParam();
     if (expectJit && !ov::with_cpu_x86_avx2()) {
         GTEST_SKIP() << "Reduce JIT requires AVX2";
     }
 
-    const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    const auto axesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
-    const auto reduce = ov::test::utils::make_reduce(parameter, axesNode, true, ov::test::utils::ReductionType::Min);
-    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{parameter});
-    ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       ov::test::utils::DEVICE_CPU,
-                                       {{ov::hint::inference_precision.name(), ov::element::f32}});
-
-    const auto implType = getReduceImplType(compiled);
-    EXPECT_EQ(implType.find(expectJit ? "jit_" : "ref"), 0U) << implType;
+    const auto model = makeReduceModel(shape, axes, reductionType);
+    auto compiled = compileReduceModel(model);
+    const auto execNode = getReduceExecNode(compiled);
+    ASSERT_NE(execNode, nullptr);
+    checkReduceImplementation(*execNode, expectJit ? "jit_" : "ref");
 
     auto request = compiled.create_infer_request();
     auto input = request.get_input_tensor();
     auto* data = input.data<float>();
     constexpr float inf = std::numeric_limits<float>::infinity();
+    const bool isMin = reductionType == ReductionType::Min;
+    const float expected = isMin ? inf : std::numeric_limits<float>::lowest();
     std::fill_n(data, input.get_size(), std::numeric_limits<float>::quiet_NaN());
-    // Only the second reduction group contains positive infinity.
-    data[input.get_size() - 1] = inf;
+    // Only the second reduction group contains an infinity.
+    data[input.get_size() - 1] = isMin ? inf : -inf;
 
     request.infer();
     const auto actual = request.get_output_tensor();
     ASSERT_EQ(actual.get_size(), 2U);
-    EXPECT_EQ(actual.data<const float>()[0], inf) << "All-NaN group";
-    EXPECT_EQ(actual.data<const float>()[1], inf) << "Mixed NaN and positive infinity group";
+    EXPECT_EQ(actual.data<const float>()[0], expected) << "All-NaN group";
+    EXPECT_EQ(actual.data<const float>()[1], expected) << "Mixed NaN and infinity group";
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReduceMinNonFinite,
-                         ReduceMinNonFiniteCPUTest,
-                         testing::Values(ReduceMinNonFiniteCase{{2, 17}, {1}, true},
-                                         ReduceMinNonFiniteCase{{2, 2, 2, 1, 1, 1}, {0, 2}, false}));
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceNonFinite,
+                         ReduceNonFiniteCPUTest,
+                         testing::Values(ReduceNonFiniteCase{ReductionType::Min, {2, 17}, {1}, true},
+                                         ReduceNonFiniteCase{ReductionType::Min, {2, 2, 2, 1, 1, 1}, {0, 2}, false},
+                                         ReduceNonFiniteCase{ReductionType::Max, {2, 17}, {1}, true}));
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
