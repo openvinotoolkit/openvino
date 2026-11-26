@@ -80,7 +80,8 @@ vulkan_buffer_allocation::ptr vulkan_buffer_allocation::create(vulkan_engine& en
     vkGetBufferMemoryRequirements(device, buffer, &requirements);
     VkPhysicalDeviceMemoryProperties memory_properties{};
     vkGetPhysicalDeviceMemoryProperties(engine.get_physical_device(), &memory_properties);
-    const auto prefer_unified_memory = engine.get_device_info().dev_type != device_type::discrete_gpu;
+    const auto& info = engine.get_device_info();
+    const auto prefer_unified_memory = info.dev_type != device_type::discrete_gpu;
     const auto memory_type = select_vulkan_memory_type(memory_properties, requirements.memoryTypeBits, usage, prefer_unified_memory);
 
     VkMemoryAllocateInfo allocation_info{};
@@ -88,10 +89,18 @@ vulkan_buffer_allocation::ptr vulkan_buffer_allocation::create(vulkan_engine& en
     allocation_info.allocationSize = requirements.size;
     allocation_info.memoryTypeIndex = memory_type.index;
 
+    static const auto host_memory = cldnn::engine::get_host_memory_size();
+    const auto device_capacity = prefer_unified_memory ? VkDeviceSize{0} : info.max_global_mem_size;
+    const auto memory_limit = host_memory + std::min(device_capacity, (std::numeric_limits<VkDeviceSize>::max)() - host_memory);
+    if (!allocation->_device_owner->try_reserve_memory(allocation_info.allocationSize, memory_limit)) {
+        throw vulkan_bad_alloc("reserve memory budget", VK_ERROR_OUT_OF_DEVICE_MEMORY);
+    }
+    // The owner releases the reservation if any subsequent Vulkan call fails.
+    allocation->_memory_size = allocation_info.allocationSize;
+
     VkDeviceMemory device_memory = VK_NULL_HANDLE;
     check_vulkan_memory_result(vkAllocateMemory(device, &allocation_info, nullptr, &device_memory), "vkAllocateMemory");
     allocation->_memory = device_memory;
-    allocation->_memory_size = allocation_info.allocationSize;
     allocation->_memory_flags = memory_type.flags;
 
     check_vulkan_memory_result(vkBindBufferMemory(device, buffer, device_memory, 0), "vkBindBufferMemory");
@@ -185,6 +194,9 @@ vulkan_buffer_allocation::~vulkan_buffer_allocation() {
     }
     if (_memory != VK_NULL_HANDLE) {
         vkFreeMemory(_device, _memory, nullptr);
+    }
+    if (_memory_size > 0) {
+        _device_owner->release_memory(_memory_size);
     }
 }
 

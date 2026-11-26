@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <new>
 #include <vector>
@@ -193,6 +194,71 @@ TEST(VulkanMemorySmoke, ReportsAllocationLimitWithinDeviceLimits) {
         EXPECT_LE(info.max_alloc_mem_size, properties11.maxMemoryAllocationSize);
         EXPECT_LE(info.max_alloc_mem_size, properties13.maxBufferSize);
     }
+}
+
+VkDeviceSize get_backing_memory_size(const cldnn::vulkan::vulkan_buffer_allocation& allocation) {
+    VkMemoryRequirements requirements{};
+    vkGetBufferMemoryRequirements(allocation.get_device(), allocation.get_buffer(), &requirements);
+    return requirements.size;
+}
+
+TEST(VulkanMemorySmoke, CountsStagingAndRetainedPoolMemory) {
+    using namespace cldnn::vulkan;
+    const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    const auto device = std::static_pointer_cast<vulkan_device>(devices.begin()->second);
+    const auto can_reserve_one_byte = [&](VkDeviceSize limit) {
+        if (!device->try_reserve_memory(1, limit)) {
+            return false;
+        }
+        device->release_memory(1);
+        return true;
+    };
+
+    {
+        auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, device);
+        auto buffer = engine->allocate_memory(byte_layout(64), cldnn::allocation_type::vk_buffer, false);
+        const auto& backing = *static_cast<vulkan_buffer&>(*buffer).get_allocation();
+        const auto backing_size = get_backing_memory_size(backing);
+        const auto backing_handle = backing.get_buffer();
+        EXPECT_FALSE(can_reserve_one_byte(backing_size));
+        EXPECT_TRUE(can_reserve_one_byte(backing_size + 1));
+
+        {
+            auto& vk_engine = static_cast<vulkan_engine&>(*engine);
+            auto staging = vulkan_buffer_allocation::create(vk_engine, 32, vulkan_buffer_memory_usage::host_staging);
+            const auto combined_size = backing_size + get_backing_memory_size(*staging);
+            EXPECT_FALSE(can_reserve_one_byte(combined_size));
+            EXPECT_TRUE(can_reserve_one_byte(combined_size + 1));
+        }
+        EXPECT_TRUE(can_reserve_one_byte(backing_size + 1));
+
+        buffer.reset();
+        EXPECT_EQ(engine->get_used_device_memory(cldnn::allocation_type::vk_buffer), 0U);
+        EXPECT_FALSE(can_reserve_one_byte(backing_size));
+        auto reused = engine->allocate_memory(byte_layout(64), cldnn::allocation_type::vk_buffer, false);
+        EXPECT_EQ(static_cast<vulkan_buffer&>(*reused).get_allocation()->get_buffer(), backing_handle);
+        EXPECT_TRUE(can_reserve_one_byte(backing_size + 1));
+    }
+
+    EXPECT_TRUE(can_reserve_one_byte(1));
+}
+
+TEST(VulkanMemorySmoke, RejectsPhysicalAllocationsOnBudgetExhaustion) {
+    using namespace cldnn::vulkan;
+    const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
+    auto& vk_engine = static_cast<vulkan_engine&>(*engine);
+    const auto device = vk_engine.get_vulkan_device_object();
+
+    // Simulate a full budget without allocating anything to fill it.
+    constexpr auto reserved = (std::numeric_limits<VkDeviceSize>::max)();
+    ASSERT_TRUE(device->try_reserve_memory(reserved, reserved));
+    EXPECT_THROW(vulkan_buffer_allocation::create(vk_engine, 64, vulkan_buffer_memory_usage::device), std::bad_alloc);
+    EXPECT_THROW(vulkan_buffer_allocation::create(vk_engine, 32, vulkan_buffer_memory_usage::host_staging), std::bad_alloc);
+    device->release_memory(reserved);
+    EXPECT_NO_THROW(vulkan_buffer_allocation::create(vk_engine, 32, vulkan_buffer_memory_usage::host_staging));
 }
 
 TEST(VulkanMemorySmoke, ChecksStagedTransfersAndAllocations) {

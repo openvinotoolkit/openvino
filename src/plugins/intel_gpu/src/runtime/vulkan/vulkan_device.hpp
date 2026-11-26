@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 
@@ -61,6 +62,9 @@ public:
         return _non_coherent_atom_size;
     }
 
+    bool try_reserve_memory(VkDeviceSize size, VkDeviceSize limit) noexcept;
+    void release_memory(VkDeviceSize size) noexcept;
+
     std::mutex& get_queue_mutex() {
         return _queue_mutex;
     }
@@ -75,6 +79,7 @@ private:
     VkQueue _compute_queue = VK_NULL_HANDLE;
     uint32_t _max_memory_allocation_count = 1;
     VkDeviceSize _non_coherent_atom_size = 1;
+    std::atomic<VkDeviceSize> _reserved_memory{0};
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::vk_buffer}, allocation_type::vk_buffer};
     mutable std::mutex _init_mutex;

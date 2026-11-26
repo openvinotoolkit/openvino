@@ -226,6 +226,20 @@ bool vulkan_device::is_initialized() const {
     return _device != VK_NULL_HANDLE;
 }
 
+bool vulkan_device::try_reserve_memory(VkDeviceSize size, VkDeviceSize limit) noexcept {
+    auto reserved = _reserved_memory.load(std::memory_order_relaxed);
+    while (reserved <= limit && size <= limit - reserved) {
+        if (_reserved_memory.compare_exchange_weak(reserved, reserved + size, std::memory_order_relaxed)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void vulkan_device::release_memory(VkDeviceSize size) noexcept {
+    _reserved_memory.fetch_sub(size, std::memory_order_relaxed);
+}
+
 bool vulkan_device::is_same(const device::ptr other) {
     const auto other_vulkan_device = std::dynamic_pointer_cast<vulkan_device>(other);
     return other_vulkan_device != nullptr && (_physical_device == other_vulkan_device->_physical_device || _info.is_same_device(other_vulkan_device->_info));
