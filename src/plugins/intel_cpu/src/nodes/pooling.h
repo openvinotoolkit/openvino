@@ -31,6 +31,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const NodeConfig& config) override;
     bool created() const override;
+    bool canFuse(const NodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;
     }
