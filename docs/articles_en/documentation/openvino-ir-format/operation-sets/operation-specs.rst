@@ -99,6 +99,7 @@ Operation Specifications
    GELU-2 <operation-specs/activation/gelu-2>
    GELU-7 <operation-specs/activation/gelu-7>
    GenerateProposals-9 <operation-specs/detection/generate-proposals-9>
+   GGUFDequantize <operation-specs/internal/gguf-dequantize>
    GreaterEqual-1 <operation-specs/comparison/greater-equal-1>
    Greater-1 <operation-specs/comparison/greater-1>
    GroupConvolutionBackpropData-1 <operation-specs/convolution/group-convolution-backprop-data-1>
