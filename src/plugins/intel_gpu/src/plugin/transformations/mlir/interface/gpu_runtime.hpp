@@ -5,8 +5,10 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 #include <vector>
 
+#include "../common/typedefs.hpp"
 #include "intel_gpu/runtime/event.hpp"
 
 namespace cldnn {
@@ -47,8 +49,23 @@ public:
                                       const std::vector<cldnn::event::ptr>& deps,
                                       bool need_event) = 0;
 
+    const InputOrders& get_input_orders() const {
+        return input_orders;
+    }
+
 protected:
-    MLIRGpuProgram() = default;
+    explicit MLIRGpuProgram(InputOrders input_orders) : input_orders(std::move(input_orders)) {}
+
+private:
+    // Describes physical memory order for certain memref inputs of the compiled MLIR program.
+    // 'input_orders[1] = {0, 2, 1}' equals to the following memref in mlir (actual shapes can be any):
+    //                     ^  ^  ^
+    //                     E  G  N
+    // memref<256x512x32xf16, strided<[16384, 1, 512]>>; (N is innermost, stride 1)
+    //          ^   ^  ^                   ^  ^    ^
+    //          E   N  G                   E  N    G
+    // If an input is not present in this map means its physical order is default one (row-major)
+    InputOrders input_orders;
 };
 
 void register_mlir_gpu_runtime();

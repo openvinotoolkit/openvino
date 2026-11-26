@@ -63,15 +63,17 @@ TEST(SerializationTest, RejectsPreviousNpuwVersion) {
     read(current_header, minor);
     read(current_header, patch);
 
-    std::stringstream old_header;
-    write(old_header, serialization_indicator);
-    write(old_header, model_indicator);
-    write(old_header, major);
-    write(old_header, minor);
-    write(old_header, patch);
-    write(old_header, std::string("0.37"));
-    EXPECT_THROW(read_and_check_header(old_header, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel"),
-                 ov::Exception);
+    for (const auto* old_version : {"0.37", "0.38"}) {
+        std::stringstream old_header;
+        write(old_header, serialization_indicator);
+        write(old_header, model_indicator);
+        write(old_header, major);
+        write(old_header, minor);
+        write(old_header, patch);
+        write(old_header, std::string(old_version));
+        EXPECT_THROW(read_and_check_header(old_header, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel"),
+                     ov::Exception);
+    }
 }
 
 TEST(SerializationTest, PreservesAttentionSinkRounding) {
