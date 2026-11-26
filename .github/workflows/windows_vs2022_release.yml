@@ -695,7 +695,7 @@ jobs:
       REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
       NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
       GTEST_PARALLEL_SCRIPT: "${{ github.workspace }}\\gtest-parallel\\gtest_parallel.py"
-      NEO_CACHE_MAX_SIZE: '0' # unlimited
+      # NEO_CACHE_MAX_SIZE: '0' # unlimited
       PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache_gpu_unit_ptl.lst"
       TEST_RESULTS_DIR: "${{ github.workspace }}\\install\\tests\\gpu_unit_tests"
@@ -737,7 +737,7 @@ jobs:
 
       - name: Run GPU unit tests
         env:
-          NEO_CACHE_PERSISTENT: '1'
+          # NEO_CACHE_PERSISTENT: '1'
           GPU_TEST_FILTER: '-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*:*sdpa_gpu_sink_test.matches_independent_reference*:*permute_f_y_axes_tile.combined/InputShape=(16.32.128.512)*:*fusings_gpu/conv_fp32_multi_eltwise_quantization.basic/1:*cpu_impls/activation_random_test.random/2:*smoke/moe_3gemm_compressed_gpu_random.moe_accuracy_test_random/10'
         run: |
           . "$env:INSTALL_DIR\setupvars.ps1"
