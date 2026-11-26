@@ -25,31 +25,37 @@ public:
           m_model_size(model_size) {
         cldnn::BinaryOutputBuffer header(m_header);
         header << CompiledModel::runtime_requirements_magic << CompiledModel::runtime_requirements_version << requirements;
+        m_header_remaining = header.get_offset();
     }
 
     void read(void* data, std::streamsize size) override {
         OPENVINO_ASSERT(size >= 0, "[GPU] Invalid HSM model read size");
         // Bypasses BinaryInputBuffer::read so payload offsets stay relative to the model section.
-        const auto read = m_header.rdbuf()->sgetn(static_cast<char*>(data), size);
-        if (read < size) {
-            const auto payload_bytes = size - read;
-            check_extent(payload_bytes);
-            BinaryInputBuffer::read(static_cast<char*>(data) + read, payload_bytes);
+        auto* destination = static_cast<char*>(data);
+        if (m_header_remaining != 0) {
+            const auto read = m_header.rdbuf()->sgetn(destination, size);
+            m_header_remaining -= static_cast<size_t>(read);
+            if (m_header_remaining == 0) {
+                set_read_limit(m_model_size);
+            }
+            destination += read;
+            size -= read;
+        }
+        if (size != 0) {
+            check_size(static_cast<size_t>(size));
+            BinaryInputBuffer::read(destination, size);
         }
     }
 
     void seek_current_ptr(std::streamsize size) override {
-        check_extent(size);
+        OPENVINO_ASSERT(size >= 0, "[GPU] Invalid HSM model seek size");
+        check_size(static_cast<size_t>(size));
         BinaryInputBuffer::seek_current_ptr(size);
     }
 
 private:
-    void check_extent(std::streamsize size) const {
-        OPENVINO_ASSERT(size >= 0 && get_offset() <= m_model_size && static_cast<size_t>(size) <= m_model_size - get_offset(),
-                        "[GPU] Read exceeds the HSM model section");
-    }
-
     std::stringstream m_header;
+    size_t m_header_remaining = 0;
     const size_t m_model_size;
 };
 
@@ -115,8 +121,12 @@ ov::CacheMode ReaderHandler::cache_mode() const {
     return *m_cache_mode;
 }
 
+bool ReaderHandler::is_encrypted() const {
+    return (m_info->flags & encrypted_flag) != 0;
+}
+
 bool ReaderHandler::open_encrypted_model(const ov::EncryptionCallbacks& callbacks) {
-    if ((m_info->flags & encrypted_flag) == 0) {
+    if (!is_encrypted()) {
         return false;
     }
     OPENVINO_ASSERT(callbacks.decrypt, "[GPU] Encrypted HSM payload requires a decryption callback");
@@ -163,7 +173,16 @@ cldnn::BinaryInputBuffer& ReaderHandler::open_model(const ov::Tensor& blob, cons
 #endif
     m_buffer = std::make_unique<PrefetchStreamBuf>(m_model_tensor, prefetch);
     m_stream = std::make_unique<std::istream>(m_buffer.get());
-    const auto* tensor_base = static_cast<const size_t*>(std::as_const(m_model_tensor).data());
+    const auto address = reinterpret_cast<std::uintptr_t>(view.data());
+    const auto fits_host_import = [&](size_t alignment) {
+        return alignment != 0 && address % alignment == 0 && view.size() % alignment == 0;
+    };
+    const auto cacheline = m_engine.get_device_info().cacheline_size.value_or(0);
+    // The writer's slot padding is outside the model view. Do not register it as model memory.
+    const bool can_alias = fits_host_import(cacheline) &&
+                           (m_engine.runtime_type() != cldnn::runtime_types::ze ||
+                            fits_host_import(static_cast<size_t>(ov::util::get_system_page_size())));
+    const auto* tensor_base = can_alias ? static_cast<const size_t*>(std::as_const(m_model_tensor).data()) : nullptr;
     m_input = std::make_unique<ModelInputBuffer>(*m_stream, m_engine, tensor_base, false, view.size(), *m_requirements);
     return *m_input;
 }

@@ -369,6 +369,33 @@ TEST_P(GPUHsmRegressionTest, RejectsTensorPrefixOfLargerMappedFile) {
     expect_same_inference(imported);
 }
 
+TEST_P(GPUHsmRegressionTest, EnablingEncryptionReplacesPlaintextCache) {
+    ASSERT_FALSE(compile(true).get_property(ov::loaded_from_cache));
+    ASSERT_TRUE(compile(true).get_property(ov::loaded_from_cache));
+
+    size_t encrypt_calls = 0;
+    size_t decrypt_calls = 0;
+    ov::EncryptionCallbacks callbacks;
+    callbacks.encrypt = [&](const std::string& data) {
+        ++encrypt_calls;
+        return ov::util::codec_xor(data);
+    };
+    callbacks.decrypt = [&](const std::string& data) {
+        ++decrypt_calls;
+        return ov::util::codec_xor(data);
+    };
+    auto config = configuration;
+    config.emplace(ov::cache_encryption_callbacks(callbacks));
+    config.emplace(ov::cache_path(cache_path));
+
+    EXPECT_FALSE(core.compile_model(model, target_device, config).get_property(ov::loaded_from_cache));
+    EXPECT_EQ(encrypt_calls, 1u);
+    auto cached = core.compile_model(model, target_device, config);
+    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+    EXPECT_EQ(decrypt_calls, 1u);
+    expect_same_inference(cached);
+}
+
 TEST_P(GPUHsmRegressionTest, EncryptedPayloadRoundTripsThroughOffsetStreamAndTensor) {
     ov::EncryptionCallbacks callbacks;
     callbacks.encrypt = ov::util::codec_xor;
@@ -438,18 +465,22 @@ TEST_P(GPUHsmRegressionTest, AlignedTensorImportRetainsStorageWithZeroCopyReques
         bool was_set;
         std::string previous;
     } restore;
-    set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES");
-    const auto blob = export_blob(compile(false));
-    ov::CompiledModel imported;
-    {
-        const auto alignment = ov::util::min_page_alignment;
-        ov::Tensor storage(ov::element::u8, ov::Shape{blob.size() + alignment});
-        const auto offset = (alignment - reinterpret_cast<uintptr_t>(storage.data()) % alignment) % alignment;
-        ov::Tensor tensor(storage, {offset}, {offset + blob.size()});
-        std::memcpy(tensor.data(), blob.data(), blob.size());
-        imported = core.import_model(tensor, target_device, configuration);
+    for (const bool pad_for_zero_copy : {false, true}) {
+        SCOPED_TRACE(::testing::Message() << "pad_for_zero_copy=" << pad_for_zero_copy);
+        set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", pad_for_zero_copy ? "YES" : "NO");
+        const auto blob = export_blob(compile(false));
+        set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES");
+        ov::CompiledModel imported;
+        {
+            const auto alignment = std::max(ov::util::min_page_alignment, static_cast<size_t>(ov::util::get_system_page_size()));
+            ov::Tensor storage(ov::element::u8, ov::Shape{blob.size() + alignment});
+            const auto offset = (alignment - reinterpret_cast<uintptr_t>(storage.data()) % alignment) % alignment;
+            ov::Tensor tensor(storage, {offset}, {offset + blob.size()});
+            std::memcpy(tensor.data(), blob.data(), blob.size());
+            imported = core.import_model(tensor, target_device, configuration);
+        }
+        expect_same_inference(imported);
     }
-    expect_same_inference(imported);
 }
 
 TEST_P(GPUHsmRegressionTest, RejectsMissingMalformedAndTruncatedSections) {

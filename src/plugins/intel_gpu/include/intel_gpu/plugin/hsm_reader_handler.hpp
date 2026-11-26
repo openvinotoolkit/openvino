@@ -32,6 +32,7 @@ public:
     bool handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) override;
 
     ov::CacheMode cache_mode() const;
+    bool is_encrypted() const;
 
     /// Model payload read from @p source, in which the container starts at @p container_start.
     cldnn::BinaryInputBuffer& open_model(std::istream& source,

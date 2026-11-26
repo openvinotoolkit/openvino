@@ -574,6 +574,11 @@ std::shared_ptr<CompiledModel> import_blob(std::istream* model,
 
     auto& engine = context_impl->get_engine();
     std::optional<hsm::ReaderHandler> hsm_reader;
+    const auto init_hsm_reader = [&](const ov::runtime::hsm::Reader& reader) {
+        hsm_reader.emplace(reader, engine);
+        OPENVINO_ASSERT(!loaded_from_cache || !encryption_callbacks.encrypt || hsm_reader->is_encrypted(),
+                        "[GPU] Cached HSM payload is not encrypted");
+    };
     std::optional<LegacyPrefixBuffer> replay;
     std::istream legacy_stream(nullptr);
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr;
@@ -582,7 +587,7 @@ std::shared_ptr<CompiledModel> import_blob(std::istream* model,
     if (model == nullptr) {
         auto reader = ov::runtime::hsm::Reader::open(static_cast<const std::byte*>(blob->data()), blob->get_byte_size());
         OPENVINO_ASSERT(reader, "[GPU] Cannot import compiled blob: invalid HSM container.");
-        hsm_reader.emplace(*reader, engine);
+        init_hsm_reader(*reader);
         ib = &hsm_reader->open_model(*blob, encryption_callbacks);
     } else if (blob == nullptr) {
         auto* source = model->rdbuf();
@@ -599,7 +604,7 @@ std::shared_ptr<CompiledModel> import_blob(std::istream* model,
         } else if (is_hsm) {
             auto reader = ov::runtime::hsm::Reader::open(*model);
             OPENVINO_ASSERT(reader, "[GPU] Cannot import compiled blob: invalid HSM container.");
-            hsm_reader.emplace(*reader, engine);
+            init_hsm_reader(*reader);
             ib = &hsm_reader->open_model(*model, start, encryption_callbacks);
         }
     }

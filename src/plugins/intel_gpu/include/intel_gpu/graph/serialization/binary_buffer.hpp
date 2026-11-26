@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <limits>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
@@ -118,6 +120,14 @@ public:
     size_t get_offset() const {
         return _offset;
     }
+    void check_size(size_t count, size_t element_size = 1) const {
+        if (_read_limit) {
+            OPENVINO_ASSERT(element_size > 0 && _offset <= *_read_limit && count <= (*_read_limit - _offset) / element_size &&
+                                count <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()) / element_size,
+                            "[GPU] Serialized size exceeds the HSM model section");
+        }
+    }
+
     virtual void seek_current_ptr(std::streamsize size) {
         // Get current stream position
         std::streampos current_pos = _stream.tellg();
@@ -136,8 +146,14 @@ public:
         return _is_encrypted;
     }
 
+protected:
+    void set_read_limit(size_t limit) {
+        _read_limit = limit;
+    }
+
 private:
     std::istream& _stream;
+    std::optional<size_t> _read_limit;
     void* _impl_params;
     const size_t* _tensor_base_ptr;
     bool _is_encrypted;

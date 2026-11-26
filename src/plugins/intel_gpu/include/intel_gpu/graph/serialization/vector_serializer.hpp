@@ -32,6 +32,7 @@ public:
     static void load(BufferType& buffer, std::vector<T>& vector) {
         typename std::vector<T>::size_type vector_size = 0UL;
         buffer >> vector_size;
+        buffer.check_size(vector_size, sizeof(T));
         vector.resize(vector_size);
         buffer >> make_data(vector.data(), static_cast<uint64_t>(vector_size * sizeof(T)));
     }
@@ -82,6 +83,7 @@ public:
     static void load(BufferType& buffer, std::vector<T>& vector) {
         typename std::vector<T>::size_type vector_size = 0UL;
         buffer >> vector_size;
+        buffer.check_size(vector_size);
         vector.resize(vector_size);
         for (auto& el : vector) {
             buffer >> el;
@@ -106,6 +108,7 @@ public:
     static void load(BufferType& buffer, ov::CoordinateDiff& vector) {
         typename ov::CoordinateDiff::size_type vector_size = 0UL;
         buffer >> vector_size;
+        buffer.check_size(vector_size, sizeof(ov::CoordinateDiff::value_type));
         vector.resize(vector_size);
         for (auto& el : vector) {
             buffer >> el;
@@ -130,6 +133,7 @@ public:
     static void load(BufferType& buffer, ov::Strides& vector) {
         typename ov::Strides::size_type vector_size = 0UL;
         buffer >> vector_size;
+        buffer.check_size(vector_size, sizeof(ov::Strides::value_type));
         vector.resize(vector_size);
         for (auto& el : vector) {
             buffer >> el;
@@ -154,6 +158,7 @@ public:
     static void load(BufferType& buffer, ov::Shape& vector) {
         typename ov::Shape::size_type vector_size = 0UL;
         buffer >> vector_size;
+        buffer.check_size(vector_size, sizeof(ov::Shape::value_type));
         vector.resize(vector_size);
         for (auto& el : vector) {
             buffer >> el;
