@@ -37,6 +37,11 @@ public:
         static constexpr size_t PAST_INCOMPLETE_ROPE = 9;    ///< [B, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved
 
         static constexpr size_t COUNT = 10;
+
+        // DSA k-pool mode (Config::dsa_kpool) only: two more inputs.
+        static constexpr size_t POOL_APE = 10;      ///< [D_idx, r], per-position gate bias of a pool
+        static constexpr size_t HEAD_WEIGHTS = 11;  ///< [B, L, H_iq], per-token score weight of each query head
+        static constexpr size_t COUNT_DSA = 12;
     };
 
     /// @brief Fixed output order of the QSAIndexer op.
@@ -57,6 +62,14 @@ public:
         size_t indexer_rotary_dim = 0;   ///< <= indexer_head_dim, even
         size_t indexer_head_dim = 0;     ///< D_idx
         float epsilon = 1e-6F;           ///< RMSNorm epsilon
+        /// DSA k-pool mode (DeepSeek/GLM sparse-attention lightning indexer with pooled keys):
+        ///  * raw_index_keys and past_incomplete_raw_k rows are [key | gate] (last dim 2 * D_idx); keys are
+        ///    already normalized by the caller, gates are the per-channel pool logits;
+        ///  * the index key of a completed block is, per channel c, sum_p softmax_p(gate[p, c] + pool_ape[c, p]) *
+        ///    key[p, c] over its r tokens (no norm, no RoPE);
+        ///  * the score of a block is sum_h head_weights[b, l, h] * max(0, q[h] . key_blk), q used as given
+        ///    (query_norm and query_rope must be false, indexer_rotary_dim 0, scale unused).
+        bool dsa_kpool = false;
         float scale = 0.0F;      ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
         bool query_norm = true;  ///< Query RMSNorm is fused; false is an intermediate fusion state only.
         bool query_rope = true;  ///< Query RoPE is fused; false is an intermediate fusion state only.

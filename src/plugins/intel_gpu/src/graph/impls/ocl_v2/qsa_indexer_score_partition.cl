@@ -29,6 +29,9 @@ KERNEL(qsa_indexer_score_partition)(const __global half* indexer_q,           //
                                     const __global int* block_indices_begins, // [num_seqs+1]
 #endif
                                     __global float* block_scores,             // [row_end - row_begin, pitch]
+#if QSA_DSA
+                                    const __global half* head_weights,        // [tokens, Hiq] per-token head weights
+#endif
                                     const uint num_tokens,
 #if QSA_ADDRESS_MODE == 0
                                     const uint num_seqs,
@@ -114,7 +117,12 @@ KERNEL(qsa_indexer_score_partition)(const __global half* indexer_q,           //
                         dot += q[h][j] * convert_float(as_half(s[u][j]));
                     }
                     dot = sub_group_reduce_add(dot);
+#if QSA_DSA
+                    // DSA k-pool: weight each head's ReLU by its per-token weight (may be negative).
+                    total += dot > 0.0f ? dot * convert_float(head_weights[token_idx * HIQ + h]) : 0.0f;
+#else
                     total += dot > 0.0f ? dot : 0.0f;
+#endif
                 }
                 if (lane == u) {
                     mine = total * (float)QSA_IDX_SCALE;

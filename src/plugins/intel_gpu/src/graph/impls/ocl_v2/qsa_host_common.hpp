@@ -228,9 +228,15 @@ size_t decode_split_partitions(const Desc& desc, std::optional<size_t> page_size
 
 /// Float as an OpenCL C literal with the full single precision.
 inline JitConstant float_constant(const std::string& name, float value) {
+    // "%.9g" prints an integral value without a decimal point ("1"), and "1f" is not an OpenCL float literal, so
+    // append ".0" when the text has no point, exponent, inf or nan before the "f" suffix.
     char buf[64];
-    std::snprintf(buf, sizeof(buf), "%.9gf", static_cast<double>(value));
-    return JitConstant(name, buf);
+    std::snprintf(buf, sizeof(buf), "%.9g", static_cast<double>(value));
+    std::string text(buf);
+    if (text.find_first_of(".eEni") == std::string::npos) {
+        text += ".0";
+    }
+    return JitConstant(name, text + "f");
 }
 
 /// Common base of every QSA OpenCL stage: names the entry point `<entry>_ocl_<hash>` (the tests recognise the kernel
