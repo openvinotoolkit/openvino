@@ -15,7 +15,8 @@ namespace v0 {
 class OPENVINO_API DetectionOutput : public op::util::DetectionOutputBase {
 public:
     struct Attributes : public op::util::DetectionOutputBase::AttributesBase {
-        int num_classes;
+        // -1 means the number of classes is deduced from the input shapes
+        int num_classes = -1;
     };
 
     OPENVINO_OP("DetectionOutput", "opset1", op::util::DetectionOutputBase);

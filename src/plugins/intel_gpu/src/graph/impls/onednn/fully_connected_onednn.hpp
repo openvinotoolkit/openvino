@@ -22,7 +22,7 @@ namespace onednn {
 
 struct FullyConnectedImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::fc")
-    FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
+    FullyConnectedImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {
@@ -41,8 +41,8 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
 
-        // A fused Hadamard input transform is applied only by the TernOCL impl.
-        if (fc_prim->hadamard_block != 0) {
+
+        if (fc_prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK || fc_prim->hadamard_block != 0) {
             LOG_AND_RETURN_FALSE(node);
         }
 
@@ -135,17 +135,50 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
+        if (get_shape_type() == shape_types::dynamic_shape && !supports_shape_agnostic_impl(node)) {
+            LOG_AND_RETURN_FALSE(node);
+        }
+
         return is_supported_post_ops(node);
+    }
+
+    // The shape-agnostic matmul is built once with runtime dims. oneDNN post-op attributes are not created for
+    // dynamic nodes, so fused ops would be dropped; compressed / >2D weights and padded tensors are not handled.
+    static bool supports_shape_agnostic_impl(const program_node& node) {
+        const auto& fc_node = node.as<fully_connected>();
+        const auto fc_prim = fc_node.get_primitive();
+        if (fc_prim->compressed_weights || fc_prim->weights_rank != 2 || !node.get_fused_primitives().empty()) {
+            return false;
+        }
+        // Dynamic padding (e.g. from runtime buffer fusing) is resolved only at execution time, so check it explicitly.
+        const auto& input_padding = fc_node.get_input_layout(0).data_padding;
+        const auto& output_padding = fc_node.get_output_layout(0).data_padding;
+        return !input_padding && !input_padding.is_dynamic() && !output_padding && !output_padding.is_dynamic();
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
+        const auto& fc_node = node.as<fully_connected>();
+        const auto& fc_prim = fc_node.get_primitive();
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         size_t out_rank = node.get_output_layout().get_rank();
-        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+        for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
             if (node.get_dependency(idx).is_constant()) {
+                continue;
+            }
+            const size_t scale_idx = fc_prim->bias.is_valid() ? 3 : 2;
+            const size_t zp_idx = scale_idx + 1;
+            const bool is_decompression_parameter =
+                ((fc_prim->decompression_scale.is_valid() && idx == scale_idx) || (fc_prim->decompression_zero_point.is_valid() && idx == zp_idx));
+            if (is_decompression_parameter) {
+                const auto& in_layout = node.get_input_layout(idx);
+                const bool is_blocked = format::is_blocked(in_layout.format);
+                // oneDNN binds scale/zp as a flat format_tag::a buffer, so only plain layouts can be passed through.
+                // Keep plain permutations (e.g. fbyx from prepare_quantization); reorder blocked layouts to plain.
+                in_fmts[idx] = is_blocked ? format::get_default_format(in_layout.get_rank()).value : in_layout.format.value;
+                GPU_DEBUG_LOG << node.id() << " : " << (is_blocked ? "Reorder blocked" : "Keep plain") << " scale/zp format at index " << idx << std::endl;
                 continue;
             }
 

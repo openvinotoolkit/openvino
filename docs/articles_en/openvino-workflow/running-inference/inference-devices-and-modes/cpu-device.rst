@@ -372,6 +372,7 @@ The plugin supports the following properties:
       - ``ov::hint::inference_precision``
       - ``ov::hint::performance_mode``
       - ``ov::hint::execution_mode``
+      - ``ov::hint::activations_scale_factor``
       - ``ov::hint::num_request``
       - ``ov::hint::scheduling_core_type``
       - ``ov::hint::enable_hyper_threading``

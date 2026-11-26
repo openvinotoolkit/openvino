@@ -56,6 +56,7 @@
 #include "eye_shape_inference.hpp"
 #include "fake_quantize.hpp"
 #include "fft_base_shape_inference.hpp"
+#include "gated_residual_shape_inference.hpp"
 #include "gather_elements_shape_inference.hpp"
 #include "gather_nd_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
@@ -80,6 +81,7 @@
 #include "max_pool_shape_inference.hpp"
 #include "memory_accessor.hpp"
 #include "multinomial_shape_inference.hpp"
+#include "ngram_hash_function_shape_inference.hpp"
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
@@ -124,6 +126,7 @@
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_residual.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
@@ -151,6 +154,7 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multinomial.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
@@ -759,10 +763,12 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     //
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::NGramHashFunction, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::SelectiveSSM, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::PagedSelectiveSSM, ShapeInferTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GatedResidual, ShapeInferTA, util::bit::mask()),
 };
 // clang-format on
 
