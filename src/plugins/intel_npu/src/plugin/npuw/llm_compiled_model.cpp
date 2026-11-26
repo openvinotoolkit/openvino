@@ -1283,14 +1283,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // (Softmax <- Add <- MatMul). With a DYNAMIC attention hint OptimizeValueTensors, the pass that
     // decomposes SDPA, is skipped, so the compression would find no pattern and leave the past KV
     // inputs as raw integers without dequantization. Reject the combination explicitly.
+    // Without chunking the prefill model has no past KV inputs (RemoveEmptyKVInputs) and only quantizes the
+    // present KV, which needs no SDPA pattern; its attention hint is not applied then either.
     // TODO: lift this once the compression pass handles a non-decomposed SDPA.
     const bool kv_cache_integer_storage =
         kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
-    OPENVINO_ASSERT(!kv_cache_integer_storage || !(prefill_attn_dyn || generate_attn_dyn),
+    const bool prefill_reads_past_kv_dyn = prefill_attn_dyn && m_use_chunk_prefill;
+    OPENVINO_ASSERT(!kv_cache_integer_storage || !(prefill_reads_past_kv_dyn || generate_attn_dyn),
                     "KV-cache precision ",
                     kv_kache_storage_type,
                     " is not supported with a DYNAMIC attention hint (",
-                    prefill_attn_dyn ? "NPUW_LLM_PREFILL_ATTENTION_HINT" : "NPUW_LLM_GENERATE_ATTENTION_HINT",
+                    prefill_reads_past_kv_dyn ? "NPUW_LLM_PREFILL_ATTENTION_HINT" : "NPUW_LLM_GENERATE_ATTENTION_HINT",
                     "=DYNAMIC): integer KV-cache compression needs the unrolled (decomposed) SDPA. "
                     "Use a STATIC, PYRAMID or HFA attention hint, or an f16 KV-cache.");
 

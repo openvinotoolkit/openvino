@@ -414,9 +414,14 @@ struct HFARuntimeContext {
                 allocator(final_mask_port.get_element_type(), final_mask_port.get_shape(), device_name);
         }
 
-        // Regular tile model may omit the mask input entirely when mask-skipping is enabled.
+        // Regular tile model may omit the mask input entirely when mask-skipping is enabled. The
+        // dequantization inputs of an int8 KV cache are appended after the leading inputs, so with
+        // mask-skipping one of them (K_SCALE_TILE) lands at the mask index: only the leading inputs
+        // can hold the mask.
         const auto& regular_inputs = hfa_desc._compiled_tile_model->inputs();
-        if (mask_input_idx >= regular_inputs.size()) {
+        const size_t quant_input_count = hfa_desc._sdpa_attention_info.quant_input_count();
+        if (regular_inputs.size() < quant_input_count ||
+            mask_input_idx >= regular_inputs.size() - quant_input_count) {
             return;
         }
 

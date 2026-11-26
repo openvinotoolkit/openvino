@@ -24,6 +24,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "variable_state.hpp"
 
 namespace {
@@ -1221,6 +1222,78 @@ TEST(HostFlashAttentionInt8KVTest, MixedCompressedAndPlainPastBlocksAreRejected)
                 .has_value())
             << "compressed_first=" << compressed_first;
     }
+}
+
+// The runtime cuts scale / zero-point tiles along the sequence dimension of the data, which only works for
+// per-token parameters. A per-channel scale (sequence extent 1) must keep the regular attention path.
+TEST(HostFlashAttentionInt8KVTest, PerChannelScaleIsRejected) {
+    for (const bool key : {true, false}) {
+        auto model = build_sdpa_model_int8_kv(true);
+        const std::string scale_name =
+            key ? "DynamicQuantize/0/past_key_values/key/scale" : "DynamicQuantize/0/past_key_values/value/scale";
+        const ov::PartialShape per_channel =
+            key ? ov::PartialShape{BATCH, NUM_HEADS, 1, HEAD_DIM} : ov::PartialShape{BATCH, NUM_HEADS, HEAD_DIM, 1};
+        bool found = false;
+        for (const auto& param : model->get_parameters()) {
+            if (param->get_friendly_name() == scale_name) {
+                param->set_partial_shape(per_channel);
+                found = true;
+            }
+        }
+        ASSERT_TRUE(found) << scale_name;
+        model->validate_nodes_and_infer_types();
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value()) << "key=" << key;
+    }
+}
+
+namespace {
+// initialize_mask_cache only reads the inputs of the tile models, so plain ov::Models stand in for the
+// compiled ones.
+struct FakeCompiledHFA {
+    ov::npuw::compiled::HostFlashAttentionInfo _sdpa_attention_info;
+    std::shared_ptr<ov::Model> _compiled_tile_model;
+    std::shared_ptr<ov::Model> _compiled_final_tile_model;
+    int64_t _past_tile_size = 0;
+};
+
+FakeCompiledHFA make_fake_compiled_hfa(const ov::npuw::function::HostFlashAttention& func) {
+    ov::npuw::compiled::HostFlashAttention compiled(func);
+    return {compiled._sdpa_attention_info, func._tile_model, func._final_tile_model, func._past_tile_size};
+}
+
+// Number of buffers initialize_mask_cache allocates for the regular tiles
+size_t count_regular_mask_buffers(const FakeCompiledHFA& hfa) {
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext ctx;
+    ctx.initialize_mask_cache(hfa, "CPU", [](const ov::element::Type& type, const ov::Shape& shape, const std::string&) {
+        return ov::get_tensor_impl(ov::Tensor(type, shape));
+    });
+    EXPECT_NO_THROW(ctx.get_final_mask_tile_buffer());
+    return ctx.num_mask_tile_buffers();
+}
+}  // namespace
+
+// With mask skipping the regular tile has no mask input, and the first dequantization input (K_SCALE_TILE)
+// takes the index the mask has in the final tile. It must not be mistaken for a mask: only the final tile
+// mask buffer is allocated.
+TEST(HostFlashAttentionInt8KVTest, MaskSkippingAllocatesOnlyTheFinalMaskBuffer) {
+    auto model = build_sdpa_model_int8_kv(true);
+    annotate_mask_rt_info(model, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
+    auto func = ov::npuw::function::HostFlashAttention::from(model, /*fused_flash_attention=*/true, /*enable_mask_skipping=*/true);
+    ASSERT_TRUE(func.has_value());
+    const auto hfa = make_fake_compiled_hfa(*func);
+    ASSERT_EQ(input_index_by_name(func->_tile_model, "MASK_TILE"), -1);
+    ASSERT_EQ(input_index_by_name(func->_tile_model, "K_SCALE_TILE"),
+              static_cast<int>(hfa._sdpa_attention_info._tile_input_indices.mask));
+    EXPECT_EQ(count_regular_mask_buffers(hfa), 0u);
+}
+
+// Without mask skipping the regular tile keeps its mask, and one buffer per past tile is allocated.
+TEST(HostFlashAttentionInt8KVTest, RegularMaskBuffersAreAllocatedWithoutMaskSkipping) {
+    auto func = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(true), false);
+    ASSERT_TRUE(func.has_value());
+    const auto hfa = make_fake_compiled_hfa(*func);
+    ASSERT_GE(input_index_by_name(func->_tile_model, "MASK_TILE"), 0);
+    EXPECT_EQ(count_regular_mask_buffers(hfa), (PAST_LEN + QUERY_SIZE + QUERY_SIZE - 1) / QUERY_SIZE);
 }
 
 // ---------------------------------------------------------------------------

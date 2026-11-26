@@ -1131,16 +1131,40 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             }
                             OPENVINO_ASSERT(source, "HFA: missing ", name, " tensor for an int8 past block");
                             auto buffer = request->get_tensor(model->inputs()[input_idx]);
+                            OPENVINO_ASSERT(buffer->get_element_type() == source->get_element_type(),
+                                            "HFA ",
+                                            name,
+                                            " tile dtype mismatch: source=",
+                                            source->get_element_type(),
+                                            " tile_buffer=",
+                                            buffer->get_element_type());
+                            // Only per-token quantization parameters can be cut like the data:
+                            // HostFlashAttention::from() rejects any other layout, so a mismatch here
+                            // means a broken tile model or a wrong tensor.
+                            const auto& source_shape = source->get_shape();
+                            const auto& buffer_shape = buffer->get_shape();
+                            bool per_token_tile = source_shape.size() == buffer_shape.size() &&
+                                                  seq_dim < source_shape.size() && kv_offset >= 0 &&
+                                                  static_cast<int64_t>(buffer_shape[seq_dim]) == tile_length &&
+                                                  kv_offset + tile_length <=
+                                                      static_cast<int64_t>(source_shape[seq_dim]);
+                            for (std::size_t d = 0; per_token_tile && d < source_shape.size(); ++d) {
+                                per_token_tile = d == seq_dim || source_shape[d] == buffer_shape[d];
+                            }
+                            OPENVINO_ASSERT(per_token_tile,
+                                            "HFA ",
+                                            name,
+                                            " tensor ",
+                                            source_shape,
+                                            " is not per-token along dim ",
+                                            seq_dim,
+                                            ": cannot cut a tile ",
+                                            buffer_shape,
+                                            " at offset ",
+                                            kv_offset);
                             if (can_reuse_tensor_zero_copy(source, buffer, seq_dim, kv_offset, tile_length)) {
                                 request->set_tensor(model->inputs()[input_idx], source);
                             } else if (hfa_desc->_can_use_tensor_view) {
-                                OPENVINO_ASSERT(buffer->get_element_type() == source->get_element_type(),
-                                                "HFA ",
-                                                name,
-                                                " tile dtype mismatch: source=",
-                                                source->get_element_type(),
-                                                " tile_buffer=",
-                                                buffer->get_element_type());
                                 request->set_tensor(model->inputs()[input_idx],
                                                     ov::npuw::util::view(source, seq_dim, kv_offset, tile_length));
                             } else {
