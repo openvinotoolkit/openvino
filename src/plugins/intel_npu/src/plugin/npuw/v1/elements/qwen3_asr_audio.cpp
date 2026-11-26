@@ -67,10 +67,13 @@ ov::npuw::qwen3_asr_audio::CompiledModel::CompiledModel(const std::shared_ptr<ov
     OPENVINO_ASSERT(m_mel_bins > 0 && m_hidden_size > 0, "Qwen3-ASR NPUW audio dimensions must be positive.");
 
     auto inner_model = model->clone();
-    inner_model->reshape({{"padded_feature", ov::PartialShape{1, m_mel_bins, m_window_frames}},
-                          {"padded_mask_after_cnn", ov::PartialShape{1, token_count(m_window_frames)}},
-                          {"aftercnn_lens", ov::PartialShape{1}},
-                          {"cu_seqlens", ov::PartialShape{2}}});
+    inner_model->reshape(
+        {{"padded_feature",
+          ov::PartialShape{1, feature.get_partial_shape()[1], static_cast<ov::Dimension::value_type>(frames)}},
+         {"padded_mask_after_cnn",
+          ov::PartialShape{1, static_cast<ov::Dimension::value_type>(token_count(m_window_frames))}},
+         {"aftercnn_lens", ov::PartialShape{1}},
+         {"cu_seqlens", ov::PartialShape{2}}});
     ov::preprocess::PrePostProcessor preprocessor(inner_model);
     preprocessor.input("padded_mask_after_cnn").tensor().set_element_type(ov::element::u8);
     inner_model = preprocessor.build();
