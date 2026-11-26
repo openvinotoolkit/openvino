@@ -273,6 +273,39 @@ TEST(VulkanMemorySmoke, RejectsPhysicalAllocationsOnBudgetExhaustion) {
     EXPECT_NO_THROW(vulkan_buffer_allocation::create(vk_engine, 32, vulkan_buffer_memory_usage::host_staging));
 }
 
+TEST(VulkanMemorySmoke, ReclaimsIdleBlocksAfterAllocationFailure) {
+    using namespace cldnn::vulkan;
+    const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
+    auto& vk_engine = static_cast<vulkan_engine&>(*engine);
+
+    constexpr size_t preferred = 256;
+    for (const auto requested : {size_t{192}, preferred}) {
+        SCOPED_TRACE(requested);
+        std::weak_ptr<vulkan_buffer_allocation> cached_block;
+        auto allocator = std::make_shared<vulkan_memory_allocator>(sizeof(uint32_t), preferred, preferred, [&](size_t size) {
+            if (!cached_block.expired()) {
+                throw std::bad_alloc{};
+            }
+            return vulkan_buffer_allocation::create(vk_engine, size, vulkan_buffer_memory_usage::device);
+        });
+
+        auto idle = allocator->allocate(64);
+        const auto live = allocator->allocate(128);
+        ASSERT_NE(idle->get_allocation(), live->get_allocation());
+        cached_block = idle->get_allocation();
+        idle.reset();
+        ASSERT_FALSE(cached_block.expired());
+
+        vulkan_buffer_region::ptr recovered;
+        ASSERT_NO_THROW(recovered = allocator->allocate(requested));
+        EXPECT_TRUE(cached_block.expired());
+        EXPECT_EQ(recovered->get_allocation()->get_size(), requested);
+        EXPECT_EQ(allocator->allocate(16)->get_allocation(), live->get_allocation());
+    }
+}
+
 TEST(VulkanMemorySmoke, PreservesPartialWritesAndNestedReads) {
     const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
     ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";

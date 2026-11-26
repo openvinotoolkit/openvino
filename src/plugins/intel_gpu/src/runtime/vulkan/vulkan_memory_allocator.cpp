@@ -333,9 +333,13 @@ vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
     try {
         allocation = _allocate_block(static_cast<size_t>(block_size));
     } catch (const std::bad_alloc&) {
-        if (block_size == reserved_size) {
+        const auto live_blocks_end = std::remove_if(_blocks.begin(), _blocks.end(), [](const block& candidate) {
+            return candidate.live_regions == 0;
+        });
+        if (live_blocks_end == _blocks.end() && block_size == reserved_size) {
             throw;
         }
+        _blocks.erase(live_blocks_end, _blocks.end());
         block_size = reserved_size;
         allocation = _allocate_block(static_cast<size_t>(block_size));
     }
