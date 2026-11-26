@@ -63,6 +63,7 @@ public:
     // can detect and reject descriptors produced by a different build.
     // v2: added the compile-time runtime tag (rt=) to partition OCL/ZE blobs.
     static constexpr uint32_t runtime_requirements_version = 2;
+    static constexpr uint32_t external_les_requirements_version = 3;
 
     // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
     // the importer reject blobs that lack it (e.g. produced by an OpenVINO build predating this

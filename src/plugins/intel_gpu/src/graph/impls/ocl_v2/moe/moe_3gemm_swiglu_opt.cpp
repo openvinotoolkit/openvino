@@ -10,6 +10,8 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "lru_cache.hpp"
 #include "expert_weight_providers.hpp"
+#include "residency/moe_lookahead_registry.hpp"
+#include "intel_gpu/runtime/les_context.hpp"
 // clang-format on
 
 using ov::intel_gpu::ocl::moe::get_slot_layout;
@@ -53,6 +55,8 @@ using ov::intel_gpu::ocl::moe::RoutedWeightViews;
 #    include "moe_3gemm_gen_micro.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
+#    include "runtime/ocl/ocl_event.hpp"
+#    include "runtime/ocl/ocl_stream.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -567,9 +571,10 @@ void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPGateUp(bool disable_shared_experts = false)
+    MoE3GemmSwigluMLPGateUp(bool disable_shared_experts = false, bool pair_mask = false)
         : KernelGenerator("moe_3gemm_swiglu_mlp", "gate_up"),
-          _disable_shared_experts(disable_shared_experts) {}
+          _disable_shared_experts(disable_shared_experts),
+          _pair_mask(pair_mask) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -577,6 +582,7 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
+        jit.make("LES_PAIR_MASK", _pair_mask ? 1 : 0);
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
             jit.make("GATE_ACT_GELU_TANH", 1);
         } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
@@ -602,13 +608,15 @@ protected:
 
 private:
     bool _disable_shared_experts;
+    bool _pair_mask;
 };
 
 class MoE3GemmSwigluMLPDown : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPDown(bool disable_shared_experts = false)
+    MoE3GemmSwigluMLPDown(bool disable_shared_experts = false, bool pair_mask = false)
         : KernelGenerator("moe_3gemm_swiglu_mlp", "down"),
-          _disable_shared_experts(disable_shared_experts) {}
+          _disable_shared_experts(disable_shared_experts),
+          _pair_mask(pair_mask) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -616,6 +624,7 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
+        jit.make("LES_PAIR_MASK", _pair_mask ? 1 : 0);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
@@ -636,6 +645,7 @@ protected:
 
 private:
     bool _disable_shared_experts;
+    bool _pair_mask;
 };
 
 class MoE3GemmSwigluMLPReduce : public KernelGenerator {
@@ -713,6 +723,8 @@ public:
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
     Stage::Ptr mlp_down = make_stage<MoE3GemmSwigluMLPDown>();
+    Stage::Ptr mlp_gate_up_masked = make_stage<MoE3GemmSwigluMLPGateUp>(false, true);
+    Stage::Ptr mlp_down_masked = make_stage<MoE3GemmSwigluMLPDown>(false, true);
     Stage::Ptr mlp_reduce = make_stage<MoE3GemmSwigluMLPReduce>();
 
     Stage::Ptr prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>();
@@ -800,10 +812,13 @@ public:
     int _shared_intermediate_size;
     int _gate_up_group_size;
     int _down_group_size;
+    std::shared_ptr<moe::LookaheadContext> _lookahead;
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
     // OTD slot ids read by kernels that are still in flight when execute() returns,
     // so the buffer must outlive the per-call scratch_buffers.
     memory::ptr _expert_index_buffer;
+    moe::LookaheadContext* _les_owner = nullptr;
+    std::vector<memory::ptr> _les_decode_metadata = std::vector<memory::ptr>(3);
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
@@ -870,23 +885,25 @@ public:
             return;
         }
         if (!_weight_provider->is_bound()) {
-            instance._weights.gate_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
-            instance._weights.gate_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
-            instance._weights.gate_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
-
-            instance._weights.up_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1));
-            instance._weights.up_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_1));
-            instance._weights.up_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_1));
-
-            instance._weights.down_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
-            instance._weights.down_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
-            instance._weights.down_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
+            auto bind = [&](MOE3GemmInputIndex index) {
+                return instance.input_memory_ptr(static_cast<size_t>(index));
+            };
+            instance._weights.gate_w = bind(MOE3GemmInputIndex::WEIGHT_0);
+            instance._weights.gate_z = bind(MOE3GemmInputIndex::ZP_0);
+            instance._weights.gate_s = bind(MOE3GemmInputIndex::SCALE_0);
+            instance._weights.up_w = bind(MOE3GemmInputIndex::WEIGHT_1);
+            instance._weights.up_z = bind(MOE3GemmInputIndex::ZP_1);
+            instance._weights.up_s = bind(MOE3GemmInputIndex::SCALE_1);
+            instance._weights.down_w = bind(MOE3GemmInputIndex::WEIGHT_2);
+            instance._weights.down_z = bind(MOE3GemmInputIndex::ZP_2);
+            instance._weights.down_s = bind(MOE3GemmInputIndex::SCALE_2);
             _weight_provider->bind(instance._weights);
         }
     }
 
     void prepare_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
         if (_weight_provider->is_offloaded()) {
+            _weight_provider->configure_routed_views(get_routed_inputs(instance), get_slot_views(instance));
             set_otd_weight_pointers(instance, scratch);
         } else {
             scratch.moe_fusion_wei_addr.weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
@@ -1310,6 +1327,10 @@ public:
         }
         if (needs_grouped_gpu_mask_gen()) {
             add_stage(grouped_gemm_mask_gen, params);
+    }
+        if (params.prog->get_config().get_moe_lookahead_prefetch() && cur_moe->_otd.lru_expert_num > 0) {
+            add_stage(mlp_gate_up_masked, params);
+            add_stage(mlp_down_masked, params);
         }
     }
 
@@ -1585,6 +1606,9 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
+        cur_moe->_les_owner = nullptr;
+        cur_moe->_lookahead.reset();
+        cur_moe->_les_decode_metadata.assign(3, nullptr);
         cur_moe->force_gpu_mask_gen_prefill = force_gpu_mask_gen_prefill;
         cur_moe->prefill_impl = prefill_impl;
         cur_moe->decode_impl = decode_impl;
@@ -1858,7 +1882,8 @@ public:
     cldnn::event::ptr exec_batched_gemv(const std::vector<cldnn::event::ptr>& events,
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch,
-                                        size_t token_num) {
+                                        size_t token_num,
+                                        bool predict) {
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -1871,9 +1896,47 @@ public:
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
-        auto batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
-        if (!batch_mem_ptr) {
-            return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
+        const bool demand_les = _les_owner && predict && _weight_provider->is_offloaded() &&
+                    _weight_provider->resident_capacity() > 0;
+        const bool split_les = demand_les && token_num == 1;
+        const bool compare = demand_les && moe_otd::les_prediction_compare_enabled();
+        std::vector<uint32_t> experts;
+        if (split_les) {
+            stream.finish();
+        }
+        if (predict) {
+            enqueue_lookahead_prediction(events, instance, token_num);
+        }
+        if (split_les || compare) {
+            experts.resize(token_num * static_cast<size_t>(max_topk));
+            stream.enqueue_barrier({stream.enqueue_marker({}, true)});
+            scratch.topk_id->copy_to(stream, experts.data(), 0, 0, experts.size() * sizeof(uint32_t), true);
+            if (compare) {
+                _lookahead->record_recall(instance.id(), experts);
+            }
+            for (auto expert : experts) {
+                OPENVINO_ASSERT(expert < static_cast<uint32_t>(cur_moe->_config.num_expert),
+                                "Lookahead TopK readback outside expert range: layer=", instance.id(),
+                                ", expert=", expert, ", count=", cur_moe->_config.num_expert,
+                                ", layout=", scratch.topk_id->get_layout().to_short_string());
+            }
+        }
+        auto batch_mem_ptr = scratch.topk_id;
+        if (!split_les) {
+            if (demand_les) {
+                _lookahead->demand_partitioned(instance.id());
+                _lookahead->prefetcher().drain();
+            }
+            batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
+            if (predict) {
+                if (!demand_les) {
+                    _lookahead->demand_partitioned(instance.id());
+                }
+                _lookahead->prefetch(&instance);
+            }
+            if (!batch_mem_ptr) {
+                return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
+            }
         }
 
         // gate
@@ -1920,39 +1983,167 @@ public:
                                << std::endl;
 
         {
-            // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
-            std::vector<memory::ptr> args_gate_up =
-                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
-            if (_has_shared_expert) {
-                args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
-            }
-            args_gate_up.push_back(hidden_states_mem_ptr);
+            std::vector<std::pair<const char*, event::ptr>> trace_events;
+            bool pass_a = false;
+            auto enqueue_pairs = [&](const std::vector<event::ptr>& dependencies, const memory::ptr& indices,
+                                     const memory::ptr& mask) {
+                std::vector<memory::ptr> args_gate_up =
+                    {indices, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
+                if (mask) {
+                    args_gate_up.insert(args_gate_up.begin() + 1, mask);
+                }
+                if (_has_shared_expert) {
+                    args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
+                }
+                args_gate_up.push_back(hidden_states_mem_ptr);
 
-            auto ret_event = execute_stage(events,
-                                           instance,
-                                           *stage_gate_up,
-                                           args_gate_up,
-                                           {scratch.up},
-                                           {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                                           {1, subgroup_size, SUBGROUP_NUM});
+                auto ret_event = execute_stage(dependencies,
+                                               instance,
+                                               mask ? *mlp_gate_up_masked : *stage_gate_up,
+                                               args_gate_up,
+                                               {scratch.up},
+                                               {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                                               {1, subgroup_size, SUBGROUP_NUM}, split_les);
+                if (split_les && moe_otd::les_trace_enabled()) {
+                    trace_events.emplace_back(pass_a ? "pass_a_gate" : "pass_b_gate", ret_event);
+                }
 
-            // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
-            std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
-            if (_has_shared_expert) {
-                args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
+                std::vector<memory::ptr> args_down = {indices, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
+                if (mask) {
+                    args_down.insert(args_down.begin() + 1, mask);
+                }
+                if (_has_shared_expert) {
+                    args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
+                }
+                args_down.push_back(scratch.up);
+                args_down.push_back(routing_mem_ptr);
+                if (_has_shared_expert) {
+                    args_down.push_back(scratch.routing_weights);
+                }
+                ret_event = execute_stage({ret_event},
+                                          instance,
+                                          mask ? *mlp_down_masked : *stage_down,
+                                          args_down,
+                                          {scratch.y},
+                                          {token_num * compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                                          {1, subgroup_size, SUBGROUP_NUM},
+                                          split_les);
+                if (split_les && moe_otd::les_trace_enabled()) {
+                    trace_events.emplace_back(pass_a ? "pass_a_down" : "pass_b_down", ret_event);
+                }
+                return ret_event;
+            };
+
+            event::ptr ret_event;
+            if (!split_les) {
+                ret_event = enqueue_pairs(events, batch_mem_ptr, nullptr);
+            } else {
+                const size_t pair_count = token_num * static_cast<size_t>(max_topk);
+                auto provider = std::dynamic_pointer_cast<moe::OffloadExpertWeightProvider>(_weight_provider);
+                OPENVINO_ASSERT(provider, "Lookahead requires an offload provider");
+                auto& prefetcher = _lookahead->prefetcher();
+                prefetcher.rethrow_if_failed();
+                const size_t wave_capacity = std::min<size_t>(provider->resident_capacity(), max_topk);
+                const size_t wave_count = (pair_count + wave_capacity - 1) / wave_capacity;
+                if (_les_decode_metadata.size() < wave_count * 3) {
+                    _les_decode_metadata.resize(wave_count * 3);
+                }
+                try {
+                    for (size_t wave = 0; wave < wave_count; ++wave) {
+                    const size_t first_pair = wave * wave_capacity;
+                    const size_t last_pair = std::min(pair_count, first_pair + wave_capacity);
+                    std::vector<uint32_t> wave_experts(experts.begin() + first_pair, experts.begin() + last_pair);
+                    auto partition = [&] {
+                        return provider->cache().partition_3way(wave_experts,
+                            [&] { return prefetcher.make_ready_event(); }, wave > 0);
+                    }();
+                    OPENVINO_ASSERT(partition, "Lookahead demand cannot reserve its wave slots");
+                    if (wave == 0) {
+                        _lookahead->demand_partitioned(instance.id());
+                    }
+                    std::vector<uint32_t> missing_ids;
+                    for (const auto& load : partition->missing) {
+                        missing_ids.push_back(load.expert_id);
+                    }
+                    auto demand_event = prefetcher.demand_async(*provider, missing_ids);
+                    prefetcher.promote(*provider, wave_experts);
+                    if (wave == 0) {
+                        _lookahead->prefetch(&instance);
+                    }
+                    std::vector<int32_t> slots(pair_count, 0);
+                    std::copy(partition->slots.begin(), partition->slots.end(), slots.begin() + first_pair);
+                    std::vector<int32_t> ready_mask(token_num * compute_experts, 0);
+                    std::vector<int32_t> pending_mask(token_num * compute_experts, 0);
+                    auto mask_index = [&](size_t pair) {
+                        pair += first_pair;
+                        return pair / max_topk * compute_experts + pair % max_topk;
+                    };
+                    for (auto pair : partition->ready_pairs) {
+                        ready_mask[mask_index(pair)] = 1;
+                    }
+                    for (auto pair : partition->inflight_pairs) {
+                        pending_mask[mask_index(pair)] = 1;
+                    }
+                    for (auto pair : partition->missing_pairs) {
+                        pending_mask[mask_index(pair)] = 1;
+                    }
+                    if (_has_shared_expert && wave == 0) {
+                        for (size_t token = 0; token < token_num; ++token)
+                            ready_mask[token * compute_experts + max_topk] = 1;
+                    }
+                    auto upload = [&](const std::vector<int32_t>& values, size_t index) {
+                        auto& memory = _les_decode_metadata[wave * 3 + index];
+                        if (!memory || memory->size() != values.size() * sizeof(int32_t)) {
+                            auto layout = cldnn::layout({1, 1, 1, static_cast<int64_t>(values.size())},
+                                                        ov::element::i32, cldnn::format::bfyx);
+                            memory = cur_net.get_engine().allocate_memory(layout, allocation_type::usm_host, false);
+                        }
+                        mem_lock<int32_t, mem_lock_type::write> metadata(memory, stream);
+                        std::copy(values.begin(), values.end(), metadata.data());
+                        return memory;
+                    };
+                    auto indices = upload(slots, 0);
+                    auto ready_memory = upload(ready_mask, 1);
+                    auto pending_memory = upload(pending_mask, 2);
+                    auto dependencies = wave == 0 ? events : std::vector<event::ptr>{ret_event};
+                    if (!partition->ready_pairs.empty() || (_has_shared_expert && wave == 0)) {
+                        if (!prefetcher.wait_for_uploads_on_shared_queue(partition->ready_events)) {
+                            dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(partition->ready_events);
+                        }
+                        pass_a = true;
+                        {
+                            ret_event = enqueue_pairs(dependencies, indices, ready_memory);
+                        }
+                        dependencies = {ret_event};
+                        stream.flush();
+                    }
+                    auto copy_events = partition->wait_events;
+                    if (demand_event) {
+                        copy_events.push_back(demand_event);
+                    }
+                    if (!partition->inflight_pairs.empty() || !partition->missing_pairs.empty()) {
+                        {
+                            if (!prefetcher.wait_for_uploads_on_shared_queue(copy_events)) {
+                                dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(copy_events);
+                            }
+                        }
+                        pass_a = false;
+                        {
+                            ret_event = enqueue_pairs(dependencies, indices, pending_memory);
+                        }
+                    }
+                    provider->cache().unpin_all(ret_event);
+                    stream.flush();
+                    }
+                    ret = exec_batched_gemv_reduce(ret_event, instance, scratch, token_num);
+                    auto complete = stream.enqueue_marker({ret}, true);
+                    stream.flush();
+                    return complete;
+                } catch (...) {
+                    prefetcher.cancel_all();
+                    throw;
+                }
             }
-            args_down.push_back(scratch.up);
-            args_down.push_back(routing_mem_ptr);  // compact topk_weights [token_num * MAX_TOPK]
-            if (_has_shared_expert) {
-                args_down.push_back(scratch.routing_weights);  // shared_gate_in [token_num]
-            }
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *stage_down,
-                                      args_down,
-                                      {scratch.y},
-                                      {token_num * compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                                      {1, subgroup_size, SUBGROUP_NUM});
 
             ret = exec_batched_gemv_reduce(ret_event, instance, scratch, token_num);
         }
@@ -2862,6 +3053,10 @@ public:
                                     num_actually_used_experts,
                                     events)) {
             if (_weight_provider->is_offloaded()) {
+                const auto weight_type = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type;
+                if (weight_type == data_types::u4 && !_has_shared_expert && token_num > batched_gemv_threshold) {
+                    return exec_grouped_prefill_waves(events, stream, instance, scratch);
+                }
                 // OTD: unique experts > capacity → explicit fallback to per-expert loop
                 return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
@@ -2911,13 +3106,90 @@ public:
         return exec_grouped_gemm_core(ret_event, stream, instance, scratch, max_tokens_per_expert);
     }
 
+    cldnn::event::ptr exec_grouped_prefill_waves(const std::vector<cldnn::event::ptr>& events,
+                                               cldnn::stream& stream,
+                                               typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                               scratch_buffers& scratch) {
+        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
+        auto hidden_layout = instance.input_memory_ptr(0)->get_layout();
+        const size_t token_num = get_seq_len(hidden_layout);
+        const size_t pair_count = token_num * config.top_k;
+        const size_t capacity = resident_slot_count();
+        OPENVINO_ASSERT(capacity > 0, "Grouped MoE waves require resident slots");
+        expert_mask_cpu masks;
+        get_expert_mask_from_gpu(config, scratch.topk_id, stream, masks, token_num);
+        std::vector<uint32_t> experts;
+        for (size_t expert = 0; expert < config.num_expert; ++expert) {
+            if (!masks.batch[expert].empty()) {
+                experts.push_back(static_cast<uint32_t>(expert));
+            }
+        }
+        const auto& buffers = instance.get_intermediates_memories();
+        auto& engine = instance.get_network().get_engine();
+        auto saved_down = engine.allocate_memory(buffers[MOE_INTERNAL_BUFFER_DOWN_OUTPUT]->get_layout(),
+                                                  buffers[MOE_INTERNAL_BUFFER_DOWN_OUTPUT]->get_allocation_type(), false);
+        std::vector<int32_t> row_lut(pair_count, -1);
+        const size_t row_bytes = config.hidden_size * cldnn::data_type_traits::size_of(saved_down->get_layout().data_type);
+        size_t saved_rows = 0;
+        cldnn::event::ptr completion = events.empty() ? nullptr : events.front();
+        for (size_t first = 0; first < experts.size(); first += capacity) {
+            const size_t last = std::min(first + capacity, experts.size());
+            std::vector<uint32_t> wave(experts.begin() + first, experts.begin() + last);
+            auto lease = _weight_provider->try_acquire_simultaneous(wave, get_routed_inputs(instance),
+                                                                   get_slot_views(instance), stream);
+            OPENVINO_ASSERT(lease && lease->size() == wave.size(), "Cannot acquire bounded grouped MoE wave");
+            std::vector<std::vector<int32_t>> slot_tokens(capacity), slot_topk(capacity);
+            for (size_t index = 0; index < wave.size(); ++index) {
+                const size_t slot = static_cast<size_t>((*lease)[index]);
+                OPENVINO_ASSERT(slot < capacity, "Invalid grouped MoE wave slot");
+                slot_tokens[slot] = masks.batch[wave[index]];
+                slot_topk[slot] = masks.topk[wave[index]];
+            }
+            std::vector<int32_t> tokens, offsets(capacity, 0);
+            int maximum_rows = 0;
+            for (size_t slot = 0; slot < capacity; ++slot) {
+                maximum_rows = std::max(maximum_rows, static_cast<int>(slot_tokens[slot].size()));
+                for (size_t row = 0; row < slot_tokens[slot].size(); ++row) {
+                    const size_t pair = static_cast<size_t>(slot_topk[slot][row]);
+                    OPENVINO_ASSERT(pair < row_lut.size() && row_lut[pair] == -1, "Invalid grouped MoE wave row map");
+                    row_lut[pair] = static_cast<int32_t>(saved_rows + tokens.size());
+                    tokens.push_back(slot_tokens[slot][row]);
+                }
+                offsets[slot] = static_cast<int32_t>(tokens.size());
+            }
+            OPENVINO_ASSERT(!tokens.empty() && saved_rows + tokens.size() <= pair_count, "Invalid grouped MoE wave size");
+            buffers[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]->copy_from(stream, tokens.data(), 0, 0,
+                                                                          tokens.size() * sizeof(int32_t), true);
+            buffers[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]->copy_from(stream, offsets.data(), 0, 0,
+                                                                   offsets.size() * sizeof(int32_t), true);
+            set_otd_weight_pointers(instance, scratch);
+            completion = exec_grouped_gemm_core(completion, stream, instance, scratch, maximum_rows,
+                                                 static_cast<int>(tokens.size()), false);
+            saved_down->copy_from(stream, *scratch.y, 0, saved_rows * row_bytes, tokens.size() * row_bytes, true);
+            saved_rows += tokens.size();
+        }
+        OPENVINO_ASSERT(saved_rows == pair_count && std::find(row_lut.begin(), row_lut.end(), -1) == row_lut.end(),
+                        "Incomplete grouped MoE wave output");
+        buffers[MOE_INTERNAL_BUFFER_ROW_LUT]->copy_from(stream, row_lut.data(), 0, 0, row_lut.size() * sizeof(int32_t), true);
+        auto [local_threads, batches_per_thread, unused] =
+            calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), 4, _hidden_size);
+        completion = execute_stage({completion}, instance, *prefill_scatter_reduce_row_lut,
+                                     {saved_down, scratch.topk_weights, buffers[MOE_INTERNAL_BUFFER_ROW_LUT]},
+                                     {instance.output_memory_ptr(0)}, {token_num * local_threads, 1, 1},
+                                     {local_threads, 1, 1}, true);
+        stream.finish();
+        return completion;
+    }
+
     // Steps 2-6 of the grouped GEMM path. Expects the gather token list, the grouped end-offsets and row_lut
     // in the internal buffers, written by the CPU (exec_grouped_gemm_cpu_mask_gen) or GPU (exec_grouped_gemm_gpu_mask_gen) mask gen.
     cldnn::event::ptr exec_grouped_gemm_core(cldnn::event::ptr ret_event,
                                              cldnn::stream& stream,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                              scratch_buffers& scratch,
-                                             int max_tokens_per_expert) {
+                                             int max_tokens_per_expert,
+                                             int wave_rows = 0,
+                                             bool reduce_output = true) {
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
         auto& dnn_stream = stream.get_onednn_stream();
 
@@ -2926,7 +3198,7 @@ public:
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto routing_mem_ptr = scratch.topk_weights;
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        int total_gathered_tokens = static_cast<int>(token_num) * static_cast<int>(config.top_k);
+        int total_gathered_tokens = wave_rows > 0 ? wave_rows : static_cast<int>(token_num) * static_cast<int>(config.top_k);
 
         // ----------------------------------------------------------------
         // Step 2: GPU gather – reorder input tokens sorted by expert
@@ -2954,7 +3226,7 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
-        auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
+        auto& gk = get_grouped_kernel(static_cast<int>(token_num) * static_cast<int>(config.top_k), instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
@@ -3020,6 +3292,9 @@ public:
 
         // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
         on_after_grouped_gemm(stream);
+        if (!reduce_output) {
+            return ret_event;
+        }
 
         // ----------------------------------------------------------------
         // Step 6: scatter_reduce – weighted accumulate into output
@@ -3082,6 +3357,49 @@ public:
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
+        auto& network = ins.get_network();
+        if (!_lookahead) {
+            _lookahead = moe::LookaheadRegistry::acquire(network);
+        }
+        if (!_lookahead || !_weight_provider->is_offloaded()) {
+            return execute_impl(events, ins);
+        }
+        auto* context = _lookahead.get();
+        if (_les_owner != context) {
+            _weight_provider = _weight_provider->clone();
+            _les_owner = context;
+        }
+        auto& instance = reinterpret_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(ins);
+        bind_weights_on_first_exec(instance);
+        _weight_provider->configure_routed_views(get_routed_inputs(instance), get_slot_views(instance));
+        _weight_provider = _lookahead->bind(ins.id(), _weight_provider);
+        _lookahead->update_previous(ins.id(), instance.input_memory_ptr(0), events);
+        try {
+            return execute_impl(events, ins);
+        } catch (...) {
+            _lookahead->prefetcher().cancel_all();
+            throw;
+        }
+    }
+
+    void enqueue_lookahead_prediction(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t tokens) {
+        if (_lookahead) {
+            auto& stream = instance.get_network().get_stream();
+            auto hidden = instance.input_memory_ptr(0);
+            const auto& layout = hidden->get_layout();
+            if (layout.data_type == data_types::f16 && layout.format == format::bfyx &&
+                layout.count() == tokens * layout.get_shape().back() && layout.get_linear_size() == layout.count()) {
+                _lookahead->enter(instance.id());
+                auto ready = stream.enqueue_marker(events, true);
+                if (const auto* next_layer = _lookahead->get_next_layer(&instance)) {
+                    _lookahead->predict(*next_layer, hidden, ready);
+                }
+                stream.enqueue_barrier({stream.enqueue_marker({}, true)});
+            }
+        }
+    }
+
+    cldnn::event::ptr execute_impl(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(ins);
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -3116,8 +3434,12 @@ public:
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         const MoeGemmImpl impl = select_impl(token_num);
+        const bool predict = _lookahead && impl == MoeGemmImpl::batched_gemv && _lookahead->prediction_enabled(ins.id(), token_num);
+        if (_lookahead && !predict) {
+            _lookahead->pause_for_prefill();
+        }
         if (impl == MoeGemmImpl::batched_gemv) {
-            return exec_batched_gemv(events, instance, scratch, token_num);
+            return exec_batched_gemv(events, instance, scratch, token_num, predict);
         }
         if (impl == MoeGemmImpl::int3_batched_gemv) {
             return exec_int3_batched_gemv(events, instance, scratch, token_num);

@@ -131,6 +131,19 @@ TEST_F(CompatibilityStringGPU, ExportImportPreservesRequirements) {
     ASSERT_EQ(requirements, imported_requirements);
 }
 
+TEST_F(CompatibilityStringGPU, ExternalLesPredictorMustBeReattachedOnImport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    const ov::AnyMap properties{{"GPU_LES_PREDICTOR", model}};
+    auto compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU, properties);
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
+    blob.clear();
+    blob.seekg(0);
+    OV_ASSERT_NO_THROW(core.import_model(blob, ov::test::utils::DEVICE_GPU, properties));
+}
+
 // Locks the on-disk contract: the compiled blob must begin (after ov::CacheMode) with the
 // magic-guarded descriptor block. The magic is far larger than any realistic input count, so a
 // non-conforming blob is rejected cleanly instead of being misread as a descriptor length.

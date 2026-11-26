@@ -4,16 +4,108 @@
 
 #pragma once
 #include <list>
+#include <cstdint>
 #include <mutex>
+#include <optional>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <functional>
+
+#include "intel_gpu/runtime/event.hpp"
 
 namespace ov::intel_gpu::ocl::moe {
+
+class ExpertSlotReservations {
+public:
+    struct Ticket {
+        uint64_t id;
+        uint64_t epoch;
+        std::vector<size_t> slots;
+        std::vector<uint32_t> missing_experts;
+        std::vector<size_t> missing_slots;
+        std::vector<size_t> ready_pairs;
+        std::vector<size_t> missing_pairs;
+    };
+
+    explicit ExpertSlotReservations(size_t capacity);
+    std::optional<Ticket> reserve(const std::vector<uint32_t>& experts, uint64_t epoch, bool speculative = false);
+    void discard_unused(const Ticket& ticket, const std::vector<uint32_t>& used);
+    bool rollback(const Ticket& ticket);
+    bool complete(const Ticket& ticket);
+    bool release(const Ticket& ticket);
+
+private:
+    struct Slot {
+        std::optional<uint32_t> expert;
+        uint64_t generation = 0;
+        uint64_t age = 0;
+        size_t pins = 0;
+        bool ready = false;
+    };
+    struct Record {
+        uint64_t epoch;
+        std::vector<std::pair<size_t, uint64_t>> generations;
+        std::vector<std::pair<size_t, Slot>> replaced;
+    };
+    std::mutex _mutex;
+    std::vector<Slot> _slots;
+    std::unordered_map<uint64_t, Record> _active;
+    uint64_t _epoch = 0;
+    uint64_t _clock = 0;
+    uint64_t _next_id = 0;
+};
+
+enum class SlotStatus : uint8_t { READY, PENDING_LOAD, PINNED };
+
+struct CacheItemExtended {
+    SlotStatus status = SlotStatus::READY;
+    cldnn::event::ptr ready_event;
+    cldnn::event::ptr last_use_event;
+    uint64_t generation = 0;
+    bool loading = false;
+    bool demanded = false;
+    bool copying = false;
+};
 
 class LRUCache {
 public:
     explicit LRUCache(size_t max_total_experts);
+    ~LRUCache();
+
+    struct Load {
+        uint32_t expert_id;
+        size_t slot;
+        uint64_t generation;
+        cldnn::event::ptr ready_event;
+        cldnn::event::ptr last_use_event;
+    };
+
+    struct Partition {
+        std::vector<size_t> slots;
+        std::vector<size_t> ready_pairs;
+        std::vector<size_t> inflight_pairs;
+        std::vector<size_t> missing_pairs;
+        std::vector<Load> missing;
+        std::vector<cldnn::event::ptr> ready_events;
+        std::vector<cldnn::event::ptr> wait_events;
+    };
+
+    using EventFactory = std::function<cldnn::event::ptr()>;
+    std::optional<Partition> partition_3way(const std::vector<uint32_t>& topk_ids,
+                                          const EventFactory& make_event,
+                                          bool allow_pending_reuse = false);
+    std::optional<Load> reserve_speculative(uint32_t expert_id,
+                                          size_t top_k,
+                                          const EventFactory& make_event,
+                                          const std::vector<uint32_t>& predicted_experts = {});
+    bool complete_load(const Load& load);
+    bool start_load(const Load& load);
+    bool fail_load(const Load& load);
+    bool cancel_load(const Load& load);
+    std::optional<Load> get_pending_load(uint32_t expert_id) const;
+    void unpin_all(const cldnn::event::ptr& complete_event);
 
     std::pair<size_t, bool> get_lru_item(size_t expert);
 
@@ -57,7 +149,16 @@ private:
     struct Node {
         size_t expert;
         size_t lru_expert_no;
+        CacheItemExtended state{};
+        bool unused_prefetch = false;
     };
+
+    uint64_t prefetch_resident = 0;
+    uint64_t prefetch_loads = 0;
+    uint64_t prefetch_used = 0;
+    uint64_t demand_ready = 0;
+    uint64_t demand_inflight = 0;
+    uint64_t demand_missing = 0;
 
     size_t m_max_total_experts;
     size_t m_total_experts;
@@ -65,8 +166,10 @@ private:
 
     std::list<Node> m_list;
     std::vector<bool> m_filled_list;
+    std::vector<cldnn::event::ptr> m_slot_last_use;
     std::unordered_map<Key, std::list<Node>::iterator, KeyHash> m_map;
     mutable std::mutex m_mutex;
+    uint64_t m_generation = 0;
 
     void move_to_end(std::list<Node>::iterator it);
     void evict_one_unlocked();
