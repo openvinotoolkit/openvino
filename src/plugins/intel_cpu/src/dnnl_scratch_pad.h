@@ -11,6 +11,7 @@
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_control.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -21,10 +22,16 @@ class DnnlScratchPad {
     dnnl::engine eng;
 
 public:
-    explicit DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
+    explicit DnnlScratchPad(dnnl::engine eng,
+                            int numa_node = -1,
+                            const std::shared_ptr<IAuxiliaryMemoryControl>& memoryControl = nullptr)
+        : eng(std::move(eng)) {
         auto baseMemoryBlock = std::make_unique<MemoryBlockWithReuse>(numa_node);
         baseBlockPtr = baseMemoryBlock.get();
         blockPtr = std::make_shared<DnnlMemoryBlock>(std::move(baseMemoryBlock));
+        if (memoryControl) {
+            memoryControl->registerMemoryBlock(blockPtr);
+        }
     }
 
     MemoryPtr createScratchPadMem(const MemoryDescPtr& md) {

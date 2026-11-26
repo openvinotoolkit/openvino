@@ -102,11 +102,7 @@ public:
     }
 
     void allocateMemory() const {
-        for (const auto& controlUnit : m_auxiliaryNetworkMemoryControl->controlUnits()) {
-            if (!controlUnit->allocated()) {
-                controlUnit->allocateMemory();
-            }
-        }
+        m_auxiliaryNetworkMemoryControl->allocateMemory();
     }
 
 private:

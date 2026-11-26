@@ -414,6 +414,19 @@ bool DnnlMemoryBlock::resize(size_t size) {
     return sizeChanged;
 }
 
+void DnnlMemoryBlock::free() {
+    auto* block = dynamic_cast<MemoryBlockWithReuse*>(m_pMemBlock.get());
+    OPENVINO_ASSERT(block, "DnnlMemoryBlock can only release reusable memory blocks");
+    block->free();
+    notifyUpdate();
+}
+
+size_t DnnlMemoryBlock::size() const {
+    auto* block = dynamic_cast<const MemoryBlockWithReuse*>(m_pMemBlock.get());
+    OPENVINO_ASSERT(block, "DnnlMemoryBlock can only query reusable memory blocks");
+    return block->size();
+}
+
 bool DnnlMemoryBlock::hasExtBuffer() const noexcept {
     return m_pMemBlock->hasExtBuffer();
 }

@@ -77,10 +77,13 @@ public:
     DynamicBuffer(MemoryPtr from_,
                   std::vector<MemoryPtr> to_,
                   const PortMap& map_rule_,
-                  const std::shared_ptr<CpuParallel>& parallel);
+                  const std::shared_ptr<CpuParallel>& parallel,
+                  const std::shared_ptr<IAuxiliaryMemoryControl>& memory_control);
 
     void execute(const dnnl::engine& eng, int iter);
     void transfer(const Node* node);
+    void releaseMemory();
+    void allocateMemory();
 
     void reset(int max_iter_count_);  // reset local
 
@@ -119,6 +122,7 @@ private:
 
     MemoryPtr mem_holder_buffer;
     std::shared_ptr<CpuParallel> cpu_parallel;
+    std::shared_ptr<IAuxiliaryMemoryControl> memory_control;
 };
 
 class TensorIterator : public Node {
