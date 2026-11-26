@@ -2369,6 +2369,85 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
     inputs[0] = activation;
     const auto fc = projection->clone_with_new_inputs(inputs);
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+    if (layout_case == DenseLayout::Raw && std::find(devices.begin(), devices.end(), "CPU") != devices.end()) {
+        const auto precision = ov::hint::inference_precision(ov::element::f32);
+        bool cpu_supports_fc = false;
+        try {
+            const auto supported = core.query_model(model, "CPU", precision);
+            cpu_supports_fc = supported.count(fc->get_friendly_name()) != 0;
+            RecordProperty("cpu_query", cpu_supports_fc ? "supported" : "not_listed");
+        } catch (const ov::Exception& error) {
+            ASSERT_NE(std::string(error.what()).find("CPU plugin does not support " + weight_type), std::string::npos)
+                << error.what();
+            RecordProperty("cpu_query", "unsupported_weight_type");
+        }
+        RecordProperty("cpu_device", core.get_property("CPU", ov::device::full_name));
+        ov::CompiledModel cpu;
+        bool cpu_compiles = false;
+        try {
+            cpu = core.compile_model(model, "CPU", precision);
+            cpu_compiles = true;
+            RecordProperty("cpu_compile", "supported");
+        } catch (const ov::Exception& error) {
+            ASSERT_NE(std::string(error.what()).find("CPU plugin does not support " + weight_type), std::string::npos)
+                << error.what();
+            RecordProperty("cpu_compile", "unsupported_weight_type");
+        }
+        if (test_case.type == GGUF_TYPE_Q8_0 || test_case.type == GGUF_TYPE_Q4_0 || test_case.type == GGUF_TYPE_Q4_1) {
+            EXPECT_TRUE(cpu_supports_fc);
+            EXPECT_TRUE(cpu_compiles);
+        }
+        if (cpu_compiles) {
+            EXPECT_TRUE(cpu_supports_fc);
+            auto cpu_request = cpu.create_infer_request();
+            ov::Tensor input(ov::element::f32, {2, width});
+            std::fill_n(input.data<float>(), input.get_size(), 0.f);
+            input.data<float>()[13] = 1.f;
+            input.data<float>()[width + 20] = 1.f;
+            cpu_request.set_input_tensor(input);
+            cpu_request.infer();
+            const auto output = cpu_request.get_output_tensor();
+            ASSERT_EQ(output.get_shape(), (ov::Shape{2, channels}));
+            ASSERT_EQ(output.get_element_type(), ov::element::f32);
+            if (test_case.type == GGUF_TYPE_Q4_1) {
+                GgufTensor source{};
+                source.type = GGUF_TYPE_Q4_1;
+                source.ndim = 2;
+                source.dim[0] = width;
+                source.dim[1] = channels;
+                source.num_weights = channels * width;
+                source.bsize = payload.size();
+                source.weights_data = payload.data();
+                WeightTensors tensors;
+                tensors.weight = ov::Tensor(ov::element::u32, {channels, width / 8});
+                tensors.scales = ov::Tensor(ov::element::f16, {channels, width / 32});
+                tensors.zero_point = ov::Tensor(ov::element::u8, {channels, width / 32});
+                gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
+                const auto legacy_weights = make_weight_node(tensors, GGUF_TYPE_Q4_1, "blk.0.ffn_up.weight");
+                const auto converted = std::make_shared<ov::op::v0::Convert>(legacy_weights, ov::element::f32);
+                const auto legacy_fc = std::make_shared<ov::op::v0::MatMul>(activation, converted, false, true);
+                const auto legacy_model = std::make_shared<ov::Model>(ov::OutputVector{legacy_fc},
+                                                                      ov::ParameterVector{activation});
+                auto legacy_request = core.compile_model(legacy_model, "CPU", precision).create_infer_request();
+                legacy_request.set_input_tensor(input);
+                legacy_request.infer();
+                const auto reference = legacy_request.get_output_tensor();
+                ASSERT_EQ(reference.get_shape(), output.get_shape());
+                for (size_t index = 0; index < output.get_size(); ++index) {
+                    EXPECT_NEAR(output.data<const float>()[index], reference.data<const float>()[index], 1e-4f);
+                }
+            } else {
+                for (size_t channel = 0; channel < channels; ++channel) {
+                    EXPECT_NEAR(output.data<const float>()[channel], decoded[(channel % 4) * width + 13], 1e-4f);
+                    EXPECT_NEAR(output.data<const float>()[channels + channel],
+                                decoded[(channel % 4) * width + 20], 1e-4f);
+                }
+            }
+        }
+        ASSERT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), fc);
+        ASSERT_EQ(fc->get_input_node_shared_ptr(1), weights);
+        EXPECT_EQ(std::memcmp(weights->get_data_ptr(), payload.data(), payload.size()), 0);
+    }
     auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32),
                                        ov::enable_profiling(true));
     std::stringstream blob;
