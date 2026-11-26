@@ -757,7 +757,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
                                            "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
-    if (name != ov::internal::emit_hsm_format.name() && is_metric(name)) {
+    if (is_metric(name)) {
         return get_metric(name, options);
     }
 
@@ -768,7 +768,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);
-    if (name == ov::internal::emit_hsm_format || name == ov::intel_gpu::export_hsm_format) {
+    if (name == ov::intel_gpu::export_hsm_format) {
         return c.get_property(ov::intel_gpu::export_hsm_format.name(), OptionVisibility::RELEASE_INTERNAL).as<bool>();
     }
     return c.get_property(name, OptionVisibility::RELEASE);
@@ -959,6 +959,8 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() {
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
+        // Separate formats and invalidate entries created without Core's cache header.
+        ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
@@ -1028,7 +1030,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() {
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
         ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-        ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO},
+        // Keep Core's cache header for source validation regardless of the GPU payload format.
         ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},

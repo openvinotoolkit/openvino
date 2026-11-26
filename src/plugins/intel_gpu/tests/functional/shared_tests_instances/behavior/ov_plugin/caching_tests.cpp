@@ -26,9 +26,11 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "intel_gpu/plugin/hsm_common.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
@@ -265,10 +267,82 @@ public:
     void TearDown() override {
         if (!cache_path.empty()) {
             std::filesystem::remove(cache_path.string() + ".mapped");
+            ov::test::utils::removeIRFiles(cache_path.string() + ".xml", cache_path.string() + ".bin");
         }
         OVCompiledModelHsmBlobTest::TearDown();
     }
 };
+
+TEST_P(GPUHsmRegressionTest, ReplacingModelAtSamePathInvalidatesHsmCache) {
+    const auto xml = cache_path.string() + ".xml";
+    const auto bin = cache_path.string() + ".bin";
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    const auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    auto original = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{param}, "original");
+    const auto abs = std::make_shared<ov::op::v0::Abs>(param);
+    auto replacement =
+        std::make_shared<ov::Model>(ov::OutputVector{abs}, ov::ParameterVector{param}, "replacement_with_new_output");
+    auto config = configuration;
+    config.emplace(ov::cache_path(cache_path));
+
+    ov::serialize(original, xml, bin);
+    const auto original_size = std::filesystem::file_size(xml);
+    auto first = core.compile_model(xml, target_device, config);
+    ASSERT_FALSE(first.get_property(ov::loaded_from_cache));
+    ASSERT_TRUE(is_hsm(export_blob(first)));
+    EXPECT_FALSE(is_hsm(read_cache_blob()));
+    ASSERT_TRUE(core.compile_model(xml, target_device, config).get_property(ov::loaded_from_cache));
+
+    ov::serialize(replacement, xml, bin);
+    ASSERT_NE(original_size, std::filesystem::file_size(xml));
+    auto compiled = core.compile_model(xml, target_device, config);
+    EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache));
+    ov::Tensor data(ov::element::f32, {1, 4});
+    std::fill_n(data.data<float>(), data.get_size(), -2.0f);
+    auto request = compiled.create_infer_request();
+    request.set_input_tensor(data);
+    request.infer();
+    EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[0], 2.0f);
+    EXPECT_TRUE(core.compile_model(xml, target_device, config).get_property(ov::loaded_from_cache));
+}
+
+TEST_P(GPUHsmRegressionTest, CacheHitsUsePerCallExportFormat) {
+    for (const bool use_mmap : {false, true}) {
+        core.set_property(ov::enable_mmap(use_mmap));
+        for (const bool use_hsm : {false, true}) {
+            SCOPED_TRACE(::testing::Message() << "mmap=" << use_mmap << ", HSM=" << use_hsm);
+            core.set_property(target_device, ov::intel_gpu::export_hsm_format(!use_hsm));
+            const ov::AnyMap config{ov::cache_path(cache_path), ov::intel_gpu::export_hsm_format(use_hsm)};
+            auto first = core.compile_model(model, target_device, config);
+            EXPECT_EQ(is_hsm(export_blob(first)), use_hsm);
+            auto cached = core.compile_model(model, target_device, config);
+            EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+            EXPECT_EQ(is_hsm(export_blob(cached)), use_hsm);
+            expect_same_inference(cached);
+        }
+    }
+}
+
+TEST_P(GPUHsmRegressionTest, CacheHitsUseSelectedDeviceExportFormat) {
+    const auto devices = core.get_property(target_device, ov::available_devices);
+    if (devices.size() < 2) {
+        GTEST_SKIP() << "Requires two GPU device IDs";
+    }
+
+    const auto first_device = target_device + "." + devices[0];
+    const auto second_device = target_device + "." + devices[1];
+    core.set_property(first_device, ov::intel_gpu::export_hsm_format(false));
+    core.set_property(second_device, ov::intel_gpu::export_hsm_format(true));
+    const ov::AnyMap config{ov::cache_path(cache_path)};
+    for (const auto& device : {first_device, second_device}) {
+        SCOPED_TRACE(device);
+        auto first = core.compile_model(model, device, config);
+        EXPECT_EQ(is_hsm(export_blob(first)), device == second_device);
+        auto cached = core.compile_model(model, device, config);
+        EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+        expect_same_inference(cached);
+    }
+}
 
 TEST_P(GPUHsmRegressionTest, RejectsTensorPrefixOfLargerMappedFile) {
     namespace wire = ov::runtime::hsm;
