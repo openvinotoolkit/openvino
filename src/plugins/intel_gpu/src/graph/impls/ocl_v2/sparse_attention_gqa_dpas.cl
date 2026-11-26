@@ -38,6 +38,10 @@
 #define QSA_ATTENTION_HELPERS
 #include "qsa_common.cl"
 
+#ifdef cl_intel_subgroups_long
+#    pragma OPENCL EXTENSION cl_intel_subgroups_long : enable
+#endif
+
 #if SUBGROUP_SIZE != 16
 #    error "the systolic attention needs a 16-wide subgroup"
 #endif
@@ -122,6 +126,44 @@
 #        define GQA_READ8_2C intel_sub_group_2d_block_read_8b_16r32x2c
 #    endif
 
+// One f16 row of a by-channel group record (scales or zero points) for the worker slice at `p`, with one subgroup block
+// read (uniform address): out[c] (.s01 for E = 2) holds the E halves of channels c * 16 E + E lane .. + E - 1.
+inline void FUNC(gqa_rec_row)(const __global uchar* p, const uint nc, const uint E, __private half4* out) {
+    if (E == 2) {
+        if (nc == 1) {
+            out[0] = (half4)(as_half2(intel_sub_group_block_read((const __global uint*)p)), 0.0h, 0.0h);
+        } else if (nc == 2) {
+            const uint2 d = intel_sub_group_block_read2((const __global uint*)p);
+            out[0] = (half4)(as_half2(d.s0), 0.0h, 0.0h);
+            out[1] = (half4)(as_half2(d.s1), 0.0h, 0.0h);
+        } else {
+            unroll_for (uint c = 0; c < nc; c += 4) {
+                const uint4 d = intel_sub_group_block_read4((const __global uint*)p + c * 16);
+                out[c + 0] = (half4)(as_half2(d.s0), 0.0h, 0.0h);
+                out[c + 1] = (half4)(as_half2(d.s1), 0.0h, 0.0h);
+                out[c + 2] = (half4)(as_half2(d.s2), 0.0h, 0.0h);
+                out[c + 3] = (half4)(as_half2(d.s3), 0.0h, 0.0h);
+            }
+        }
+    } else {
+#    ifdef cl_intel_subgroups_long
+        if (nc == 1) {
+            out[0] = as_half4(intel_sub_group_block_read_ul((const __global ulong*)p));
+        } else {
+            unroll_for (uint c = 0; c < nc; c += 2) {
+                const ulong2 d = intel_sub_group_block_read_ul2((const __global ulong*)p + c * 16);
+                out[c + 0] = as_half4(d.s0);
+                out[c + 1] = as_half4(d.s1);
+            }
+        }
+#    else
+        unroll_for (uint c = 0; c < nc; c++) {
+            out[c] = vload4(c * 16 + get_sub_group_local_id(), (const __global half*)p);
+        }
+#    endif
+    }
+}
+
 // Issues the reads of a quantized step (worker slice from channel x0, nc chunks of E channels per lane): one message per
 // block and chunk pair, code[j][p][h * R + r] = bytes (2 lane, 2 lane + 1) of chunk 2 p + h of row r of block j (rows
 // past a short block read as zero, an empty block reads a valid row). By-channel caches (`by_channel`, paged keys) also
@@ -142,7 +184,6 @@ inline void FUNC(gqa_q2d_read)(const __global uchar* cache,
                                __private ushort (*code)[GQA_QNP][2 * GQA_R],
                                __private half4 (*cs)[GQA_QNC],
                                __private half4 (*cz)[GQA_QNC]) {
-    const uint lane = get_sub_group_local_id();
     const int xb = (int)(x0 * 2 / E);  // byte column of the slice
     unroll_for (uint j = 0; j < GQA_BLOCKS; j++) {
         const uint rows = valid_kv > j * GQA_R ? min(valid_kv - j * GQA_R, (uint)GQA_R) : 0u;
@@ -156,26 +197,31 @@ inline void FUNC(gqa_q2d_read)(const __global uchar* cache,
         }
     }
     if (by_channel) {
+        // A record (one group of a page) is as large as the codes of a block, so blocks of the same group as the
+        // previous block reuse its parameters; empty blocks load nothing.
         const half zs = convert_half(FUNC_CALL(qsa_q_zero_sym)(bits));
         unroll_for (uint j = 0; j < GQA_BLOCKS; j++) {
-            const bool empty = valid_kv <= j * GQA_R;
-            const __global half* rec = (const __global half*)(cache + sub_group_broadcast(par, j * GQA_R)) + x0;
-            unroll_for (uint c = 0; c < nc; c++) {
-                half4 s = (half4)((half)0.0f);
-                half4 z = (half4)zs;
-                if (E == 2) {
-                    s.s01 = vload2(c * 16 + lane, rec);
-                    if (!sym) {
-                        z.s01 = vload2(c * 16 + lane, rec + head);
+            const uint pj = sub_group_broadcast(par, j * GQA_R);
+            if (valid_kv <= j * GQA_R) {
+                unroll_for (uint c = 0; c < nc; c++) {
+                    cs[j][c] = (half4)((half)0.0f);
+                    cz[j][c] = (half4)((half)0.0f);
+                }
+            } else if (j > 0 && pj == sub_group_broadcast(par, (j - 1) * GQA_R)) {
+                unroll_for (uint c = 0; c < nc; c++) {
+                    cs[j][c] = cs[j - 1][c];
+                    cz[j][c] = cz[j - 1][c];
+                }
+            } else {
+                const __global uchar* rec = cache + pj + x0 * 2;
+                FUNC_CALL(gqa_rec_row)(rec, nc, E, cs[j]);
+                if (sym) {
+                    unroll_for (uint c = 0; c < nc; c++) {
+                        cz[j][c] = (half4)zs;
                     }
                 } else {
-                    s = vload4(c * 16 + lane, rec);
-                    if (!sym) {
-                        z = vload4(c * 16 + lane, rec + head);
-                    }
+                    FUNC_CALL(gqa_rec_row)(rec + head * 2, nc, E, cz[j]);
                 }
-                cs[j][c] = empty ? (half4)((half)0.0f) : s;
-                cz[j][c] = empty ? (half4)((half)0.0f) : z;
             }
         }
     }
@@ -201,13 +247,16 @@ inline void FUNC(gqa_q2d_dequant)(__private const ushort (*code)[GQA_QNP][2 * GQ
         unroll_for (uint c = 0; c < nc; c++) {
             const ushort raw = code[j][c / 2][(c % 2) * GQA_R + r % GQA_R];
             unroll_for (uint q = 0; q < E; q++) {
-                half v;
+                // The code as half without an int -> half conversion: 0x6400 | u is 1024 + u (u < 1024) exactly, and
+                // subtracting 1024 (1152 for signed codes biased by 128) is exact too.
+                ushort u;
                 if (E == 2) {
-                    const uchar b = q ? (uchar)(raw >> 8) : (uchar)raw;
-                    v = sgn ? convert_half(as_char(b)) : convert_half(b);
+                    u = q ? (ushort)(raw >> 8) : (ushort)(raw & 0xFF);
+                    u = sgn ? (ushort)(u ^ 0x80) : u;
                 } else {
-                    v = convert_half((ushort)((raw >> (4 * q)) & 0xF));
+                    u = (ushort)((raw >> (4 * q)) & 0xF);
                 }
+                const half v = as_half((ushort)(u | 0x6400)) - (sgn ? (half)1152.0f : (half)1024.0f);
                 const half s = by_channel ? cs[j][c][q] : s_row;
                 const half z = by_channel ? cz[j][c][q] : z_row;
                 x[c * E + q][r] = (v - z) * s;
