@@ -510,3 +510,90 @@ TEST(variable_test_common, real_cpu_user_still_forces_lockable) {
         << "Producer output should be lockable (usm_host on dGPU) when the "
            "downstream user is a real CPU impl that reads tensor data on the host.";
 }
+
+// ---------------------------------------------------------------------------
+// Several ReadValue -> Add -> Assign states, executed repeatedly with changing
+// inputs, on an in-order and on an out-of-order queue. On an in-order queue the
+// ReadValue/Assign CPU impls skip the host-side wait and Assign's copy is
+// non-blocking; correctness then relies on the queue ordering alone. Every element
+// of every state is checked after every inference, so a stale, partial or
+// reordered state copy fails the test.
+// ---------------------------------------------------------------------------
+struct variable_multi_state_test : public ::testing::TestWithParam<QueueTypes> {};
+
+TEST_P(variable_multi_state_test, accumulates_across_inferences) {
+    auto& engine = get_test_engine();
+    const QueueTypes queue_type = GetParam();
+    if (queue_type == QueueTypes::out_of_order && engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "out-of-order queue is not supported on this device";
+    }
+
+    constexpr size_t num_states = 6;
+    constexpr size_t num_inferences = 10;
+    // Large enough that each state copy is a real transfer, not a few bytes.
+    const layout var_layout{ov::PartialShape{1, 8, 64, 128}, data_types::f32, format::bfyx};
+    const size_t count = var_layout.count();
+
+    topology topology;
+    std::vector<memory::ptr> inputs;
+    for (size_t s = 0; s < num_states; ++s) {
+        const auto id = std::to_string(s);
+        inputs.push_back(engine.allocate_memory(var_layout));
+        topology.add(input_layout("input" + id, var_layout));
+        topology.add(read_value{"read_value" + id, {input_info("input" + id)}, "v" + id, {var_layout}});
+        topology.add(eltwise{"sum" + id, {input_info("input" + id), input_info("read_value" + id)}, eltwise_mode::sum, {}, var_layout.data_type});
+        topology.add(assign{"assign" + id, {input_info("sum" + id)}, "v" + id, var_layout});
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::queue_type(queue_type));
+    cldnn::network::ptr network = std::make_shared<cldnn::network>(engine, topology, config);
+    ASSERT_EQ(network->get_stream().get_queue_type(), queue_type);
+
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    std::vector<std::shared_ptr<VariableState>> variables;
+    for (size_t s = 0; s < num_states; ++s) {
+        const auto id = std::to_string(s);
+        variables.push_back(std::make_shared<VariableState>(VariableStateInfo{"v" + id, var_layout}, context, network->get_shape_predictor()));
+        network->set_variable("v" + id, variables.back());
+        network->set_input_data("input" + id, inputs[s]);
+    }
+
+    // Small integers stay exact in f32, so the expected state can be compared exactly.
+    std::vector<std::vector<float>> expected(num_states, std::vector<float>(count, 0.f));
+    std::vector<float> values(count);
+    for (size_t inference = 1; inference <= num_inferences; ++inference) {
+        for (size_t s = 0; s < num_states; ++s) {
+            for (size_t i = 0; i < count; ++i)
+                values[i] = static_cast<float>((i * 7 + s * 13 + inference * 31) % 97);
+            set_values(inputs[s], values);
+            for (size_t i = 0; i < count; ++i)
+                // 1st inference: read_value returns its initializer (the input itself).
+                expected[s][i] = (inference == 1 ? 2.f * values[i] : expected[s][i] + values[i]);
+        }
+
+        network->execute();
+
+        for (size_t s = 0; s < num_states; ++s) {
+            ASSERT_TRUE(variables[s]->is_set()) << "state " << s << ", inference " << inference;
+            const cldnn::mem_lock<float, mem_lock_type::read> state(variables[s]->get_memory(), network->get_stream());
+            ASSERT_EQ(state.size(), count);
+            for (size_t i = 0; i < count; ++i) {
+                ASSERT_EQ(state[i], expected[s][i]) << "state " << s << ", element " << i << ", inference " << inference;
+            }
+        }
+    }
+
+    // Both state primitives must have run as CPU impls: that is the code path under test.
+    ASSERT_NE(network->get_primitive("read_value0")->get_impl(), nullptr);
+    ASSERT_NE(network->get_primitive("assign0")->get_impl(), nullptr);
+    EXPECT_TRUE(network->get_primitive("read_value0")->get_impl()->is_cpu());
+    EXPECT_TRUE(network->get_primitive("assign0")->get_impl()->is_cpu());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         variable_multi_state_test,
+                         ::testing::Values(QueueTypes::in_order, QueueTypes::out_of_order),
+                         [](const ::testing::TestParamInfo<QueueTypes>& info) {
+                             return info.param == QueueTypes::in_order ? std::string("in_order") : std::string("out_of_order");
+                         });
