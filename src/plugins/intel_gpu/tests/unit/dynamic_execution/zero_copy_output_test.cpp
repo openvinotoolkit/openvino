@@ -599,7 +599,7 @@ protected:
         auto model = std::make_shared<ov::Model>(ov::OutputVector{topk->output(1)}, ov::ParameterVector{input});
 
         ov::Core core;
-        auto context = core.get_default_context("GPU").as<ov::intel_gpu::ocl::ClContext>();
+        auto context = core.get_default_context(get_engine_gpu_device_name()).as<ov::intel_gpu::ocl::ClContext>();
         auto request = core.compile_model(model, context).create_infer_request();
 
         // Bound once for the largest batch, as an application would
