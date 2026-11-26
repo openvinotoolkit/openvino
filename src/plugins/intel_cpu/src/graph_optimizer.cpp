@@ -28,7 +28,7 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "onednn/dnnl.h"
 #endif
-#if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#if defined(OPENVINO_ARCH_ARM64)
 #    include "nodes/executors/acl/acl_conv.hpp"
 #endif
 
@@ -942,7 +942,7 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
     }
 }
 
-#if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#if defined(OPENVINO_ARCH_ARM64)
 void GraphOptimizer::FuseUnsignedOc1ConvolutionZeroPoint(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
     for (const auto& node : graphNodes) {
@@ -1001,7 +1001,7 @@ void GraphOptimizer::FuseUnsignedOc1ConvolutionZeroPoint(Graph& graph) {
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    if defined(OV_CPU_WITH_ACL) && defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#    if defined(OPENVINO_ARCH_ARM64)
     FuseUnsignedOc1ConvolutionZeroPoint(graph);
 #    endif
     return;

@@ -37,20 +37,19 @@
 #include "post_ops.hpp"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
-#    include <xbyak_aarch64/xbyak_aarch64.h>
-
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/kernels/aarch64/jit_sdot_convolution.hpp"
 #    include "utils/arm_isa_support.h"
 #endif
 
 namespace ov::intel_cpu {
 
-#if defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#if defined(OPENVINO_ARCH_ARM64)
 namespace {
 
-constexpr size_t oc16Channels = 16;
-constexpr size_t oc16FilterElements = 27;
-constexpr size_t oc16PackedElements = 28;
+constexpr auto oc16Channels = aarch64::U8Oc16DotKernel::outputChannels;
+constexpr auto oc16FilterElements = aarch64::U8Oc16DotKernel::filterElements;
+constexpr auto oc16PackedElements = aarch64::U8Oc16DotKernel::packedElements;
 
 bool supportsU8Oc16Jit(const ConvAttrs& attrs,
                        const MemoryDesc& src,
@@ -73,40 +72,6 @@ bool supportsU8Oc16Jit(const ConvAttrs& attrs,
            attrs.dilation == std::vector<size_t>{0, 0} && attrs.paddingL == std::vector<ptrdiff_t>{1, 1} &&
            attrs.paddingR == std::vector<ptrdiff_t>{1, 1};
 }
-
-class U8Oc16DotKernel : public Xbyak_aarch64::CodeGenerator {
-public:
-    using Function = void (*)(const uint8_t*, const int8_t*, float*, size_t, const int32_t*);
-
-    U8Oc16DotKernel() {
-        using namespace Xbyak_aarch64;
-        movi(v5.b, 128);
-        const auto loop = L();
-        for (size_t block = 0; block < 4; ++block) {
-            ldr(QReg(16 + block), ptr(x4, static_cast<int32_t>(16 * block)));
-        }
-        for (size_t k = 0; k < oc16PackedElements / 4; ++k) {
-            ldr(w5, ptr(x0, static_cast<int32_t>(4 * k)));
-            dup(v0.s, w5);
-            eor(v0.b, v0.b, v5.b);
-            for (size_t block = 0; block < 4; ++block) {
-                ldr(q1, ptr(x1, static_cast<int32_t>(64 * k + 16 * block)));
-                sdot(VReg4S(16 + block), v1.b, v0.b);
-            }
-        }
-        for (size_t block = 0; block < 4; ++block) {
-            const auto acc = VReg4S(16 + block);
-            scvtf(acc, acc);
-            str(QReg(16 + block), ptr(x2, static_cast<int32_t>(16 * block)));
-        }
-        add(x0, x0, oc16PackedElements);
-        add(x2, x2, oc16Channels * sizeof(float));
-        subs(x3, x3, 1);
-        b(NE, loop);
-        ret();
-        ready();
-    }
-};
 
 class U8Oc16DotConvolution : public arm_compute::IFunction {
 public:
@@ -133,7 +98,6 @@ public:
                 corrections[oc] += 128 * weight;
             }
         }
-        const auto kernel = m_kernel.getCode<U8Oc16DotKernel::Function>();
         m_parallel->parallel_for(batch * height, [&](size_t row) {
             constexpr size_t tile = 64;
             std::array<uint8_t, tile * oc16PackedElements> patches;
@@ -162,11 +126,11 @@ public:
                     }
                     patch[oc16FilterElements] = 0;
                 }
-                kernel(patches.data(),
-                       packedWeights.data(),
-                       dst + (row * width + x) * oc16Channels,
-                       count,
-                       corrections.data());
+                m_kernel(patches.data(),
+                         packedWeights.data(),
+                         dst + (row * width + x) * oc16Channels,
+                         count,
+                         corrections.data());
             }
         });
     }
@@ -176,61 +140,7 @@ private:
     arm_compute::Tensor* m_weights;
     arm_compute::Tensor* m_dst;
     std::shared_ptr<CpuParallel> m_parallel;
-    U8Oc16DotKernel m_kernel;
-};
-
-class Oc1DotKernel : public Xbyak_aarch64::CodeGenerator {
-public:
-    using Function = void (*)(const int8_t* const*, const int8_t*, float*, size_t, int32_t, float, float);
-
-    Oc1DotKernel(size_t channels, bool unsignedInput) {
-        using namespace Xbyak_aarch64;
-        if (unsignedInput) {
-            movi(v7.b, 128);
-        }
-        const auto loop = L();
-        for (int i = 16; i < 20; ++i) {
-            movi(VReg16B(i), 0);
-        }
-        for (size_t tap = 0; tap < 9; ++tap) {
-            ldr(x5, ptr(x0, static_cast<int32_t>(tap * sizeof(void*))));
-            for (size_t c = 0; c < channels;) {
-                const auto bytes = channels - c >= 16 ? 16 : channels - c >= 8 ? 8 : 4;
-                add(x6, x1, static_cast<uint32_t>(tap * channels + c));
-                const auto input = ptr(x5, static_cast<int32_t>(c));
-                if (bytes == 16) {
-                    ldr(q2, input);
-                    ldr(q3, ptr(x6));
-                } else if (bytes == 8) {
-                    ldr(d2, input);
-                    ldr(d3, ptr(x6));
-                } else {
-                    ldr(s2, input);
-                    ldr(s3, ptr(x6));
-                }
-                if (unsignedInput) {
-                    eor(v2.b, v2.b, v7.b);
-                }
-                sdot(VReg4S(16 + tap % 4), v2.b, v3.b);
-                c += bytes;
-            }
-        }
-        add(v16.s, v16.s, v17.s);
-        add(v18.s, v18.s, v19.s);
-        add(v16.s, v16.s, v18.s);
-        addv(s2, v16.s);
-        fmov(w5, s2);
-        add(w5, w5, w4);
-        scvtf(s2, w5);
-        fmul(s2, s2, s0);
-        fadd(s2, s2, s1);
-        str(s2, post_ptr(x2, sizeof(float)));
-        add(x0, x0, 9 * sizeof(void*));
-        subs(x3, x3, 1);
-        b(NE, loop);
-        ret();
-        ready();
-    }
+    aarch64::U8Oc16DotKernel m_kernel;
 };
 
 class Oc1DotConvolution : public arm_compute::IFunction {
@@ -261,7 +171,6 @@ public:
         const auto output_w = m_dst->info()->dimension(1);
         const auto output_h = m_dst->info()->dimension(2);
         const auto batch = m_src->info()->dimension(3);
-        const auto kernel = m_kernel.getCode<Oc1DotKernel::Function>();
         std::array<uint8_t, 128> padding{};
         padding.fill(static_cast<uint8_t>(m_zero_point));
         const auto* padding_bytes = reinterpret_cast<const int8_t*>(padding.data());
@@ -286,7 +195,7 @@ public:
                         }
                     }
                 }
-                kernel(taps.data(), weights, dst + row * output_w + x, count, correction, m_scale, bias);
+                m_kernel(taps.data(), weights, dst + row * output_w + x, count, correction, m_scale, bias);
             }
         });
     }
@@ -300,7 +209,7 @@ private:
     size_t m_channels;
     bool m_unsigned_input;
     int32_t m_zero_point;
-    Oc1DotKernel m_kernel;
+    aarch64::Oc1DotKernel m_kernel;
     size_t m_pad_top;
     size_t m_pad_left;
     float m_scale;
@@ -349,7 +258,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
 
-#if defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#if defined(OPENVINO_ARCH_ARM64)
     useU8Oc16Jit = aclTensorAttrs.hasLayoutTypeNHWC && weiMemPtr->hasLayoutType(LayoutType::nspc) &&
                    dstMemPtr->hasLayoutType(LayoutType::nspc) &&
                    supportsU8Oc16Jit(attrs, *srcMemPtr, *weiMemPtr, *dstMemPtr);
@@ -450,7 +359,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
                                weiDesc->getPrecision() == ov::element::i8 &&
                                dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
     bool useUnsignedJit = false;
-#if defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#if defined(OPENVINO_ARCH_ARM64)
     if (supportsU8Oc16Jit(config.attrs, *srcDesc, *weiDesc, *dstDesc)) {
         return true;
     }
@@ -520,7 +429,7 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
-#if defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#if defined(OPENVINO_ARCH_ARM64)
     if (useU8Oc16Jit) {
         return std::make_unique<U8Oc16DotConvolution>(aclMemoryTensors, cpuParallel);
     }

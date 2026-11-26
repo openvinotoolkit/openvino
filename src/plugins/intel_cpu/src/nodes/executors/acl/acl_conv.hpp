@@ -14,7 +14,7 @@ public:
     ACLConvolutionExecutor(const ConvAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     static bool supports(const ConvConfig& config);
-#if defined(OPENVINO_ARCH_ARM64) && defined(__APPLE__)
+#if defined(OPENVINO_ARCH_ARM64)
     static bool supportsOc1JitGeometry(const VectorDims& src,
                                        const VectorDims& weights,
                                        const VectorDims& dst,
