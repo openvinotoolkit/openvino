@@ -58,12 +58,15 @@ bool shared_queue_enabled();
 // as the NPU plugin only accepts start_async() in that mode. Implied by submit-all.
 bool in_order_enabled();
 // PROTOTYPE: run all subgraphs of an infer() as NPU execution lists (one command list per list, on a
-// queue owned by the infer request), selected per GQA stage by model name:
-// OPENVINO_NPUW_EXEC_LIST for "_gqa_prefill", OPENVINO_NPUW_EXEC_LIST_GENERATE for "_gqa_generate".
-// On by default for both stages; set the variable to NO to turn a stage off. Other models are not affected.
+// queue owned by the infer request), selected per stage by model name:
+//   - OPENVINO_NPUW_EXEC_LIST for the prefill models: GQA "<name>_gqa_prefill<N>", LLM "<name>_prefill";
+//   - OPENVINO_NPUW_EXEC_LIST_GENERATE for the generate models: GQA "<name>_gqa_generate<N>", LLM generate
+//     variants "<name>_kv<N>".
+// On by default for both stages; set the variable to NO to turn a stage off. Other models (e.g. the LLM head
+// "<name>_lm_head") are not affected.
 bool exec_list_enabled_for(const std::string& model_name);
 // PROTOTYPE: at most N graph executes per execution list, the rest go to further lists submitted one
-// after another. Unset = 8, 0 = one list for the whole infer(). Per stage, as for exec_list_enabled_for():
+// after another. Unset or 0 = one list for the whole infer(). Per stage, as for exec_list_enabled_for():
 // OPENVINO_NPUW_EXEC_LIST_MAX for prefill, OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX for generate.
 std::size_t exec_list_max(const std::string& model_name);
 

@@ -252,30 +252,42 @@ std::size_t env_size(const char* name, std::size_t default_value = 0) {
     return opt ? static_cast<std::size_t>(std::strtoull(opt, nullptr, 10)) : default_value;
 }
 
-// PROTOTYPE defaults: execution lists are on for both GQA stages, at most 8 graph executes per list
-// (one list for all 81 prefill subgraphs hit ZE_RESULT_ERROR_DEVICE_LOST, 8 works)
+// PROTOTYPE defaults: execution lists are on for both stages, with one list for the whole infer(). Note: one list
+// for all 81 GQA prefill subgraphs hit ZE_RESULT_ERROR_DEVICE_LOST, OPENVINO_NPUW_EXEC_LIST_MAX=8 works there.
 constexpr bool kExecListDefault = true;
-constexpr std::size_t kExecListMaxDefault = 8;
+constexpr std::size_t kExecListMaxDefault = 0;
 
-bool is_gqa_prefill(const std::string& model_name) {
-    return model_name.find("_gqa_prefill") != std::string::npos;
+bool ends_with(const std::string& str, const std::string& suffix) {
+    return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-bool is_gqa_generate(const std::string& model_name) {
-    return model_name.find("_gqa_generate") != std::string::npos;
+// The prefill models: GQACompiledModel names them "<name>_gqa_prefill<N>", LLMCompiledModel "<name>_prefill"
+bool is_prefill(const std::string& model_name) {
+    return model_name.find("_gqa_prefill") != std::string::npos || ends_with(model_name, "_prefill");
+}
+
+// The generate models: GQACompiledModel names them "<name>_gqa_generate<N>", LLMCompiledModel names each generate
+// variant "<name>_kv<N>". The LM head ("<name>_lm_head") is neither.
+bool is_generate(const std::string& model_name) {
+    if (model_name.find("_gqa_generate") != std::string::npos) {
+        return true;
+    }
+    const auto pos = model_name.rfind("_kv");
+    return pos != std::string::npos && pos + 3 < model_name.size() &&
+           model_name.find_first_not_of("0123456789", pos + 3) == std::string::npos;
 }
 }  // namespace
 
 bool ov::npuw::util::exec_list_enabled_for(const std::string& model_name) {
     static const bool prefill = env_flag("OPENVINO_NPUW_EXEC_LIST", kExecListDefault);
     static const bool generate = env_flag("OPENVINO_NPUW_EXEC_LIST_GENERATE", kExecListDefault);
-    return (prefill && is_gqa_prefill(model_name)) || (generate && is_gqa_generate(model_name));
+    return (prefill && is_prefill(model_name)) || (generate && is_generate(model_name));
 }
 
 std::size_t ov::npuw::util::exec_list_max(const std::string& model_name) {
     static const std::size_t prefill = env_size("OPENVINO_NPUW_EXEC_LIST_MAX", kExecListMaxDefault);
     static const std::size_t generate = env_size("OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX", kExecListMaxDefault);
-    return is_gqa_generate(model_name) ? generate : prefill;
+    return is_generate(model_name) ? generate : prefill;
 }
 
 std::size_t ov::npuw::util::submit_all_depth() {
