@@ -181,8 +181,8 @@ jobs:
 
       - name: Prepare Windows coverage tools
         run: |
-          python -m pip install -r .github/actions/coverage_toolkit/requirements-ci.txt
-          if ($LASTEXITCODE -ne 0) { throw "Cannot install coverage reporting dependencies" }
+          python -m pip install -r .github/actions/coverage_toolkit/requirements-ci.txt -r src/bindings/python/requirements.txt
+          if ($LASTEXITCODE -ne 0) { throw "Cannot install coverage and OpenVINO Python dependencies" }
           if (Test-Path "$env:INSTALL_PKG_DIR") { throw "Coverage package directory already exists: $env:INSTALL_PKG_DIR" }
           New-Item -ItemType Directory -Path "$env:INSTALL_PKG_DIR" | Out-Null
           New-Item -ItemType Directory -Force -Path .tmp/windows-coverage | Out-Null
