@@ -23,6 +23,8 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/nf4.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/gated_delta_net.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/gated_residual.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/hyper_connection_mix.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/hyper_connection_post.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/group_query_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/moe.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/ngram_hash_function.hpp
