@@ -15,18 +15,17 @@
 #include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/core/visibility.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "openvino/util/file_util.hpp"
 
-// Builds a real model through the real CPU plugin (via ov::Core/register_plugin) instead of mocks,
-// so CPUStreamsExecutor's actual task-queue/exception mechanics are genuinely exercised.
+// Builds a real model through the standard "CPU" device instead of mocks, so CPUStreamsExecutor's
+// actual task-queue/exception mechanics are genuinely exercised.
 // ControllableOp is picked up by the CPU plugin's generic Reference-node fallback, needing no
 // plugin-internal registration.
 
@@ -134,32 +133,6 @@ private:
 
 namespace {
 
-// Device name for the test-local ov::Core's registered CPU plugin -- distinct from "CPU" so it
-// never collides with ambient/default plugin registration.
-constexpr const char* kTestDeviceName = "ASYNC_INFER_REQUEST_TEST_CPU";
-
-// Lazily builds a process-local ov::Core with the real CPU plugin registered, reused across tests.
-// A bare library name is passed to register_plugin() so the OS loader resolves it (needed since
-// some CI layouts, e.g. Android, don't co-locate the plugin .so with the test binary); the base
-// name varies by architecture (see CMakeLists.txt's per-arch OUTPUT_NAME).
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-constexpr const char* kCpuPluginBaseName = "openvino_arm_cpu_plugin";
-#elif defined(OPENVINO_ARCH_RISCV64)
-constexpr const char* kCpuPluginBaseName = "openvino_riscv_cpu_plugin";
-#else
-constexpr const char* kCpuPluginBaseName = "openvino_intel_cpu_plugin";
-#endif
-
-ov::Core& GetTestCore() {
-    static ov::Core core = [] {
-        ov::Core c;
-        auto plugin_name = ov::util::make_plugin_library_name(std::string(kCpuPluginBaseName) + OV_BUILD_POSTFIX);
-        c.register_plugin(plugin_name.string(), kTestDeviceName);
-        return c;
-    }();
-    return core;
-}
-
 struct TestInferContext {
     ov::CompiledModel compiled_model;
     ov::InferRequest infer_request;
@@ -167,7 +140,7 @@ struct TestInferContext {
 };
 
 // Builds Parameter -> ControllableOp -> Result, compiles it with the given properties through the
-// real CPU plugin (see GetTestCore()), and creates one real AsyncInferRequest on top of it.
+// CPU plugin, and creates one real AsyncInferRequest on top of it.
 TestInferContext CreateTestInferRequest(const ov::AnyMap& properties) {
     auto state = std::make_shared<ControllableOpState>();
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
@@ -176,7 +149,8 @@ TestInferContext CreateTestInferRequest(const ov::AnyMap& properties) {
     auto model =
         std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "AsyncInferRequestTestModel");
 
-    auto compiled_model = GetTestCore().compile_model(model, kTestDeviceName, properties);
+    ov::Core core;
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_CPU, properties);
     auto infer_request = compiled_model.create_infer_request();
     return {compiled_model, infer_request, state};
 }
@@ -202,7 +176,7 @@ ov::AnyMap ExplicitMultiAppThreadSyncProperties() {
 
 }  // namespace
 
-TEST(AsyncInferRequestTest, UsesCallerThreadForExplicitMultiAppThreadSync) {
+TEST(AsyncInferRequestTest, smoke_UsesCallerThreadForExplicitMultiAppThreadSync) {
     auto ctx = CreateTestInferRequest(ExplicitMultiAppThreadSyncProperties());
     ASSERT_TRUE(ctx.compiled_model.get_property(ov::intel_cpu::multi_app_thread_sync_execution.name()).as<bool>());
 
@@ -275,17 +249,17 @@ void RunFreshThreadForcedSingleThreadScenario(int streams, int threads) {
 // caller-thread guard: the per-stream thread budget must be exactly 1 for every call ordinal on a thread
 // (including the very first one, where Stream's lazy ctor runs), and independent of how requested threads
 // divide among streams.
-TEST(AsyncInferRequestTest, MultiAppThreadSyncForcesSingleThreadWhenThreadsDivideEvenlyAmongStreams) {
+TEST(AsyncInferRequestTest, smoke_MultiAppThreadSyncForcesSingleThreadWhenThreadsDivideEvenlyAmongStreams) {
     RunFreshThreadForcedSingleThreadScenario(2, 8);  // would be 4 threads/stream without the force
 }
 
-TEST(AsyncInferRequestTest, MultiAppThreadSyncForcesSingleThreadWhenThreadsDoNotDivideEvenlyAmongStreams) {
+TEST(AsyncInferRequestTest, smoke_MultiAppThreadSyncForcesSingleThreadWhenThreadsDoNotDivideEvenlyAmongStreams) {
     RunFreshThreadForcedSingleThreadScenario(2, 7);  // would floor to 3 threads/stream (6 of 7 threads used)
 }
 
 // The force must be scoped to multi_app_thread_sync_execution: the same streams/threads configuration without
 // it keeps its real, multi-threaded per-stream budget.
-TEST(AsyncInferRequestTest, RegularPathKeepsMultipleThreadsPerStream) {
+TEST(AsyncInferRequestTest, smoke_RegularPathKeepsMultipleThreadsPerStream) {
     constexpr int kStreams = 2;
     constexpr int kThreads = 8;
 #if OV_THREAD == OV_THREAD_SEQ
@@ -313,7 +287,7 @@ TEST(AsyncInferRequestTest, RegularPathKeepsMultipleThreadsPerStream) {
 // infer() call on the caller thread -- not just the first, where Stream's lazy omp_set_num_threads() would
 // have happened to do it anyway -- and (b) put the caller thread's own omp_get_max_threads() back afterwards.
 // (Not built in TBB configurations, where there is no per-thread OpenMP state to force or restore.)
-TEST(AsyncInferRequestOpenMPStateTest, RestoresCallerOmpThreadsAfterCallerThreadSyncCalls) {
+TEST(AsyncInferRequestOpenMPStateTest, smoke_RestoresCallerOmpThreadsAfterCallerThreadSyncCalls) {
     constexpr int kAppThreadOmpThreads = 3;
     auto ctx = CreateTestInferRequest(MultiAppThreadSyncProperties(2, 8));
 
@@ -352,7 +326,7 @@ TEST(AsyncInferRequestOpenMPStateTest, RestoresCallerOmpThreadsAfterCallerThread
 }
 #endif
 
-TEST(AsyncInferRequestTest, KeepsExecutorDispatchForSyncInferWhenCallerThreadModeIsDisabled) {
+TEST(AsyncInferRequestTest, smoke_KeepsExecutorDispatchForSyncInferWhenCallerThreadModeIsDisabled) {
     // Same stream count as ExplicitMultiAppThreadSyncProperties, but without the property set, so
     // dispatch must still go through the base class's worker-thread executor.
     auto ctx = CreateTestInferRequest({ov::num_streams(4), ov::inference_num_threads(4)});
@@ -392,7 +366,7 @@ void RunExceptionThenRecoveryScenario(const ov::AnyMap& properties) {
 
 }  // namespace
 
-TEST(AsyncInferRequestExceptionRecoveryTest, RecoversAfterExceptionForExplicitMultiAppThreadSync) {
+TEST(AsyncInferRequestExceptionRecoveryTest, smoke_RecoversAfterExceptionForExplicitMultiAppThreadSync) {
     RunExceptionThenRecoveryScenario(ExplicitMultiAppThreadSyncProperties());
 }
 
@@ -427,11 +401,11 @@ void RunDestroyThenReuseSameExecutorScenario(const ov::AnyMap& properties) {
 }  // namespace
 
 TEST(AsyncInferRequestExceptionRecoveryTest,
-     DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForExplicitMultiAppThreadSync) {
+     smoke_DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForExplicitMultiAppThreadSync) {
     RunDestroyThenReuseSameExecutorScenario(ExplicitMultiAppThreadSyncProperties());
 }
 
-TEST(AsyncInferRequestRaceConditionTest, ObservesBusyStateWhileCallerThreadSyncInferIsInFlight) {
+TEST(AsyncInferRequestRaceConditionTest, smoke_ObservesBusyStateWhileCallerThreadSyncInferIsInFlight) {
     auto ctx = CreateTestInferRequest(ExplicitMultiAppThreadSyncProperties());
     SetInput(ctx.infer_request, ctx.compiled_model.input(), 42.0F);
     ctx.state->arm_gate();
@@ -453,17 +427,14 @@ TEST(AsyncInferRequestRaceConditionTest, ObservesBusyStateWhileCallerThreadSyncI
     // request is truly busy, not just "about to start".
     ctx.state->wait_until_entered();
 
-    // Exact exception type (ov::Busy) isn't checked: on some platforms (e.g. Android, where the
-    // CPU plugin loads as a separate shared library) RTTI identity doesn't cross that boundary,
-    // so it arrives as a plain ov::Exception with the same message.
-    OV_EXPECT_THROW_HAS_SUBSTRING(ctx.infer_request.infer(), ov::Exception, "busy");
+    ASSERT_THROW(ctx.infer_request.infer(), ov::Busy);
 
     ctx.state->release();
     ASSERT_NO_THROW(in_flight.get());
     ASSERT_FLOAT_EQ(GetOutput(ctx.infer_request, ctx.compiled_model.output()), 42.0F);
 }
 
-TEST(AsyncInferRequestCancelTest, CancelDuringCallerThreadSyncInferRaisesCancelled) {
+TEST(AsyncInferRequestCancelTest, smoke_CancelDuringCallerThreadSyncInferRaisesCancelled) {
     auto ctx = CreateTestInferRequest(ExplicitMultiAppThreadSyncProperties());
     SetInput(ctx.infer_request, ctx.compiled_model.input(), 7.0F);
     ctx.state->arm_gate();
@@ -476,8 +447,7 @@ TEST(AsyncInferRequestCancelTest, CancelDuringCallerThreadSyncInferRaisesCancell
     ctx.infer_request.cancel();
     ctx.state->release();
 
-    // See the busy-exception comment above: checked by message, not exact type.
-    OV_EXPECT_THROW_HAS_SUBSTRING(in_flight.get(), ov::Exception, "cancel");
+    ASSERT_THROW(in_flight.get(), ov::Cancelled);
 
     // cancel() only affects the in-flight call; the request must be fully usable afterwards.
     SetInput(ctx.infer_request, ctx.compiled_model.input(), 9.0F);
@@ -485,10 +455,10 @@ TEST(AsyncInferRequestCancelTest, CancelDuringCallerThreadSyncInferRaisesCancell
     ASSERT_FLOAT_EQ(GetOutput(ctx.infer_request, ctx.compiled_model.output()), 9.0F);
 }
 
-// Known limitation: more app threads than configured streams can collide on the same graph slot
-// and serialize. This test locks in that current behavior -- only checks numerical correctness,
-// not per-thread isolation.
-TEST(AsyncInferRequestStreamCollisionTest, StaysCorrectWhenAppThreadsExceedConfiguredStreams) {
+// With more app threads than configured streams (M > N), get_graph() finds every graph slot busy and
+// some threads block on a slot until it frees up. This test only checks numerical correctness
+// under that oversubscription, not per-thread isolation.
+TEST(AsyncInferRequestStreamCollisionTest, smoke_StaysCorrectWhenAppThreadsExceedConfiguredStreams) {
     constexpr int kStreams = 4;
     constexpr int kAppThreads = 8;  // M > N: guarantees stream-id collisions (8 % 4 == 0)
 
@@ -500,11 +470,12 @@ TEST(AsyncInferRequestStreamCollisionTest, StaysCorrectWhenAppThreadsExceedConfi
                                              ov::ParameterVector{param},
                                              "AsyncInferRequestCollisionTestModel");
 
-    auto compiled_model = GetTestCore().compile_model(model,
-                                                      kTestDeviceName,
-                                                      {ov::num_streams(kStreams),
-                                                       ov::hint::enable_cpu_pinning(false),
-                                                       ov::intel_cpu::multi_app_thread_sync_execution(true)});
+    ov::Core core;
+    auto compiled_model = core.compile_model(model,
+                                             ov::test::utils::DEVICE_CPU,
+                                             {ov::num_streams(kStreams),
+                                              ov::hint::enable_cpu_pinning(false),
+                                              ov::intel_cpu::multi_app_thread_sync_execution(true)});
 
     std::vector<ov::InferRequest> requests;
     requests.reserve(kAppThreads);

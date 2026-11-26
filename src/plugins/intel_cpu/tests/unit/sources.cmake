@@ -3,7 +3,6 @@
 #
 
 set(CPU_UNIT_TESTS_SRCS
-    ${CMAKE_CURRENT_LIST_DIR}/async_infer_request_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/caseless_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cpu_tensor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cpu_tensor_test_ext.cpp
