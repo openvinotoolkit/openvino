@@ -52,6 +52,7 @@
 #include "quantize_inst.h"
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
+#include "space_to_depth_inst.h"
 #include "convolution_inst.h"
 #include "concatenation_inst.h"
 #include "crop_inst.h"
@@ -1654,6 +1655,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
             prim.type() != cldnn::depth_to_space::type_id() &&
+            prim.type() != cldnn::space_to_depth::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
              || (prim.as<mvn>().get_input_layout().data_type != data_types::u8 &&
