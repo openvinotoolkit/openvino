@@ -39,7 +39,7 @@ class TestCopysign(PytorchLayerTest):
 
     @pytest.mark.parametrize("input_shape", [(3, 3)])
     @pytest.mark.parametrize("dtype", [np.float32, np.float64, np.int32])
-    @pytest.mark.parametrize("scalar", [-1.5, 2.0, -0.5])
+    @pytest.mark.parametrize("scalar", [-1.5, 2.0, -0.5, -0.0, 0.0])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
