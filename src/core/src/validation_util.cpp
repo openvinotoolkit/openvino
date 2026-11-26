@@ -10,8 +10,10 @@
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -162,6 +164,32 @@ std::shared_ptr<Constant> get_constant_from_source(const ov::Output<ov::Node>& s
     } else {
         return {};
     }
+}
+
+std::shared_ptr<Constant> get_constant_from_source_and_evict(const ov::Output<ov::Node>& source) {
+    if (!source.get_node() || ov::is_type<Constant>(source.get_node())) {
+        return get_constant_from_source(source);
+    }
+    std::vector<Node*> nodes;
+    std::vector<std::shared_ptr<Constant>> leaves;
+    std::vector<ov::util::PrefetchToken> tokens;
+    if (ov::could_propagate(source, nodes)) {
+        for (auto* node : nodes) {
+            if (auto leaf = ov::as_type_ptr<Constant>(node->shared_from_this())) {
+                tokens.push_back(ov::weight_sharing::Extension::hint_prefetch(*leaf));
+                leaves.push_back(std::move(leaf));
+            }
+        }
+    }
+    auto folded = get_constant_from_source(source);
+    for (size_t i = 0; i < leaves.size(); ++i) {
+        // Evicting pages that are still being loaded would race with the prefetch.
+        if (tokens[i].valid()) {
+            tokens[i].wait();
+        }
+        ov::weight_sharing::Extension::hint_evict(*leaves[i]);
+    }
+    return folded;
 }
 
 bool is_empty_constant_tensor(const Output<Node>& source) {
