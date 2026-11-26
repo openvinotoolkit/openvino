@@ -190,21 +190,21 @@ std::shared_ptr<ov::Node> constant_gamma() {
     return ov::op::v0::Constant::create(ov::element::f32, {hidden}, {1.5f});
 }
 
-// (h + b) + (branch + bias): a residual stream, the final Add has two non-constant inputs
-NormInput residual_stream() {
-    const ov::Shape shape{1, 16, hidden};
-    auto h = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    auto prev_residual = std::make_shared<ov::op::v1::Add>(h, b);
-    auto residual = std::make_shared<ov::op::v1::Add>(prev_residual, add_bias(branch));
-    return {residual, {h, b, branch}};
-}
-
 // MatMul(x, W): not a residual stream (a model input itself counts as one)
 NormInput matmul_output() {
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
     return {std::make_shared<ov::op::v0::MatMul>(x, ov::op::v0::Constant::create(ov::element::f32, {hidden, hidden}, {0.01f})), {x}};
+}
+
+// (h + b) + (branch + bias) with h, b, branch MatMul outputs: a residual stream, the final Add has two non-constant
+// inputs. The walk stops at the MatMuls, so only the residual Add makes the norm residual-fed (not a model input).
+NormInput residual_stream() {
+    auto h = matmul_output();
+    auto b = matmul_output();
+    auto branch = matmul_output();
+    auto prev_residual = std::make_shared<ov::op::v1::Add>(h.x, b.x);
+    auto residual = std::make_shared<ov::op::v1::Add>(prev_residual, add_bias(branch.x));
+    return {residual, {h.params[0], b.params[0], branch.params[0]}};
 }
 
 // MatMul + bias: an Add with a constant input is a bias, not a residual connection
@@ -466,19 +466,28 @@ TEST(L2NormToRMSPipeline, ModelInputFedNormStaysFP32) {
 
 // gamma = (Convert(u16 model input) - zp) * scale, as ONNX Runtime with the OpenVINO EP feeds a shared gamma
 // initializer: after ConvertPrecision the Convert of the u16 input still converts to f32 (to f16, 65535 is inf), and
-// the dequantization stays in FP32. (The RMS itself may run in f16; the scaled gamma fits in f16.)
+// the dequantization and the scaled gamma stay in FP32. x is a MatMul output (a PSX q/k norm), so the RMS itself runs
+// in f16 and nothing but the gamma marks keeps the gamma path in FP32.
 TEST(L2NormToRMSPipeline, U16GammaModelInputConvertStaysFP32) {
-    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, hidden});
+    auto in = matmul_output();
     auto weight = std::make_shared<ov::op::v0::Parameter>(ov::element::u16, ov::Shape{hidden});
     auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
     auto zp = std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::u16, {}, {127}), ov::element::f32);
     auto shifted = std::make_shared<ov::op::v1::Subtract>(weight_convert, zp);
     auto gamma = std::make_shared<ov::op::v1::Multiply>(shifted, ov::op::v0::Constant::create(ov::element::f32, {}, {0.000855f}));
-    auto m = make_model(l2_norm(x, gamma), {x, weight});
+    auto m = make_model(l2_norm(in.x, gamma), {in.params[0], weight});
     fuse_and_convert_to_f16(m);
 
     const auto fused = single_rms(m);
     ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->get_input_element_type(0), ov::element::f16);
+    // The scaled gamma is computed in FP32 and converted to f16 for the f16 RMS (it fits in f16).
+    const auto* gamma_to_rms = fused->get_input_node_ptr(1);
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Convert>(gamma_to_rms));
+    const auto* scaled_gamma = gamma_to_rms->get_input_node_ptr(0);
+    ASSERT_TRUE(ov::is_type<ov::op::v1::Multiply>(scaled_gamma));
+    EXPECT_EQ(scaled_gamma->get_input_node_ptr(0), gamma.get());
+    EXPECT_EQ(scaled_gamma->get_output_element_type(0), ov::element::f32);
     ASSERT_EQ(weight->get_output_target_inputs(0).size(), 1);
     const auto* convert = weight->get_output_target_inputs(0).begin()->get_node();
     ASSERT_TRUE(ov::is_type<ov::op::v0::Convert>(convert));

@@ -306,13 +306,22 @@ protected:
         const ov::Shape shape{1, 16, 64};
         init_input_shapes(std::vector<InputShape>(num_inputs, {shape, {shape}}));
 
+        // Each branch is a MatMul (identity weight, so the values stay those of the inputs and fit in f16): only the
+        // residual Adds, not a model input, make the norm residual-fed.
+        std::vector<float> identity(shape.back() * shape.back(), 0.f);
+        for (size_t i = 0; i < shape.back(); ++i) {
+            identity[i * shape.back() + i] = 1.f;
+        }
+        auto weight = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{shape.back(), shape.back()}, identity);
         ov::ParameterVector params;
+        ov::OutputVector branches;
         for (size_t i = 0; i < num_inputs; ++i) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+            branches.push_back(std::make_shared<ov::op::v0::MatMul>(params.back(), weight));
         }
-        ov::Output<ov::Node> residual = params[0];
+        ov::Output<ov::Node> residual = branches[0];
         for (size_t i = 1; i < num_inputs; ++i) {
-            residual = std::make_shared<ov::op::v1::Add>(residual, params[i]);
+            residual = std::make_shared<ov::op::v1::Add>(residual, branches[i]);
         }
         const auto link = std::get<1>(GetParam());
         if (link == ResidualLink::BiasAdd) {
@@ -374,7 +383,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_L2NormToRMS_residual_overflow,
 // L2 norm with gamma = (Convert(u16 weight) - zp) * scale, weight up to 65535, f16 inference. The u16 weight is a model
 // input, as ONNX Runtime with the OpenVINO EP passes the gamma initializer, so KeepDequantizationPrecision (Constant
 // weights only) does not keep it in FP32. The norm is fused before ConvertPrecision; a u16 -> f16 Convert of 65535
-// gives inf, so the dequantization must stay FP32.
+// gives inf, so the dequantization must stay FP32. x is a MatMul output, as for a PSX q/k norm: the RMS runs in f16,
+// so only the gamma marks keep the dequantization in FP32.
 class L2NormToRMSU16Gamma : public ov::test::SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
@@ -385,7 +395,13 @@ protected:
         rel_threshold = 1e-2;
 
         const ov::Shape shape{1, 16, 64};
-        auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        std::vector<float> x_weight_values(shape.back() * shape.back());
+        for (size_t i = 0; i < x_weight_values.size(); ++i) {
+            x_weight_values[i] = static_cast<float>(static_cast<int>(i % 13) - 6) / 64.f;
+        }
+        auto x =
+            std::make_shared<ov::op::v0::MatMul>(input, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{shape.back(), shape.back()}, x_weight_values));
 
         auto weight = std::make_shared<ov::op::v0::Parameter>(ov::element::u16, ov::Shape{shape.back()});
         auto zero_point = ov::op::v0::Constant::create(ov::element::u16, ov::Shape{}, {127});
@@ -399,7 +415,7 @@ protected:
         auto add_eps = std::make_shared<ov::op::v1::Add>(sum, ov::op::v0::Constant::create(ov::element::f32, {}, {1.1920928955078125e-07f}));
         auto div = std::make_shared<ov::op::v1::Divide>(x, std::make_shared<ov::op::v0::Sqrt>(add_eps));
         auto mul = std::make_shared<ov::op::v1::Multiply>(div, gamma);
-        function = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{x, weight}, "L2NormToRMSU16Gamma");
+        function = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input, weight}, "L2NormToRMSU16Gamma");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -423,6 +439,7 @@ protected:
         ov::test::SubgraphBaseStaticTest::validate();
         std::shared_ptr<ov::Node> rms;
         ASSERT_NO_FATAL_FAILURE(get_single_rms_layer(compiledModel, rms));
+        EXPECT_EQ(rms->get_input_element_type(0), ov::element::f16);
     }
 };
 
