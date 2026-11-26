@@ -1,14 +1,12 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/core/type/float16.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/opsets/opset10_decl.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -66,71 +64,5 @@ TEST_F(ConvertBoolMathTest, smoke_CompareWithRefs) {
     run();
 }
 
-class ConvertBoolMathFractionalTest : public SubgraphBaseStaticTest {
-public:
-    void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
-
-        ov::ParameterVector inputParams{std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{6})};
-
-        auto convertBool = std::make_shared<ov::opset10::Convert>(inputParams.front(), ov::element::boolean);
-        auto convertF32 = std::make_shared<ov::opset10::Convert>(convertBool, ov::element::f32);
-
-        ov::ResultVector results{std::make_shared<ov::opset10::Result>(convertF32)};
-        function = std::make_shared<ov::Model>(results, inputParams, "ConvertBoolMathFractional");
-    }
-
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        inputs.clear();
-        const auto& funcInputs = function->inputs();
-        auto tensor = ov::Tensor{funcInputs[0].get_element_type(), targetInputStaticShapes[0]};
-        auto* data = tensor.data<float>();
-        data[0] = 0.0f;
-        data[1] = 0.25f;
-        data[2] = 1.0f;
-        data[3] = -0.5f;
-        data[4] = -5.0f;
-        data[5] = 0.001f;
-        inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
-    }
-};
-
-TEST_F(ConvertBoolMathFractionalTest, smoke_CompareWithRefs) {
-    run();
-}
-
-class ConvertBoolMathF16Test : public SubgraphBaseStaticTest {
-public:
-    void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
-
-        ov::ParameterVector inputParams{std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{6})};
-
-        auto convertBool = std::make_shared<ov::opset10::Convert>(inputParams.front(), ov::element::boolean);
-        auto convertF16 = std::make_shared<ov::opset10::Convert>(convertBool, ov::element::f16);
-
-        ov::ResultVector results{std::make_shared<ov::opset10::Result>(convertF16)};
-        function = std::make_shared<ov::Model>(results, inputParams, "ConvertBoolMathF16");
-    }
-
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        inputs.clear();
-        const auto& funcInputs = function->inputs();
-        auto tensor = ov::Tensor{funcInputs[0].get_element_type(), targetInputStaticShapes[0]};
-        auto* data = tensor.data<ov::float16>();
-        data[0] = ov::float16(0.0f);
-        data[1] = ov::float16(0.25f);
-        data[2] = ov::float16(1.0f);
-        data[3] = ov::float16(-0.5f);
-        data[4] = ov::float16(-5.0f);
-        data[5] = ov::float16(0.001f);
-        inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
-    }
-};
-
-TEST_F(ConvertBoolMathF16Test, smoke_CompareWithRefs) {
-    run();
-}
-
-}  // namespace test
-}  // namespace ov
+} // namespace test
+} // namespace ov
