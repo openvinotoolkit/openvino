@@ -799,14 +799,16 @@ public:
     // so the buffer must outlive the per-call scratch_buffers.
     memory::ptr _expert_index_buffer;
 
-    // --- Lookahead expert scheduling (ov::intel_gpu::moe_les_predicted_experts) ---
-    // Name prefix of the model outputs with the predicted experts, empty: no prefetch
-    std::string _les_prefix;
+    // --- Lookahead expert scheduling (ov::intel_gpu::moe_les_predictors) ---
+    // The expert predictors are separate networks on the stream of this network (network::get_les_predictor). In a
+    // decode step of one token, the predictor of the next MoE layer runs on the hidden states of this layer before its
+    // batched GEMV, and this layer prefetches the predicted experts of the next one. Every execution saves the last row
+    // of the hidden states of this layer as the previous token input of its own predictor.
     bool _les_resolved = false;
-    // The network output with the experts predicted for the next MoE layer, and that layer
-    std::string _les_predicted_id;
+    std::shared_ptr<cldnn::les_predictor> _les_next_predictor;  // predicts the experts of the next MoE layer
+    memory::ptr _les_prev_hidden;                                // previous token input of the predictor of this layer
     std::string _les_next_moe_id;
-    // Predicted experts of the next layer, read in this execution and prefetched once the kernels are enqueued
+    // Predicted experts of the next layer, read in this execution and prefetched before the misses of this layer
     std::vector<uint32_t> _les_pending;
 
     static int les_layer_of(const std::string& id) {
@@ -817,6 +819,10 @@ public:
 
     void les_resolve(typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         _les_resolved = true;
+        auto& net = instance.get_network();
+        if (!net.has_les_predictors()) {
+            return;
+        }
         const int layer = les_layer_of(instance.id());
         if (layer < 0) {
             if (moe_otd::get_perf_counters()) {
@@ -824,7 +830,9 @@ public:
             }
             return;
         }
-        auto& net = instance.get_network();
+        if (auto own = net.get_les_predictor(layer)) {
+            _les_prev_hidden = own->prev;
+        }
         int next_layer = INT_MAX;
         for (const auto& id : net.get_all_primitive_ids()) {
             // optimized out primitives are listed as "_optimized_"
@@ -837,38 +845,63 @@ public:
                 _les_next_moe_id = id;
             }
         }
-        if (_les_next_moe_id.empty()) {
-            return;  // the last MoE layer
+        if (!_les_next_moe_id.empty()) {
+            _les_next_predictor = net.get_les_predictor(next_layer);
         }
-        const std::string name = _les_prefix + std::to_string(next_layer);
-        for (const auto& id : net.get_output_ids()) {
-            if (id.size() >= name.size() && id.compare(id.size() - name.size(), name.size(), name) == 0) {
-                _les_predicted_id = id;
-            }
+        if (moe_otd::get_perf_counters()) {
+            std::cerr << "LES: MoE layer " << layer << " (" << instance.id() << ") runs the predictor of layer "
+                      << (_les_next_predictor ? std::to_string(next_layer) : std::string("<none>"))
+                      << (_les_prev_hidden ? ", keeps the previous token of its own predictor" : "") << std::endl;
         }
-        // The prediction is only ready if the predictor runs before this layer (see schedule_les_predictors)
-        const auto order = net.get_executed_primitive_ids();
-        const auto pos = [&](const std::string& id) {
-            return std::distance(order.begin(), std::find(order.begin(), order.end(), id));
-        };
-        if (moe_otd::get_perf_counters()) std::cerr << "LES: MoE layer " << layer << " (" << instance.id() << ") prefetches for layer " << next_layer << " ("
-                       << _les_next_moe_id << ") from " << (_les_predicted_id.empty() ? std::string("<no output>") : _les_predicted_id)
-                       << ", predictor before this layer: " << (pos(_les_predicted_id) < pos(instance.id()) ? "yes" : "no") << std::endl;
     }
 
-    // Called after the stream is synchronized for the routing of this layer, so the prediction is complete
-    void les_read_predictions(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, cldnn::stream& stream) {
-        _les_pending.clear();
-        if (_les_prefix.empty()) {
-            return;
-        }
+    // Saves the last row of the hidden states of this layer as the previous token input of its predictor. Enqueued
+    // after the predictor ran (before the previous MoE layer), it is read in the next execution.
+    void les_save_last_hidden(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, cldnn::stream& stream) {
         if (!_les_resolved) {
             les_resolve(instance);
         }
-        if (_les_predicted_id.empty()) {
+        if (!_les_prev_hidden) {
             return;
         }
-        auto mem = instance.get_network().get_primitive(_les_predicted_id)->output_memory_ptr();
+        auto hidden = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
+        const auto& layout = hidden->get_layout();
+        const size_t row_bytes = _les_prev_hidden->size();
+        const size_t bytes = layout.count() * ov::element::Type(layout.data_type).size();
+        if (layout.data_type != _les_prev_hidden->get_layout().data_type || layout.get_linear_size() != layout.count() || bytes < row_bytes) {
+            return;
+        }
+        _les_prev_hidden->copy_from(stream, *hidden, bytes - row_bytes, 0, row_bytes, false);
+    }
+
+    // Enqueues the predictor of the next MoE layer on the hidden states of this one, for a single token. Returns false
+    // if there is nothing to predict.
+    bool les_run_next_predictor(typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        if (!_les_resolved) {
+            les_resolve(instance);
+        }
+        auto& p = _les_next_predictor;
+        if (!p) {
+            return false;
+        }
+        auto hidden = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
+        const auto& layout = hidden->get_layout();
+        if (layout.count() != static_cast<size_t>(p->hidden_size) || layout.data_type != p->hidden_type) {
+            return false;  // several tokens: no prediction
+        }
+        if (p->hidden_source != hidden.get()) {
+            p->hidden = instance.get_network().get_engine().reinterpret_buffer(*hidden, p->input_layout);
+            p->hidden_source = hidden.get();
+            p->net->set_input_data(p->hidden_id, p->hidden);
+        }
+        p->net->execute();
+        return true;
+    }
+
+    // Reads the experts predicted for the next layer, once the stream is synchronized
+    void les_read_predictions(cldnn::stream& stream) {
+        _les_pending.clear();
+        auto mem = _les_next_predictor->net->get_output_memory(_les_next_predictor->output_id);
         if (!mem || mem->get_layout().count() == 0) {
             return;
         }
@@ -882,20 +915,10 @@ public:
             std::vector<int64_t> values(count);
             mem->copy_to(stream, values.data(), 0, 0, count * sizeof(int64_t), true);
             _les_pending.assign(values.begin(), values.end());
-        } else {
-            return;
         }
-        // several tokens (e.g. several sequences): their union, in the order of the first appearance
-        std::vector<uint32_t> unique;
-        for (uint32_t e : _les_pending) {
-            if (std::find(unique.begin(), unique.end(), e) == unique.end()) {
-                unique.push_back(e);
-            }
-        }
-        _les_pending = std::move(unique);
     }
 
-    // Starts the background loads of the next layer's predicted experts (the predictor ran before this layer)
+    // Starts the background loads of the next layer's predicted experts
     void les_prefetch_next(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, cldnn::stream& stream) {
         if (_les_pending.empty()) {
             return;
@@ -1029,10 +1052,14 @@ public:
             needs_fallback = false;
             return;
         }
+        // The predictor of the next layer is enqueued before the synchronization below, which completes it
+        const bool les_predicted = les_run_next_predictor(instance);
         stream.finish();
-        les_read_predictions(instance, stream);
-        // Background reads and copies of the next layer's predicted experts overlap with the misses of this layer
-        les_prefetch_next(instance, stream);
+        if (les_predicted) {
+            les_read_predictions(stream);
+            // Background reads and copies of the next layer's predicted experts overlap with the misses of this layer
+            les_prefetch_next(instance, stream);
+        }
 
         std::vector<uint32_t> expert_ids(topk_count);
         scratch.topk_id->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
@@ -1358,7 +1385,6 @@ public:
         // Weight provider: select based on OTD configuration.
         auto cur_moe = node.as<moe_3gemm_fused_compressed>().get_primitive();
         if (cur_moe->_otd.lru_expert_num > 0) {
-            _les_prefix = config.get_moe_les_predicted_experts();
             _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
                                                                              cur_moe->_config,
                                                                              cur_moe->_otd.weight_bin_offsets,
@@ -1694,7 +1720,6 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
-        cur_moe->_les_prefix = _les_prefix;  // the links to the next layer are resolved per network
         cur_moe->force_gpu_mask_gen_prefill = force_gpu_mask_gen_prefill;
         cur_moe->prefill_impl = prefill_impl;
         cur_moe->decode_impl = decode_impl;
@@ -3218,6 +3243,9 @@ public:
         size_t token_num = get_seq_len(hidden_states_layout);
 
         bind_weights_on_first_exec(instance);
+        if (_weight_provider->is_offloaded()) {
+            les_save_last_hidden(instance, stream);
+        }
 
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, token_num);

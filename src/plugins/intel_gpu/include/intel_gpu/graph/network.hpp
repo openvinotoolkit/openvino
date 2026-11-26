@@ -68,6 +68,27 @@ private:
 
 class primitive_inst;
 class ICompilationContext;
+struct network;
+
+/// @brief Lookahead expert scheduling (ov::intel_gpu::moe_les_predictors): the expert predictor of one MoE layer, a
+/// separate network that runs on the stream of the network that owns it.
+struct les_predictor {
+    int layer = -1;                    // 0-based decoder layer of the MoE layer whose experts it predicts
+    program::ptr prog;                 // static shapes, one token
+    primitive_id hidden_id;            // input: hidden states input of the previous MoE layer, [1, hidden_size]
+    primitive_id prev_id;              // optional input: hidden states input of MoE layer `layer` at the last token
+                                       // of the previous execution, empty if the predictor has no such input
+    primitive_id output_id;            // output: predicted expert indices
+    ov::element::Type hidden_type;     // element type of both inputs
+    int64_t hidden_size = 0;
+
+    // Per network
+    std::shared_ptr<network> net;
+    layout input_layout;               // layout of both inputs in the network
+    memory::ptr prev;                  // value of the prev_id input
+    memory::ptr hidden;                // memory bound to the hidden_id input, and its source
+    const memory* hidden_source = nullptr;
+};
 
 struct network {
 public:
@@ -249,6 +270,14 @@ public:
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
+    /// @brief Expert predictors of MoE layers (lookahead expert scheduling), keyed by les_predictor::layer
+    void set_les_predictors(std::map<int, std::shared_ptr<les_predictor>> predictors) { _les_predictors = std::move(predictors); }
+    bool has_les_predictors() const { return !_les_predictors.empty(); }
+    std::shared_ptr<les_predictor> get_les_predictor(int layer) const {
+        auto it = _les_predictors.find(layer);
+        return it == _les_predictors.end() ? nullptr : it->second;
+    }
+
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() const { return iteration; }
 #else
@@ -301,6 +330,8 @@ private:
     output_chains_map _remote_output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
+
+    std::map<int, std::shared_ptr<les_predictor>> _les_predictors;
 
     /// @brief Invalidate the recording of the previous iteration
     void invalidate_recording();

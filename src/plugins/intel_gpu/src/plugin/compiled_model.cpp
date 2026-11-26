@@ -57,7 +57,8 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
-                             ov::internal::WeightSharingCtxPtr weightSharingContext)
+                             ov::internal::WeightSharingCtxPtr weightSharingContext,
+                             std::vector<cldnn::les_predictor> les_predictors)
     : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
       m_context(context),
       m_config(config),
@@ -67,14 +68,44 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false),
-      m_weight_sharing_context(std::move(weightSharingContext)) {
+      m_weight_sharing_context(std::move(weightSharingContext)),
+      m_les_predictors(std::move(les_predictors)) {
     m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0, m_weight_sharing_context);
     m_weight_sharing_source_buffers = graph_base->get_weight_sharing_source_buffers();
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
+        attach_les_predictors(*graph);
         m_graphs.push_back(graph);
     }
+}
+
+void CompiledModel::attach_les_predictors(Graph& graph) const {
+    if (m_les_predictors.empty()) {
+        return;
+    }
+    auto main = graph.get_network();
+    auto& engine = main->get_engine();
+    std::map<int, std::shared_ptr<cldnn::les_predictor>> predictors;
+    for (const auto& proto : m_les_predictors) {
+        auto p = std::make_shared<cldnn::les_predictor>(proto);
+        // The same in-order stream as the main network: a predictor enqueued by a MoE layer is ordered after the
+        // hidden states it reads, and completes with the synchronization of that layer
+        p->net = std::make_shared<cldnn::network>(p->prog, main->get_stream_ptr(), graph.get_stream_id());
+        const auto input_ids = p->net->get_input_ids();
+        const auto input_layouts = p->net->get_input_layouts();
+        for (size_t i = 0; i < input_ids.size(); ++i) {
+            if (input_ids[i] == p->hidden_id) {
+                p->input_layout = input_layouts[i];
+            }
+        }
+        if (!p->prev_id.empty()) {
+            p->prev = engine.allocate_memory(p->input_layout, true);  // zeros before the first execution
+            p->net->set_input_data(p->prev_id, p->prev);
+        }
+        predictors[p->layer] = std::move(p);
+    }
+    main->set_les_predictors(std::move(predictors));
 }
 
 CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
@@ -367,7 +398,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::intel_gpu::moe_les_predicted_experts.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
             ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},

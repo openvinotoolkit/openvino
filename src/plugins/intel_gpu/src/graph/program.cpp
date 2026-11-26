@@ -100,9 +100,6 @@
 #include "impls/common/register.hpp"
 
 #include "kernel_base.h"
-#include "moe_3gemm_fused_inst.h"
-
-#include <regex>
 
 #include <algorithm>
 #include <fstream>
@@ -123,75 +120,6 @@
 #endif
 
 using namespace cldnn;
-
-namespace {
-// Lookahead expert scheduling (ov::intel_gpu::moe_les_predicted_experts): the output `<prefix><L>` holds the experts
-// predicted for MoE layer L from inputs available before MoE layer L-1. Executes that predictor (the nodes it needs
-// that are ordered after the previous MoE layer) before the previous MoE layer, which then reads the prediction and
-// prefetches the predicted experts of layer L while it runs. Runs before the memory dependencies are computed.
-void schedule_les_predictors(program& p, const std::string& prefix) {
-    static const std::regex layer_re(R"(layers\.(\d+)\.)");
-    auto& order = p.get_processing_order();
-    std::map<int, program_node*> moe_layers;
-    std::vector<std::pair<int, program_node*>> predictors;
-    for (auto* node : order) {
-        const std::string& id = node->id();
-        std::smatch match;
-        if (node->is_type<moe_3gemm_fused_compressed>()) {
-            if (std::regex_search(id, match, layer_re)) {
-                moe_layers[std::stoi(match[1].str())] = node;
-            }
-            continue;
-        }
-        const auto pos = id.rfind(prefix);
-        if (node->is_output() && pos != std::string::npos) {
-            const std::string layer = id.substr(pos + prefix.size());
-            if (!layer.empty() && std::all_of(layer.begin(), layer.end(), [](unsigned char c) { return std::isdigit(c); })) {
-                predictors.emplace_back(std::stoi(layer), node);
-            }
-        }
-    }
-    for (const auto& [layer, predictor] : predictors) {
-        auto next = moe_layers.lower_bound(layer);
-        if (next == moe_layers.begin()) {
-            continue;  // no MoE layer before it
-        }
-        program_node* prev_moe = std::prev(next)->second;
-        const int32_t prev_moe_pos = order.get_processing_number(prev_moe);
-        std::vector<program_node*> to_move;
-        std::unordered_set<program_node*> visited;
-        std::vector<program_node*> stack{predictor};
-        bool depends_on_prev_moe = false;
-        while (!stack.empty()) {
-            program_node* node = stack.back();
-            stack.pop_back();
-            if (!visited.insert(node).second || order.get_processing_number(node) < prev_moe_pos) {
-                continue;
-            }
-            if (node == prev_moe) {
-                depends_on_prev_moe = true;
-                break;
-            }
-            to_move.push_back(node);
-            for (const auto& dep : node->get_dependencies()) {
-                stack.push_back(dep.first);
-            }
-        }
-        if (depends_on_prev_moe) {
-            if (std::getenv("MOE_OTD_PERF_LOG")) std::cerr << "LES: the predictor " << predictor->id() << " depends on " << prev_moe->id() << ", not moved" << std::endl;
-            continue;
-        }
-        std::sort(to_move.begin(), to_move.end(), [&](program_node* a, program_node* b) {
-            return order.get_processing_number(a) < order.get_processing_number(b);
-        });
-        for (auto* node : to_move) {
-            order.erase(node);
-            order.insert(prev_moe, node);  // before the MoE layer, keeping the relative order
-        }
-        if (std::getenv("MOE_OTD_PERF_LOG")) std::cerr << "LES: moved " << to_move.size() << " nodes of " << predictor->id() << " before " << prev_moe->id() << std::endl;
-    }
-}
-}  // namespace
 using namespace ov::intel_gpu;
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
@@ -733,11 +661,6 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     apply_opt_pass<mark_state_init_subgraphs>();
-
-    const auto& les_prefix = _config.get_moe_les_predicted_experts();
-    if (!les_prefix.empty() && !is_internal) {
-        schedule_les_predictors(*this, les_prefix);
-    }
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
