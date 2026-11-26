@@ -11,6 +11,7 @@
 
 #include "data_inst.h"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "program_node.h"
 #include "selective_ssm_inst.h"
 #include "shape_of_inst.h"
@@ -23,6 +24,29 @@ const class_interval kUnknownInterval{};
 const std::vector<const program_node*> kNoNodes{};
 
 }  // namespace
+
+inorder_lifetime_gate_result evaluate_inorder_lifetime_gate(const program& p, const exec_axis& axis) {
+    inorder_lifetime_gate_result r;
+    const auto& cfg = p.get_config();
+    if (!cfg.get_enable_inorder_lifetime_restrictions()) {
+        return r;   // switch_off
+    }
+    if (cfg.get_queue_type() != QueueTypes::in_order) {
+        r.reason = "queue_not_in_order";
+    } else if (p.get_engine().type() != engine_types::ocl || p.get_engine().runtime_type() != runtime_types::ocl) {
+        r.reason = "backend_not_ocl";
+    } else if (p.is_internal_program()) {
+        r.reason = "internal_program";
+    } else if (p.is_body_program()) {
+        r.reason = "body_program";
+    } else if (!axis.valid()) {
+        r.reason = "exec_axis_not_valid";
+    } else {
+        r.open = true;
+        r.reason = "open";
+    }
+    return r;
+}
 
 size_t class_lifetimes::index_of(const alias_class& k) const {
     if (m_aa == nullptr) {

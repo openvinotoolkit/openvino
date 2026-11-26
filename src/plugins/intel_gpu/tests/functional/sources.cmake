@@ -6,6 +6,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/behavior/compatibility_string.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/infer_request.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/inference_precision.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/inorder_lifetime_queue_guard.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/memory_dyn_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/model_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/properties.cpp

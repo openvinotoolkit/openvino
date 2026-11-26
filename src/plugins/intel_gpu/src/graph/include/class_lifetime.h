@@ -51,6 +51,15 @@ enum lifetime_ineligible : uint32_t {
     li_unmodeled_alias = 1u << 9,  // C5: selective_ssm output classes and the whole class of its input 5 (alias without an edge, F27)
 };
 
+// Program level gate of P2-a (design 19, 3.2): true iff enable_inorder_lifetime_restrictions is set AND the queue is in_order AND the engine is
+// the OCL backend (ZE execution order is not established, audit 5.1) AND the program is neither internal nor a body AND the execution axis is
+// valid (F9 normalized). `reason` names the first failed condition (a static string). Cheap checks run first; the axis is only read last.
+struct inorder_lifetime_gate_result {
+    bool open = false;
+    const char* reason = "switch_off";
+};
+inorder_lifetime_gate_result evaluate_inorder_lifetime_gate(const program& p, const exec_axis& axis);
+
 class class_lifetimes {
 public:
     static class_lifetimes build(const program& p, const alias_analysis& aa, const exec_axis& axis);

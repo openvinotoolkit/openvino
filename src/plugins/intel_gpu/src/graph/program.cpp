@@ -25,6 +25,8 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "alias_analysis.h"
+#include "class_lifetime.h"
+#include "exec_axis.h"
 #include "oooq_gate_shadow.h"
 #include "alias_validation.h"
 #include "class_level_memory_dependencies.h"
@@ -837,10 +839,28 @@ void program::prepare_memory_dependencies() {
     if (oooq_gate_shadow::enabled()) {
         oooq_gate_s0 = oooq_gate_shadow::take_snapshot(*this);
     }
-    apply_opt_pass<oooq_memory_dependencies>();
-    // Phase 0.5a: behaviour-neutral. Builds the alias classes once (all queue types: OOOQ classes carry fb_oooq for shadow validation),
-    // after every restriction pass and before the restrictions are published. Nothing reads it yet.
+    // Phase 0.5a: behaviour-neutral. Builds the alias classes once (all queue types: OOOQ classes carry fb_oooq for shadow validation).
+    // P2-a S2: moved in front of oooq (the analysis neither reads nor writes restrictions); still built exactly once per call and NOT guarded:
+    // an exception keeps its HEAD semantics (compilation fails).
     _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
+    // P2-a S2: gate computation only. The lifetime engine is not handed to oooq yet (S4); with the switch off this is one boolean test.
+    if (_config.get_enable_inorder_lifetime_restrictions()) {
+        const auto axis = exec_axis::build(*this);
+        const auto gate = evaluate_inorder_lifetime_gate(*this, axis);
+        if (!gate.open) {
+            GPU_DEBUG_LOG << "inorder_lifetime_restrictions ignored: " << gate.reason << std::endl;
+        } else {
+            const auto lt = class_lifetimes::build(*this, *_alias_analysis, axis);
+            size_t eligible = 0;
+            for (const auto& k : _alias_analysis->classes()) {
+                eligible += lt.class_ineligible_mask(k) == 0 ? 1 : 0;
+            }
+            GPU_DEBUG_LOG << "inorder_lifetime_restrictions gate open: eligible classes " << eligible << "/" << _alias_analysis->classes().size()
+                          << " (restrictions not changed in S2)" << std::endl;
+            OPENVINO_ASSERT(eligible <= _alias_analysis->classes().size());
+        }
+    }
+    apply_opt_pass<oooq_memory_dependencies>(static_cast<const inorder_leaf_filter*>(nullptr));
     if (oooq_gate_s0) {
         oooq_gate_shadow::finish(*this, std::move(oooq_gate_s0), _alias_analysis.get());
     }

@@ -135,9 +135,17 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
 
     IstreamAttributeVisitor<cldnn::BinaryInputBuffer> visitor(ib);
     m_config.visit_attributes(visitor);
+    // P2-a P-G2: the blob was compiled with restrictions derived from the in-order execution axis. visit_attributes has just restored the
+    // compile-time values (the exported user properties are empty after finalize), so the getters return them here, before the import call's
+    // user properties are applied.
+    const bool compiled_with_inorder_lifetime = m_config.get_enable_inorder_lifetime_restrictions() &&
+                                                m_config.get_queue_type() == ov::intel_gpu::QueueTypes::in_order;
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
     m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
     m_config.finalize(context.get(), nullptr);
+    OPENVINO_ASSERT(!compiled_with_inorder_lifetime || m_config.get_queue_type() == ov::intel_gpu::QueueTypes::in_order,
+                    "[GPU] The model cache was compiled for an in-order queue with GPU_ENABLE_INORDER_LIFETIME_RESTRICTIONS, but the queue type was "
+                    "overridden to out-of-order on import: its memory restrictions are not valid for out-of-order execution.");
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
     // Not passing MODEL_PTR through m_config because values in m_config are immutable after config finalization.
@@ -226,6 +234,15 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         m_network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, external_queue), m_stream_id);
     } else {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
+    }
+
+    // P2-a P-G2b: the restrictions of a program compiled with GPU_ENABLE_INORDER_LIFETIME_RESTRICTIONS assume that the device executes in enqueue
+    // order. The queue type of an external queue is detected from the handle and ignores the config, so check the stream that was actually
+    // created (compile and import paths both end here).
+    if (m_config.get_enable_inorder_lifetime_restrictions() && m_config.get_queue_type() == ov::intel_gpu::QueueTypes::in_order) {
+        OPENVINO_ASSERT(m_network->get_stream().get_queue_type() == ov::intel_gpu::QueueTypes::in_order,
+                        "[GPU] GPU_ENABLE_INORDER_LIFETIME_RESTRICTIONS requires an in-order queue, but the stream uses an out-of-order queue "
+                        "(e.g. an external out-of-order queue passed through the remote context).");
     }
 
     std::vector<cldnn::tensor_conversion_key> conversion_keys;

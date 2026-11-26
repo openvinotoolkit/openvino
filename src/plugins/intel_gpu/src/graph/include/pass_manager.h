@@ -324,6 +324,14 @@ public:
     void run(program& p) override;
 };
 
+// P2-a (G+): decides, for one actual restriction insertion `x.add_memory_dependency(y)` done by an in-order oooq pass, whether the insertion is
+// replaced by the lifetime based restrictions of inorder_lifetime_memory_dependencies. S2 only provides the plumbing: no implementation exists
+// yet and every pass is constructed with nullptr (behaviour identical to before).
+struct inorder_leaf_filter {
+    virtual ~inorder_leaf_filter() = default;
+    virtual bool skip_insert(const program_node& x, const program_node& y) const = 0;
+};
+
 class memory_dependency_pass : public base_pass {
 public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
@@ -390,6 +398,10 @@ public:
             }
         }
     }
+
+protected:
+    // P2-a: only oooq_memory_dependencies sets it; basic / skipped_branch keep nullptr. Not consulted yet (S4).
+    const inorder_leaf_filter* m_leaf_filter = nullptr;
 };
 
 class basic_memory_dependencies : public memory_dependency_pass {
@@ -406,7 +418,9 @@ public:
 
 class oooq_memory_dependencies : public memory_dependency_pass {
 public:
-    oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
+    explicit oooq_memory_dependencies(const inorder_leaf_filter* leaf_filter = nullptr) : memory_dependency_pass("oooq_memory_dependencies") {
+        m_leaf_filter = leaf_filter;
+    }
     void run(program& p) override;
 };
 
