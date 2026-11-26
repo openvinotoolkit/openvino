@@ -291,8 +291,6 @@ tests_expected_to_fail = [
         xfail_issue_69444,
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_A_n0p5_exclude_outside_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_scales_cubic_A_n0p5_exclude_outside_cpu",
     ),
     (
         xfail_issue_82039,

@@ -2,10 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <numeric>
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 using namespace ov::op;
 
@@ -104,6 +124,191 @@ InterpolateAttrs get_resize_attrs(const ov::frontend::onnx::Node& node) {
 
     return attrs;
 }
+
+ov::Output<ov::Node> f32_scalar(float value) {
+    return v0::Constant::create(ov::element::f32, ov::Shape{}, {value});
+}
+
+ov::Output<ov::Node> i64_scalar(int64_t value) {
+    return v0::Constant::create(ov::element::i64, ov::Shape{}, {value});
+}
+
+// Cubic convolution kernel for a tap at distance d from the sampled position, as in the ONNX reference
+// implementation: |d| <= 1 for near taps, 1 < |d| < 2 for far taps.
+ov::Output<ov::Node> cubic_kernel(const ov::Output<ov::Node>& d, float a, bool near_tap) {
+    if (near_tap) {
+        // ((a + 2) * d - (a + 3)) * d * d + 1
+        auto poly =
+            std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(f32_scalar(a + 2.f), d), f32_scalar(a + 3.f));
+        auto sq = std::make_shared<v1::Multiply>(d, d);
+        return std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(poly, sq), f32_scalar(1.f));
+    }
+    // ((a * d - 5a) * d + 8a) * d - 4a
+    auto p1 = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(f32_scalar(a), d), f32_scalar(5.f * a));
+    auto p2 = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(p1, d), f32_scalar(8.f * a));
+    return std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(p2, d), f32_scalar(4.f * a));
+}
+
+// Resizes `data` along one axis with the cubic kernel, dropping the taps outside of [0, in_size - 1] and
+// renormalising the weights of the rest. `scale_or_size` is a scalar: a scale or an output size.
+ov::Output<ov::Node> resize_axis_cubic_exclude_outside(const ov::Output<ov::Node>& data,
+                                                       int64_t axis,
+                                                       int64_t rank,
+                                                       const ov::Output<ov::Node>& scale_or_size,
+                                                       bool is_size,
+                                                       Transform_mode transform_mode,
+                                                       float cubic_coeff) {
+    const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
+    const auto in_size =
+        std::make_shared<v0::Convert>(std::make_shared<v8::Gather>(data_shape, i64_scalar(axis), i64_scalar(0)),
+                                      ov::element::f32);
+
+    ov::Output<ov::Node> out_size;
+    ov::Output<ov::Node> scale;
+    if (is_size) {
+        out_size = std::make_shared<v0::Convert>(scale_or_size, ov::element::f32);
+        scale = std::make_shared<v1::Divide>(out_size, in_size);
+    } else {
+        scale = std::make_shared<v0::Convert>(scale_or_size, ov::element::f32);
+        out_size = std::make_shared<v0::Floor>(std::make_shared<v1::Multiply>(in_size, scale));
+    }
+
+    // Output indices -> positions in the input
+    const auto out_idx = std::make_shared<v4::Range>(f32_scalar(0.f), out_size, f32_scalar(1.f), ov::element::f32);
+    const auto half_pixel = [&]() -> ov::Output<ov::Node> {
+        const auto shifted = std::make_shared<v1::Add>(out_idx, f32_scalar(0.5f));
+        return std::make_shared<v1::Subtract>(std::make_shared<v1::Divide>(shifted, scale), f32_scalar(0.5f));
+    };
+    const auto last_in = std::make_shared<v1::Subtract>(in_size, f32_scalar(1.f));
+    ov::Output<ov::Node> pos;
+    switch (transform_mode) {
+    case Transform_mode::HALF_PIXEL:
+        pos = half_pixel();
+        break;
+    case Transform_mode::PYTORCH_HALF_PIXEL: {
+        const auto is_single = std::make_shared<v1::Equal>(out_size, f32_scalar(1.f));
+        pos = std::make_shared<v1::Select>(is_single, f32_scalar(0.f), half_pixel());
+        break;
+    }
+    case Transform_mode::ASYMMETRIC:
+        pos = std::make_shared<v1::Divide>(out_idx, scale);
+        break;
+    case Transform_mode::ALIGN_CORNERS: {
+        const auto is_single = std::make_shared<v1::Equal>(out_size, f32_scalar(1.f));
+        const auto last_out = std::make_shared<v1::Subtract>(out_size, f32_scalar(1.f));
+        pos = std::make_shared<v1::Select>(
+            is_single,
+            f32_scalar(0.f),
+            std::make_shared<v1::Divide>(std::make_shared<v1::Multiply>(out_idx, last_in), last_out));
+        break;
+    }
+    default:
+        OPENVINO_THROW("Unsupported coordinate transformation mode for Resize with exclude_outside=1");
+    }
+
+    const auto base = std::make_shared<v0::Floor>(pos);
+    const auto frac = std::make_shared<v1::Subtract>(pos, base);
+    const auto inv_frac = std::make_shared<v1::Subtract>(f32_scalar(1.f), frac);
+    const auto far_frac = std::make_shared<v1::Add>(f32_scalar(1.f), frac);
+    const auto far_inv_frac = std::make_shared<v1::Add>(f32_scalar(1.f), inv_frac);
+    ov::OutputVector weights = {cubic_kernel(far_frac, cubic_coeff, false),
+                                cubic_kernel(frac, cubic_coeff, true),
+                                cubic_kernel(inv_frac, cubic_coeff, true),
+                                cubic_kernel(far_inv_frac, cubic_coeff, false)};
+
+    ov::OutputVector taps;
+    for (int64_t i = 0; i < 4; ++i) {
+        const auto tap = std::make_shared<v1::Add>(base, f32_scalar(static_cast<float>(i - 1)));
+        const auto inside = std::make_shared<v1::LogicalAnd>(std::make_shared<v1::GreaterEqual>(tap, f32_scalar(0.f)),
+                                                             std::make_shared<v1::LessEqual>(tap, last_in));
+        weights[i] = std::make_shared<v1::Select>(inside, weights[i], f32_scalar(0.f));
+        taps.push_back(tap);
+    }
+    const auto weights_sum = std::make_shared<v1::Add>(std::make_shared<v1::Add>(weights[0], weights[1]),
+                                                       std::make_shared<v1::Add>(weights[2], weights[3]));
+
+    // Weights are broadcast along `axis` of the gathered data
+    std::vector<int64_t> bcast_shape(rank, 1);
+    bcast_shape[axis] = -1;
+    const auto bcast = v0::Constant::create(ov::element::i64, ov::Shape{bcast_shape.size()}, bcast_shape);
+
+    ov::Output<ov::Node> result;
+    for (int64_t i = 0; i < 4; ++i) {
+        const auto idx = std::make_shared<v0::Convert>(
+            std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(taps[i], f32_scalar(0.f)), last_in),
+            ov::element::i64);
+        const auto gathered = std::make_shared<v8::Gather>(data, idx, i64_scalar(axis));
+        const auto weight = std::make_shared<v0::Convert>(
+            std::make_shared<v1::Reshape>(std::make_shared<v1::Divide>(weights[i], weights_sum), bcast, false),
+            data.get_element_type());
+        const auto term = std::make_shared<v1::Multiply>(gathered, weight);
+        result = i == 0 ? ov::Output<ov::Node>(term) : std::make_shared<v1::Add>(result, term);
+    }
+    return result;
+}
+
+// Interpolate-11 clamps tap indices that fall outside of the input, which is the exclude_outside=0 behaviour of the
+// ONNX Resize. For exclude_outside=1 the weights of such taps are set to 0 and the remaining ones are renormalised, so
+// cubic resampling is expressed here with OpenVINO operations, separably along each resized axis.
+ov::Output<ov::Node> resize_cubic_exclude_outside(const ov::frontend::onnx::Node& node,
+                                                  const ov::Output<ov::Node>& data,
+                                                  const ov::Output<ov::Node>& scale_or_sizes,
+                                                  const InterpolateAttrs& attrs) {
+    const auto transform_mode = node.get_attribute_value<std::string>("coordinate_transformation_mode", "half_pixel");
+    CHECK_VALID_NODE(node,
+                     transform_mode != "tf_half_pixel_for_nn",
+                     "exclude_outside=1 is not supported with coordinate_transformation_mode '",
+                     transform_mode,
+                     "' for cubic mode.");
+    CHECK_VALID_NODE(node, !attrs.antialias, "exclude_outside=1 is not supported with antialias=1 for cubic mode.");
+
+    const auto& data_shape = data.get_partial_shape();
+    CHECK_VALID_NODE(node, data_shape.rank().is_static(), "exclude_outside=1 requires an input of static rank.");
+    CHECK_VALID_NODE(node,
+                     data.get_element_type().is_real(),
+                     "exclude_outside=1 requires an input of floating point type.");
+    const auto rank = data_shape.rank().get_length();
+
+    auto axes = node.get_attribute_value<std::vector<int64_t>>("axes", {});
+    if (axes.empty()) {
+        axes.resize(rank);
+        std::iota(axes.begin(), axes.end(), 0);
+    }
+    for (auto& axis : axes) {
+        axis = common::normalize_axis(node.get_description(), axis, data_shape.rank());
+    }
+
+    const bool is_size = attrs.shape_calculation_mode == v11::Interpolate::ShapeCalcMode::SIZES;
+    std::vector<double> constant_values;
+    if (const auto constant = ov::as_type_ptr<v0::Constant>(scale_or_sizes.get_node_shared_ptr())) {
+        if (constant->get_shape() == ov::Shape{axes.size()}) {
+            constant_values = constant->cast_vector<double>();
+        }
+    }
+
+    auto result = data;
+    for (size_t i = 0; i < axes.size(); ++i) {
+        const auto axis = axes[i];
+        // Resizing by a scale of 1 keeps every sample in place
+        if (!constant_values.empty()) {
+            const auto value = constant_values[i];
+            if ((!is_size && value == 1.0) || (is_size && data_shape[axis].is_static() &&
+                                               static_cast<double>(data_shape[axis].get_length()) == value)) {
+                continue;
+            }
+        }
+        const auto element =
+            std::make_shared<v8::Gather>(scale_or_sizes, i64_scalar(static_cast<int64_t>(i)), i64_scalar(0));
+        result = resize_axis_cubic_exclude_outside(result,
+                                                   axis,
+                                                   rank,
+                                                   element,
+                                                   is_size,
+                                                   attrs.coordinate_transformation_mode,
+                                                   attrs.cube_coeff);
+    }
+    return result;
+}
 }  // namespace
 
 namespace opset_11 {
@@ -123,6 +328,10 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
         attrs.shape_calculation_mode = v11::Interpolate::ShapeCalcMode::SCALES;
         scale_or_sizes = inputs.at(2);
     }
+    if (attrs.mode == InterpolateMode::CUBIC && node.get_attribute_value<int64_t>("exclude_outside", 0) == 1) {
+        return {resize_cubic_exclude_outside(node, data, scale_or_sizes, attrs)};
+    }
+
     auto axes_attr = node.get_attribute_value<std::vector<int64_t>>("axes", {});
     if (axes_attr.empty()) {
         return {std::make_shared<v11::Interpolate>(data, scale_or_sizes, attrs)};

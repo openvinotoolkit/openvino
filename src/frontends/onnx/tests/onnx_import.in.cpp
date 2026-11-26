@@ -2535,6 +2535,146 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel_dynamic_s
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_scales_cubic_half_pixel_exclude_outside) {
+    const auto model = convert_model("resize13_up_scales_cubic_half_pixel_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 1, 4}, {1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 1, 8},
+        {0.863636374f, 1.17314482f, 1.64528298f, 2.296875f, 2.703125f, 3.35471678f, 3.82685518f, 4.13636351f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_scales_cubic_align_corners_exclude_outside) {
+    const auto model = convert_model("resize13_up_scales_cubic_align_corners_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 1, 5}, {1.f, 3.f, 2.f, 5.f, 4.f});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 10},
+                                         {1.f,
+                                          1.86815906f,
+                                          2.86666703f,
+                                          2.74074006f,
+                                          1.95336032f,
+                                          2.52263403f,
+                                          4.11111069f,
+                                          5.0965991f,
+                                          4.62064695f,
+                                          4.f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_scales_cubic_asymmetric_exclude_outside) {
+    const auto model = convert_model("resize13_up_scales_cubic_asymmetric_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 1, 4}, {1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 8},
+                                         {1.f, 1.37142861f, 2.f, 2.5f, 3.f, 3.62857151f, 4.f, 4.1875f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_sizes_cubic_pytorch_half_pixel_single_row_exclude_outside) {
+    const auto model = convert_model("resize13_up_sizes_cubic_pytorch_half_pixel_single_row_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 3, 4}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 1, 8},
+        {0.863636374f, 1.17314482f, 1.64528298f, 2.296875f, 2.703125f, 3.35471678f, 3.82685518f, 4.13636351f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize18_up_scales_cubic_axes_exclude_outside) {
+    const auto model = convert_model("resize18_up_scales_cubic_axes_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 3, 4}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 8},
+        {0.458230585f, 0.767739058f, 1.23987722f, 1.891469f,   2.29771924f, 2.94931078f, 3.42144966f, 3.73095798f,
+         2.34935069f,  2.65885901f,  3.13099718f, 3.78258896f, 4.18883896f, 4.84043121f, 5.31256914f, 5.62207747f,
+         5.83747005f,  6.14697933f,  6.61911678f, 7.27070904f, 7.67695951f, 8.32855129f, 8.8006897f,  9.11019802f,
+         8.39931393f,  8.7088232f,   9.18096066f, 9.83255291f, 10.2388029f, 10.8903952f, 11.3625326f, 11.6720409f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_down_scales_cubic_half_pixel_exclude_outside) {
+    const auto model = convert_model("resize13_down_scales_cubic_half_pixel_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 1, 8}, {1.f, 4.f, 2.f, 8.f, 5.f, 7.f, 3.f, 6.f});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 4}, {2.54285717f, 5.09375f, 6.09375f, 4.28571463f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_scales_cubic_2d_half_pixel_exclude_outside) {
+    const auto model = convert_model("resize13_up_scales_cubic_2d_half_pixel_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 3, 4}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 6, 8},
+        {0.318181932f, 0.627690196f, 1.09982848f, 1.7514205f,  2.1576705f,  2.80926228f, 3.28140068f, 3.59090853f,
+         1.55621576f,  1.86572433f,  2.33786225f, 2.98945451f, 3.39570451f, 4.04729652f, 4.51943445f, 4.82894325f,
+         3.44476795f,  3.75427723f,  4.22641468f, 4.87800694f, 5.28425694f, 5.93584919f, 6.40798712f, 6.71749592f,
+         6.28250408f,  6.59201336f,  7.06415081f, 7.71574306f, 8.12199306f, 8.77358532f, 9.24572277f, 9.55523205f,
+         8.1710577f,   8.48056602f,  8.95270348f, 9.60429573f, 10.0105457f, 10.662137f,  11.1342754f, 11.4437847f,
+         9.40909195f,  9.71860027f,  10.1907377f, 10.84233f,   11.24858f,   11.9001713f, 12.3723087f, 12.681819f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_scales_cubic_coeff_a_half_pixel_exclude_outside) {
+    const auto model = convert_model("resize13_up_scales_cubic_coeff_a_half_pixel_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 1, 4}, {1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 1, 8},
+        {0.911764681f, 1.16788328f, 1.70992362f, 2.25f, 2.75f, 3.29007626f, 3.83211684f, 4.0882349f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_scales_cubic_half_pixel_exclude_outside_dynamic_shape) {
+    const auto model = convert_model("resize13_up_scales_cubic_half_pixel_exclude_outside_dynamic_shape.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 3, 4}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 6, 8},
+        {0.318181932f, 0.627690196f, 1.09982848f, 1.7514205f,  2.1576705f,  2.80926228f, 3.28140068f, 3.59090853f,
+         1.55621576f,  1.86572433f,  2.33786225f, 2.98945451f, 3.39570451f, 4.04729652f, 4.51943445f, 4.82894325f,
+         3.44476795f,  3.75427723f,  4.22641468f, 4.87800694f, 5.28425694f, 5.93584919f, 6.40798712f, 6.71749592f,
+         6.28250408f,  6.59201336f,  7.06415081f, 7.71574306f, 8.12199306f, 8.77358532f, 9.24572277f, 9.55523205f,
+         8.1710577f,   8.48056602f,  8.95270348f, 9.60429573f, 10.0105457f, 10.662137f,  11.1342754f, 11.4437847f,
+         9.40909195f,  9.71860027f,  10.1907377f, 10.84233f,   11.24858f,   11.9001713f, 12.3723087f, 12.681819f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_up_sizes_cubic_half_pixel_exclude_outside) {
+    const auto model = convert_model("resize13_up_sizes_cubic_half_pixel_exclude_outside.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 3, 4}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 7},
+        {0.411455572f, 0.785394847f, 1.42739832f, 2.03398037f, 2.64056206f, 3.28256607f, 3.65650558f,
+         2.01827121f,  2.39221025f,  3.03421378f, 3.64079595f, 4.24737787f, 4.88938141f, 5.26332092f,
+         4.87747526f,  5.2514143f,   5.89341784f, 6.5f,        7.10658169f, 7.7485857f,  8.12252522f,
+         7.73668003f,  8.11061954f,  8.7526226f,  9.35920525f, 9.96578693f, 10.6077909f, 10.9817314f,
+         9.34349537f,  9.71743393f,  10.359437f,  10.9660196f, 11.5726013f, 12.2146053f, 12.5885458f});
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_cubic_exclude_outside_tf_half_pixel_for_nn_unsupported) {
+    EXPECT_THROW(convert_model("resize13_cubic_exclude_outside_tf_half_pixel_for_nn_unsupported.onnx"), ov::Exception);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_cubic_exclude_outside_antialias_unsupported) {
+    EXPECT_THROW(convert_model("resize13_cubic_exclude_outside_antialias_unsupported.onnx"), ov::Exception);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_round_prefer_floor_half_pixel) {
     const auto model = convert_model("resize11_up_sizes_nearest_round_prefer_floor_half_pixel.onnx");
 
