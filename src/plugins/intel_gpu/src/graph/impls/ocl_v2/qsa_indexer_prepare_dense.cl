@@ -8,7 +8,9 @@
 // is t = b * seq_len + l, and the staged incomplete block / its first-token rope row live in distinct input and output
 // state buffers (the host has already copied every state input into its output).
 //
-// JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM, QSA_COMPRESS_RATIO, QSA_IDX_NORM_EPS, SUBGROUP_SIZE
+// JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM, QSA_COMPRESS_RATIO, QSA_IDX_NORM_EPS, SUBGROUP_SIZE,
+//      QSA_DSA (DSA k-pool mode: k_idx / raw state rows are [key | gate], 2 * Di wide; the block key is the per-channel
+//      softmax over the r tokens of (gate + pool_ape) weighting the keys; the query is used as given)
 // Dispatch: gws = [SG, HIQ + 1, num_wg], lws = [SG, 1, 1]
 
 #define QSA_INDEXER_HELPERS
@@ -19,14 +21,23 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
                                   const __global half* k_idx,           // [B, L, 1, Di]
                                   const __global half* q_norm_weight,   // [Di]
                                   const __global half* k_norm_weight,   // [Di]
+#if QSA_IDX_ROTARY_DIM > 0
                                   const __global half* rope_cos,        // [B, L, rotary_dim]
                                   const __global half* rope_sin,        // [B, L, rotary_dim]
+#endif
                                   const __global int* key_length,       // [B]
                                   const __global half* raw_in,          // [B, 1, r-1, Di]
+#if QSA_IDX_ROTARY_DIM > 0
                                   const __global half* rope_in,         // [B, 2*rotary_dim]
+#endif
+#if QSA_DSA
+                                  const __global half* pool_ape,        // [Di, r]
+#endif
                                   __global half* summary_cache,         // [B, 1, floor(S_cap/r), Di]
                                   __global half* raw_out,               // [B, 1, r-1, Di]
+#if QSA_IDX_ROTARY_DIM > 0
                                   __global half* rope_out,              // [B, 2*rotary_dim]
+#endif
                                   __global half* indexer_q,             // [tokens, Hiq, Di]
                                   const uint num_wg,
                                   const uint blocks_per_row,
@@ -35,7 +46,19 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
     const uint HIQ = QSA_IDX_QUERY_HEADS;
     const uint DI = QSA_IDX_HEAD_DIM;
     const uint ROT = QSA_IDX_ROTARY_DIM;
+#if QSA_IDX_ROTARY_DIM == 0
+    // no rotation: the zero-size RoPE tensors are not bound; every use below is guarded by ROT > 0
+    const __global half* rope_cos = 0;
+    const __global half* rope_sin = 0;
+    const __global half* rope_in = 0;
+    __global half* rope_out = 0;
+#endif
     const uint R = QSA_COMPRESS_RATIO;
+#if QSA_DSA
+    const uint KROW = 2 * QSA_IDX_HEAD_DIM;  // [key | gate]
+#else
+    const uint KROW = QSA_IDX_HEAD_DIM;
+#endif
 
     const uint wg = get_group_id(2);
     const uint role = get_group_id(1);
@@ -68,7 +91,9 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
             const uint token_idx = seq_begin + (p - past_len);
             float q[QSA_NE];
             FUNC_CALL(qsa_rd_f32)(q_idx + (token_idx * HIQ + role) * DI, q, QSA_NE);
+#if !QSA_DSA
             FUNC_CALL(qsa_rms_norm)(q, q_norm_weight);
+#endif
 #if QSA_IDX_ROTARY_DIM > 0
             FUNC_CALL(qsa_rope)(q, rope_cos + token_idx * ROT, rope_sin + token_idx * ROT, 1);
 #endif
@@ -82,8 +107,13 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
         for (uint p = lo; p < hi; p++) {
             const uint token_idx = seq_begin + (p - past_len);
             ushort kh[QSA_NE];
-            FUNC_CALL(qsa_rd)((const __global ushort*)(k_idx + token_idx * DI), kh, QSA_NE);
-            FUNC_CALL(qsa_wr)((__global ushort*)(raw_out + (batch * (R - 1) + (p - block_start)) * DI), kh, QSA_NE);
+            FUNC_CALL(qsa_rd)((const __global ushort*)(k_idx + token_idx * KROW), kh, QSA_NE);
+            FUNC_CALL(qsa_wr)((__global ushort*)(raw_out + (batch * (R - 1) + (p - block_start)) * KROW), kh, QSA_NE);
+#if QSA_DSA
+            // the gate half of the row
+            FUNC_CALL(qsa_rd)((const __global ushort*)(k_idx + token_idx * KROW + DI), kh, QSA_NE);
+            FUNC_CALL(qsa_wr)((__global ushort*)(raw_out + (batch * (R - 1) + (p - block_start)) * KROW + DI), kh, QSA_NE);
+#endif
 #if QSA_IDX_ROTARY_DIM > 0
             if (p == block_start) {
                 for (uint i = lane; i < ROT; i += QSA_SG) {
@@ -96,6 +126,37 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
         return;
     }
 
+#if QSA_DSA
+    // Online softmax over the r tokens, per channel c = lane + SG * j: logit = gate[s][c] + pool_ape[c][s].
+    float m[QSA_NE], ssum[QSA_NE], pooled[QSA_NE];
+    unroll_for (uint j = 0; j < QSA_NE; j++) {
+        m[j] = QSA_NEG_INF;
+        ssum[j] = 0.0f;
+        pooled[j] = 0.0f;
+    }
+    for (uint s = 0; s < R; s++) {
+        const uint p = block_start + s;
+        const __global half* row = (p >= past_len) ? k_idx + (seq_begin + (p - past_len)) * KROW
+                                                   : raw_in + (batch * (R - 1) + s) * KROW;
+        float kv[QSA_NE], gv[QSA_NE];
+        FUNC_CALL(qsa_rd_f32)(row, kv, QSA_NE);
+        FUNC_CALL(qsa_rd_f32)(row + DI, gv, QSA_NE);
+        unroll_for (uint j = 0; j < QSA_NE; j++) {
+            const uint c = lane + QSA_SG * j;
+            const float logit = gv[j] + convert_float(pool_ape[c * R + s]);
+            const float mn = fmax(m[j], logit);
+            const float decay = exp(m[j] - mn);
+            const float w = exp(logit - mn);
+            pooled[j] = pooled[j] * decay + w * kv[j];
+            ssum[j] = ssum[j] * decay + w;
+            m[j] = mn;
+        }
+    }
+    unroll_for (uint j = 0; j < QSA_NE; j++) {
+        pooled[j] /= ssum[j];
+    }
+    FUNC_CALL(qsa_wr_f32)(summary_cache + (batch * summary_stride + qsa_block) * DI, pooled, QSA_NE);
+#else
     float acc[QSA_NE];
     unroll_for (uint j = 0; j < QSA_NE; j++) {
         acc[j] = 0.0f;
@@ -131,5 +192,6 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
     }
 #else
     FUNC_CALL(qsa_wr_f32)(summary_row, acc, QSA_NE);
+#endif
 #endif
 }

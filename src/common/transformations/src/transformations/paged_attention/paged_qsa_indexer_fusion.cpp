@@ -15,7 +15,9 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/qsa_indexer.hpp"
+#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
@@ -43,6 +45,7 @@ op_internal::PagedQSAIndexer::Config paged_config_from(const op_internal::QSAInd
     result.key_block_size = config.key_block_size;
     result.block_topk = config.block_topk;
     result.num_selection_heads = config.num_selection_heads;
+    result.dsa_kpool = config.dsa_kpool;
     result.indexer_rotary_dim = config.indexer_rotary_dim;
     result.indexer_head_dim = config.indexer_head_dim;
     result.epsilon = config.epsilon;
@@ -82,7 +85,8 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         OPENVINO_ASSERT(indexer, "PagedQSAIndexerFusion: matched node is expected to be QSAIndexer");
         const auto& config = indexer->get_config();
         // The [-1, width] adapters require nonzero widths that fit in int64_t.
-        if (config.indexer_rotary_dim == 0) {
+        // QSA needs RoPE; DSA k-pool mode has none.
+        if (config.indexer_rotary_dim == 0 && !config.dsa_kpool) {
             return false;
         }
         const auto max_heads = static_cast<size_t>(std::numeric_limits<int64_t>::max()) / config.indexer_head_dim;
@@ -98,17 +102,36 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         }
         return true;
     };
-    const auto p_indexer = wrap_type<op_internal::QSAIndexer>({p_query,
-                                                               p_raw_keys,
-                                                               p_rope_cos,
-                                                               p_rope_sin,
-                                                               any_input(),
-                                                               any_input(),
-                                                               any_input(),
-                                                               p_block_keys_cache,
-                                                               p_incomplete_raw_keys,
-                                                               read_state(p_rope_read)},
-                                                              flattenable_inputs);
+    const auto p_indexer_qsa = wrap_type<op_internal::QSAIndexer>({p_query,
+                                                                   p_raw_keys,
+                                                                   p_rope_cos,
+                                                                   p_rope_sin,
+                                                                   any_input(),
+                                                                   any_input(),
+                                                                   any_input(),
+                                                                   p_block_keys_cache,
+                                                                   p_incomplete_raw_keys,
+                                                                   read_state(p_rope_read)},
+                                                                  flattenable_inputs);
+    // DSA k-pool mode: the same inputs plus pool_ape and head_weights.
+    // DSA k-pool mode has no RoPE: the incomplete rope state may also be an empty constant (no variable).
+    const auto p_pool_ape = any_input();
+    const auto p_head_weights = any_input();
+    const auto p_dsa_rope_state = read_state(p_rope_read) | wrap_type<v0::Constant>();
+    const auto p_indexer_dsa = wrap_type<op_internal::QSAIndexer>({p_query,
+                                                                   p_raw_keys,
+                                                                   p_rope_cos,
+                                                                   p_rope_sin,
+                                                                   any_input(),
+                                                                   any_input(),
+                                                                   any_input(),
+                                                                   p_block_keys_cache,
+                                                                   p_incomplete_raw_keys,
+                                                                   p_dsa_rope_state,
+                                                                   p_pool_ape,
+                                                                   p_head_weights},
+                                                                  flattenable_inputs);
+    const auto p_indexer = p_indexer_qsa | p_indexer_dsa;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](Matcher& m) {
         const auto indexer = ov::as_type_ptr<op_internal::QSAIndexer>(m.get_match_root());
@@ -128,8 +151,11 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         const auto paged_config = paged_config_from(config);
         const auto head_dim = static_cast<int64_t>(config.indexer_head_dim);
         const auto rotary_dim = static_cast<int64_t>(config.indexer_rotary_dim);
+        const bool dsa = config.dsa_kpool;
+        // A raw key row is [key | gate] (2 * D_idx) per index key head in DSA k-pool mode.
+        const auto raw_head_dim = dsa ? 2 * head_dim : head_dim;
         const auto query_width = query_heads * head_dim;
-        const auto key_width = key_heads * head_dim;
+        const auto key_width = key_heads * raw_head_dim;
 
         pa_params.add("past_lens", ov::element::i32, ov::PartialShape{-1});
         pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
@@ -143,10 +169,13 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
             enable_keep_const_precision(cache);
             return cache;
         };
-        const auto index_key_cache = add_cache("index_key_cache", {-1, key_heads, -1, head_dim});
+        const auto index_key_cache = add_cache("index_key_cache", {-1, key_heads, -1, raw_head_dim});
         const auto index_block_rope_cache = add_cache("index_block_rope_cache", {-1, -1, 2 * rotary_dim});
         const auto block_index_keys_cache = add_cache("block_index_keys_cache", {-1, key_heads, -1, head_dim});
         for (const auto& p_read_value : {p_block_keys_read, p_raw_keys_read, p_rope_read}) {
+            if (!pattern_map.count(p_read_value)) {
+                continue;  // DSA k-pool mode with a constant (empty) rope state
+            }
             const auto read_value =
                 ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(p_read_value).get_node_shared_ptr());
             var_ids_to_remove.insert(read_value->get_variable_id());
@@ -158,11 +187,29 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
                                         v0::Constant::create(ov::element::i64, ov::Shape{2}, {int64_t{-1}, width}),
                                         false);
         };
-        ov::OutputVector inputs(PagedQSAIndexerInputIdx::COUNT);
+        // [tokens, width] with tokens = B * L taken from the query shape; unlike Reshape {-1, width} it also works
+        // for width 0 (DSA k-pool mode has no RoPE, so its rope inputs are [B, L, 0]).
+        const auto flatten_tokens = [&](const ov::Output<ov::Node>& data, int64_t width) {
+            const auto bl = rg.make<ov::op::v8::Gather>(rg.make<ov::op::v3::ShapeOf>(query, ov::element::i64),
+                                                        v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}),
+                                                        v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+            const auto tokens =
+                rg.make<v1::ReduceProd>(bl, v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}), true);
+            const auto shape = rg.make<v0::Concat>(
+                ov::OutputVector{tokens, v0::Constant::create(ov::element::i64, ov::Shape{1}, {width})},
+                0);
+            return rg.make<v1::Reshape>(data, shape, false);
+        };
+        ov::OutputVector inputs(dsa ? PagedQSAIndexerInputIdx::COUNT_DSA : PagedQSAIndexerInputIdx::COUNT);
         inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] = flatten(query, query_width);
         inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] = flatten(raw_keys, key_width);
-        inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten(pattern_map.at(p_rope_cos), rotary_dim);
-        inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten(pattern_map.at(p_rope_sin), rotary_dim);
+        if (dsa) {
+            inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten_tokens(pattern_map.at(p_rope_cos), 0);
+            inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten_tokens(pattern_map.at(p_rope_sin), 0);
+        } else {
+            inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten(pattern_map.at(p_rope_cos), rotary_dim);
+            inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten(pattern_map.at(p_rope_sin), rotary_dim);
+        }
         inputs[PagedQSAIndexerInputIdx::Q_NORM_WEIGHT] = indexer->input_value(QSAIndexerInputIdx::Q_NORM_WEIGHT);
         inputs[PagedQSAIndexerInputIdx::K_NORM_WEIGHT] = indexer->input_value(QSAIndexerInputIdx::K_NORM_WEIGHT);
         inputs[PagedQSAIndexerInputIdx::PAST_LENS] = pa_params["past_lens"];
@@ -172,6 +219,10 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         inputs[PagedQSAIndexerInputIdx::INDEX_KEY_CACHE] = index_key_cache;
         inputs[PagedQSAIndexerInputIdx::INDEX_BLOCK_ROPE_CACHE] = index_block_rope_cache;
         inputs[PagedQSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = block_index_keys_cache;
+        if (dsa) {
+            inputs[PagedQSAIndexerInputIdx::POOL_APE] = pattern_map.at(p_pool_ape);
+            inputs[PagedQSAIndexerInputIdx::HEAD_WEIGHTS] = flatten(pattern_map.at(p_head_weights), query_heads);
+        }
 
         const auto paged = rg.make<op_internal::PagedQSAIndexer>(inputs, paged_config);
         paged->set_friendly_name(indexer->get_friendly_name());

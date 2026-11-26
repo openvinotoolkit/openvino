@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "openvino/op/op.hpp"
 
 namespace ov::op::v17 {
@@ -18,6 +20,11 @@ namespace ov::op::v17 {
 ///
 /// Inputs are positional and cannot be skipped; a feature is disabled by connecting an empty constant.
 ///
+/// With `pooling = "softmax_gate"` (DeepSeek / GLM-5.3 DSA k-pool indexer) every raw row carries the index key and a
+/// per-channel gate side by side, [key | gate] of width 2 * Di, and a ninth input `pool_bias` [Di, key_block_size]
+/// is required. A block key is then sum_s softmax_s(gate[s][c] + pool_bias[c][s]) * key[s][c] over the tokens s of
+/// the block, with no normalization or rotation (k_norm_weight, rope_cos and rope_sin must be empty).
+///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API QSAPrepare : public Op {
 public:
@@ -31,7 +38,11 @@ public:
     ///               k_norm_weight, past_incomplete_raw_keys and past_incomplete_rope
     /// \param key_block_size Number of consecutive key tokens forming one key block
     /// \param epsilon Value added to the mean square in the RMS normalization
-    QSAPrepare(const OutputVector& inputs, int64_t key_block_size, float epsilon = 1e-6f);
+    /// \param pooling "mean" (default) or "softmax_gate"; see the class description
+    QSAPrepare(const OutputVector& inputs,
+               int64_t key_block_size,
+               float epsilon = 1e-6f,
+               const std::string& pooling = "mean");
 
     /// \brief Constructs a QSAPrepare operation.
     ///
@@ -59,6 +70,8 @@ public:
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
 
     int64_t get_key_block_size() const {
         return m_key_block_size;
@@ -67,6 +80,15 @@ public:
         m_key_block_size = key_block_size;
     }
 
+    const std::string& get_pooling() const {
+        return m_pooling;
+    }
+    void set_pooling(const std::string& pooling) {
+        m_pooling = pooling;
+    }
+    bool is_softmax_gate_pooling() const {
+        return m_pooling == "softmax_gate";
+    }
     float get_epsilon() const {
         return m_epsilon;
     }
@@ -77,5 +99,6 @@ public:
 private:
     int64_t m_key_block_size = 0;
     float m_epsilon = 1e-6f;
+    std::string m_pooling = "mean";
 };
 }  // namespace ov::op::v17

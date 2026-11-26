@@ -23,7 +23,8 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     using TDim = typename TShape::value_type;
 
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 8);
+    const bool gate = op->is_softmax_gate_pooling();
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == (gate ? 9u : 8u));
 
     const auto key_block_size = op->get_key_block_size();
     NODE_VALIDATION_CHECK(op,
@@ -85,9 +86,20 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
 
     TDim batch{};
     TDim head_size{};
+    TDim raw_width{};  // the raw row width: Di, or 2 * Di for softmax_gate rows [key | gate]
     if (is_raw_keys_rank_static) {
         batch = raw_index_keys_shape[0];
-        head_size = raw_index_keys_shape[2];
+        raw_width = raw_index_keys_shape[2];
+        if (!gate) {
+            head_size = raw_width;
+        } else if (raw_width.is_static()) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   raw_width.get_length() % 2 == 0,
+                                   "softmax_gate rows [key | gate] must have an even width. Got: ",
+                                   raw_width);
+            head_size = TDim(raw_width.get_length() / 2);
+        }
     }
 
     if (past_block_index_keys_shape.rank().is_static()) {
@@ -108,8 +120,8 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                "The batch dimension of raw_index_keys and past_incomplete_raw_keys must be the same.");
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               TDim::merge(head_size, head_size, past_incomplete_raw_keys_shape[2]),
-                               "The head size of raw_index_keys and past_incomplete_raw_keys must be the same.");
+                               TDim::merge(raw_width, raw_width, past_incomplete_raw_keys_shape[2]),
+                               "The row width of raw_index_keys and past_incomplete_raw_keys must be the same.");
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                past_incomplete_raw_keys_shape[1].compatible(key_block_size - 1),
@@ -228,8 +240,23 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
         }
     }
 
+    if (gate) {
+        const auto& bias_shape = input_shapes[8];
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               k_norm_weight_disabled && rope_disabled,
+                               "softmax_gate pooling takes no k_norm_weight and no RoPE (connect empty constants).");
+        if (bias_shape.rank().is_static()) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   bias_shape.size() == 2 && bias_shape[1].compatible(key_block_size) &&
+                                       TDim::merge(head_size, head_size, bias_shape[0]),
+                                   "pool_bias must be [Di, key_block_size].");
+        }
+    }
+
     return {TRShape{batch, std::move(num_blocks), head_size},
-            TRShape{batch, TDim(key_block_size - 1), head_size},
+            TRShape{batch, TDim(key_block_size - 1), raw_width},
             TRShape{batch, std::move(rotated_size)}};
 }
 }  // namespace ov::op::v17
