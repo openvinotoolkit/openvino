@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <atomic>
+#include <array>
 #include <memory>
 #include <mutex>
 
@@ -13,6 +13,24 @@
 
 namespace cldnn {
 namespace vulkan {
+
+class vulkan_memory_budget {
+public:
+    struct limits {
+        VkDeviceSize total;
+        VkDeviceSize heap;
+        uint32_t allocations;
+    };
+
+    bool try_reserve(uint32_t heap_index, VkDeviceSize size, const limits& capacity) noexcept;
+    void release(uint32_t heap_index, VkDeviceSize size) noexcept;
+
+private:
+    std::mutex _mutex;
+    std::array<VkDeviceSize, VK_MAX_MEMORY_HEAPS> _heap_usage{};
+    VkDeviceSize _total_usage = 0;
+    uint32_t _allocation_count = 0;
+};
 
 class vulkan_device : public device {
 public:
@@ -62,8 +80,24 @@ public:
         return _non_coherent_atom_size;
     }
 
-    bool try_reserve_memory(VkDeviceSize size, VkDeviceSize limit) noexcept;
-    void release_memory(VkDeviceSize size) noexcept;
+    VkDeviceSize get_buffer_alignment() const {
+        return _buffer_alignment;
+    }
+
+    VkDeviceSize get_max_buffer_size() const {
+        return _max_buffer_size;
+    }
+
+    VkDeviceSize get_max_memory_allocation_size() const {
+        return _max_memory_allocation_size;
+    }
+
+    const VkPhysicalDeviceMemoryProperties& get_memory_properties() const {
+        return _memory_properties;
+    }
+
+    bool try_reserve_memory(uint32_t heap_index, VkDeviceSize size, VkDeviceSize limit) noexcept;
+    void release_memory(uint32_t heap_index, VkDeviceSize size) noexcept;
 
     std::mutex& get_queue_mutex() {
         return _queue_mutex;
@@ -79,7 +113,11 @@ private:
     VkQueue _compute_queue = VK_NULL_HANDLE;
     uint32_t _max_memory_allocation_count = 1;
     VkDeviceSize _non_coherent_atom_size = 1;
-    std::atomic<VkDeviceSize> _reserved_memory{0};
+    VkDeviceSize _buffer_alignment = 1;
+    VkDeviceSize _max_buffer_size = 0;
+    VkDeviceSize _max_memory_allocation_size = 0;
+    VkPhysicalDeviceMemoryProperties _memory_properties{};
+    vulkan_memory_budget _memory_budget;
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::vk_buffer}, allocation_type::vk_buffer};
     mutable std::mutex _init_mutex;

@@ -85,23 +85,31 @@ void vulkan_device::initialize_info() {
     vkGetPhysicalDeviceFeatures2(_physical_device, &features);
     _info.supports_fp16 = storage.storageBuffer16BitAccess == VK_TRUE;
 
-    VkPhysicalDeviceMemoryProperties memory_properties{};
-    vkGetPhysicalDeviceMemoryProperties(_physical_device, &memory_properties);
+    vkGetPhysicalDeviceMemoryProperties(_physical_device, &_memory_properties);
 
-    uint64_t device_local_memory = 0;
-    uint64_t total_memory = 0;
-    for (uint32_t index = 0; index < memory_properties.memoryHeapCount; ++index) {
-        const auto& heap = memory_properties.memoryHeaps[index];
+    VkDeviceSize device_local_memory = 0;
+    VkDeviceSize total_memory = 0;
+    VkDeviceSize largest_device_local_heap = 0;
+    VkDeviceSize largest_heap = 0;
+    for (uint32_t index = 0; index < _memory_properties.memoryHeapCount; ++index) {
+        const auto& heap = _memory_properties.memoryHeaps[index];
         total_memory += heap.size;
+        largest_heap = std::max(largest_heap, heap.size);
         if ((heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0) {
             device_local_memory += heap.size;
+            largest_device_local_heap = std::max(largest_device_local_heap, heap.size);
         }
     }
     _info.max_global_mem_size = device_local_memory != 0 ? device_local_memory : total_memory;
-    _info.max_alloc_mem_size = std::min<uint64_t>({_info.max_global_mem_size,
-                                                   properties.limits.maxStorageBufferRange,
-                                                   maintenance3_properties.maxMemoryAllocationSize,
-                                                   maintenance4_properties.maxBufferSize});
+    _max_buffer_size = maintenance4_properties.maxBufferSize;
+    _max_memory_allocation_size = maintenance3_properties.maxMemoryAllocationSize;
+    _non_coherent_atom_size = std::max<VkDeviceSize>(properties.limits.nonCoherentAtomSize, 1);
+    // The Vulkan storage offset and non-coherent atom alignments are powers of two.
+    _buffer_alignment = std::max({properties.limits.minStorageBufferOffsetAlignment, _non_coherent_atom_size, VkDeviceSize{sizeof(uint32_t)}});
+    const auto storage_heap_size = largest_device_local_heap != 0 ? largest_device_local_heap : largest_heap;
+    const auto storage_limit =
+        std::min<VkDeviceSize>({storage_heap_size, properties.limits.maxStorageBufferRange, _max_memory_allocation_size, _max_buffer_size});
+    _info.max_alloc_mem_size = storage_limit - storage_limit % _buffer_alignment;
     _info.max_global_cache_size = 0;
 
     _info.execution_units_count = 0;
@@ -111,7 +119,6 @@ void vulkan_device::initialize_info() {
     _info.max_image2d_width = properties.limits.maxImageDimension2D;
     _info.max_image2d_height = properties.limits.maxImageDimension2D;
     _max_memory_allocation_count = std::max(properties.limits.maxMemoryAllocationCount, 1U);
-    _non_coherent_atom_size = std::max<VkDeviceSize>(properties.limits.nonCoherentAtomSize, 1);
 
     _info.supports_khr_subgroups = subgroup_properties.subgroupSize > 0 && (subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
     _info.supports_intel_subgroups = false;
@@ -226,18 +233,36 @@ bool vulkan_device::is_initialized() const {
     return _device != VK_NULL_HANDLE;
 }
 
-bool vulkan_device::try_reserve_memory(VkDeviceSize size, VkDeviceSize limit) noexcept {
-    auto reserved = _reserved_memory.load(std::memory_order_relaxed);
-    while (reserved <= limit && size <= limit - reserved) {
-        if (_reserved_memory.compare_exchange_weak(reserved, reserved + size, std::memory_order_relaxed)) {
-            return true;
-        }
+bool vulkan_memory_budget::try_reserve(uint32_t heap_index, VkDeviceSize size, const limits& capacity) noexcept {
+    if (heap_index >= _heap_usage.size() || size == 0) {
+        return false;
     }
-    return false;
+    const std::lock_guard<std::mutex> lock(_mutex);
+    auto& heap_usage = _heap_usage[heap_index];
+    if (_allocation_count >= capacity.allocations || size > capacity.heap - std::min(heap_usage, capacity.heap) ||
+        size > capacity.total - std::min(_total_usage, capacity.total)) {
+        return false;
+    }
+    heap_usage += size;
+    _total_usage += size;
+    ++_allocation_count;
+    return true;
 }
 
-void vulkan_device::release_memory(VkDeviceSize size) noexcept {
-    _reserved_memory.fetch_sub(size, std::memory_order_relaxed);
+void vulkan_memory_budget::release(uint32_t heap_index, VkDeviceSize size) noexcept {
+    const std::lock_guard<std::mutex> lock(_mutex);
+    _heap_usage[heap_index] -= size;
+    _total_usage -= size;
+    --_allocation_count;
+}
+
+bool vulkan_device::try_reserve_memory(uint32_t heap_index, VkDeviceSize size, VkDeviceSize limit) noexcept {
+    return heap_index < _memory_properties.memoryHeapCount &&
+           _memory_budget.try_reserve(heap_index, size, {limit, _memory_properties.memoryHeaps[heap_index].size, _max_memory_allocation_count});
+}
+
+void vulkan_device::release_memory(uint32_t heap_index, VkDeviceSize size) noexcept {
+    _memory_budget.release(heap_index, size);
 }
 
 bool vulkan_device::is_same(const device::ptr other) {

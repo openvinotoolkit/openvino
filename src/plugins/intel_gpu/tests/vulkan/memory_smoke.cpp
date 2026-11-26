@@ -88,33 +88,37 @@ void check_padded_allocation_fallbacks(cldnn::vulkan::vulkan_engine& engine, cld
     constexpr size_t requested = 257;
     constexpr size_t padded = 260;
     constexpr size_t preferred = 1024;
-    const auto check_fallback = [&](size_t limit, bool fail_pooled_allocation) {
-        std::vector<size_t> attempted;
-        auto allocator = std::make_shared<vulkan_memory_allocator>(sizeof(uint32_t), preferred, limit, [&](size_t size) {
-            attempted.push_back(size);
-            if (fail_pooled_allocation && attempted.size() == 1) {
-                throw std::bad_alloc{};
-            }
-            return vulkan_buffer_allocation::create(engine, size, vulkan_buffer_memory_usage::host_staging);
-        });
-        auto region = allocator->allocate(requested);
-        ASSERT_EQ(attempted.size(), fail_pooled_allocation ? 2U : 1U);
-        EXPECT_EQ(attempted.back(), padded);
-        ASSERT_EQ(region->get_size(), padded) << "Allocation fallback discarded transfer padding";
-        vulkan_buffer_allocation_access::force_staging(*region->get_allocation());
-        vulkan_buffer buffer(&engine, byte_layout(requested), region, 0, nullptr);
-        constexpr uint8_t pattern = 0x5A;
-        buffer.fill(stream, pattern);
-        std::array<uint8_t, requested> output{};
-        buffer.copy_to(stream, output.data(), 0, 0, output.size(), true);
-        std::array<uint8_t, requested> expected;
-        expected.fill(pattern);
-        EXPECT_EQ(output, expected) << "The padded fallback did not preserve every staged byte";
-    };
-    check_fallback(requested, false);
-    check_fallback(preferred, true);
+    bool attempted_oversized_allocation = false;
+    vulkan_memory_allocator bounded(sizeof(uint32_t), preferred, requested, [&](size_t size) {
+        attempted_oversized_allocation = true;
+        return vulkan_buffer_allocation::create(engine, size, vulkan_buffer_memory_usage::host_staging);
+    });
+    EXPECT_THROW(bounded.allocate(requested), std::bad_alloc);
+    EXPECT_FALSE(attempted_oversized_allocation);
 
     std::vector<size_t> attempted;
+    const auto retrying = std::make_shared<vulkan_memory_allocator>(sizeof(uint32_t), preferred, preferred, [&](size_t size) {
+        attempted.push_back(size);
+        if (attempted.size() == 1) {
+            throw std::bad_alloc{};
+        }
+        return vulkan_buffer_allocation::create(engine, size, vulkan_buffer_memory_usage::host_staging);
+    });
+    auto region = retrying->allocate(requested);
+    ASSERT_EQ(attempted.size(), 2U);
+    EXPECT_EQ(attempted.back(), padded);
+    ASSERT_EQ(region->get_size(), padded) << "Allocation fallback discarded transfer padding";
+    vulkan_buffer_allocation_access::force_staging(*region->get_allocation());
+    vulkan_buffer buffer(&engine, byte_layout(requested), region, 0, nullptr);
+    constexpr uint8_t pattern = 0x5A;
+    buffer.fill(stream, pattern);
+    std::array<uint8_t, requested> output{};
+    buffer.copy_to(stream, output.data(), 0, 0, output.size(), true);
+    std::array<uint8_t, requested> expected;
+    expected.fill(pattern);
+    EXPECT_EQ(output, expected) << "The padded fallback did not preserve every staged byte";
+
+    attempted.clear();
     vulkan_memory_allocator allocator(sizeof(uint32_t), padded, preferred, [&](size_t size) -> vulkan_buffer_allocation::ptr {
         attempted.push_back(size);
         throw std::bad_alloc{};
@@ -200,7 +204,10 @@ TEST(VulkanMemorySmoke, ReportsAllocationLimitWithinDeviceLimits) {
         vkGetPhysicalDeviceProperties2(physical_device, &properties);
 
         const auto& info = device->get_info();
+        const auto alignment = std::max(
+            {properties.properties.limits.minStorageBufferOffsetAlignment, properties.properties.limits.nonCoherentAtomSize, VkDeviceSize{sizeof(uint32_t)}});
         EXPECT_GT(info.max_alloc_mem_size, 0U);
+        EXPECT_EQ(info.max_alloc_mem_size % alignment, 0U);
         EXPECT_LE(info.max_alloc_mem_size, info.max_global_mem_size);
         EXPECT_LE(info.max_alloc_mem_size, properties.properties.limits.maxStorageBufferRange);
         EXPECT_LE(info.max_alloc_mem_size, properties11.maxMemoryAllocationSize);
@@ -220,10 +227,10 @@ TEST(VulkanMemorySmoke, CountsStagingAndRetainedPoolMemory) {
     ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
     const auto device = std::static_pointer_cast<vulkan_device>(devices.begin()->second);
     const auto can_reserve_one_byte = [&](VkDeviceSize limit) {
-        if (!device->try_reserve_memory(1, limit)) {
+        if (!device->try_reserve_memory(0, 1, limit)) {
             return false;
         }
-        device->release_memory(1);
+        device->release_memory(0, 1);
         return true;
     };
 
@@ -256,6 +263,26 @@ TEST(VulkanMemorySmoke, CountsStagingAndRetainedPoolMemory) {
     EXPECT_TRUE(can_reserve_one_byte(1));
 }
 
+TEST(VulkanMemorySmoke, AccountsForHeapBytesAndPhysicalAllocationSlots) {
+    using cldnn::vulkan::vulkan_memory_budget;
+    vulkan_memory_budget budget;
+    const vulkan_memory_budget::limits first_heap{192, 64, 2};
+    const vulkan_memory_budget::limits second_heap{192, 128, 2};
+
+    ASSERT_TRUE(budget.try_reserve(0, 40, first_heap));
+    EXPECT_FALSE(budget.try_reserve(0, 25, first_heap));
+    ASSERT_TRUE(budget.try_reserve(1, 32, second_heap));
+    EXPECT_FALSE(budget.try_reserve(1, 1, second_heap));
+
+    budget.release(0, 40);
+    ASSERT_TRUE(budget.try_reserve(1, 96, second_heap));
+    EXPECT_FALSE(budget.try_reserve(0, 1, first_heap));
+    budget.release(1, 32);
+    budget.release(1, 96);
+    ASSERT_TRUE(budget.try_reserve(0, 64, first_heap));
+    budget.release(0, 64);
+}
+
 TEST(VulkanMemorySmoke, RejectsPhysicalAllocationsOnBudgetExhaustion) {
     using namespace cldnn::vulkan;
     const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
@@ -264,12 +291,17 @@ TEST(VulkanMemorySmoke, RejectsPhysicalAllocationsOnBudgetExhaustion) {
     auto& vk_engine = static_cast<vulkan_engine&>(*engine);
     const auto device = vk_engine.get_vulkan_device_object();
 
-    // Simulate a full budget without allocating anything to fill it.
-    constexpr auto reserved = (std::numeric_limits<VkDeviceSize>::max)();
-    ASSERT_TRUE(device->try_reserve_memory(reserved, reserved));
+    // Simulate full heaps without allocating physical memory to fill them.
+    constexpr auto total_limit = (std::numeric_limits<VkDeviceSize>::max)();
+    const auto& properties = device->get_memory_properties();
+    for (uint32_t index = 0; index < properties.memoryHeapCount; ++index) {
+        ASSERT_TRUE(device->try_reserve_memory(index, properties.memoryHeaps[index].size, total_limit));
+    }
     EXPECT_THROW(vulkan_buffer_allocation::create(vk_engine, 64, vulkan_buffer_memory_usage::device), std::bad_alloc);
     EXPECT_THROW(vulkan_buffer_allocation::create(vk_engine, 32, vulkan_buffer_memory_usage::host_staging), std::bad_alloc);
-    device->release_memory(reserved);
+    for (uint32_t index = 0; index < properties.memoryHeapCount; ++index) {
+        device->release_memory(index, properties.memoryHeaps[index].size);
+    }
     EXPECT_NO_THROW(vulkan_buffer_allocation::create(vk_engine, 32, vulkan_buffer_memory_usage::host_staging));
 }
 

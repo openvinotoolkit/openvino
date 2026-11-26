@@ -60,7 +60,11 @@ std::optional<vulkan_memory_type_selection> find_memory_type(const VkPhysicalDev
 
 vulkan_buffer_allocation::ptr vulkan_buffer_allocation::create(vulkan_engine& engine, size_t requested_size, vulkan_buffer_memory_usage usage) {
     const VkDeviceSize buffer_size = std::max<VkDeviceSize>(requested_size, 1);
-    auto allocation = std::make_shared<vulkan_buffer_allocation>(engine.get_vulkan_device_object(), buffer_size);
+    const auto device_owner = engine.get_vulkan_device_object();
+    if (buffer_size > device_owner->get_max_buffer_size()) {
+        throw vulkan_bad_alloc("reserve buffer size", VK_ERROR_OUT_OF_DEVICE_MEMORY);
+    }
+    auto allocation = std::make_shared<vulkan_buffer_allocation>(device_owner, buffer_size);
     const VkDevice device = allocation->_device;
 
     VkBufferCreateInfo buffer_info{};
@@ -78,11 +82,11 @@ vulkan_buffer_allocation::ptr vulkan_buffer_allocation::create(vulkan_engine& en
 
     VkMemoryRequirements requirements{};
     vkGetBufferMemoryRequirements(device, buffer, &requirements);
-    VkPhysicalDeviceMemoryProperties memory_properties{};
-    vkGetPhysicalDeviceMemoryProperties(engine.get_physical_device(), &memory_properties);
+    const auto& memory_properties = device_owner->get_memory_properties();
     const auto& info = engine.get_device_info();
     const auto prefer_unified_memory = info.dev_type != device_type::discrete_gpu;
     const auto memory_type = select_vulkan_memory_type(memory_properties, requirements.memoryTypeBits, usage, prefer_unified_memory);
+    const auto heap_index = memory_properties.memoryTypes[memory_type.index].heapIndex;
 
     VkMemoryAllocateInfo allocation_info{};
     allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -92,11 +96,13 @@ vulkan_buffer_allocation::ptr vulkan_buffer_allocation::create(vulkan_engine& en
     static const auto host_memory = cldnn::engine::get_host_memory_size();
     const auto device_capacity = prefer_unified_memory ? VkDeviceSize{0} : info.max_global_mem_size;
     const auto memory_limit = host_memory + std::min(device_capacity, (std::numeric_limits<VkDeviceSize>::max)() - host_memory);
-    if (!allocation->_device_owner->try_reserve_memory(allocation_info.allocationSize, memory_limit)) {
+    if (allocation_info.allocationSize > device_owner->get_max_memory_allocation_size() ||
+        !device_owner->try_reserve_memory(heap_index, allocation_info.allocationSize, memory_limit)) {
         throw vulkan_bad_alloc("reserve memory budget", VK_ERROR_OUT_OF_DEVICE_MEMORY);
     }
     // The owner releases the reservation if any subsequent Vulkan call fails.
     allocation->_memory_size = allocation_info.allocationSize;
+    allocation->_memory_heap = heap_index;
 
     VkDeviceMemory device_memory = VK_NULL_HANDLE;
     check_vulkan_memory_result(vkAllocateMemory(device, &allocation_info, nullptr, &device_memory), "vkAllocateMemory");
@@ -196,7 +202,7 @@ vulkan_buffer_allocation::~vulkan_buffer_allocation() {
         vkFreeMemory(_device, _memory, nullptr);
     }
     if (_memory_size > 0) {
-        _device_owner->release_memory(_memory_size);
+        _device_owner->release_memory(_memory_heap, _memory_size);
     }
 }
 
@@ -285,6 +291,9 @@ VkDeviceSize vulkan_memory_allocator::align_size(VkDeviceSize size) const {
 vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
     const auto requested_size = std::max<VkDeviceSize>(static_cast<VkDeviceSize>(size), 1);
     const auto reserved_size = align_size(requested_size);
+    if (reserved_size > _max_block_size) {
+        throw vulkan_bad_alloc("reserve padded buffer", VK_ERROR_OUT_OF_DEVICE_MEMORY);
+    }
     std::lock_guard<std::mutex> lock(_mutex);
 
     size_t selected_block = _blocks.size();

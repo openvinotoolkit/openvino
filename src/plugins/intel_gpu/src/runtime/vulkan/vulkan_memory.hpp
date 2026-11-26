@@ -110,6 +110,7 @@ private:
     void* _mapped_data = nullptr;
     const VkDeviceSize _size;
     VkDeviceSize _memory_size = 0;
+    uint32_t _memory_heap = 0;
     VkMemoryPropertyFlags _memory_flags = 0;
     VkDeviceSize _non_coherent_atom_size = 1;
     std::shared_ptr<vulkan_device> _device_owner;

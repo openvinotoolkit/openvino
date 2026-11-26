@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <numeric>
 
 #include "openvino/core/except.hpp"
 #include "vulkan_engine_factory.hpp"
@@ -24,9 +23,7 @@ vulkan_engine::vulkan_engine(const device::ptr& device, runtime_types runtime_ty
         vulkan_device->initialize();
     }
     const auto& info = vulkan_device->get_info();
-    const auto storage_alignment = std::max<VkDeviceSize>(info.sub_buffer_base_alignment.value_or(1), 1);
-    const auto transfer_alignment = std::lcm(storage_alignment, VkDeviceSize{sizeof(uint32_t)});
-    const auto alignment = std::lcm(transfer_alignment, vulkan_device->get_non_coherent_atom_size());
+    const auto alignment = vulkan_device->get_buffer_alignment();
     const auto allocation_count = std::max<uint64_t>(vulkan_device->get_max_memory_allocation_count(), 1);
     auto allocation_count_root = std::max<uint64_t>(static_cast<uint64_t>(std::sqrt(allocation_count)), 1);
     if (allocation_count_root * allocation_count_root < allocation_count) {
