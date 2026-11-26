@@ -1778,6 +1778,7 @@ void primitive_inst::update_impl(bool use_async_compilation) {
     if (!get_node().is_type<data>() && (!get_node().is_type<mutable_data>() || !get_node().get_dependencies().empty())) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (_impls_factory->has(impl_types::onednn)) {
+            // create() modifies attrs_onednn: only one thread may create impls from it, see the async push in get_primitive_impl_for_params.
             auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
             std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
             get_node().create_onednn_primitive_attributes(_impl_params->fused_desc, attrs_onednn, fused_desc_onednn, _impl_params.get());
@@ -2631,6 +2632,12 @@ void primitive_inst::prepare_primitive() {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
             get_unfused_subgraph();
             _use_unfused_subgraph = true;
+            const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
+            if (out_of_order_queue) {
+                for (auto& input : _exec_deps) {
+                    add_dep_event(input->get_impl_params()->out_event);
+                }
+            }
             return;
         }
 
@@ -3714,8 +3721,37 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         }
     }
 
-    // 2. If async compilation is enabled and dynamic impl exists or shape changed - try to compile asynchronously
-    if (compile_async) {
+    std::shared_ptr<primitive_impl> dynamic_impl = nullptr;
+    // 2. Try to find existing dynamic impl which supports given shapes
+    for (auto& impl : m_dynamic_impls_cache) {
+        if (impl->m_manager->support_shapes(params)) {
+            dynamic_impl = impl;
+            break;
+        }
+    }
+
+    // 3. Try to create new shape agnostic impl & cache it
+    // If cached dynamic impls all reject these shapes (e.g. CM for a fused epilogue needing broadcast), the fallback is selected
+    // with the runtime params but created from the node's own params, so it stays shape agnostic for other shapes.
+    // Without any cached dynamic impl, the node may not support dynamic params at all (e.g. a forced conv kernel): keep using the runtime params.
+    if (!dynamic_impl) {
+        const auto node_params = m_dynamic_impls_cache.empty() ? nullptr : node->get_kernel_impl_params();
+        const kernel_impl_params& create_params = node_params ? *node_params : params;
+        dynamic_impl = find_impl(node, params, shape_types::dynamic_shape, node_params.get());
+        if (dynamic_impl && !inst.can_be_optimized()) {
+            dynamic_impl->set_node_params(*node);
+            auto kernels = kernels_cache.compile(create_params, dynamic_impl->get_kernels_source());
+            dynamic_impl->set_kernels(std::move(kernels));
+            if (!node_params || dynamic_impl->is_dynamic()) {
+                m_dynamic_impls_cache.push_back(dynamic_impl);
+            }
+        }
+    }
+
+    // 4. If async compilation is enabled and a dynamic impl serves this shape - compile the static impl asynchronously.
+    //    Otherwise step 6 compiles it synchronously, and an async duplicate would run create() concurrently on the same onednn attributes.
+    //    A shape-agnostic oneDNN impl would also create() on them in step 3, so revisit this if one is added for an async-eligible type.
+    if (compile_async && dynamic_impl) {
         auto& compilation_context = prog.get_compilation_context();
         compilation_context.push_task(updated_params, [&inst, &compilation_context, updated_params, find_impl]() {
             if (compilation_context.is_stopped()) {
@@ -3742,33 +3778,6 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
                 _program.add_static_impl_type(updated_params.desc->type);
             }
         });
-    }
-
-    std::shared_ptr<primitive_impl> dynamic_impl = nullptr;
-    // 3. Try to find existing dynamic impl which supports given shapes
-    for (auto& impl : m_dynamic_impls_cache) {
-        if (impl->m_manager->support_shapes(params)) {
-            dynamic_impl = impl;
-            break;
-        }
-    }
-
-    // 4. Try to create new shape agnostic impl & cache it
-    // If cached dynamic impls all reject these shapes (e.g. CM for a fused epilogue needing broadcast), the fallback is selected
-    // with the runtime params but created from the node's own params, so it stays shape agnostic for other shapes.
-    // Without any cached dynamic impl, the node may not support dynamic params at all (e.g. a forced conv kernel): keep using the runtime params.
-    if (!dynamic_impl) {
-        const auto node_params = m_dynamic_impls_cache.empty() ? nullptr : node->get_kernel_impl_params();
-        const kernel_impl_params& create_params = node_params ? *node_params : params;
-        dynamic_impl = find_impl(node, params, shape_types::dynamic_shape, node_params.get());
-        if (dynamic_impl && !inst.can_be_optimized()) {
-            dynamic_impl->set_node_params(*node);
-            auto kernels = kernels_cache.compile(create_params, dynamic_impl->get_kernels_source());
-            dynamic_impl->set_kernels(std::move(kernels));
-            if (!node_params || dynamic_impl->is_dynamic()) {
-                m_dynamic_impls_cache.push_back(dynamic_impl);
-            }
-        }
     }
 
     // 5. If we have any dynamic impl, do adjustment for new shape before returning in back

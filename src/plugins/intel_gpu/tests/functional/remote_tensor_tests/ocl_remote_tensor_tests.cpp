@@ -2752,6 +2752,27 @@ TEST(RemoteTensor, smoke_CopyToEmptyTensor) {
                                   "Check '_impl != nullptr' failed");
 }
 
+TEST(RemoteTensor, smoke_CopyScalar) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    const ov::Shape scalar_shape{};
+    constexpr float expected = 3.25f;
+
+    ov::Tensor input(ov::element::f32, scalar_shape);
+    *input.data<float>() = expected;
+    ov::Tensor output(ov::element::f32, scalar_shape);
+    *output.data<float>() = 0.0f;
+
+    auto remote = context.create_tensor(ov::element::f32, scalar_shape);
+    auto peer = context.create_tensor(ov::element::f32, scalar_shape);
+    remote.copy_from(input);
+    remote.copy_to(peer);
+    peer.copy_to(output);
+
+    ASSERT_EQ(output.get_shape(), scalar_shape);
+    EXPECT_FLOAT_EQ(*output.data<float>(), expected);
+}
+
 using SubByteTensorParams = std::tuple<ov::element::Type, ov::Shape>;
 
 struct RemoteTensorSubByteStrides : ::testing::TestWithParam<SubByteTensorParams> {

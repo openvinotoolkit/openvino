@@ -53,6 +53,7 @@ std::string MatmulWeightsDecompression::getTestCaseName(
 std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(
     const ov::PartialShape& data_shape,
     const ov::Shape& weights_shape,
+    const std::optional<ov::Shape>& post_multiply_shape,
     const int group_size,
     const ov::element::Type data_precision,
     const ov::element::Type weights_precision,
@@ -73,8 +74,12 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(
                                                                   decompression_multiply_type,
                                                                   decompression_subtract_type,
                                                                   reshape_on_decompression);
-    auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
-    return create_ov_model(data_precision, params, matMul, "MatmulWeightsDecompression");
+    std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
+    if (post_multiply_shape) {
+        auto post_scale = std::make_shared<ov::op::v0::Constant>(data_precision, *post_multiply_shape, 2);
+        node = std::make_shared<ov::op::v1::Multiply>(node, post_scale);
+    }
+    return create_ov_model(data_precision, params, node, "MatmulWeightsDecompression");
 }
 
 void MatmulWeightsDecompression::SetUp() {
@@ -119,6 +124,7 @@ void MatmulWeightsDecompression::SetUp() {
 
     function = initSubgraph(inputDynamicShapes[0],
                             shape_params.weights_shape,
+                            shape_params.post_multiply_shape,
                             shape_params.decompression_group_size,
                             netType,
                             weights_precision,

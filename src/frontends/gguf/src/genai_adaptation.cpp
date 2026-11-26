@@ -77,7 +77,9 @@ ModelMap adapt_mmproj(const std::shared_ptr<ov::Model>& model) {
             add("vision_embeddings", vision);
         }
     }
-    if (model->has_rt_info({"gguf_mmproj", "audio.projector"})) {
+    if (model->has_rt_info({"gguf_mmproj", "audio.projector"}) &&
+        (!model->has_rt_info({"gguf_mmproj", "audio.supported"}) ||
+         model->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}) != "false")) {
         auto audio = model->clone();
         const bool has_adapter = has_genai_adapter(audio, "audio");
         AdaptMmprojToGenAI adapter(AdaptMmprojToGenAI::Modality::AUDIO);
