@@ -8,6 +8,8 @@ namespace ov {
 namespace test {
 std::ostream& operator<<(std::ostream& os, MatMulDecompressionShapeParams shape_params) {
     os << "data_shape=" << shape_params.data_shape << "_weights_shape=" << shape_params.weights_shape;
+    if (shape_params.post_multiply_shape)
+        os << "_post_multiply_shape=" << *shape_params.post_multiply_shape;
     if (shape_params.decompression_group_size != -1)
         os << "_group_size=" << shape_params.decompression_group_size;
     return os;
