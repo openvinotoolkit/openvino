@@ -1663,12 +1663,20 @@ void test_condition_input_layout(condition_input_producer producer,
 
     network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
-    // condition passes these buffers to the branch parameters as they are, so they must be in their layout
-    const auto& cond_deps = net->get_primitive("condi")->dependencies();
+    // condition passes the buffers of the inputs in the input map to the branch parameter as they are, so they must be in its
+    // layout. An input passed twice is in the map only once.
+    const auto cond = net->get_primitive("condi");
+    const auto input_map = cond->get_node().as<condition>().get_branch_true().input_map;
+    const auto& cond_deps = cond->dependencies();
     ASSERT_EQ(cond_deps.size(), cond_inputs.size());
-    for (size_t i = 1; i < cond_deps.size(); ++i) {
-        EXPECT_EQ(cond_deps[i].first->get_output_layout(cond_deps[i].second).to_short_string(), branch_in_layout.to_short_string());
+    size_t mapped_inputs = 0;
+    for (const auto& [dep, port] : cond_deps) {
+        if (input_map.count(dep->id()) != 0) {
+            ++mapped_inputs;
+            EXPECT_EQ(dep->get_output_layout(port).to_short_string(), branch_in_layout.to_short_string());
+        }
     }
+    EXPECT_EQ(mapped_inputs, 1u);
 
     for (const uint8_t pred : {1, 0}) {
         set_values<uint8_t>(predicate_mem, {pred});
