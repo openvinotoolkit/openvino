@@ -205,11 +205,7 @@ IODescriptor createIODescriptor(const uint32_t indexUsedByDriver,
             supportsStridedLayout};
 }
 
-}  // namespace
-
-IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
-                                             const ze_graph_argument_properties_3_t& arg,
-                                             const std::optional<ze_graph_argument_metadata_t>& metadata) {
+ArgumentDescription describeProperties3(const uint32_t indexUsedByDriver, const ze_graph_argument_properties_3_t& arg) {
     if (arg.associated_tensor_names_count > ZE_MAX_GRAPH_TENSOR_NAMES_SIZE) {
         OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
                        indexUsedByDriver,
@@ -234,19 +230,36 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
                        ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
     }
 
-    return createIODescriptor(
-        indexUsedByDriver,
-        {.name = safeStringFromFixedBuffer(arg.name, ZE_MAX_GRAPH_ARGUMENT_NAME, "name", indexUsedByDriver),
-         .debugFriendlyName = safeStringFromFixedBuffer(arg.debug_friendly_name,
-                                                        ZE_MAX_GRAPH_ARGUMENT_NAME,
-                                                        "debug_friendly_name",
-                                                        indexUsedByDriver),
-         .associatedTensorNames = std::move(associatedTensorNames),
-         .precision = zeroUtils::toOVElementType(arg.devicePrecision),
-         .shapeFromCompiler = ov::Shape(arg.dims, arg.dims + arg.dims_count),
-         .isInput = arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT,
-         .supportsDynamicStrides = readSupportsDynamicStrides(arg.pNext)},
-        metadata);
+    return {.name = safeStringFromFixedBuffer(arg.name, ZE_MAX_GRAPH_ARGUMENT_NAME, "name", indexUsedByDriver),
+            .debugFriendlyName = safeStringFromFixedBuffer(arg.debug_friendly_name,
+                                                           ZE_MAX_GRAPH_ARGUMENT_NAME,
+                                                           "debug_friendly_name",
+                                                           indexUsedByDriver),
+            .associatedTensorNames = std::move(associatedTensorNames),
+            .precision = zeroUtils::toOVElementType(arg.devicePrecision),
+            .shapeFromCompiler = ov::Shape(arg.dims, arg.dims + arg.dims_count),
+            .isInput = arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT,
+            .supportsDynamicStrides = readSupportsDynamicStrides(arg.pNext)};
+}
+
+}  // namespace
+
+IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
+                                             const ze_graph_argument_properties_3_t& arg,
+                                             const std::optional<ze_graph_argument_metadata_t>& metadata) {
+    return createIODescriptor(indexUsedByDriver, describeProperties3(indexUsedByDriver, arg), metadata);
+}
+
+IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
+                                             const ze_graph_argument_properties_3_t& arg,
+                                             const ze_graph_argument_properties_4_t& arg4) {
+    auto description = describeProperties3(indexUsedByDriver, arg);
+    const size_t rank = minRankFromDims(arg4.dims, std::size(arg4.dims));
+    if (rank > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+        description.shapeFromCompiler = ov::Shape(std::begin(arg4.dims), std::begin(arg4.dims) + rank);
+    }
+
+    return createIODescriptor(indexUsedByDriver, std::move(description), std::nullopt);
 }
 
 IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
@@ -280,13 +293,17 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
 }
 
 std::unordered_set<std::string> parseTensorNames(std::string_view names) {
-    // The NUL character also separates the names: drivers have been seen returning them in NUL-padded fixed slots
-    static constexpr std::string_view delimiters(",\0", 2);
+    // The documented list ends with one NUL, which is not part of the last name
+    if (!names.empty() && names.back() == '\0') {
+        names.remove_suffix(1);
+    }
+    // A NUL left inside means NUL padded fixed slots, where a comma belongs to the name
+    const char delimiter = names.find('\0') == std::string_view::npos ? ',' : '\0';
 
     std::unordered_set<std::string> result;
     size_t start = 0;
     while (start < names.size()) {
-        const size_t end = std::min(names.find_first_of(delimiters, start), names.size());
+        const size_t end = std::min(names.find(delimiter, start), names.size());
         if (end > start) {
             result.emplace(names.substr(start, end - start));
         }
@@ -709,7 +726,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 20)) {
-        getMetadataFromProperties3(graphHandle, indexUsedByDriver, true, inputs, outputs);
+        getMetadataFromProperties3(graphHandle, indexUsedByDriver, /*readTensorNames=*/true, inputs, outputs);
         return;
     }
 
@@ -719,8 +736,8 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         getMetadataFromProperties4(graphHandle, indexUsedByDriver, std::move(name), *metadata, inputs, outputs);
     } else {
         // The 1.20 properties have no rank and the arguments added by the compiler have no IR metadata to tell it, so
-        // these stay limited to the 5 dimensions of the older structure. Their tensor names are not used.
-        getMetadataFromProperties3(graphHandle, indexUsedByDriver, false, inputs, outputs);
+        // these start from the older structure, which holds 5 dimensions. Their tensor names are not used.
+        getMetadataFromProperties3(graphHandle, indexUsedByDriver, /*readTensorNames=*/false, inputs, outputs);
     }
 }
 
@@ -798,10 +815,24 @@ void ZeGraphExtWrappers::getMetadataFromProperties3(ze_graph_handle_t graphHandl
             arg.associated_tensor_names_count = 0;
         }
 
-        addDescriptor(arg.type,
-                      createIODescriptorFromLevelZero(indexUsedByDriver, arg, optionalMetadata),
-                      inputs,
-                      outputs);
+        // A full answer may be a higher rank argument cut to 5 dimensions, with no error from the driver
+        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 20) && !optionalMetadata.has_value() &&
+            arg.dims_count == ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+            auto& graphDdiTable = _zeroInitStruct->getGraphDdiTable();
+            ze_graph_argument_properties_4_t arg4 = {};
+            arg4.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_4;
+
+            _logger.debug("getMetadataFromProperties3 - perform pfnGetArgumentProperties4");
+            result = graphDdiTable.pfnGetArgumentProperties4(graphHandle, indexUsedByDriver, &arg4);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties4", result, graphDdiTable);
+
+            addDescriptor(arg.type, createIODescriptorFromLevelZero(indexUsedByDriver, arg, arg4), inputs, outputs);
+        } else {
+            addDescriptor(arg.type,
+                          createIODescriptorFromLevelZero(indexUsedByDriver, arg, optionalMetadata),
+                          inputs,
+                          outputs);
+        }
     }
 }
 

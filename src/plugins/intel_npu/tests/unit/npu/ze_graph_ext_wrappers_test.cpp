@@ -259,6 +259,13 @@ intel_npu::IODescriptor createDescriptor4(const ze_graph_argument_properties_4_t
     return intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, "input", "input_node", {}, metadata);
 }
 
+// The driver answers "properties_3" with the first dimensions of a higher rank argument, without any error
+ze_graph_argument_properties_3_t makeCutArgument3(const ze_graph_argument_properties_4_t& arg4) {
+    auto arg = makeArgument(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
+    std::copy_n(std::begin(arg4.dims), ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE, std::begin(arg.dims));
+    return arg;
+}
+
 }  // namespace
 
 TEST(ZeGraphExtWrappersTest, Properties4ReportsFullAbiRank) {
@@ -357,9 +364,56 @@ TEST(ZeGraphExtWrappersTest, Properties4ReportsDynamicStridesSupportOnlyUpToTheS
     }
 }
 
+TEST(ZeGraphExtWrappersTest, Properties3WithProperties4TakesTheRankAboveFiveFromProperties4) {
+    for (const uint32_t padding : {0u, 1u}) {
+        for (uint32_t rank = ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE + 1; rank <= kMaxRank; ++rank) {
+            const auto arg4 = makeArgument4(rank, padding);
+
+            const auto descriptor =
+                intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, makeCutArgument3(arg4), arg4);
+
+            EXPECT_EQ(descriptor.shapeFromCompiler.rank().get_length(), static_cast<int64_t>(rank)) << "padding " << padding;
+            EXPECT_EQ(descriptor.shapeFromCompiler[rank - 1], rank) << "padding " << padding;
+            EXPECT_FALSE(descriptor.shapeFromIRModel.has_value());
+        }
+    }
+}
+
+TEST(ZeGraphExtWrappersTest, Properties3WithProperties4KeepsFiveDimensionsWhenProperties4HoldsNoMore) {
+    for (const uint32_t padding : {0u, 1u}) {
+        const auto arg4 = makeArgument4(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE, padding);
+
+        const auto descriptor =
+            intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, makeCutArgument3(arg4), arg4);
+
+        EXPECT_EQ(descriptor.shapeFromCompiler, ov::PartialShape({1, 2, 3, 4, 5})) << "padding " << padding;
+    }
+}
+
+TEST(ZeGraphExtWrappersTest, Properties3WithProperties4ReportsDynamicStridesSupportOnlyUpToTheStridesAbiRank) {
+    ze_graph_argument_property_strides_t supportsStrides = {};
+    supportsStrides.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES;
+    supportsStrides.supportsDynamicStrides = true;
+
+    for (const uint32_t rank : std::initializer_list<uint32_t>{ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE, kMaxRank}) {
+        const auto arg4 = makeArgument4(rank);
+        auto arg3 = makeCutArgument3(arg4);
+        arg3.pNext = &supportsStrides;
+
+        const auto descriptor = intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg3, arg4);
+
+        EXPECT_EQ(descriptor.supportsStridedLayout, rank <= ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) << "rank " << rank;
+    }
+}
+
 TEST(ZeGraphExtWrappersTest, ParseTensorNamesSplitsOnCommas) {
     EXPECT_EQ(intel_npu::parseTensorNames("a,b,c"), (std::unordered_set<std::string>{"a", "b", "c"}));
     EXPECT_EQ(intel_npu::parseTensorNames("only"), (std::unordered_set<std::string>{"only"}));
+}
+
+TEST(ZeGraphExtWrappersTest, ParseTensorNamesDropsTheTerminatorOfTheDocumentedList) {
+    EXPECT_EQ(intel_npu::parseTensorNames(std::string("a,b\0", 4)), (std::unordered_set<std::string>{"a", "b"}));
+    EXPECT_EQ(intel_npu::parseTensorNames(std::string("only\0", 5)), (std::unordered_set<std::string>{"only"}));
 }
 
 TEST(ZeGraphExtWrappersTest, ParseTensorNamesSplitsNulPaddedSlots) {
@@ -370,6 +424,17 @@ TEST(ZeGraphExtWrappersTest, ParseTensorNamesSplitsNulPaddedSlots) {
 
     EXPECT_EQ(intel_npu::parseTensorNames(slots), (std::unordered_set<std::string>{"data", "in1"}));
     EXPECT_EQ(intel_npu::parseTensorNames(std::string("a\0b\0", 4)), (std::unordered_set<std::string>{"a", "b"}));
+}
+
+TEST(ZeGraphExtWrappersTest, ParseTensorNamesKeepsCommasInsideNulPaddedSlots) {
+    std::string slots(32 * 256, '\0');
+    slots.replace(0, 3, "a,b");
+    slots.replace(256, 3, "in1");
+    EXPECT_EQ(intel_npu::parseTensorNames(slots), (std::unordered_set<std::string>{"a,b", "in1"}));
+
+    std::string singleSlot(256, '\0');
+    singleSlot.replace(0, 3, "a,b");
+    EXPECT_EQ(intel_npu::parseTensorNames(singleSlot), (std::unordered_set<std::string>{"a,b"}));
 }
 
 TEST(ZeGraphExtWrappersTest, ParseTensorNamesDropsEmptyEntries) {

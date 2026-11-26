@@ -131,8 +131,9 @@ private:
                                     std::vector<IODescriptor>& outputs) const;
 
     /**
-     * @brief Adds the descriptor of an argument queried through "pfnGetArgumentProperties3", which is limited to 5
-     * dimensions.
+     * @brief Adds the descriptor of an argument queried through "pfnGetArgumentProperties3", which holds 5 dimensions.
+     * @details With graph ext 1.20+, an argument without IR metadata whose answer fills all 5 dimensions is also
+     * queried through "pfnGetArgumentProperties4", as the driver may have cut a higher rank without any error.
      * @param readTensorNames Whether to read the associated tensor names from the fixed-size array of the structure.
      * They are left empty otherwise.
      */
@@ -192,13 +193,24 @@ IODescriptor createIODescriptorFromLevelZero(uint32_t indexUsedByDriver,
                                              const std::optional<ze_graph_argument_metadata_t>& metadata);
 
 /**
- * @brief Same as the overload above, but for graph ext 1.20+ where the names are not part of the properties structure.
+ * @brief Same as the first overload for an argument without IR metadata, which may have more than 5 dimensions.
+ *
+ * @param arg4 The "properties_4" answer for the same argument. The argument has more than 5 dimensions if the ones
+ * reported there say so. As "arg4" has no rank and the drivers pad the unused dimensions with ones, a trailing
+ * dimension of 1 cannot be told from padding, so the rank is the one left after dropping these.
+ */
+IODescriptor createIODescriptorFromLevelZero(uint32_t indexUsedByDriver,
+                                             const ze_graph_argument_properties_3_t& arg,
+                                             const ze_graph_argument_properties_4_t& arg4);
+
+/**
+ * @brief Same as the first overload, but for graph ext 1.20+ where the names are not part of the properties structure.
  *
  * @param arg The Level Zero structure from which the precision, the shape and the strides support are extracted.
  * @param name The name of the argument, as returned for "ZE_GRAPH_ARGUMENT_NAME".
  * @param debugFriendlyName The name returned for "ZE_GRAPH_ARGUMENT_DEBUG_FRIENDLY_NAME".
  * @param associatedTensorNames The names returned for "ZE_GRAPH_ARGUMENT_ASSOCIATED_TENSOR_NAMES", already split.
- * @param metadata The IR metadata of the argument. Unlike in the overload above it is required, as "arg" does not
+ * @param metadata The IR metadata of the argument. Unlike in the first overload it is required, as "arg" does not
  * report its rank, which is taken from here.
  */
 IODescriptor createIODescriptorFromLevelZero(uint32_t indexUsedByDriver,
@@ -210,9 +222,9 @@ IODescriptor createIODescriptorFromLevelZero(uint32_t indexUsedByDriver,
 
 /**
  * @brief Splits the answer of "ZE_GRAPH_ARGUMENT_ASSOCIATED_TENSOR_NAMES" into a set of names.
- * @details The header documents a comma separated list, but the NUL character is a separator too, as drivers return
- * the names in NUL-padded fixed-size slots. Empty entries are dropped. A name holding a separator cannot be told apart
- * from several names.
+ * @details "ze_graph_ext.h" documents a comma separated list ending with a NUL. Drivers have been seen returning NUL
+ * padded fixed size slots instead (the layout of the 1.19 structure), recognized by a NUL before the last byte. Commas
+ * separate names only in the documented layout, so a name holding one is split there. Empty entries are dropped.
  */
 std::unordered_set<std::string> parseTensorNames(std::string_view names);
 
