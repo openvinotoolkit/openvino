@@ -29,9 +29,9 @@ More Gen AI coverage and frameworks integrations to minimize code changes
 
 * New models supported:
 
-  * MiniCPM5-2B, MiniCPM-V-4.7-1B, LFM3-1.7B, LFM3-VL-2B, MiniCPM-OCR-1.0 
+  * MiniCPM5-2B, MiniCPM-V-4.7-1B, LFM3-1.7B, LFM3-VL-2B, MiniCPM-OCR-1.0
 
-  * On CPUs and GPUs: Qwen-Image-2.1, BGE Reranker-V2-M3, BGE M3, Qwen3-VL-Embedding-8B, Qwen3-Omni, Ministral-3-3B-Reasoning-2512, Granite-4.0-H-Small, Fun-ASR-Nano, MiniCPM-V-4.7-35B-A3B, PP-OCR-v6 
+  * On CPUs and GPUs: Qwen-Image-2.1, BGE Reranker-V2-M3, BGE M3, Qwen3-VL-Embedding-8B, Qwen3-Omni, Ministral-3-3B-Reasoning-2512, Granite-4.0-H-Small, Fun-ASR-Nano, MiniCPM-V-4.7-35B-A3B, PP-OCR-v6
 
   * Extended to NPUs: MiniCPM-V-4_5, Gemma-4-26B-A4B, Qwen3-30B-A3B, Qwen3.5-9B
 
@@ -46,18 +46,18 @@ Broader LLM model support and more model compression techniques
 
 * OpenVINO GenAI enables LoRA adapters for the Qwen-VL vision encoder, extending dynamic adapter support to vision-language models.
 
-* Preview: BF16 support on Intel® GPUs featuring Intel® Xe Matrix Extensions (XMX), giving BF16 models an alternative to FP16 on GPU that can offer better accuracy.  
+* Preview: BF16 support on Intel® GPUs featuring Intel® Xe Matrix Extensions (XMX), giving BF16 models an alternative to FP16 on GPU that can offer better accuracy.
 
-* Preview: The Neural Network Compression Framework (NNCF) adds 3-bit (U3) weight compression support with Quantization Aware Distillation (QAD) to help preserve accuracy during compression in PyTorch, alongside new 3-bit model inference support on CPU and GPU, for Qwen, Gemma, and LLaMA model architectures. 
+* Preview: The Neural Network Compression Framework (NNCF) adds 3-bit (U3) weight compression support with Quantization Aware Distillation (QAD) to help preserve accuracy during compression in PyTorch, alongside new 3-bit model inference support on CPU and GPU, for Qwen, Gemma, and LLaMA model architectures.
 
 More portability and performance to run AI at the edge, in the cloud or locally
 -------------------------------------------------------------------------------
 
 * OpenVINO GenAI enables audio input for Gemma 4, allowing applications to hear and understand speech locally without cloud dependencies.
 
-* Multi-Token Prediction (MTP), Dflash, and DSpark speculative decoding with prefix caching, and audio input come to OpenVINO Model Server, bringing the latest OpenVINO GenAI capabilities to serving deployments.
+* Multi-Token Prediction (MTP), DFlash, and DSpark speculative decoding with prefix caching, and audio input come to OpenVINO Model Server, bringing the latest OpenVINO GenAI capabilities to serving deployments.
 
-* OpenVINO Model Server now accepts video input for VLM endpoints, enabling video and audio through a standard API. 
+* OpenVINO Model Server now accepts video input for VLM endpoints, enabling video and audio through a standard API.
 
 * Preview: OpenVINO™ GenAI introduces the genai-cli tool as a native model export path, giving developers a more unified workflow for preparing and running GenAI models with OpenVINO.
 
