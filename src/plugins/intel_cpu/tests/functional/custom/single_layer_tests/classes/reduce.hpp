@@ -40,8 +40,9 @@ protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
-private:
     utils::ReductionType reductionType;
+
+private:
     ElementType netPrecision;
 };
 
