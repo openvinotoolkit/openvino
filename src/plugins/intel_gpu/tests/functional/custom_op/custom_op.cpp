@@ -358,11 +358,11 @@ static void test_any_output_broadcast_with_add(bool dynamic_graph) {
     }
 }
 
-TEST(CustomOpAnyFmt3D, StaticOutputFormatAnyBroadcastsThroughAdd) {
+TEST(CustomOpAnyFmt3D, smoke_StaticOutputFormatAnyBroadcastsThroughAdd) {
     test_any_output_broadcast_with_add(false);
 }
 
-TEST(CustomOpAnyFmt3D, StaticOutputFormatAnyBroadcastsThroughAddInDynamicGraph) {
+TEST(CustomOpAnyFmt3D, smoke_StaticOutputFormatAnyBroadcastsThroughAddInDynamicGraph) {
     test_any_output_broadcast_with_add(true);
 }
 
