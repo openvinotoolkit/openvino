@@ -38,8 +38,8 @@ ELFMainScheduleSection::ELFMainScheduleSection(
       m_encryption_callback(encryption_callback),
       m_logger("ELFMainScheduleSection", Logger::global().level()) {
     OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
-    // The dynamic schedule section is a decorator over this class, so the kind can also be dynamic
-    OPENVINO_ASSERT(graph->get_kind() == GraphKind::Weightful || graph->get_kind() == GraphKind::Dynamic);
+    // All kinds of graphs are supported. The weightless graph is also a standard one by inheritance. The dynamic
+    // schedule section is a decorator over ELFMainScheduleSection, so the kind can also be dynamic.
 }
 
 ELFMainScheduleSection::ELFMainScheduleSection(
@@ -89,7 +89,6 @@ void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) c
 
 void ELFMainScheduleSection::set_graph(const std::shared_ptr<IGraph>& graph) {
     OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
-    OPENVINO_ASSERT(graph->get_kind() == GraphKind::Weightful || graph->get_kind() == GraphKind::Dynamic);
     OPENVINO_ASSERT(std::holds_alternative<ov::Tensor>(m_graph_or_schedule), INVALID_STATE_MESSAGE);
     m_graph_or_schedule = graph;
 }
