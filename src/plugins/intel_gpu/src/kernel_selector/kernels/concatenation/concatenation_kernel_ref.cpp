@@ -70,10 +70,6 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
     auto cldnnJit = ConcatenationKernelBase::GetJitConstants(params);
     auto input_format = params.inputs[0].GetLayout();
 
-    // Flag fp8 input so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
-    // (see concatenation_gpu_ref.cl).
-    cldnnJit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
-
     if (params.inputs[0].Feature().v != 1) {
         cldnnJit.AddConstant(MakeJitConstant("CHECK_FEATURES", 1));
         int f_channel = DataTensor::Channelndex(params.outputs[0].GetLayout(), Tensor::DataChannelName::FEATURE);

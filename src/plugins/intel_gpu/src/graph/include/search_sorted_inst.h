@@ -33,7 +33,7 @@ class typed_primitive_inst<search_sorted> : public typed_primitive_inst_base<sea
     using parent::parent;
 
 public:
-    typed_primitive_inst(network& network, search_sorted_node const& desc);
+    typed_primitive_inst(network& network, const search_sorted_node& node);
     template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(search_sorted_node const& node,
                                                    kernel_impl_params const& impl_param);

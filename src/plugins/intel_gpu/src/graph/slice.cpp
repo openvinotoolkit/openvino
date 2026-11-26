@@ -6,7 +6,9 @@
 #include "primitive_type_base.h"
 #include "openvino/op/slice.hpp"
 #include "slice_shape_inference.hpp"
+#include <memory>
 #include <sstream>
+#include <vector>
 #include <json_object.h>
 
 namespace cldnn {
@@ -15,11 +17,12 @@ SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& 
     SliceKernelRefNeededInputs inputs;
 
     const auto& node_inputs = node.get_dependencies();
+    const auto& slice_primitive = *node.get_primitive();
 
     const bool axes_in_runtime =
-        ((node_inputs.size() == InputIndices::kInputsNum) && !node_inputs[InputIndices::kAxes].first->is_constant());
-    const bool start_in_runtime = !node_inputs[InputIndices::kStart].first->is_constant();
-    const bool step_in_runtime = !node_inputs[InputIndices::kStep].first->is_constant();
+        ((node_inputs.size() == InputIndices::kInputsNum) && ((slice_primitive.non_constant_input_mask & slice::SLICE_NON_CONST_INPUT::AXES) != 0));
+    const bool start_in_runtime = (slice_primitive.non_constant_input_mask & slice::SLICE_NON_CONST_INPUT::START) != 0;
+    const bool step_in_runtime = (slice_primitive.non_constant_input_mask & slice::SLICE_NON_CONST_INPUT::STEP) != 0;
 
     inputs.neededIndexes.push_back(InputIndices::kData);
     if (start_in_runtime) {
@@ -47,9 +50,12 @@ layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params
 }
 
 template <typename ShapeType>
-inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, const kernel_impl_params& impl_param) {
+inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node& /*unused*/, const kernel_impl_params& impl_param) {
     std::vector<ShapeType> input_shapes{impl_param.input_layouts[0].get<ShapeType>()};
     std::unordered_map<size_t, ov::Tensor> const_data;
+    // The tensors in const_data point into the locked memory, so the locks must outlive shape_infer(): for a usm_device
+    // dependency lock() hands out a host copy that unlock() frees (an unmapped page on an iGPU).
+    std::vector<std::unique_ptr<cldnn::mem_lock<uint8_t, mem_lock_type::read>>> mem_locks;
     for (std::size_t i = 1; i < impl_param.input_layouts.size(); i++) {
         // NOTE: This code effectively makes a reshape operation on tensors start,
         // stop, step and axes. The specification of Slice operator clearly says
@@ -66,11 +72,11 @@ inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, co
         if (impl_param.memory_deps.find(i) != impl_param.memory_deps.end()) {
             auto gpu_mem = impl_param.memory_deps.at(i);
             input_shape = {static_cast<ov::Dimension::value_type>(gpu_mem->count())};
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> gpu_mem_lock(gpu_mem, impl_param.get_stream());
+            mem_locks.push_back(std::make_unique<cldnn::mem_lock<uint8_t, mem_lock_type::read>>(gpu_mem, impl_param.get_stream()));
             const_data.emplace(
                 i,
                 make_tensor(layout{input_shape, gpu_mem->get_layout().data_type, gpu_mem->get_layout().format},
-                            gpu_mem_lock.data()));
+                            mem_locks.back()->data()));
         }
         input_shapes.push_back(input_shape);
     }

@@ -9,7 +9,40 @@ representation.
 The implementation is in [`gguf.cpp`](../src/quant/gguf.cpp),
 [`gguf_quants.cpp`](../src/quant/gguf_quants.cpp) and [`weights.cpp`](../src/quant/weights.cpp).
 
+## Preparing an F32 reference
+
+Use F32 to isolate graph correctness from quantized arithmetic differences for
+[supported families](supported_models.md#native-gguf-path).
+Quantized formats remain supported when their F32/F16 reference path works; known
+accuracy differences are documented separately. Convert from the original Hugging Face checkpoint with llama.cpp's
+`convert_hf_to_gguf.py --outtype f32`. This creates a separate checkpoint format.
+For an existing GGUF, exact F32 materialization must preserve metadata, tensor names
+and shapes; decode every tensor using its GGML type, write F32 payloads, and set
+`general.file_type=0`. Verify the output tensor inventory and finite values before
+using it. A filename ending in `f32` or a file-type metadata edit does not convert weights.
+
+Materializing a quantized GGUF preserves its represented values; it cannot recover
+information lost during the original quantization. Record both file hashes and test
+the new file against its own llama.cpp reference. Original quantized-checkpoint
+failures remain separate. F32 increases disk and compilation memory, especially
+for models with many experts.
+
 ## Storage and graph conventions
+
+The loader retains one raw descriptor per original tensor, including its logical shape,
+GGUF format and mapped payload. Builders emit frontend-only `GGUFConstant` leaves and ordinary
+`Concat`, `Slice` and `Gather` operations; they do not unpack or concatenate packed components.
+Normalization folds compatible weight-only row concatenations, slices and gathers before
+repacking directly into the final code, scale and zero-point buffers. It also combines
+compatible two-bit projections sharing an activation. No `GGUFConstant` survives conversion.
+
+Compatible matrix row patterns use the existing native unpacker for each format; plain
+row patterns also fold.
+Inputs must share their format and conversion policy. Aligned column permutations move complete
+quantization groups and may use packed intermediate buffers. Unsupported views, including
+unaligned column gathers, retain ordinary graph operations after leaf materialization.
+Supplied-decoder weights materialize individually using their existing conversion policy.
+Embedding/output policies, quantization groups and zero points are preserved.
 
 The tables below describe the **native `.gguf` input path before device compilation**. The
 [supplied-decoder path](#supplied-decoder-and-raw-byte-differences) has additional conversions.
@@ -82,7 +115,7 @@ The type columns describe extracted tensors; their decompression or Convert outp
 | MXFP4 | 32 | 17 | `f4e2m1` | `f8e8m0` | — | `16 + 1` = 17 | 0% |
 
 Ordinary native Q4_1/Q4_K matrix weights use integer zero points by default.
-Ordinary native Q5_K matrix weights use symmetric i8 with one F16 scale per 32 weights
+Ordinary native Q5_K matrix weights use symmetric i8 by default, with one F16 scale per 32 weights
 and no zero point. Source values are decoded and requantized using the group maximum
 absolute value; this adds rounding error and changes the grid from the former asymmetric u8
 representation. Conversion uses a 256-value scratch buffer per source block. The converted
@@ -90,7 +123,7 @@ weight/scale payload is 2.86% smaller than the former u8/integer-zero-point payl
 Group size remains 32 for all devices.
 `token_embd.weight` and `output.weight` use fractional zero points for these affine formats;
 Q5_1 and Q2_K also use fractional zero points. See [accuracy controls](#accuracy-controls)
-to select fractional zero points for all Q4_1/Q4_K tensors.
+to select fractional zero points for all Q4_1/Q4_K/Q5_K tensors.
 Q2_0 uses a `u8` zero point of 1. PQ2_0/PTQ1_0 use F16 zero points of 1,
 including embeddings.
 The frontend prints an accuracy notice once per process for each requantization approximation.
@@ -342,8 +375,8 @@ compiled = core.compile_model(model, "CPU", {
 })
 ```
 
-Set `OV_GGUF_Q4_K_ZP_F16=1` **before starting the process** to preserve fractional Q4_K/Q4_1
-zero points instead of their default u4 requantization. It is cached on first use; changing the
+Set `OV_GGUF_Q4_K_ZP_F16=1` **before starting the process** to preserve fractional Q4_K/Q4_1/Q5_K
+zero points instead of their default u4/u8 or symmetric i8 requantization. It is cached on first use; changing the
 environment later in a notebook does not switch an already initialized process. The option
 does not make every quantized format lossless or guarantee device support for fractional zero points.
 
@@ -358,9 +391,10 @@ For `N` weights of a uniform block format, multiply its OpenVINO bytes per block
 `N / weights_per_block`. Sum over tensor formats for a mixed checkpoint. This estimates
 frontend payload storage, including per-group metadata.
 
-Native quantized loading allocates independent buffers while reading the memory-mapped
-source. Source pages and output buffers can coexist during import; the loader requests
-eviction of processed source ranges, but this is not a guarantee about peak resident memory.
+Native quantized weights allocate independent buffers when normalization materializes their
+memory-mapped source (or when a caller explicitly invokes the unpacking helper). Source pages and output buffers can coexist
+during import; the loader requests eviction of processed source ranges, but this is not a
+guarantee about peak resident memory.
 Splitting or reordering projections can also require copies. Constants built from the
 extracted buffers share those buffers rather than copying each one again.
 
@@ -368,6 +402,14 @@ During compilation a device may fuse decompression into its matrix kernel, reord
 weights, or expand them to floating point. Full F16 and F32 expansions require `2*N` and
 `4*N` bytes respectively, potentially alongside packed storage. In particular, CPU compressed
 expert matmul does not support `u2` in this implementation, so Q2 MoE weights can expand.
+Plain F16/BF16 expert constants use `GatherMatmul`, avoiding a per-token copy of
+the selected expert weights. CPU compilation may expand the entire expert tensor
+to F32, doubling its payload relative to the original half-precision storage.
+On GPUs without systolic support, these layers cannot compile. On supported GPUs,
+an explicit F32 inference precision hint may also fail; lower-precision execution
+can round differently from F32.
+See [internal-op serialization limits](runtime.md#internal-operations-and-serialization).
+
 Weight reorders and temporary buffers add to these costs; reducing context length does not
 remove them. KV caches, activation buffers and Hadamard transforms are separate from weight
 payload estimates. See [checkpoint-specific limits](supported_models.md#runtime-limitations).

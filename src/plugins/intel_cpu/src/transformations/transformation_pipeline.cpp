@@ -21,6 +21,7 @@
 #include "low_precision/qdq_stripping.hpp"
 #include "low_precision/quantization_details.hpp"
 #include "nodes/fullyconnected.h"
+#include "nodes/rms_norm.h"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -44,6 +45,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_residual.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -64,12 +66,14 @@
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/validate.hpp"
 #include "selective_build.h"
+#include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
@@ -78,14 +82,17 @@
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/ngram_hash_function_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -151,6 +158,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp"
 #include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
@@ -200,9 +208,9 @@
 #    include "low_precision/fold_convert.hpp"
 #    include "low_precision/fuse_convert.hpp"
 #    include "low_precision/weightable_layer_transformation.hpp"
+#    include "nodes/gated_residual.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/qkv_proj.h"
-#    include "nodes/rms_norm.h"
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
 #    include "openvino/op/mish.hpp"
@@ -211,15 +219,15 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
-#    include "transformations/common_optimizations/rms_fusion.hpp"
+#    include "transformations/common_optimizations/gated_residual_fusion.hpp"
 #    include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #    include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
-#    include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #    include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #    include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #    include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
+#    include "transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.hpp"
 #    include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/reduce_l1_decomposition.hpp"
@@ -317,7 +325,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         return all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
                all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static()) ||
                all_has_type(consumers, ov::op::v17::GroupedMatMul::get_type_info_static()) ||
-               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static());
+               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::internal::GatedResidual::get_type_info_static());
     };
 
     const auto consumers = node->get_output_target_inputs(0);
@@ -594,7 +603,19 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseQSAIndexer, false);
+    CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
+    // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights. The WRITE pattern
+    // stays eltwise (its Add is moved next to the Multiply), so the CPU Eltwise fusion can take it.
+    CPU_REGISTER_PASS_X64(manager, ov::pass::GatedResidualFusion, false /* fuse_write */);
+    CPU_SET_CALLBACK_X64(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            std::string errorMsg;
+            return !node::GatedResidual::isSupportedOperation(node, errorMsg);
+        },
+        ov::pass::GatedResidualReadFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(
@@ -618,6 +639,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
+
+    // Fuses int64 n-gram hashes (all orders) into one NGramHashFunction that keeps the int64 math inside its kernel,
+    // before ConvertPrecision would otherwise downcast the products/xors to i32.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::NGramHashFunctionFusion);
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
@@ -1142,6 +1167,30 @@ void Transformations::PostLpt() {
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionCohere);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
+    // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
+    // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
+    const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager,
+                             ov::pass::RMSFusion,
+                             false /* force_tail_convert */,
+                             enable_without_gamma);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::FuseQSAIndexerQuery);
+    // before DecomposeRMSNorm: scale_up multiplies are dropped only in front of fused RMS
+    if (config.inferencePrecision == ov::element::f16 && config.activationsScaleFactor > 0.F) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager,
+                                 ov::pass::ActivationsScaling,
+                                 config.activationsScaleFactor,
+                                 config.inferencePrecision);
+    }
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
+    CPU_SET_CALLBACK_COMMON(
+        postLPTPassManager,
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            std::string errorMsg;
+            return node::RMSNorm::isSupportedOperation(node, errorMsg);
+        },
+        ov::intel_cpu::DecomposeRMSNorm);
+
 #if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
@@ -1190,22 +1239,6 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
-    // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
-    [[maybe_unused]] const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
-    CPU_REGISTER_PASS_X64(postLPTPassManager,
-                          ov::pass::RMSFusion,
-                          false /* force_tail_convert */,
-                          enable_without_gamma);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
-    CPU_SET_CALLBACK_X64(
-        postLPTPassManager,
-        [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            std::string errorMsg;
-            return node::RMSNorm::isSupportedOperation(node, errorMsg);
-        },
-        ov::intel_cpu::DecomposeRMSNorm);
-
     // markup Rope Input when BF16/F16 inference.
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
@@ -1216,6 +1249,8 @@ void Transformations::PostLpt() {
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
+        // Must be before Snippets tokenization and ConvertToPowerStatic (CpuSpecificOpSet)
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::ClampBF16ScalarConstants);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by

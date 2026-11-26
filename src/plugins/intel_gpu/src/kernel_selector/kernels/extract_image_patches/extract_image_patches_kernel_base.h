@@ -30,7 +30,7 @@ public:
 
 protected:
     virtual JitConstants GetJitConstants(const extract_image_patches_params& params) const;
-    DispatchData SetDefault(const extract_image_patches_params& params) const;
+    static DispatchData SetDefault(const extract_image_patches_params& params);
     KernelsData GetCommonKernelsData(const Params& params) const;
 
     ParamsKey GetSupportedKey() const override;

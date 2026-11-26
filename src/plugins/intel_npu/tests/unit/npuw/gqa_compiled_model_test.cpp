@@ -7,11 +7,15 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gqa_compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "llm_test_helpers.hpp"
@@ -33,7 +37,10 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "serialization.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 
@@ -841,6 +848,80 @@ protected:
         }
     }
 
+    void setup_mocks(const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                     const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                     const std::shared_ptr<testing::NiceMock<ov::MockICore>>& mock_core,
+                     const std::shared_ptr<testing::NiceMock<ov::MockICompiledModel>>& mock_compiled_model) {
+        ON_CALL(*mock_core, get_property(testing::_, testing::_, testing::_))
+            .WillByDefault(testing::Return(ov::Any("")));
+        ON_CALL(*mock_core, get_property(testing::_, testing::StrEq(ov::available_devices.name()), testing::_))
+            .WillByDefault(testing::Return(ov::Any(std::vector<std::string>{})));
+        ON_CALL(*mock_core,
+                compile_model(testing::An<const std::shared_ptr<const ov::Model>&>(),
+                              testing::An<const std::string&>(),
+                              testing::An<const ov::AnyMap&>()))
+            .WillByDefault(testing::Return(mock_compiled_model));
+
+        ON_CALL(*mock_compiled_model, inputs())
+            .WillByDefault([&model_inputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+                return model_inputs;
+            });
+        ON_CALL(*mock_compiled_model, outputs())
+            .WillByDefault([&model_outputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+                return model_outputs;
+            });
+        ON_CALL(*mock_compiled_model, get_property(testing::_)).WillByDefault(testing::Return(ov::Any("")));
+        ON_CALL(*mock_compiled_model, get_property(testing::StrEq(ov::execution_devices.name())))
+            .WillByDefault(testing::Return(ov::Any(std::vector<std::string>{"NPU.0"})));
+    }
+
+    void make_port_asserts(const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                           const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                           const std::vector<ov::Output<const ov::Node>>& inputs,
+                           const std::vector<ov::Output<const ov::Node>>& outputs) {
+        ASSERT_EQ(inputs.size(), model_inputs.size());
+        ASSERT_EQ(outputs.size(), model_outputs.size());
+        for (size_t i = 0; i < model_inputs.size(); ++i) {
+            ASSERT_EQ(model_inputs.at(i).get_partial_shape(), inputs.at(i).get_partial_shape());
+            ASSERT_EQ(model_inputs.at(i).get_element_type(), inputs.at(i).get_element_type());
+            ASSERT_EQ(model_inputs.at(i).get_node()->get_friendly_name(), inputs.at(i).get_node()->get_friendly_name());
+            ASSERT_EQ(model_inputs.at(i).get_names(), inputs.at(i).get_names());
+        }
+        for (size_t j = 0; j < model_outputs.size(); ++j) {
+            ASSERT_EQ(model_outputs.at(j).get_partial_shape(), outputs.at(j).get_partial_shape());
+            ASSERT_EQ(model_outputs.at(j).get_element_type(), outputs.at(j).get_element_type());
+            ASSERT_EQ(model_outputs.at(j).get_node()->get_friendly_name(),
+                      outputs.at(j).get_node()->get_friendly_name());
+            ASSERT_EQ(model_outputs.at(j).get_names(), outputs.at(j).get_names());
+        }
+    }
+
+    void validate_gqa_roundtrip(const size_t axis,
+                                const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                                const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                                const uint32_t max_context_len,
+                                const uint32_t sliding_window_length,
+                                const uint32_t sliding_window_headroom,
+                                const std::shared_ptr<const ov::npuw::GQACompiledModel>& gqa_compiled_model) {
+        make_port_asserts(model_inputs, model_outputs, gqa_compiled_model->inputs(), gqa_compiled_model->outputs());
+
+        size_t matched_ports = 0;
+        for (const auto& input : gqa_compiled_model->inputs()) {
+            if (input.get_node()->get_friendly_name() != "past_keys_0" &&
+                input.get_node()->get_friendly_name() != "past_values_0") {
+                continue;
+            }
+            ASSERT_TRUE(input.get_partial_shape()[axis].is_dynamic());
+            ++matched_ports;
+        }
+        ASSERT_EQ(matched_ports, 2u);
+
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::max_context_len.name()), max_context_len);
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::swa_len.name()), sliding_window_length);
+        ASSERT_EQ(gqa_compiled_model->get_property(ov::intel_npu::npuw::llm::swa_headroom.name()),
+                  sliding_window_headroom);
+    }
+
     std::unique_ptr<ov::npuw::GQACompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
                                                                       const ov::AnyMap& extra_props,
                                                                       RecordingFactory& recorder) const {
@@ -922,6 +1003,25 @@ TEST_F(GQACompiledModelTest, UsesRepOnlinePipelineForCaseV2PrefillModels) {
     // Unlike V0/V1, a 2-bit group-quantized (V2) model isn't forced to NONE -- its prefill
     // stage still benefits from online partitioning, so it switches to the REP
     // (repeated-block) pipeline, and compiles the resulting blocks in parallel.
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
+}
+
+TEST_F(GQACompiledModelTest, UsesRepOnlinePipelineForCaseV2PositionIdsPrefillModels) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_full_gqa_transformer_model(4,
+                                                                                      2,
+                                                                                      true,
+                                                                                      PositionSignal::PositionIds,
+                                                                                      /*with_2bit_weights=*/true),
+                                                     {},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    // u2 weights take priority over position_ids, so this must not get V1's NONE pipeline.
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
     EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
@@ -1244,6 +1344,17 @@ TEST(GQACompiledModelSupportsTest, IdentifiesCaseV2ForSeqLenPairModelWith2BitWei
     EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
 }
 
+TEST(GQACompiledModelSupportsTest, IdentifiesCaseV2ForPositionIdsModelWith2BitWeights) {
+    auto model = build_full_gqa_transformer_model(4,
+                                                  2,
+                                                  true,
+                                                  PositionSignal::PositionIds,
+                                                  /*with_2bit_weights=*/true);
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
+    make_kv_cache_dynamic(model, 2);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
+}
+
 TEST(GQACompiledModelSupportsTest, IdentifiesCaseUnknownWithoutAnyPositionSignal) {
     auto model = build_full_gqa_transformer_model(4, 2, true, PositionSignal::PositionIds);
     for (const auto& parameter : model->get_parameters()) {
@@ -1491,25 +1602,31 @@ TEST_F(GQACompiledModelTest, RejectsDynamicAttentionBiasAxisThatIsNotTheCapacity
 }
 
 namespace {
-// A minimal fake "inner" compiled model / infer request pair for exercising
-// GQAInferRequest::set_tensor()/get_tensor() end-to-end (unlike RecordingFactory/
-// MockSubCompiledModel, whose create_sync_infer_request() returns nullptr). Every port
-// gets a real, pre-allocated tensor -- mirrors TestInferRequest in failsafe.cpp.
+struct FakeInnerRequestState {
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> tensors;
+    std::unordered_set<std::string> allocated_ports;
+};
+
 class FakeInnerSyncInferRequest final : public ov::ISyncInferRequest {
 public:
-    explicit FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
-        : ov::ISyncInferRequest(compiled_model) {
-        for (const auto& input : get_inputs()) {
-            ov::ISyncInferRequest::set_tensor(
-                input,
-                ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+    FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
+                              std::shared_ptr<FakeInnerRequestState> state)
+        : ov::ISyncInferRequest(compiled_model),
+          m_state(std::move(state)) {}
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        const auto& name = port.get_node()->get_friendly_name();
+        auto& tensor = m_state->tensors[name];
+        if (!tensor) {
+            tensor = ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
+            std::fill_n(static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size(), uint8_t{0});
+            m_state->allocated_ports.insert(name);
         }
-        for (const auto& output : get_outputs()) {
-            ov::ISyncInferRequest::set_tensor(
-                output,
-                ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
-        }
+        return tensor;
     }
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        m_state->tensors[port.get_node()->get_friendly_name()] = tensor;
+    }
+    void check_tensors() const override {}
     void infer() override {}
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
@@ -1517,12 +1634,18 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
         return {};
     }
+
+private:
+    std::shared_ptr<FakeInnerRequestState> m_state;
 };
 
 class FakeInnerCompiledModel final : public ov::npuw::ICompiledModel {
 public:
-    FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
-        : ov::npuw::ICompiledModel(model, plugin) {}
+    FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model,
+                           const std::shared_ptr<const ov::IPlugin>& plugin,
+                           std::shared_ptr<FakeInnerRequestState> state)
+        : ov::npuw::ICompiledModel(model, plugin),
+          m_state(std::move(state)) {}
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
         return {};
@@ -1532,15 +1655,19 @@ public:
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return std::make_shared<FakeInnerSyncInferRequest>(shared_from_this());
+        return std::make_shared<FakeInnerSyncInferRequest>(shared_from_this(), m_state);
     }
+
+private:
+    std::shared_ptr<FakeInnerRequestState> m_state;
 };
 
-ov::npuw::GQACompiledModel::CompiledModelFactory fake_inner_factory() {
-    return [](const std::shared_ptr<ov::Model>& model,
-              const std::shared_ptr<const ov::IPlugin>& plugin,
-              const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
-        return std::make_shared<FakeInnerCompiledModel>(model, plugin);
+ov::npuw::GQACompiledModel::CompiledModelFactory fake_inner_factory(
+    std::shared_ptr<FakeInnerRequestState> state = std::make_shared<FakeInnerRequestState>()) {
+    return [state](const std::shared_ptr<ov::Model>& model,
+                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                   const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
+        return std::make_shared<FakeInnerCompiledModel>(model, plugin, state);
     };
 }
 
@@ -1571,6 +1698,94 @@ std::vector<float> to_vec(const ov::SoPtr<ov::ITensor>& t) {
     return std::vector<float>(data, data + t->get_size());
 }
 }  // namespace
+
+TEST_F(GQACompiledModelTest, SharedCallerKvBuffersDoNotAllocateInnerKvTensors) {
+    for (const size_t axis : {2u, 3u}) {
+        auto state = std::make_shared<FakeInnerRequestState>();
+        auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+            build_gqa_model_with_dynamic_kv_cache(axis),
+            m_plugin,
+            ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+            fake_inner_factory(state));
+        auto request = compiled->create_infer_request();
+        request->query_state();
+        EXPECT_TRUE(state->tensors.empty());
+
+        for (const auto& input : compiled->inputs()) {
+            const auto& name = input.get_node()->get_friendly_name();
+            if (name != "past_keys_0" && name != "past_values_0") {
+                continue;
+            }
+            auto empty = request->get_tensor(input);
+            EXPECT_EQ(empty->get_shape().at(axis), 0u);
+            EXPECT_EQ(state->tensors.count(name), 0u);
+            auto shape = empty->get_shape();
+            shape.at(axis) = 16;
+            auto tensor = make_f16_kv_cache_tensor(shape, 1.f);
+            request->set_tensor(input, tensor);
+            const auto output_name = name == "past_keys_0" ? "present_keys_0" : "present_values_0";
+            const auto output =
+                std::find_if(compiled->outputs().begin(), compiled->outputs().end(), [&](const auto& port) {
+                    return port.get_node()->get_friendly_name() == output_name;
+                });
+            ASSERT_NE(output, compiled->outputs().end());
+            request->set_tensor(*output, tensor);
+            EXPECT_EQ(state->tensors.at(name)._ptr, tensor._ptr);
+            EXPECT_EQ(state->tensors.at(output_name)._ptr, tensor._ptr);
+        }
+        EXPECT_TRUE(state->allocated_ports.empty());
+        ASSERT_NO_THROW(request->infer());
+        for (const auto* name : {"past_keys_0", "past_values_0", "present_keys_0", "present_values_0"}) {
+            EXPECT_EQ(state->allocated_ports.count(name), 0u);
+        }
+    }
+}
+
+TEST_F(GQACompiledModelTest, PaddingBufferIsLazyZeroedAndReleasedWhenReplaced) {
+    for (const size_t axis : {2u, 3u}) {
+        auto state = std::make_shared<FakeInnerRequestState>();
+        auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+            build_gqa_model_with_dynamic_kv_cache(axis),
+            m_plugin,
+            ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+            fake_inner_factory(state));
+        auto request = compiled->create_infer_request();
+        const auto input = std::find_if(compiled->inputs().begin(), compiled->inputs().end(), [](const auto& port) {
+            return port.get_node()->get_friendly_name() == "past_keys_0";
+        });
+        ASSERT_NE(input, compiled->inputs().end());
+        auto shape = request->get_tensor(*input)->get_shape();
+        shape.at(axis) = 4;
+        auto short_tensor = make_f16_kv_cache_tensor(shape, 1.f);
+        request->set_tensor(*input, short_tensor);
+        EXPECT_TRUE(state->tensors.empty());
+        ASSERT_NO_THROW(request->infer());
+        const auto& padded = state->tensors.at("past_keys_0");
+        EXPECT_EQ(padded->get_shape().at(axis), 16u);
+        const auto* data = static_cast<const ov::float16*>(padded->data());
+        const auto* source_data = static_cast<const ov::float16*>(short_tensor->data());
+        const auto row_size = padded->get_shape().back();
+        for (size_t index = 0; index < padded->get_size(); ++index) {
+            const auto sequence_index = axis == 2 ? (index / row_size) % 16 : index % 16;
+            if (sequence_index >= 4) {
+                EXPECT_FLOAT_EQ(static_cast<float>(data[index]), 0.f);
+            } else {
+                const auto source_index = axis == 2 ? (index / (16 * row_size)) * 4 * row_size + index % (16 * row_size)
+                                                    : (index / 16) * 4 + index % 16;
+                EXPECT_FLOAT_EQ(static_cast<float>(data[index]), static_cast<float>(source_data[source_index]));
+            }
+        }
+        const auto& untouched = state->tensors.at("past_values_0");
+        const auto* untouched_data = static_cast<const ov::float16*>(untouched->data());
+        for (size_t index = 0; index < untouched->get_size(); ++index) {
+            EXPECT_FLOAT_EQ(static_cast<float>(untouched_data[index]), 0.f);
+        }
+        std::weak_ptr<ov::ITensor> old_padding = padded._ptr;
+        shape.at(axis) = 16;
+        request->set_tensor(*input, make_f16_kv_cache_tensor(shape));
+        EXPECT_TRUE(old_padding.expired());
+    }
+}
 
 TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTensorAfterShortTensor) {
     // Regression test: after a port's inner request got aliased onto a full-capacity
@@ -1801,20 +2016,16 @@ TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisM
     const std::unordered_map<std::string, size_t> axis_map{{"past_keys_0", 2u}, {"past_values_0", 2u}};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_inputs);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_outputs);
-    {
-        auto writer = ov::npuw::orc::Stream::writer(buffer);
-        writer & axis_map;
-    }
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, outer_inputs);
+    ov::npuw::GQACompiledModel::write_port_list(writer, outer_outputs);
+    writer & axis_map;
 
-    ov::ParameterVector read_parameters = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
-    ov::NodeVector read_results = ov::npuw::GQACompiledModel::read_output_port_list(buffer);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    ov::ParameterVector read_parameters = ov::npuw::GQACompiledModel::read_input_port_list(reader);
+    ov::NodeVector read_results = ov::npuw::GQACompiledModel::read_output_port_list(reader);
     std::unordered_map<std::string, size_t> read_axis_map;
-    {
-        auto reader = ov::npuw::orc::Stream::reader(buffer);
-        reader & read_axis_map;
-    }
+    reader & read_axis_map;
 
     ASSERT_EQ(read_parameters.size(), outer_inputs.size());
     ASSERT_EQ(read_results.size(), outer_outputs.size());
@@ -1864,8 +2075,10 @@ TEST(GQACompiledModelSerializationTest, RoundTripsTensorNamesSeparatelyFromFrien
     std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
-    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, ports);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(reader);
 
     ASSERT_EQ(read_back.size(), 1u);
     EXPECT_EQ(read_back[0]->get_friendly_name(), "past_keys_0");
@@ -1918,8 +2131,10 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
     std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
-    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, ports);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(reader);
 
     ASSERT_EQ(read_back.size(), 1u);
     EXPECT_EQ(read_back[0]->get_friendly_name(), "attention_bias");
@@ -2257,6 +2472,222 @@ TEST(GQACompiledModelPresentToPastParamNamesTest, MapsDotStyleNamesNotMatchingSu
     ASSERT_EQ(map.count("present.0.value"), 1u);
     EXPECT_EQ(map.at("present.0.key"), "past_key_values.0.key");
     EXPECT_EQ(map.at("present.0.value"), "past_key_values.0.value");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsNonORCGQACompiledModelWithPrettyMessage) {
+    std::stringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::ICompiledModel::import_model(stream, m_plugin, {}),
+        ov::Exception,
+        "Legacy flat NPUW GQACompiledModel blobs are no longer supported. Re-export the model with "
+        "the current ORC serializer.");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsNonGQAORCSchema) {
+    std::stringstream stream;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [&] {});
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "Unsupported ORC schema for NPUW GQACompiledModel");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsNewerORCGQAVersion) {
+    constexpr ov::npuw::orc::Version newer_gqa_version = ov::npuw::GQACompiledModel::kOrcVersion + 1;
+
+    std::stringstream stream;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream, ov::npuw::GQACompiledModel::kOrcType, newer_gqa_version, 0u, [&] {});
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA blob was produced by a newer NPUW");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaMissingOrNonLeafSection) {
+    const std::vector<std::function<void(std::ostream&)>> test_section_lambdas = {
+        [](std::ostream& stream) {
+            // It is expected for GQACompiledModel to have an inner ov::npuw::CompiledModel
+            // section, but not before META section
+            ov::npuw::orc::with_section(stream,
+                                        ov::npuw::CompiledModel::kOrcType,
+                                        ov::npuw::CompiledModel::kOrcVersion,
+                                        0u,
+                                        [] {});
+        },
+        [](std::ostream& stream) {
+            // Even if it is a nested section of META type, import still rejects it because it is not a LEAF section
+            ov::npuw::orc::with_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, 0u, [] {});
+        }};
+    for (const auto& test_lambda_case : test_section_lambdas) {
+        std::stringstream stream;
+        ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+        ov::npuw::orc::with_section(stream,
+                                    ov::npuw::GQACompiledModel::kOrcType,
+                                    ov::npuw::GQACompiledModel::kOrcVersion,
+                                    0u,
+                                    [&] {
+                                        test_lambda_case(stream);
+                                    });
+
+        OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                      ov::Exception,
+                                      "Expected ORC NPUW metadata section, got type");
+    }
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQARootOverrunningStream) {
+    std::stringstream stream;
+    std::streampos pos;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    pos = stream.tellp();
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [] {});
+    uint64_t total_wrote_bytes = stream.tellp();
+    stream.seekp(pos + static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::TypeId)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::Version)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::SectionFlags)),
+                 std::ios::beg);
+    uint64_t altered_meta_size = total_wrote_bytes + static_cast<std::stringstream::pos_type>(1);
+    stream.write(reinterpret_cast<const char*>(&altered_meta_size), sizeof(altered_meta_size));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA root section claims");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaOverrunningRoot) {
+    std::stringstream stream;
+    std::streampos pos;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [&] {
+                                    pos = stream.tellp();
+                                    ov::npuw::orc::with_leaf_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, [&] {
+                                        std::fill_n(std::ostreambuf_iterator<char>(stream), 10, 0);
+                                    });
+                                });
+    stream.seekp(pos + static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::TypeId)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::Version)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::SectionFlags)),
+                 std::ios::beg);
+    uint64_t altered_meta_size = stream.tellp() + static_cast<std::stringstream::pos_type>(1);
+    stream.write(reinterpret_cast<const char*>(&altered_meta_size), sizeof(altered_meta_size));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA META section exceeds GQA root section");
+}
+
+TEST_F(GQACompiledModelTest, GQAExportImportRoundTrip) {
+    const size_t axis = 2;
+    auto model = build_gqa_model_with_dynamic_kv_cache(axis);
+    const auto& model_inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
+    const auto& model_outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
+
+    const uint32_t max_context_len = 4096u;
+    const uint32_t sliding_window_length = 8u;
+    const uint32_t sliding_window_headroom = 512u;
+    auto test_props = base_props();
+    merge_props(test_props,
+                ov::AnyMap{ov::intel_npu::npuw::llm::max_context_len(max_context_len),
+                           ov::intel_npu::npuw::llm::swa_len(sliding_window_length),
+                           ov::intel_npu::npuw::llm::swa_headroom(sliding_window_headroom)});
+
+    auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto mock_compiled_model = std::make_shared<testing::NiceMock<ov::MockICompiledModel>>(model, m_plugin);
+    m_plugin->set_core(mock_core);
+    setup_mocks(model_inputs, model_outputs, mock_core, mock_compiled_model);
+
+    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, test_props);
+    std::stringstream stream;
+    ASSERT_NO_THROW(compiled->export_model(stream));
+
+    std::shared_ptr<ov::npuw::GQACompiledModel> imported;
+    EXPECT_CALL(
+        *mock_core,
+        import_model(testing::An<std::istream&>(), testing::An<const std::string&>(), testing::An<const ov::AnyMap&>()))
+        .Times(testing::AtLeast(1))
+        .WillRepeatedly(testing::Return(mock_compiled_model));
+    ASSERT_NO_THROW(imported = std::dynamic_pointer_cast<ov::npuw::GQACompiledModel>(
+                        ov::npuw::ICompiledModel::import_model(stream, m_plugin, {})));
+    ASSERT_NE(imported, nullptr);
+    ASSERT_EQ(stream.peek(), EOF);
+    ASSERT_NO_FATAL_FAILURE(validate_gqa_roundtrip(axis,
+                                                   model_inputs,
+                                                   model_outputs,
+                                                   max_context_len,
+                                                   sliding_window_length,
+                                                   sliding_window_headroom,
+                                                   imported));
+}
+
+TEST_F(GQACompiledModelTest, GQAExportImportRoundTripWithEncryption) {
+    const size_t axis = 2;
+    auto model = build_gqa_model_with_dynamic_kv_cache(axis);
+    const auto& model_inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
+    const auto& model_outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
+
+    const uint32_t max_context_len = 4096u;
+    const uint32_t sliding_window_length = 8u;
+    const uint32_t sliding_window_headroom = 512u;
+    auto test_props = base_props();
+    merge_props(
+        test_props,
+        ov::AnyMap{ov::intel_npu::npuw::llm::max_context_len(max_context_len),
+                   ov::intel_npu::npuw::llm::swa_len(sliding_window_length),
+                   ov::intel_npu::npuw::llm::swa_headroom(sliding_window_headroom),
+                   ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})});
+
+    auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto mock_compiled_model = std::make_shared<testing::NiceMock<ov::MockICompiledModel>>(model, m_plugin);
+    m_plugin->set_core(mock_core);
+    setup_mocks(model_inputs, model_outputs, mock_core, mock_compiled_model);
+
+    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, test_props);
+    std::stringstream stream;
+    ASSERT_NO_THROW(compiled->export_model(stream));
+
+    std::shared_ptr<ov::npuw::GQACompiledModel> imported;
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "Blob is encrypted, but no decryption callback was provided");
+    stream.clear();
+    stream.seekg(0);
+    EXPECT_CALL(
+        *mock_core,
+        import_model(testing::An<std::istream&>(), testing::An<const std::string&>(), testing::An<const ov::AnyMap&>()))
+        .Times(testing::AtLeast(1))
+        .WillRepeatedly(testing::Return(mock_compiled_model));
+    ASSERT_NO_THROW(imported = std::dynamic_pointer_cast<ov::npuw::GQACompiledModel>(
+                        ov::npuw::ICompiledModel::import_model(stream, m_plugin, test_props)));
+    ASSERT_NE(imported, nullptr);
+    ASSERT_EQ(stream.peek(), EOF);
+    ASSERT_NO_FATAL_FAILURE(validate_gqa_roundtrip(axis,
+                                                   model_inputs,
+                                                   model_outputs,
+                                                   max_context_len,
+                                                   sliding_window_length,
+                                                   sliding_window_headroom,
+                                                   imported));
 }
 
 }  // namespace

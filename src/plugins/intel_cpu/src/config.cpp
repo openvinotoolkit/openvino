@@ -212,6 +212,15 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::dynamic_quantization_group_size.name(),
                                ". Expected only unsigned integer numbers");
             }
+        } else if (key == ov::hint::activations_scale_factor.name()) {
+            try {
+                activationsScaleFactor = val.as<float>();
+                activationsScaleFactorSetExplicitly = true;
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::hint::activations_scale_factor.name(),
+                               ". Expected only float numbers");
+            }
         } else if (key == ov::enable_profiling.name()) {
             try {
                 collectPerfCounters = val.as<bool>();
@@ -495,6 +504,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
             }
+        } else if (key == ov::intel_cpu::export_hsm_format.name()) {
+            try {
+                exportHsmFormat = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::intel_cpu::export_hsm_format.name(),
+                               ". Expected only true/false.");
+            }
         } else if (key == ov::enable_weightless.name()) {
             try {
                 enableWeightless = val.as<bool>();
@@ -614,6 +633,11 @@ void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
         model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
         this->fcDynamicQuantizationGroupSize =
             model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
+    }
+    if (!activationsScaleFactorSetExplicitly &&
+        model->has_rt_info({"runtime_options", ov::hint::activations_scale_factor.name()})) {
+        this->activationsScaleFactor =
+            model->get_rt_info<float>({"runtime_options", ov::hint::activations_scale_factor.name()});
     }
     if (!keyCachePrecisionSetExplicitly && model->has_rt_info({"runtime_options", ov::key_cache_precision.name()})) {
         this->keyCachePrecision =

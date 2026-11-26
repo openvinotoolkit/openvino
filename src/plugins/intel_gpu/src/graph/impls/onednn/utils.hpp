@@ -14,12 +14,13 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include <data_inst.h>
+#include <utility>
 
 namespace cldnn {
 namespace onednn {
 
 // common utils
-cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory);
+cldnn::memory::ptr convert_zp_data_to_s32(memory::ptr zp_memory);
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped = false);
 
 // cldnn -> onednn
@@ -32,6 +33,21 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
+
+// Rank of compressed weights, ignoring size-1 dims; at least 2.
+int64_t get_compressed_weights_rank(const layout& weights_layout);
+
+// Number of decompression groups along IFM of a scale/zero-point tensor. Derived from element counts
+// (count / (OC * batch)), so it doesn't depend on where an extra size-1 axis sits in the scale/zp shape.
+int64_t get_ngroups(const layout& weights_layout, const layout& compressed_layout, bool weights_transposed);
+
+// Returns {ngroups, group_size} of the weight-decompression scale along IFM.
+std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
+                                             const layout& scale_layout,
+                                             bool weights_transposed);
+
+// oneDNN grouped weight scales need group_size == 1, a single group, or group_size % 16 == 0.
+bool is_supported_scale_group(int64_t ngroups, int64_t group_size);
 
 dnnl::memory::desc layout_to_memory_desc(
     const cldnn::layout& l,
@@ -64,15 +80,11 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 cldnn::format find_data_format(dnnl::memory::desc desc);
 dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
 cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc, bool is_weights = false, bool is_grouped = false);
-int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc);
+int64_t get_offset(const cldnn::layout& l, const dnnl::memory::desc& desc);
 bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc);
 size_t get_post_ops_count(const program_node& node);
 bool is_supported_post_ops(const program_node& node);
 bool is_supported_pad(const layout& layout);
-
-// Check if data node is per-tensor
-template <typename T>
-bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val);
 
 int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
                                 const std::function<layout(int32_t)>& get_input_layout,

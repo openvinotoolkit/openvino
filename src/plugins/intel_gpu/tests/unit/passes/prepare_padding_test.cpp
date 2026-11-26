@@ -15,6 +15,7 @@
 #include "pass_manager.h"
 #include "program_wrapper.h"
 
+#include <algorithm>
 #include <memory>
 
 using namespace cldnn;
@@ -135,6 +136,42 @@ TEST(prepare_padding, onednn_int4_fc_aligns_existing_activation_padding) {
             EXPECT_EQ(fc.get_input_layout(0).data_padding._upper_size[1], upper_pad + 1);
         }
         EXPECT_EQ(fc.get_input_layout(1).data_padding._upper_size[1], 7);
+    }
+}
+
+// Impl selection must keep constant odd-K u4 weights on oneDNN (they are padded later by prepare_padding),
+// while sub-byte weights that nothing pads (u2) must be rejected by oneDNN's validate_impl().
+TEST(prepare_padding, onednn_compressed_fc_impl_selection_odd_k) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t n = 64;
+    const int64_t k = 335;
+    for (const auto wei_dt : {data_types::u4, data_types::u2}) {
+        SCOPED_TRACE(ov::element::Type(wei_dt).get_type_name());
+        auto weights_mem = engine.allocate_memory({{n, k}, wei_dt, format::bfyx});
+        auto scale_mem = engine.allocate_memory({{n, 1}, data_types::f16, format::bfyx});
+
+        topology topo;
+        topo.add(input_layout("input", layout{{8, k}, data_types::f16, format::bfyx}));
+        topo.add(data("weights", weights_mem));
+        topo.add(data("scale", scale_mem));
+        topo.add(fully_connected("fc", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2));
+
+        // New shape infer enforces plain formats, as in real plugin pipelines (the legacy path may pick yxfb for FC output).
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto prog = program::build_program(engine, topo, config, false, true);
+        auto& fc = prog->get_node("fc");
+        // Query the validated implementations directly: choose_impl() additionally depends on layout optimizer state.
+        const auto supported = fc.type()->get_supported_implementations(fc);
+        const bool has_onednn = std::any_of(supported.begin(), supported.end(), [](const std::shared_ptr<ImplementationManager>& impl) {
+            return impl->get_impl_type() == impl_types::onednn;
+        });
+
+        // u4 (constant, padded later by prepare_padding) must stay on oneDNN; u2 (never padded) must be rejected.
+        EXPECT_EQ(has_onednn, wei_dt == data_types::u4);
     }
 }
 
