@@ -235,11 +235,15 @@ both successful or failed. To find artifacts for a pipeline, follow these steps:
 
 6. Click on the artifact name to download it.
 
+BOM artifacts (`bom_<configuration>`) describe the installed files of each CPack
+component. Post-build [BOM tests](./bom_tests.md) compare them with reviewed GOLD
+manifests to detect unapproved changes to the public package layout.
 ### Initial GOLD BOM baseline
 
 Missing GOLD BOMs can be proposed by the manual
 [`Initialize GOLD BOM Baseline` workflow](../../../../.github/workflows/initialize_gold_boms.yml).
-It accepts successful build workflow run IDs, collects every `bom_*` artifact from those runs,
+It accepts completed workflow run IDs with successful `Build` jobs, collects every unexpired
+`bom_*` artifact from those runs,
 and creates a PR against the branch selected when starting the workflow, including `master` or
 `releases/*`. Manifests are stored under `boms/<configuration>/<component>.json`. The
 configuration directory comes from the artifact name (for example,
@@ -248,10 +252,15 @@ architectures, and build variants can each have their own baseline. The platform
 inside the artifact is only an artifact layout detail; it is not repeated in the GOLD path.
 
 Run it from **Actions → Initialize GOLD BOM Baseline → Run workflow**, selecting the target
-branch first. Enter a JSON array of successful build run IDs from the same repository,
+branch first. Enter a JSON array of completed workflow run IDs from the same repository,
 covering the configurations to initialize. Both PR runs and branch runs are accepted, 
 regardless of their source or target branch.
 The branch selected for initialization only determines where the GOLD BOM PR is created.
+The overall workflow may be red because BOM validation or other tests failed, including
+when a new configuration has no GOLD baseline yet. Its `Build` job must have completed
+successfully; missing, skipped, cancelled, or failed Build jobs are rejected. BOM artifacts
+are still validated before import. After a rerun, artifacts from earlier attempts of the
+same workflow run can be used.
 For example:
 
 ```json
@@ -263,9 +272,9 @@ are never overwritten. If all selected manifests already exist, the workflow fai
 creating a PR. For an existing configuration, developers must update changed BOMs manually in
 the PR that changes the packaged file list.
 
-When the regular BOM comparison is added, it should be configuration-specific. If the expected
-GOLD BOM is absent, there is no baseline to compare: the check should emit a warning with a link
-to this documentation and skip comparison for that BOM. This bootstrap workflow can then
+The regular BOM comparison is configuration-specific. If the expected
+GOLD BOM is absent, the check fails with an error and a link
+to this documentation. This bootstrap workflow can then
 initialize the missing BOM through a reviewed PR without changing existing baselines.
 
 ### Logs

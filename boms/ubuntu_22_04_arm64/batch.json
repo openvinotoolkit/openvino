@@ -1,0 +1,6 @@
+{
+  "component": "batch",
+  "files": [
+    "runtime/lib/aarch64/libopenvino_auto_batch_plugin.so"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "component": "multi",
+  "files": [
+    "runtime/bin/intel64/Debug/openvino_auto_plugind.dll"
+  ]
+}

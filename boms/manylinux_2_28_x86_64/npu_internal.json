@@ -1,0 +1,7 @@
+{
+  "component": "npu_internal",
+  "files": [
+    "tools/compile_tool/README.md",
+    "tools/compile_tool/compile_tool"
+  ]
+}

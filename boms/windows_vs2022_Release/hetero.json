@@ -1,0 +1,6 @@
+{
+  "component": "hetero",
+  "files": [
+    "runtime/bin/intel64/Release/openvino_hetero_plugin.dll"
+  ]
+}

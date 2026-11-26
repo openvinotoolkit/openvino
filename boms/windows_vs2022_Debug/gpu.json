@@ -1,0 +1,7 @@
+{
+  "component": "gpu",
+  "files": [
+    "runtime/bin/intel64/Debug/cache.json",
+    "runtime/bin/intel64/Debug/openvino_intel_gpu_plugind.dll"
+  ]
+}

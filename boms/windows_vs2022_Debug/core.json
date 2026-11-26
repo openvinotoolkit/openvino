@@ -1,0 +1,6 @@
+{
+  "component": "core",
+  "files": [
+    "runtime/bin/intel64/Debug/openvinod.dll"
+  ]
+}

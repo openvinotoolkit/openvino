@@ -5,7 +5,7 @@ on:
     inputs:
       build-run-ids:
         description: >-
-          JSON array of successful build workflow run IDs. All bom_* artifacts from every
+          JSON array of completed workflow run IDs with a successful Build job, even if tests failed. All bom_* artifacts from every
           run are collected, so include runs for all desired OS, architecture, and build
           configurations. Example: ["123456789", "123456790"]
         type: string
@@ -58,16 +58,26 @@ jobs:
               echo "::error::Workflow run ${run_id} must belong to repository ${GITHUB_REPOSITORY}."
               exit 1
             fi
-            if ! jq -e '.status == "completed" and .conclusion == "success"' <<< "$run_info" >/dev/null; then
-              echo "::error::Workflow run ${run_id} must be completed successfully."
+            if ! jq -e '.status == "completed"' <<< "$run_info" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must be completed. Its overall conclusion may be failure if Build succeeded."
+              exit 1
+            fi
+
+            build_jobs=$(gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?filter=latest&per_page=100")
+            if ! jq -e '
+              [.[] | .jobs[] | select(.name == "Build" or .name == "Build / Build")] |
+              length > 0 and all(.[]; .status == "completed" and .conclusion == "success")
+            ' <<< "$build_jobs" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must contain a successful Build job. Failed, cancelled, skipped, or missing Build jobs cannot initialize GOLD BOMs."
               exit 1
             fi
 
             artifact_names=$(gh api --paginate \
               "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
-              --jq '.artifacts[] | select(.name | startswith("bom_")) | .name')
+              --jq '.artifacts[] | select((.name | startswith("bom_")) and (.expired == false)) | .name')
             if [[ -z "$artifact_names" ]]; then
-              echo "::error::The provided workflow run ${run_id} does not contain the required BOM artifacts. Verify that you provided the workflow run ID (not a job ID) of a build workflow containing artifacts whose names start with 'bom_'. Check https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id} under Summary > Artifacts."
+              echo "::error::The provided workflow run ${run_id} does not contain the required unexpired BOM artifacts. Verify that you provided the workflow run ID (not a job ID) of a build workflow containing artifacts whose names start with 'bom_'. Check https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id} under Summary > Artifacts, including earlier attempts after a rerun."
               exit 1
             fi
 
@@ -164,7 +174,8 @@ jobs:
           title: "[CI] Initialize GOLD BOM baseline"
           body: |
             Initializes the GOLD BOM manifests from all BOM artifacts in the selected
-            successful build runs. Each artifact is stored under its configuration name.
+            runs with successful Build jobs, including runs where subsequent tests failed.
+            Each artifact is stored under its configuration name.
 
             Only BOM files that do not already exist on the target branch are included.
             Existing GOLD BOM files are never overwritten; changes to them must be made

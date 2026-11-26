@@ -1,0 +1,7 @@
+{
+  "component": "openvino_req_files",
+  "files": [
+    "python/openvino/preprocess/torchvision/requirements.txt",
+    "python/requirements.txt"
+  ]
+}

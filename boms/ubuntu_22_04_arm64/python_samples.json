@@ -1,0 +1,28 @@
+{
+  "component": "python_samples",
+  "files": [
+    "samples/python/benchmark/bert_benchmark/README.md",
+    "samples/python/benchmark/bert_benchmark/bert_benchmark.py",
+    "samples/python/benchmark/bert_benchmark/requirements.txt",
+    "samples/python/benchmark/sync_benchmark/README.md",
+    "samples/python/benchmark/sync_benchmark/sync_benchmark.py",
+    "samples/python/benchmark/throughput_benchmark/README.md",
+    "samples/python/benchmark/throughput_benchmark/throughput_benchmark.py",
+    "samples/python/classification_sample_async/README.md",
+    "samples/python/classification_sample_async/classification_sample_async.py",
+    "samples/python/classification_sample_async/requirements.txt",
+    "samples/python/hello_classification/README.md",
+    "samples/python/hello_classification/hello_classification.py",
+    "samples/python/hello_classification/requirements.txt",
+    "samples/python/hello_query_device/README.md",
+    "samples/python/hello_query_device/hello_query_device.py",
+    "samples/python/hello_reshape_ssd/README.md",
+    "samples/python/hello_reshape_ssd/hello_reshape_ssd.py",
+    "samples/python/hello_reshape_ssd/requirements.txt",
+    "samples/python/model_creation_sample/README.md",
+    "samples/python/model_creation_sample/data.py",
+    "samples/python/model_creation_sample/lenet.bin",
+    "samples/python/model_creation_sample/model_creation_sample.py",
+    "samples/python/setup.cfg"
+  ]
+}

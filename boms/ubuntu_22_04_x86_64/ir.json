@@ -1,0 +1,7 @@
+{
+  "component": "ir",
+  "files": [
+    "runtime/lib/intel64/libopenvino_ir_frontend.so.2026.5.0",
+    "runtime/lib/intel64/libopenvino_ir_frontend.so.2650"
+  ]
+}
