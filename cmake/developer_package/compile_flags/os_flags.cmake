@@ -162,12 +162,6 @@ elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     # Specifies both the source character set and the execution character set as UTF-8.
     ov_add_compiler_flags(/utf-8)
 
-    #
-    # Warnings as errors
-    #
-    if(CMAKE_COMPILE_WARNING_AS_ERROR)
-        ov_add_compiler_flags(/WX)
-    endif()
 else()
     #
     # Common enabled warnings
