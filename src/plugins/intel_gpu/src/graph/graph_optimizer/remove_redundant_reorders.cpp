@@ -48,16 +48,6 @@ bool rotates_weights(const program_node& reorder_node) {
     return weights_params != nullptr && weights_params->should_be_transposed();
 }
 
-bool does_any_user_have_type_condition(program_node& node) {
-    for (const auto& user : node.get_users()) {
-        if (user->is_type<condition>()) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 }  // namespace
 
 remove_redundant_reorders::remove_redundant_reorders(bool enable_reorder_fusing, bool update_implementations, bool remove_output_reorders)
@@ -364,8 +354,7 @@ void remove_redundant_reorders::run(program& p) {
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() && i_layout.spatial(0) == 1 &&
             i_layout.spatial(1) == 1 && i_layout.data_padding._upper_size[2] == 0 && i_layout.data_padding._lower_size[2] == 0 &&
             i_layout.data_padding._upper_size[3] == 0 && i_layout.data_padding._lower_size[3] == 0 && !o_layout.data_padding &&
-            i_layout.data_type == o_layout.data_type && !does_any_user_have_impl_type(r_node, impl_types::onednn) &&
-            !does_any_user_have_type_condition(r_node)) {
+            i_layout.data_type == o_layout.data_type && !does_any_user_have_impl_type(r_node, impl_types::onednn) && !r_node.have_user_with_type<condition>()) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 && !i_layout.data_padding && !o_layout.data_padding) || i_layout.batch() == 1) {
