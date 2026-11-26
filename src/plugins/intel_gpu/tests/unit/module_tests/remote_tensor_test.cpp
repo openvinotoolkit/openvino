@@ -11,7 +11,16 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 using namespace ::tests;
 
-TEST(remote_tensor_test, get_strides_byte_granular_type) {
+class RemoteTensorStridesTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+#ifdef OV_GPU_WITH_SYCL_RT
+        GTEST_SKIP() << "RemoteTensor is not supported with SYCL runtime yet";
+#endif
+    }
+};
+
+TEST_F(RemoteTensorStridesTest, get_strides_byte_granular_type) {
     auto& engine = get_test_engine();
     auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
 
@@ -20,7 +29,7 @@ TEST(remote_tensor_test, get_strides_byte_granular_type) {
     EXPECT_EQ(tensor->get_strides(), ov::Strides({12, 4}));
 }
 
-TEST(remote_tensor_test, get_strides_dense_sub_byte_type) {
+TEST_F(RemoteTensorStridesTest, get_strides_dense_sub_byte_type) {
     auto& engine = get_test_engine();
     auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
 
@@ -30,7 +39,7 @@ TEST(remote_tensor_test, get_strides_dense_sub_byte_type) {
     EXPECT_EQ(tensor->get_strides(), ov::Strides({50, 1}));
 }
 
-TEST(remote_tensor_test, get_strides_unaligned_sub_byte_shape_is_empty) {
+TEST_F(RemoteTensorStridesTest, get_strides_unaligned_sub_byte_shape_is_empty) {
     auto& engine = get_test_engine();
     auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
 
