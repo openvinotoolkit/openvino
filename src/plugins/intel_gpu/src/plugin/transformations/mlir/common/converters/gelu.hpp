@@ -4,8 +4,8 @@
 
 #pragma once
 
-#define _USE_MATH_DEFINES
-#include <cmath>
+#include <numbers>
+
 #include <openvino/op/gelu.hpp>
 
 #include "../convert_common.hpp"
@@ -46,13 +46,13 @@ struct ConvertGelu {
         ::mlir::Value activated;
         if (!is_tanh) {
             // ERF mode: erf(x * (1 / sqrt(2)))
-            auto inv_sqrt2 = const_tensor(M_SQRT1_2);
+            auto inv_sqrt2 = const_tensor(std::numbers::sqrt2 / 2);
             auto scaled = binary(input, inv_sqrt2, linalg::ElementwiseKind::mul)->getResult(0);
             activated = unary(scaled, linalg::ElementwiseKind::erf)->getResult(0);
         } else {
             // TANH mode: tanh(sqrt(2 / pi) * x * (1 + 0.044715 * x^2))
             auto coeff = const_tensor(0.044715);
-            auto sqrt_2_over_pi = const_tensor(std::sqrt(M_2_PI));
+            auto sqrt_2_over_pi = const_tensor(std::numbers::sqrt2 * std::numbers::inv_sqrtpi);
             auto x2 = binary(input, input, linalg::ElementwiseKind::mul)->getResult(0);
             auto c_x2 = binary(x2, coeff, linalg::ElementwiseKind::mul)->getResult(0);
             auto inner = binary(one, c_x2, linalg::ElementwiseKind::add)->getResult(0);

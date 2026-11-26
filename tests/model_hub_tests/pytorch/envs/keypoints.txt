@@ -1,0 +1,3 @@
+# Dependencies for test_keypoint_detectors.py.
+kornia==0.8.2
+dad-detector @ git+https://github.com/Parskatt/DaD.git@41b9e86a1a3ae52128485cc1094aa4952ef489ba
