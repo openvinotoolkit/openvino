@@ -128,6 +128,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             bool batch_compilation = kernel_string->batch_compilation;
             bool is_cm = kernel_string->language == kernel_language::CM;
 
+            if (!is_cm && options.find("-cl-uniform-work-group-size") == std::string::npos) {
+                options += " -cl-uniform-work-group-size";
+            }
+
             // Order matters for cm options
             if (batch_compilation && !is_cm) {
                 options = reorder_options(options);

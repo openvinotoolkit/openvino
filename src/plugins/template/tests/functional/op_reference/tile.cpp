@@ -110,6 +110,14 @@ std::vector<TileParams> generateParams() {
                    reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 0, 3}),
                    reference_tests::Tensor(ET, {2, 0, 9}, std::vector<T>{}),
                    "tile_1d_to_3d_with_zero_on_axis_1"),
+        TileParams(reference_tests::Tensor(ET, {0, 1}, std::vector<T>{}),
+                   reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 3}),
+                   reference_tests::Tensor(ET, {0, 3}, std::vector<T>{}),
+                   "tile_zero_input_dimension_ticket"),
+        TileParams(reference_tests::Tensor(ET, {2, 3, 0}, std::vector<T>{}),
+                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 3, 4}),
+                   reference_tests::Tensor(ET, {4, 9, 0}, std::vector<T>{}),
+                   "tile_zero_input_dimension_inner_axis"),
     };
     return params;
 }

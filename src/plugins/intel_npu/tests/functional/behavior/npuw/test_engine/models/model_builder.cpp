@@ -433,19 +433,22 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
 // isRegularCrossGroupConsumerCase to observe the per-bank inconsistency:
 //   - non-head: interior Relu bank → has_external=false (only internal Multiply consumer)
 //   - head:     interior Relu bank → has_external=true  (Multiply + external MatMul)
-// The mask mismatch causes isRegularCrossGroupConsumerCase to return false →
-// irregular_io=true, disabling F16IC for this model.
+// With shared_type=f32 (default), the mask mismatch causes isRegularCrossGroupConsumerCase
+// to return false → irregular_io=true, disabling F16IC for this model.
+// With a non-f32 shared_type, all repeated-block operations use shared_type. F16IC does not
+// convert non-f32 tensors, so the check ignores the asymmetric tap and irregular_io stays false.
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_kv_sharing_repeated_blocks(
     std::size_t repetitions,
-    const std::vector<std::size_t>& head_block_indices) {
+    const std::vector<std::size_t>& head_block_indices,
+    ov::element::Type shared_type) {
     clear();
     if (repetitions == 0)
         repetitions = 1;
 
     const std::unordered_set<std::size_t> head_set(head_block_indices.begin(), head_block_indices.end());
 
-    auto input = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
-    auto kv_weight = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{8, 4});
+    auto input = std::make_shared<ov::opset11::Parameter>(shared_type, ov::Shape{1, 1, 8});
+    auto kv_weight = std::make_shared<ov::opset11::Parameter>(shared_type, ov::Shape{8, 4});
     m_nodes.push_back(input);
     m_nodes.push_back(kv_weight);
     set_name(input);
@@ -453,15 +456,15 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_kv_sharing_repeated_bloc
 
     // Shared constants — same pointer → same Constant node used by all blocks,
     // ensuring identical metadescs for the Add and Multiply ops in every block.
-    auto bias_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 0.1f));
-    auto scale_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, std::vector<float>{0.5f});
+    auto bias_const = ov::opset11::Constant::create(shared_type, ov::Shape{1, 1, 8}, std::vector<float>(8, 0.1f));
+    auto scale_const = ov::opset11::Constant::create(shared_type, ov::Shape{1}, std::vector<float>{0.5f});
     m_nodes.push_back(bias_const);
     m_nodes.push_back(scale_const);
     set_name(bias_const);
     set_name(scale_const);
 
     // Non-repeated prefix — distinct structure prevents it from joining the repetitions.
-    auto head_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 1.f));
+    auto head_const = ov::opset11::Constant::create(shared_type, ov::Shape{1, 1, 8}, std::vector<float>(8, 1.f));
     auto head_add = std::make_shared<ov::opset11::Add>(input, head_const);
     auto head_relu = std::make_shared<ov::opset11::Relu>(head_add);
     m_nodes.push_back(head_const);
@@ -503,7 +506,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_kv_sharing_repeated_bloc
     }
 
     // Non-repeated tail suffix.
-    auto tail_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 2.f));
+    auto tail_const = ov::opset11::Constant::create(shared_type, ov::Shape{1, 1, 8}, std::vector<float>(8, 2.f));
     auto tail_mul = std::make_shared<ov::opset11::Multiply>(current, tail_const);
     auto tail_add = std::make_shared<ov::opset11::Add>(tail_mul, tail_const);
     m_nodes.push_back(tail_const);
