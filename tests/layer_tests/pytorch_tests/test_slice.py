@@ -174,13 +174,17 @@ class TestSliceListNegativeStep(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_slice_list_negative_step(self, ie_device, precision, ir_version, case):
-        self._test(*self.create_model(case), ie_device, precision, ir_version)
+        # torch.export evaluates the shape slice while tracing, so its graph has aten.ones but no slice.
+        self._test(*self.create_model(case), ie_device, precision, ir_version,
+                   fx_kind="aten.ones.default")
 
     # Both signs, so each arm of the runtime Select on the step sign is checked.
     @pytest.mark.parametrize("step", [-1, -2, 1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_slice_list_dynamic_step(self, ie_device, precision, ir_version, step):
+        if self.use_torch_export():
+            pytest.skip("torch.export cannot trace a list slice by a data-dependent step")
         if ie_device == "GPU" and step != 1:
             pytest.xfail(reason="GPU skips a runtime-strided slice as identity, see openvinotoolkit/openvino#38240")
         self._test(*self.create_model("dynamic_step"), ie_device, precision, ir_version,
