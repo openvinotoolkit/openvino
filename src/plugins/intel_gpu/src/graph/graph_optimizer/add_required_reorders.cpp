@@ -116,12 +116,12 @@ void reorder_condition_inputs(program& p, condition_node& node) {
         // Layout of the static branch parameters the input is mapped to: set_data() doesn't check dynamic ones, and the
         // predicate is not mapped.
         std::optional<layout> param_layout;
-        for (const auto& branch : {node.get_branch_true(), node.get_branch_false()}) {
-            const auto it = branch.input_map.find(input->id());
-            if (it == branch.input_map.end() || !branch.inner_program->has_node(it->second)) {
+        for (const auto* branch : {&node.get_branch_true(), &node.get_branch_false()}) {
+            const auto it = branch->input_map.find(input->id());
+            if (it == branch->input_map.end() || !branch->inner_program->has_node(it->second)) {
                 continue;
             }
-            const auto& branch_layout = branch.inner_program->get_node(it->second).get_output_layout();
+            const auto& branch_layout = branch->inner_program->get_node(it->second).get_output_layout();
             if (branch_layout.is_dynamic()) {
                 continue;
             }
