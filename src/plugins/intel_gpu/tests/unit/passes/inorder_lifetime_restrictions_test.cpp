@@ -132,22 +132,6 @@ TEST(inorder_lifetime, L18_gate_follows_the_axis) {
     }
 }
 
-// L18 (neutrality). S2 never changes a restriction: switch on == switch off, in-order, with the gate open.
-TEST(inorder_lifetime, L18_switch_on_does_not_change_restrictions_in_order) {
-    auto& eng = get_test_engine();
-    restriction_dump off, on;
-    {
-        auto prog = make_hand(eng, false, QueueTypes::in_order);
-        off = run_and_dump(*prog);
-    }
-    {
-        auto prog = make_hand(eng, true, QueueTypes::in_order);
-        on = run_and_dump(*prog);
-    }
-    ASSERT_FALSE(off.empty());
-    EXPECT_EQ(off, on);
-}
-
 // L19. Out-of-order (oneDNN disabled by a user property, queue asserted): the gate is closed and the restriction strings are bit-identical.
 TEST(inorder_lifetime, L19_out_of_order_gate_closed_and_restrictions_identical) {
     auto& eng = get_test_engine();

@@ -24,6 +24,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include <optional>
 #include "alias_analysis.h"
 #include "class_lifetime.h"
 #include "exec_axis.h"
@@ -843,24 +844,34 @@ void program::prepare_memory_dependencies() {
     // P2-a S2: moved in front of oooq (the analysis neither reads nor writes restrictions); still built exactly once per call and NOT guarded:
     // an exception keeps its HEAD semantics (compilation fails).
     _alias_analysis = std::make_unique<alias_analysis>(alias_analysis::build(*this));
-    // P2-a S2: gate computation only. The lifetime engine is not handed to oooq yet (S4); with the switch off this is one boolean test.
+    // P2-a (G+): gate. With the switch off this is one boolean test and oooq runs with a null filter (HEAD behaviour). With the gate open the
+    // eligible nodes' oooq entries are replaced by the interval based restrictions of inorder_lifetime_memory_dependencies (design 19 3.3).
+    std::optional<class_lifetimes> lifetimes;
+    std::unique_ptr<inorder_leaf_filter> leaf_filter;
     if (_config.get_enable_inorder_lifetime_restrictions()) {
         const auto axis = exec_axis::build(*this);
         const auto gate = evaluate_inorder_lifetime_gate(*this, axis);
         if (!gate.open) {
             GPU_DEBUG_LOG << "inorder_lifetime_restrictions ignored: " << gate.reason << std::endl;
         } else {
-            const auto lt = class_lifetimes::build(*this, *_alias_analysis, axis);
-            size_t eligible = 0;
-            for (const auto& k : _alias_analysis->classes()) {
-                eligible += lt.class_ineligible_mask(k) == 0 ? 1 : 0;
-            }
-            GPU_DEBUG_LOG << "inorder_lifetime_restrictions gate open: eligible classes " << eligible << "/" << _alias_analysis->classes().size()
-                          << " (restrictions not changed in S2)" << std::endl;
-            OPENVINO_ASSERT(eligible <= _alias_analysis->classes().size());
+            lifetimes.emplace(class_lifetimes::build(*this, *_alias_analysis, axis));
+            leaf_filter = make_inorder_leaf_filter(*lifetimes);
         }
     }
-    apply_opt_pass<oooq_memory_dependencies>(static_cast<const inorder_leaf_filter*>(nullptr));
+    apply_opt_pass<oooq_memory_dependencies>(static_cast<const inorder_leaf_filter*>(leaf_filter.get()));
+    if (lifetimes) {
+        size_t added_beyond_g = 0;
+        apply_opt_pass<inorder_lifetime_memory_dependencies>(*lifetimes, &added_beyond_g);
+        GPU_DEBUG_LOG << "inorder_lifetime_restrictions gate open: added_beyond_g " << added_beyond_g << std::endl;
+        GPU_DEBUG_LOG << "inorder_lifetime_restrictions census: " << lifetimes_census(*this, *_alias_analysis, *lifetimes) << std::endl;
+    }
+    GPU_DEBUG_LOG << "[prepare_memory_dependencies] restriction_entries " << [this]() {
+        size_t n = 0;
+        for (const auto* node : get_processing_order()) {
+            n += node->get_memory_dependencies().size();
+        }
+        return n;
+    }() << " inorder_lifetime=" << (lifetimes ? "on" : "off") << std::endl;
     if (oooq_gate_s0) {
         oooq_gate_shadow::finish(*this, std::move(oooq_gate_s0), _alias_analysis.get());
     }

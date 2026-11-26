@@ -73,6 +73,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/add_required_reorders.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/basic_memory_dependencies.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/class_level_memory_dependencies.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/inorder_lifetime_memory_dependencies.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/build_implementations.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/compile_graph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/concat_input_order.cpp

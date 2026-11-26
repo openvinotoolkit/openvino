@@ -21,9 +21,20 @@ namespace cldnn {
 namespace {
 
 const class_interval kUnknownInterval{};
+thread_local inorder_lifetime_mutations g_mutations;
 const std::vector<const program_node*> kNoNodes{};
 
 }  // namespace
+
+scoped_inorder_lifetime_mutations::scoped_inorder_lifetime_mutations(const inorder_lifetime_mutations& m) : m_saved(g_mutations) {
+    g_mutations = m;
+}
+scoped_inorder_lifetime_mutations::~scoped_inorder_lifetime_mutations() {
+    g_mutations = m_saved;
+}
+const inorder_lifetime_mutations& current_inorder_lifetime_mutations() {
+    return g_mutations;
+}
 
 inorder_lifetime_gate_result evaluate_inorder_lifetime_gate(const program& p, const exec_axis& axis) {
     inorder_lifetime_gate_result r;
@@ -66,6 +77,7 @@ class_lifetimes class_lifetimes::build(const program& p, const alias_analysis& a
     const auto& classes = aa.classes();
     lt.m_intervals.assign(classes.size(), class_interval{});
     lt.m_masks.assign(classes.size(), 0u);
+    lt.m_cpu_only.assign(classes.size(), 0);
     lt.m_allocators.assign(classes.size(), {});
 
     for (size_t ci = 0; ci < classes.size(); ++ci) {
@@ -130,6 +142,7 @@ class_lifetimes class_lifetimes::build(const program& p, const alias_analysis& a
         // ---- eligibility ----
         if (c.has_fallback()) {
             mask |= li_fallback;
+            lt.m_cpu_only[ci] = (c.fallback & ~static_cast<uint32_t>(fb_cpu_impl | fb_maybe_cpu)) == 0;
         }
         if (c.domain & dm_external_root) {
             mask |= li_external;
@@ -190,6 +203,40 @@ class_lifetimes class_lifetimes::build(const program& p, const alias_analysis& a
     return lt;
 }
 
+std::string lifetimes_census(const program& p, const alias_analysis& aa, const class_lifetimes& lt) {
+    static const std::pair<uint32_t, const char*> bits[] = {{li_no_position, "no_position"},
+                                                             {li_fallback, "fallback"},
+                                                             {li_external, "external"},
+                                                             {li_persistent, "persistent"},
+                                                             {li_cpu_reader, "cpu_reader"},
+                                                             {li_shape_of_reader, "shape_of_reader"},
+                                                             {li_ambiguous_uid, "ambiguous_uid"},
+                                                             {li_unknown_interval, "unknown_interval"},
+                                                             {li_unmodeled_alias, "unmodeled_alias"}};
+    size_t classes_ok = 0, nodes = 0, nodes_ok = 0;
+    std::vector<size_t> per_bit(sizeof(bits) / sizeof(bits[0]), 0);
+    for (const auto& k : aa.classes()) {
+        const auto m = lt.class_ineligible_mask(k);
+        classes_ok += m == 0 ? 1 : 0;
+        for (size_t i = 0; i < per_bit.size(); ++i) {
+            per_bit[i] += (m & bits[i].first) ? 1 : 0;
+        }
+    }
+    for (const auto* n : p.get_processing_order()) {
+        if (!n->may_use_mempool()) {
+            continue;
+        }
+        ++nodes;
+        nodes_ok += lt.eligible(*n) ? 1 : 0;
+    }
+    std::string s = "classes eligible " + std::to_string(classes_ok) + "/" + std::to_string(aa.classes().size()) + ", pool nodes eligible " + std::to_string(nodes_ok) + "/" +
+                    std::to_string(nodes) + ", classes by reason:";
+    for (size_t i = 0; i < per_bit.size(); ++i) {
+        s += std::string(" ") + bits[i].second + "=" + std::to_string(per_bit[i]);
+    }
+    return s;
+}
+
 const class_interval& class_lifetimes::interval_of(const alias_class& k) const {
     const size_t i = index_of(k);
     return i == std::numeric_limits<size_t>::max() ? kUnknownInterval : m_intervals[i];
@@ -246,7 +293,17 @@ class_interval class_lifetimes::member_interval(const program_node& n, uint16_t 
 
 uint32_t class_lifetimes::class_ineligible_mask(const alias_class& k) const {
     const size_t i = index_of(k);
-    return i == std::numeric_limits<size_t>::max() ? (li_no_class | li_unknown_interval) : m_masks[i];
+    if (i == std::numeric_limits<size_t>::max()) {
+        return li_no_class | li_unknown_interval;
+    }
+    uint32_t mask = m_masks[i];
+    if (g_mutations.no_unmodeled_alias) {
+        mask &= ~static_cast<uint32_t>(li_unmodeled_alias);
+    }
+    if (g_mutations.no_cpu_exclusion && m_cpu_only[i]) {
+        mask &= ~static_cast<uint32_t>(li_fallback | li_cpu_reader);
+    }
+    return mask;
 }
 
 uint32_t class_lifetimes::node_ineligible_mask(const program_node& n) const {

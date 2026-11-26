@@ -20,6 +20,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "alias_analysis.h"
@@ -60,6 +62,31 @@ struct inorder_lifetime_gate_result {
 };
 inorder_lifetime_gate_result evaluate_inorder_lifetime_gate(const program& p, const exec_axis& axis);
 
+// Test-only mutation hooks (L32): each switch disables ONE mechanism of G+ so that a test can prove the mechanism is load bearing. The hooks are
+// thread local and scoped by an RAII guard around the compilation of ONE program (no process-wide one-shot flag).
+struct inorder_lifetime_mutations {
+    bool no_infinity = false;              // user-output classes die at their last reader instead of at infinity
+    bool no_point_sweep = false;           // no (class x node point) restrictions
+    bool no_unmodeled_alias = false;       // li_unmodeled_alias does not make a class ineligible
+    bool no_cpu_exclusion = false;         // (maybe-)CPU classes are judged by interval like any other
+    bool no_same_class_retention = false;  // same-class pairs are filtered out of oooq too
+};
+class scoped_inorder_lifetime_mutations {
+public:
+    explicit scoped_inorder_lifetime_mutations(const inorder_lifetime_mutations& m);
+    ~scoped_inorder_lifetime_mutations();
+    scoped_inorder_lifetime_mutations(const scoped_inorder_lifetime_mutations&) = delete;
+    scoped_inorder_lifetime_mutations& operator=(const scoped_inorder_lifetime_mutations&) = delete;
+
+private:
+    inorder_lifetime_mutations m_saved;
+};
+const inorder_lifetime_mutations& current_inorder_lifetime_mutations();
+
+class class_lifetimes;
+// One line for GPU_DEBUG logs: eligible nodes / classes and the number of classes per li_* reason (a class counts once per reason).
+std::string lifetimes_census(const program& p, const alias_analysis& aa, const class_lifetimes& lt);
+
 class class_lifetimes {
 public:
     static class_lifetimes build(const program& p, const alias_analysis& aa, const exec_axis& axis);
@@ -73,6 +100,10 @@ public:
     // aliases it (used for members that allocate on their own, MAY envelope). death_inf if any of them is a user visible output.
     class_interval member_interval(const program_node& n, uint16_t port) const;
 
+    // position on the execution axis (the one the intervals are built on); nullopt for non-executable nodes or an invalid axis
+    std::optional<uint32_t> position(const program_node& n) const {
+        return m_axis.position(n);
+    }
     uint32_t class_ineligible_mask(const alias_class& k) const;
     // OR over every output port class plus node level bits (no class, no position, ambiguous uid).
     uint32_t node_ineligible_mask(const program_node& n) const;
@@ -91,6 +122,7 @@ private:
     exec_axis m_axis;
     std::vector<class_interval> m_intervals;
     std::vector<uint32_t> m_masks;
+    std::vector<char> m_cpu_only;   // the only fallback reasons of the class are (maybe-)CPU ones; used by the L32 hook only
     std::vector<std::vector<const program_node*>> m_allocators;
 };
 

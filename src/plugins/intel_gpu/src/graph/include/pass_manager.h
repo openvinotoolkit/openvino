@@ -356,6 +356,10 @@ public:
         if (node->has_memory_dependency(static_cast<uint32_t>(dep->get_unique_id()))) {
             return;
         }
+        // P2-a (C2): an insertion that the leaf filter skipped leaves no edge, so the early return above cannot protect against repeated recursion
+        if (m_leaf_filter != nullptr && m_skipped_edges.count({node, dep}) != 0) {
+            return;
+        }
 
         // Concat can be optimized out by in-place concat, so in this case, the output buffer
         // of this concat node must not overlap with its dependencies' input buffers.
@@ -374,8 +378,8 @@ public:
         // LoRA can reuse the memory of the previous node, but not be optimized
         // Therefore, the dependency of LoRA must also be the dependency of the current node
         if (dep->is_type<lora>()) {
-            node->add_memory_dependency(dep->get_dependency(0));
-            dep->get_dependency(0).add_memory_dependency(*node);
+            insert_edge(node, &dep->get_dependency(0));
+            insert_edge(&dep->get_dependency(0), node);
         }
 
         // oneDNN in-place post-op (sum or binary_mul_inplace): dep's output aliases the buffer of its eltwise input
@@ -386,10 +390,10 @@ public:
 
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) &&
             ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized())) {
-            node->add_memory_dependency(*dep);
+            insert_edge(node, dep);
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
-                node->add_memory_dependency(*dep);
+                insert_edge(node, dep);
             }
 
             for (const auto& subdep : dep->get_dependencies()) {
@@ -400,8 +404,20 @@ public:
     }
 
 protected:
-    // P2-a: only oooq_memory_dependencies sets it; basic / skipped_branch keep nullptr. Not consulted yet (S4).
+    // P2-a: only oooq_memory_dependencies sets it; basic / skipped_branch keep nullptr (then insert_edge is exactly node->add_memory_dependency).
     const inorder_leaf_filter* m_leaf_filter = nullptr;
+    // (node, dep) pairs whose actual insertion was skipped by the filter in this pass
+    std::set<std::pair<const program_node*, const program_node*>> m_skipped_edges;
+
+    // The four real insertion points of add_memory_dependency go through here (C2): lora x2 and the two of the final branch. Only the
+    // insertion is replaced, the recursion around it is untouched.
+    void insert_edge(program_node* node, program_node* dep) {
+        if (m_leaf_filter != nullptr && m_leaf_filter->skip_insert(*node, *dep)) {
+            m_skipped_edges.insert({node, dep});
+            return;
+        }
+        node->add_memory_dependency(*dep);
+    }
 };
 
 class basic_memory_dependencies : public memory_dependency_pass {
@@ -423,6 +439,25 @@ public:
     }
     void run(program& p) override;
 };
+
+class class_lifetimes;
+
+// P2-a (G+) S4: materializes the interval overlap of eligible alias classes as restrictions (class x class and class x node point, both
+// directions, directly on the nodes). Only meaningful together with the leaf filter of the oooq pass built from the same class_lifetimes.
+class inorder_lifetime_memory_dependencies : public base_pass {
+public:
+    explicit inorder_lifetime_memory_dependencies(const class_lifetimes& lt, size_t* added_beyond_g = nullptr)
+        : base_pass("inorder_lifetime_memory_dependencies"), m_lt(lt), m_added(added_beyond_g) {}
+    void run(program& p) override;
+
+private:
+    const class_lifetimes& m_lt;
+    size_t* m_added;
+};
+
+// The leaf filter: skip the oooq insertion (x, y) iff both nodes are eligible and no output class of x equals one of y (C1: same-class pairs
+// keep oooq). Lifetime of the returned object: until the oooq pass has run.
+std::unique_ptr<inorder_leaf_filter> make_inorder_leaf_filter(const class_lifetimes& lt);
 
 class update_inner_program_io_map : public base_pass {
 public:
