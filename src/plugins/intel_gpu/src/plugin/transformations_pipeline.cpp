@@ -1288,11 +1288,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
         // After CommonOptimizations: ShapeOf consumers of static branches are folded and do not block batching
         manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-        // A [B, KV heads, head size, S] V cache goes to SDPA as value order {0,1,3,2} where the transposed-V readers run (the
-        // sdpa_ocl lane, the DPAS kernel on, f16); elsewhere the attention gets it through a Transpose.
-        const bool fuse_transposed_v =
-            cldnn::paged_attention::sdpa_ocl_selected(device_info) && config.get_enable_sdpa_micro() && infer_precision == ov::element::f16;
-        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, fuse_transposed_v);
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".

@@ -4495,6 +4495,43 @@ gone: the pipeline and `GroupQueryAttentionDecomposition` pass `fuse_transposed_
 - Not checked: ARL-H and other xe_hpg parts, Xe3, real models, cost at other heads, the cause of the PREFILL kernel's
   slowdown (no ISA read on DG2; offline the transposed path has 2.2-4.4x the plain one's instructions, as i8's).
 
+### The GQA transposed-V gate moved to a master PR (2026-11-26)
+
+The branch's `fuse_transposed_v` code fixes problems that master has as well. It now goes to master as a separate PR
+(fork branch `agents/gqa-transposed-v-reader-gate`, `263ddb3415`) and has been taken off the branch:
+
+- The `GroupQueryAttentionDecomposition` argument and member, the explicit `Transpose{0,1,3,2}` of the cache in front
+  of SDPA (without the flag or above head 512), and the pipeline's flag.
+- The `GQADecompositionTest` additions and `smoke_GQATransposedVCache`.
+
+Three things stay on the branch:
+
+- `!SDPABase::has_transposed_v()` in `single_token_supports_query_rows()` (`sdpa_opt.cpp`, from 58c3c9daa4). The PR has
+  the same line for sdpa_micro. Here it sends 2-4 query rows of a transposed V to `sdpa_ocl`'s multi-token stage;
+  without it, `execute()` asserts on the default path ("needs the sdpa_ocl single-token stage").
+- `SDPABase::has_transposed_v()` itself: the readers' host gates use it.
+- The `prepare_compressed_kv()` limits.
+
+- Master `cf02398464`, B70: an ONNX `com.microsoft.GroupQueryAttention` model (8 / 2 heads, heads 64 / 128) against a
+  numpy f32 reference (kit `test/gqa_tv_master_cf/`). The transposed-V model's output cosine on master was:
+  - `OV_GPU_ENABLE_SDPA_MICRO=0`: -0.003-0.08 on every step
+  - an f32-I/O model at f32 inference precision: 0.01-0.09
+  - a build without oneDNN: 0.00-0.08
+  - head 576: 0.03-0.07
+  - the default config's 2-4 row steps (the opt single-token stage since #38996): 0.03-0.08
+
+  The plain V gave 1.000000 in every case. An f16-I/O model at f32 inference has Converts at the GQA outputs and takes
+  the common decomposition, so the gate is not involved there.
+- The PR's gate is master's reader: XMX, xe_hpg or newer, sdpa_micro on and supported, f16. Also on master, sdpa_micro
+  cannot build its VS microkernel for an f16 transposed V at heads 144-512 and falls back to sdpa_opt (wrong output).
+  The PR lists this as a known issue; the branch does not have it, because sdpa_ocl reads heads up to 512.
+- Until the PR is merged and the branch rebased, every fused cache reaches SDPA as value order `{0,1,3,2}` ("Known
+  issues").
+- After the rebase:
+  - Take master's decomposition and unit test.
+  - Put the pipeline's condition back as `sdpa_ocl_selected() && enable_sdpa_micro && f16`: sdpa_micro is gone here.
+  - Add back the func test rows that the PR left out: heads 100 / 512, and softcap / qk_output / i8 at head 576.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -4503,6 +4540,13 @@ result is quoted.
 
 ### Correctness
 
+- Until the master PR of "The GQA transposed-V gate moved to a master PR (2026-11-26)" is merged and the branch rebased,
+  the GQA decomposition hands every fused `[B, KV heads, head size, S]` V cache to SDPA as value order `{0,1,3,2}`.
+  - Where `sdpa_ocl` does not serve the op (`OV_GPU_ENABLE_SDPA_MICRO=0`, f32 inference, a head above 512 or a
+    dynamic one), `SDPAOpt::validate_impl()` gives it to `sdpa_ref`. `sdpa_ref` GPU-faulted at head 576 on 2026-11-24;
+    heads up to 512 were not measured. Master gives wrong output in the same cases.
+  - The default path (f16, `sdpa_ocl`, a static head up to 512) is unchanged.
+  - From code reading and the master measurements; the branch build after the removal was not run.
 - A `-inf` block-diagonal or left-padding mask with large logits on head 128 was recorded here as a wrong output of `sdpa_ocl` and
   master's `sdpa_micro` (measured 2026-11-14, B70, native 4D `[1, 2, 256, 128]` f16, Q/K/V random integers 0..9, logits about 300, a
   block-diagonal mask of 4 segments): the two agreed within 0.008 and were 3.00 off the TEMPLATE reference, where `sdpa_opt` was 0.016

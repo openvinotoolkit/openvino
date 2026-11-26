@@ -12,11 +12,7 @@ namespace ov::intel_gpu {
 class GroupQueryAttentionDecomposition : public ov::pass::GroupQueryAttentionDecomposition {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::GroupQueryAttentionDecomposition");
-    // fuse_transposed_v: hand a [B, KV heads, head size, S] V cache to SDPA as value order {0,1,3,2} instead of through a
-    // Transpose. Needs a transposed-V reader (transformations_pipeline.cpp sets it where they run: Xe2+ and xe_hpg).
-    GroupQueryAttentionDecomposition(bool sdpa_support_immad, bool fuse_transposed_v = false)
-        : m_sdpa_support_immad(sdpa_support_immad),
-          m_fuse_transposed_v(fuse_transposed_v) {}
+    GroupQueryAttentionDecomposition(bool sdpa_support_immad) : m_sdpa_support_immad(sdpa_support_immad) {}
 
 protected:
     struct StatelessKVMetadata;
@@ -64,7 +60,6 @@ protected:
                                StatelessKVMetadata& metadata);
                                
     bool m_sdpa_support_immad;
-    bool m_fuse_transposed_v;
 };
 
 }  // namespace ov::intel_gpu
