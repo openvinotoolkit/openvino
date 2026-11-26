@@ -5,18 +5,24 @@
 #include "dnnl_gathermatmul_executor.hpp"
 
 #include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_threadpool.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <algorithm>
+#include <atomic>
 #include <common/primitive_hashing.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
+#include <oneapi/dnnl/dnnl_threadpool_iface.hpp>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -40,6 +46,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "thread_pool_imp.hpp"
@@ -57,6 +64,9 @@ struct InnerProductKey {
     VectorDims zp_shape;
     dnnl::memory::data_type zp_dt = dnnl::memory::data_type::f32;
     size_t src_dyn_quant_group_size = 0;
+    // One-core mode: the primitive is built for a single thread and takes its scratchpad from the caller, so
+    // several copies can run at the same time on different threads.
+    bool single_thread = false;
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
@@ -70,13 +80,14 @@ struct InnerProductKey {
         seed = get_vector_hash(seed, zp_shape);
         seed = hash_combine(seed, static_cast<size_t>(zp_dt));
         seed = hash_combine(seed, src_dyn_quant_group_size);
+        seed = hash_combine(seed, single_thread);
         return seed;
     }
 
     bool operator==(const InnerProductKey& rhs) const {
         return src_md == rhs.src_md && weights_md == rhs.weights_md && bias_md == rhs.bias_md &&
                scale_shape == rhs.scale_shape && zp_shape == rhs.zp_shape && zp_dt == rhs.zp_dt &&
-               src_dyn_quant_group_size == rhs.src_dyn_quant_group_size;
+               src_dyn_quant_group_size == rhs.src_dyn_quant_group_size && single_thread == rhs.single_thread;
     }
 };
 
@@ -125,6 +136,31 @@ static std::pair<size_t, dnnl::memory::data_type> dynQuantParams(uint64_t dq_gro
     return {static_cast<size_t>(dq_group_size), zp_dt};
 }
 
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+namespace {
+// oneDNN thread pool that runs all work on the calling thread. A one-core inner product executes on a stream
+// over this pool, so it never starts a parallel region of its own.
+class OneThreadPool : public dnnl::threadpool_interop::threadpool_iface {
+public:
+    [[nodiscard]] int get_num_threads() const override {
+        return 1;
+    }
+    [[nodiscard]] bool get_in_parallel() const override {
+        return true;
+    }
+    [[nodiscard]] uint64_t get_flags() const override {
+        return 0;
+    }
+    void parallel_for(int n, const std::function<void(int, int)>& fn) override {
+        for (int i = 0; i < n; i++) {
+            fn(i, n);
+        }
+    }
+    void wait() override {}
+};
+}  // namespace
+#endif
+
 // ---- InnerProduct (oneDNN inner_product wrapper) ----------------------------
 
 class GatherMatmulDnnlExecutor::InnerProduct {
@@ -136,7 +172,8 @@ public:
     InnerProduct& operator=(InnerProduct&&) = delete;
 
     InnerProduct(const dnnl::engine& eng, const std::shared_ptr<ThreadPool>& threadPool, const InnerProductKey& key)
-        : m_stream(make_stream(eng, threadPool)) {
+        : m_eng(eng),
+          m_stream(make_stream(eng, threadPool)) {
         const auto& src_md = key.src_md;
         const auto& weights_md = key.weights_md;
         auto scale_shape = key.scale_shape;
@@ -173,14 +210,42 @@ public:
             dnnl::memory::desc(dnnl::memory::dims({M, N}), src_md.get_data_type(), dnnl::memory::format_tag::ab);
 
         const auto& bias_md = key.bias_md;
+        m_bias_md = bias_md;
 
-        auto ip_prim_desc = dnnl::inner_product_forward::primitive_desc(eng,
-                                                                        dnnl::prop_kind::forward_inference,
-                                                                        m_input_md,
-                                                                        weights_md,
-                                                                        bias_md,
-                                                                        m_output_md,
-                                                                        m_attr);
+        if (key.single_thread) {
+            m_attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+        }
+        auto create_prim_desc = [&]() {
+            return dnnl::inner_product_forward::primitive_desc(eng,
+                                                               dnnl::prop_kind::forward_inference,
+                                                               m_input_md,
+                                                               weights_md,
+                                                               bias_md,
+                                                               m_output_md,
+                                                               m_attr);
+        };
+        dnnl::inner_product_forward::primitive_desc ip_prim_desc;
+        if (key.single_thread) {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+            // oneDNN picks the kernel and its work split for the concurrency of the creating thread (a thread-local
+            // value), so the primitive is created with a concurrency of one and the previous value is restored.
+            int prev_concurrency = 0;
+            dnnl_threadpool_interop_get_max_concurrency(&prev_concurrency);
+            dnnl_threadpool_interop_set_max_concurrency(1);
+            try {
+                ip_prim_desc = create_prim_desc();
+            } catch (...) {
+                dnnl_threadpool_interop_set_max_concurrency(prev_concurrency);
+                throw;
+            }
+            dnnl_threadpool_interop_set_max_concurrency(prev_concurrency);
+            m_scratch_md = ip_prim_desc.scratchpad_desc();
+#else
+            OPENVINO_THROW("GatherMatmul: the one-core inner product needs the oneDNN threadpool runtime");
+#endif
+        } else {
+            ip_prim_desc = create_prim_desc();
+        }
 
         m_impl_type = parse_impl_name(ip_prim_desc.impl_info_str());
         m_wei_md = ip_prim_desc.weights_desc();
@@ -218,6 +283,44 @@ public:
             m_args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS].set_data_handle(zp);
         }
         m_prim.execute(m_stream, m_args);
+    }
+
+    // Size of the scratchpad that exec_single_thread() needs. Zero for a full-machine inner product.
+    [[nodiscard]] size_t scratchpad_size() const {
+        return m_scratch_md.get_size();
+    }
+
+    // Runs a one-core inner product (key.single_thread) on the calling thread. Several threads may call it on the
+    // same object at the same time: every call builds its own arguments, and each thread uses its own stream and
+    // its own scratchpad of scratchpad_size() bytes.
+    void exec_single_thread(void* src, void* dst, void* weight, void* bias, void* scale, void* zp, void* scratch)
+        const {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        thread_local OneThreadPool one_thread_pool;
+        thread_local dnnl::stream one_thread_stream;
+        if (!one_thread_stream || one_thread_stream.get_engine() != m_eng) {
+            one_thread_stream = dnnl::threadpool_interop::make_stream(m_eng, &one_thread_pool);
+        }
+        std::unordered_map<int, dnnl::memory> args;
+        args.emplace(DNNL_ARG_SRC, dnnl::memory(m_input_md, m_eng, src));
+        args.emplace(DNNL_ARG_DST, dnnl::memory(m_output_md, m_eng, dst));
+        args.emplace(DNNL_ARG_WEIGHTS, dnnl::memory(m_wei_md, m_eng, weight));
+        if (bias && !m_bias_md.is_zero()) {
+            args.emplace(DNNL_ARG_BIAS, dnnl::memory(m_bias_md, m_eng, bias));
+        }
+        if (scale && !m_scale_md.is_zero()) {
+            args.emplace(DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, dnnl::memory(m_scale_md, m_eng, scale));
+        }
+        if (zp && !m_zp_md.is_zero()) {
+            args.emplace(DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, dnnl::memory(m_zp_md, m_eng, zp));
+        }
+        if (!m_scratch_md.is_zero()) {
+            args.emplace(DNNL_ARG_SCRATCHPAD, dnnl::memory(m_scratch_md, m_eng, scratch));
+        }
+        m_prim.execute(one_thread_stream, args);
+#else
+        OPENVINO_THROW("GatherMatmul: the one-core inner product needs the oneDNN threadpool runtime");
+#endif
     }
 
     [[nodiscard]] dnnl::memory::desc get_weights_md() const {
@@ -269,13 +372,16 @@ private:
         return args;
     }
 
+    dnnl::engine m_eng;
     dnnl::stream m_stream;
     dnnl::primitive m_prim;
     dnnl::memory::desc m_input_md;
     dnnl::memory::desc m_output_md;
     dnnl::memory::desc m_wei_md;
+    dnnl::memory::desc m_bias_md;
     dnnl::memory::desc m_scale_md;
     dnnl::memory::desc m_zp_md;
+    dnnl::memory::desc m_scratch_md;
     dnnl::primitive_attr m_attr;
     std::unordered_map<int, dnnl::memory> m_args;
     impl_desc_type m_impl_type = impl_desc_type::unknown;
@@ -295,6 +401,17 @@ Dim normalizeM(Dim M) {
     }
     return M;
 }
+
+// ---- Expert-parallel path (bf16 AMX) ----------------------------------------
+
+// The expert-parallel path cuts the rows routed to each gather index into tasks of at most this many rows, and
+// every thread runs whole tasks with a one-core GEMM. Small tasks keep the threads busy when the row counts per
+// gather index differ a lot.
+constexpr size_t kExpertRowsPerTask = 64;
+// normalizeM() rounds a task of at most kExpertRowsPerTask rows up to a multiple of 16, so the tasks need one
+// one-core GEMM per height 16, 32, 48 and 64.
+constexpr size_t kTaskHeightStep = 16;
+constexpr size_t kTaskHeights = kExpertRowsPerTask / kTaskHeightStep;
 
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
@@ -501,7 +618,12 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
 
     const size_t srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
-    const size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
+    size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
+    m_expertParallelOk = m_bf16AmxMode && initExpertParallel(srcShape[2], dstShape[2], srcPrc);
+    if (m_expertParallelOk) {
+        // Only one of the two paths runs in an execute() call, so they share one scratchpad region.
+        totalSize = std::max(totalSize, m_epSlots * m_epSlotBytes);
+    }
     auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
     m_tmpInpBuffer = m_context->getScratchPad()->createScratchPadMem(scratchPadDesc);
 
@@ -511,12 +633,59 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     return true;
 }
 
-GatherMatmulDnnlExecutor::InnerProductPtr GatherMatmulDnnlExecutor::createGemm(size_t rows) const {
+bool GatherMatmulDnnlExecutor::initExpertParallel(size_t K, size_t N, const ov::element::Type& precision) {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+    if (!m_epGemmsTried) {
+        m_epGemmsTried = true;
+        std::vector<InnerProductPtr> gemms;
+        try {
+            for (size_t i = 1; i <= kTaskHeights; i++) {
+                auto gemm = createGemm(i * kTaskHeightStep, true);
+                // The weights are packed once, for the layout the GEMV selected. A one-core GEMM that wants
+                // another layout cannot use them, so the node keeps the per-gather-index loop.
+                if (gemm->get_weights_md() != m_gemmKey->weights_md) {
+                    return false;
+                }
+                gemms.push_back(std::move(gemm));
+            }
+        } catch (const dnnl::error&) {
+            // No one-core implementation for this problem: keep the per-gather-index loop.
+            return false;
+        }
+        m_epGemms = std::move(gemms);
+    }
+    if (m_epGemms.empty()) {
+        return false;
+    }
+
+    size_t max_scratchpad = 0;
+    for (const auto& gemm : m_epGemms) {
+        max_scratchpad = std::max(max_scratchpad, gemm->scratchpad_size());
+    }
+    // One region per slot: the gathered input rows, the output rows, and the GEMM's scratchpad. The size does not
+    // depend on the input length, because a task never has more than kExpertRowsPerTask rows.
+    m_epInBytes = rnd_up(kExpertRowsPerTask * K * precision.size(), 64);
+    m_epOutBytes = rnd_up(kExpertRowsPerTask * N * precision.size(), 64);
+    m_epSlotBytes = m_epInBytes + m_epOutBytes + rnd_up(max_scratchpad, 64);
+    // execute() runs exactly this many slots, so a slot index always names a valid region, whatever number of
+    // threads the parallel region gets.
+    m_epSlots = static_cast<size_t>(parallel_get_max_threads());
+    return m_epSlots > 0;
+#else
+    (void)K;
+    (void)N;
+    (void)precision;
+    return false;
+#endif
+}
+
+GatherMatmulDnnlExecutor::InnerProductPtr GatherMatmulDnnlExecutor::createGemm(size_t rows, bool single_thread) const {
     OPENVINO_ASSERT(m_gemmKey, "GEMM key is not initialized");
     InnerProductKey key = *m_gemmKey;
     key.src_md = dnnl::memory::desc({static_cast<dnnl::memory::dim>(rows), key.src_md.get_dims()[1]},
                                     key.src_md.get_data_type(),
                                     dnnl::memory::format_tag::ab);
+    key.single_thread = single_thread;
     const auto& eng = m_context->getEngine();
     const auto threadPool = m_context->getThreadPool();
     InnerProductPtr gemm;
@@ -564,6 +733,14 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 gather_idx_map[gather_axis_index * M + index] = {m, i};
                 index++;
             }
+        }
+
+        // No row threshold: on a 128-expert top-8 int4 MoE the expert-parallel path gave a shorter time to first
+        // token at every input length from 2 to 128 rows, on 32 and on 96 cores (1.5 times at 2 rows). A single
+        // row (M == 1) runs the GEMV below.
+        if (m_expertParallelOk) {
+            executeExpertParallel(memory, gather_idx_map, elements_per_gather_indx, M);
+            return;
         }
 
         OPENVINO_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
@@ -670,6 +847,78 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             m_gemvImpl->exec(src, dst, wei, bias, scale, zp);
         }
     }
+}
+
+void GatherMatmulDnnlExecutor::executeExpertParallel(const MemoryArgs& memory,
+                                                     const std::vector<std::pair<int32_t, int32_t>>& gather_idx_map,
+                                                     const std::vector<int32_t>& rows_per_gather_index,
+                                                     size_t M) {
+    const auto& srcMem = memory.at(ARG_SRC);
+    const auto& dstMem = memory.at(ARG_DST);
+    const auto src_offset = OffsetHelper::createOffsetHelper(srcMem);
+    const auto dst_offset = OffsetHelper::createOffsetHelper(dstMem);
+    const auto wei_offset = OffsetHelper::createOffsetHelper(m_weightsMemory);
+    const auto bias_offset = OffsetHelper::createOffsetHelper(memory.at(ARG_BIAS));
+    const auto scale_offset = OffsetHelper::createOffsetHelper(m_scalesMemory);
+    const auto zp_offset = OffsetHelper::createOffsetHelper(m_zpMemory);
+
+    const size_t element_size = srcMem->getDesc().getPrecision().size();
+    const size_t K_size = srcMem->getStaticDims().back();
+    const size_t N_size = dstMem->getStaticDims().back();
+
+    // A task is up to kExpertRowsPerTask consecutive rows routed to one gather index.
+    struct Task {
+        size_t gather_index;
+        size_t start;
+        size_t rows;
+    };
+    std::vector<Task> tasks;
+    for (size_t gather_index = 0; gather_index < rows_per_gather_index.size(); gather_index++) {
+        const auto rows = static_cast<size_t>(rows_per_gather_index[gather_index]);
+        for (size_t start = 0; start < rows; start += kExpertRowsPerTask) {
+            tasks.push_back({gather_index, start, std::min(kExpertRowsPerTask, rows - start)});
+        }
+    }
+    // Largest tasks first, so the tasks that start last are short and the threads finish close together.
+    std::stable_sort(tasks.begin(), tasks.end(), [](const Task& a, const Task& b) {
+        return a.rows > b.rows;
+    });
+
+    OPENVINO_ASSERT(m_tmpInpBuffer && m_tmpInpBuffer->getSize() >= m_epSlots * m_epSlotBytes,
+                    "GatherMatmul: the expert-parallel work areas are not allocated");
+    auto* const regions = m_tmpInpBuffer->getDataAs<uint8_t>();
+
+    std::atomic<size_t> next_task{0};
+    m_context->getCpuParallel()->parallel_for(m_epSlots, [&](size_t slot) {
+        uint8_t* const input = regions + slot * m_epSlotBytes;
+        uint8_t* const output = input + m_epInBytes;
+        uint8_t* const scratchpad = output + m_epOutBytes;
+        for (size_t t = next_task.fetch_add(1); t < tasks.size(); t = next_task.fetch_add(1)) {
+            const auto& task = tasks[t];
+            const size_t height = normalizeM(task.rows);
+            const auto& gemm = m_epGemms[height / kTaskHeightStep - 1];
+            for (size_t m = 0; m < height; m++) {
+                auto* dst_row = input + m * K_size * element_size;
+                if (m < task.rows) {
+                    const auto& [row_id, batch_index] = gather_idx_map[task.gather_index * M + task.start + m];
+                    std::memcpy(dst_row, src_offset(batch_index, row_id), K_size * element_size);
+                } else {
+                    std::memset(dst_row, 0, K_size * element_size);
+                }
+            }
+            gemm->exec_single_thread(input,
+                                     output,
+                                     wei_offset(task.gather_index),
+                                     bias_offset(task.gather_index),
+                                     scale_offset(task.gather_index),
+                                     zp_offset(task.gather_index),
+                                     scratchpad);
+            for (size_t m = 0; m < task.rows; m++) {
+                const auto& [row_id, batch_index] = gather_idx_map[task.gather_index * M + task.start + m];
+                std::memcpy(dst_offset(batch_index, row_id), output + m * N_size * element_size, N_size * element_size);
+            }
+        }
+    });
 }
 
 impl_desc_type GatherMatmulDnnlExecutor::implType() const {

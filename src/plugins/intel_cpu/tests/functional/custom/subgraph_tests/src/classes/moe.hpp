@@ -76,4 +76,22 @@ class MoECompressedWeightsU3SymmetricZpSubgraphTest : public MoECompressedWeight
 protected:
     void SetUp() override;
 };
+
+// The fixtures above with inputs that have a different scale and pattern in every row. A row that receives
+// the result of another row then misses the reference by far more than the bf16 tolerance. With the
+// small-range inputs every row has about the same mean, so such a mix-up can stay inside the tolerance.
+class MoESubgraphRowPatternTest : public MoESubgraphTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
+class MoECompressedWeightsRowPatternTest : public MoECompressedWeightsSubgraphTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
+
+// Several infer requests of one compiled model running at the same time. The fixtures are the two above. The
+// tests run with more than one stream, so the requests execute on different graphs concurrently, each graph
+// with its own GatherMatmul executors, over the same weights.
+class MoEParallelRequestsTest : public MoESubgraphSmallInputsTest {};
+class MoECompressedWeightsParallelRequestsTest : public MoECompressedWeightsSubgraphTest {};
 } // namespace ov::test
