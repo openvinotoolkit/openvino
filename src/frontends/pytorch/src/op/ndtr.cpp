@@ -36,9 +36,10 @@ OutputVector translate_ndtr(const NodeContext& context) {
 
     auto const_half = context.mark_node(v0::Constant::create(element::f64, Shape{}, {0.5}));
     auto half = context.mark_node(std::make_shared<v1::ConvertLike>(const_half, x));
-    auto res = context.mark_node(std::make_shared<v1::Multiply>(add_one, half));
+    Output<Node> res = context.mark_node(std::make_shared<v1::Multiply>(add_one, half));
 
     if (!context.input_is_none(1)) {
+        res = context.mark_node(std::make_shared<v1::ConvertLike>(res, context.get_input(1)));
         context.mutate_input(1, res);
     }
     return {res};
