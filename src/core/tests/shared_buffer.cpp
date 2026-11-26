@@ -757,7 +757,7 @@ TEST_F(SharedBufferTest, sequential_prefetch_scheduler_rejects_non_byte_tensor) 
     EXPECT_THROW(ov::util::SequentialPrefetchScheduler(ov::Tensor{ov::element::f32, ov::Shape{4}}), ov::Exception);
 }
 
-TEST_F(SharedBufferTest, get_constant_from_source_and_evict_prefetches_folds_and_evicts_leaves) {
+TEST_F(SharedBufferTest, get_constant_from_source_and_evict_folds_and_evicts_leaves) {
     constexpr size_t count = 2;
     constexpr size_t size = 256;
 
@@ -765,14 +765,9 @@ TEST_F(SharedBufferTest, get_constant_from_source_and_evict_prefetches_folds_and
     const auto ops = make_mapped_constants(mock, count, size);
     const auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ops[0], ops[1]}, 0);
 
-    {
-        // All leaves are prefetched before the fold reads them and evicted only after it.
-        ::testing::InSequence in_sequence;
-        EXPECT_CALL(*mock, hint_prefetch_async(0 * size, size));
-        EXPECT_CALL(*mock, hint_prefetch_async(1 * size, size));
-        EXPECT_CALL(*mock, hint_evict_mock(0 * size, size));
-        EXPECT_CALL(*mock, hint_evict_mock(1 * size, size));
-    }
+    EXPECT_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).Times(0);
+    EXPECT_CALL(*mock, hint_evict_mock(0 * size, size)).Times(1);
+    EXPECT_CALL(*mock, hint_evict_mock(1 * size, size)).Times(1);
 
     const auto folded = ov::util::get_constant_from_source_and_evict(concat);
     ASSERT_NE(folded, nullptr);
