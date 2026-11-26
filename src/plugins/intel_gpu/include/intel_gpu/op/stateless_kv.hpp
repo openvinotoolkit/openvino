@@ -22,7 +22,8 @@ public:
                 const Output<Node>& seq_len,
                 int64_t concat_axis,
                 bool is_seq_len_present_len,
-                int64_t window_size = 0);
+                int64_t window_size = -1,
+                bool sliding_window_cache = false);
     StatelessKV(const Output<Node>& past,
                 const Output<Node>& new_token_data,
                 const Output<Node>& seq_len,
@@ -35,7 +36,8 @@ public:
                 const Output<Node>& cur_len,
                 int64_t concat_axis,
                 bool is_seq_len_present_len,
-                int64_t window_size);
+                int64_t window_size,
+                bool sliding_window_cache = false);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -64,6 +66,14 @@ public:
         m_window_size = window_size;
     }
 
+    /// Rolling cache with front eviction; requires window_size > 0. Otherwise window_size only trims the SDPA view.
+    bool get_sliding_window_cache() const {
+        return m_sliding_window_cache;
+    }
+    void set_sliding_window_cache(bool sliding_window_cache) {
+        m_sliding_window_cache = sliding_window_cache;
+    }
+
     bool get_is_capacity_overflow() const {
         return m_is_capacity_overflow;
     }
@@ -90,15 +100,21 @@ public:
     }
 
 protected:
-    StatelessKV(const OutputVector& inputs, int64_t concat_axis, bool is_seq_len_present_len, int64_t window_size, bool has_pos_idx);
+    StatelessKV(const OutputVector& inputs,
+                int64_t concat_axis,
+                bool is_seq_len_present_len,
+                int64_t window_size,
+                bool has_pos_idx,
+                bool sliding_window_cache = false);
 
     int64_t m_concat_axis = 0;
     std::optional<int64_t> m_update_offset;
     std::optional<int64_t> m_past_seq_len;
     bool m_is_seq_len_present_len = true;
-    int64_t m_window_size = 0;
+    int64_t m_window_size = -1;
     bool m_is_capacity_overflow = false;
     bool m_has_pos_idx = false;
+    bool m_sliding_window_cache = false;
 };
 
 std::vector<ov::PartialShape> shape_infer(const StatelessKV* op, const std::vector<ov::PartialShape>& input_shapes);

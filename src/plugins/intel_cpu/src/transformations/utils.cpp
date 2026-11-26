@@ -49,6 +49,11 @@ std::shared_ptr<ov::Node> get_consumer(const ov::Output<const ov::Node>& output)
     return consumers.begin()->get_node()->shared_from_this();
 }
 
+bool is_per_tensor_input(const ov::Output<ov::Node>& input) {
+    const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());
+    return constant != nullptr && shape_size(constant->get_shape()) == 1;
+}
+
 }  // namespace
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
@@ -74,6 +79,14 @@ bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node
         return false;
     }
 
+    // ACL int8 pooling takes a single destination scale and zero point, so a FakeQuantize with per-channel ranges
+    // is not fused (see Pooling::canFuse) and has to be decomposed.
+    for (size_t i = 1; i < node->get_input_size(); i++) {
+        if (!is_per_tensor_input(node->input_value(i))) {
+            return false;
+        }
+    }
+
     // returns true if Pooling-FQ chain will be fused into int8 pooling and handled by ACL executor
     return any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
            (ov::is_type_any_of<ov::op::v1::AvgPool, ov::op::v14::AvgPool, ov::op::v16::AvgPool>(pool) ||
@@ -97,10 +110,6 @@ bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node)
     }
 
     const auto is_per_tensor_scale = [](const std::shared_ptr<const ov::Node>& fq) {
-        const auto is_per_tensor_input = [](const ov::Output<ov::Node>& input) {
-            const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());
-            return constant != nullptr && shape_size(constant->get_shape()) == 1;
-        };
         return is_per_tensor_input(fq->input_value(1)) && is_per_tensor_input(fq->input_value(2));
     };
     return match_gemm_bias_fq_same_types<ov::op::v0::MatMul>(node,
