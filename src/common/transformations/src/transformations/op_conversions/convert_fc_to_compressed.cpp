@@ -9,6 +9,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -70,11 +71,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             new_IC = n_groups * group_size;
         }
         auto new_constant = std::make_shared<v0::Constant>(*constant, new_shape);
-        // Propagate plain "otd_bin_offset" entry (used by GPU OTD when WCA is lost)
-        auto otd_it = constant->get_rt_info().find("otd_bin_offset");
-        if (otd_it != constant->get_rt_info().end()) {
-            new_constant->get_rt_info()["otd_bin_offset"] = otd_it->second;
-        }
+        ov::copy_weightless_cache_attr(constant, new_constant);
         return new_constant;
     };
 
