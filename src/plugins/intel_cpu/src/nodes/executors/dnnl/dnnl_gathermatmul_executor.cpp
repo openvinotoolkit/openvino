@@ -321,7 +321,13 @@ bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfi
     // For compressed (int) weights, require AVX2
     if ((config.descs.count(ARG_WEI) != 0U) && !config.descs.at(ARG_WEI)->empty()) {
         const auto wei_prc = config.descs.at(ARG_WEI)->getPrecision();
-        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3)) {
+        if (any_of(wei_prc,
+                   ov::element::u8,
+                   ov::element::i8,
+                   ov::element::u4,
+                   ov::element::i4,
+                   ov::element::u2,
+                   ov::element::u3)) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
                 return false;
             }
