@@ -119,6 +119,34 @@ class TestXlogyIntInputs(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=False)
 
 
+class TestXlogyIntScalar(PytorchLayerTest):
+    # An integer python scalar must keep its value: 256 does not fit in uint8,
+    # so promoting it to the tensor type before the float cast would give log(0).
+    def _prepare_input(self):
+        return (np.array([0, 1, 2, 3], dtype=self.dtype),)
+
+    def create_model(self, scalar_first):
+        class aten_xlogy_scalar_other(torch.nn.Module):
+            def forward(self, x):
+                return torch.xlogy(x, 256)
+
+        class aten_xlogy_scalar_self(torch.nn.Module):
+            def forward(self, x):
+                return torch.xlogy(256, x + 1)
+
+        model = aten_xlogy_scalar_self() if scalar_first else aten_xlogy_scalar_other()
+        return model, "aten::xlogy"
+
+    @pytest.mark.parametrize("dtype", [np.uint8, np.int32])
+    @pytest.mark.parametrize("scalar_first", [False, True])
+    @pytest.mark.parametrize("trace_model", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_xlogy_int_scalar(self, dtype, scalar_first, trace_model, ie_device, precision, ir_version):
+        self.dtype = dtype
+        self._test(*self.create_model(scalar_first), ie_device, precision, ir_version, trace_model=trace_model)
+
+
 class TestXlogyBroadcast(PytorchLayerTest):
     def _prepare_input(self):
         return (np.array([[1.0, 0.0, 3.0]], dtype=np.float32),

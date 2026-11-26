@@ -27,6 +27,11 @@ OutputVector translate_xlogy(const NodeContext& context) {
     Output<Node> y;
     std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
 
+    // Promotion narrows a python scalar to the integer tensor type (a uint8 tensor with 256 gives 0), so the
+    // floating computation casts the original operands and uses the promoted inputs only to pick the type.
+    const auto x_in = context.get_input(0);
+    const auto y_in = context.get_input(1);
+
     // torch.xlogy returns the default floating point type for integer and boolean inputs
     const auto dtype = x.get_element_type();
     if (dtype.is_static() && !dtype.is_real()) {
@@ -35,15 +40,16 @@ OutputVector translate_xlogy(const NodeContext& context) {
         if (out_type.is<element::Type>() && out_type.as<element::Type>().is_real()) {
             float_type = out_type.as<element::Type>();
         }
-        x = context.mark_node(std::make_shared<v0::Convert>(x, float_type));
-        y = context.mark_node(std::make_shared<v0::Convert>(y, float_type));
+        x = context.mark_node(std::make_shared<v0::Convert>(x_in, float_type));
+        y = context.mark_node(std::make_shared<v0::Convert>(y_in, float_type));
     } else if (dtype.is_dynamic()) {
         // The input type is not known yet (e.g. scripted model before input types are set). Promote against a
         // floating python scalar in the graph so integer and boolean inputs resolve to f32 once types are known,
         // while floating inputs keep their own type.
         auto float_scalar = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0.5}))->output(0);
         align_eltwise_input_types(context, x, float_scalar, false, true);
-        y = context.mark_node(std::make_shared<v1::ConvertLike>(y, x));
+        y = context.mark_node(std::make_shared<v1::ConvertLike>(y_in, x));
+        x = context.mark_node(std::make_shared<v1::ConvertLike>(x_in, x));
     }
 
     auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
