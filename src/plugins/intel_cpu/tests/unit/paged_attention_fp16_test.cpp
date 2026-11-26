@@ -116,7 +116,12 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
     }
     const auto& dimensions = std::get<0>(GetParam());
     const bool nonzero_qk = std::get<1>(GetParam());
-    const auto& [lengths, heads, kv_heads, key_size, value_size, cache_type] = dimensions;
+    const auto& lengths = dimensions.lengths;
+    const auto heads = dimensions.heads;
+    const auto kv_heads = dimensions.kv_heads;
+    const auto key_size = dimensions.key_size;
+    const auto value_size = dimensions.value_size;
+    const auto cache_type = dimensions.cache_type;
     const size_t sequences = lengths.size();
     const size_t tokens = std::accumulate(lengths.begin(), lengths.end(), size_t{0});
     std::vector<size_t> continuation(sequences, 1);
