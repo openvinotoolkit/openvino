@@ -131,6 +131,7 @@ protected:
         jit.make("OUTPUT2_TYPE", "int");  // experts_id
         jit.make("OUTPUT3_TYPE", "int");  // tokens_lens_per_expert
         jit.make("OUTPUT4_TYPE", "int");  // num_actual_used_experts
+        jit.make("COMPACT_EXPERTS", 1);
         jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
         jit.make("ROW_LUT_ENABLE", 1);
         jit.make("OUTPUT5_TYPE", "int");  // row_lut
