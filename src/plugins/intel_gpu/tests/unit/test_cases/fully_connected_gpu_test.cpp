@@ -6232,26 +6232,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group_t
     this->test_compressed_int8_parameter_scale_zp(true, true);
 }
 
-// ov::Core resolves plain "GPU" to the first enumerated device and ignores --device_suffix, so pin the
-// execution device to the one behind get_test_engine() (the plugin reports the very cldnn device_info uuid).
-static std::string get_engine_gpu_device_name() {
-    auto& engine = get_test_engine();
-    const auto engine_uuid = engine.get_device_info().uuid;
-    ov::Core core;
-    for (const auto& device : core.get_available_devices()) {
-        if (device.rfind("GPU", 0) != 0) {
-            continue;
-        }
-        try {
-            if (core.get_property(device, ov::device::uuid).uuid == engine_uuid.uuid) {
-                return device;
-            }
-        } catch (const ov::Exception&) {
-        }
-    }
-    return "GPU";
-}
-
 // Full-pipeline regression for runtime scale/zp: an f32 scale Parameter and a u8 zp Parameter feeding a
 // compressed MatMul reach GPU:PostLPT through ConvertPrecision, so the scale arrives as a bare
 // Convert(Parameter) and the zp as Convert(Parameter) over the Subtract operand. The pipeline must
@@ -7554,6 +7534,78 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
 
+namespace {
+// Counts the async compilation tasks queued by the implementations factory; the tasks still run on a real context.
+class counting_compilation_context : public ICompilationContext {
+public:
+    explicit counting_compilation_context(std::shared_ptr<ICompilationContext> context) : _context(std::move(context)) {}
+    void push_task(kernel_impl_params key, Task&& task) override {
+        pushed_tasks++;
+        _context->push_task(std::move(key), std::move(task));
+    }
+    void remove_keys(std::vector<kernel_impl_params>&& keys) override { _context->remove_keys(std::move(keys)); }
+    bool is_stopped() override { return _context->is_stopped(); }
+    void cancel() override { _context->cancel(); }
+    void wait_all() override { _context->wait_all(); }
+
+    size_t pushed_tasks = 0;
+
+private:
+    std::shared_ptr<ICompilationContext> _context;
+};
+
+// Runs a dynamic u8 compressed FC (scale + zero point) on several new shapes and returns the number of queued async compilation tasks.
+size_t count_async_compilation_tasks(impl_types fc_impl_type) {
+    auto& engine = get_test_engine();
+    const int64_t ifm_num = 64, ofm_num = 32;
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u8, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, 1}, data_types::f16, format::bfyx});
+    auto zp_mem = engine.allocate_memory({{ofm_num, 1}, data_types::u8, format::bfyx});
+    set_values(weights_mem, std::vector<uint8_t>(ofm_num * ifm_num, 3));
+    set_values(scale_mem, std::vector<ov::float16>(ofm_num, ov::float16(0.5f)));
+    set_values(zp_mem, std::vector<uint8_t>(ofm_num, 1));
+
+    topology topology(input_layout("input", layout{{-1, ifm_num}, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      data("scale", scale_mem),
+                      data("zp", zp_mem),
+                      fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, "", fc_impl_type}}}));
+
+    auto context = std::make_shared<counting_compilation_context>(program::make_compilation_context(config));
+    auto prog = program::build_program(engine, topology, config, program::make_task_executor(config), context);
+    auto net = network::allocate_network(engine, prog);
+    for (int64_t batch : {1, 3, 17, 40}) {
+        auto input_mem = engine.allocate_memory({{batch, ifm_num}, data_types::f16, format::bfyx});
+        set_values(input_mem, std::vector<ov::float16>(batch * ifm_num, ov::float16(1.0f)));
+        net->set_input_data("input", input_mem);
+        net->execute();
+        EXPECT_EQ(net->get_primitive("fc_prim")->get_impl()->is_onednn(), fc_impl_type == impl_types::onednn);
+    }
+    context->wait_all();
+    return context->pushed_tasks;
+}
+}  // namespace
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// The oneDNN FC has no shape-agnostic impl, so each new shape is compiled synchronously. An async compilation task for the same
+// shape would only duplicate that work and run create() concurrently on the same onednn attributes, which create() modifies.
+TEST(fully_connected_onednn_gpu, dynamic_compressed_no_async_compilation_without_shape_agnostic_impl) {
+    if (!get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP();
+    ASSERT_EQ(count_async_compilation_tasks(impl_types::onednn), size_t(0));
+}
+#endif
+
+// Async compilation is kept when a shape-agnostic impl serves the new shapes meanwhile.
+TEST(fully_connected_gpu, dynamic_compressed_async_compilation_with_shape_agnostic_impl) {
+    ASSERT_GT(count_async_compilation_tasks(impl_types::ocl), size_t(0));
+}
+
 class fully_connected_gpu_u3_validation : public fully_connected_gpu_sub_byte_validation {};
 
 // Validates UINT3 decompression correctness in the reference kernel. u3 is a tightly packed LSB-first bit stream,
@@ -7791,3 +7843,77 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          fully_connected_onednn_int4_alignment::GetTestCaseName);
 }  // namespace
 #endif
+
+// fully_connected_gpu_gemv has no tail handling for a partial OFM tile (GWS[0] = OFM / ofm_per_work_item, LWS[0] = 16).
+// It must be rejected at Validate for an unaligned OFM, also for the shape-agnostic impl built with a dynamic batch.
+TEST_F(fully_connected_gpu_tests, gemv_rejects_unaligned_ofm_with_dynamic_batch) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto supports_immad = engine.get_device_info().supports_immad;
+    const long int ifm_num = 1024;
+    const long int group_size = 128;
+
+    for (long int ofm_num : {1024L, 1000L}) {
+        SCOPED_TRACE("OFM=" + std::to_string(ofm_num));
+        auto input_mem = engine.allocate_memory({{1, ifm_num}, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
+        auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / group_size}, data_types::f16, format::bfyx});
+        auto dcomp_zp_mem = engine.allocate_memory({{1, 1, 1, 1}, data_types::u8, format::bfyx});
+        set_values<int8_t>(dcomp_zp_mem, {8});
+        set_values(input_mem, rg.generate_random_1d<ov::float16>(ifm_num, -1.0f, 1.0f));
+        set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5));
+        set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / group_size, -2.0f, 2.0f));
+
+        // Fresh topology per network: program build may modify the primitive descriptors.
+        auto make_topology = [&]() {
+            auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", supports_immad ? "dcomp_zp" : "", data_types::f16, 2, 2);
+            fc_prim.decompression_zero_point_scalar = 8;
+            return topology(input_layout("input", layout{{-1, ifm_num}, data_types::f16, format::bfyx}),
+                            data("weights", weights_mem),
+                            data("scale", scale_mem),
+                            data("dcomp_zp", dcomp_zp_mem),
+                            fc_prim);
+        };
+
+        auto make_config = [&](const std::string& forced_kernel) {
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+            if (!forced_kernel.empty()) {
+                config.set_property(
+                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, forced_kernel, impl_types::ocl}}}));
+            }
+            return config;
+        };
+        auto execute = [&](network& net) {
+            net.set_input_data("input", input_mem);
+            return net.execute().at("fc_prim").get_memory();
+        };
+
+        network ref_net(engine, make_topology(), make_config("fully_connected_gpu_bfyx_ref"));
+        auto ref_mem = execute(ref_net);
+
+        auto kernel_name_of = [](network& net) {
+            auto impl = net.get_primitive("fc_prim")->get_impl();
+            return impl ? impl->get_kernel_name() : std::string("<none>");
+        };
+        auto is_gemv = [](const std::string& kernel_name) {
+            return kernel_name.find("fully_connected_gpu_gemv") != std::string::npos;
+        };
+
+        // With a dynamic batch the shape-agnostic impl is selected at build time, before any enqueue, so this checks
+        // the Validate decision.
+        const bool ofm_aligned = ofm_num % 16 == 0;
+        auto gemv_net = std::make_shared<network>(engine, make_topology(), make_config("fully_connected_gpu_gemv"));
+        const auto shape_agnostic_kernel = kernel_name_of(*gemv_net);
+        EXPECT_EQ(is_gemv(shape_agnostic_kernel), ofm_aligned) << "shape-agnostic kernel " << shape_agnostic_kernel;
+
+        auto net = ofm_aligned ? gemv_net : std::make_shared<network>(engine, make_topology(), make_config(""));
+        auto out_mem = execute(*net);
+        const auto kernel_name = kernel_name_of(*net);
+        EXPECT_EQ(is_gemv(kernel_name), ofm_aligned) << "kernel " << kernel_name;
+
+        compare_outputs<ov::float16>(out_mem, ref_mem);
+    }
+}

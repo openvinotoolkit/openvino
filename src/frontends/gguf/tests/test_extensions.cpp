@@ -343,6 +343,41 @@ TEST(GGUFExtensions, GGUFMakeStatefulAddsOnlyBeamIdx) {
     EXPECT_EQ(stateful, stateless);
 }
 
+// adapt_to_genai makes an already converted model stateful, so the pass also recognizes the
+// lowered ScatterUpdate write and must produce the same state as the conversion-time extension.
+class GGUFMakeStatefulLoweredCacheTests : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<pass::GGUFMakeStateful>();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+};
+
+TEST_F(GGUFMakeStatefulLoweredCacheTests, RewritesLoweredCacheWrite) {
+    model = kv_cache_write_builder().build();
+    model_ref = kv_cache_write_builder().build_with_extensions(
+        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful())});
+
+    const auto cache_result = model->get_results().front();
+    const auto cache_write = cache_result->input_value(0);
+    model->remove_result(cache_result);
+    auto converted_observation = std::make_shared<ov::op::v0::Abs>(cache_write);
+    converted_observation->output(0).set_names({"cache_observation"});
+    auto converted_result = std::make_shared<ov::op::v0::Result>(converted_observation);
+    converted_result->set_friendly_name("cache_observation");
+    model->add_results({converted_result});
+
+    const auto assign = ov::as_type_ptr<ov::op::v6::Assign>(model_ref->get_sinks().front());
+    ASSERT_TRUE(assign);
+    auto reference_observation = std::make_shared<ov::op::v0::Abs>(assign->input_value(0));
+    reference_observation->output(0).set_names({"cache_observation"});
+    auto reference_result = std::make_shared<ov::op::v0::Result>(reference_observation);
+    reference_result->set_friendly_name("cache_observation");
+    model_ref->add_results({reference_result});
+}
+
 // A DecoderTransformationExtension can hold any pass, not only the ones the frontend ships: here a
 // plain lambda pass, which must run during conversion (it renames the model, observable after).
 TEST(GGUFExtensions, ArbitraryTransformationExtensionRuns) {

@@ -13,7 +13,7 @@
 #            define OPENVINO_CPP_VER_AT_LEAST_14
 #            if __cplusplus >= 201703L
 #                define OPENVINO_CPP_VER_AT_LEAST_17
-#                if __cplusplus >= 202002L
+#                if __cplusplus > 201703L  // GCC 10 reports 201709L for -std=c++2a/c++20
 #                    define OPENVINO_CPP_VER_AT_LEAST_20
 #                    if __cplusplus >= 202302L
 #                        define OPENVINO_CPP_VER_AT_LEAST_23
