@@ -157,7 +157,9 @@ class moe_mask_gen_expert_sort : public ::testing::TestWithParam<std::tuple<int3
 
 TEST_P(moe_mask_gen_expert_sort, matches_reference) {
     auto& engine = get_test_engine();
-    const auto [top_k, num_experts, dynamic_input] = GetParam();
+    const int32_t top_k = std::get<0>(GetParam());
+    const int32_t num_experts = std::get<1>(GetParam());
+    const bool dynamic_input = std::get<2>(GetParam());
 
     const std::vector<std::string> names{"token_index", "end_offsets", "row_lut"};
     auto config = get_test_default_config(engine);

@@ -149,7 +149,7 @@ FuseMoEExpertSort::FuseMoEExpertSort(size_t max_num_experts) {
             const auto users = permutation.get_target_inputs();
             return std::any_of(users.begin(), users.end(), [&](const Input<Node>& user) {
                 const auto* node = user.get_node();
-                return !replaced_users.count(node) && !ov::is_type_any_of<v0::ShapeOf, v3::ShapeOf>(node);
+                return replaced_users.count(node) == 0U && !ov::is_type_any_of<v0::ShapeOf, v3::ShapeOf>(node);
             });
         };
         if (has_unreplaced_user(perm_out) || has_unreplaced_user(perm)) {
