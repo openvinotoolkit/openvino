@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "group_query_attention_decomposition.hpp"
+
 #include <limits>
 #include <optional>
 #include <utility>
-
-#include "group_query_attention_decomposition.hpp"
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
@@ -14,12 +14,15 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -264,8 +267,34 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     outputs.present_key = key_cache->output(0);
     outputs.present_value = value_cache->output(0);
     if (need_qk_output) {
-        outputs.sdpa_key = key_cache->output(0);
-        outputs.sdpa_value = value_cache->output(0);
+        // need_qk_output feeds the full (untrimmed) present buffer straight into explicit attention
+        // (see make_explicit_attention), unlike the output(1) SDPA view below, which StatelessKV itself
+        // already trims to the written length. Positions >= the valid total (seqlens_1d) may hold
+        // never-written filler there: zero from resize_kv_to_capacity's growth, or stale/uninitialized
+        // rows within the original declared capacity that StatelessKV never writes. An additive attention
+        // mask can't neutralize NaN in that filler (NaN + mask bias is still NaN), so zero it directly on
+        // this copy only -- present_key/value above must stay wired straight to StatelessKV's own output,
+        // required by the plugin's stateless_kv-to-output aliasing (primitive_inst::
+        // realloc_outputs_for_stateless_kv asserts on it). Mirrors the common decomposition's identical
+        // has_fixed_kv_capacity() + query_seqlens safeguard (construct_kvcache, is_static_input branch,
+        // this transformation's common/CPU base class).
+        const auto zero_out_unwritten_tail = [&](const ov::Output<ov::Node>& buffer, int64_t axis) {
+            const auto capacity = get_dimensions(register_new_node<v3::ShapeOf>(buffer), {static_cast<int>(axis)});
+            std::vector<int64_t> index_shape(4, 1);
+            index_shape[axis] = -1;
+            const auto index_shape_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, index_shape));
+            const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+            const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+            const auto rows = register_new_node<v1::Reshape>(
+                register_new_node<v4::Range>(zero_scalar, register_new_node<v0::Squeeze>(capacity), one_scalar, ov::element::i64),
+                index_shape_node,
+                false);
+            const auto valid_cols = register_new_node<v1::Less>(rows, seqlens_1d);
+            const auto zero_fill = register_new_node(v0::Constant::create(buffer.get_element_type(), ov::Shape{}, {0}));
+            return register_new_node<v1::Select>(valid_cols, buffer, zero_fill);
+        };
+        outputs.sdpa_key = needs_capacity_growth ? zero_out_unwritten_tail(outputs.present_key, 2) : outputs.present_key;
+        outputs.sdpa_value = needs_capacity_growth ? zero_out_unwritten_tail(outputs.present_value, transpose_value_cache ? 3 : 2) : outputs.present_value;
     } else {
         outputs.sdpa_key = key_cache->output(1);
         outputs.sdpa_value = value_cache->output(1);

@@ -26,6 +26,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/manager.hpp"
@@ -578,6 +579,40 @@ TEST(GQADecompositionTest, padded_query_fixed_capacity_qk_output_resizes_past) {
     }
 }
 
+// need_qk_output feeds the FULL (untrimmed) StatelessKV present buffer into explicit attention -- unlike the
+// default path's trimmed SDPA view, that buffer's grown tail (resize_kv_to_capacity's filler, or stale rows
+// within the original declared capacity) is never written. SDPA's key/value operands must be the zeroed copy,
+// not the raw StatelessKV output, or that filler reaches softmax unmasked by anything but the additive bias,
+// which can't neutralize true NaN there.
+TEST(GQADecompositionTest, padded_query_fixed_capacity_qk_output_zeroes_unwritten_tail) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+    cfg.qk_output = QKOutput::AFTER_SOFTMAX;
+
+    // qk_output's explicit attention is built from raw MatMul/Softmax (make_explicit_attention), not an
+    // op::SDPA node, so the fix is verified directly on the graph: each StatelessKV's present output(0) must
+    // have a Select consumer (the zeroed copy) in addition to the Result it is required to connect to.
+    const auto model = decompose_gqa_model(cfg);
+
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    for (const auto& stateless_kv : statelesskvs) {
+        const auto targets = stateless_kv->output(0).get_target_inputs();
+        const bool has_select_consumer = std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& input) {
+            return ov::is_type<ov::op::v1::Select>(input.get_node());
+        });
+        EXPECT_TRUE(has_select_consumer) << "StatelessKV's present output must feed a Select that zeroes the unwritten tail "
+                                            "before reaching explicit attention";
+    }
+}
+
 // Compressed (per-channel) KV without a transposed value layout stays on the fused/compressed SDPA path;
 // capacity growth must still reach StatelessKV's past operand here, same as the plain (unquantized) case.
 TEST(GQADecompositionTest, padded_query_fixed_capacity_per_channel_kv_resizes_past) {
@@ -619,7 +654,6 @@ TEST(GQADecompositionTest, padded_query_fixed_capacity_transposed_value_resizes_
     cfg.query_seqlens = true;
     cfg.sequence_length = 4;
     cfg.transpose_v = true;
-    cfg.should_fuse_transpose_v = true;
 
     const auto model = decompose_gqa_model(cfg);
 
