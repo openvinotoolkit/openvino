@@ -13,11 +13,16 @@ namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
-ConversionContext::ConversionContext(mlir::MLIRContext* context, mlir::OpBuilder* block_builder, getInputsFn getInputs, getDimValueFn getDimValue)
+ConversionContext::ConversionContext(mlir::MLIRContext* context,
+                                     mlir::OpBuilder* block_builder,
+                                     getInputsFn getInputs,
+                                     getDimValueFn getDimValue,
+                                     requestInputOrderFn requestInputOrder)
     : context(context),
       block_builder(block_builder),
       getInputs(std::move(getInputs)),
-      getDimValue(std::move(getDimValue)) {}
+      getDimValue(std::move(getDimValue)),
+      requestInputOrder(std::move(requestInputOrder)) {}
 
 SmallVector<Value> ConversionContext::get_dynamic_dimension_values(const PartialShape& shape) const {
     SmallVector<Value> dims;
