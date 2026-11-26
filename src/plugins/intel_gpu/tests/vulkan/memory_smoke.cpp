@@ -273,6 +273,41 @@ TEST(VulkanMemorySmoke, RejectsPhysicalAllocationsOnBudgetExhaustion) {
     EXPECT_NO_THROW(vulkan_buffer_allocation::create(vk_engine, 32, vulkan_buffer_memory_usage::host_staging));
 }
 
+TEST(VulkanMemorySmoke, PreservesPartialWritesAndNestedReads) {
+    const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    auto engine = cldnn::engine::create(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan, devices.begin()->second);
+    constexpr size_t size = 8;
+    auto buffer = engine->allocate_memory(byte_layout(size), cldnn::allocation_type::vk_buffer, false);
+    vulkan_buffer_allocation_access::force_staging(*static_cast<cldnn::vulkan::vulkan_buffer&>(*buffer).get_allocation());
+    auto& stream = engine->get_service_stream();
+
+    constexpr uint8_t staged_value = 0x11;
+    constexpr uint8_t current_value = 0x22;
+    constexpr uint8_t written_value = 0x33;
+    buffer->fill(stream, staged_value);
+    {
+        const cldnn::mem_lock<const uint8_t, cldnn::mem_lock_type::read> read(buffer, stream);
+        ASSERT_EQ(read[1], staged_value);
+    }
+    buffer->fill(stream, current_value);
+
+    std::array<uint8_t, size> expected{};
+    expected.fill(current_value);
+    expected.front() = written_value;
+    std::array<uint8_t, size> actual{};
+    {
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> write(buffer, stream);
+        write[0] = written_value;
+        const cldnn::mem_lock<const uint8_t, cldnn::mem_lock_type::read> nested_read(buffer, stream);
+        std::copy_n(nested_read.data(), actual.size(), actual.begin());
+        EXPECT_EQ(actual, expected) << "Nested read must observe the partially written buffer";
+    }
+
+    buffer->copy_to(stream, actual.data(), 0, 0, actual.size(), true);
+    EXPECT_EQ(actual, expected) << "Unlock must preserve the untouched bytes";
+}
+
 TEST(VulkanMemorySmoke, ChecksStagedTransfersAndAllocations) {
     const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
     ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";

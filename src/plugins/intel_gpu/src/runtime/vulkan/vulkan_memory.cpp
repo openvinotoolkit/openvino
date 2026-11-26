@@ -120,7 +120,8 @@ void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
             if (_lock_staging == nullptr || _lock_staging->get_size() < _bytes_count) {
                 _lock_staging = allocate_staging(_bytes_count);
             }
-            if (type != mem_lock_type::write && _bytes_count > 0) {
+            // Unlock uploads the entire view. Preserve bytes that the caller may leave untouched.
+            if (_bytes_count > 0) {
                 vulkan_stream.enqueue_buffer_copy(get_allocation(), get_offset(), _lock_staging, 0, _bytes_count);
                 _lock_staging->invalidate(0, _bytes_count);
             }
