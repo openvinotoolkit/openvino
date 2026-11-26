@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -311,7 +313,7 @@ TEST(CustomOpAnyFmt3D, OutputFormatAnyPreservesAxisOrder3D) {
     }
 }
 
-static void test_any_output_broadcast_with_add(bool dynamic_graph) {
+static void test_any_output_broadcast_with_add(bool dynamic_graph, const std::filesystem::path& config_path) {
     ov::Core core;
     constexpr size_t kF = 17;
     constexpr size_t kY = 19;
@@ -338,7 +340,7 @@ static void test_any_output_broadcast_with_add(bool dynamic_graph) {
     ASSERT_TRUE(custom->get_output_partial_shape(0).is_static());
     ASSERT_EQ(model->is_dynamic(), dynamic_graph);
     ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32),
-                         {"CONFIG_FILE", TEST_CUSTOM_OP_CONFIG_PATH}};
+                         {"CONFIG_FILE", config_path.string()}};
     ov::CompiledModel compiled;
     OV_ASSERT_NO_THROW(compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU, config));
     auto request = compiled.create_infer_request();
@@ -358,12 +360,61 @@ static void test_any_output_broadcast_with_add(bool dynamic_graph) {
     }
 }
 
-TEST(CustomOpAnyFmt3D, smoke_StaticOutputFormatAnyBroadcastsThroughAdd) {
-    test_any_output_broadcast_with_add(false);
+class CustomOpAnyFmt3DBroadcast : public ::testing::Test {
+protected:
+    void SetUp() override {
+        auto path = ov::test::utils::generateTestFilePrefix() + "_any_broadcast";
+        ASSERT_TRUE(std::filesystem::create_directory(path));
+        directory = std::move(path);
+        std::ofstream kernel(directory / "test.cl");
+        kernel << R"(
+__kernelvoid custom_kernel_axis_probe_3d(__global const INPUT0_TYPE* input,
+                                          __global OUTPUT0_TYPE* output) {
+    const int y = get_global_id(0);
+    const int f = get_global_id(1);
+    const int b = get_global_id(2);
+
+    const int fnum = OUTPUT0_DIMS[1];
+    const int ynum = OUTPUT0_DIMS[2];
+
+    output[(b * fnum + f) * ynum + y] = (OUTPUT0_TYPE)(b * 100 + f * 10 + y);
+}
+)";
+        ASSERT_TRUE(kernel.good());
+        std::ofstream config(directory / "test.xml");
+        config << R"(
+<CustomLayer name="CustomOpAnyFmt3D" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_axis_probe_3d">
+        <Source filename="test.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="ANY"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="Y,F,B"/>
+</CustomLayer>
+)";
+        ASSERT_TRUE(config.good());
+    }
+
+    void TearDown() override {
+        if (!directory.empty()) {
+            std::error_code error;
+            std::filesystem::remove_all(directory, error);
+            EXPECT_FALSE(error);
+        }
+    }
+
+    std::filesystem::path directory;
+};
+
+TEST_F(CustomOpAnyFmt3DBroadcast, smoke_StaticOutputFormatAnyBroadcastsThroughAdd) {
+    test_any_output_broadcast_with_add(false, directory / "test.xml");
 }
 
-TEST(CustomOpAnyFmt3D, smoke_StaticOutputFormatAnyBroadcastsThroughAddInDynamicGraph) {
-    test_any_output_broadcast_with_add(true);
+TEST_F(CustomOpAnyFmt3DBroadcast, smoke_StaticOutputFormatAnyBroadcastsThroughAddInDynamicGraph) {
+    test_any_output_broadcast_with_add(true, directory / "test.xml");
 }
 
 // Two input ports fed by the same producer used to build colliding pre-reorder primitive
