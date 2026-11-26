@@ -93,6 +93,9 @@ jobs:
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
 
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
+
       - name: Install same-run OpenVINO wheel
         uses: ./.github/actions/install_ov_wheels
         with:
