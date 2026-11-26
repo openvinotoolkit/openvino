@@ -15,6 +15,7 @@
 #include "vulkan/vulkan_device.hpp"
 #include "vulkan/vulkan_engine.hpp"
 #include "vulkan/vulkan_memory.hpp"
+#include "vulkan/vulkan_tensor_shape.hpp"
 
 namespace cldnn::vulkan::test {
 
@@ -169,6 +170,17 @@ void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
         destination->copy_to(stream, result.data(), 0, 0, result.size(), true);
         EXPECT_EQ(result, expected) << "Device copy changed the payload or adjacent bytes";
     }
+}
+
+TEST(VulkanMemorySmoke, ValidatesTensorSizeArithmetic) {
+    using cldnn::vulkan::validate_tensor_shape;
+    EXPECT_NO_THROW(validate_tensor_shape({}, ov::element::u8));
+    EXPECT_NO_THROW(validate_tensor_shape({3, 0, 5}, ov::element::f16));
+    EXPECT_NO_THROW(validate_tensor_shape({3}, ov::element::u4));
+
+    const auto large_extent = (std::numeric_limits<size_t>::max)() / 4;
+    EXPECT_THROW(validate_tensor_shape({large_extent, 5}, ov::element::u8), ov::Exception);
+    EXPECT_THROW(validate_tensor_shape({large_extent}, ov::element::u8), ov::Exception);
 }
 
 TEST(VulkanMemorySmoke, ReportsAllocationLimitWithinDeviceLimits) {

@@ -13,6 +13,7 @@
 #include "vulkan_engine_factory.hpp"
 #include "vulkan_memory.hpp"
 #include "vulkan_stream.hpp"
+#include "vulkan_tensor_shape.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -71,16 +72,18 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU][Vulkan] Cannot allocate an unbounded dynamic layout");
     OPENVINO_ASSERT(!layout.format.is_image(), "[GPU][Vulkan] Image allocations are not supported");
     OPENVINO_ASSERT(type == allocation_type::vk_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
+    validate_tensor_shape(layout.get_partial_shape().get_max_shape(), layout.data_type);
     check_allocatable(layout, type);
 
-    auto region = allocate_buffer_region(layout.bytes_count());
+    const auto byte_size = layout.bytes_count();
+    auto region = allocate_buffer_region(byte_size);
     auto* tracking_address = region->get_allocation()->get_mapped_data();
     if (tracking_address != nullptr) {
         tracking_address = static_cast<unsigned char*>(tracking_address) + region->get_offset();
     } else {
         tracking_address = region.get();
     }
-    auto memory_tracker = std::make_shared<MemoryTracker>(this, tracking_address, layout.bytes_count(), allocation_type::vk_buffer);
+    auto memory_tracker = std::make_shared<MemoryTracker>(this, tracking_address, byte_size, allocation_type::vk_buffer);
     auto result = std::make_shared<vulkan_buffer>(this, layout, std::move(region), 0, std::move(memory_tracker));
     if (reset || result->is_memory_reset_needed(layout)) {
         result->fill(get_service_stream());

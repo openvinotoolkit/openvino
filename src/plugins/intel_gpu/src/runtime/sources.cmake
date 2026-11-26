@@ -162,4 +162,5 @@ set(GPU_RUNTIME_VULKAN_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_required_device_profile.hpp
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_stream.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_stream.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/vulkan/vulkan_tensor_shape.hpp
 )

@@ -3,8 +3,15 @@
 //
 
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "vulkan_tensor_shape.hpp"
 
 namespace ov::intel_gpu {
+
+ov::PartialShape RemoteTensorImpl::make_partial_shape(const ov::Shape& shape, const ov::element::Type& type) {
+    cldnn::vulkan::validate_tensor_shape(shape, type);
+    return ov::PartialShape{shape};
+}
 
 RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& /*known_contexts*/, const AnyMap& /*params*/) {
     OPENVINO_THROW("[GPU][Vulkan] External GPU contexts are unsupported");

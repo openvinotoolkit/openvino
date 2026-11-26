@@ -195,17 +195,17 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
                                    ov::intel_gpu::VirtualAddressMemory va_mem,
                                    std::shared_ptr<ov::MappedMemory> mapped_memory)
-    : m_context(context)
-    , m_element_type(element_type)
-    , m_shape(shape)
-    , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
-    , m_mem_type(mem_type)
-    , m_mem(mem)
-    , m_surf(surf)
-    , m_plane(plane)
-    , m_shared_buffer_handle(shared_buffer_handle)
-    , m_va_mem(va_mem)
-    , m_mapped_memory(std::move(mapped_memory)) {
+    : m_context(context),
+      m_element_type(element_type),
+      m_shape(shape),
+      m_layout(cldnn::layout{make_partial_shape(shape, element_type), element_type, cldnn::format::get_default_format(shape.size())}),
+      m_mem_type(mem_type),
+      m_mem(mem),
+      m_surf(surf),
+      m_plane(plane),
+      m_shared_buffer_handle(shared_buffer_handle),
+      m_va_mem(va_mem),
+      m_mapped_memory(std::move(mapped_memory)) {
 #ifdef OV_GPU_WITH_SYCL_RT
     // TODO: enable RemoteTensor for SYCL_RT once SYCL interop is wired up.
     OPENVINO_THROW("[GPU] RemoteTensor is not supported with SYCL runtime yet");
@@ -354,7 +354,7 @@ const AnyMap& RemoteTensorImpl::get_properties() const {
 }
 
 void RemoteTensorImpl::set_shape(ov::Shape shape) {
-    const ov::PartialShape partial_shape{shape};
+    const auto partial_shape = make_partial_shape(shape, m_element_type);
     auto strides = calculate_strides(shape, m_element_type);
     if (ov::shape_size(shape) > m_memory_object->count()) {
         GPU_DEBUG_TRACE_DETAIL << "Remote realloc" << std::endl;

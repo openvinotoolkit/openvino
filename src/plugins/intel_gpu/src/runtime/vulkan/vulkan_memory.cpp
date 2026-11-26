@@ -4,16 +4,44 @@
 
 #include "vulkan_memory.hpp"
 
+#include <algorithm>
 #include <cstring>
+#include <limits>
 #include <utility>
 
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "vulkan_engine.hpp"
 #include "vulkan_stream.hpp"
+#include "vulkan_tensor_shape.hpp"
 
 namespace cldnn {
 namespace vulkan {
+
+void validate_tensor_shape(const ov::Shape& shape, const ov::element::Type& type) {
+    OPENVINO_ASSERT(shape.size() <= layout::max_rank(), "[GPU][Vulkan] Tensor rank exceeds the maximum supported rank of ", layout::max_rank());
+    constexpr auto max_dimension = static_cast<uint64_t>((std::numeric_limits<ov::Dimension::value_type>::max)());
+    OPENVINO_ASSERT(std::all_of(shape.begin(),
+                                shape.end(),
+                                [](size_t dim) {
+                                    return dim < max_dimension;
+                                }),
+                    "[GPU][Vulkan] Tensor dimension is out of range");
+
+    const auto element_count = ov::util::shape_size_safe(shape);
+    OPENVINO_ASSERT(element_count.has_value(), "[GPU][Vulkan] Tensor element count exceeds the supported range");
+    size_t bits = 0;
+    OPENVINO_ASSERT(!ov::util::mul_overflow(*element_count, type.bitwidth(), bits) && !ov::util::add_overflow(bits, size_t{7}, bits),
+                    "[GPU][Vulkan] Tensor byte size exceeds the supported range");
+    // An empty tensor can still expose strides for its non-empty suffix.
+    if (*element_count == 0 && ov::util::can_compute_byte_strides(type, shape)) {
+        static_cast<void>(ov::util::get_dense_byte_strides(type, shape));
+    }
+}
+
 namespace {
 
 bool is_fill_aligned(VkDeviceSize offset, VkDeviceSize size) {

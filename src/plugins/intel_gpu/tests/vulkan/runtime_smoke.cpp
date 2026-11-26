@@ -94,6 +94,25 @@ TEST_F(VulkanRuntimeSmoke, RejectsStringTensors) {
         "String tensors are unsupported");
 }
 
+TEST_F(VulkanRuntimeSmoke, RejectsUnsupportedTensorRankBeforeChangingShape) {
+    auto context = m_core.get_default_context(m_device_name);
+    const ov::Shape supported_shape(8, 1);
+    const ov::Shape unsupported_shape(9, 1);
+    auto remote = context.create_tensor(ov::element::u8, supported_shape);
+    const auto strides = remote.get_strides();
+    ov::Tensor input(ov::element::u8, supported_shape);
+    *input.data<uint8_t>() = 42;
+    remote.copy_from(input);
+
+    EXPECT_THROW(context.create_tensor(ov::element::u8, unsupported_shape), ov::Exception);
+    EXPECT_THROW(remote.set_shape(unsupported_shape), ov::Exception);
+    ASSERT_EQ(remote.get_shape(), supported_shape);
+    EXPECT_EQ(remote.get_strides(), strides);
+    ov::Tensor output(ov::element::u8, supported_shape);
+    remote.copy_to(output);
+    EXPECT_EQ(*output.data<uint8_t>(), 42);
+}
+
 TEST_F(VulkanRuntimeSmoke, PreservesTensorWhenGrowthFails) {
     auto context = m_core.get_default_context(m_device_name);
     const ov::Shape original_shape{3};
