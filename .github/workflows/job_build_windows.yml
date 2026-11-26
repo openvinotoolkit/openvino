@@ -37,12 +37,7 @@ on:
         required: false
         default: false
       enable-coverage:
-        description: 'Prepare MSVC binaries and PDBs for native coverage; isolate coverage artifacts from regular packages'
-        type: boolean
-        required: false
-        default: false
-      save-cache:
-        description: 'Save and clean the compiler cache on non-push runs as well'
+        description: 'Package coverage build metadata and isolate artifacts; pass compiler options via cmake-options'
         type: boolean
         required: false
         default: false
@@ -68,7 +63,7 @@ jobs:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}${{ inputs.enable-coverage && '_coverage' || '' }}\\${{ inputs.target-branch }}"
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
       CCACHE_SLOPPINESS: pch_defines,time_macros
@@ -171,13 +166,13 @@ jobs:
         uses: ./openvino/.github/actions/cache
         if: ${{ inputs.build-type != 'Debug' }}
         with:
-          save-always: ${{ (github.event_name == 'push' || inputs.save-cache) && 'true' || 'false' }}
-          cleanup-always: ${{ (github.event_name == 'push' || inputs.save-cache) && 'true' || 'false' }}
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache${{ env.ARTIFACT_SUFFIX }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache${{ env.ARTIFACT_SUFFIX }}
+            ${{ runner.os }}-${{ runner.arch }}-ccache
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -196,7 +191,7 @@ jobs:
 
       - name: CMake configure
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }} ${{ inputs.enable-coverage && '-DENABLE_COVERAGE=ON -DENABLE_PDB_IN_RELEASE=ON' || '' }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
         run: |
           $cmakeOptions = "$env:CMAKE_OPTIONS"
           $splitCmakeOptions = $cmakeOptions.Split(" ")
@@ -326,7 +321,21 @@ jobs:
           CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
 
       - name: Pack Artifacts
+        env:
+          ENABLE_COVERAGE: ${{ inputs.enable-coverage }}
+          BUILD_VARIANT: ${{ inputs.build-variant }}
         run: |
+          if ($env:ENABLE_COVERAGE -eq 'true') {
+            $commit = git -C "$env:OPENVINO_REPO" rev-parse HEAD
+            if ($LASTEXITCODE -ne 0) { throw "Cannot determine coverage build commit" }
+            @{
+              commit = $commit.Trim()
+              source_root = $env:OPENVINO_REPO
+              binary_root = $env:BUILD_DIR
+              build_type = $env:CMAKE_BUILD_TYPE
+              toolchain = $env:BUILD_VARIANT
+            } | ConvertTo-Json | Set-Content "$env:INSTALL_DIR/coverage-build.json"
+          }
           $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
           $compress = @{
             Path = $file
@@ -358,21 +367,6 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_pdb.zip"
           }
           Compress-Archive @compress
-
-      - name: Record coverage build identity
-        if: ${{ inputs.enable-coverage }}
-        env:
-          BUILD_VARIANT: ${{ inputs.build-variant }}
-        run: |
-          $commit = git -C "$env:OPENVINO_REPO" rev-parse HEAD
-          if ($LASTEXITCODE -ne 0) { throw "Cannot determine coverage build commit" }
-          @{
-            commit = $commit.Trim()
-            source_root = $env:OPENVINO_REPO
-            binary_root = $env:BUILD_DIR
-            build_type = $env:CMAKE_BUILD_TYPE
-            toolchain = $env:BUILD_VARIANT
-          } | ConvertTo-Json | Set-Content "$env:BUILD_DIR/coverage-build.json"
 
       # Setup Python 3.11 as the default one
       - name: Setup Python ${{ env.PYTHON_VERSION }}
@@ -473,14 +467,6 @@ jobs:
         with:
           name: openvino_pdb${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
-          if-no-files-found: 'error'
-
-      - name: Upload coverage build identity
-        if: ${{ inputs.enable-coverage }}
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: coverage_build_windows
-          path: ${{ env.BUILD_DIR }}/coverage-build.json
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO js package

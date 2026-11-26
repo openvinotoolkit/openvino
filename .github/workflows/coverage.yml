@@ -126,12 +126,10 @@ jobs:
       build-variant: 'vs2022'
       build-additional-python-wheels: false
       enable-coverage: true
-      save-cache: >-
-        ${{ github.event_name == 'pull_request' ||
-            ((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
-             github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
       cmake-options: >-
         -G 'Ninja Multi-Config'
+        -DENABLE_COVERAGE=ON
+        -DENABLE_PDB_IN_RELEASE=ON
         -DENABLE_PYTHON=ON
         -DENABLE_WHEEL=OFF
         -DENABLE_TESTS=ON
@@ -216,12 +214,6 @@ jobs:
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_pdb_windows_coverage
-          path: ${{ env.INSTALL_PKG_DIR }}
-
-      - name: Download coverage build identity
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: coverage_build_windows
           path: ${{ env.INSTALL_PKG_DIR }}
 
       - name: Run Windows NPU tests
