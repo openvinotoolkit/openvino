@@ -192,7 +192,7 @@ def binary_convolution(
     """Create node performing convolution with binary weights, binary input and integer output.
 
     :param data: The node providing data batch tensor.
-    :param filter: The node providing filters tensor.
+    :param filters: The node providing filters tensor.
     :param strides: The kernel window movement strides.
     :param pads_begin: The number of pixels to add to the beginning along each axis.
     :param pads_end: The number of pixels to add to the end along each axis.
@@ -400,7 +400,7 @@ def convolution(
     """Return node performing batched convolution operation.
 
     :param data: The node providing data batch tensor.
-    :param filter: The node providing filters tensor.
+    :param filters: The node providing filters tensor.
     :param strides: The kernel window movement strides.
     :param pads_begin: The number of zero padding elements to add on each axis below 0 coordinate.
     :param pads_end: The number of zero padding elements to add on each axis above max coordinate
@@ -518,7 +518,7 @@ def deformable_convolution(
     """Create node performing deformable convolution.
 
     :param data: The node providing data batch tensor.
-    :param filter: The node providing filters tensor.
+    :param filters: The node providing filters tensor.
     :param strides: The distance (in pixels) to slide the filter on the feature map over the axes.
     :param pads_begin: The number of pixels to add to the beginning along each axis.
     :param pads_end: The number of pixels to add to the end along each axis.

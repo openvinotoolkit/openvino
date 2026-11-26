@@ -50,7 +50,12 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1}, ov::Shape{1}}}
         },
     },
-    // decomposition path
+};
+
+// Decomposition path (a [1,8,64] gain is not a vector, so the RMS op is decomposed). The decomposition multiplies
+// without a Convert, so the gain has the data precision; the mixed precisions below apply to shapes the RMSNorm node
+// handles.
+const std::vector<std::vector<InputShape>> decomposedShapes{
     {
         // data shape
         {ov::test::InputShape{ov::PartialShape{-1, -1, 64},
@@ -114,12 +119,16 @@ const std::vector<std::vector<InputShape>> noScaleShapes{
     },
 };
 
+// The gain precision is an independent axis: same-precision and mixed combinations (e.g. a bf16 gain on f32 data,
+// or an f32 gain on bf16 data) exercise the kernel's native-precision gain load as well as the f32 one.
 const auto params = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+                                                  testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                                   testing::ValuesIn(shapes),
                                                   testing::Values(ov::test::utils::DEVICE_CPU),
                                                   testing::Values(cpuSpec));
 
 const auto tinyRowBf16Params = testing::Combine(testing::Values(ElementType::bf16),
+                                                testing::Values(ElementType::bf16, ElementType::f32),
                                                 testing::ValuesIn(tinyRowBf16Shapes),
                                                 testing::Values(ov::test::utils::DEVICE_CPU),
                                                 testing::ValuesIn(jitAvx512Spec()));
@@ -129,12 +138,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_CPU,
                          params,
                          RMSNormLayerCPUTest::getTestCaseName);
 
+// Gain precision equal to the data precision (a tied pair cannot be expressed with Combine).
+static std::vector<RMSNormCPUTestParams> decomposedParams() {
+    std::vector<RMSNormCPUTestParams> res;
+    for (const auto prc : {ElementType::f32, ElementType::bf16, ElementType::f16}) {
+        for (const auto& shape : decomposedShapes) {
+            res.emplace_back(prc, prc, shape, ov::test::utils::DEVICE_CPU, cpuSpec);
+        }
+    }
+    return res;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_Decomposed_CPU,
+                         RMSNormLayerCPUTest,
+                         testing::ValuesIn(decomposedParams()),
+                         RMSNormLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_TinyRow_BF16_CPU,
                          RMSNormLayerCPUTest,
                          tinyRowBf16Params,
                          RMSNormLayerCPUTest::getTestCaseName);
 
 const auto noScaleParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+                                            testing::Values(ElementType::f32),  // no scale input: unused
                                             testing::ValuesIn(noScaleShapes),
                                             testing::Values(ov::test::utils::DEVICE_CPU),
                                             testing::Values(cpuSpec));

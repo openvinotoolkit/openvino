@@ -306,7 +306,7 @@ cldnn::format convert_data_format(dnnl::memory::format_tag fmt) {
     return ret->first;
 }
 
-int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
+int64_t get_offset(const cldnn::layout& l, const dnnl::memory::desc& desc) {
     int64_t offset = 0;
     auto b_padding = l.data_padding._lower_size[0];
     auto f_padding = l.data_padding._lower_size[1];
