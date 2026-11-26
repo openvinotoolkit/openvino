@@ -6,13 +6,15 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <optional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "llm_test_helpers.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 
@@ -111,13 +113,42 @@ protected:
     std::shared_ptr<ov::IPlugin> m_plugin;
 };
 
+// Granite-4.0-h-micro style head: MatMul -> Divide -> Result
+std::shared_ptr<ov::Model> build_divide_head_llm_model() {
+    auto model = ov::test::npuw::build_llm_test_model();
+    for (const auto& result : model->get_results()) {
+        if (result->output(0).get_names().count("logits") == 0) {
+            continue;
+        }
+        const auto matmul_out = result->input_value(0);
+        const auto divisor = ov::op::v0::Constant::create(matmul_out.get_element_type(), ov::Shape{}, {8.0f});
+        result->input(0).replace_source_output(std::make_shared<ov::op::v1::Divide>(matmul_out, divisor));
+    }
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, SparseMoEPreservesExpertFoldingForSmallModels) {
+    RecordingFactory recorder;
+    auto props = base_props();
+    props["NPUW_LLM_GENERATE_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_LLM_PREFILL_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+    const auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    auto compiled = std::make_unique<ov::npuw::LLMCompiledModel>(model, m_plugin, props, recorder.make_factory());
+    const auto& prefill = require_call_containing(recorder, "_prefill");
+    EXPECT_EQ(prefill.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,expert");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    EXPECT_EQ(generate.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,expert");
+}
+
 TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefillEmbeds) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
-                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"}, {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
@@ -125,7 +156,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefill
     ASSERT_NE(prefill, nullptr);
     ASSERT_NE(lm_head, nullptr);
 
-    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     ASSERT_TRUE(embeds.has_value());
     ASSERT_TRUE(embeds->get_partial_shape().is_static());
     EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 8, 64}));
@@ -134,6 +165,29 @@ TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefill
     ASSERT_TRUE(head_input.get_partial_shape().is_static());
     EXPECT_EQ(head_input.get_shape(), (ov::Shape{1, 8, 64}));
     EXPECT_GE(count_ops<ov::op::v8::Slice>(prefill->model), 1u);
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadWithDivideTerminalKeepsDivideInHead) {
+    RecordingFactory recorder;
+    auto props = base_props();
+    merge_props(props, {{"NPUW_LLM_SHARED_HEAD", "YES"}, {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}});
+
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = std::make_unique<ov::npuw::LLMCompiledModel>(build_divide_head_llm_model(),
+                                                                            m_plugin,
+                                                                            props,
+                                                                            recorder.make_factory()));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    const auto* lm_head = recorder.find_suffix("_lm_head");
+    ASSERT_NE(prefill, nullptr);
+    ASSERT_NE(lm_head, nullptr);
+
+    // Head was split: the prefill exposes the embeddings cut point.
+    EXPECT_TRUE(find_output(prefill->model, ov::npuw::LLMCompiledModel::layer_names::output_embeds).has_value());
+    // The direct-Divide terminal moved into the extracted LM-head model.
+    EXPECT_GE(count_ops<ov::op::v1::Divide>(lm_head->model), 1u);
 }
 
 TEST_F(LLMCompiledModelGraphOptionsTest, PromptResponseAndGenerationLengthsDriveStaticShapes) {
@@ -261,9 +315,9 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffForStaticPre
 
     // Whole (STATIC) prefill has no continuation path, so even an explicit YES
     // is reported as NO.
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
-                                                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
-                                                     recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}, {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                        recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 }

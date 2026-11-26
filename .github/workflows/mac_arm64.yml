@@ -145,7 +145,7 @@ jobs:
 
       - name: Setup NodeJS
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
@@ -154,7 +154,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        uses: hendrikmuhs/ccache-action@dbeefd73e8e2ffc1bbc412570072735eb4db3607 # v1.2.25
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -262,9 +262,24 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
-      - name: Build additional Python wheels (3.11-3.14t)
+      - name: Setup Python 3.15t
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.15t"
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'false'
+          allow-prereleases: 'true'
+
+      - name: Setup Python 3.15
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.15"
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Build additional Python wheels (3.11-3.15t)
         run: |
-          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t"
+          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t" "3.15" "3.15t"
           do
             echo "Building Python API and wheels for Python ${py_version}"
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
@@ -272,7 +287,7 @@ jobs:
 
             echo "Using Python executable at: ${python_exec_path}"
 
-            if [[ $py_version == "3.14t" ]]; then
+            if [[ $py_version == *t ]]; then
               gil_option="-DENABLE_GIL_PYTHON_API=OFF"
             else
               gil_option=""
@@ -442,7 +457,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.14t' ]
+        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.14t', '3.15', '3.15t' ]
     with:
       runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}

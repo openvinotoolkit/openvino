@@ -4,9 +4,16 @@
 
 #include <gmock/gmock.h>
 
+#include <algorithm>
+#include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <future>
+#include <numeric>
+#include <utility>
+#include <vector>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -24,7 +31,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-
+#include "openvino/util/mmap_object.hpp"
 namespace ov::test {
 using OVTensorTest = ::testing::Test;
 using testing::_, testing::HasSubstr;
@@ -634,6 +641,75 @@ TEST_F(OVTensorTest, makeRangeRoiStringTensor) {
     ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
 }
 
+TEST_F(OVTensorTest, expandRankKeepsStridesRankOnRoiTensor) {
+    ov::Tensor owner{ov::element::i32, {2, 3, 4}};
+    ov::Tensor roi{owner, {0, 1, 1}, {2, 3, 3}};
+
+    roi.set_shape({1, 1, 2, 2, 2});
+
+    ASSERT_EQ(roi.get_shape(), ov::Shape({1, 1, 2, 2, 2}));
+    ASSERT_EQ(roi.get_strides(), ov::Strides({96, 96, 48, 16, 4}));
+}
+
+TEST_F(OVTensorTest, copyToRoiTensorWithExpandedRank) {
+    ov::Tensor owner{ov::element::i64, {4}};
+    ov::Tensor roi{owner, {2}, {3}};
+    ov::Tensor src{ov::element::i64, {1, 1}};
+    src.data<int64_t>()[0] = 42;
+
+    src.copy_to(roi);
+
+    ASSERT_EQ(roi.get_shape(), ov::Shape({1, 1}));
+    ASSERT_EQ(roi.get_strides().size(), roi.get_shape().size());
+    ASSERT_EQ(owner.data<int64_t>()[2], 42);
+}
+
+TEST_F(OVTensorTest, copyStridedRoiTensorWithExpandedRank) {
+    ov::Tensor owner{ov::element::i32, {2, 3, 4}};
+    ov::Tensor roi{owner, {0, 1, 1}, {2, 3, 3}};  // not continuous along the two inner dimensions
+    ov::Tensor src{ov::element::i32, {1, 2, 2, 2}};
+
+    src.copy_to(roi);
+
+    ASSERT_EQ(roi.get_strides().size(), roi.get_shape().size());
+    const auto* expected = src.data<int32_t>();
+    const auto* result = owner.data<int32_t>();
+    std::vector<int32_t> roi_area;
+    for (const size_t idx : {5, 6, 9, 10, 17, 18, 21, 22}) {
+        roi_area.push_back(result[idx]);
+    }
+    ASSERT_EQ(roi_area, std::vector<int32_t>(expected, expected + 8));
+
+    // The expanded ROI must also read back correctly as a copy source.
+    ov::Tensor dst{ov::element::i32, {1, 2, 2, 2}};
+    roi.copy_to(dst);
+    ASSERT_EQ(std::memcmp(dst.data(), src.data(), src.get_byte_size()), 0);
+}
+
+TEST_F(OVTensorTest, expandRankOnScalarRoiTensor) {
+    ov::Tensor owner{ov::element::i32, ov::Shape{}};
+    ov::Tensor roi{owner, {}, {}};
+
+    roi.set_shape({1, 1});
+
+    ASSERT_EQ(roi.get_shape(), ov::Shape({1, 1}));
+    ASSERT_EQ(roi.get_strides(), ov::Strides({4, 4}));
+}
+
+TEST_F(OVTensorTest, expandRankOnSubByteRoiTensor) {
+    ov::Tensor owner{ov::element::u4, {2, 8}};
+    ov::Tensor row{owner, {1, 0}, {2, 8}};
+    ov::Tensor vector_owner{ov::element::u4, {8}};
+    ov::Tensor vector{vector_owner, {0}, {8}};
+
+    row.set_shape({1, 1, 8});
+    vector.set_shape({1, 1, 8});
+
+    ASSERT_EQ(row.get_strides(), ov::Strides({4, 4, 1}));
+    ASSERT_EQ(vector.get_strides(), ov::Strides({4, 4, 1}));
+    ASSERT_TRUE(vector.is_continuous());
+}
+
 TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
     ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
@@ -724,6 +800,265 @@ TEST_F(OVTensorTest, tensorInt4DataAccess) {
     OV_ASSERT_NO_THROW(t.data());
 }
 
+TEST_F(OVTensorTest, roiLpCropOuterDim) {
+    ov::Tensor t{ov::element::i4, {4, 512}};
+    auto* raw = reinterpret_cast<uint8_t*>(t.data());
+    std::iota(raw, raw + t.get_byte_size(), uint8_t{0});
+
+    ov::Tensor roi;
+    OV_ASSERT_NO_THROW(roi = ov::Tensor(t, {1, 0}, {3, 512}));
+
+    EXPECT_EQ(roi.get_shape(), ov::Shape({2, 512}));
+    EXPECT_EQ(roi.get_element_type(), t.get_element_type());
+    const auto expected_offset_bytes = 512 * 4 / 8;
+    EXPECT_EQ(reinterpret_cast<const uint8_t*>(roi.data()) - reinterpret_cast<const uint8_t*>(t.data()),
+              expected_offset_bytes);
+    EXPECT_EQ(0, std::memcmp(roi.data(), raw + expected_offset_bytes, roi.get_byte_size()));
+}
+
+TEST_F(OVTensorTest, roiLpWindowFromStart) {
+    ov::Tensor t{ov::element::i4, {1, 1, 4095, 512}};
+    ov::Tensor roi;
+    OV_ASSERT_NO_THROW(roi = ov::Tensor(t, {0, 0, 0, 0}, {1, 1, 10, 512}));
+
+    EXPECT_EQ(roi.get_shape(), ov::Shape({1, 1, 10, 512}));
+    EXPECT_EQ(roi.data(), t.data());
+}
+
+TEST_F(OVTensorTest, roiLpStridedTwoHeadsSucceeds) {
+    ov::Tensor t{ov::element::i4, {1, 2, 4095, 512}};
+    auto raw = reinterpret_cast<uint8_t*>(t.data());
+    const size_t row_bytes = 512 * 4 / 8;
+    const size_t head_stride_bytes = 4095 * row_bytes;
+    // offset each head's pattern by a different constant so the two heads can never alias
+    for (size_t i = 0; i < t.get_byte_size(); ++i) {
+        raw[i] = static_cast<uint8_t>(i + i / head_stride_bytes);
+    }
+
+    ov::Tensor roi;
+    OV_ASSERT_NO_THROW(roi = ov::Tensor(t, {0, 0, 0, 0}, {1, 2, 10, 512}));
+
+    EXPECT_EQ(roi.get_shape(), ov::Shape({1, 2, 10, 512}));
+    EXPECT_EQ(roi.get_strides(), t.get_strides());
+    EXPECT_FALSE(roi.is_continuous());
+
+    EXPECT_EQ(roi.get_strides()[1], head_stride_bytes);
+    // guards against a future shape change making the two heads indistinguishable again
+    ASSERT_NE(0, std::memcmp(raw, raw + head_stride_bytes, row_bytes));
+
+    auto roi_data = reinterpret_cast<const uint8_t*>(roi.data());
+    EXPECT_EQ(0, std::memcmp(roi_data, raw, 10 * row_bytes));
+    EXPECT_EQ(0, std::memcmp(roi_data + head_stride_bytes, raw + head_stride_bytes, 10 * row_bytes));
+
+    ov::Tensor dense{ov::element::i4, {1, 2, 10, 512}};
+    OV_ASSERT_NO_THROW(roi.copy_to(dense));
+    auto dense_data = reinterpret_cast<uint8_t*>(dense.data());
+    EXPECT_EQ(0, std::memcmp(dense_data, raw, 10 * row_bytes));
+    EXPECT_EQ(0, std::memcmp(dense_data + 10 * row_bytes, raw + head_stride_bytes, 10 * row_bytes));
+}
+
+TEST_F(OVTensorTest, roiLpCopyToStridedDestinationSucceeds) {
+    ov::Tensor src_owner{ov::element::i4, {1, 2, 4095, 512}};
+    auto src_raw = reinterpret_cast<uint8_t*>(src_owner.data());
+    const size_t row_bytes = 512 * 4 / 8;
+    const size_t src_head_stride_bytes = 4095 * row_bytes;
+    for (size_t i = 0; i < src_owner.get_byte_size(); ++i) {
+        src_raw[i] = static_cast<uint8_t>(i + i / src_head_stride_bytes);
+    }
+    ov::Tensor src;
+    OV_ASSERT_NO_THROW(src = ov::Tensor(src_owner, {0, 0, 0, 0}, {1, 2, 10, 512}));
+
+    ov::Tensor dst_owner{ov::element::i4, {1, 3, 4095, 512}};
+    auto dst_owner_raw = reinterpret_cast<uint8_t*>(dst_owner.data());
+    std::fill(dst_owner_raw, dst_owner_raw + dst_owner.get_byte_size(), uint8_t{0xFF});
+    const size_t dst_head_stride_bytes = 4095 * row_bytes;
+
+    ov::Tensor dst;
+    // heads 1 and 2 of dst_owner - both src and dst are non-contiguous, with different strides
+    OV_ASSERT_NO_THROW(dst = ov::Tensor(dst_owner, {0, 1, 0, 0}, {1, 3, 10, 512}));
+    EXPECT_FALSE(dst.is_continuous());
+
+    OV_ASSERT_NO_THROW(src.copy_to(dst));
+
+    // head 0 of dst_owner is outside the destination ROI and must stay untouched
+    EXPECT_EQ(dst_owner_raw[0], 0xFF);
+    EXPECT_EQ(dst_owner_raw[dst_head_stride_bytes - 1], 0xFF);
+
+    EXPECT_EQ(0, std::memcmp(dst_owner_raw + dst_head_stride_bytes, src_raw, 10 * row_bytes));
+    // row just past the copied window must stay untouched
+    EXPECT_EQ(dst_owner_raw[dst_head_stride_bytes + 10 * row_bytes], 0xFF);
+
+    EXPECT_EQ(0,
+              std::memcmp(dst_owner_raw + 2 * dst_head_stride_bytes, src_raw + src_head_stride_bytes, 10 * row_bytes));
+    EXPECT_EQ(dst_owner_raw[2 * dst_head_stride_bytes + 10 * row_bytes], 0xFF);
+}
+
+TEST_F(OVTensorTest, roiLpCopyToDenseSourceStridedDestinationSucceeds) {
+    ov::Tensor src{ov::element::i4, {1, 2, 10, 512}};
+    auto src_raw = reinterpret_cast<uint8_t*>(src.data());
+    const size_t row_bytes = 512 * 4 / 8;
+    const size_t src_head_stride_bytes = 10 * row_bytes;
+    for (size_t i = 0; i < src.get_byte_size(); ++i) {
+        src_raw[i] = static_cast<uint8_t>(i + i / src_head_stride_bytes);
+    }
+
+    ov::Tensor dst_owner{ov::element::i4, {1, 2, 4095, 512}};
+    auto dst_owner_raw = reinterpret_cast<uint8_t*>(dst_owner.data());
+    std::fill(dst_owner_raw, dst_owner_raw + dst_owner.get_byte_size(), uint8_t{0xFF});
+    const size_t dst_head_stride_bytes = 4095 * row_bytes;
+
+    ov::Tensor dst;
+    OV_ASSERT_NO_THROW(dst = ov::Tensor(dst_owner, {0, 0, 0, 0}, {1, 2, 10, 512}));
+    EXPECT_FALSE(dst.is_continuous());
+
+    OV_ASSERT_NO_THROW(src.copy_to(dst));
+
+    EXPECT_EQ(0, std::memcmp(dst_owner_raw, src_raw, 10 * row_bytes));
+    // row just past the copied window must stay untouched
+    EXPECT_EQ(dst_owner_raw[10 * row_bytes], 0xFF);
+
+    EXPECT_EQ(0, std::memcmp(dst_owner_raw + dst_head_stride_bytes, src_raw + src_head_stride_bytes, 10 * row_bytes));
+    EXPECT_EQ(dst_owner_raw[dst_head_stride_bytes + 10 * row_bytes], 0xFF);
+}
+
+TEST_F(OVTensorTest, roiLpCopyToMismatchedElementTypeThrows) {
+    ov::Tensor src{ov::element::i4, {2, 8}};
+    ov::Tensor dst{ov::element::u4, {2, 8}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(src.copy_to(dst), ov::Exception, "Tensor element types are not equal");
+}
+
+TEST_F(OVTensorTest, roiLpCopyToUninitializedDestinationThrows) {
+    ov::Tensor src{ov::element::i4, {2, 8}};
+    ov::Tensor dst;
+    OV_EXPECT_THROW_HAS_SUBSTRING(src.copy_to(dst), ov::Exception, "Destination tensor was not initialized");
+}
+
+TEST_F(OVTensorTest, roiLpCopyToExceedsDestinationCapacityThrows) {
+    ov::Tensor src{ov::element::i4, {1, 2, 10, 512}};
+    ov::Tensor dst_owner{ov::element::i4, {1, 2, 4095, 512}};
+    ov::Tensor dst;
+    // dst sits at the tail of dim2, leaving no room to grow to src's shape (10 rows needed, 5 available)
+    OV_ASSERT_NO_THROW(dst = ov::Tensor(dst_owner, {0, 0, 4090, 0}, {1, 2, 4095, 512}));
+
+    OV_EXPECT_THROW(src.copy_to(dst), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpCopyToZeroExtentMiddleDimDoesNotHang) {
+    ov::Tensor owner{ov::element::i4, {2, 3, 8}};
+    ov::Tensor src;
+    OV_ASSERT_NO_THROW(src = ov::Tensor(owner, {0, 0, 0}, {2, 0, 8}));
+    ASSERT_EQ(src.get_shape(), ov::Shape({2, 0, 8}));
+    ASSERT_EQ(src.get_strides(), ov::Strides({12, 4, 1}));
+
+    ov::Tensor dst{ov::element::i4, {1}};
+    OV_ASSERT_NO_THROW(src.copy_to(dst));
+    EXPECT_EQ(dst.get_shape(), ov::Shape({2, 0, 8}));
+    EXPECT_EQ(dst.get_byte_size(), 0u);
+    EXPECT_EQ(dst.get_strides(), ov::Strides({0, 4, 1}));
+}
+
+TEST_F(OVTensorTest, roiLpInnerDimSliceThrows) {
+    ov::Tensor t{ov::element::i4, {2, 8}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t, {0, 0}, {2, 4}}),
+                                  ov::Exception,
+                                  "cannot slice the innermost dimension");
+}
+
+TEST_F(OVTensorTest, roiLpNonContiguousThrows) {
+    ov::Tensor t{ov::element::i4, {1, 2, 4095, 512}};
+    // end[2] exceeds the owner's shape[2] (4095) - still rejected regardless of element type
+    OV_EXPECT_THROW((ov::Tensor{t, {0, 0, 0, 0}, {1, 2, 4096, 512}}), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpUnsupportedBitwidthThrows) {
+    ov::Tensor t3{ov::element::u3, {2, 8}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t3, {0, 0}, {1, 8}}),
+                                  ov::Exception,
+                                  "Could not get strides for tensor type: u3");
+
+    ov::Tensor t6{ov::element::u6, {2, 8}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t6, {0, 0}, {1, 8}}),
+                                  ov::Exception,
+                                  "Could not get strides for tensor type: u6");
+}
+
+TEST_F(OVTensorTest, roiLpUnalignedInnerDimThrows) {
+    ov::Tensor t{ov::element::i4, {1, 6, 5, 3}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}}),
+                                  ov::Exception,
+                                  "Could not get strides for tensor type: i4, shape: [1,6,5,3]");
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewSucceeds) {
+    constexpr size_t row_bytes = 512 * 4 / 8;
+    constexpr size_t head_stride_bytes = 4095 * row_bytes;
+    std::vector<uint8_t> buffer(2 * head_stride_bytes);
+    // offset each head's pattern by a different constant so the two heads can never alias
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        buffer[i] = static_cast<uint8_t>(i + i / head_stride_bytes);
+    }
+
+    const ov::Strides strides{2 * head_stride_bytes, head_stride_bytes, row_bytes, 1};
+    ov::Tensor t;
+    OV_ASSERT_NO_THROW(t = ov::Tensor(ov::element::i4, {1, 2, 10, 512}, buffer.data(), strides));
+
+    EXPECT_EQ(t.get_strides(), strides);
+    EXPECT_FALSE(t.is_continuous());
+
+    auto data = reinterpret_cast<const uint8_t*>(t.data());
+    EXPECT_EQ(0, std::memcmp(data, buffer.data(), 10 * row_bytes));
+    EXPECT_EQ(0, std::memcmp(data + head_stride_bytes, buffer.data() + head_stride_bytes, 10 * row_bytes));
+
+    ov::Tensor dense{ov::element::i4, {1, 2, 10, 512}};
+    OV_ASSERT_NO_THROW(t.copy_to(dense));
+    auto dense_data = reinterpret_cast<uint8_t*>(dense.data());
+    EXPECT_EQ(0, std::memcmp(dense_data, buffer.data(), 10 * row_bytes));
+    EXPECT_EQ(0, std::memcmp(dense_data + 10 * row_bytes, buffer.data() + head_stride_bytes, 10 * row_bytes));
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewRowTooSmallThrows) {
+    constexpr size_t row_bytes = 512 * 4 / 8;
+    std::vector<uint8_t> buffer(2 * 10 * row_bytes);
+    const ov::Strides bad_strides{2 * 10 * row_bytes, 10 * row_bytes, row_bytes - 1, 1};
+    OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {1, 2, 10, 512}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewWrongPlaceholderStrideThrows) {
+    constexpr size_t row_bytes = 8 * 4 / 8;  // i4, 8 elements per row -> 4 bytes
+    std::vector<uint8_t> buffer(2 * row_bytes);
+    const ov::Strides bad_strides{row_bytes, 2};  // last stride must be the dense placeholder (1), not 2
+    OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {2, 8}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewWrongPlaceholderStride3DThrows) {
+    constexpr size_t row_bytes = 8 * 4 / 8;  // i4, 8 elements per row -> 4 bytes
+    std::vector<uint8_t> buffer(2 * 4 * row_bytes);
+    const ov::Strides bad_strides{4 * row_bytes, row_bytes, 2};  // last stride must be 1, not 2
+    OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {2, 4, 8}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, stridedViewSetShapeRejectsUnalignedSubByteShape) {
+    constexpr size_t row_bytes = 8 * 4 / 8;
+    std::vector<uint8_t> buffer(2 * row_bytes);
+    ov::Tensor t{ov::element::i4, {2, 8}, buffer.data(), ov::Strides{row_bytes, 1}};
+    // shrinking the last dimension to 1 element (4 bits) is no longer byte-aligned
+    OV_EXPECT_THROW(t.set_shape({2, 1}), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiSetShapeRejectsUnalignedSubByteInnerDim) {
+    ov::Tensor owner{ov::element::i4, {4, 8}};
+    ov::Tensor roi{owner, {0, 0}, {2, 8}};
+    // shrinking the last dimension to 1 element (4 bits) is no longer byte-aligned
+    OV_EXPECT_THROW(roi.set_shape({2, 1}), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiSetShapeRejectsUnalignedSubByteInnerDimWithRankExpansion) {
+    ov::Tensor owner{ov::element::i4, {4, 8}};
+    ov::Tensor roi{owner, {0, 0}, {2, 8}};
+    // expanding rank must not bypass the innermost byte-alignment check
+    OV_EXPECT_THROW(roi.set_shape({1, 2, 1}), ov::Exception, _);
+}
+
 TEST_F(OVTensorTest, makeRangeRoiBlobWrongSize) {
     ov::Tensor t{ov::element::f32, {1, 3, 4, 4}};
     ASSERT_THROW((ov::Tensor{t, {0, 0, 1, 1}, {1, 3, 5, 5}}), ov::Exception);
@@ -779,6 +1114,27 @@ TEST_F(OVTensorTest, readRangeRoiBlobStringTensor) {
         }
     }
 }
+
+using EmptyRoiParams = std::pair<ov::Coordinate, ov::Coordinate>;
+
+struct OVTensorTestCopyEmptyRoi : ::testing::TestWithParam<EmptyRoiParams> {};
+
+TEST_P(OVTensorTestCopyEmptyRoi, copy_to_and_from_dense) {
+    const auto& [begin, end] = GetParam();
+    ov::Tensor parent{ov::element::f32, {1, 4, 8, 16}};
+    ov::Tensor roi{parent, begin, end};
+    ov::Tensor dense{ov::element::f32, {1}};
+
+    OV_ASSERT_NO_THROW(roi.copy_to(dense));
+    EXPECT_EQ(dense.get_shape(), roi.get_shape());
+    OV_ASSERT_NO_THROW(dense.copy_to(roi));
+}
+
+INSTANTIATE_TEST_SUITE_P(copy_tests_empty_roi,
+                         OVTensorTestCopyEmptyRoi,
+                         ::testing::Values(EmptyRoiParams{{0, 0, 2, 0}, {1, 4, 2, 16}},   // 1x4x0x16
+                                           EmptyRoiParams{{0, 0, 2, 4}, {1, 4, 2, 8}},    // 1x4x0x4
+                                           EmptyRoiParams{{0, 0, 0, 4}, {1, 4, 8, 4}}));  // 1x4x8x0
 
 TEST_F(OVTensorTest, createTensorWithZeroDimsCheckStride) {
     ov::Shape shape = {0, 0, 0, 0};
@@ -1341,6 +1697,145 @@ TEST_F(OVTensorTest, sourceIdAllocatedTensorHasNoSourceId) {
     // and therefore do not have a source_id
     ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}};
     EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+}
+
+namespace {
+class MockMappedMemory final : public ov::MappedMemory {
+public:
+    explicit MockMappedMemory(size_t size) : m_data(size) {}
+
+    const std::byte* data() const noexcept override {
+        return m_data.data();
+    }
+    std::byte* data() noexcept override {
+        return m_data.data();
+    }
+    size_t size() const noexcept override {
+        return m_data.size();
+    }
+    std::optional<uint64_t> get_id() const noexcept override {
+        return 7u;
+    }
+
+    MOCK_METHOD(void, hint_evict, (size_t offset, size_t size), (noexcept, override));
+    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
+    MOCK_METHOD(ov::util::PrefetchToken, hint_prefetch_async, (size_t offset, size_t size), (noexcept, override));
+
+private:
+    std::vector<std::byte> m_data;
+};
+
+ov::Tensor make_buffer_tensor(const ov::element::Type& type,
+                              const ov::Shape& shape,
+                              std::shared_ptr<ov::util::IBuffer> buffer) {
+    const auto tensor_impl = ov::make_tensor(type, shape, std::move(buffer));
+    return ov::make_tensor(tensor_impl);
+}
+}  // namespace
+
+TEST_F(OVTensorTest, mappedMemoryPrefetchForwardsCompletionToken) {
+    const auto mapping = std::make_shared<MockMappedMemory>(64);
+    std::shared_ptr<ov::MappedMemory> memory = mapping;
+    std::shared_ptr<ov::util::IMemoryHints> hints = mapping;
+    std::promise<void> completion;
+    const auto expected = completion.get_future().share();
+
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, ov::auto_size)).Times(2).WillRepeatedly(testing::Return(expected));
+    const auto memory_token = memory->hint_prefetch();
+    const auto hints_token = hints->hint_prefetch();
+    ASSERT_TRUE(memory_token.valid());
+    ASSERT_TRUE(hints_token.valid());
+
+    EXPECT_EQ(memory_token.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    EXPECT_EQ(hints_token.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    completion.set_value();
+    EXPECT_EQ(memory_token.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    EXPECT_EQ(hints_token.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+}
+
+TEST_F(OVTensorTest, bufferTensorViewsBufferAndTakesItsId) {
+    auto mapping = std::make_shared<MockMappedMemory>(64);
+    const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{64}, mapping);
+    EXPECT_EQ(tensor.data(), static_cast<const void*>(mapping->data()));
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::optional<uint64_t>{7u});
+
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, ov::auto_size));
+    auto hints = ov::get_memory_hints(tensor);
+    EXPECT_EQ(hints.get(), static_cast<ov::util::IMemoryHints*>(mapping.get()));
+    hints->hint_prefetch();
+}
+
+TEST_F(OVTensorTest, bufferTensorCopyTo) {
+    auto mapping = std::make_shared<MockMappedMemory>(16);
+    std::iota(reinterpret_cast<uint8_t*>(mapping->data()), reinterpret_cast<uint8_t*>(mapping->data()) + 16, 0);
+    const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{4, 4}, mapping);
+
+    ov::Tensor dst{ov::element::u8, ov::Shape{4, 4}};
+    tensor.copy_to(dst);
+    EXPECT_EQ(std::memcmp(dst.data(), mapping->data(), 16), 0);
+
+    ov::Tensor roi_dst{ov::element::u8, ov::Shape{2, 2}};
+    ov::Tensor{tensor, {1, 1}, {3, 3}}.copy_to(roi_dst);
+    EXPECT_THAT(std::vector<uint8_t>(roi_dst.data<uint8_t>(), roi_dst.data<uint8_t>() + 4),
+                testing::ElementsAre(5, 6, 9, 10));
+}
+
+TEST_F(OVTensorTest, memoryHintsCoverTensorRangeOfMapping) {
+    auto mapping = std::make_shared<MockMappedMemory>(1024);
+    const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{1000}, mapping);
+    const ov::Tensor roi{tensor, {100}, {300}};
+
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, 1000));
+    EXPECT_CALL(*mapping, hint_evict(0, 1000));
+    EXPECT_CALL(*mapping, hint_prefetch_async(100, 200));
+    EXPECT_CALL(*mapping, hint_evict(100, 200));
+
+    auto hints = ov::get_memory_hints(tensor);
+    ASSERT_NE(hints, nullptr);
+    hints->hint_prefetch();
+    hints->hint_evict();
+
+    auto roi_hints = ov::get_memory_hints(ov::Tensor{roi, {0}, {200}});
+    ASSERT_NE(roi_hints, nullptr);
+    roi_hints->hint_prefetch();
+    roi_hints->hint_evict();
+}
+
+TEST_F(OVTensorTest, memoryHintsNotAvailableWithoutBufferOrForStridedRoi) {
+    float data[16] = {};
+    ov::Tensor tensor{ov::element::f32, ov::Shape{4, 4}, data};
+    EXPECT_EQ(ov::get_memory_hints(tensor), nullptr);
+
+    const auto mapped = make_buffer_tensor(ov::element::f32, ov::Shape{4, 4}, std::make_shared<MockMappedMemory>(64));
+    EXPECT_EQ(ov::get_memory_hints(ov::Tensor{mapped, {0, 1}, {4, 3}}), nullptr);
+}
+
+TEST_F(OVTensorTest, bufferTensorRejectsMissingOrTooSmallBuffer) {
+    EXPECT_THROW(ov::make_tensor(ov::element::u8, ov::Shape{1}, std::shared_ptr<ov::util::IBuffer>{}), ov::Exception);
+    EXPECT_THROW(ov::make_tensor(ov::element::u8, ov::Shape{65}, std::make_shared<MockMappedMemory>(64)),
+                 ov::Exception);
+}
+
+TEST_F(OVTensorTest, memoryHintsAvailableForMmapTensor) {
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_memory_hints_test.bin";
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    {
+        auto tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, true);
+        auto hints = ov::get_memory_hints(tensor);
+        ASSERT_NE(hints, nullptr);
+        hints->hint_evict();
+        hints->hint_prefetch();
+        EXPECT_EQ(tensor.data<const float>()[5], 6.f);
+        EXPECT_EQ(
+            ov::get_memory_hints(ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, false)),
+            nullptr);
+    }
+    std::filesystem::remove(tmp_path);
 }
 
 }  // namespace ov::test

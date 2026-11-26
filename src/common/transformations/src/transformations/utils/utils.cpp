@@ -6,11 +6,13 @@
 
 #include <assert.h>
 
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <tuple>
 #include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
@@ -53,9 +55,69 @@ namespace v3 = ov::op::v3;
 namespace v6 = ov::op::v6;
 namespace v8 = ov::op::v8;
 namespace op_util = ov::op::util;
+
+namespace {
+#define ACCESSOR(type)                                                                    \
+    void on_adapter(const std::string& name, ov::ValueAccessor<type>& adapter) override { \
+        m_attributes_map[name] = adapter.get();                                           \
+    };
+#define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
+
+// Attributes without equality operators throw ov::NotImplemented
+class NodeComparingVisitor : public ov::AttributeVisitor {
+public:
+    ACCESSOR(bool)
+    ACCESSOR_V(std::string)
+    ACCESSOR_V(int8_t)
+    ACCESSOR_V(int16_t)
+    ACCESSOR_V(int32_t)
+    ACCESSOR_V(int64_t)
+    ACCESSOR_V(uint8_t)
+    ACCESSOR_V(uint16_t)
+    ACCESSOR_V(uint32_t)
+    ACCESSOR_V(uint64_t)
+    ACCESSOR_V(float)
+    ACCESSOR_V(double)
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        if (auto a = ov::as_type<ov::AttributeAdapter<std::vector<ov::element::Type>>>(&adapter)) {
+            m_attributes_map.insert({name, a->get()});
+        } else {
+            OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+        }
+    };
+    void on_adapter(const std::string& name, ov::ValueAccessor<void*>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
+    };
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
+    };
+
+    ov::AnyMap visit_attributes(const std::shared_ptr<ov::Node>& node) {
+        m_attributes_map.clear();
+        node->visit_attributes(*this);
+        return m_attributes_map;
+    }
+
+private:
+    ov::AnyMap m_attributes_map;
+};
+#undef ACCESSOR_V
+#undef ACCESSOR
+}  // namespace
+
 namespace ov {
 namespace op {
 namespace util {
+
+ov::AnyMap get_comparable_attributes(const std::shared_ptr<ov::Node>& node) {
+    return NodeComparingVisitor().visit_attributes(node);
+}
+
+bool constants_are_equal(const std::shared_ptr<v0::Constant>& lhs, const std::shared_ptr<v0::Constant>& rhs) {
+    return lhs && rhs && lhs->get_element_type() == rhs->get_element_type() && lhs->get_shape() == rhs->get_shape() &&
+           std::memcmp(lhs->get_data_ptr(), rhs->get_data_ptr(), lhs->get_byte_size()) == 0;
+}
 
 void visit_path(ov::Node* node,
                 std::unordered_set<ov::Node*>& visited,
@@ -626,6 +688,36 @@ bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int6
         });
     }
     return false;
+}
+
+std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
+    std::vector<int64_t> axes;
+    int64_t i = 0;
+    for (auto o = 0; o < out_shape.rank().get_length(); o++) {
+        if (i < data_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[o])) {
+            i += 1;
+            continue;
+        }
+        if (out_shape[o].is_static() && out_shape[o] == 1) {
+            axes.push_back(o);
+        }
+    }
+    return axes;
+}
+
+std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
+    std::vector<int64_t> axes;
+    int64_t out_i = 0;
+    for (auto i = 0; i < data_shape.rank().get_length(); i++) {
+        if (out_i < out_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[out_i])) {
+            out_i += 1;
+            continue;
+        }
+        if (data_shape[i].is_static() && data_shape[i] == 1) {
+            axes.push_back(i);
+        }
+    }
+    return axes;
 }
 
 bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node) {

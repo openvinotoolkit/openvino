@@ -48,7 +48,7 @@ bool SerializeDataFlow::run(const LinearIR& linear_ir) {
             ops_map[expr] = parameter;
             parameters.push_back(parameter);
         } else if (ov::is_type<ov::op::v0::Result>(node)) {
-            const auto result = std::make_shared<ov::op::v0::Result>(inputs[0]);
+            const auto result = ov::as_type_ptr<ov::op::v0::Result>(node->clone_with_new_inputs(inputs));
             ops_map[expr] = result;
             results.push_back(result);
         } else {

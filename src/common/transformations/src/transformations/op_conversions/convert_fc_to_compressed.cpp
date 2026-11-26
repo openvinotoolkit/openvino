@@ -9,6 +9,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -23,6 +24,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
@@ -69,11 +71,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             new_IC = n_groups * group_size;
         }
         auto new_constant = std::make_shared<v0::Constant>(*constant, new_shape);
-        // Propagate plain "otd_bin_offset" entry (used by GPU OTD when WCA is lost)
-        auto otd_it = constant->get_rt_info().find("otd_bin_offset");
-        if (otd_it != constant->get_rt_info().end()) {
-            new_constant->get_rt_info()["otd_bin_offset"] = otd_it->second;
-        }
+        ov::copy_weightless_cache_attr(constant, new_constant);
         return new_constant;
     };
 
@@ -210,6 +208,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);
         const size_t G = grouped ? (has_transpose ? *(scale_shape.rbegin() + 2) : *(scale_shape.rbegin() + 1)) : 1;
+        // The flags are not copyable and are needed by supports_config
+        if (ov::is_conversion_disabled(fc, element::f16)) {
+            ov::disable_conversion(new_fc, element::f16);
+        }
+        if (ov::is_conversion_disabled(fc, element::f32, element::bf16)) {
+            ov::disable_conversion(new_fc, element::f32, element::bf16);
+        }
         if (supports_config && !supports_config(new_fc, IC, OC, G))
             return false;
 

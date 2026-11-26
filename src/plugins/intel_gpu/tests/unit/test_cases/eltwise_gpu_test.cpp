@@ -2986,6 +2986,82 @@ TEST(eltwise_gpu_int, div_gather_fusing) {
     }
 }
 
+TEST(eltwise_gpu_int, python_division) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{4, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{4, 1, 1, 1}});
+
+    set_values(input1, {-5, 5, -5, 5});
+    set_values(input2, {2, -2, -2, 2});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise",
+                         {input_info("input1"), input_info("input2")},
+                         eltwise_mode::div,
+                         std::vector<float>(0),
+                         data_types::i32,
+                         DEFAULT_BROADCAST_SPEC,
+                         true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<int32_t> expected = {-3, -3, 2, 2};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_int, python_division_i16) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::i16, format::bfyx, tensor{4, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i16, format::bfyx, tensor{4, 1, 1, 1}});
+
+    set_values(input1, {int16_t(-5), int16_t(5), int16_t(-5), int16_t(5)});
+    set_values(input2, {int16_t(2), int16_t(-2), int16_t(-2), int16_t(2)});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise",
+                         {input_info("input1"), input_info("input2")},
+                         eltwise_mode::div,
+                         std::vector<float>(0),
+                         data_types::i16,
+                         DEFAULT_BROADCAST_SPEC,
+                         true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<int16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<int16_t> expected = {int16_t(-3), int16_t(-3), 2, 2};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
 TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
     // Same params as in eltwise_gpu_f32, sub_basic_in4x4x4x4 but using int types for first input.
     //
@@ -5060,6 +5136,60 @@ TEST(eltwise_gpu, vload8_rejects_spatial_broadcast) {
 TEST(eltwise_gpu, vload8_rejects_blocked_feature_broadcast) {
     skip_if_no_fp16();
     test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, false, false, format::b_fs_yx_fsv16);
+}
+
+namespace {
+template <typename OutputT>
+void test_generic_ref_zeros_feature_padding_of_single_element_output(data_types output_type) {
+    // A single-element b_fs_yx_fsv16 output has one valid feature lane and 15 padding lanes. The padding-reset
+    // work-items of generic_eltwise_ref must store to their own lanes. OUTPUT_GET_INDEX of a single-element tensor is
+    // folded to the first element offset, so storing through it made every padding lane overwrite the result.
+    constexpr size_t feature_block_size = 16;
+    auto& engine = get_test_engine();
+
+    const layout in_layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::b_fs_yx_fsv16};
+    auto input = engine.allocate_memory(in_layout);
+    std::vector<float> input_data(in_layout.get_linear_size(), 0.0f);
+    input_data[0] = 3.0f;
+    set_values(input, input_data);
+    auto scale = engine.allocate_memory({ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx});
+    set_values(scale, {0.5f});
+
+    topology topology(input_layout("input", in_layout),
+                      data("scale", scale),
+                      eltwise("eltwise", {input_info("input"), input_info("scale")}, eltwise_mode::prod, output_type));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"eltwise", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+    }));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    ASSERT_NE(network.get_primitive_info("eltwise").find("generic_eltwise_ref"), std::string::npos);
+
+    // Fill the output with a dirty value to check that the padding lanes are reset.
+    auto eltwise_output = network.get_primitive("eltwise")->output_memory_ptr();
+    ASSERT_EQ(eltwise_output->get_layout().get_linear_size(), feature_block_size);
+    set_values(eltwise_output, std::vector<OutputT>(feature_block_size, OutputT(7.0f)));
+
+    auto outputs = network.execute();
+    auto output = outputs.at("eltwise").get_memory();
+    ASSERT_TRUE(engine.is_the_same_buffer(*eltwise_output, *output));
+    cldnn::mem_lock<OutputT, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(static_cast<float>(output_ptr[0]), 1.5f);
+    for (size_t lane = 1; lane < feature_block_size; ++lane) {
+        ASSERT_EQ(static_cast<float>(output_ptr[lane]), 0.0f) << "padding lane " << lane;
+    }
+}
+}  // namespace
+
+TEST(eltwise_gpu, generic_ref_zeros_feature_padding_of_single_element_output_f32) {
+    test_generic_ref_zeros_feature_padding_of_single_element_output<float>(data_types::f32);
+}
+
+TEST(eltwise_gpu, generic_ref_zeros_feature_padding_of_single_element_output_f16) {
+    skip_if_no_fp16();
+    test_generic_ref_zeros_feature_padding_of_single_element_output<ov::float16>(data_types::f16);
 }
 
 struct eltwise_layout_test_params {

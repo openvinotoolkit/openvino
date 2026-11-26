@@ -27,10 +27,10 @@ public:
     ze_device_resource get_device() const { return _device; }
     ze_context_resource get_context() const { return _context; }
 
-    bool is_same(const device::ptr other) override;
+    bool is_same(device::ptr other) override;
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
 
-    ~ze_device() = default;
+    ~ze_device() override = default;
 
 private:
     ze_driver_resource _driver;

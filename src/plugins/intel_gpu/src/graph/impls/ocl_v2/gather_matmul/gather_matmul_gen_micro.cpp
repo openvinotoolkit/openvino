@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 // clang-format off
+#include <algorithm>
+
 #include "gather_matmul_gen_micro.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -23,12 +25,9 @@ void entryObserver(const gemmstone::kcatalog::Entry* entry, double score, gemmst
 }  // anonymous namespace
 
 static bool has_fused_swiglu(const kernel_impl_params& params) {
-    for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>()) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(params.fused_desc.begin(), params.fused_desc.end(), [](const auto& fd) {
+        return fd.template is_type<swiglu>();
+    });
 }
 
 static size_t get_subgroup_size(gpu_arch arch) {
@@ -41,11 +40,15 @@ static size_t get_subgroup_size(gpu_arch arch) {
         return 8;
     case gpu_arch::xe2:
     case gpu_arch::xe3:
+    case gpu_arch::xe3p:
         return 16;
     default:
         return 0;
     }
 }
+
+// Host payload (cross-thread argument bytes) of the gather_matmul kernels; needs ~144 bytes at least.
+constexpr int host_argument_bytes = 256;
 
 gathermatmul_config GatherMatmulMicroGenerator::get_config(const kernel_impl_params& params) {
     gathermatmul_config cfg;
@@ -135,7 +138,8 @@ JitConstants GatherMatmulMicroGenerator::get_jit_constants(const kernel_impl_par
                 jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
                 jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u8));
             } else {
-                jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::f16));
+                // Must match the micro-GEMM ZP type: expert_gemm_compute.cl strides the per-expert ZP pointer with it.
+                jit.make("WEIGHT_ZP_DT", to_ocl_type(zp_layout.data_type));
             }
         }
     } else {
@@ -226,6 +230,7 @@ void GatherMatmulMicroGenerator::init_microkernels(const kernel_impl_params& par
     hw_info.euCount = device_info.execution_units_count;
     hw_info.gmdid = device_info.ip_version;
     hw_info.systolicAvailable = device_info.supports_immad;
+    const micro::HostPayload host{static_cast<int>(get_subgroup_size(device_info.arch)), host_argument_bytes};
 
     // B (weights): [n_all_experts, N, K] — N=ofm, K=ifm
     const auto& weight_shape = params.get_input_layout(gather_matmul::BGMInputIdx::WEIGHT).get_shape();
@@ -291,7 +296,7 @@ void GatherMatmulMicroGenerator::init_microkernels(const kernel_impl_params& par
     GPU_DEBUG_TRACE_DETAIL << "GatherMatmulsizes: m=" << m << " n=" << n << " k=" << k << std::endl;
     try {
         gemmstone::SelectionObserver observer = entryObserver;
-        gemm_bgm = micro::select_gemm_microkernel(opts, hw_info, sizes, problem, &observer);
+        gemm_bgm = micro::select_gemm_microkernel(opts, host, hw_info, sizes, problem, &observer);
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create GatherMatmul micro kernel: ", ex.what());
     }
@@ -413,7 +418,7 @@ KernelData GatherMatmulMicroGenerator::get_kernel_data(const kernel_impl_params&
     shim_options.useTileOps = true;
     shim_options.decorator = "gm";
 
-    kd.code->jit += generateShim(bgm_gemm, micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(bgm_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (bgm_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }

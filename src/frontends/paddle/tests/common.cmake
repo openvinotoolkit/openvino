@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+
 # Test model generating
-set(CODE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../)
+set(CODE_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 set(PADDLE_REQ "${CODE_ROOT_DIR}/requirements.txt")
 if(Python3_Interpreter_FOUND)
     execute_process(
@@ -22,7 +24,8 @@ endif()
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
-        ROOT ${CODE_ROOT_DIR}
+        SOURCES
+            ${OV_PADDLE_TESTS_SRC}
         DEPENDENCIES
             paddle_test_models_${PD_MODEL_TAG}
             openvino_paddle_frontend
@@ -35,6 +38,11 @@ ov_add_test_target(
             gtest_main_manifest
             func_test_utils
         ADD_CLANG_FORMAT
+        CHECK_SOURCES_LISTED
+        CHECK_SOURCES_DIRECTORY
+            ${CODE_ROOT_DIR}
+        CHECK_SOURCES_EXCLUDE_DIRECTORIES
+            ${CODE_ROOT_DIR}/standalone_build
         LABELS
             ${ctest_labels} PADDLE_FE
 )
@@ -82,7 +90,6 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_GEN_TAG=\"${paddle_gen
 if(PADDLEDET_RESULT)
     set(TEST_PADDLE_MODELS ${TEST_MODEL_ZOO_OUTPUT_DIR}/paddle_test_models/${PD_MODEL_TAG}/)
 
-    file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CODE_ROOT_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done_${PD_MODEL_TAG}.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
             COMMAND  ${CMAKE_COMMAND} -E env PYTHONPATH=${PADDLEDET_DIRNAME} FLAGS_enable_pir_api=${ENABLE_PIR}
