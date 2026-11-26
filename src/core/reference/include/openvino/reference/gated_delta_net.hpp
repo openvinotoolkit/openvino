@@ -25,7 +25,8 @@ void gated_delta_net(const T* q_data,
                      const Shape& v_shape,
                      bool fuse_qk_l2norm,
                      T q_l2_norm_eps,
-                     T k_l2_norm_eps) {
+                     T k_l2_norm_eps,
+                     bool per_key_gate = false) {
     const size_t B = q_shape[0];
     const size_t S = q_shape[1];
     const size_t qk_H = q_shape[2];
@@ -89,11 +90,20 @@ void gated_delta_net(const T* q_data,
                     for (size_t i = 0; i < D; i++)
                         q_vec[i] *= attn_scale;
 
-                    T g = std::exp(gate_data[b * gate_beta_stride_batch + t * v_H + h_v]);
                     T bt = beta_data[b * gate_beta_stride_batch + t * v_H + h_v];
 
-                    for (size_t d = 0; d < D; d++) {
-                        local_state[d] *= g;
+                    // Row d of the [D, Dv] head state decays by exp(gate) (gate [B, S, v_H]) or by
+                    // exp(gate[d]) (per-key gate [B, S, v_H, D], Kimi Delta Attention).
+                    if (per_key_gate) {
+                        const T* g_ptr = gate_data + (b * gate_beta_stride_batch + t * v_H + h_v) * D;
+                        for (size_t d = 0; d < D; d++) {
+                            local_state[d] *= std::exp(g_ptr[d]);
+                        }
+                    } else {
+                        T g = std::exp(gate_data[b * gate_beta_stride_batch + t * v_H + h_v]);
+                        for (size_t d = 0; d < D; d++) {
+                            local_state[d] *= g;
+                        }
                     }
 
                     T h_k = dot_product(local_state.data(), k_vec.data(), D);

@@ -134,7 +134,16 @@ KERNEL(paged_gated_delta_net_ref)
                 k_norm[ks] *= k_scale;
             }
 
+#if PER_KEY_GATE
+            // gate [tokens, H, K]: state row k_idx = lid + ks * SUBGROUP_SIZE decays by exp(gate[.., k_idx]).
+            float g_key[K_SLICE_SIZE];
+            for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
+                const int k_idx = lid + ks * SUBGROUP_SIZE;
+                g_key[ks] = (k_idx < K_HEAD_DIM) ? exp(convert_float(gate[g_idx * K_HEAD_DIM + k_idx])) : 0.0f;
+            }
+#else
             const float b_g = exp(convert_float(gate[g_idx]));
+#endif
             const float b_beta = convert_float(beta[g_idx]);
 
 #pragma unroll
@@ -144,7 +153,11 @@ KERNEL(paged_gated_delta_net_ref)
                     continue;
                 float h_k_local = 0.0f;
                 for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
+#if PER_KEY_GATE
+                    state[v_idx][ks] *= g_key[ks];
+#else
                     state[v_idx][ks] *= b_g;
+#endif
                     h_k_local = fma(state[v_idx][ks], k_norm[ks], h_k_local);
                 }
 

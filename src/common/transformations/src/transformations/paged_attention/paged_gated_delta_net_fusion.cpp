@@ -119,7 +119,11 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         const auto query_flat = flatten_batch_length(pm.at(query), {2, 3});
         const auto key_flat = flatten_batch_length(pm.at(key), {2, 3});
         const auto value_flat = flatten_batch_length(pm.at(value), {2, 3});
-        const auto gate_flat = flatten_batch_length(pm.at(gate), {2});
+        // A per-key gate (rank 4, [B, L, H, K]) keeps its key dim: [B*L, H, K].
+        const auto& gate_rank = pm.at(gate).get_partial_shape().rank();
+        const bool per_key_gate = gate_rank.is_static() && gate_rank.get_length() == 4;
+        const auto gate_flat =
+            per_key_gate ? flatten_batch_length(pm.at(gate), {2, 3}) : flatten_batch_length(pm.at(gate), {2});
         const auto beta_flat = flatten_batch_length(pm.at(beta), {2});
 
         // Inputs 0-5 are flattened from matched GatedDeltaNet [B,L,H,*] to PagedGDN [B*L,H,*].
