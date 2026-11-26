@@ -460,6 +460,13 @@ TEST_F(TypePropReverseSequenceV0Test, default_ctor_set_axes_without_inputs) {
     EXPECT_EQ(op->get_origin_sequence_axis(), 2);
     EXPECT_EQ(op->get_sequence_axis(), 2);
 
+    // Negative sequence axis without inputs should throw on set_sequence_axis() and preserve previous state
+    OV_EXPECT_THROW(op->set_sequence_axis(-1),
+                    AssertFailure,
+                    HasSubstr("Rank must be static in order to normalize negative axis: -1"));
+    EXPECT_EQ(op->get_origin_sequence_axis(), 2);
+    EXPECT_EQ(op->get_sequence_axis(), 2);
+
     // Negative batch axis without inputs should throw on get_batch_axis()
     op->set_batch_axis(-1);
     EXPECT_EQ(op->get_origin_batch_axis(), -1);

@@ -92,10 +92,14 @@ void op::v0::ReverseSequence::set_sequence_axis(int64_t sequence_axis) {
                                   sequence_axis);
             normalized_axis = static_cast<size_t>(sequence_axis);
         }
-        m_normalized_seq_axis = normalized_axis;
-    } else if (sequence_axis >= 0) {
-        m_normalized_seq_axis = static_cast<size_t>(sequence_axis);
+    } else {
+        NODE_VALIDATION_CHECK(this,
+                              sequence_axis >= 0,
+                              "Rank must be static in order to normalize negative axis: ",
+                              sequence_axis);
+        normalized_axis = static_cast<size_t>(sequence_axis);
     }
+    m_normalized_seq_axis = normalized_axis;
     m_seq_axis = sequence_axis;
 }
 }  // namespace ov
