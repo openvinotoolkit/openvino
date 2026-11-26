@@ -93,9 +93,9 @@ GroupedMatMulPattern::GroupedMatMulPattern()
               auto zero_point =
                   any_input(has_static_shape() && shape_matches("E, N, G") && type_matches_any({element::u4, element::i4, element::u8, element::i8}));
 
-              return std::make_shared<ov::pass::pattern::op::Or>(
-                  OutputVector{wrap_type<v17::GroupedMatMul>({lhs, weights, offsets}),
-                               wrap_type<GroupedMatMulCompressed>({lhs, compressed_weights, offsets, scale, zero_point})});
+              using ov::pass::operator|;
+              return wrap_type<v17::GroupedMatMul>({lhs, weights, offsets}) |
+                     wrap_type<GroupedMatMulCompressed>({lhs, compressed_weights, offsets, scale, zero_point});
           }(),
           ConvertGroupedMatMul()) {}
 
