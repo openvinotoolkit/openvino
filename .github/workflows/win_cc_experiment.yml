@@ -30,14 +30,14 @@ jobs:
     with:
       target-branch: ${{ inputs.target-branch }}
 
-  ninja_maxnick_pr:
-    uses: ./.github/workflows/ninja_maxnick_pr.yml
+  set_jobs_for_ut_target:
+    uses: ./.github/workflows/set_jobs_for_ut_target.yml
     with:
       target-branch: ${{ inputs.target-branch }}
 
   Overall_Status:
     name: ci/gha_overall_status_windows_cc
-    needs: [old_baseline, msbuild, ninja_maxnick_pr]
+    needs: [old_baseline, msbuild, set_jobs_for_ut_target]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

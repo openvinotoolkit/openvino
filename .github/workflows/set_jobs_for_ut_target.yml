@@ -1,6 +1,9 @@
-name: ninja_maxnick_pr
+name: set_jobs_for_ut_target
 # Collect Mode uses the Ninja Multi-Config generator: what the maxnick_pr configuration gets from MSBuild MultiToolTask
 # is done there with --parallel (ninja -j) = NUMBER_OF_PROCESSORS - 1.
+# On top of that, compile jobs of the ov_core_unit_tests target only (very heavy gtest translation units that ran
+# the compiler out of heap space when ~15 of them were compiled at once) are limited to 1 by a Ninja job pool
+# (ut_jobs); all other targets keep the full --parallel value.
 # Run Mode stays on the Visual Studio generator with MultiToolTask (as in maxnick_pr): onecoreuap.toolchain.cmake
 # relies on MSBuild macros that Ninja doesn't expand.
 on:
@@ -149,6 +152,14 @@ jobs:
           Write-Output "NUMBER_OF_PROCESSORS=$env:NUMBER_OF_PROCESSORS, build parallelism=$parallel"
           "CMAKE_BUILD_PARALLEL_LEVEL=$parallel" >> $env:GITHUB_ENV
 
+      # CMake file included at the end of the top-level project: assigns the ut_jobs pool to compile jobs of ov_core_unit_tests only
+      - name: Create job pool hook for ov_core_unit_tests
+        run: |
+          @'
+          cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL set_property TARGET ov_core_unit_tests PROPERTY JOB_POOL_COMPILE ut_jobs)
+          '@ | Set-Content -Path "$env:RUNNER_TEMP\ut_job_pool.cmake"
+          Get-Content "$env:RUNNER_TEMP\ut_job_pool.cmake"
+
       # If the build fails due to running out of RAM, lower the number of link jobs
       - name: CMake configure - CC COLLECT
         run: |
@@ -161,7 +172,8 @@ jobs:
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
-            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)))" `
+            "-DCMAKE_JOB_POOLS:STRING=link_jobs=$([math]::Max(1, [math]::Floor([int]$ENV:NUMBER_OF_PROCESSORS / 4)));ut_jobs=1" `
+            "-DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=$env:RUNNER_TEMP\ut_job_pool.cmake" `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
@@ -258,7 +270,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_package_ninja_maxnick_pr
+          name: openvino_package_set_jobs_for_ut_target
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
@@ -266,7 +278,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_pdb_ninja_maxnick_pr
+          name: openvino_pdb_set_jobs_for_ut_target
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
           if-no-files-found: 'error'
 
@@ -274,7 +286,7 @@ jobs:
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_selective_build_stat_ninja_maxnick_pr
+          name: openvino_selective_build_stat_set_jobs_for_ut_target
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
           if-no-files-found: 'error'
 
@@ -282,7 +294,7 @@ jobs:
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
-          name: compile_commands_windows_cc_collect_ninja_maxnick_pr
+          name: compile_commands_windows_cc_collect_set_jobs_for_ut_target
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
@@ -326,7 +338,7 @@ jobs:
       - name: Download selective build statistics package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
-          name: openvino_selective_build_stat_ninja_maxnick_pr
+          name: openvino_selective_build_stat_set_jobs_for_ut_target
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
 
       - name: Extract selective build statistics package
