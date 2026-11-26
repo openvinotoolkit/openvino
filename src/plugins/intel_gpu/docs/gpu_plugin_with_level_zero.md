@@ -1,8 +1,9 @@
 # GPU plugin Level Zero support
 
 OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. When enabled, plugin will use Level Zero as GPU compute API instead of OpenCL.
-
 Level Zero is the better-performing runtime on Xe2 and newer Intel GPU architectures; on pre-Xe2 GPUs, it is not supported.
+
+For an example of integrating OpenVINO into a Level Zero application, see the [Hello Remote Tensor C++ sample](../../../../samples/cpp/hello_remote_tensor/README.md).
 
 ## How to build with Level Zero support
 
