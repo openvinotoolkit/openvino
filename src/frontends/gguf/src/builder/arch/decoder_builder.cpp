@@ -62,6 +62,14 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
     m_cfg.configure_graph(m_emit, context.metadata);
     auto& graph = *m_emit.graph();
+    if (m_cfg.classifier_head) {
+        // Mirrors config.json num_labels / id2label for a sequence-classification consumer.
+        ov::AnyMap id2label;
+        for (size_t id = 0; id < m_cfg.classifier_labels.size(); ++id)
+            id2label[std::to_string(id)] = m_cfg.classifier_labels[id];
+        graph.model_rt_info["gguf_classifier"] =
+            ov::AnyMap{{"num_labels", std::to_string(m_cfg.classifier_outputs)}, {"id2label", id2label}};
+    }
     if (m_cfg.arch == "eagle3" || m_cfg.arch == "dflash") {
         const auto& captures = m_cfg.draft_target_layers;
         OPENVINO_ASSERT(!captures.empty(), "[GGUF] draft target_layers must not be empty");
@@ -88,7 +96,7 @@ void DecoderBuilder::build_inputs() {
     // index inputs.
     m_emit.add_input("inp_tokens", i32, ps({1, 1, 1, D}));
     m_emit.add_input("inp_pos", i32, ps({1, 1, 1, D}));
-    if (!m_cfg.embedding_model)
+    if (!m_cfg.embedding_model && !m_cfg.classifier_head)
         m_emit.add_input("inp_out_ids", i32, ps({1, 1, 1, D}));
     m_emit.add_input("self_kq_mask", f32, ps({1, 1, D, D}));
     // gpt-oss alternates sliding-window / full attention; the windowed mask is a separate
@@ -401,6 +409,17 @@ std::string DecoderBuilder::build_head(const std::string& in) {
         output.set_names({"embeddings"});
         (*m_emit.graph()->values)["embeddings"] = output;
         return "embeddings";
+    }
+
+    if (m_cfg.classifier_head) {
+        // Scores for every token, [.., tokens, outputs]; the consumer pools the last one.
+        m_emit.add_weight("cls.output.weight");
+        auto scores = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {"cls.output.weight", cur});
+        if (m_emit.has_weight("cls.output.bias")) {
+            m_emit.add_weight("cls.output.bias");
+            scores = m_emit.add_op("GGML_OP_ADD", "result_output_biased", {scores, "cls.output.bias"});
+        }
+        return scores;
     }
 
     const bool draft = m_cfg.arch == "eagle3" || m_cfg.arch == "dflash";

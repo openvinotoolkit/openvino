@@ -40,6 +40,10 @@ struct DecoderConfig {
     bool embedding_model = false;
     int pooling_type = 0;
     bool causal_attention = true;
+    // cls.output head scoring every token; the consumer reads the last one (pooling LAST).
+    bool classifier_head = false;
+    int classifier_outputs = 0;
+    std::vector<std::string> classifier_labels;
     bool layer_norm = false;
     bool parallel_ffn = false;
     int deepstack_layers = 0;

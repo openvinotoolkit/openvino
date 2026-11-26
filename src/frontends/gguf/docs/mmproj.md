@@ -41,7 +41,9 @@ audio branch. Built-in entries come from `projector_catalog` in
 For `resampler`, legacy FFN names are swapped only when the dimensions distinguish the layout;
 square FFNs keep the canonical order.
 
-The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
+The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights. MiniCPM-OCR-Jev uses it
+with a larger image budget (`clip.vision.image_min_pixels` / `image_max_pixels`), which is kept in
+the `gguf_mmproj` rt_info like every `clip.*` key.
 
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 The LFM2.5 vocoder is a separate `lfm2.audio_vocoder` architecture.

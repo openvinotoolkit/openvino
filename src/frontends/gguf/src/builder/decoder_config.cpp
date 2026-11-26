@@ -93,6 +93,30 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
     OPENVINO_ASSERT(!embedding_model || (pooling_type >= 0 && pooling_type <= 3),
                     "[GGUF] unsupported embedding pooling type: ",
                     pooling_type);
+    classifier_head = p.classifier_head && !embedding_model && has("cls.output.weight");
+    if (classifier_head) {
+        // Only the sequence-classification form is supported: labelled class scores read at the last token.
+        OPENVINO_ASSERT(pooling_type == 3 && !p.classifier_labels.empty(),
+                        "[GGUF] cls.output requires LAST pooling and classifier.output_labels; "
+                        "embedding projections are not supported");
+        const auto& shape = weights.at("cls.output.weight").shape;
+        OPENVINO_ASSERT(shape.size() == 2 && shape[1] == static_cast<size_t>(n_embd) && shape[0] > 0,
+                        "[GGUF] cls.output.weight must be [outputs, embedding_length]");
+        classifier_outputs = static_cast<int>(shape[0]);
+        OPENVINO_ASSERT(p.classifier_outputs == 0 || p.classifier_outputs == classifier_outputs,
+                        "[GGUF] embedding_length_out ",
+                        p.classifier_outputs,
+                        " does not match the ",
+                        classifier_outputs,
+                        " cls.output rows");
+        OPENVINO_ASSERT(p.classifier_labels.size() == shape[0],
+                        "[GGUF] classifier.output_labels must name every cls.output row");
+        if (has("cls.output.bias")) {
+            const auto& bias = weights.at("cls.output.bias").shape;
+            OPENVINO_ASSERT(bias.size() == 1 && bias[0] == shape[0], "[GGUF] cls.output.bias must be [outputs]");
+        }
+        classifier_labels = p.classifier_labels;
+    }
     qk_norm_after_rope = p.normalization.qk_after_rope;
     post_norm_only = p.normalization.post_only;
     has_v_norm = p.normalization.value_norm;

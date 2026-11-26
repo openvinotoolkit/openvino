@@ -31,6 +31,7 @@
 #include "helper_ops/gguf_constant.hpp"
 #include "model_contract.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
@@ -49,8 +50,10 @@
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
@@ -1614,6 +1617,145 @@ TEST(GGUFArchitectureAccuracy, Lfm3D1WholePromptMatchesLlamaCPU) {
     ov_gguf_test::expect_nmse_below(
         ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
         1e-5);
+}
+
+TEST(GGUFArchitectureAccuracy, Qwen35ClassifierRejectsUnsupportedHeads) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-cls.npz");
+    const auto& model = ov_gguf_test::npz_array(arrays, "model");
+    const std::vector<uint8_t> original(model.data<uint8_t>(), model.data<uint8_t>() + model.num_vals);
+    using Edit = std::function<void(std::vector<GgufKeyValue>&)>;
+    const auto drop = [](const std::string& key) {
+        return [key](std::vector<GgufKeyValue>& kvs) {
+            kvs.erase(std::remove_if(kvs.begin(),
+                                     kvs.end(),
+                                     [&key](const GgufKeyValue& kv) {
+                                         return kv.key == key;
+                                     }),
+                      kvs.end());
+        };
+    };
+    for (const auto& [name, edit, diagnostic] : std::vector<std::tuple<std::string, Edit, std::string>>{
+             {"pooling_none",
+              [](std::vector<GgufKeyValue>& kvs) {
+                  set_gguf_value(kvs, gguf_u32("qwen35.pooling_type", 0));
+              },
+              "requires LAST pooling"},
+             {"no_labels", drop("qwen35.classifier.output_labels"), "requires LAST pooling"},
+             {"output_width",
+              [](std::vector<GgufKeyValue>& kvs) {
+                  set_gguf_value(kvs, gguf_u32("qwen35.embedding_length_out", 3));
+              },
+              "does not match"}}) {
+        SCOPED_TRACE(name);
+        const auto bytes = rewrite_gguf_metadata(original, edit);
+        cnpy::NpyArray patched({bytes.size()}, sizeof(uint8_t), false);
+        std::copy(bytes.begin(), bytes.end(), patched.data<uint8_t>());
+        const ov_gguf_test::TemporaryGguf temporary(patched);
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(temporary.path)), ov::Exception, testing::HasSubstr(diagnostic));
+    }
+}
+
+TEST(GGUFArchitectureAccuracy, Qwen35ClassifierScoresEveryTokenLikeLlamaCPU) {
+    using namespace ov::frontend::gguf;
+    for (const std::string fixture : {"qwen35-cls", "qwen35-cls-bias"}) {
+        SCOPED_TRACE(fixture);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + fixture + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        const auto& expected = ov_gguf_test::npz_array(arrays, "scores");
+        ASSERT_EQ(expected.shape.size(), 2);
+        const size_t count = expected.shape[0];
+        const size_t labels = expected.shape[1];
+        ASSERT_EQ(count, 6);
+        ASSERT_EQ(labels, 2);
+        for (const auto mode :
+             {GenAIExtension::InputMode::IDS_TO_LOGITS, GenAIExtension::InputMode::EMBEDS_TO_LOGITS}) {
+            const bool embeds = mode == GenAIExtension::InputMode::EMBEDS_TO_LOGITS;
+            SCOPED_TRACE(embeds ? "inputs_embeds" : "input_ids");
+            FrontEnd frontend;
+            auto genai = std::make_shared<GenAIExtension>(mode);
+            frontend.add_extension(genai);
+            auto model = frontend.convert(frontend.load(temporary.path));
+            const auto info = model->get_rt_info<ov::AnyMap>("gguf_classifier");
+            EXPECT_EQ(info.at("num_labels").as<std::string>(), "2");
+            const auto id2label = info.at("id2label").as<ov::AnyMap>();
+            EXPECT_EQ(id2label.at("0").as<std::string>(), "inconsistent");
+            EXPECT_EQ(id2label.at("1").as<std::string>(), "consistent");
+            // A sequence-classification consumer pools the last attended row itself.
+            const auto& logits_shape = model->output("logits").get_partial_shape();
+            ASSERT_EQ(logits_shape.rank().get_length(), 3);
+            EXPECT_EQ(logits_shape[2], static_cast<int64_t>(labels));
+
+            ov::Core core;
+            const auto properties = ov::AnyMap{ov::hint::inference_precision(ov::element::f32),
+                                               ov::hint::dynamic_quantization_group_size(0),
+                                               ov::hint::kv_cache_precision(ov::element::f16)};
+            const auto positions_rank = model->input("position_ids").get_partial_shape().rank().get_length();
+            auto request = core.compile_model(model, "CPU", properties).create_infer_request();
+            // The sequence-classification consumer pools the last attended row behind the "logits" Result.
+            ov::preprocess::PrePostProcessor processor(model);
+            processor.output("logits").postprocess().custom([&model](const ov::Output<ov::Node>& logits) {
+                using namespace ov::op;
+                auto axis = v0::Constant::create(ov::element::i64, {1}, {1});
+                auto last = std::make_shared<v1::Subtract>(
+                    std::make_shared<v1::ReduceSum>(model->input("attention_mask"), axis),
+                    v0::Constant::create(ov::element::i64, {1}, {1}));
+                return std::make_shared<v8::Gather>(logits, last, axis, 1);
+            });
+            auto pooled = core.compile_model(processor.build(), "CPU", properties).create_infer_request();
+            EXPECT_FALSE(request.query_state().empty());
+            const auto ids_tensor = [count](const ov::element::Type& type) {
+                ov::Tensor ids(type, {1, count});
+                for (size_t i = 0; i < count; ++i) {
+                    if (type == ov::element::i64)
+                        ids.data<int64_t>()[i] = static_cast<int64_t>(i + 1);
+                    else
+                        ids.data<int32_t>()[i] = static_cast<int32_t>(i + 1);
+                }
+                return ids;
+            };
+            if (embeds) {
+                ASSERT_NE(genai->get_embedding_model(), nullptr);
+                auto lookup =
+                    core.compile_model(genai->get_embedding_model(), "CPU", properties).create_infer_request();
+                lookup.set_input_tensor(ids_tensor(lookup.get_compiled_model().input().get_element_type()));
+                lookup.infer();
+                for (auto* target : {&request, &pooled})
+                    target->set_tensor("inputs_embeds", lookup.get_output_tensor());
+            } else {
+                for (auto* target : {&request, &pooled})
+                    target->set_tensor("input_ids", ids_tensor(ov::element::i64));
+            }
+            ov::Tensor mask(ov::element::i64, {1, count});
+            std::fill_n(mask.data<int64_t>(), count, int64_t{1});
+            const size_t sections = positions_rank == 3 ? 4 : 1;
+            ov::Tensor positions(ov::element::i64,
+                                 positions_rank == 3 ? ov::Shape{sections, 1, count} : ov::Shape{1, count});
+            // GenAI's first M-RoPE section is llama.cpp's fourth, 0 for text tokens.
+            for (size_t section = 0; section < sections; ++section)
+                for (size_t i = 0; i < count; ++i)
+                    positions.data<int64_t>()[section * count + i] =
+                        sections == 4 && section == 0 ? 0 : static_cast<int64_t>(i);
+            ov::Tensor beams(ov::element::i32, {1});
+            beams.data<int32_t>()[0] = 0;
+            for (auto* target : {&request, &pooled}) {
+                target->set_tensor("attention_mask", mask);
+                target->set_tensor("position_ids", positions);
+                target->set_tensor("beam_idx", beams);
+                target->infer();
+            }
+            const auto output = request.get_tensor("logits");
+            ASSERT_EQ(output.get_shape(), (ov::Shape{1, count, labels}));
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+                1e-5);
+            const auto last = pooled.get_tensor("logits");
+            ASSERT_EQ(last.get_shape(), (ov::Shape{1, labels}));
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(last.data<const float>(), expected.data<float>() + (count - 1) * labels, labels),
+                1e-5);
+        }
+    }
 }
 
 TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {

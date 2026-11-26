@@ -128,6 +128,9 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     p.pooling_type =
         pooling && *pooling == std::numeric_limits<uint32_t>::max() ? -1 : integer(m, pooling_key, p.pooling_type);
     p.causal_attention = flag(m, key("attention.causal"), p.causal_attention);
+    p.classifier_outputs = integer(m, key("embedding_length_out"), p.classifier_outputs);
+    if (const auto labels_key = key("classifier.output_labels"); m.has(labels_key))
+        p.classifier_labels = m.get_str_array(labels_key);
     auto& a = p.attention;
     a.rope.freq_base = real(m, key("rope.freq_base"), a.rope.freq_base > 0 ? a.rope.freq_base : 10000.0f);
     const auto factor_key = key("rope.scaling.factor");

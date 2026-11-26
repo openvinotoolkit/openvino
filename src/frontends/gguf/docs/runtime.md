@@ -58,7 +58,10 @@ The default decoder graph mirrors the llama.cpp backend interface:
 | `inp_kv_idx`, `token_len_per_seq` | KV write slots and per-sequence length, when the graph consumes them |
 | `cache_k_*`, `cache_v_*`, recurrent states | Previous cache/state, returned as matching outputs |
 
-The output is `logits`. [`run_gguf_model`](../../../../tests/model_hub_tests/gguf/utils.py) is a
+The output is `logits`. A classifier head (`cls.output` with LAST pooling) emits the class
+scores of every token, `[.., T, labels]`, and has no `inp_out_ids`; after GenAI adaptation
+`logits` is `[B,T,labels]`, and rt_info `gguf_classifier` holds `num_labels` and `id2label`.
+[`run_gguf_model`](../../../../tests/model_hub_tests/gguf/utils.py) is a
 working Python driver for two steps. This is the only route available from Python: the GGUF passes
 below have no Python bindings, and `DecoderTransformationExtension` cannot be constructed from Python.
 

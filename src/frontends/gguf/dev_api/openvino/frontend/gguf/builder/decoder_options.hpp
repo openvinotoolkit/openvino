@@ -144,6 +144,10 @@ struct GGUF_FRONTEND_API DecoderParameters {
     bool embedding_model = false;
     int pooling_type = 0;
     bool causal_attention = true;
+    // A cls.output head replaces the LM head (llama.cpp qwen35); embedding_length_out, classifier.output_labels.
+    bool classifier_head = false;
+    int classifier_outputs = 0;
+    std::vector<std::string> classifier_labels;
     ModelContract model_contract{};
     std::vector<DecoderLayerOverrides> layers;
 };

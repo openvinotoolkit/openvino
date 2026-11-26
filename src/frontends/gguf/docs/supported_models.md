@@ -59,7 +59,7 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `qwen2` | Qwen2.5-0.5B-Instruct Q4_0 | qwen2 / qwen2.5 |
 | `qwen3` | Qwen3-0.6B Q4_0 | QK-norm before RoPE |
 | `qwen3tts` | Qwen3TTS represented F32 | Speech decoder; projector and codec are separate components |
-| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0 | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA |
+| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0; MiniCPM-OCR-Jev F16 / Q8_0 / Q4_K_M | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA; `cls.output` classifier head (MiniCPM-OCR-Jev) |
 | `qwen35moe` | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert |
 | `qwen3moe` | Qwen3-0.9B-A0.6B Q4_K_M | NEOX RoPE, per-head QK-norm, normalized experts |
 | `qwen3vl` | Qwen3-VL-2B Q4_0 | Interleaved multimodal RoPE and DeepStack inputs |
@@ -78,6 +78,12 @@ Tested models list real checkpoints and their quantization. `—` means no check
   (`lfm3.attention.causal=false`) whole-prompt logits; the LFM2 Decision head
   (`lfm2.decision.block_count`) is unsupported. D1 has no GenAI adaptation; its iterative denoising
   sampler is left to the application.
+- **Classifier head:** MiniCPM-OCR-Jev class scores were compared with llama.cpp `e087c6c4e` on
+  its three bundled examples, using the same image embeddings and M-RoPE positions. With F16 weights,
+  CPU F32 inference matches llama.cpp CPU within 4e-4 per logit; on a Panther Lake iGPU, F32
+  inference matches within 4e-4 and the default precision within 0.012 of llama.cpp Vulkan. Q8_0 and
+  Q4_K_M differ by up to 0.05 and 0.21 per logit through quantized arithmetic, keeping every decision.
+  A GGUF application pipeline is not connected yet.
 - **Quantization and memory:** see [quantization.md](quantization.md).
 
 ## llama.cpp cgraph path
