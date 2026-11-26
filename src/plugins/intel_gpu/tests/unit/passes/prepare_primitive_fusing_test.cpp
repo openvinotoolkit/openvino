@@ -600,6 +600,60 @@ TEST(prepare_primitive_fusing, unfused_subgraph_stale_consumer_and_pool_growth) 
     EXPECT_LE(pool_final, pool_after_first_valid) << "F1: pooled fused output buffer orphaned per transition";
 }
 
+TEST(prepare_primitive_fusing, unfused_subgraph_waits_for_deps_in_oooq) {
+    // act -> conv(+eltw fused). When the fusion becomes invalid at runtime, conv is executed as an unfused subgraph
+    // which must still receive the dependency events of its producers in out-of-order queue.
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    topology topology;
+    auto conv_in_layout = layout{ov::PartialShape{1, 3, -1, -1}, data_types::f16, format::bfyx};
+    auto weight_layout = layout{ov::PartialShape{10, 3, 3, 3}, data_types::f16, format::bfyx};
+    auto weight_mem = engine.allocate_memory(weight_layout);
+    auto weight_data = rg.generate_random_4d<ov::float16>(10, 3, 3, 3, -1, 1);
+    set_values(weight_mem, weight_data);
+    auto elt_in_layout = layout{ov::PartialShape{1, 10, -1, -1}, data_types::f16, format::bfyx};
+
+    topology.add(data("weights", weight_mem));
+    topology.add(input_layout("conv_input", conv_in_layout));
+    topology.add(input_layout("elt_input", elt_in_layout));
+    topology.add(activation("act", input_info("conv_input"), activation_func::relu));
+    topology.add(convolution("conv", input_info("act"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(eltwise("eltw", {input_info("conv"), input_info("elt_input")}, eltwise_mode::prod));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    // conv output is 1x10x1x1 while eltwise input is 1x10x5x5 => invalid fusion
+    auto conv_input_data = rg.generate_random_4d<ov::float16>(1, 3, 3, 3, -1, 1);
+    auto conv_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx});
+    set_values(conv_input_mem, conv_input_data);
+
+    auto elt_input_data = rg.generate_random_4d<ov::float16>(1, 10, 5, 5, -10, 10);
+    auto elt_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 10, 5, 5}, data_types::f16, format::bfyx});
+    set_values(elt_input_mem, elt_input_data);
+
+    net.set_input_data("conv_input", conv_input_mem);
+    net.set_input_data("elt_input", elt_input_mem);
+    net.execute();
+
+    const auto& conv_inst = net.get_primitive("conv");
+    ASSERT_TRUE(conv_inst->has_unfused_subgraph());
+    ASSERT_FALSE(conv_inst->get_impl_params()->dep_events.empty());
+}
+
 TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
     auto& engine = get_test_engine();
 
@@ -683,6 +737,54 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
 
     for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
         ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+}
+
+// Regression test for https://github.com/openvinotoolkit/openvino/issues/39700:
+// a rank-3 [1, N, K] weights constant transposed by {0, 2, 1} must not be fused as a swap of its outer dims.
+TEST(prepare_primitive_fusing, fuse_constant_transposes_3d_weights_accuracy_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "FC with non-transposed constant weights is only produced for oneDNN (XMX) devices";
+    }
+
+    const size_t T = 2, K = 32, N = 4;
+    auto input = engine.allocate_memory({ { 1, T, K }, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({ { 1, N, K }, data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(T * K, -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(N * K, -1, 1);
+    set_values(input, input_data);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        permute("permute", input_info("weights"), {0, 2, 1}),
+        fully_connected("fc", input_info("input"), "permute", "", data_types::f16, 3, 3, false)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("fc").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), T * N);
+    for (size_t t = 0; t < T; ++t) {
+        for (size_t n = 0; n < N; ++n) {
+            float ref = 0.f;
+            for (size_t k = 0; k < K; ++k) {
+                ref += static_cast<float>(input_data[t * K + k]) * static_cast<float>(weights_data[n * K + k]);
+            }
+            ASSERT_NEAR(static_cast<float>(output_ptr[t * N + n]), ref, 2e-2f) << "t=" << t << " n=" << n;
+        }
     }
 }
 

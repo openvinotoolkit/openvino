@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <tuple>
+
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
@@ -88,6 +90,23 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 
 op::PadType convert_pad(const std::string& pt_pad);
+
+struct ConvPadConfig {
+    op::PadType pad_type;
+    CoordinateDiff pads_begin;
+    CoordinateDiff pads_end;
+    bool dynamic_same_padding = false;
+};
+
+// Resolves convolution padding where possible; dynamic SAME kernels are padded at runtime before the convolution.
+ConvPadConfig convert_conv_pad(const std::string& pt_pad,
+                               const Output<Node>& weight,
+                               const Strides& strides,
+                               const Strides& dilations);
+Output<Node> apply_dynamic_same_padding(const NodeContext& context,
+                                        const Output<Node>& input,
+                                        const Output<Node>& weight,
+                                        const Strides& dilations);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
 
