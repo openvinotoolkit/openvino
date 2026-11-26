@@ -19,7 +19,7 @@ public:
         std::vector<int> keep_top_k;
         std::string code_type = std::string{"caffe.PriorBoxParameter.CORNER"};
         bool share_location = true;
-        float nms_threshold;
+        float nms_threshold = 0;
         float confidence_threshold = 0;
         bool clip_after_nms = false;
         bool clip_before_nms = false;
