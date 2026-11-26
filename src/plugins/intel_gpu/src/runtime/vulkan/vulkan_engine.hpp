@@ -58,6 +58,10 @@ public:
     std::shared_ptr<vulkan_buffer_region> allocate_buffer_region(size_t size);
 
 private:
+    bool supports_large_allocations() const override {
+        return false;
+    }
+
     std::shared_ptr<vulkan_device> get_vulkan_device_object_impl() const;
     std::shared_ptr<vulkan_memory_allocator> _memory_allocator;
 };

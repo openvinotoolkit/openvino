@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/plugin.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_gpu {
@@ -12,8 +13,8 @@ bool Plugin::supports_model_execution() {
 }
 
 bool Plugin::supports_runtime_property(const std::string& name) {
-    // Vulkan does not query PCI bus information.
-    return name != ov::device::pci_info.name();
+    // PCI information is unavailable, and device allocation limits are mandatory.
+    return name != ov::device::pci_info.name() && name != ov::intel_gpu::hint::enable_large_allocations.name();
 }
 
 void Plugin::register_primitives() {}

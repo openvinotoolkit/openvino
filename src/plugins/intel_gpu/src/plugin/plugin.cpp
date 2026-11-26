@@ -155,6 +155,10 @@ void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_ma
 }
 
 void Plugin::set_property(const ov::AnyMap &config) {
+    for (const auto& [name, value] : config) {
+        OPENVINO_ASSERT(supports_runtime_property(name), "[GPU] Property ", name, " is not in a list of supported properties");
+    }
+
     if (!supports_model_execution()) {
         OPENVINO_ASSERT(config.find(ov::intel_gpu::config_file.name()) == config.end(), "[GPU] Custom layer configuration is unavailable");
     }

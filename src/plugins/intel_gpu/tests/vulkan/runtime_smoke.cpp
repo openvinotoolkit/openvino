@@ -66,6 +66,24 @@ TEST_F(VulkanRuntimeSmoke, RejectsUnavailablePciInfo) {
         "[GPU] Property DEVICE_PCI_INFO is not in a list of supported properties");
 }
 
+TEST_F(VulkanRuntimeSmoke, RejectsLargeAllocationProperty) {
+    const auto& property = ov::intel_gpu::hint::enable_large_allocations;
+    const auto properties = m_core.get_property(m_device_name, ov::supported_properties);
+    EXPECT_EQ(std::find(properties.begin(), properties.end(), property.name()), properties.end());
+
+    constexpr std::string_view message = "[GPU] Property GPU_ENABLE_LARGE_ALLOCATIONS is not in a list of supported properties";
+    expect_ov_exception(
+        [&] {
+            m_core.get_property(m_device_name, property);
+        },
+        message);
+    expect_ov_exception(
+        [&] {
+            m_core.set_property(m_device_name, property(true));
+        },
+        message);
+}
+
 TEST_F(VulkanRuntimeSmoke, CopiesRemoteTensorsAndReportsMemoryUsage) {
     const auto tracked_buffer_bytes = [&] {
         return m_core.get_property(m_device_name, ov::intel_gpu::memory_statistics).at("vk_buffer");
@@ -132,7 +150,11 @@ TEST_F(VulkanRuntimeSmoke, PreservesTensorWhenGrowthFails) {
     remote.copy_from(input);
 
     const auto limit = m_core.get_property(m_device_name, ov::intel_gpu::device_max_alloc_mem_size);
-    ASSERT_THROW(remote.set_shape({static_cast<size_t>(limit + 1)}), ov::Exception);
+    expect_ov_exception(
+        [&] {
+            remote.set_shape({static_cast<size_t>(limit + 1)});
+        },
+        "Reduce the requested allocation size.");
     ASSERT_EQ(remote.get_shape(), original_shape);
     ov::Tensor output(ov::element::u8, original_shape);
     remote.copy_to(output);

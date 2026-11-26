@@ -201,6 +201,11 @@ public:
 protected:
     /// Create engine for given @p device
     engine(device::ptr device);
+
+    virtual bool supports_large_allocations() const {
+        return true;
+    }
+
     const device::ptr _device;
     bool enable_large_allocations = false;
     std::unique_ptr<stream> _service_stream;

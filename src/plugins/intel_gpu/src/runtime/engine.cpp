@@ -268,7 +268,7 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
 }
 
 void engine::set_enable_large_allocations(bool enable_large_allocations) {
-    this->enable_large_allocations = enable_large_allocations;
+    this->enable_large_allocations = enable_large_allocations && supports_large_allocations();
 }
 
 bool engine::get_enable_large_allocations() const {
@@ -338,10 +338,15 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) const
 
         OPENVINO_ASSERT(!exceed_allocatable_mem_size,
                         "[GPU] Exceeded max size of memory object allocation: ",
-                        "requested ", layout.bytes_count(), " bytes, "
-                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
-                        "Please try to reduce batch size, use lower precision, "
-                        "or set ov::intel_gpu::hint::enable_large_allocations config property to true.");
+                        "requested ",
+                        layout.bytes_count(),
+                        " bytes, "
+                        "but max alloc size supported by device is ",
+                        get_device_info().max_alloc_mem_size,
+                        " bytes. ",
+                        supports_large_allocations() ? "Please try to reduce batch size, use lower precision, "
+                                                       "or set ov::intel_gpu::hint::enable_large_allocations config property to true."
+                                                     : "Reduce the requested allocation size.");
     }
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
