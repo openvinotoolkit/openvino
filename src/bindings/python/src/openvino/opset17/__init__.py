@@ -8,6 +8,7 @@ from openvino.opset17.ops import erfinv
 from openvino.opset17.ops import grouped_matmul
 from openvino.opset17.ops import qsa_prepare
 from openvino.opset17.ops import rgb_to_nv12
+from openvino.opset17.ops import histc
 from openvino.opset17.ops import sparse_attention
 from openvino.opset17.ops import sparse_attention_indexer
 

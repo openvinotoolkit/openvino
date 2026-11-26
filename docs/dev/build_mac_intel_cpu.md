@@ -25,7 +25,7 @@ The x86_64 native and cross-compilation paths described in this guide are not ex
   ```sh
   % brew install cmake scons fdupes git-lfs ninja
   ```
-- Clang compiler and other command line tools from Xcode 10.1 or higher:
+- Clang compiler and other command line tools from Xcode 13.0 or higher:
   ```sh
   % xcode-select --install
   ```
