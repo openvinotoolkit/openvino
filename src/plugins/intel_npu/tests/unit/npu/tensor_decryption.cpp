@@ -38,7 +38,7 @@ TEST_F(TensorDecryption, WorkingScenario) {
     const std::string reference = ov::util::codec_xor(std::string(COMPILER_SCHEDULE_CONTENT));
 
     // Take into account page alignment
-    if (reference.size() % utils::STANDARD_PAGE_SIZE == 0) {
+    if (reference.size() % ov::util::min_page_alignment == 0) {
         ASSERT_EQ(result, reference);
     } else {
         ASSERT_EQ(result.size(), utils::align_size_to_standard_page_size(reference.size()));

@@ -24,7 +24,7 @@ constexpr char LIST_END_DELIMITER = ']';
 constexpr size_t NUMBER_OF_INITS_SIZE = sizeof(uint16_t);
 constexpr size_t MINIMUM_INIT_SCHEDULES_SECTION_SIZE = NUMBER_OF_INITS_SIZE;
 
-const ov::runtime::hsm::SectionAlignment PAGE_ALIGNED_BEGINNING{utils::STANDARD_PAGE_SIZE, 1};
+const ov::runtime::hsm::SectionAlignment PAGE_ALIGNED_BEGINNING{ov::util::min_page_alignment, 1};
 
 }  // namespace
 

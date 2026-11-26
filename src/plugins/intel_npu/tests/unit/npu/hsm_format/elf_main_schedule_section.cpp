@@ -47,7 +47,7 @@ TEST_F(ELFMainScheduleSectionTest, NullSetGraph) {
  */
 TEST_F(ELFMainScheduleSectionTest, Alignment) {
     std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
-    const ov::runtime::hsm::SectionAlignment reference({utils::STANDARD_PAGE_SIZE, 1});
+    const ov::runtime::hsm::SectionAlignment reference({ov::util::min_page_alignment, 1});
     ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
     ASSERT_EQ(section->get_alignment().size_align, reference.size_align);
 }
@@ -130,7 +130,7 @@ TEST_F(ELFMainScheduleSectionTest, WorkingDecryption) {
     const std::string reference = ov::util::codec_xor(std::string(COMPILER_SCHEDULE_CONTENT));
 
     // Take into account page alignment
-    if (reference.size() % utils::STANDARD_PAGE_SIZE == 0) {
+    if (reference.size() % ov::util::min_page_alignment == 0) {
         ASSERT_EQ(decrypted_schedule, reference);
     } else {
         ASSERT_EQ(decrypted_schedule.size(), utils::align_size_to_standard_page_size(reference.size()));
@@ -219,7 +219,7 @@ TEST_P(ELFMainScheduleSectionReadTest, SuccessfulRead) {
         }
     } else {
         // Stream case: a page aligned buffer should have been allocated for the parsed content
-        ASSERT_EQ(reinterpret_cast<size_t>(tensor.data()) % utils::STANDARD_PAGE_SIZE, 0);
+        ASSERT_EQ(reinterpret_cast<size_t>(tensor.data()) % ov::util::min_page_alignment, 0);
     }
 }
 

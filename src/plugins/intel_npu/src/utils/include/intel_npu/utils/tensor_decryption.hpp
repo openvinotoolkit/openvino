@@ -26,7 +26,7 @@ static inline void decrypt_payload(ov::Tensor& payload,
         std::string encryptedBlobStr(payload.data<const char>(), payload.get_byte_size());  // +1x blob size
         decryptedBlobStr = decryption_callback(encryptedBlobStr);                           // +1x blob size
     }  // -1x blob size when deallocating temporary encrypted blob string
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    ov::Allocator customAllocator{utils::AlignedAllocator{ov::util::min_page_alignment}};
     size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
     size_t paddingSize = alignedSize - decryptedBlobStr.size();
     payload = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
