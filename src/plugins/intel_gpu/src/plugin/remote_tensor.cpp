@@ -242,8 +242,8 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
-    // Sub-byte types use flat contiguous copy
-    if (m_element_type.bitwidth() < 8) {
+    // Sub-byte types and scalars use a flat contiguous copy.
+    if (m_element_type.bitwidth() < 8 || shape.empty()) {
         const auto byte_size = get_byte_size();
         if (dst_remote_tensor != nullptr) {
             auto src_mem = MemWrapper(stream, get_memory(), nullptr);
@@ -292,8 +292,8 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
 
-    // Sub-byte types use flat contiguous copy
-    if (m_element_type.bitwidth() < 8) {
+    // Sub-byte types and scalars use a flat contiguous copy.
+    if (m_element_type.bitwidth() < 8 || shape.empty()) {
         const auto byte_size = get_byte_size();
         if (src_remote_tensor != nullptr) {
             auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
