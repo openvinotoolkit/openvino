@@ -240,9 +240,9 @@ class TestXlogyInplaceMixedTypes(PytorchLayerTest):
 
 class TestXlogyOut(PytorchLayerTest):
     def _prepare_input(self):
-        x = np.array([0.0, 1.0, 2.0], dtype=np.float32)
-        y = np.array([1.0, 2.0, 3.0], dtype=np.float32)
-        return (x, y, np.zeros_like(x))
+        x = np.array([0.0, 1.0, 2.0], dtype=self.in_dtype)
+        y = np.array([1.0, 2.0, 3.0], dtype=self.in_dtype)
+        return (x, y, np.zeros(x.shape, dtype=self.out_dtype))
 
     def create_model(self):
         class aten_xlogy_out(torch.nn.Module):
@@ -258,7 +258,14 @@ class TestXlogyOut(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    def test_xlogy_out(self, ie_device, precision, ir_version):
+    @pytest.mark.parametrize(("in_dtype", "out_dtype"), [
+        (np.float32, np.float32),
+        # out keeps its own dtype: float64 operands are rounded into a float32 destination
+        (np.float64, np.float32),
+    ])
+    def test_xlogy_out(self, in_dtype, out_dtype, ie_device, precision, ir_version):
+        self.in_dtype = in_dtype
+        self.out_dtype = out_dtype
         self._test(*self.create_model(), ie_device, precision, ir_version, fx_kind="aten.xlogy")
 
 

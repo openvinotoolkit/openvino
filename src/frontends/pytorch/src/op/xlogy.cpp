@@ -70,6 +70,8 @@ OutputVector translate_xlogy_common(const NodeContext& context, bool inplace) {
         result = context.mark_node(std::make_shared<v1::ConvertLike>(result, x_in));
         context.mutate_input(0, result);
     } else if (!context.input_is_none(2)) {
+        // out= keeps the dtype of the destination: float64 operands written to a float32 out are rounded to float32.
+        result = context.mark_node(std::make_shared<v1::ConvertLike>(result, context.get_input(2)));
         context.mutate_input(2, result);
     }
     return {result};
