@@ -146,7 +146,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
         // Options registered only if drivers is present and supports the corresponding extension
         REGISTER_OPTION(MODEL_PRIORITY);
 
-        if (backend->isCommandQueueExtSupported()) {
+        if (backend->getCapabilities().commandQueueExtSupported) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
     }

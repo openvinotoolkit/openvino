@@ -448,6 +448,9 @@ ZeroInitStructsHolder::ZeroInitStructsHolder(const ZeroInitTargets& targets)
                                          external_memory_fd_win32_supported,
                                          command_queue_group_ordinal,
                                          ze_drv_api_version);
+    _capabilities.driverVersion = _driver_properties.driverVersion;
+    _capabilities.graphExtVersion = _graph_dditable_ext_decorator->version();
+    _capabilities.commandQueueExtVersion = _command_queue_npu_dditable_ext_decorator->version();
 }
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {

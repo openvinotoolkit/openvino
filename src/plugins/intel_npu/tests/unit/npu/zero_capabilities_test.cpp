@@ -31,6 +31,9 @@ TEST(ZeroCapabilities, DefaultConstructedSupportsNothing) {
 
     EXPECT_EQ(caps.mutableCommandListExtVersion, 0u);
     EXPECT_EQ(caps.commandQueueGroupOrdinal, 0u);
+    EXPECT_EQ(caps.driverVersion, 0u);
+    EXPECT_EQ(caps.graphExtVersion, 0u);
+    EXPECT_EQ(caps.commandQueueExtVersion, 0u);
     EXPECT_FALSE(caps.commandQueueExtSupported);
     EXPECT_FALSE(caps.commandQueueSetPrioritySupported);
     EXPECT_FALSE(caps.contextExtSupported);

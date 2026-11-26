@@ -23,12 +23,7 @@ public:
         return "LEVEL0";
     }
     const std::vector<std::string> getDeviceNames() const override;
-    uint32_t getDriverVersion() const override;
-    uint32_t getGraphExtVersion() const override;
-
-    bool isCommandQueueExtSupported() const override;
-    bool isLUIDExtSupported() const override;
-    bool isContextExtSupported() const override;
+    BackendCapabilities getCapabilities() const override;
 
     void* getContext() const override;
 
@@ -38,6 +33,7 @@ public:
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _initStruct;
+    BackendCapabilities _capabilities;
 
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
     Logger _logger;

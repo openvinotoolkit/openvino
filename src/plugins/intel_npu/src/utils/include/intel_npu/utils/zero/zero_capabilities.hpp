@@ -25,6 +25,12 @@ struct ZeroCapabilities {
     uint32_t mutableCommandListExtVersion = 0;
     uint32_t commandQueueGroupOrdinal = 0;
 
+    // Version numbers reported by the driver and its NPU extensions, 0 if not available. They are copied from the
+    // driver by the holder, they are not derived from the negotiated extension map.
+    uint32_t driverVersion = 0;
+    uint32_t graphExtVersion = 0;
+    uint32_t commandQueueExtVersion = 0;
+
     bool commandQueueExtSupported = false;
     bool commandQueueSetPrioritySupported = false;
     bool contextExtSupported = false;

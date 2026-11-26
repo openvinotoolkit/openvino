@@ -205,6 +205,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/option_support_cache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/state_tensor_binding_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/mem_ref_type_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/backend_capabilities_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_capabilities_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_extension_query_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/zero_utils_strides_test.cpp

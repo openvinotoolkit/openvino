@@ -128,23 +128,8 @@ public:
         }
         return names;
     }
-    uint32_t getDriverVersion() const override {
-        return _options.driverVersion;
-    }
-    uint32_t getGraphExtVersion() const override {
-        return _options.graphExtVersion;
-    }
     const std::string getName() const override {
         return kName;
-    }
-    bool isCommandQueueExtSupported() const override {
-        return false;
-    }
-    bool isLUIDExtSupported() const override {
-        return false;
-    }
-    bool isContextExtSupported() const override {
-        return _options.contextExtensionSupported;
     }
     void updateInfo(const ov::AnyMap& properties) override {
         _updatedProperties = properties;
