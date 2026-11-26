@@ -8,6 +8,8 @@
 #include <cmath>
 
 namespace ov::recurrent_replay {
+// Reference pattern for the llama.cpp OpenVINO backend's emitted replay graph.
+// The backend copy lives in ggml/src/ggml-openvino/openvino/op/recurrent_replay_graph.hpp.
 namespace ops = ov::opset13;
 using Value = ov::Output<ov::Node>;
 

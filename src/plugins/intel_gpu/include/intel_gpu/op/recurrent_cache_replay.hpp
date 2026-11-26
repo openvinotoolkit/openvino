@@ -6,6 +6,15 @@
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_gpu::op {
+// GPU-internal lowering of the llama.cpp OpenVINO backend's recurrent replay graphs.
+// The backend emits a standard-op computation and Assign sinks with variable IDs
+// `__ggml_replay_cache_<Parameter friendly name>`. Each named bank is a direct,
+// caller-owned writable FP32 USM input. RecurrentReplayFusion checks the full pattern,
+// exclusive bank readers and a live compute result before removing the sinks.
+// Both ops return the computation and update the bank inputs in place, avoiding
+// special output-alias handling in the GPU runtime. If the backend's emitted graph
+// changes, update the matcher and its reference in recurrent_replay_graph.hpp together.
+
 // Returns the convolution and updates the caller-owned USM history input in place.
 class RecurrentConvCacheReplayUpdate : public ov::op::Op {
   public:
