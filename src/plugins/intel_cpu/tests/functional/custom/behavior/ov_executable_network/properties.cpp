@@ -224,8 +224,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckTensorParallelDisablesMult
     OV_ASSERT_NO_THROW(request.infer());
 }
 
-// multi_app_thread_sync_execution=true + CPU pinning must be rejected: running inference on the
-// caller thread while pinned would silently alter that thread's own CPU affinity.
+// Explicitly requested CPU pinning + multi_app_thread_sync_execution=true must be rejected: running
+// inference on the caller thread while pinned would silently alter that thread's own CPU affinity.
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionRejectsCpuPinning) {
     ov::Core ie;
     ov::AnyMap config = {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
@@ -237,25 +237,24 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutio
                                   "multi_app_thread_sync_execution");
 }
 
-// Combining the two properties must still throw even when pinning is left at its
-// (platform-dependent) default rather than being explicitly requested, as long as it
-// actually resolves to true -- the application should not need to discover this via a
-// silently-corrupted affinity mask at runtime.
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionRejectsDefaultCpuPinning) {
+// Without an explicit enable_cpu_pinning, pinning must resolve to false on every platform so the
+// documented usage (multi_app_thread_sync_execution alone) compiles and runs on the caller thread.
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionDisablesDefaultCpuPinning) {
     ov::Core ie;
-    bool defaultCpuPinning = false;
-#if defined(__linux__) && !defined(__APPLE__)
-    defaultCpuPinning = true;
-#endif
-    if (!defaultCpuPinning) {
-        GTEST_SKIP() << "CPU pinning does not default to true on this platform/topology";
-    }
     ov::AnyMap config = {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
-                        {ov::num_streams.name(), 4}};
+                         {ov::num_streams.name(), 4}};
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(ie.compile_model(model, deviceName, config),
-                                  ov::Exception,
-                                  "multi_app_thread_sync_execution");
+    ov::CompiledModel compiledModel;
+    bool syncValue = false;
+    bool pinningValue = true;
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(syncValue = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+    OV_ASSERT_NO_THROW(pinningValue = compiledModel.get_property(ov::hint::enable_cpu_pinning));
+    ASSERT_TRUE(syncValue);
+    ASSERT_FALSE(pinningValue);
+
+    auto request = compiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(request.infer());
 }
 
 // Explicitly disabling CPU pinning alongside multi_app_thread_sync_execution=true must

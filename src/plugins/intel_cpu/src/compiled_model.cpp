@@ -188,14 +188,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_cfg.multiAppThreadSyncExecution) {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_task_executor);
         m_run_sync_in_caller_thread = streams_executor && !m_has_sub_compiled_models && !m_cfg.exclusiveAsyncRequests;
-        // Reject outright: running on the caller thread while CPU pinning is active would silently
-        // change that thread's own CPU affinity.
+        // Reject explicit pinning: running on the caller thread while pinned would silently change that
+        // thread's own CPU affinity. Default pinning is already resolved to false in generate_stream_info().
         OPENVINO_ASSERT(!m_run_sync_in_caller_thread || !executor_config.get_cpu_pinning(),
-                        "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with CPU "
-                        "pinning (ov::hint::enable_cpu_pinning resolved to true). Running inference on the "
-                        "calling application thread while CPU pinning is enabled silently changes that thread's "
-                        "CPU affinity. Set ov::hint::enable_cpu_pinning(false) explicitly when using "
-                        "ov::intel_cpu::multi_app_thread_sync_execution(true).");
+                        "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with "
+                        "ov::hint::enable_cpu_pinning(true). Running inference on the calling application thread "
+                        "while CPU pinning is enabled silently changes that thread's CPU affinity. Remove "
+                        "ov::hint::enable_cpu_pinning(true) or set it to false.");
         if (!m_run_sync_in_caller_thread) {
             // OPENVINO_WARN (not DEBUG_LOG) so this config downgrade is visible in standard builds too.
             OPENVINO_WARN("[CPU] ov::intel_cpu::multi_app_thread_sync_execution(true) was requested but is not "

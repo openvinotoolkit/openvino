@@ -131,9 +131,9 @@ static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_W
  * @note Falls back to the regular async pipeline (with a warning log) when exclusive async
  * requests are enabled or the model uses sub-streams (e.g. tensor-parallel); check get_property()
  * for the effective value.
- * @note Rejected with an exception at compile_model() time if CPU pinning is, or resolves to,
- * true, since inline inference would otherwise silently change the caller thread's own affinity.
- * Pass ov::hint::enable_cpu_pinning(false) explicitly together with this property.
+ * @note CPU pinning defaults to false with this property, since inline inference would otherwise
+ * change the caller thread's own affinity. Explicitly passing ov::hint::enable_cpu_pinning(true)
+ * together with this property is rejected with an exception at compile_model() time.
  * @note Known limitation: more concurrent application threads than NUM_STREAMS can collide on the
  * same internal graph slot and serialize; results stay correct, only parallelism degrades.
  */
