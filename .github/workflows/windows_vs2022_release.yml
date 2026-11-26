@@ -686,7 +686,7 @@ jobs:
     defaults:
       run:
         shell: powershell
-    runs-on: [ self-hosted, Windows, ov-dmz-32 ]
+    runs-on: [ self-hosted, Windows, ptl ]
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
