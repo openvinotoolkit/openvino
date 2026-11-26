@@ -96,6 +96,8 @@ CASES = {
     "bailingmoe2": {"qk": True, "fused": True, "moe": True, "lead": 1,
                     "selection_bias": True, "shared": True, "sigmoid": True},
     "maincoder": {"qk": True}, "mistral3": {}, "smollm3": {"layers": 4},
+    "spark2_5": {"fused": True, "tied": True, "layers": 4, "head_gate": True, "rope_dims": 4,
+                 "swa_layers": [True, True, True, False], "rope_dims_swa": 8},
     "mellum": {"qk": True, "moe": True},
     "muse-glimmer": {"qk": True, "post": True, "swa": True, "gate": True},
     "deepseek2-ocr": {"moe": True, "lead": 1, "shared": True},
@@ -549,6 +551,11 @@ def write_model(path, arch, opts):
         w.add_sliding_window_pattern(4 if arch in ("cohere2", "afmoe") else 2)
         if arch == "plamo3":
             w.add_rope_freq_base_swa(100.0)
+    if opts.get("swa_layers"):
+        w.add_sliding_window(2)
+        w.add_sliding_window_pattern(opts["swa_layers"])
+        w.add_rope_dimension_count_swa(opts["rope_dims_swa"])
+        w.add_rope_freq_base_swa(10000.0)
     if opts.get("softcap"):
         w.add_attn_logit_softcapping(2.0)
         w.add_final_logit_softcapping(3.0)
@@ -626,8 +633,8 @@ def write_model(path, arch, opts):
         if opts.get("qk") or opts.get("full_qk"):
             for name, width in (("q", heads * head), ("k", kv * head)):
                 tensor(p + f"attn_{name}_norm.weight", (width if opts.get("full_qk") else head,), True)
-        if opts.get("gate"):
-            tensor(p + "attn_gate.weight", (heads * head, d))
+        if opts.get("gate") or opts.get("head_gate"):
+            tensor(p + "attn_gate.weight", (heads if opts.get("head_gate") else heads * head, d))
         if opts.get("moe") and layer >= opts.get("lead", 0):
             tensor(p + "ffn_gate_inp.weight", (4, d))
             for name, shape in (("gate", (4, ff, d)), ("up", (4, ff, d)), ("down", (4, d, ff))):

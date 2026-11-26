@@ -65,6 +65,7 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `qwen3vl` | Qwen3-VL-2B Q4_0 | Interleaved multimodal RoPE and DeepStack inputs |
 | `qwen3vlmoe` | Qwen3-Omni-30B-A3B Q4_K_M | Multimodal RoPE and routed experts |
 | `smollm3` | SmolLM3-3B Q4_K_M | NORMAL RoPE, skipped on every fourth layer |
+| `spark2_5` | Spark-X2.5-1.7B Q4_K_M / Q8_0, Spark-X2.5-4B Q4_K_M | Fused QKV, per-head sigmoid output gate, GeGLU, three sliding layers then one global layer with partial RoPE |
 
 ### Runtime limitations
 
