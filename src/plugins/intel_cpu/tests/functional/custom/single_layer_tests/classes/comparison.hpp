@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <cstdint>
+#include <limits>
 #include <optional>
+#include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -48,6 +51,19 @@ const std::vector<std::vector<InputShape>>& inShapesWithConstant();
 
 const std::vector<utils::ComparisonTypes>& comparisonTypes();
 const std::vector<bool>& enforceSnippets();
+
+// i32 values that are not exactly representable in f32: around +-2^24 and near the i32 limits. Each window holds 3
+// consecutive values, so both inputs are often equal or differ by 1. Inline so per-test targets can reuse it.
+inline const std::vector<std::optional<ov::test::utils::InputGenerateData>>& i32Windows() {
+    static const std::vector<std::optional<ov::test::utils::InputGenerateData>> windows{
+        ov::test::utils::InputGenerateData((1 << 24) - 1, 3),
+        ov::test::utils::InputGenerateData(-(1 << 24) - 1, 3),
+        ov::test::utils::InputGenerateData(std::numeric_limits<int32_t>::max() - 2, 3),
+        ov::test::utils::InputGenerateData(std::numeric_limits<int32_t>::min(), 3),
+    };
+
+    return windows;
+}
 
 const std::vector<ov::element::Type>& modelPrc();
 const std::vector<ov::element::Type> inferPrc();

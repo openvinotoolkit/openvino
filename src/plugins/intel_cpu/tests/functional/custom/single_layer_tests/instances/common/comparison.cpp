@@ -4,6 +4,9 @@
 
 #include "custom/single_layer_tests/classes/comparison.hpp"
 
+#include <cstdint>
+#include <limits>
+
 using namespace CPUTestUtils;
 
 namespace ov {
@@ -31,6 +34,36 @@ const auto withConstantCases = ::testing::Combine(
     ::testing::Values(std::nullopt)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_Comparison_WithConstant, ComparisonLayerCPUTest, withConstantCases, ComparisonLayerCPUTest::getTestCaseName);
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_X86_64)
+namespace {
+
+const auto i32WithParameterCases = ::testing::Combine(::testing::ValuesIn(inShapesWithParameter()),
+                                                      ::testing::ValuesIn(comparisonTypes()),
+                                                      ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+                                                      ::testing::Values(ov::element::i32),
+                                                      ::testing::Values(ov::element::f32),
+                                                      ::testing::ValuesIn(enforceSnippets()),
+                                                      ::testing::ValuesIn(i32Windows()));
+INSTANTIATE_TEST_SUITE_P(smoke_Comparison_I32Exact_WithParameter,
+                         ComparisonLayerCPUTest,
+                         i32WithParameterCases,
+                         ComparisonLayerCPUTest::getTestCaseName);
+
+const auto i32WithConstantCases = ::testing::Combine(::testing::ValuesIn(inShapesWithConstant()),
+                                                     ::testing::ValuesIn(comparisonTypes()),
+                                                     ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                                     ::testing::Values(ov::element::i32),
+                                                     ::testing::Values(ov::element::f32),
+                                                     ::testing::ValuesIn(enforceSnippets()),
+                                                     ::testing::ValuesIn(i32Windows()));
+INSTANTIATE_TEST_SUITE_P(smoke_Comparison_I32Exact_WithConstant,
+                         ComparisonLayerCPUTest,
+                         i32WithConstantCases,
+                         ComparisonLayerCPUTest::getTestCaseName);
+
+}  // namespace
+#endif
 
 }  // namespace comparison
 }  // namespace test
