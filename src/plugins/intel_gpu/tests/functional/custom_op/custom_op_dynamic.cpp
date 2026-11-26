@@ -2,10 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
+#include "openvino/core/op_extension.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -16,6 +30,276 @@ using namespace ::testing;
 namespace ov {
 namespace test {
 namespace intel_gpu {
+
+namespace {
+
+enum class CacheCase { Path, Precision, Axis, If, Loop, LoopInvariant, LoopTripProducer, Extension };
+
+class CacheConcat : public ov::op::Op {
+public:
+    OPENVINO_OP("CacheConcat", "cache_test_extension");
+
+    CacheConcat() = default;
+    CacheConcat(const ov::OutputVector& inputs, int64_t axis) : Op(inputs), m_axis(axis) {
+        constructor_validate_and_infer_types();
+    }
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        visitor.on_attribute("axis", m_axis);
+        return true;
+    }
+
+    void validate_and_infer_types() override {
+        ov::op::v0::Concat concat(input_values(), m_axis);
+        set_output_type(0, concat.get_output_element_type(0), concat.get_output_partial_shape(0));
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return std::make_shared<CacheConcat>(inputs, m_axis);
+    }
+
+private:
+    int64_t m_axis = 1;
+};
+
+class DynamicCustomCache : public ::testing::TestWithParam<CacheCase> {
+protected:
+    void SetUp() override {
+        auto path = ov::test::utils::generateTestFilePrefix() + "_dynamic_custom_cache";
+        ASSERT_TRUE(std::filesystem::create_directory(path));
+        directory = std::move(path);
+    }
+
+    void TearDown() override {
+        if (!directory.empty()) {
+            std::error_code error;
+            std::filesystem::remove_all(directory, error);
+            EXPECT_FALSE(error);
+        }
+    }
+
+    void write_kernel_config(const char* layer, bool concat, bool half) {
+        std::ofstream kernel(directory / "custom.cl");
+        if (concat) {
+            kernel << R"(
+__kernel void custom(__global const float* x, __global const float* y, __global float* z) {
+    const size_t index = get_global_id(0);
+    const size_t width = get_global_size(0) / 2;
+    z[index] = index < width ? x[index] : y[index - width];
+})";
+        } else {
+            if (half) {
+                kernel << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n";
+            }
+            const char* type = half ? "half" : "float";
+            kernel << "__kernel void custom(__global const " << type << "* x, __global " << type
+                   << "* y) { size_t i = get_global_id(0); y[i] = fmax(x[i], (" << type << ")0); }\n";
+        }
+        ASSERT_TRUE(kernel.good());
+        std::ofstream xml(directory / "custom.xml");
+        xml << "<CustomLayer name=\"" << layer
+            << R"(" type="SimpleGPU" version="1">
+    <Kernel entry="custom"><Source filename="custom.cl"/></Kernel>
+    <Buffers><Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>)";
+        if (concat) {
+            xml << R"(<Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+             <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>)";
+        } else {
+            xml << R"(<Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>)";
+        }
+        xml << R"(</Buffers>
+    <WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/>
+</CustomLayer>)";
+        ASSERT_TRUE(xml.good());
+    }
+
+    std::filesystem::path directory;
+};
+
+TEST_P(DynamicCustomCache, RestoresCachedAndExportedPrograms) {
+    const auto mode = GetParam();
+    const bool concat = mode == CacheCase::Axis || mode == CacheCase::Extension;
+    const bool half = mode == CacheCase::Precision;
+    const bool loop = mode == CacheCase::Loop || mode == CacheCase::LoopInvariant || mode == CacheCase::LoopTripProducer;
+    const auto* device = ov::test::utils::DEVICE_GPU;
+    ov::Core core;
+    if (half) {
+        const auto capabilities = core.get_property(device, ov::device::capabilities);
+        if (std::find(capabilities.begin(), capabilities.end(), "FP16") == capabilities.end()) {
+            GTEST_SKIP() << "The precision cache case requires FP16 support";
+        }
+    }
+    const char* layer = mode == CacheCase::Extension ? "CacheConcat" : (concat ? "Concat" : "Relu");
+    ASSERT_NO_FATAL_FAILURE(write_kernel_config(layer, concat, half));
+
+    const ov::PartialShape shape{-1, concat ? -1 : 4};
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    ov::ParameterVector parameters{input};
+    ov::Output<ov::Node> result;
+    const auto one = ov::op::v0::Constant::create(ov::element::f32, {}, {1.0f});
+    const auto relu = [](const ov::Output<ov::Node>& value) {
+        auto node = std::make_shared<ov::op::v0::Relu>(value);
+        node->set_friendly_name("custom_op");
+        return node;
+    };
+    const auto concat_op = [&](int64_t axis) -> std::shared_ptr<ov::Node> {
+        ov::OutputVector values{parameters[0], parameters[1]};
+        std::shared_ptr<ov::Node> node;
+        if (mode == CacheCase::Extension) {
+            node = std::make_shared<CacheConcat>(values, axis);
+        } else {
+            node = std::make_shared<ov::op::v0::Concat>(values, axis);
+        }
+        node->set_friendly_name("custom_op");
+        return node;
+    };
+
+    if (concat) {
+        parameters.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        result = concat_op(0);
+    } else if (mode == CacheCase::If) {
+        auto condition = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{});
+        parameters.push_back(condition);
+        auto then_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto else_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto then_body = std::make_shared<ov::Model>(ov::OutputVector{relu(then_input)}, ov::ParameterVector{then_input});
+        auto else_body = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Negative>(else_input)},
+                                                    ov::ParameterVector{else_input});
+        auto branch = std::make_shared<ov::op::v8::If>(condition);
+        branch->set_then_body(then_body);
+        branch->set_else_body(else_body);
+        branch->set_input(input, then_input, else_input);
+        result = branch->set_output(then_body->get_results().at(0), else_body->get_results().at(0));
+        branch->validate_and_infer_types();
+    } else if (loop) {
+        auto trip = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
+        parameters.push_back(trip);
+        auto body_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        ov::Output<ov::Node> activation = relu(body_input);
+        ov::Output<ov::Node> trip_count = trip;
+        if (mode == CacheCase::LoopTripProducer) {
+            activation = std::make_shared<ov::op::v1::Add>(activation, one);
+            auto increment = ov::op::v0::Constant::create(ov::element::i64, {}, {int64_t{1}});
+            trip_count = std::make_shared<ov::op::v1::Add>(trip_count, increment);
+        }
+        auto condition = ov::op::v0::Constant::create(ov::element::boolean, {}, {true});
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{condition, activation}, ov::ParameterVector{body_input});
+        auto operation = std::make_shared<ov::op::v5::Loop>(trip_count, condition);
+        operation->set_function(body);
+        if (mode == CacheCase::LoopInvariant) {
+            operation->set_invariant_input(body_input, input);
+        } else {
+            operation->set_merged_input(body_input, input, activation);
+        }
+        operation->set_special_body_ports({-1, 0});
+        result = operation->get_iter_value(activation, -1);
+        operation->validate_and_infer_types();
+    } else if (half) {
+        auto shifted = std::make_shared<ov::op::v1::Add>(input, one);
+        auto two = ov::op::v0::Constant::create(ov::element::f32, {}, {2.0f});
+        result = std::make_shared<ov::op::v1::Multiply>(relu(shifted), two);
+    } else {
+        result = relu(input);
+    }
+
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{result}, parameters, "CustomLayerCacheRestoration");
+    const auto xml = directory / "model.xml";
+    ov::pass::Serialize(xml, directory / "model.bin").run_on_model(model);
+    ov::AnyMap config{ov::cache_dir((directory / "cache").string()),
+                      ov::hint::inference_precision(half ? ov::element::f16 : ov::element::f32),
+                      ov::num_streams(1),
+                      {"CONFIG_FILE", (directory / "custom.xml").string()}};
+    const auto compile = [&](ov::Core& compiler) {
+        if (mode == CacheCase::Extension) {
+            compiler.add_extension(std::make_shared<ov::OpExtension<CacheConcat>>());
+        }
+        return mode == CacheCase::Path ? compiler.compile_model(xml, device, config)
+                                       : compiler.compile_model(model, device, config);
+    };
+
+    std::stringstream blob(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        ov::Core cold_core;
+        auto cold = compile(cold_core);
+        ASSERT_FALSE(cold.get_property(ov::loaded_from_cache));
+        cold.export_model(blob);
+    }
+    const auto warm = compile(core);
+    ASSERT_TRUE(warm.get_property(ov::loaded_from_cache));
+    config.erase(ov::cache_dir.name());
+    if (concat) {
+        const auto conflicting_model = std::make_shared<ov::Model>(ov::OutputVector{concat_op(1)}, parameters);
+        config.insert(ov::hint::model(conflicting_model));
+    }
+    blob.seekg(0);
+    const auto imported = core.import_model(blob, device, config);
+
+    for (auto compiled : {warm, imported}) {
+        auto request = compiled.create_infer_request();
+        for (const size_t batch : {1, 3, 2}) {
+            const size_t width = concat ? 3 : 4;
+            ov::Tensor values(ov::element::f32, {batch, width});
+            for (size_t i = 0; i < values.get_size(); ++i) {
+                values.data<float>()[i] = static_cast<float>(i) - 4.0f;
+            }
+            request.set_input_tensor(0, values);
+            if (concat) {
+                ov::Tensor second(ov::element::f32, {batch, width});
+                for (size_t i = 0; i < values.get_size(); ++i) {
+                    second.data<float>()[i] = values.data<const float>()[i] + 20.0f;
+                }
+                request.set_input_tensor(1, second);
+            } else if (loop) {
+                ov::Tensor trip(ov::element::i64, {});
+                *trip.data<int64_t>() = 3;
+                request.set_input_tensor(1, trip);
+            }
+            const auto check = [&](bool then_branch) {
+                if (mode == CacheCase::If) {
+                    ov::Tensor condition(ov::element::boolean, {});
+                    *condition.data<bool>() = then_branch;
+                    request.set_input_tensor(1, condition);
+                }
+                request.infer();
+                const auto output = request.get_output_tensor();
+                ASSERT_EQ(output.get_shape(), (ov::Shape{concat ? batch * 2 : batch, width}));
+                ASSERT_EQ(output.get_element_type(), ov::element::f32);
+                for (size_t i = 0; i < output.get_size(); ++i) {
+                    const float value = values.data<const float>()[i % values.get_size()];
+                    float expected = std::max(value, 0.0f);
+                    if (concat) {
+                        expected = value + (i < values.get_size() ? 0.0f : 20.0f);
+                    } else if (!then_branch) {
+                        expected = -value;
+                    } else if (half) {
+                        expected = std::max(value + 1.0f, 0.0f) * 2.0f;
+                    } else if (mode == CacheCase::LoopTripProducer) {
+                        expected += 4.0f;
+                    }
+                    EXPECT_EQ(std::memcmp(output.data<const float>() + i, &expected, sizeof(float)), 0)
+                        << "batch=" << batch << ", i=" << i;
+                }
+            };
+            ASSERT_NO_FATAL_FAILURE(check(true));
+            if (mode == CacheCase::If) {
+                ASSERT_NO_FATAL_FAILURE(check(false));
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU,
+                         DynamicCustomCache,
+                         ::testing::Values(CacheCase::Path,
+                                           CacheCase::Precision,
+                                           CacheCase::Axis,
+                                           CacheCase::If,
+                                           CacheCase::Loop,
+                                           CacheCase::LoopInvariant,
+                                           CacheCase::LoopTripProducer,
+                                           CacheCase::Extension));
+
+}  // namespace
 
 class CustomAddOp : public ov::op::Op {
 private:
