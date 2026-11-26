@@ -882,12 +882,15 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         auto tile_in_b_pitch = (params.inputs[0].Feature().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Feature().pitch;
         bool input_has_feature_pad = params.is_shape_agnostic || params.inputs[0].has_dynamic_pad() ||
                                      params.inputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].Feature().pad.Total() != 0;
+        bool output_has_feature_pad = params.is_shape_agnostic || params.outputs[0].has_dynamic_pad() ||
+                                      params.outputs[0].PitchesDifferFromLogicalDims() || params.outputs[0].Feature().pad.Total() != 0;
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Y().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Y().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
         jit.AddConstant(MakeJitConstant("INPUT0_HAS_FEATURE_PAD", input_has_feature_pad));
+        jit.AddConstant(MakeJitConstant("OUTPUT_HAS_FEATURE_PAD", output_has_feature_pad));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM * OUTPUT_FEATURE_NUM)"));
     } else {
         auto tile_in_b_pitch = (params.inputs[0].Batch().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Batch().pitch;
@@ -896,6 +899,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Batch().pitch));
         jit.AddConstant(MakeJitConstant("INPUT0_HAS_FEATURE_PAD", false));
+        jit.AddConstant(MakeJitConstant("OUTPUT_HAS_FEATURE_PAD", false));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
     }
     auto batch_size = get_input_bf_size(params).first;

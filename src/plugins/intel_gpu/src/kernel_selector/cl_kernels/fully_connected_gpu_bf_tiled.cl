@@ -123,7 +123,9 @@ KERNEL(quantize_input)(
 #define TO_FILTER_VEC_TYPE(x)      CAT(convert_, FILTER_VEC_TYPE)(x)
 #define TO_ACCUMULATOR_VEC_TYPE(x) CAT(convert_, ACCUMULATOR_VEC_TYPE)(x)
 
-#if ACCUMULATOR_IS_FP
+#define FC_ACC_NEEDS_PROMOTION     (ACCUMULATOR_IS_FP && ACCUMULATOR_TYPE_SIZE < 4)
+
+#if FC_ACC_NEEDS_PROMOTION
 #define FC_ACC_TYPE                float
 #define FC_ACC_VEC_TYPE            MAKE_VECTOR_TYPE(float, TILE_OFM)
 #define FC_ACC_VAL_ONE             1.0f
@@ -137,6 +139,14 @@ KERNEL(quantize_input)(
 #define TO_FC_ACC_VEC_TYPE(x)      TO_ACCUMULATOR_VEC_TYPE(x)
 #endif
 
+// Amortize half->float merge over 2 K-tiles (32 K-elements) on uncompressed FP16 workloads
+// while keeping each FP16 partial sum bounded to 32 elements to prevent large-K stagnation.
+#if FC_ACC_NEEDS_PROMOTION && !DECOMPRESSION_SCALE_POST_OP && !COMPRESSED_WEIGHTS && !USE_SLM
+#define FC_ACC_MERGE_TILES 2
+#else
+#define FC_ACC_MERGE_TILES 1
+#endif
+
 #if OUTPUT_3D
 #if defined(INPUT0_HAS_FEATURE_PAD) && INPUT0_HAS_FEATURE_PAD
 #define USE_PER_ROW_INPUT_OFFSET 1
@@ -145,7 +155,11 @@ KERNEL(quantize_input)(
 #define USE_PER_ROW_INPUT_OFFSET 0
 #define GET_INPUT0_BF_OFFSET(b_idx) ((b_idx) * TILE_IN_B_PITCH + INPUT0_OFFSET)
 #endif
+#if defined(OUTPUT_HAS_FEATURE_PAD) && OUTPUT_HAS_FEATURE_PAD
 #define GET_OUTPUT_BF_OFFSET(b_idx) (((b_idx) / OUTPUT_FEATURE_NUM) * OUTPUT_BATCH_PITCH + ((b_idx) % OUTPUT_FEATURE_NUM) * OUTPUT_FEATURE_PITCH + OUTPUT_OFFSET)
+#else
+#define GET_OUTPUT_BF_OFFSET(b_idx) ((b_idx) * TILE_OUT_B_PITCH + OUTPUT_OFFSET)
+#endif
 #else
 #define USE_PER_ROW_INPUT_OFFSET 0
 #define GET_INPUT0_BF_OFFSET(b_idx) ((b_idx) * TILE_IN_B_PITCH + INPUT0_OFFSET)
@@ -285,6 +299,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             input_base_offset[bi] = GET_INPUT0_BF_OFFSET(out_b + bi);
         }
         uint input_k_offset = 0;
+    #elif OUTPUT_3D && !FC_ACC_NEEDS_PROMOTION
+        uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
+        uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
+        uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
     #else
         uint input_offset = GET_INPUT0_BF_OFFSET(out_b);
     #endif
@@ -407,8 +425,17 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
     // Main computation loop
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
+#if FC_ACC_MERGE_TILES > 1
+    __attribute__((opencl_unroll_hint(1)))
+    for (uint ni_outer = 0; ni_outer < iterations; ni_outer += FC_ACC_MERGE_TILES) {
+        ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
+        const uint ni_end = min(ni_outer + (uint)FC_ACC_MERGE_TILES, iterations);
+        __attribute__((opencl_unroll_hint(1)))
+        for (uint ni = ni_outer; ni < ni_end; ++ni) {
+#else
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
+#endif
         // Load input.
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         #if USE_PER_ROW_INPUT_OFFSET
@@ -449,7 +476,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
+#if FC_ACC_MERGE_TILES == 1
         ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
+#endif
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             #if TILE_OFM != 2
@@ -715,9 +744,24 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             }
         }
 #endif
-#if !DECOMPRESSION_SCALE_POST_OP
+#if FC_ACC_MERGE_TILES > 1
+        }
         unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
             acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
+        }
+#elif !DECOMPRESSION_SCALE_POST_OP
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+#if FC_ACC_NEEDS_PROMOTION
+            acc[bi] += TO_FC_ACC_VEC_TYPE(acc_tmp[bi]);
+#else
+            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                #if TILE_OFM > 1
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi];
+                #else
+                acc[bi] += acc_tmp[bi];
+                #endif
+            }
+#endif
         }
 #endif
     }
@@ -1792,6 +1836,8 @@ KERNEL(fc)(
 #undef ACTIVATION_VEC_TYPE
 #undef TO_OUTPUT_VEC_TYPE
 #undef TO_ACTIVATION_VEC_TYPE
+#undef FC_ACC_NEEDS_PROMOTION
+#undef FC_ACC_MERGE_TILES
 #undef FC_ACC_TYPE
 #undef FC_ACC_VEC_TYPE
 #undef FC_ACC_VAL_ONE
