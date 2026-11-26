@@ -34,7 +34,14 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     )
 
     if (WIN32)
-        ov_add_compiler_flags(/WX)
+        if (CMAKE_COMPILE_WARNING_AS_ERROR)
+            ov_add_compiler_flags(/WX)
+        else()
+            ov_add_compiler_flags(/WX-)
+        endif()
+        # SYCL headers from recent oneAPI emit deprecation warnings inside system headers;
+        # suppress them so non-WAE builds with current toolkits stay clean
+        ov_add_compiler_flags(-Wno-deprecated-declarations)
         ov_add_compiler_flags(/Wno-ignored-attributes)
     endif()
 endif()
