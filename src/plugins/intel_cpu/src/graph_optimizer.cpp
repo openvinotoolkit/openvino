@@ -285,6 +285,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         if (!scaleNode->isConstant()) {
             return false;
         }
+        // DQ scales apply to every consumer of the parent's output, so the Multiply must be the only one
+        if (parentNode->getChildEdges().size() != 1) {
+            return false;
+        }
         // Only Fusing scales for INT8 precision.
         if (!parentNode->canBeExecutedInInt8()) {
             return false;
