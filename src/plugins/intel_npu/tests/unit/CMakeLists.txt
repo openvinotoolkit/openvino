@@ -177,6 +177,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${TARGET_NAME} PRIVATE -Wno-attributes)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+    # GCC 15 emits a false-positive -Wstringop-overflow for the bounds-checked raw buffer
+    # patch helpers in npuw/serialization.cpp (deliberately crafted malformed-blob tests).
+    # See src/core/tests/CMakeLists.txt for the same GCC 15 regression hit elsewhere.
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow)
+endif()
+
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT tests
