@@ -4,8 +4,11 @@
 
 #include "convert_kvcache_to_precision.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 #include "../logging.hpp"
 #include "../util.hpp"
@@ -69,107 +72,24 @@ public:
     }
 };
 
-// Parse KV-cache compression configuration string
-// Format: KEY:<SYM|ASYM>:BY_TOKEN,VALUE:<SYM|ASYM>:BY_TOKEN
-// Example: "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"
-// Default: "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"
-// Only per-token quantization is implemented (the quantizer reduces the embedding axis), so BY_CHANNEL
-// is rejected instead of being silently treated as BY_TOKEN.
-struct KVCacheCompressionSetting {
-    ov::npuw::KVCacheCompressionConfig::QuantizationType key_type =
-        ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
-    std::string key_granularity = "BY_TOKEN";
-    ov::npuw::KVCacheCompressionConfig::QuantizationType value_type =
-        ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
-    std::string value_granularity = "BY_TOKEN";
-};
-
-KVCacheCompressionSetting parse_kv_cache_compression_config(const std::string& config_str) {
-    KVCacheCompressionSetting result;
-
-    if (config_str.empty()) {
-        LOG_DEBUG("Using default KV-cache compression: KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN");
-        return result;
-    }
-
-    // Split by comma to get key and value parts
-    const size_t comma_pos = config_str.find(',');
-    const std::string key_part = config_str.substr(0, comma_pos);
-    const std::string value_part = (comma_pos != std::string::npos) ? config_str.substr(comma_pos + 1) : "";
-
-    auto parse_part = [](const std::string& part, const char* what) {
-        // Format: KEY:SYM:BY_TOKEN or VALUE:ASYM:BY_TOKEN
-        const size_t first_colon = part.find(':');
-        const size_t second_colon = part.find(':', first_colon + 1);
-
-        OPENVINO_ASSERT(first_colon != std::string::npos && second_colon != std::string::npos,
-                        "Invalid KV-cache compression config for ",
-                        what,
-                        ": ",
-                        part,
-                        " (expected format: <KEY|VALUE>:<SYM|ASYM>:BY_TOKEN)");
-
-        const std::string label = part.substr(0, first_colon);
-        const std::string quant_type = part.substr(first_colon + 1, second_colon - first_colon - 1);
-        const std::string granularity = part.substr(second_colon + 1);
-
-        OPENVINO_ASSERT(label == what, "Expected '", what, "' but got '", label, "' in KV-cache compression config");
-        OPENVINO_ASSERT(quant_type == "SYM" || quant_type == "ASYM",
-                        "Invalid quantization type '",
-                        quant_type,
-                        "' for ",
-                        what,
-                        " (must be SYM or ASYM)");
-        OPENVINO_ASSERT(granularity != "BY_CHANNEL",
-                        "Granularity BY_CHANNEL for ",
-                        what,
-                        " is not supported yet in KV-cache compression config (use BY_TOKEN)");
-        OPENVINO_ASSERT(granularity == "BY_TOKEN",
-                        "Invalid granularity '",
-                        granularity,
-                        "' for ",
-                        what,
-                        " (must be BY_TOKEN)");
-
-        return std::make_pair(quant_type == "SYM" ? ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric
-                                                  : ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric,
-                              granularity);
-    };
-
-    auto [key_quant, key_gran] = parse_part(key_part, "KEY");
-    result.key_type = key_quant;
-    result.key_granularity = key_gran;
-
-    if (!value_part.empty()) {
-        auto [val_quant, val_gran] = parse_part(value_part, "VALUE");
-        result.value_type = val_quant;
-        result.value_granularity = val_gran;
-    }
-
-    auto type_name = [](ov::npuw::KVCacheCompressionConfig::QuantizationType type) {
-        return type == ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric ? "SYM" : "ASYM";
-    };
-    LOG_DEBUG("Parsed KV-cache compression config: KEY:" << type_name(result.key_type) << ":" << result.key_granularity
-                                                         << ", VALUE:" << type_name(result.value_type) << ":"
-                                                         << result.value_granularity);
-
-    return result;
-}
-
 std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
                                                         const ov::element::Type lptype,
                                                         const bool v_tensors_transposed,
                                                         const std::string& kv_cache_compression_config = "") {
     // Resolve storage types first and apply them through PPP for both inputs and outputs.
-    // Default path keeps KV cache in f16; integer hint uses key=i8/u8 and value=i4.
+    // Default path keeps KV cache in f16; the integer hint stores each cache in the precision resolved from
+    // NPUW_LLM_KV_CACHE_COMPRESSION (key: the hint, i8 or i4; value: i8 or i4).
     auto key_storage_type = lptype;
     auto value_storage_type = lptype;
 
     const bool use_integer_kv_storage = (lptype == ov::element::i8 || lptype == ov::element::u8);
+    ov::npuw::KVCacheCompressionParams dq_params;
     if (use_integer_kv_storage) {
-        key_storage_type = lptype;
-        // TODO: int4 precision for value-cache lead to compilation failure for now
-        value_storage_type = ov::element::i8;
+        dq_params = ov::npuw::resolve_kv_cache_compression(
+            lptype,
+            ov::npuw::parse_kv_cache_compression_config(kv_cache_compression_config));
+        key_storage_type = dq_params.key.quantization_dt;
+        value_storage_type = dq_params.value.quantization_dt;
     }
     ov::preprocess::PrePostProcessor ppp(model);
 
@@ -201,23 +121,6 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     auto new_model = ppp.build();
 
     if (use_integer_kv_storage) {
-        const auto compression_config = parse_kv_cache_compression_config(kv_cache_compression_config);
-
-        // A u8 key is decomposed only as asymmetric (DynamicQuantizeLinear style, DecomposeDynamicQuantize2);
-        // there is no symmetric u8 decomposition, so the KEY quantization type applies to an i8 key only.
-        auto key_type = compression_config.key_type;
-        if (key_storage_type == ov::element::u8 &&
-            key_type != ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric) {
-            LOG_INFO("u8 KV-cache key supports only asymmetric quantization, using KEY:ASYM");
-            key_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric;
-        }
-
-        ov::npuw::KVCacheCompressionParams dq_params;
-        dq_params.key.quantization_dt = key_storage_type;
-        dq_params.key.quantization_type = key_type;
-        dq_params.value.quantization_dt = value_storage_type;
-        dq_params.value.quantization_type = compression_config.value_type;
-
         LOG_DEBUG("Running KV-cache compression passes: key=" << key_storage_type << ", value=" << value_storage_type
                                                               << " on model[" << model->get_friendly_name() << "]");
         ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params, v_tensors_transposed);
@@ -271,6 +174,141 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
 }  // namespace ov
 
 namespace ov::npuw {
+
+KVCacheCompressionSetting parse_kv_cache_compression_config(const std::string& config_str) {
+    using QuantizationType = KVCacheCompressionConfig::QuantizationType;
+    KVCacheCompressionSetting result;
+    if (config_str.empty()) {
+        LOG_DEBUG("Using default KV-cache compression: KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN");
+        return result;
+    }
+
+    auto split = [](const std::string& str, char delimiter) {
+        std::vector<std::string> tokens;
+        std::size_t start = 0;
+        while (true) {
+            const auto pos = str.find(delimiter, start);
+            tokens.push_back(str.substr(start, pos == std::string::npos ? std::string::npos : pos - start));
+            if (pos == std::string::npos) {
+                return tokens;
+            }
+            start = pos + 1;
+        }
+    };
+    auto trim = [](const std::string& str) {
+        const auto first = str.find_first_not_of(" \t");
+        if (first == std::string::npos) {
+            return std::string{};
+        }
+        return str.substr(first, str.find_last_not_of(" \t") - first + 1);
+    };
+    auto to_upper = [](std::string str) {
+        std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+            return static_cast<char>(std::toupper(c));
+        });
+        return str;
+    };
+
+    bool key_seen = false;
+    bool value_seen = false;
+    for (const auto& raw_part : split(config_str, ',')) {
+        const auto part = trim(raw_part);
+        OPENVINO_ASSERT(!part.empty(), "Empty part in KV-cache compression config '", config_str, "'");
+
+        // Every attribute is a plain string matched by name, so their order does not matter
+        std::optional<bool> is_key;
+        std::optional<QuantizationType> type;
+        std::optional<std::string> granularity;
+        std::optional<ov::element::Type> precision;
+        auto set_once = [&part](auto& slot, auto value, const char* what) {
+            OPENVINO_ASSERT(!slot.has_value(),
+                            "More than one ",
+                            what,
+                            " in KV-cache compression config part '",
+                            part,
+                            "'");
+            slot = value;
+        };
+        for (const auto& raw_attr : split(part, ':')) {
+            const auto attr = to_upper(trim(raw_attr));
+            if (attr == "KEY" || attr == "VALUE") {
+                set_once(is_key, attr == "KEY", "KEY/VALUE label");
+            } else if (attr == "SYM" || attr == "ASYM") {
+                set_once(type,
+                         attr == "SYM" ? QuantizationType::Symmetric : QuantizationType::Asymmetric,
+                         "quantization type (SYM/ASYM)");
+            } else if (attr == "BY_TOKEN") {
+                set_once(granularity, attr, "granularity");
+            } else if (attr == "BY_CHANNEL") {
+                OPENVINO_THROW("Granularity BY_CHANNEL is not supported yet in KV-cache compression config part '",
+                               part,
+                               "' (use BY_TOKEN)");
+            } else if (attr == "INT4" || attr == "I4") {
+                set_once(precision, ov::element::i4, "precision");
+            } else if (attr == "INT8" || attr == "I8") {
+                set_once(precision, ov::element::i8, "precision");
+            } else {
+                OPENVINO_THROW("Unknown attribute '",
+                               raw_attr,
+                               "' in KV-cache compression config part '",
+                               part,
+                               "' (expected KEY|VALUE, SYM|ASYM, BY_TOKEN, INT4|INT8)");
+            }
+        }
+        OPENVINO_ASSERT(is_key.has_value(),
+                        "KV-cache compression config part '",
+                        part,
+                        "' does not say which cache it configures (add KEY or VALUE)");
+        auto& seen = *is_key ? key_seen : value_seen;
+        OPENVINO_ASSERT(!seen,
+                        "KV-cache compression config '",
+                        config_str,
+                        "' configures the ",
+                        *is_key ? "KEY" : "VALUE",
+                        " cache twice");
+        seen = true;
+
+        auto& cache = *is_key ? result.key : result.value;
+        cache.type = type.value_or(QuantizationType::Symmetric);
+        cache.granularity = granularity.value_or("BY_TOKEN");
+        cache.precision = precision;
+    }
+
+    auto describe = [](const KVCacheCompressionSetting::Cache& cache) {
+        std::string str = cache.type == QuantizationType::Symmetric ? "SYM" : "ASYM";
+        str += ":" + cache.granularity;
+        if (cache.precision) {
+            str += ":" + cache.precision->to_string();
+        }
+        return str;
+    };
+    LOG_DEBUG("Parsed KV-cache compression config: KEY:" << describe(result.key)
+                                                         << ", VALUE:" << describe(result.value));
+    return result;
+}
+
+KVCacheCompressionParams resolve_kv_cache_compression(const ov::element::Type& kv_cache_precision,
+                                                      const KVCacheCompressionSetting& setting) {
+    using QuantizationType = KVCacheCompressionConfig::QuantizationType;
+    OPENVINO_ASSERT(kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8,
+                    "KV-cache compression needs an integer KV-cache precision, got ",
+                    kv_cache_precision);
+
+    KVCacheCompressionParams params;
+    params.key.quantization_dt = setting.key.precision.value_or(kv_cache_precision);
+    params.key.quantization_type = setting.key.type;
+    params.value.quantization_dt = setting.value.precision.value_or(ov::element::i8);
+    params.value.quantization_type = setting.value.type;
+
+    // A u8 key is decomposed only as asymmetric (DynamicQuantizeLinear style, DecomposeDynamicQuantize2);
+    // there is no symmetric u8 decomposition, so the KEY quantization type applies to an i8 / i4 key only.
+    if (params.key.quantization_dt == ov::element::u8 &&
+        params.key.quantization_type != QuantizationType::Asymmetric) {
+        LOG_INFO("u8 KV-cache key supports only asymmetric quantization, using KEY:ASYM");
+        params.key.quantization_type = QuantizationType::Asymmetric;
+    }
+    return params;
+}
 
 ConvertKVCacheToPrecision::ConvertKVCacheToPrecision(const ov::element::Type lptype,
                                                      bool v_tensors_transposed,

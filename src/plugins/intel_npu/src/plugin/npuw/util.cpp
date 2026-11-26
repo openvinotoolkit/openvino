@@ -84,6 +84,12 @@ ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_s
         resolved.quantized_data_type = ov::element::u8;
         resolved.zero_point_type = ov::element::u8;
     }
+    // The handcrafted decomposition (DecomposeDynamicQuantize) always emits an i8 zero-point; an i4 KV cache
+    // keeps it in i8 too, so the past zero-point input matches the present zero-point output.
+    if (!is_symmetric && decompose_mode == DynamicQuantDecomposeMode::HandcraftedSymmetricI8 &&
+        quant_dt == ov::element::i4) {
+        resolved.zero_point_type = ov::element::i8;
+    }
 
     return resolved;
 }

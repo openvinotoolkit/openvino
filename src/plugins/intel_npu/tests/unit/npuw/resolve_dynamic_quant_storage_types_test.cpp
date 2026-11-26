@@ -104,12 +104,13 @@ std::vector<ResolveStorageTypesParams> make_all_cases() {
          ov::element::i8,
          ov::element::i8,
          ov::element::f32},
+        // The handcrafted decomposition emits an i8 zero-point for i4 data too
         {DQMode::HandcraftedSymmetricI8,
          false,
          ov::element::i4,
          ov::element::f32,
          ov::element::i4,
-         ov::element::i4,
+         ov::element::i8,
          ov::element::f32},
 
         {DQMode::OnnxDynamicQuantizeLinear,

@@ -1297,7 +1297,46 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                     "=DYNAMIC): integer KV-cache compression needs the unrolled (decomposed) SDPA. "
                     "Use a STATIC, PYRAMID or HFA attention hint, or an f16 KV-cache.");
 
+    // An INT4 KV cache (NPUW_LLM_KV_CACHE_COMPRESSION ...:INT4) is packed two values per byte. The runtime
+    // KV copies handle such a tensor only when they slice it along a dimension that is not the innermost one:
+    // tensor views (pyramid / HFA / dynamic attention, prefix caching) do not support sub-byte types at all,
+    // and the KV-cache variant switch is not covered either. Restrict INT4 to the plain path: no chunked
+    // prefill (prefix caching needs it too), STATIC generate attention, one generate KV-cache size. An INT4
+    // value cache also keeps the [.., seq, head_size] layout: the transposed layout puts the sequence innermost.
+    bool kv_value_int4 = false;
+    if (kv_cache_integer_storage) {
+        const auto kv_compression = ov::npuw::resolve_kv_cache_compression(
+            kv_kache_storage_type,
+            ov::npuw::parse_kv_cache_compression_config(m_cfg.get<::intel_npu::NPUW_LLM_KV_CACHE_COMPRESSION>()));
+        const bool kv_key_int4 = kv_compression.key.quantization_dt == ov::element::i4;
+        kv_value_int4 = kv_compression.value.quantization_dt == ov::element::i4;
+        if (kv_key_int4 || kv_value_int4) {
+            const char* what = kv_key_int4 && kv_value_int4 ? "key and value" : (kv_key_int4 ? "key" : "value");
+            OPENVINO_ASSERT(!m_use_chunk_prefill,
+                            "INT4 KV-cache ",
+                            what,
+                            " does not support chunked prefill yet: set NPUW_LLM_PREFILL_HINT=STATIC");
+            OPENVINO_ASSERT(generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::STATIC,
+                            "INT4 KV-cache ",
+                            what,
+                            " supports only NPUW_LLM_GENERATE_ATTENTION_HINT=STATIC yet");
+            OPENVINO_ASSERT(m_kvcache_sizes.size() == 1,
+                            "INT4 KV-cache ",
+                            what,
+                            " supports a single generate KV-cache size only yet (got ",
+                            m_kvcache_sizes.size(),
+                            ")");
+            LOG_INFO("INT4 KV-cache " << what);
+        }
+    }
+
+    // The pass also decomposes SDPA, which the KV-cache compression needs: for an INT4 value cache it only
+    // decomposes and keeps the V layout.
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
+    const bool transpose_v_tensors = !kv_value_int4;
+    if (kv_value_int4 && optimize_v_tensors) {
+        LOG_INFO("INT4 KV-cache value: the value cache is not transposed (NPUW_LLM_OPTIMIZE_V_TENSORS)");
+    }
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
@@ -1306,7 +1345,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             // Apply optimization to all variants and track results
             size_t optimized_count = 0;
             for (auto& model_variant : generate_model_variants) {
-                if (ov::npuw::util::OptimizeValueTensors(false, m_is_whisper).run_on_model(model_variant)) {
+                if (ov::npuw::util::OptimizeValueTensors(false, m_is_whisper, transpose_v_tensors)
+                        .run_on_model(model_variant)) {
                     ++optimized_count;
                 }
             }
@@ -1328,7 +1368,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 " variants were optimized, which is not allowed.");
             }
         }
-        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true, m_is_whisper).run_on_model(prefill_model)) {
+        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true, m_is_whisper, transpose_v_tensors)
+                                     .run_on_model(prefill_model)) {
             LOG_DEBUG("V-tensors tranposed in prefill model");
             m_kvcache_desc.v_tensors_transposed_pre = true;
         }

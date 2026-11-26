@@ -508,9 +508,11 @@ bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov
     }
 
     TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
-    rewr.add_matcher<TransposeValueTensors_GQA>(std::ref(ctx));
-    if (m_is_whisper) {
+    if (m_transpose_values) {
+        rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
+        rewr.add_matcher<TransposeValueTensors_GQA>(std::ref(ctx));
+    }
+    if (m_is_whisper && m_transpose_values) {
         if (m_is_prefill) {
             rewr.add_matcher<TransposeDirectValueTensorsPrefill>(std::ref(ctx));
         } else {

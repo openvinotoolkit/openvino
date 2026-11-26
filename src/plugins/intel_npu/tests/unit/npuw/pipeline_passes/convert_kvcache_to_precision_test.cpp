@@ -10,6 +10,7 @@
 #include <map>
 #include <cstring>
 #include <regex>
+#include <set>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -1213,6 +1214,214 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_Unknow
     ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:SYM:BY_UNKNOWN,VALUE:SYM:BY_TOKEN"}};
     props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
     EXPECT_THROW(create_compiled_model(props, recorder), ov::Exception);
+}
+
+// ---------------------------------------------------------------------------
+// NPUW_LLM_KV_CACHE_COMPRESSION attributes and INT4 KV-cache precision
+// ---------------------------------------------------------------------------
+
+using QuantizationType = ov::npuw::KVCacheCompressionConfig::QuantizationType;
+
+// Attributes are plain strings matched by name, so their order within a part and the order of the parts
+// do not matter.
+TEST(KVCacheCompressionConfigParserTest, AttributeAndPartOrderDoesNotMatter) {
+    for (const auto* config : {"KEY:ASYM:BY_TOKEN:INT4,VALUE:SYM:BY_TOKEN",
+                               "INT4:BY_TOKEN:ASYM:KEY,BY_TOKEN:SYM:VALUE",
+                               "VALUE:SYM, ASYM:INT4:KEY",
+                               "key:asym:int4,value"}) {
+        const auto setting = ov::npuw::parse_kv_cache_compression_config(config);
+        EXPECT_EQ(setting.key.type, QuantizationType::Asymmetric) << config;
+        ASSERT_TRUE(setting.key.precision.has_value()) << config;
+        EXPECT_EQ(*setting.key.precision, ov::element::i4) << config;
+        EXPECT_EQ(setting.value.type, QuantizationType::Symmetric) << config;
+        EXPECT_FALSE(setting.value.precision.has_value()) << config;
+        EXPECT_EQ(setting.key.granularity, "BY_TOKEN") << config;
+        EXPECT_EQ(setting.value.granularity, "BY_TOKEN") << config;
+    }
+}
+
+TEST(KVCacheCompressionConfigParserTest, OmittedAttributesKeepTheirDefaults) {
+    const auto setting = ov::npuw::parse_kv_cache_compression_config("VALUE:INT4");
+    EXPECT_EQ(setting.key.type, QuantizationType::Symmetric);
+    EXPECT_FALSE(setting.key.precision.has_value());
+    EXPECT_EQ(setting.value.type, QuantizationType::Symmetric);
+    ASSERT_TRUE(setting.value.precision.has_value());
+    EXPECT_EQ(*setting.value.precision, ov::element::i4);
+}
+
+TEST(KVCacheCompressionConfigParserTest, InvalidConfigsAreRejected) {
+    for (const auto* config : {"KEY:SYM:ASYM",          // two quantization types
+                               "KEY:INT4:INT8",         // two precisions
+                               "KEY:BY_TOKEN:BY_TOKEN", // two granularities
+                               "KEY:VALUE:SYM",         // two labels
+                               "SYM:BY_TOKEN",          // no label
+                               "KEY:SYM,KEY:ASYM",      // same cache twice
+                               "KEY:SYM,",              // empty part
+                               "KEY:INT2",              // unknown attribute
+                               "KEY:SYM:BY_CHANNEL"}) { // not supported
+        EXPECT_THROW(ov::npuw::parse_kv_cache_compression_config(config), ov::Exception) << config;
+    }
+}
+
+TEST(KVCacheCompressionConfigParserTest, StoragePrecisionIsResolvedFromTheHintAndTheAttributes) {
+    auto resolve = [](ov::element::Type hint, const std::string& config) {
+        return ov::npuw::resolve_kv_cache_compression(hint, ov::npuw::parse_kv_cache_compression_config(config));
+    };
+    // Without a precision attribute: the hint for the key, i8 for the value (the behaviour before INT4)
+    auto params = resolve(ov::element::i8, "KEY:ASYM,VALUE:SYM");
+    EXPECT_EQ(params.key.quantization_dt, ov::element::i8);
+    EXPECT_EQ(params.value.quantization_dt, ov::element::i8);
+    params = resolve(ov::element::u8, "KEY:SYM,VALUE:SYM");
+    EXPECT_EQ(params.key.quantization_dt, ov::element::u8);
+    EXPECT_EQ(params.key.quantization_type, QuantizationType::Asymmetric);  // u8 key is asymmetric only
+    EXPECT_EQ(params.value.quantization_dt, ov::element::i8);
+
+    params = resolve(ov::element::u8, "KEY:SYM:INT4,VALUE:ASYM:INT4");
+    EXPECT_EQ(params.key.quantization_dt, ov::element::i4);
+    EXPECT_EQ(params.key.quantization_type, QuantizationType::Symmetric);
+    EXPECT_EQ(params.value.quantization_dt, ov::element::i4);
+    EXPECT_EQ(params.value.quantization_type, QuantizationType::Asymmetric);
+
+    params = resolve(ov::element::u8, "KEY:INT8");
+    EXPECT_EQ(params.key.quantization_dt, ov::element::i8);
+}
+
+namespace {
+// Element type of every past / present KV data port and of their zero-points, by cache
+struct KVPortTypes {
+    std::set<ov::element::Type> key, value, key_zp, value_zp;
+};
+
+KVPortTypes collect_kv_port_types(const std::shared_ptr<ov::Model>& model, bool past) {
+    KVPortTypes types;
+    auto visit = [&](const std::string& name, const ov::element::Type& type) {
+        const std::string zp_marker =
+            std::string("/") + (past ? ov::npuw::util::constants::past_key_values : "present") + "/";
+        if (name.find(zp_marker + "key/zp") != std::string::npos) {
+            types.key_zp.insert(type);
+        } else if (name.find(zp_marker + "value/zp") != std::string::npos) {
+            types.value_zp.insert(type);
+        } else if (past ? ov::npuw::util::isPastKeyValuesKey(name).has_value()
+                        : ov::npuw::util::isPresentKeyValuesKey(name).has_value()) {
+            types.key.insert(type);
+        } else if (past ? ov::npuw::util::isPastKeyValuesValue(name).has_value()
+                        : ov::npuw::util::isPresentKeyValuesValue(name).has_value()) {
+            types.value.insert(type);
+        }
+    };
+    if (past) {
+        for (const auto& input : model->inputs()) {
+            for (const auto& name : input.get_names()) {
+                visit(name, input.get_element_type());
+            }
+        }
+    } else {
+        for (const auto& output : model->outputs()) {
+            for (const auto& name : output.get_names()) {
+                visit(name, output.get_element_type());
+            }
+        }
+    }
+    return types;
+}
+
+ov::AnyMap make_int4_props(const std::string& compression) {
+    return {{ov::hint::kv_cache_precision.name(), ov::element::i8},
+            {"NPUW_LLM_KV_CACHE_COMPRESSION", compression},
+            {"NPUW_LLM_PREFILL_HINT", "STATIC"}};
+}
+}  // namespace
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, Int4KVCacheStoresTheSelectedCachesInI4) {
+    struct Case {
+        const char* config;
+        ov::element::Type key, value;
+    };
+    for (const auto& c : {Case{"KEY:ASYM:INT4,VALUE:SYM", ov::element::i4, ov::element::i8},
+                          Case{"KEY:ASYM,VALUE:SYM:INT4", ov::element::i8, ov::element::i4},
+                          Case{"KEY:ASYM:INT4,VALUE:ASYM:INT4", ov::element::i4, ov::element::i4}}) {
+        RecordingFactory recorder;
+        std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+        ASSERT_NO_THROW(compiled = create_compiled_model(make_int4_props(c.config), recorder)) << c.config;
+        const auto& generate = require_sub_model_containing(recorder, "_kv");
+        const auto& prefill = require_sub_model(recorder, "_prefill");
+
+        for (const auto& [model, past] : {std::make_pair(generate.model, true),
+                                          std::make_pair(generate.model, false),
+                                          std::make_pair(prefill.model, false)}) {
+            const auto types = collect_kv_port_types(model, past);
+            EXPECT_EQ(types.key, std::set<ov::element::Type>{c.key}) << c.config << " past=" << past;
+            EXPECT_EQ(types.value, std::set<ov::element::Type>{c.value}) << c.config << " past=" << past;
+            // The zero-point stays i8 for an i4 cache: past inputs and present outputs have to match
+            EXPECT_EQ(types.key_zp, std::set<ov::element::Type>{ov::element::i8}) << c.config << " past=" << past;
+        }
+        const auto ops = generate.model->get_ops();
+        EXPECT_EQ(std::count_if(ops.begin(),
+                                ops.end(),
+                                [](const auto& op) {
+                                    return std::string(op->get_type_name()) == "DynamicQuantize";
+                                }),
+                  0)
+            << c.config;
+    }
+}
+
+// The transposed value layout puts the sequence innermost, where an i4 tensor cannot be sliced: an INT4
+// value cache keeps the [.., seq, head_size] layout of the key, an INT4 key alone does not change the layout.
+TEST_F(ConvertKVCacheToPrecisionPassTest, Int4ValueCacheIsNotTransposed) {
+    for (const auto& [config, transposed] : {std::make_pair("KEY:ASYM,VALUE:SYM:INT4", false),
+                                             std::make_pair("KEY:ASYM:INT4,VALUE:SYM", true)}) {
+        RecordingFactory recorder;
+        auto props = make_int4_props(config);
+        props["NPUW_LLM_OPTIMIZE_V_TENSORS"] = "YES";
+        ASSERT_NO_THROW(create_compiled_model(props, recorder)) << config;
+        const auto& generate = require_sub_model_containing(recorder, "_kv");
+        std::map<std::string, ov::PartialShape> key_shapes, value_shapes;  // by layer index
+        for (const auto& input : generate.model->inputs()) {
+            for (const auto& name : input.get_names()) {
+                if (ov::npuw::util::isDQScaleOrZPValue(name)) {
+                    continue;
+                }
+                if (const auto layer = ov::npuw::util::isPastKeyValuesKey(name)) {
+                    key_shapes[std::to_string(*layer)] = input.get_partial_shape();
+                } else if (const auto layer = ov::npuw::util::isPastKeyValuesValue(name)) {
+                    value_shapes[std::to_string(*layer)] = input.get_partial_shape();
+                }
+            }
+        }
+        ASSERT_FALSE(value_shapes.empty()) << config;
+        for (const auto& [layer, value_shape] : value_shapes) {
+            ASSERT_EQ(key_shapes.count(layer), 1u) << config << " layer " << layer;
+            EXPECT_EQ(value_shape != key_shapes.at(layer), transposed)
+                << config << " layer " << layer << ": key " << key_shapes.at(layer) << ", value " << value_shape;
+        }
+    }
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, Int4KVCacheRejectsUnsupportedRuntimePaths) {
+    {
+        RecordingFactory recorder;
+        auto props = make_int4_props("KEY:ASYM:INT4,VALUE:SYM");
+        props["NPUW_LLM_GENERATE_ATTENTION_HINT"] = "PYRAMID";
+        try {
+            create_compiled_model(props, recorder);
+            FAIL() << "Expected an exception for an INT4 key cache with PYRAMID generate attention";
+        } catch (const ov::Exception& ex) {
+            EXPECT_NE(std::string(ex.what()).find("NPUW_LLM_GENERATE_ATTENTION_HINT=STATIC"), std::string::npos)
+                << ex.what();
+        }
+    }
+    // Chunked prefill (chunk size below the max prompt length)
+    RecordingFactory recorder;
+    auto props = make_int4_props("KEY:SYM,VALUE:SYM:INT4");
+    props["NPUW_LLM_PREFILL_HINT"] = "DYNAMIC";
+    props["NPUW_LLM_PREFILL_CHUNK_SIZE"] = "32";
+    try {
+        create_compiled_model(props, recorder);
+        FAIL() << "Expected an exception for an INT4 value cache with chunked prefill";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("NPUW_LLM_PREFILL_HINT=STATIC"), std::string::npos) << ex.what();
+    }
 }
 
 }  // namespace
