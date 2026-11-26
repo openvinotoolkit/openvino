@@ -22,6 +22,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace ov::intel_cpu {
 namespace {
@@ -34,7 +35,7 @@ struct Params {
     size_t value_size;
     ov::element::Type cache_type;
 };
-class PagedAttentionFP16Test : public testing::TestWithParam<std::tuple<Params, bool>> {};
+class PagedAttentionFP16Test : public testing::TestWithParam<std::tuple<Params, bool, bool>> {};
 
 TEST(ScaledDotProductAttentionFP16Test, PrefillWithKeyAndValueTailsMatchesReference) {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16)) {
@@ -116,6 +117,7 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
     }
     const auto& dimensions = std::get<0>(GetParam());
     const bool nonzero_qk = std::get<1>(GetParam());
+    const bool key_by_channel = std::get<2>(GetParam());
     const auto& lengths = dimensions.lengths;
     const auto heads = dimensions.heads;
     const auto kv_heads = dimensions.kv_heads;
@@ -129,10 +131,11 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
         continuation[1] = 3;
     }
     constexpr size_t block_size = 32;
+    constexpr size_t decode_steps = 5;
     std::vector<size_t> block_begins(sequences + 1, 0);
     size_t max_context = 0;
     for (size_t sequence = 0; sequence < sequences; ++sequence) {
-        const size_t capacity = lengths[sequence] + continuation[sequence];
+        const size_t capacity = lengths[sequence] + continuation[sequence] + decode_steps;
         block_begins[sequence + 1] = block_begins[sequence] + (capacity + block_size - 1) / block_size;
         max_context = std::max(max_context, capacity);
     }
@@ -201,31 +204,42 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
     attention->get_rt_info()["num_v_heads"] = static_cast<int64_t>(kv_heads);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{attention->output(0)}, parameters);
     ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       "CPU",
-                                       {ov::hint::inference_precision(ov::element::f16),
-                                        ov::hint::kv_cache_precision(cache_type),
-                                        ov::intel_cpu::enable_sage_attn(false),
-                                        ov::num_streams(1),
-                                        ov::inference_num_threads(2)});
+    auto compiled =
+        core.compile_model(model,
+                           "CPU",
+                           {ov::hint::inference_precision(ov::element::f16),
+                            ov::hint::kv_cache_precision(cache_type),
+                            ov::internal::key_cache_quant_mode(key_by_channel ? ov::internal::CacheQuantMode::BY_CHANNEL
+                                                                              : ov::internal::CacheQuantMode::BY_TOKEN),
+                            ov::intel_cpu::enable_sage_attn(false),
+                            ov::num_streams(1),
+                            ov::inference_num_threads(2)});
     auto request = compiled.create_infer_request();
     for (size_t i : {size_t{3}, size_t{4}}) {
         auto shape = compiled.input(i).get_partial_shape();
         shape[0] = blocks;
         inputs[i] = tensor(compiled.input(i).get_element_type(), shape.to_shape());
     }
-    auto value = [cache_type](size_t sequence, size_t token, size_t channel) {
+    auto value = [cache_type, value_size](size_t sequence, size_t token, size_t channel) {
         const size_t levels = cache_type == ov::element::f16 ? 17 : 16;
-        return static_cast<float>(static_cast<int>((sequence * 5 + token * 7 + channel * 3) % levels) - 8) / 16.0F;
+        const size_t head = channel / value_size;
+        const size_t block = token / block_size;
+        return static_cast<float>(
+                   static_cast<int>((sequence * 5 + token * 7 + channel * 3 + head * 5 + block * 11) % levels) - 8) /
+               16.0F;
     };
     auto query = [nonzero_qk](size_t sequence, size_t token, size_t channel) {
         return nonzero_qk
                    ? static_cast<float>(static_cast<int>((sequence * 3 + token * 3 + channel * 7) % 11) - 5) / 32.0F
                    : 0.0F;
     };
-    auto key = [nonzero_qk](size_t sequence, size_t token, size_t channel) {
+    auto key = [nonzero_qk, key_size](size_t sequence, size_t token, size_t channel) {
+        const size_t head = channel / key_size;
+        const size_t block = token / block_size;
         return nonzero_qk
-                   ? static_cast<float>(static_cast<int>((sequence * 7 + token * 5 + channel * 3) % 16) - 8) / 32.0F
+                   ? static_cast<float>(
+                         static_cast<int>((sequence * 7 + token * 5 + channel * 3 + head * 11 + block * 7) % 16) - 8) /
+                         32.0F
                    : 0.0F;
     };
     std::vector<size_t> past_lengths(sequences, 0);
@@ -292,7 +306,9 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
             }
         }
     };
-    for (const auto& query_lengths : {lengths, continuation}) {
+    std::vector<std::vector<size_t>> query_steps{lengths, continuation};
+    query_steps.insert(query_steps.end(), decode_steps, std::vector<size_t>(sequences, 1));
+    for (const auto& query_lengths : query_steps) {
         infer(query_lengths);
         ASSERT_EQ(
             request.get_output_tensor().get_shape(),
@@ -315,12 +331,15 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                           Params{{33, 63}, 8, 2, 128, 64, ov::element::f16},
                                                           Params{{33}, 1, 1, 64, 64, ov::element::u8},
                                                           Params{{63}, 8, 8, 64, 80, ov::element::u8},
+                                                          Params{{63}, 1, 1, 128, 64, ov::element::u8},
                                                           Params{{63}, 2, 2, 128, 64, ov::element::u8},
                                                           Params{{33, 63}, 8, 2, 128, 64, ov::element::u8},
                                                           Params{{33}, 1, 1, 64, 64, ov::element::u4},
                                                           Params{{63}, 8, 8, 64, 80, ov::element::u4},
+                                                          Params{{63}, 1, 1, 128, 64, ov::element::u4},
                                                           Params{{63}, 2, 2, 128, 64, ov::element::u4},
                                                           Params{{33, 63}, 8, 2, 128, 64, ov::element::u4}),
+                                          testing::Values(false, true),
                                           testing::Values(false, true)));
 
 }  // namespace
