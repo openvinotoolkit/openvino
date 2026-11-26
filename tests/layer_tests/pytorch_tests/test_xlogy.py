@@ -95,6 +95,30 @@ class TestXlogyTypes(PytorchLayerTest):
                    ie_device, precision, ir_version, freeze_model=False, trace_model=True, fx_kind="aten.xlogy")
 
 
+class TestXlogyIntInputs(PytorchLayerTest):
+    # Integer inputs reach aten::xlogy directly, with no .to(...) cast in the model,
+    # so the scripted conversion must promote them to floating point inside the graph.
+    def _prepare_input(self):
+        return (np.array([0, 1, 2, 3], dtype=self.dtype),
+                np.array([0, 2, 3, 4], dtype=self.dtype))
+
+    def create_model(self):
+        class aten_xlogy(torch.nn.Module):
+            def forward(self, x, y):
+                return torch.xlogy(x, y)
+
+        return aten_xlogy(), "aten::xlogy"
+
+    @pytest.mark.parametrize("dtype", [np.int32, np.int64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_xlogy_int_inputs(self, dtype, ie_device, precision, ir_version):
+        self.dtype = dtype
+        # trace_model=False scripts the model, so parameter types stay dynamic until
+        # the test assigns the integer input types after conversion.
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=False)
+
+
 class TestXlogyBroadcast(PytorchLayerTest):
     def _prepare_input(self):
         return (np.array([[1.0, 0.0, 3.0]], dtype=np.float32),

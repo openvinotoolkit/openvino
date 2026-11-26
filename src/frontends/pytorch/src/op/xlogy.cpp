@@ -37,6 +37,13 @@ OutputVector translate_xlogy(const NodeContext& context) {
         }
         x = context.mark_node(std::make_shared<v0::Convert>(x, float_type));
         y = context.mark_node(std::make_shared<v0::Convert>(y, float_type));
+    } else if (dtype.is_dynamic()) {
+        // The input type is not known yet (e.g. scripted model before input types are set). Promote against a
+        // floating python scalar in the graph so integer and boolean inputs resolve to f32 once types are known,
+        // while floating inputs keep their own type.
+        auto float_scalar = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0.5}))->output(0);
+        align_eltwise_input_types(context, x, float_scalar, false, true);
+        y = context.mark_node(std::make_shared<v1::ConvertLike>(y, x));
     }
 
     auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
