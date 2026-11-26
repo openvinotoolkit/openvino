@@ -97,7 +97,7 @@ bool HsmReaderHandler::handle_section(const runtime::hsm::ManifestEntry& entry, 
 
 void HsmReaderHandler::read_sections(const runtime::hsm::Reader& reader) {
     // Not left to the manifest order: an incompatible blob is rejected before any payload is read.
-    const auto requirements = reader.section(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id());
+    const auto requirements = reader.section(hsm::runtime_requirements.device, hsm::runtime_requirements.tag);
     OPENVINO_ASSERT(requirements, "[CPU] Cannot import compiled blob: missing runtime requirements section.");
     runtime_requirements = read_compatible_requirements(*requirements);
     reader.read_sections({this});

@@ -64,11 +64,11 @@ ov::Tensor read_hsm_tensor(const HsmLocatedSection& located, const HsmBlobSource
 
 void check_hsm_runtime_requirements(const runtime::hsm::Reader& reader) {
     const auto& id = hsm::runtime_requirements;
-    const auto count = reader.count(id.device, id.tag.id());
+    const auto count = reader.count(id.device, id.tag);
     OPENVINO_ASSERT(count == 1,
                     "[HETERO] Cannot import compiled blob: expected one runtime requirements section, found ",
                     count);
-    const auto section = reader.section(id.device, id.tag.id());
+    const auto section = reader.section(id.device, id.tag);
     OPENVINO_ASSERT(section->tag().is_pointer(), "[HETERO] Cannot import compiled blob: unexpected inline section.");
     hsm_check_requirements(read_hsm_string(*section));
 }

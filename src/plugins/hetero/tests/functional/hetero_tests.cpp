@@ -1108,12 +1108,12 @@ private:
             return text;
         };
         const auto requirements =
-            reader.section(ov::runtime::hsm::any_device_id, ov::runtime::hsm::runtime_requirements_tag.id());
+            reader.section(ov::runtime::hsm::any_device_id, ov::runtime::hsm::runtime_requirements_tag);
         OPENVINO_ASSERT(requirements && read_text(*requirements) == mock_hsm_requirements,
                         "[MOCKHSM] incompatible container");
 
-        const auto xml = reader.section(mock_hsm_device, mock_hsm_xml_tag.id());
-        const auto weights = reader.section(mock_hsm_device, mock_hsm_weights_tag.id());
+        const auto xml = reader.section(mock_hsm_device, mock_hsm_xml_tag);
+        const auto weights = reader.section(mock_hsm_device, mock_hsm_weights_tag);
         OPENVINO_ASSERT(xml && weights, "[MOCKHSM] missing sections");
 
         ov::Tensor weights_tensor(ov::element::u8, ov::Shape{weights->size()});
