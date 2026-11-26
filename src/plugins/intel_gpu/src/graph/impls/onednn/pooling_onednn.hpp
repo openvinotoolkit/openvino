@@ -100,6 +100,11 @@ struct PoolingImplementationManager : public ImplementationManager {
 
 #ifdef OV_GPU_VENDOR_NVIDIA
         const auto prim = node.as<pooling>().get_primitive();
+        // Plain rank-three descriptors have one spatial axis, while pooling
+        // geometry currently expands the kernel and stride to at least two.
+        if (in_layout.get_partial_shape().rank() == 3 || out_layout.get_partial_shape().rank() == 3) {
+            return false;
+        }
         if (!prim->indices_output.pid.empty() || prim->num_outputs != 1 || get_post_ops_count(node) > 0 ||
             std::any_of(prim->dilation.begin(), prim->dilation.end(), [](size_t dilation) { return dilation > 1; })) {
             return false;

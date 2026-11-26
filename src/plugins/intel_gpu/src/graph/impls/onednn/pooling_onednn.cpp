@@ -45,6 +45,12 @@ std::pair<dnnl::memory::dims, dnnl::memory::dims> get_pooling_padding(const pool
     pad_l.resize(kernel.size(), 0);
     pad_r.resize(kernel.size(), 0);
 
+    // VALID ignores explicit padding attributes, just as shape inference does.
+    if (prim.auto_pad == ov::op::PadType::VALID) {
+        std::fill(pad_l.begin(), pad_l.end(), 0);
+        std::fill(pad_r.begin(), pad_r.end(), 0);
+    }
+
     if (prim.auto_pad == ov::op::PadType::SAME_UPPER || prim.auto_pad == ov::op::PadType::SAME_LOWER) {
         ov::op::v8::MaxPool op;
         op.set_strides(stride);
