@@ -33,12 +33,10 @@ static std::map<primitive_id, layout> get_out_layout_map(cldnn::network::ptr net
 
 static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& outputs, const std::map<size_t, cldnn::primitive_id> &io_output_map) {
     std::vector<layout> out_layouts;
-    for (auto out : outputs) {
-        for (const auto& io_output : io_output_map) {
-            auto inner_prim_id = io_output.second;
-            if (out.first == inner_prim_id) {
-                out_layouts.push_back(out.second);
-            }
+    for (const auto& io_output : io_output_map) {
+        auto it = outputs.find(io_output.second);
+        if (it != outputs.end()) {
+            out_layouts.push_back(it->second);
         }
     }
     OPENVINO_ASSERT(!out_layouts.empty(), "Not found any matched output");
