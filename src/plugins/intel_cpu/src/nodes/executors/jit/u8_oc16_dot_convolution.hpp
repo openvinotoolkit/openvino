@@ -15,7 +15,6 @@ public:
     U8Oc16DotConvolution(const ConvAttrs&, const MemoryArgs&, const ExecutorContext::CPtr& context);
 
     static bool supports(const ConvConfig& config);
-    static std::optional<ConvConfig> createOptimalConfig(const ConvConfig& config);
     bool update(const MemoryArgs&) override {
         return true;
     }

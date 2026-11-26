@@ -12,17 +12,13 @@
 
 #include <algorithm>
 #include <any>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <limits>
 #include <memory>
-#include <numeric>
-#include <utility>
 #include <vector>
 
 #include "acl_utils.hpp"
-#include "cpu_parallel.hpp"
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
@@ -36,116 +32,12 @@
 #include "post_ops.hpp"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_ARM64)
-#    include "nodes/kernels/aarch64/jit_sdot_convolution.hpp"
-#    include "utils/arm_isa_support.h"
-#endif
-
 namespace ov::intel_cpu {
-
-#if defined(OPENVINO_ARCH_ARM64)
-namespace {
-
-class Oc1DotConvolution : public arm_compute::IFunction {
-public:
-    Oc1DotConvolution(const ACLTensors& tensors,
-                      const arm_compute::PadStrideInfo& padding,
-                      std::shared_ptr<CpuParallel> parallel)
-        : m_src(tensors[ACL_SRC_0].get()),
-          m_weights(tensors[ACL_WEI].get()),
-          m_bias(tensors[ACL_BIAS].get()),
-          m_dst(tensors[ACL_DST].get()),
-          m_parallel(std::move(parallel)),
-          m_channels(m_src->info()->dimension(0)),
-          m_unsigned_input(m_src->info()->data_type() == arm_compute::DataType::QASYMM8),
-          m_zero_point(m_src->info()->quantization_info().uniform().offset),
-          m_kernel(m_channels, m_unsigned_input),
-          m_pad_top(padding.pad_top()),
-          m_pad_left(padding.pad_left()),
-          m_scale(m_weights->info()->quantization_info().uniform().scale) {}
-
-    void run() override {
-        const auto* src = reinterpret_cast<const int8_t*>(m_src->buffer());
-        const auto* weights = reinterpret_cast<const int8_t*>(m_weights->buffer());
-        auto* dst = reinterpret_cast<float*>(m_dst->buffer());
-        const float bias = m_bias ? *reinterpret_cast<const float*>(m_bias->buffer()) : 0.F;
-        const auto input_w = m_src->info()->dimension(1);
-        const auto input_h = m_src->info()->dimension(2);
-        const auto output_w = m_dst->info()->dimension(1);
-        const auto output_h = m_dst->info()->dimension(2);
-        const auto batch = m_src->info()->dimension(3);
-        std::array<uint8_t, 128> padding{};
-        padding.fill(static_cast<uint8_t>(m_zero_point));
-        const auto* padding_bytes = reinterpret_cast<const int8_t*>(padding.data());
-        // SDOT reads U8 bytes rebased by 128; restore (input - zero_point) in the accumulator.
-        const int32_t correction =
-            m_unsigned_input ? (128 - m_zero_point) * std::accumulate(weights, weights + 9 * m_channels, 0) : 0;
-
-        m_parallel->parallel_for(batch * output_h, [&](size_t row) {
-            constexpr size_t tile = 64;
-            std::array<const int8_t*, tile * 9> taps;
-            const auto y = row % output_h;
-            const auto* image = src + (row / output_h) * input_h * input_w * m_channels;
-            for (size_t x = 0; x < output_w; x += tile) {
-                const auto count = std::min(tile, output_w - x);
-                for (size_t ky = 0; ky < 3; ++ky) {
-                    const auto iy = y + ky - m_pad_top;
-                    const auto* line = iy < input_h ? image + iy * input_w * m_channels : nullptr;
-                    for (size_t dx = 0; dx < count; ++dx) {
-                        for (size_t kx = 0; kx < 3; ++kx) {
-                            const auto ix = x + dx + kx - m_pad_left;
-                            taps[dx * 9 + ky * 3 + kx] = line && ix < input_w ? line + ix * m_channels : padding_bytes;
-                        }
-                    }
-                }
-                m_kernel(taps.data(), weights, dst + row * output_w + x, count, correction, m_scale, bias);
-            }
-        });
-    }
-
-private:
-    arm_compute::Tensor* m_src;
-    arm_compute::Tensor* m_weights;
-    arm_compute::Tensor* m_bias;
-    arm_compute::Tensor* m_dst;
-    std::shared_ptr<CpuParallel> m_parallel;
-    size_t m_channels;
-    bool m_unsigned_input;
-    int32_t m_zero_point;
-    aarch64::Oc1DotKernel m_kernel;
-    size_t m_pad_top;
-    size_t m_pad_left;
-    float m_scale;
-};
-
-}  // namespace
-
-bool ACLConvolutionExecutor::supportsOc1JitGeometry(const VectorDims& src,
-                                                    const VectorDims& weights,
-                                                    const VectorDims& dst,
-                                                    const std::vector<size_t>& strides,
-                                                    const std::vector<size_t>& dilations,
-                                                    const std::vector<ptrdiff_t>& padsBegin,
-                                                    const std::vector<ptrdiff_t>& padsEnd) {
-    const auto nonnegative = [](ptrdiff_t pad) {
-        return pad >= 0;
-    };
-    return hasArmISASupport(ArmISA::DOTPROD) && src.size() == 4 && weights.size() == 4 && dst.size() == 4 &&
-           src[0] == dst[0] && src[1] >= 4 && src[1] <= 128 && src[1] % 4 == 0 && weights[0] == 1 &&
-           weights[1] == src[1] && weights[2] == 3 && weights[3] == 3 && dst[1] == 1 && dst[3] >= 16 &&
-           dst[2] * dst[3] >= 1024 && strides == std::vector<size_t>{1, 1} && dilations == std::vector<size_t>{0, 0} &&
-           padsBegin.size() == 2 && padsEnd.size() == 2 &&
-           std::all_of(padsBegin.begin(), padsBegin.end(), nonnegative) &&
-           std::all_of(padsEnd.begin(), padsEnd.end(), nonnegative);
-}
-#endif
 
 ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
-                                               const ExecutorContext::CPtr& context)
-    : cpuParallel(context->getCpuParallel()),
-      srcZeroPoint(attrs.inputZeroPoint),
-      weightScale(attrs.dqScales) {
+                                               const ExecutorContext::CPtr&)
+    : weightScale(attrs.dqScales) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
 
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
@@ -161,25 +53,6 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
 
-#if defined(OPENVINO_ARCH_ARM64)
-    const bool signedInput = srcMemPtr->getPrecision() == ov::element::i8 &&
-                             attrs.inputZeroPointsType == ZeroPointsType::None && srcZeroPoint == 0;
-    const bool unsignedInput = srcMemPtr->getPrecision() == ov::element::u8 &&
-                               attrs.inputZeroPointsType == ZeroPointsType::PerTensorUnsignedOc1Jit &&
-                               srcZeroPoint >= 0 && srcZeroPoint <= 255;
-    useOc1Jit = (signedInput || unsignedInput) && !attrs.isGrouped && attrs.constantWeights && attrs.postOps.empty() &&
-                weightScale.size() <= 1 &&
-                supportsOc1JitGeometry(srcShape.getDims(),
-                                       weiShape.getDims(),
-                                       dstShape.getDims(),
-                                       attrs.stride,
-                                       attrs.dilation,
-                                       attrs.paddingL,
-                                       attrs.paddingR) &&
-                weiMemPtr->getPrecision() == ov::element::i8 && dstMemPtr->getPrecision() == ov::element::f32 &&
-                aclTensorAttrs.hasLayoutTypeNHWC && weiMemPtr->hasLayoutType(LayoutType::nspc) &&
-                dstMemPtr->hasLayoutType(LayoutType::nspc);
-#endif
     weightsInfo = arm_compute::WeightsInfo(false, kw, kh, oc, false, arm_compute::WeightFormat::UNSPECIFIED);
     auto paddingLeft = (attrs.paddingL.size() >= 2U) ? attrs.paddingL[1] : attrs.paddingL[0];
     auto paddingRight = (attrs.paddingR.size() >= 2U) ? attrs.paddingR[1] : attrs.paddingR[0];
@@ -237,6 +110,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     VERIFY(config.attrs.postOps.size() <= 2U, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(config.attrs.inputZeroPointsType != ZeroPointsType::PerTensorUnsignedOc1Jit, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
@@ -258,22 +132,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
                                weiDesc->getPrecision() == ov::element::i8 &&
                                dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
-    bool useUnsignedJit = false;
-#if defined(OPENVINO_ARCH_ARM64)
-    useUnsignedJit =
-        srcDesc->getPrecision() == ov::element::u8 && config.attrs.constantWeights && !config.attrs.isGrouped &&
-        config.attrs.postOps.empty() && config.attrs.inputZeroPointsType == ZeroPointsType::PerTensorUnsignedOc1Jit &&
-        config.attrs.inputZeroPoint >= 0 && config.attrs.inputZeroPoint <= 255 && srcDesc->getShape().isStatic() &&
-        weiDesc->getShape().isStatic() && dstDesc->getShape().isStatic() &&
-        supportsOc1JitGeometry(srcDesc->getShape().getDims(),
-                               weiDesc->getShape().getDims(),
-                               dstDesc->getShape().getDims(),
-                               config.attrs.stride,
-                               config.attrs.dilation,
-                               config.attrs.paddingL,
-                               config.attrs.paddingR);
-#endif
-    const bool isQuantizedI8DstF32 = (srcDesc->getPrecision() == ov::element::i8 || useUnsignedJit) &&
+    const bool isQuantizedI8DstF32 = srcDesc->getPrecision() == ov::element::i8 &&
                                      weiDesc->getPrecision() == ov::element::i8 &&
                                      dstDesc->getPrecision() == ov::element::f32;
 
@@ -299,12 +158,9 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     //            shift is not supported
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
     //                shift = input shift. Skipped for f32 dst (dequantize-to-float path).
-    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0F, srcZeroPoint));
+    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0F));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
-    if (useOc1Jit) {
-        return {};
-    }
     if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
         const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
                                       ? ov::element::i8
@@ -326,11 +182,6 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
-#if defined(OPENVINO_ARCH_ARM64)
-    if (useOc1Jit) {
-        return std::make_unique<Oc1DotConvolution>(aclMemoryTensors, padStrideInfo, cpuParallel);
-    }
-#endif
     auto neConv = std::make_unique<arm_compute::NEConvolutionLayer>();
 
     neConv->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),

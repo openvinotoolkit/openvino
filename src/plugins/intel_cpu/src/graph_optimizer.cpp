@@ -29,7 +29,7 @@
 #    include "onednn/dnnl.h"
 #endif
 #if defined(OPENVINO_ARCH_ARM64)
-#    include "nodes/executors/acl/acl_conv.hpp"
+#    include "nodes/executors/jit/oc1_dot_convolution.hpp"
 #endif
 
 #include "cpu_types.h"
@@ -954,7 +954,7 @@ void GraphOptimizer::FuseUnsignedOc1ConvolutionZeroPoint(Graph& graph) {
             !conv->getParentEdgeAt(1)->getParent()->isConstant() ||
             conv->getOriginalOutputPrecisionAtPort(0) != ov::element::f32 ||
             !conv->memoryFormatFilter.input.empty() ||
-            !ACLConvolutionExecutor::supportsOc1JitGeometry(conv->getInputShapeAtPort(0).getStaticDims(),
+            !aarch64::Oc1DotConvolution::supportsGeometry(conv->getInputShapeAtPort(0).getStaticDims(),
                                                            conv->getInputShapeAtPort(1).getStaticDims(),
                                                            conv->getOutputShapeAtPort(0).getStaticDims(),
                                                            conv->getStride(),

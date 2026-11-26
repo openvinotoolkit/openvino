@@ -9,7 +9,6 @@
 #include <cstring>
 
 #include "cpu_parallel.hpp"
-#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/arm_isa_support.h"
 
@@ -46,24 +45,6 @@ bool U8Oc16DotConvolution::supports(const ConvConfig& config) {
            output[3] >= 16 && output[2] * output[3] >= 1024 && attrs.stride == std::vector<size_t>{1, 1} &&
            attrs.dilation == std::vector<size_t>{0, 0} && attrs.paddingL == std::vector<ptrdiff_t>{1, 1} &&
            attrs.paddingR == std::vector<ptrdiff_t>{1, 1};
-}
-
-std::optional<ConvConfig> U8Oc16DotConvolution::createOptimalConfig(const ConvConfig& config) {
-    const auto& creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
-    auto descs = config.descs;
-    bool changed = false;
-    for (const auto arg : {ARG_SRC, ARG_WEI, ARG_DST}) {
-        auto& desc = descs.at(arg);
-        const auto dense = creator->createSharedDesc(desc->getPrecision(), desc->getShape());
-        if (!dense->isCompatible(*desc)) {
-            desc = dense;
-            changed = true;
-        }
-    }
-    if (!changed) {
-        return {};
-    }
-    return ConvConfig{std::move(descs), config.attrs};
 }
 
 void U8Oc16DotConvolution::execute(const MemoryArgs& memory) {
