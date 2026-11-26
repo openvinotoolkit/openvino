@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -76,7 +75,7 @@ void expect_serialize_valid(const Gather& hg,
     auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
     closure.get().closure.resize(closure_size);
     closure.get().closure_uid.resize(closure_size, -1);
-    closure.get().is_remote.resize(closure_size, false);
+    closure.get().is_remote.assign(closure_size, false);
 
     std::stringstream ss;
     auto stream = Stream::writer(ss);
@@ -408,9 +407,9 @@ void expect_lazy_weightless_mmap_roundtrip(const ov::element::Type& type,
     // The invariant the importer relies on: Constant::get_byte_size() is the *packed* size.
     ASSERT_EQ(constant->get_byte_size(), packed_size);
 
-    std::vector<uint8_t> file_bytes(offset + packed_size + tail_size, 0xDDu);
-    std::fill_n(file_bytes.begin(), offset, 0xCCu);
-    std::copy(payload.begin(), payload.end(), file_bytes.begin() + offset);
+    std::vector<uint8_t> file_bytes(offset, 0xCCu);
+    file_bytes.insert(file_bytes.end(), payload.begin(), payload.end());
+    file_bytes.insert(file_bytes.end(), tail_size, 0xDDu);
 
     const ScopedFile weights_file = write_binary_file(tag, file_bytes);
 
@@ -2379,7 +2378,7 @@ TEST(SerializationTest, FuncallSubmodelNegativeGatherIndexFails) {
     auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
     closure.get().closure.resize(4);
     closure.get().closure_uid.resize(4, -1);
-    closure.get().is_remote.resize(4, false);
+    closure.get().is_remote.assign(4, false);
 
     std::stringstream ss;
     auto stream = Stream::writer(ss);
@@ -2396,7 +2395,7 @@ TEST(SerializationTest, FuncallSubmodelHostGatherSrcIdxOutOfClosureFails) {
     auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
     closure.get().closure.resize(4);
     closure.get().closure_uid.resize(4, -1);
-    closure.get().is_remote.resize(4, false);
+    closure.get().is_remote.assign(4, false);
 
     std::stringstream ss;
     auto stream = Stream::writer(ss);
@@ -2764,8 +2763,8 @@ TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_file_shrunk_after_imp
     const auto packed_size = ov::util::get_memory_size(type, ov::shape_size(shape));
 
     // Initially the file holds the whole weight: 8 filler bytes + 8 payload bytes.
-    std::vector<uint8_t> file_bytes(offset + packed_size, 0x5Au);
-    std::fill_n(file_bytes.begin(), offset, 0xCCu);
+    std::vector<uint8_t> file_bytes(offset, 0xCCu);
+    file_bytes.insert(file_bytes.end(), packed_size, 0x5Au);
     const ScopedFile weights_file = write_binary_file("u4_shrunk", file_bytes);
 
     auto constant = make_weightless_constant_from_bytes(type, shape, std::vector<uint8_t>(packed_size, 0x5Au), offset);
