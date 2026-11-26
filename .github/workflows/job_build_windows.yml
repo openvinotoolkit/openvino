@@ -369,6 +369,7 @@ jobs:
           @{
             commit = $commit.Trim()
             source_root = $env:OPENVINO_REPO
+            binary_root = $env:BUILD_DIR
             build_type = $env:CMAKE_BUILD_TYPE
             toolchain = $env:BUILD_VARIANT
           } | ConvertTo-Json | Set-Content "$env:BUILD_DIR/coverage-build.json"

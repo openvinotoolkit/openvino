@@ -23,7 +23,6 @@ coverage:
         informational: true
         flags: &windows_flags
           - cpp-runtime-cpp-windows-npu
-          - cpp-runtime-cpp-windows-npu-offline
     patch:
       default: false
       linux:

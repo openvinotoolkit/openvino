@@ -1,5 +1,5 @@
 schema_version: 1
-suite: windows
+suite: cpp_windows
 reporting:
   label: C++ (Windows)
   artifact_group: windows
@@ -16,4 +16,11 @@ reporting:
       flag_template: cpp-runtime-cpp-windows-{lane}
 tests:
   - name: ov_npu_unit_tests
-    profiles: [npu, npu-offline]
+    profiles: [npu]
+    binary: ov_npu_unit_tests.exe
+    mode: gtest_single
+    extra_env: OV_DQ_TEST_DEVICE=NPU
+    coverage_modules:
+      - openvino_intel_npu_plugin.dll
+    coverage_sources:
+      - src/plugins/intel_npu

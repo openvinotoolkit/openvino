@@ -26,7 +26,7 @@ if str(SCRIPT_DIR) not in sys.path:
 sys.modules.setdefault("coverage_workflow", sys.modules[__name__])
 
 
-SUPPORTED_PROFILES = {"cpu", "gpu"}
+SUPPORTED_PROFILES = {"cpu", "gpu", "npu"}
 
 
 def _build_logger() -> logging.Logger:
@@ -78,6 +78,8 @@ class CppTestCase:
     mode: str
     args: str
     extra_env: str
+    coverage_modules: tuple[str, ...] = ()
+    coverage_sources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -357,13 +359,22 @@ def _load_tests(path: Path, suite: str) -> list[dict[str, Any]]:
     return tests
 
 
-def load_cpp_tests(path: Path, profile: str) -> list[CppTestCase]:
+def _coverage_paths(test: dict[str, Any], field: str) -> tuple[str, ...]:
+    values = test.get(field)
+    if not isinstance(values, list) or not values or any(
+        not isinstance(value, str) or not value.strip() for value in values
+    ):
+        raise ValueError(f"{test.get('name')}: '{field}' must be a non-empty list of paths")
+    return tuple(value.strip() for value in values)
+
+
+def load_cpp_tests(path: Path, profile: str, *, suite: str = "cpp") -> list[CppTestCase]:
     """Load resolved C++ test definitions for a profile."""
     if profile not in SUPPORTED_PROFILES:
         raise ValueError(f"Unsupported profile: {profile}")
 
     loaded: list[CppTestCase] = []
-    for test in _load_tests(path, "cpp"):
+    for test in _load_tests(path, suite):
         if profile not in _configured_profiles(test):
             continue
         loaded.append(
@@ -373,6 +384,8 @@ def load_cpp_tests(path: Path, profile: str) -> list[CppTestCase]:
                 mode=_as_text(test.get("mode", "gtest_single")).strip() or "gtest_single",
                 args=_resolve_profile_value(test.get("args", ""), profile).strip(),
                 extra_env=_resolve_profile_value(test.get("extra_env", ""), profile).strip(),
+                coverage_modules=_coverage_paths(test, "coverage_modules") if suite == "cpp_windows" else (),
+                coverage_sources=_coverage_paths(test, "coverage_sources") if suite == "cpp_windows" else (),
             )
         )
     return loaded
@@ -421,7 +434,7 @@ def load_js_tests(path: Path, profile: str) -> list[JsTestCase]:
 
 def _profile_value_fields(suite: str) -> tuple[str, ...]:
     """Return config fields that may contain per-profile mappings."""
-    if suite == "cpp":
+    if suite in {"cpp", "cpp_windows"}:
         return ("args", "extra_env")
     if suite == "python":
         return ("target", "args", "env", "command")
@@ -438,7 +451,7 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
         "cpp": config_dir / "tests_cpp.yml",
         "python": config_dir / "tests_python.yml",
         "js": config_dir / "tests_js.yml",
-        "windows": config_dir / "tests_windows.yml",
+        "cpp_windows": config_dir / "tests_cpp_windows.yml",
     }
 
     suites = {suite: path for suite, path in known_suites.items() if path.is_file()}
@@ -451,7 +464,6 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
         return issues
 
     for suite, path in suites.items():
-        supported_profiles = {"npu", "npu-offline"} if suite == "windows" else SUPPORTED_PROFILES
         data = _load_yaml(path)
         reporting = data.get("reporting")
         if not isinstance(reporting, dict):
@@ -483,7 +495,7 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
                 issues.append(ConfigValidationIssue(suite, name, "'profiles' must be a non-empty list"))
             else:
                 for profile_name in expected_profiles:
-                    if profile_name not in supported_profiles:
+                    if profile_name not in SUPPORTED_PROFILES:
                         issues.append(ConfigValidationIssue(suite, name, f"unsupported profile '{profile_name}'"))
             for field in _profile_value_fields(suite):
                 value = test.get(field)
@@ -491,10 +503,16 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
                     continue
                 mapped_profiles = {_as_text(profile).strip() for profile in value}
                 for profile_name in expected_profiles:
-                    if profile_name in supported_profiles and profile_name not in mapped_profiles:
+                    if profile_name in SUPPORTED_PROFILES and profile_name not in mapped_profiles:
                         issues.append(ConfigValidationIssue(suite, name, f"'{field}' missing '{profile_name}' value"))
-            if suite == "cpp" and not _as_text(test.get("binary", "")).strip():
+            if suite in {"cpp", "cpp_windows"} and not _as_text(test.get("binary", "")).strip():
                 issues.append(ConfigValidationIssue(suite, name, "missing 'binary'"))
+            if suite == "cpp_windows":
+                for field in ("coverage_modules", "coverage_sources"):
+                    try:
+                        _coverage_paths(test, field)
+                    except ValueError as exc:
+                        issues.append(ConfigValidationIssue(suite, name, str(exc)))
             if suite == "python":
                 kind = _as_text(test.get("kind", "pytest")).strip() or "pytest"
                 if kind not in {"pytest", "command"}:
@@ -572,8 +590,8 @@ def _command_list_tests(args: argparse.Namespace) -> int:
     _apply_common_env(args)
     config_dir = get_config_dir()
 
-    if args.suite == "cpp":
-        tests = load_cpp_tests(config_dir / "tests_cpp.yml", args.profile)
+    if args.suite in {"cpp", "cpp_windows"}:
+        tests = load_cpp_tests(config_dir / f"tests_{args.suite}.yml", args.profile, suite=args.suite)
         print("name\tbinary\tmode\targs\textra_env")
         for t in tests:
             print(
@@ -654,7 +672,7 @@ def build_parser() -> argparse.ArgumentParser:
     step_parser.set_defaults(func=_command_step)
 
     list_parser = subparsers.add_parser("list-tests", help="List resolved tests for suite/profile")
-    list_parser.add_argument("--suite", required=True, choices=["cpp", "python", "js"])
+    list_parser.add_argument("--suite", required=True, choices=["cpp", "python", "js", "cpp_windows"])
     list_parser.add_argument("--profile", choices=sorted(SUPPORTED_PROFILES), default=os.environ.get("TEST_PROFILE", "cpu"))
     list_parser.add_argument("--workspace", default=os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE"))
     list_parser.add_argument("--config-dir", default=os.environ.get(CONFIG_DIR_ENV))
