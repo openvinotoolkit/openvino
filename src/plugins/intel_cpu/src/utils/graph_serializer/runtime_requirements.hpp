@@ -28,8 +28,9 @@ static constexpr uint64_t runtime_requirements_max_size = 4096;
  * - arch - CPU architecture of the producer. Must match.
  * - caps - host capabilities the graph needs, each op requires only what it really uses. "ov." capabilities are
  *          checked with the OpenVINO CPU feature detection, "dnnl." capabilities with oneDNN. Examples: ov.avx2 for
- *          RMS, ov.amx_bf16 for LLMMLP and QKVProjection, dnnl.avx2 for compressed matmuls. A snippets Subgraph
- *          needs dnnl.avx2 on x86_64, dnnl.asimd on arm64 and ov.rvv on riscv64.
+ *          RMS, ov.amx_bf16 for LLMMLP and QKVProjection, dnnl.avx2 for compressed matmuls (plus ov.avx2 for
+ *          FullyConnectedCompressed). A snippets Subgraph needs dnnl.avx2 on x86_64, dnnl.asimd on arm64 and ov.rvv
+ *          on riscv64.
  *
  * @param model  Transformed model which is serialized into the blob.
  * @param config Configuration the model was transformed with.

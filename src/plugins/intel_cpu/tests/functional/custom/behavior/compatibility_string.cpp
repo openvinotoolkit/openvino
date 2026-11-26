@@ -3,21 +3,33 @@
 //
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -402,5 +414,165 @@ TEST_F(CompatibilityStringCPU, CacheKeyIsSharedByCpusOfSameArchitecture) {
     EXPECT_EQ(std::find(caching_properties.begin(), caching_properties.end(), ov::device::full_name.name()),
               caching_properties.end());
 }
+
+#if defined(OPENVINO_ARCH_X86_64)
+// Golden blobs: compiled model blobs stored in the repository as data/blobs/*.blob, produced once by an earlier build.
+// They check that the current runtime still reads such blobs: blob layout, requirements descriptor and the serialized
+// graph with its internal operations. The producer version in the descriptor never equals the version of the build
+// under test, so the test replaces it with the current one, everything else is used as it was stored.
+//
+// To regenerate the blobs only for an intentional change of the blob format or of the internal operations, on a host
+// with f16 support: OV_CPU_GOLDEN_BLOBS_GENERATE=<dir> ov_cpu_func_tests --gtest_filter=GoldenBlobsCPU.*, then copy
+// <dir>/*.blob to data/blobs/.
+std::vector<float> make_values(size_t size, float scale) {
+    std::vector<float> values(size);
+    for (size_t i = 0; i < size; ++i) {
+        values[i] = scale * (static_cast<float>((i * 7) % 23) - 11.f) / 11.f;
+    }
+    return values;
+}
+
+std::shared_ptr<ov::Model> make_conv_relu_model() {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
+    auto weights = ov::op::v0::Constant::create(ov::element::f32, {4, 3, 3, 3}, make_values(4 * 3 * 3 * 3, 0.5f));
+    auto conv = std::make_shared<ov::op::v1::Convolution>(data,
+                                                          weights,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::Strides{1, 1});
+    return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Relu>(conv)},
+                                       ov::ParameterVector{data});
+}
+
+// becomes a snippets Subgraph
+std::shared_ptr<ov::Model> make_eltwise_chain_model() {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8, 16, 16});
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, {1, 8, 1, 1}, make_values(8, 2.f));
+    auto shift = ov::op::v0::Constant::create(ov::element::f32, {1, 8, 1, 1}, make_values(8, 0.5f));
+    auto mul = std::make_shared<ov::op::v1::Multiply>(data, scale);
+    auto add = std::make_shared<ov::op::v1::Add>(mul, shift);
+    auto relu = std::make_shared<ov::op::v0::Relu>(add);
+    auto sqrt = std::make_shared<ov::op::v0::Sqrt>(relu);
+    auto result = std::make_shared<ov::op::v1::Multiply>(sqrt, data);
+    return std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data});
+}
+
+// u8 weights with f16 decompression, becomes FullyConnectedCompressed
+std::shared_ptr<ov::Model> make_compressed_fc_model() {
+    constexpr size_t size = 128;
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, size});
+    std::vector<uint8_t> raw(size * size);
+    for (size_t i = 0; i < raw.size(); ++i) {
+        raw[i] = static_cast<uint8_t>((i * 13) % 251);
+    }
+    auto weights =
+        std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::u8, {size, size}, raw),
+                                              ov::element::f16);
+    auto zero_point = std::make_shared<ov::op::v0::Convert>(
+        ov::op::v0::Constant::create(ov::element::u8, {size, 1}, std::vector<uint8_t>(size, 128)),
+        ov::element::f16);
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, {size, 1}, std::vector<float>(size, 0.01f));
+    auto decompressed =
+        std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(weights, zero_point), scale);
+    auto converted = std::make_shared<ov::op::v0::Convert>(decompressed, ov::element::f32);
+    return std::make_shared<ov::Model>(
+        ov::OutputVector{std::make_shared<ov::op::v0::MatMul>(data, converted, false, true)},
+        ov::ParameterVector{data});
+}
+
+struct GoldenBlob {
+    std::string name;
+    std::function<std::shared_ptr<ov::Model>()> make_model;
+    ov::AnyMap config;
+    std::string caps;  // capabilities the stored descriptor must list
+    float tolerance;
+};
+
+std::vector<GoldenBlob> golden_blobs() {
+    const ov::AnyMap f32 = {ov::hint::inference_precision(ov::element::f32)};
+    return {
+        {"conv_relu_f32", make_conv_relu_model, f32, "", 1e-4f},
+        {"conv_relu_f16",
+         make_conv_relu_model,
+         {ov::hint::inference_precision(ov::element::f16)},
+         "dnnl.avx2,f16",
+         1e-2f},
+        {"eltwise_chain_f32", make_eltwise_chain_model, f32, "dnnl.avx2", 1e-4f},
+        {"rms_f32", make_rms_model, f32, "ov.avx2", 1e-4f},
+        {"compressed_fc_u8_f32", make_compressed_fc_model, f32, "dnnl.avx2,ov.avx2", 1e-3f},
+    };
+}
+
+std::string read_file(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+std::string blob_requirements(const std::string& blob) {
+    constexpr size_t size_offset = sizeof(uint64_t) + sizeof(uint32_t);
+    uint64_t size = 0;
+    std::memcpy(&size, blob.data() + size_offset, sizeof(size));
+    return blob.substr(size_offset + sizeof(uint64_t), size);
+}
+
+ov::Tensor make_input(const ov::Output<const ov::Node>& input) {
+    ov::Tensor tensor(input.get_element_type(), input.get_shape());
+    const auto values = make_values(tensor.get_size(), 1.f);
+    std::copy(values.begin(), values.end(), tensor.data<float>());
+    return tensor;
+}
+
+ov::Tensor infer(ov::CompiledModel& compiled_model) {
+    auto request = compiled_model.create_infer_request();
+    request.set_input_tensor(make_input(compiled_model.input()));
+    request.infer();
+    return request.get_output_tensor();
+}
+
+void expect_close(const ov::Tensor& actual, const ov::Tensor& expected, float tolerance) {
+    ASSERT_EQ(actual.get_shape(), expected.get_shape());
+    for (size_t i = 0; i < actual.get_size(); ++i) {
+        const float e = expected.data<float>()[i];
+        ASSERT_NEAR(actual.data<float>()[i], e, tolerance * std::max(1.f, std::abs(e))) << "element " << i;
+    }
+}
+
+TEST(GoldenBlobsCPU, StoredBlobsAreImportedOrRejectedByCapabilities) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const char* generate_dir = std::getenv("OV_CPU_GOLDEN_BLOBS_GENERATE");
+    ov::Core core;
+    for (const auto& golden : golden_blobs()) {
+        SCOPED_TRACE(golden.name);
+        if (generate_dir != nullptr) {
+            std::ofstream out(std::string(generate_dir) + "/" + golden.name + ".blob", std::ios::binary);
+            core.compile_model(golden.make_model(), ov::test::utils::DEVICE_CPU, golden.config).export_model(out);
+            continue;
+        }
+
+        const auto path = ov::test::utils::getExecutableDirectory() + "/cpu_golden_blobs/" + golden.name + ".blob";
+        const auto blob = read_file(path);
+        ASSERT_FALSE(blob.empty()) << "cannot read " << path;
+        const auto stored = blob_requirements(blob);
+        EXPECT_EQ(stored.rfind("meta=2.0;", 0), 0u) << stored;
+        EXPECT_EQ(get_field(stored, "arch"), "x86_64") << stored;
+        EXPECT_EQ(get_field(stored, "caps"), golden.caps) << stored;
+
+        const auto current = replace_field(stored, "ov", ov::get_openvino_version().buildNumber);
+        std::stringstream stream(replace_blob_requirements(blob, current));
+        if (check_requirements(core, current) == ov::CompatibilityCheck::UNSUPPORTED) {
+            // the host lacks a capability of the blob, it is rejected before the graph is read
+            OV_EXPECT_THROW((void)core.import_model(stream, ov::test::utils::DEVICE_CPU, golden.config),
+                            ov::Exception,
+                            testing::HasSubstr("host lacks required capability"));
+            continue;
+        }
+        ov::CompiledModel imported;
+        OV_ASSERT_NO_THROW(imported = core.import_model(stream, ov::test::utils::DEVICE_CPU, golden.config));
+        auto fresh = core.compile_model(golden.make_model(), ov::test::utils::DEVICE_CPU, golden.config);
+        expect_close(infer(imported), infer(fresh), golden.tolerance);
+    }
+}
+#endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace
