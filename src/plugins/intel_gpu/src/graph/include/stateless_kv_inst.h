@@ -108,7 +108,7 @@ public:
         layouts[0] = get_dynamic_layout(layouts[0]);
         // only the first new_seq_len tokens of input1 are copied
         layouts[1] = get_dynamic_layout(layouts[1]);
-        if (get_primitive()->window_size != 0) {
+        if (get_primitive()->sliding_window_cache) {
             layouts.push_back(layouts[0]);
             layouts.push_back(is_valid_output_layout(1) ? get_dynamic_layout(get_output_layout(1)) : layouts[0]);
         }
