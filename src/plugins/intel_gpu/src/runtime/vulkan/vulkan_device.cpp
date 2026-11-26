@@ -63,6 +63,14 @@ void vulkan_device::initialize_info() {
     subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
     id_properties.pNext = &subgroup_properties;
 
+    VkPhysicalDeviceMaintenance3Properties maintenance3_properties{};
+    maintenance3_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
+    subgroup_properties.pNext = &maintenance3_properties;
+
+    VkPhysicalDeviceMaintenance4Properties maintenance4_properties{};
+    maintenance4_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES;
+    maintenance3_properties.pNext = &maintenance4_properties;
+
     VkPhysicalDeviceProperties2 properties2{};
     properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     properties2.pNext = &id_properties;
@@ -90,7 +98,10 @@ void vulkan_device::initialize_info() {
         }
     }
     _info.max_global_mem_size = device_local_memory != 0 ? device_local_memory : total_memory;
-    _info.max_alloc_mem_size = std::min<uint64_t>(_info.max_global_mem_size, properties.limits.maxStorageBufferRange);
+    _info.max_alloc_mem_size = std::min<uint64_t>({_info.max_global_mem_size,
+                                                   properties.limits.maxStorageBufferRange,
+                                                   maintenance3_properties.maxMemoryAllocationSize,
+                                                   maintenance4_properties.maxBufferSize});
     _info.max_global_cache_size = 0;
 
     _info.execution_units_count = 0;

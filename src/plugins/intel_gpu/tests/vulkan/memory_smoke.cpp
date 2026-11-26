@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 #include "intel_gpu/runtime/device_query.hpp"
+#include "vulkan/vulkan_device.hpp"
 #include "vulkan/vulkan_engine.hpp"
 #include "vulkan/vulkan_memory.hpp"
 
@@ -166,6 +167,31 @@ void check_device_copies(cldnn::engine& engine, cldnn::stream& stream) {
         std::vector<uint8_t> result(expected.size());
         destination->copy_to(stream, result.data(), 0, 0, result.size(), true);
         EXPECT_EQ(result, expected) << "Device copy changed the payload or adjacent bytes";
+    }
+}
+
+TEST(VulkanMemorySmoke, ReportsAllocationLimitWithinDeviceLimits) {
+    const auto devices = cldnn::device_query(cldnn::engine_types::vulkan, cldnn::runtime_types::vulkan).get_available_devices();
+    ASSERT_FALSE(devices.empty()) << "No Vulkan GPU detected";
+    for (const auto& [id, device] : devices) {
+        SCOPED_TRACE(id);
+        const auto physical_device = static_cast<const cldnn::vulkan::vulkan_device&>(*device).get_physical_device();
+        VkPhysicalDeviceVulkan13Properties properties13{};
+        properties13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES;
+        VkPhysicalDeviceVulkan11Properties properties11{};
+        properties11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
+        properties11.pNext = &properties13;
+        VkPhysicalDeviceProperties2 properties{};
+        properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        properties.pNext = &properties11;
+        vkGetPhysicalDeviceProperties2(physical_device, &properties);
+
+        const auto& info = device->get_info();
+        EXPECT_GT(info.max_alloc_mem_size, 0U);
+        EXPECT_LE(info.max_alloc_mem_size, info.max_global_mem_size);
+        EXPECT_LE(info.max_alloc_mem_size, properties.properties.limits.maxStorageBufferRange);
+        EXPECT_LE(info.max_alloc_mem_size, properties11.maxMemoryAllocationSize);
+        EXPECT_LE(info.max_alloc_mem_size, properties13.maxBufferSize);
     }
 }
 
