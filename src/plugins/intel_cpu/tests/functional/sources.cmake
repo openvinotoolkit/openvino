@@ -226,6 +226,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/constant_result_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv3d_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_concat.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_deconv_shared_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convert_bool_math.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_maxpool_activ.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convs_and_sums.cpp
@@ -236,6 +237,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/eltwise_caching.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/eltwise_chain.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fullyconnected_strided_inputs_outputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/eltwise_u8_saturation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_muladd_ewsimple.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_non0_output_port.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/fuse_scaleshift_and_fakequantize.cpp
@@ -256,6 +258,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram_hash.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/range_dynamic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/read_value_assign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/remove_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_chain.cpp
@@ -791,6 +794,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/constant_result_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv3d_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_concat.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_deconv_shared_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_maxpool_activ.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convert_bool_math.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convs_and_sums.cpp
@@ -821,6 +825,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram_hash.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/range_dynamic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/read_value_assign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/remove_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_chain.cpp
