@@ -27,13 +27,12 @@ public:
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
     [[nodiscard]] impl_desc_type implType() const override {
-        return (useOc1Jit || useU8Oc16Jit) ? impl_desc_type::jit_asimd : impl_desc_type::acl;
+        return useOc1Jit ? impl_desc_type::jit_asimd : impl_desc_type::acl;
     }
 
 private:
     std::shared_ptr<CpuParallel> cpuParallel;
     bool useOc1Jit = false;
-    bool useU8Oc16Jit = false;
     ConvAttrs convAttrs;
     arm_compute::PadStrideInfo padStrideInfo;
     arm_compute::WeightsInfo weightsInfo;

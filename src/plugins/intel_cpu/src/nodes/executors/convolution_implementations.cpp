@@ -32,6 +32,9 @@
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_conv.hpp"
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/executors/jit/u8_oc16_dot_convolution.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -254,6 +257,18 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
+            )
+        OV_CPU_INSTANCE_ARM64(
+            "convolution_sdot_u8_oc16", ExecutorType::Jit, OperationType::Convolution,
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(aarch64::U8Oc16DotConvolution::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return MatchesMemoryFormatFilter(config.descs,
+                                                 LayoutConfig{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc, LayoutType::nspc},
+                                                 memoryFormatFilter, dnnlConvolutionMappingNotation);
+            },
+            aarch64::U8Oc16DotConvolution::createOptimalConfig,
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDefault<aarch64::U8Oc16DotConvolution, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,

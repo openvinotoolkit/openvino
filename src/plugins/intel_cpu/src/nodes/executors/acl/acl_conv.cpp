@@ -15,7 +15,6 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <cstring>
 #include <limits>
 #include <memory>
 #include <numeric>
@@ -46,102 +45,6 @@ namespace ov::intel_cpu {
 
 #if defined(OPENVINO_ARCH_ARM64)
 namespace {
-
-constexpr auto oc16Channels = aarch64::U8Oc16DotKernel::outputChannels;
-constexpr auto oc16FilterElements = aarch64::U8Oc16DotKernel::filterElements;
-constexpr auto oc16PackedElements = aarch64::U8Oc16DotKernel::packedElements;
-
-bool supportsU8Oc16Jit(const ConvAttrs& attrs,
-                       const MemoryDesc& src,
-                       const MemoryDesc& weights,
-                       const MemoryDesc& dst) {
-    if (!hasArmISASupport(ArmISA::DOTPROD) || attrs.isGrouped || !attrs.constantWeights || attrs.withBias ||
-        !attrs.postOps.empty() || !attrs.dqScales.empty() || attrs.inputZeroPoint != 0 ||
-        attrs.inputZeroPointsType != ZeroPointsType::None || src.getPrecision() != ov::element::u8 ||
-        weights.getPrecision() != ov::element::i8 || dst.getPrecision() != ov::element::f32 ||
-        !src.getShape().isStatic() || !weights.getShape().isStatic() || !dst.getShape().isStatic()) {
-        return false;
-    }
-
-    const auto& input = src.getShape().getStaticDims();
-    const auto& filter = weights.getShape().getStaticDims();
-    const auto& output = dst.getShape().getStaticDims();
-    return input.size() == 4 && output.size() == 4 && filter == VectorDims{oc16Channels, 3, 3, 3} && input[1] == 3 &&
-           output[1] == oc16Channels && input[0] == output[0] && input[2] == output[2] && input[3] == output[3] &&
-           output[3] >= 16 && output[2] * output[3] >= 1024 && attrs.stride == std::vector<size_t>{1, 1} &&
-           attrs.dilation == std::vector<size_t>{0, 0} && attrs.paddingL == std::vector<ptrdiff_t>{1, 1} &&
-           attrs.paddingR == std::vector<ptrdiff_t>{1, 1};
-}
-
-class U8Oc16DotConvolution : public arm_compute::IFunction {
-public:
-    U8Oc16DotConvolution(const ACLTensors& tensors, std::shared_ptr<CpuParallel> parallel)
-        : m_src(tensors[ACL_SRC_0].get()),
-          m_weights(tensors[ACL_WEI].get()),
-          m_dst(tensors[ACL_DST].get()),
-          m_parallel(std::move(parallel)) {}
-
-    void run() override {
-        const auto* src = m_src->buffer();
-        const auto* weights = reinterpret_cast<const int8_t*>(m_weights->buffer());
-        auto* dst = reinterpret_cast<float*>(m_dst->buffer());
-        const auto width = m_src->info()->dimension(1);
-        const auto height = m_src->info()->dimension(2);
-        const auto batch = m_src->info()->dimension(3);
-        std::array<int8_t, oc16PackedElements * oc16Channels> packedWeights{};
-        std::array<int32_t, oc16Channels> corrections{};
-        // Pack four bytes per SDOT lane for four output channels at a time.
-        for (size_t oc = 0; oc < oc16Channels; ++oc) {
-            for (size_t k = 0; k < oc16FilterElements; ++k) {
-                const auto weight = weights[oc * oc16FilterElements + k];
-                packedWeights[(k / 4) * 64 + oc * 4 + k % 4] = weight;
-                corrections[oc] += 128 * weight;
-            }
-        }
-        m_parallel->parallel_for(batch * height, [&](size_t row) {
-            constexpr size_t tile = 64;
-            std::array<uint8_t, tile * oc16PackedElements> patches;
-            const auto y = row % height;
-            const auto* image = src + (row / height) * width * height * 3;
-            for (size_t x = 0; x < width; x += tile) {
-                const auto count = std::min(tile, width - x);
-                for (size_t dx = 0; dx < count; ++dx) {
-                    auto* patch = patches.data() + dx * oc16PackedElements;
-                    const auto column = x + dx;
-                    for (size_t ky = 0; ky < 3; ++ky) {
-                        const auto iy = y + ky - 1;
-                        if (iy >= height) {
-                            std::fill_n(patch + ky * 9, 9, 0);
-                        } else {
-                            const auto* line = image + iy * width * 3;
-                            if (column > 0 && column + 1 < width) {
-                                std::memcpy(patch + ky * 9, line + (column - 1) * 3, 9);
-                            } else {
-                                auto* patchRow = patch + ky * 9;
-                                std::fill_n(patchRow, 9, 0);
-                                const bool left = column == 0;
-                                std::memcpy(patchRow + (left ? 3 : 0), line + (left ? 0 : (column - 1) * 3), 6);
-                            }
-                        }
-                    }
-                    patch[oc16FilterElements] = 0;
-                }
-                m_kernel(patches.data(),
-                         packedWeights.data(),
-                         dst + (row * width + x) * oc16Channels,
-                         count,
-                         corrections.data());
-            }
-        });
-    }
-
-private:
-    arm_compute::Tensor* m_src;
-    arm_compute::Tensor* m_weights;
-    arm_compute::Tensor* m_dst;
-    std::shared_ptr<CpuParallel> m_parallel;
-    aarch64::U8Oc16DotKernel m_kernel;
-};
 
 class Oc1DotConvolution : public arm_compute::IFunction {
 public:
@@ -259,9 +162,6 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     const int oc = dstShape.getDims()[1];
 
 #if defined(OPENVINO_ARCH_ARM64)
-    useU8Oc16Jit = aclTensorAttrs.hasLayoutTypeNHWC && weiMemPtr->hasLayoutType(LayoutType::nspc) &&
-                   dstMemPtr->hasLayoutType(LayoutType::nspc) &&
-                   supportsU8Oc16Jit(attrs, *srcMemPtr, *weiMemPtr, *dstMemPtr);
     const bool signedInput = srcMemPtr->getPrecision() == ov::element::i8 &&
                              attrs.inputZeroPointsType == ZeroPointsType::None && srcZeroPoint == 0;
     const bool unsignedInput = srcMemPtr->getPrecision() == ov::element::u8 &&
@@ -360,9 +260,6 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
                                dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
     bool useUnsignedJit = false;
 #if defined(OPENVINO_ARCH_ARM64)
-    if (supportsU8Oc16Jit(config.attrs, *srcDesc, *weiDesc, *dstDesc)) {
-        return true;
-    }
     useUnsignedJit =
         srcDesc->getPrecision() == ov::element::u8 && config.attrs.constantWeights && !config.attrs.isGrouped &&
         config.attrs.postOps.empty() && config.attrs.inputZeroPointsType == ZeroPointsType::PerTensorUnsignedOc1Jit &&
@@ -405,7 +302,7 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0F, srcZeroPoint));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
-    if (useOc1Jit || useU8Oc16Jit) {
+    if (useOc1Jit) {
         return {};
     }
     if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
@@ -430,9 +327,6 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
 #if defined(OPENVINO_ARCH_ARM64)
-    if (useU8Oc16Jit) {
-        return std::make_unique<U8Oc16DotConvolution>(aclMemoryTensors, cpuParallel);
-    }
     if (useOc1Jit) {
         return std::make_unique<Oc1DotConvolution>(aclMemoryTensors, padStrideInfo, cpuParallel);
     }
