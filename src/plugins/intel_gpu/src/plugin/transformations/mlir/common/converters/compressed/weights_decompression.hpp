@@ -78,6 +78,11 @@ inline Value cast_float(OpBuilder& builder, Location loc, Value source_value, Ty
     if (source_type.getIntOrFloatBitWidth() < target_type.getIntOrFloatBitWidth()) {
         return arith::ExtFOp::create(builder, loc, target_type, source_value, /*fastmath=*/arith::FastMathFlagsAttr{});
     }
+    if (source_type.getIntOrFloatBitWidth() == target_type.getIntOrFloatBitWidth()) {
+        // corner case: f16 <-> bf16: go through f32, since arith.extf/truncf require a strictly wider/narrower result.
+        Value widened = arith::ExtFOp::create(builder, loc, builder.getF32Type(), source_value, /*fastmath=*/arith::FastMathFlagsAttr{});
+        return arith::TruncFOp::create(builder, loc, target_type, widened);
+    }
     return arith::TruncFOp::create(builder, loc, target_type, source_value);
 }
 
