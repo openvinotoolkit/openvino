@@ -34,7 +34,7 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const convert_color_params& params) const;
     virtual CommonDispatchData SetDefault(const convert_color_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
