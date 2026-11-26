@@ -423,6 +423,11 @@ void network::set_arguments() {
                     (dep.first->is_dynamic() || dep.first->output_memory_ptr() == nullptr || prim->type == read_value::type_id())) {
                     can_set_args = false;
                 }
+                // stateless_kv picks its output buffers at runtime, so a static consumer can't bind them yet.
+                // It rebinds once the buffer is available (dependency's MEMORY_CHANGED).
+                if (dep.first->type() == stateless_kv::type_id() && dep.first->output_memory_ptr(dep.second) == nullptr) {
+                    can_set_args = false;
+                }
             }
 
             if (can_set_args) {

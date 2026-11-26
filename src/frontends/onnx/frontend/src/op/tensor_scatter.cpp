@@ -41,8 +41,9 @@ namespace ov::frontend::onnx::ai_onnx::opset_24 {
 //     present[*, write_indices[b] + s, *] = update[*, s, *]
 // For `circular` mode the write position wraps around: (write_indices[b] + s) % max_sequence_length.
 //
-// The decomposition moves the `axis` dimension next to the batch dimension (position 1) via an
-// optional Transpose, then performs the update with a v3::ScatterNDUpdate whose index tensor
+// When all samples share one write offset (no `write_indices`, or batch == 1) it lowers to a single
+// v3::ScatterUpdate along `axis`. Otherwise, the decomposition moves the `axis` dimension next to the batch dimension
+// (position 1) via an optional Transpose, then performs the update with a v3::ScatterNDUpdate whose index tensor
 // carries (batch, cache_sequence) coordinates for each (b, s) position. All remaining dimensions
 // are copied wholesale by ScatterNDUpdate, so their relative order (and the transpose) is irrelevant.
 ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
@@ -118,6 +119,51 @@ ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
                                      ").");
                 }
             }
+        }
+
+        // Fast path: when every batch sample shares the same write offset (no `write_indices`, or a
+        // single-sample batch), the update is a plain v3::ScatterUpdate along `axis` with a 1D index
+        // vector. This is applied directly on `past_cache` (no Transpose) so that plugins can match
+        // the KV-cache pattern (GPU StatelessKV fusion, NPU scatter_update DMA).
+        const bool has_write_indices = common::is_input_valid(inputs, 2);
+        const bool single_batch = past_rank.is_static() && past_cache.get_partial_shape()[0].is_static() &&
+                                  past_cache.get_partial_shape()[0].get_length() == 1;
+        // Zero-size tensors are a no-op that plugins do not handle in ScatterUpdate; keep them on the
+        // ScatterNDUpdate path below.
+        const auto has_empty_dim = [](const ov::Output<ov::Node>& t) {
+            const auto ps = t.get_partial_shape();
+            return ps.rank().is_static() && std::any_of(ps.begin(), ps.end(), [](const ov::Dimension& d) {
+                       return d.is_static() && d.get_length() == 0;
+                   });
+        };
+        if ((!has_write_indices || single_batch) && !has_empty_dim(past_cache) && !has_empty_dim(update)) {
+            const auto axis_const = v0::Constant::create(i64, ov::Shape{1}, {axis});
+            const auto axis_scalar = v0::Constant::create(i64, ov::Shape{}, {axis});
+            const auto seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(update, i64),
+                                                              axis_scalar,
+                                                              zero);  // scalar L
+            ov::Output<ov::Node> positions = std::make_shared<v4::Range>(zero, seq_len, one, i64);
+            if (has_write_indices) {
+                // single-sample batch: write_indices has exactly one element
+                const auto write_indices = std::make_shared<v0::Convert>(inputs[2], i64);  // (1,)
+                if (circular) {
+                    // Reduce the offset first so the addition cannot overflow int64. A zero-length
+                    // cache only occurs for an empty update (no-op): clamp the divisor to 1.
+                    const auto max_len =
+                        std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(past_cache, i64), axis_scalar, zero);
+                    const auto safe_len = std::make_shared<v1::Maximum>(max_len, one);
+                    const auto start_vec = std::make_shared<v1::FloorMod>(write_indices, safe_len);
+                    const auto start = std::make_shared<v8::Gather>(start_vec, zero, zero);  // scalar
+                    // start < S and s < L <= S, so a single conditional subtraction wraps the sum.
+                    const auto sum = std::make_shared<v1::Add>(positions, start);
+                    const auto wraps = std::make_shared<v1::GreaterEqual>(sum, safe_len);
+                    positions = std::make_shared<v1::Select>(wraps, std::make_shared<v1::Subtract>(sum, safe_len), sum);
+                } else {
+                    const auto offset = std::make_shared<v8::Gather>(write_indices, zero, zero);  // scalar
+                    positions = std::make_shared<v1::Add>(positions, offset);
+                }
+            }
+            return {std::make_shared<v3::ScatterUpdate>(past_cache, positions, update, axis_const)};
         }
 
         if (axis != 1) {
