@@ -182,6 +182,22 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     if (ze::zeDeviceGetCacheProperties(device, &count, &devCacheProps) == ZE_RESULT_SUCCESS) {
         info.cacheline_size = static_cast<uint32_t>(devCacheLineSize.cacheLineSize);
     }
+
+    // Level Zero has no CL_DEVICE_MEM_BASE_ADDR_ALIGN equivalent; query it through the OCL interop
+    // device when available, same as ocl_device.cpp. Falls back to 128 otherwise.
+    // Compute Runtime currently defines memBaseAddressAlign as 1024 bits: https://github.com/intel/compute-runtime/blob/master/level_zero/api/opencl/source/cl_device/leo_cl_device_caps.cpp#L242
+    // Its sub-buffer check converts the bit count to bytes by dividing by 8: https://github.com/intel/compute-runtime/blob/master/level_zero/api/opencl/source/mem_obj/leo_buffer.cpp#L260
+    auto& ocl_interop = ze_ocl_interop::get_instance();
+    if (ocl_interop.check_support(device)) {
+        cl_uint bits = 0;
+        if (clGetDeviceInfo(ocl_interop.find_ocl_device(device), CL_DEVICE_MEM_BASE_ADDR_ALIGN, sizeof(bits), &bits, nullptr) == CL_SUCCESS) {
+            info.sub_buffer_base_alignment = std::max<uint32_t>(1, bits / 8);
+        }
+    }
+    if (!info.sub_buffer_base_alignment.has_value()) {
+        GPU_DEBUG_LOG << "WARNING: Failed to query sub-buffer base alignment through OCL interop; using 128 bytes" << std::endl;
+        info.sub_buffer_base_alignment = 128;
+    }
     
     info.execution_units_count = device_properties.numEUsPerSubslice * device_properties.numSubslicesPerSlice * device_properties.numSlices;
 
