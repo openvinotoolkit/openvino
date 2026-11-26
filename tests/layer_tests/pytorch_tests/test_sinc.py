@@ -23,7 +23,7 @@ class TestSinc(PytorchLayerTest):
         return aten_sinc(), "aten::sinc"
 
     @pytest.mark.parametrize("input_shape", [(2, 3), (3, 3, 2)])
-    @pytest.mark.parametrize("dtype", [np.float32, np.float64, np.int32])
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, np.float16, np.int32])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
