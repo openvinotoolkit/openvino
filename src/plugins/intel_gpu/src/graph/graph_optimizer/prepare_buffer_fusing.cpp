@@ -29,6 +29,8 @@
 #include "mvn_inst.h"
 #include "paged_qsa_indexer_inst.h"
 #include "qsa_indexer_inst.h"
+#include "sparse_pa_inst.h"
+#include "sparse_sdpa_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 
 #include "pass_manager.h"
@@ -611,8 +613,8 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (user->is_type<lora>()) {
             return false;
         }
-        // The QSA indexers address their activations as dense arrays.
-        if (user->is_type<qsa_indexer>() || user->is_type<paged_qsa_indexer>()) {
+        // The QSA kernels address their activations as dense arrays.
+        if (user->is_type<qsa_indexer>() || user->is_type<paged_qsa_indexer>() || user->is_type<sparse_pa>() || user->is_type<sparse_sdpa>()) {
             return false;
         }
         // MVN canonicalizes the input shape and reads with contiguous pitches; a strided

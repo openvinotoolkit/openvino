@@ -30,10 +30,12 @@
 #include <cstdlib>
 #include <fstream>
 #include <functional>
+#include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_qsa_indexer.hpp>
 #include <intel_gpu/primitives/qsa_indexer.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/sparse_pa.hpp>
 #include <intel_gpu/primitives/sparse_sdpa.hpp>
 #include <iomanip>
@@ -660,7 +662,7 @@ void add_call_tensor(topology& topo, bool dynamic, const primitive_id& id, const
     }
 }
 
-void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stage stage, bool dynamic) {
+void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stage stage, bool dynamic, bool split_qkv = false) {
     const auto& d = in.d;
     const auto q = I(in.q_len);
     const auto np = I(in.num_pages);
@@ -685,9 +687,21 @@ void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stag
         net.set_input_data("rope_cache", make_f16(engine, {np, I(in.spp), I(2 * d.rotary)}, rope_cache_rows(in.rotary, d.rotary, in.position_cache)));
     }
     if (stage != Stage::IndexerOnly) {
-        net.set_input_data("query", make_f16(engine, {q, I(d.Hq * d.Dh)}, in.query));
-        net.set_input_data("key", make_f16(engine, {q, I(d.Hkv * d.Dh)}, in.key));
-        net.set_input_data("value", make_f16(engine, {q, I(d.Hkv * d.Dv)}, in.value));
+        if (split_qkv) {
+            // One fused row per token: query | key | value.
+            const size_t wq = d.Hq * d.Dh, wk = d.Hkv * d.Dh, wv = d.Hkv * d.Dv;
+            std::vector<float> qkv;
+            for (size_t t = 0; t < in.q_len; t++) {
+                qkv.insert(qkv.end(), in.query.begin() + t * wq, in.query.begin() + (t + 1) * wq);
+                qkv.insert(qkv.end(), in.key.begin() + t * wk, in.key.begin() + (t + 1) * wk);
+                qkv.insert(qkv.end(), in.value.begin() + t * wv, in.value.begin() + (t + 1) * wv);
+            }
+            net.set_input_data("qkv", make_f16(engine, {q, I(wq + wk + wv)}, qkv));
+        } else {
+            net.set_input_data("query", make_f16(engine, {q, I(d.Hq * d.Dh)}, in.query));
+            net.set_input_data("key", make_f16(engine, {q, I(d.Hkv * d.Dh)}, in.key));
+            net.set_input_data("value", make_f16(engine, {q, I(d.Hkv * d.Dv)}, in.value));
+        }
         net.set_input_data("key_cache", make_f16(engine, {np, I(d.Hkv), I(d.page_size), I(d.Dh)}, in.key_cache));
         net.set_input_data("value_cache", make_f16(engine, {np, I(d.Hkv), I(d.page_size), I(d.Dv)}, in.value_cache));
     }
@@ -695,7 +709,9 @@ void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stag
 
 /// `dynamic`: token/page/sequence extents are dynamic and every per-call tensor is an input,
 /// so ONE network serves any (past_len, q_len) through the shape-agnostic impls.
-std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs& in, Stage stage, bool dynamic = false) {
+/// `split_qkv` (attention stages, static only): query / key / value are the three VariadicSplit outputs of one fused
+/// projection input "qkv" instead of three inputs, the layout a split of a fused QKV projection hands to sparse_pa.
+std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs& in, Stage stage, bool dynamic = false, bool split_qkv = false) {
     const auto& d = in.d;
     const auto dyn = [dynamic](int64_t v) {
         return dynamic ? int64_t{-1} : v;
@@ -757,9 +773,29 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
         cfg.causal = true;
         const float scale = 1.0f / std::sqrt(static_cast<float>(d.Dh));
 
-        topo.add(input_layout("query", layout{{q, I(d.Hq * d.Dh)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("key", layout{{q, I(d.Hkv * d.Dh)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("value", layout{{q, I(d.Hkv * d.Dv)}, data_types::f16, format::bfyx}));
+        if (split_qkv) {
+            OPENVINO_ASSERT(!dynamic, "split_qkv is only built for static shapes");
+            const int64_t axis = 1;
+            auto axis_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::i64, format::bfyx});
+            set_values<int64_t>(axis_mem, {axis});
+            auto lengths_mem = engine.allocate_memory(layout{ov::PartialShape{3}, data_types::i64, format::bfyx});
+            set_values<int64_t>(lengths_mem, {I(d.Hq * d.Dh), I(d.Hkv * d.Dh), I(d.Hkv * d.Dv)});
+            topo.add(input_layout("qkv", layout{{q, I(d.Hq * d.Dh + d.Hkv * d.Dh + d.Hkv * d.Dv)}, data_types::f16, format::bfyx}));
+            topo.add(data("qkv_axis", axis_mem));
+            topo.add(data("qkv_lengths", lengths_mem));
+            const std::vector<input_info> split_in{input_info("qkv"), input_info("qkv_axis"), input_info("qkv_lengths")};
+            // Like CreateSplitOp: every output carries its own offset along the split axis.
+            const int64_t starts[3] = {0, I(d.Hq * d.Dh), I(d.Hq * d.Dh + d.Hkv * d.Dh)};
+            for (int i = 0; i < 3; i++) {
+                const char* id = i == 0 ? "query" : (i == 1 ? "key" : "value");
+                topo.add(crop(id, split_in, cldnn::tensor(1), cldnn::tensor(0, static_cast<int>(starts[i]), 0, 0), cldnn::crop_ngraph_op_mode::variadic_split, i, axis));
+                topo.add(reorder(std::string(id) + "_f32", input_info(id), format::bfyx, data_types::f32));  // observable copy of the crop
+            }
+        } else {
+            topo.add(input_layout("query", layout{{q, I(d.Hq * d.Dh)}, data_types::f16, format::bfyx}));
+            topo.add(input_layout("key", layout{{q, I(d.Hkv * d.Dh)}, data_types::f16, format::bfyx}));
+            topo.add(input_layout("value", layout{{q, I(d.Hkv * d.Dv)}, data_types::f16, format::bfyx}));
+        }
         topo.add(input_layout("key_cache", layout{{np, I(d.Hkv), I(d.page_size), I(d.Dh)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("value_cache", layout{{np, I(d.Hkv), I(d.page_size), I(d.Dv)}, data_types::f16, format::bfyx}));
         input_info sel("indexer", 0), count("indexer", 1);
@@ -788,7 +824,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
     }
 
     auto net = std::make_unique<network>(engine, topo, make_config(engine));
-    set_paged_inputs(engine, *net, in, stage, dynamic);
+    set_paged_inputs(engine, *net, in, stage, dynamic, split_qkv);
     return net;
 }
 
@@ -1715,6 +1751,42 @@ const route decode_split{IndexerPath::Decode, AttnPath::Split};
 const route fused_scalar{IndexerPath::Fused, AttnPath::Scalar};
 
 // Decode batches: Q2 score_partition + top-k, Q3 GQA-DPAS (GQA dims).
+// query / key / value cropped from one fused projection: the crops must not be turned into padded in-place views, because
+// sparse_pa steps its token rows by the logical width. The result must equal the one with three separate inputs.
+TEST(qsa_ops_gpu_test, paged_sparse_attention_reads_split_qkv_inputs) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    auto& engine = get_test_engine();
+    const auto d = gqa_dims();
+    const auto in = paged_inputs_synthetic(d, 0, 48);
+
+    auto plain = build_paged_network(engine, in, Stage::AttentionOnly);
+    const auto expected = read_f16(plain->execute().at("attn").get_memory());
+
+    auto split = build_paged_network(engine, in, Stage::AttentionOnly, false, true);
+    for (const char* id : {"query", "key", "value"}) {
+        EXPECT_FALSE(split->get_primitive(id)->can_be_optimized()) << id << " must stay a real copy: sparse_pa reads dense rows";
+    }
+    auto outputs = split->execute();
+    const std::pair<const char*, const std::vector<float>*> parts[] = {{"query", &in.query}, {"key", &in.key}, {"value", &in.value}};
+    for (const auto& [id, ref] : parts) {
+        mem_lock<float, mem_lock_type::read> lock(outputs.at(std::string(id) + "_f32").get_memory(), get_test_stream());
+        ASSERT_EQ(lock.size(), ref->size()) << id;
+        size_t bad = 0;
+        for (size_t i = 0; i < ref->size(); i++) {
+            bad += static_cast<float>(ov::float16((*ref)[i])) != lock[i] ? 1 : 0;
+        }
+        EXPECT_EQ(bad, 0u) << id << " crop output differs from the fused projection slice";
+    }
+    const auto actual = read_f16(outputs.at("attn").get_memory());
+
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t i = 0; i < actual.size(); i++) {
+        ASSERT_EQ(actual[i], expected[i]) << "at " << i;
+    }
+}
+
 TEST(qsa_ops_gpu_test, gqa_paged_batch_decode_matches_reference) {
     run_paged_batch_test(gqa_dims(), {{2051, 1}, {2100, 1}, {2300, 1}}, decode_gqa, 3e-3f);
 }

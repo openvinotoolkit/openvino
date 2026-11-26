@@ -1256,6 +1256,10 @@ std::vector<perf_case> perf_cases() {
     const std::vector<fmt> formats = {
         {"f16", {}, {}},
         {"Ktok_i8_Vtok_i8", token_quant(8, false), token_quant(8, false)},
+        {"Kf16_Vtok_i8", {}, token_quant(8, false)},
+        {"Ktok_i8_Vf16", token_quant(8, false), {}},
+        {"Kf16_Vtok_u4", {}, token_quant(4, false)},
+        {"Ktok_u4_Vf16", token_quant(4, false), {}},
         {"Ktok_u4_Vtok_u4", token_quant(4, false), token_quant(4, false)},
         {"Kch16_i8_Vtok_i8", channel_quant(8, false, 16), token_quant(8, false)},
         {"Kch16_u4_Vtok_u4", channel_quant(4, false, 16), token_quant(4, false)},
@@ -1271,6 +1275,7 @@ std::vector<perf_case> perf_cases() {
         }
         out.push_back({f.name, f.k, f.v, 0, 4096, page});
         out.push_back({f.name, f.k, f.v, 0, 16384, page});
+        out.push_back({f.name, f.k, f.v, 0, 32768, page});
     }
     return out;
 }

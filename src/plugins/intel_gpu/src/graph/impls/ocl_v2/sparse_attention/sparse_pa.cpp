@@ -45,6 +45,9 @@ qsa::SparseAttentionSlots pa_slots() {
 size_t token_pitch(const layout& l) {
     const auto& shape = l.get_shape();
     OPENVINO_ASSERT(shape.size() >= 2, "[GPU][OCL] sparse_pa expects a rank-2 (or legacy-padded) token-major input, got ", l.to_short_string());
+    // The kernels step rows by the logical width: a padded view (e.g. an in-place split of a fused projection) would be read
+    // with the wrong pitch.
+    OPENVINO_ASSERT(!l.data_padding, "[GPU][OCL] sparse_pa expects an unpadded token-major input, got ", l.to_short_string());
     return shape[1];
 }
 

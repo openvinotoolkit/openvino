@@ -11,6 +11,8 @@
 #include "paged_qsa_indexer_inst.h"
 #include "primitive_inst.h"
 #include "qsa_indexer_inst.h"
+#include "sparse_pa_inst.h"
+#include "sparse_sdpa_inst.h"
 #include "vl_sdpa_inst.h"
 
 #include <algorithm>
@@ -36,9 +38,9 @@ public:
 
     bool is_runtime_propagatable_padding() const {
         auto prim = typed_desc();
-        // The QSA indexers address their activations as dense arrays: a padded sub-view (e.g. a split of a fused
+        // The QSA kernels address their activations as dense arrays: a padded sub-view (e.g. a split of a fused
         // projection) would be read as if it was contiguous.
-        if (feeds_qsa_indexer(*this)) {
+        if (feeds_qsa_op(*this)) {
             return false;
         }
         if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze) {
@@ -198,10 +200,12 @@ public:
         return matched_trailing_dims != 0 || output_pshape.size() >= input_pshape.size();
     }
 
-    /// Whether `node` feeds a QSA indexer, directly or through reshapes, which keep any padding they propagate.
-    static bool feeds_qsa_indexer(const program_node& node) {
+    /// Whether `node` feeds a QSA op (indexer or sparse attention), directly or through reshapes, which keep any padding
+    /// they propagate.
+    static bool feeds_qsa_op(const program_node& node) {
         return std::any_of(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
-            return user->is_type<qsa_indexer>() || user->is_type<paged_qsa_indexer>() || (user->is_type<reshape>() && feeds_qsa_indexer(*user));
+            return user->is_type<qsa_indexer>() || user->is_type<paged_qsa_indexer>() || user->is_type<sparse_pa>() || user->is_type<sparse_sdpa>() ||
+                   (user->is_type<reshape>() && feeds_qsa_op(*user));
         });
     }
 
