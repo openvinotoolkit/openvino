@@ -76,6 +76,50 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
 }
 #endif
 
+gfx_version parse_version(uint32_t gmdid) {
+    union GMDID {
+        uint32_t value;
+        struct {
+            uint32_t revision : 6;
+            uint32_t reserved : 8;
+            uint32_t release : 8;
+            uint32_t architecture : 10;
+        };
+    };
+
+    GMDID gmd_id = {gmdid};
+    if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
+        // New format
+        return {static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
+    }  // Old format
+    uint32_t ver = gmdid;
+    uint16_t major = ver >> 16;
+    uint8_t minor = (ver >> 8) & 0xFF;
+    uint8_t revision = ver & 0xFF;
+
+    return {major, minor, revision};
+}
+
+uint32_t query_device_ip_version(const ::sycl::device& device) {
+#if SYCL_EXT_ONEAPI_DEVICE_ARCHITECTURE
+    namespace syclex = ::sycl::ext::oneapi::experimental;
+
+    try {
+        // arch = 0xAABBBBCCCCCCCCDD
+        // for Intel GPU, AA=0x00, BBBB=reserved, CCCCCCCC=GMDID, DD=reserved
+        const auto arch = device.get_info<syclex::info::device::architecture>();
+
+        // extract GMDID from arch
+        return static_cast<uint32_t>(static_cast<uint64_t>(arch) >> 8);
+    } catch (const ::sycl::exception&) {
+        return 0;
+    }
+#else
+    (void)device;
+    return 0;
+#endif
+}
+
 std::optional<pci_bus_info> get_pci_bus_info(const ::sycl::device& device) {
     if (!device.has(::sycl::aspect::ext_intel_pci_address)) {
         return std::nullopt;
@@ -208,7 +252,11 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         std::fill_n(std::begin(info.luid.luid), ov::device::LUID::MAX_LUID_SIZE, 0);
     // }
 
-    info.has_separate_cache = false;
+    // Discrete GPUs always keep constants in device memory; integrated GPUs are
+    // enabled per vendor below (Intel: gfx_ver >= 12.70, same as the OCL runtime).
+    info.has_separate_cache = info.dev_type == device_type::discrete_gpu;
+    info.arch = gpu_arch::unknown;
+
     if (info.vendor_id == INTEL_VENDOR_ID) {
         info.ip_version = 0; // no corresponding info in SYCL
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
@@ -232,7 +280,31 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         auto matrix_combinations = device.get_info<::sycl::ext::oneapi::experimental::info::device::matrix_combinations>();
         info.supports_immad = matrix_combinations.size() > 0;
 #endif // SYCL_EXT_ONEAPI_MATRIX
-        info.has_separate_cache = false; // no corresponding info in SYCL
+
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
+        using namespace dnnl::impl::gpu::intel::jit;
+        ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
+        info.arch = convert_ngen_arch(ngen::getCore(product.family));
+        // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
+        // This is required to guarantee some level of forward compatibility for the new HW generations
+        // as OneDNN code generators are not generic and typically requires some updates for the new architectures
+        // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
+        // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
+        if (product.family == ngen::ProductFamily::Unknown) {
+            info.supports_immad = false;
+        }
+#endif
+
+        const uint32_t ip_version = query_device_ip_version(device);
+        if (ip_version != 0) {
+            // Same check as the OCL runtime (gfx_ver >= 12.70); discrete GPUs are already set above
+            info.has_separate_cache = info.has_separate_cache || parse_version(ip_version) >= gfx_version{12, 70, 0};
+        } else {
+            // Fallback when the architecture query is unavailable or returns 0:
+            // xe_hp/xe_hpc are discrete-only, so for iGPUs arch >= xe_hpg means MTL/ARL or newer
+            // (see ngen::npack::decodeHWIPVersion). iGPUs with unknown arch keep false.
+            info.has_separate_cache = info.has_separate_cache || info.arch >= gpu_arch::xe_hpg;
+        }
     } else if (info.vendor_id == NVIDIA_VENDOR_ID) {
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
     } else {
@@ -246,22 +318,6 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 
     info.num_ccs = 1;
 
-
-#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_INTEL)
-    using namespace dnnl::impl::gpu::intel::jit;
-    ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
-    info.arch = convert_ngen_arch(ngen::getCore(product.family));
-    // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
-    // This is required to guarantee some level of forward compatibility for the new HW generations
-    // as OneDNN code generators are not generic and typically requires some updates for the new architectures
-    // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
-    // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
-    if (product.family == ngen::ProductFamily::Unknown) {
-        info.supports_immad = false;
-    }
-#else  // ENABLE_ONEDNN_FOR_GPU
-    info.arch = gpu_arch::unknown;
-#endif  // ENABLE_ONEDNN_FOR_GPU
     info.supports_bf16 = info.supports_immad;
 
     return info;
