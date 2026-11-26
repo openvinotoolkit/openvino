@@ -95,3 +95,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 # Install newer ninja (apt ships 1.10.1 on 22.04 / 1.11.1 on 24.04; pin for consistency)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+
+# Install newer cmake (apt ships 3.28.3 on 24.04, while LLVM (GPU-MLIR path) requires 3.31 or higher
+RUN python3 -m pip install --no-cache-dir cmake==3.31.10
