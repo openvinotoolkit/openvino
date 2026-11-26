@@ -200,6 +200,51 @@ TEST_F(moe_les_upload, staging_reuse_preserves_large_tensor_source) {
     }
 }
 
+TEST_F(moe_les_upload, learned_head_routes_each_row_of_variable_verifier_blocks) {
+    namespace moe = ov::intel_gpu::ocl::moe;
+    auto& engine = get_test_engine();
+    topology graph;
+    graph.add(input_layout("hidden", layout{ov::PartialShape{1, 1, 16}, data_types::f16, format::bfyx}));
+    network owner(engine, graph, get_test_default_config(engine));
+    moe::LesPredictorModel model;
+    model.top_k = 2;
+    auto& weights = model.heads[2];
+    weights.hidden = weights.experts = 16;
+    weights.weight.resize(256);
+    weights.previous_weight.resize(256);
+    weights.bias.resize(16);
+    for (size_t expert = 0; expert < 16; ++expert) {
+        weights.weight[17 * expert] = 1;
+        weights.previous_weight[17 * expert] = 1;
+    }
+    moe::LesPredictor predictor(owner, model);
+    auto* head = predictor.find(2);
+    ASSERT_NE(head, nullptr);
+    auto& stream = owner.get_stream();
+    for (const size_t rows : {1, 6, 3, 7}) {
+        std::vector<ov::float16> packed(rows * 32, 0);
+        std::vector<uint32_t> expected;
+        std::vector<uint32_t> scalar;
+        for (size_t row = 0; row < rows; ++row) {
+            packed[row * 32 + row] = 3;
+            packed[row * 32 + 16 + 15] = 2;
+            expected.push_back(static_cast<uint32_t>(row));
+            expected.push_back(15);
+            auto single = head->packed_input(1);
+            single->copy_from(stream, packed.data() + row * 32, true);
+            auto result = head->execute(single, stream.enqueue_marker({}, true), model.top_k);
+            result.ready->wait();
+            scalar.insert(scalar.end(), result.cpu_indices->begin(), result.cpu_indices->end());
+        }
+        auto block = head->packed_input(rows);
+        block->copy_from(stream, packed.data(), true);
+        auto result = head->execute(block, stream.enqueue_marker({}, true), rows * model.top_k);
+        result.ready->wait();
+        EXPECT_EQ(*result.cpu_indices, scalar);
+        EXPECT_EQ(*result.cpu_indices, expected);
+    }
+}
+
 TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent) {
     auto& engine = get_test_engine();
     const layout hidden_layout{ov::PartialShape{1, 1, 16}, data_types::f16, format::bfyx};

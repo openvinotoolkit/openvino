@@ -159,27 +159,52 @@ inline LesPredictorModel load_les_predictor_model(const std::shared_ptr<ov::Mode
     return result;
 }
 
-// Runs each head through the oneDNN FC and router-TopK entries on the compute stream of the main network.
-// The head input is a persistent [current | previous] f16 buffer: the caller copies the current hidden into
-// the first half before a prediction and replaces the second half with the layer's own input after using it.
+// One dynamic FC and router per layer, with [current | previous] packed into each f16 input row.
 class LesPredictor {
 public:
     struct Head {
         uint32_t hidden = 0;
         cldnn::memory::ptr input;
-        std::unique_ptr<LookaheadRouter> router;
+        cldnn::network::ptr network;
+        cldnn::memory::ptr batch_storage;
+        LookaheadReadback readback;
+
+        cldnn::memory::ptr packed_input(size_t tokens) {
+            if (tokens == 1)
+                return input;
+            auto& engine = network->get_engine();
+            cldnn::layout layout{ov::PartialShape{static_cast<int64_t>(tokens), 1, 2 * static_cast<int64_t>(hidden)},
+                                 cldnn::data_types::f16, cldnn::format::bfyx};
+            if (!batch_storage || batch_storage->size() < layout.bytes_count()) {
+                if (batch_storage)
+                    network->get_stream().finish();
+                batch_storage = engine.allocate_memory(layout, cldnn::allocation_type::usm_device, false);
+            }
+            return engine.reinterpret_buffer(*batch_storage, layout);
+        }
+
+        LookaheadRouter::Result execute(const cldnn::memory::ptr& packed, const cldnn::event::ptr& ready, size_t count) {
+            network->set_input_data("les_in", packed);
+            network->execute({ready});
+            auto router = network->get_primitive("les_router");
+            auto routed = network->get_stream().enqueue_marker({}, true);
+            return readback.read(network->get_stream(), router->output_memory_ptr(1), router->output_memory_ptr(0), routed, count);
+        }
     };
 
     LesPredictor(cldnn::network& main, const LesPredictorModel& model) {
         auto& engine = main.get_engine();
         auto stream = main.get_stream_ptr();
         constexpr auto f16 = cldnn::data_types::f16;
-        cldnn::topology topology;
+        cldnn::ExecutionConfig predictor_config{ov::intel_gpu::allow_new_shape_infer(true),
+                            ov::intel_gpu::use_onednn(main.get_config().get_use_onednn()),
+                            ov::enable_profiling(main.get_config().get_enable_profiling())};
         for (const auto& [layer, head] : model.heads) {
+            cldnn::topology topology;
             const auto id = std::to_string(layer);
             const auto experts = static_cast<int64_t>(head.experts);
             const auto hidden = static_cast<int64_t>(head.hidden);
-            topology.add(cldnn::input_layout("les_in." + id, cldnn::layout{ov::PartialShape{1, 1, 2 * hidden}, f16, cldnn::format::bfyx}));
+            topology.add(cldnn::input_layout("les_in", cldnn::layout{ov::PartialShape{-1, 1, 2 * hidden}, f16, cldnn::format::bfyx}));
 
             // Row e of the weights is [W[e, :] | W'[e, :]], so one FC computes both products.
             std::vector<ov::float16> packed(head.experts * 2 * head.hidden);
@@ -192,7 +217,7 @@ public:
             auto weights = engine.allocate_memory(cldnn::layout{ov::PartialShape{experts, 2 * hidden}, f16, cldnn::format::bfyx});
             weights->copy_from(*stream, packed.data(), true);
             topology.add(cldnn::data("les_w." + id, weights));
-            topology.add(cldnn::fully_connected("les_fc." + id, cldnn::input_info("les_in." + id), "les_w." + id, "", 3));
+            topology.add(cldnn::fully_connected("les_fc." + id, cldnn::input_info("les_in"), "les_w." + id, "", 3));
 
             std::vector<ov::float16> bias(head.bias.begin(), head.bias.end());
             auto bias_memory = engine.allocate_memory(cldnn::layout{ov::PartialShape{experts}, f16, cldnn::format::bfyx});
@@ -207,24 +232,16 @@ public:
             config.num_expert = head.experts;
             config.top_k = model.top_k;
             config.routing_type = cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS;
-            topology.add(cldnn::moe_router_fused("les_router." + id,
+            topology.add(cldnn::moe_router_fused("les_router",
                                                  {cldnn::input_info("les_fc." + id), cldnn::input_info("les_bias." + id), cldnn::input_info("les_eps." + id)},
                                                  config));
-        }
-        auto program = cldnn::program::build_program(engine, topology, main.get_config(), true);
-        m_network = cldnn::network::allocate_network(stream, program, true, true);
-        for (const auto& [layer, weights] : model.heads) {
-            const auto id = std::to_string(layer);
-            Head head;
-            head.hidden = static_cast<uint32_t>(weights.hidden);
-            head.input = engine.allocate_memory(
-                cldnn::layout{ov::PartialShape{1, 1, 2 * static_cast<int64_t>(weights.hidden)}, f16, cldnn::format::bfyx}, cldnn::allocation_type::usm_device, false);
-            head.input->fill(*stream, 0);
-            head.router = std::make_unique<LookaheadRouter>(*m_network,
-                                                            head.input->get_layout(),
-                                                            m_network->get_primitive("les_fc." + id).get(),
-                                                            m_network->get_primitive("les_router." + id).get());
-            m_heads.emplace(layer, std::move(head));
+            auto program = cldnn::program::build_program(engine, topology, predictor_config, true);
+            auto& compiled = m_heads[layer];
+            compiled.network = cldnn::network::allocate_network(stream, program, true, true);
+            compiled.hidden = static_cast<uint32_t>(hidden);
+            compiled.input = engine.allocate_memory(cldnn::layout{ov::PartialShape{1, 1, 2 * hidden}, f16, cldnn::format::bfyx},
+                                                    cldnn::allocation_type::usm_device, false);
+            compiled.input->fill(*stream, 0);
         }
         stream->finish();
         m_top_k = model.top_k;
@@ -244,7 +261,6 @@ public:
     }
 
 private:
-    cldnn::network::ptr m_network;
     std::map<size_t, Head> m_heads;
     size_t m_top_k = 0;
 };

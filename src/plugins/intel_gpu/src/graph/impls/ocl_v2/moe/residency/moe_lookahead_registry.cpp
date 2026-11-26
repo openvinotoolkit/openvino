@@ -221,6 +221,9 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
         if (auto* head = predictor_head(target)) {
             auto& stream = m_network.get_stream();
             stream.enqueue_barrier({ready});
+            const size_t bytes = size_t{head->hidden} * sizeof(ov::float16);
+            const size_t tokens = hidden->get_layout().count() / head->hidden;
+            auto packed = head->packed_input(tokens);
             if (m_previous_converter) {
                 if (m_previous_epoch != m_epoch) {
                     const auto input = m_network.get_primitive(m_previous_input)->output_memory_ptr();
@@ -237,23 +240,13 @@ void LookaheadContext::predict(const LookaheadLayerDesc& next_layer,
                 if (m_previous_ready) {
                     stream.enqueue_barrier({m_previous_ready});
                 }
-                const size_t bytes = size_t{head->hidden} * sizeof(ov::float16);
                 const auto row = m_previous_rows.at(m_predictor_layers.at(target));
-                auto previous = head->input->copy_from(stream, *m_previous_values, row * bytes, bytes, bytes, false);
-                stream.enqueue_barrier({previous});
+                for (size_t token = 0; token < tokens; ++token)
+                    packed->copy_from(stream, *m_previous_values, row * bytes, (2 * token + 1) * bytes, bytes, false);
             }
-            const size_t bytes = size_t{head->hidden} * sizeof(ov::float16);
-            const size_t tokens = hidden->get_layout().count() / head->hidden;
-            const auto top_k = m_predictor->top_k();
-            auto indices = std::make_shared<std::vector<uint32_t>>(tokens * top_k);
-            LookaheadRouter::Result result;
-            for (size_t token = 0; token < tokens; ++token) {
-                if (token)
-                    stream.enqueue_barrier({result.ready});
-                const auto copied = head->input->copy_from(stream, *hidden, token * bytes, 0, bytes, false);
-                result = head->router->enqueue(head->input, copied, indices, token * top_k);
-            }
-            return result;
+            for (size_t token = 0; token < tokens; ++token)
+                packed->copy_from(stream, *hidden, token * bytes, 2 * token * bytes, bytes, false);
+            return head->execute(packed, stream.enqueue_marker({}, true), tokens * m_predictor->top_k());
         }
         return m_routers.at(target)->enqueue(hidden, ready);
     }();
