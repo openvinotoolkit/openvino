@@ -2403,10 +2403,11 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         set_values(k_mem, k_q.dequantized);
         set_values(v_mem, v_q.dequantized);
 
+        const layout v_ref_layout(ov::PartialShape{batch, kv_num_heads, seq_kv, -1}, dt, format::bfyx);
         topology topo;
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", kv_deq_layout));
-        topo.add(input_layout("v", kv_deq_layout));
+        topo.add(input_layout("v", v_ref_layout));
         auto prim = scaled_dot_product_attention("sdpa",
                                                  {input_info("q"), input_info("k"), input_info("v")},
                                                  true,
@@ -2422,8 +2423,6 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        cfg.set_property(ov::intel_gpu::force_implementations(
-            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
 
         auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
