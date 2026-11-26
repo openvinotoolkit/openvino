@@ -492,7 +492,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
 
 inline std::shared_ptr<ov::Model> build_2gemm_bgm_model(bool has_batch_dim = true,
                                                         bool restore_output_shape = false,
-                                                        bool interleaved = true) {
+                                                        bool interleaved = true,
+                                                        int64_t lane_axis = 2) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -561,7 +562,7 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_model(bool has_batch_dim = tru
         op::v0::Constant::create(element::i64, Shape{3}, clamped_slice_starts),
         op::v0::Constant::create(element::i64, Shape{3}, clamped_slice_stops),
         op::v0::Constant::create(element::i64, Shape{3}, slice_steps),
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2}));
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, lane_axis}));
     auto clamp = std::make_shared<op::v0::Clamp>(slice1, -expert_beta, expert_beta);
     auto add1 = std::make_shared<op::v1::Add>(clamp, op::v0::Constant::create(element::f32, Shape{1}, {1.0f}));
 
@@ -570,7 +571,7 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_model(bool has_batch_dim = tru
         op::v0::Constant::create(element::i64, Shape{3}, swish_slice_starts),
         op::v0::Constant::create(element::i64, Shape{3}, swish_slice_stops),
         op::v0::Constant::create(element::i64, Shape{3}, slice_steps),
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2}));
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, lane_axis}));
     auto minimum1 =
         std::make_shared<op::v1::Minimum>(slice2, op::v0::Constant::create(element::f32, Shape{1}, {10.0f}));
     auto swish_beta_const = op::v0::Constant::create(element::f32, Shape{}, std::vector<float>{expert_alpha});
@@ -884,6 +885,12 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_multiply_input_
 
 TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_basic) {
     model = build_2gemm_bgm_model();
+    manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_2gemm_bgm_to_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_negative_lane_axis) {
+    model = build_2gemm_bgm_model(true, false, true, -1);
     manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_2gemm_bgm_to_moe_reference_model();
 }

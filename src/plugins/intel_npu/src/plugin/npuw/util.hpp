@@ -38,6 +38,11 @@ ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
 // we need to explicitly create a tensor which owns the memory during the execution.
 ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
+void reshape_weightless_tensor(ov::Tensor& tensor,
+                               const ov::element::Type& type,
+                               const ov::Shape& shape,
+                               std::size_t byte_size);
+
 bool starts_with(const std::string& str, const std::string& prefix);
 
 // Case-insensitive substring search.

@@ -21,6 +21,7 @@
 
 #include "llm_lora_states.hpp"
 #include "logging.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -194,6 +195,19 @@ ov::Tensor ov::npuw::util::copy_tensor_from_const(const std::shared_ptr<ov::Node
     auto tensor = ov::Tensor(port.get_element_type(), port.get_shape());
     std::memcpy(tensor.data(), cnst_node->get_data_ptr(), cnst_node->get_byte_size());
     return tensor;
+}
+
+void ov::npuw::util::reshape_weightless_tensor(ov::Tensor& tensor,
+                                               const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               std::size_t byte_size) {
+    OPENVINO_ASSERT(type.is_static() && type != ov::element::string, "[NPU] ORC weight has unsupported element type");
+    const auto elements = ov::util::get_memory_size_safe(ov::element::u8, shape);
+    const auto packed_size = ov::util::get_memory_size_safe(type, shape);
+    OPENVINO_ASSERT(elements && packed_size && tensor.get_element_type() == type && tensor.get_size() == *elements &&
+                        tensor.get_byte_size() == byte_size && *packed_size == byte_size,
+                    "[NPU] ORC weight metadata does not match the model Constant");
+    tensor.set_shape(shape);
 }
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {

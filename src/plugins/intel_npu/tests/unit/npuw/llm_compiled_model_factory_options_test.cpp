@@ -35,6 +35,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
@@ -1227,6 +1228,32 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintFusesGptOssExpertsWithInt
         EXPECT_EQ(count_nodes<ov::op::v0::Tile>(call->model), 0u) << "Expert Tile should be fused away";
         EXPECT_GE(count_moe_nodes(call->model), 1u) << "Expected at least one fused MOE(Compressed) op";
         expect_missing_prop(call->props, "NPUW_ONLINE_ISOLATE");
+    }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintFusesGptOssExpertsWithNegativeSliceAxis) {
+    auto model = build_moe_llm_model();
+    size_t updated_slices = 0;
+    for (const auto& node : model->get_ops()) {
+        auto slice = ov::as_type_ptr<ov::op::v8::Slice>(node);
+        if (slice && (slice->get_friendly_name().find(".expert.slice_act") != std::string::npos ||
+                      slice->get_friendly_name().find(".expert.slice_gate") != std::string::npos)) {
+            slice->input(4).replace_source_output(ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1}));
+            ++updated_slices;
+        }
+    }
+    ASSERT_GE(updated_slices, 2u);
+    model->validate_nodes_and_infer_types();
+
+    RecordingFactory recorder;
+    ASSERT_NO_THROW(create_compiled_model(model,
+                                          {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                           {"NPUW_LLM_PREFILL_MOE_HINT", "FUSED"},
+                                           {"NPUW_LLM_GENERATE_MOE_HINT", "FUSED"}},
+                                          recorder));
+    for (const auto* call : {&require_call(recorder, "_prefill"), &require_call_containing(recorder, "_kv")}) {
+        EXPECT_GE(count_moe_nodes(call->model), 1u);
+        EXPECT_EQ(count_nodes<ov::op::v0::Tile>(call->model), 0u);
     }
 }
 

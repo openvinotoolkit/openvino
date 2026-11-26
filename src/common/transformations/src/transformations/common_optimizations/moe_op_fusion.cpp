@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -73,9 +74,17 @@ static std::optional<size_t> get_interleaved_lane(const std::shared_ptr<ov::Node
         return std::nullopt;
     }
 
+    const auto rank = slice->get_input_partial_shape(0).rank();
     std::optional<size_t> lane;
     for (size_t i = 0; i < axes.size(); ++i) {
-        if (axes[i] != 2) {
+        auto axis = axes[i];
+        if (axis < 0) {
+            if (rank.is_dynamic() || axis < -rank.get_length()) {
+                return std::nullopt;
+            }
+            axis = static_cast<int64_t>(ov::util::normalize_axis(axis, rank.get_length()));
+        }
+        if (axis != 2) {
             continue;
         }
         if (lane.has_value() || steps[i] != 2 || starts[i] < 0 || starts[i] > 1) {

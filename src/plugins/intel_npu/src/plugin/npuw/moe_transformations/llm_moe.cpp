@@ -23,9 +23,6 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/gather_matmul.hpp"
@@ -33,47 +30,10 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
+#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 
 namespace {
-
-// MoeOpFusion replaces the matched tiled-MoE block with a MOE(Compressed) node whose output rank
-// ([B,S,H]) can differ from the rank the original (unfused) block produced (e.g. flattened
-// [tokens,H]). Leftover Reshape ops right after the block - which existed to restore [B,S,H] from
-// that original rank and may carry stale/baked target values for it - no longer agree with the new
-// rank once ReshapeToStatic turns shapes concrete, and fail shape validation. Collapse such a
-// Reshape->Reshape pair into just the second Reshape: when its special_zero is false its output
-// shape depends only on its own target (not on the intermediate shape), so this is safe regardless
-// of the first reshape's target values, as long as it has no other consumers.
-class CollapseRedundantReshapePair : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("CollapseRedundantReshapePair");
-    CollapseRedundantReshapePair() {
-        using namespace ov::pass::pattern;
-        auto reshape_input = any_input();
-        auto reshape_a_target = any_input();
-        auto reshape_a = wrap_type<ov::op::v1::Reshape>({reshape_input, reshape_a_target}, consumers_count(1));
-        auto reshape_b_target = any_input();
-        auto reshape_b = wrap_type<ov::op::v1::Reshape>({reshape_a, reshape_b_target});
-
-        ov::matcher_pass_callback callback = [=](Matcher& m) {
-            const auto& pm = m.get_pattern_value_map();
-            auto reshape_b_node = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());
-            if (!reshape_b_node || reshape_b_node->get_special_zero()) {
-                return false;
-            }
-            auto reshape_a_node = pm.at(reshape_a).get_node_shared_ptr();
-            auto new_reshape =
-                std::make_shared<ov::op::v1::Reshape>(pm.at(reshape_input), pm.at(reshape_b_target), false);
-            new_reshape->set_friendly_name(reshape_b_node->get_friendly_name());
-            ov::copy_runtime_info({reshape_a_node, reshape_b_node}, new_reshape);
-            ov::replace_node(reshape_b_node, new_reshape);
-            return true;
-        };
-        auto m = std::make_shared<Matcher>(reshape_b, "CollapseRedundantReshapePair");
-        register_matcher(m, callback);
-    }
-};
 
 // The fusion re-creates weight Constants as buffer-sharing reshapes without their weightless cache
 // attribute, which makes NPUW deep-copy every one of them. Same buffer means same file offset, so
@@ -289,7 +249,7 @@ void apply_moe_fusion(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
                                                                                  supported_weights_types);
     manager.register_pass<ov::pass::MoeOpFusion>();
-    manager.register_pass<CollapseRedundantReshapePair>();
+    manager.register_pass<ov::pass::ReshapeSequenceFusion>(false, true);
     manager.register_pass<ov::pass::Validate>();
     manager.run_passes(model);
     validate_moe_fused(model);
