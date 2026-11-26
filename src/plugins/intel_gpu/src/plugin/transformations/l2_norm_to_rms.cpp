@@ -322,6 +322,17 @@ L2NormToRMSChannelAxis::L2NormToRMSChannelAxis() {
         if (root->get_output_partial_shape(0) != x.get_partial_shape()) {
             return false;
         }
+        // Every matched node but the root must feed the chain only, or it would stay alive next to RMS. Any of the
+        // tail ops can be the root, which may have any consumers, so this is checked here rather than in the pattern.
+        ov::NodeVector matched;
+        for (const auto& label : {reduce_m, clamp_m, max_m, min_m, bcast_m, div_m, inv_norm_m, mul_inv_m, scaled_m, weighted_m, root_m}) {
+            if (pm.count(label)) {
+                matched.push_back(pm.at(label).get_node_shared_ptr());
+                if (matched.back() != root && matched.back()->get_output_target_inputs(0).size() != 1) {
+                    return false;
+                }
+            }
+        }
         const auto channels = static_cast<size_t>(x.get_partial_shape()[1].get_length());
 
         double eps = 0.0;
@@ -368,12 +379,6 @@ L2NormToRMSChannelAxis::L2NormToRMSChannelAxis() {
         auto rms = std::make_shared<ov::op::internal::RMS>(x, fused_gamma, eps * eps / static_cast<double>(channels), root->get_output_element_type(0), 1);
         new_nodes.push_back(rms);
 
-        ov::NodeVector matched;
-        for (const auto& label : {reduce_m, clamp_m, max_m, min_m, bcast_m, div_m, inv_norm_m, mul_inv_m, scaled_m, weighted_m, root_m}) {
-            if (pm.count(label)) {
-                matched.push_back(pm.at(label).get_node_shared_ptr());
-            }
-        }
         rms->set_friendly_name(root->get_friendly_name());
         ov::copy_runtime_info(matched, new_nodes);
         ov::replace_node(root, rms);

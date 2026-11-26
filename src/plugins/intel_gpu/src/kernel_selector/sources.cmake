@@ -630,6 +630,8 @@ set(GPU_KERNEL_SELECTOR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_base.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_bfyx_opt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_bfyx_opt.h
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_fsv16.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_fsv16.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_ref.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/rms/rms_kernel_selector.cpp
@@ -991,6 +993,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reverse_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reverse_sequence_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/rms_gpu_bfyx_opt.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/rms_gpu_fsv16.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/rms_gpu_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/roi_align_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/roi_pooling_ps_ref.cl

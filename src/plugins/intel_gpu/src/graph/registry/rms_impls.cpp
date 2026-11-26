@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/primitives/rms.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "primitive_inst.h"
 #include "registry.hpp"
 
@@ -22,24 +23,19 @@ struct RMSImplementationManager : public ImplementationManagerLegacy<rms> {
             return false;
         }
 
-        auto is_blocked = [](format f) {
-            return f == format::b_fs_yx_fsv16 || f == format::b_fs_zyx_fsv16;
-        };
         const auto& in_layout = node.get_input_layout(0);
-        const auto out_fmt = node.is_valid_output_layout(0) ? node.get_output_layout(0).format : format(format::any);
-        if (!is_blocked(in_layout.format) && !is_blocked(out_fmt)) {
+        const bool out_blocked = node.is_valid_output_layout(0) && node.get_output_layout(0).format.is_blocked();
+        if (!in_layout.format.is_blocked() && !out_blocked) {
             return true;
         }
 
-        // Blocked layouts are served by RMSKernelBfyxOpt, which can only address them on the feature axis of a
-        // rank-4/5 tensor; RMSKernelRef takes the plain layouts only.
-        if (node.is_dynamic() || in_layout.is_dynamic()) {
+        // Blocked layouts are served by RMSKernelFsv16 and RMSKernelBfyxOpt, which can only address them on the feature
+        // axis of a rank-4/5 tensor; RMSKernelRef takes the plain layouts only.
+        if (node.is_dynamic()) {
             return false;
         }
-        const auto& prim = node.as<rms>().get_primitive();
         const auto rank = static_cast<int64_t>(in_layout.get_partial_shape().size());
-        const auto axis = prim->axis < 0 ? prim->axis + rank : prim->axis;
-        return axis == 1 && (rank == 4 || rank == 5);
+        return ov::util::normalize(node.as<rms>().get_primitive()->axis, rank) == 1 && (rank == 4 || rank == 5);
     }
 };
 

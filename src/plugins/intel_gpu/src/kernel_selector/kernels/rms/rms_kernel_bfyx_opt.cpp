@@ -44,79 +44,6 @@ static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, s
     return {itemsNum, lws};
 }
 
-// On the feature axis of an fsv16-blocked tensor (b_fs_yx_fsv16 / b_fs_zyx_fsv16) with no feature padding,
-// each fsv16 block stores 16 consecutive features at stride 1, and XBLK adjacent X elements sit at stride 16,
-// so one SIMD16 sub-group can block-read/write XBLK spatial columns at once.
-static bool is_fsv16_feature_axis_blockable(const rms_params& params) {
-    if (params.has_dynamic_tensors() || !is_feature_axis_normalization(params)) {
-        return false;
-    }
-    const auto& in = params.inputs[0];
-    const auto& out = params.outputs[0];
-    const auto in_l = in.GetLayout();
-    if ((in_l != DataLayout::b_fs_yx_fsv16 && in_l != DataLayout::b_fs_zyx_fsv16) || out.GetLayout() != in_l) {
-        return false;
-    }
-    if (in.Feature().v == 0 || in.Feature().v % subgroup_size != 0 || in.Feature().v != out.Feature().v) {
-        return false;
-    }
-    if (in.Feature().pad.before != 0 || in.Feature().pad.after != 0 || out.Feature().pad.before != 0 || out.Feature().pad.after != 0) {
-        return false;
-    }
-    if (params.elementwise_affine) {
-        const auto& gamma = params.inputs[1];
-        const auto n = gamma.LogicalSize();
-        if (n != 1 && n != in.Feature().v) {
-            return false;
-        }
-    }
-    return !has_dynamic_quantize_post_op(params);
-}
-
-struct Fsv16Tiling {
-    size_t xblk = 1;
-    size_t fsplit = 1;
-    size_t blocks_per_sg = 1;
-    bool cache = true;
-};
-
-static Fsv16Tiling get_fsv16_tiling(const rms_params& params) {
-    constexpr size_t max_cached_per_lane = 64;
-    constexpr size_t max_fsplit = 16;
-    const auto& in = params.inputs[0];
-    Fsv16Tiling t;
-    const size_t x = in.X().v;
-    // XBLK is the largest of 8/4/2/1 dividing X, so a tile never crosses a row end. Spatial padding (X
-    // included) needs no check: in b_fs_(z)yx_fsv16 the X pitch is always 16 elements, padding only moves
-    // where a row starts (applied by INPUT0_GET_INDEX/OUTPUT_GET_INDEX), so the XBLK columns of one fsv16
-    // block remain XBLK * 16 contiguous elements that a single BLOCK_READN/BLOCK_WRITEN covers.
-    for (size_t cand : {8, 4, 2, 1}) {
-        if (x % cand == 0) {
-            t.xblk = cand;
-            break;
-        }
-    }
-    const size_t fblocks = in.Feature().v / subgroup_size;
-    const size_t tiles = in.Batch().v * in.Z().v * in.Y().v * (x / t.xblk);
-    const size_t target_sgs = std::max<size_t>(params.engineInfo.computeUnitsCount, 1) * 32;
-    const size_t max_split = std::min({max_fsplit, fblocks, params.engineInfo.maxWorkGroupSize / subgroup_size});
-
-    auto per_sg = [&](size_t split) {
-        return (fblocks + split - 1) / split;
-    };
-    size_t split = 1;
-    while (split * 2 <= max_split && per_sg(split) * t.xblk > max_cached_per_lane) {
-        split *= 2;
-    }
-    while (split * 2 <= max_split && tiles * split < target_sgs) {
-        split *= 2;
-    }
-    t.fsplit = split;
-    t.blocks_per_sg = per_sg(split);
-    t.cache = t.blocks_per_sg * t.xblk <= max_cached_per_lane;
-    return t;
-}
-
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -166,33 +93,11 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     jit.AddConstant(MakeJitConstant("RMS_GAMMA_IS_SCALAR", gamma_is_scalar));
 
     const bool feature_axis = is_feature_axis_normalization(params);
-    const bool fsv16_fast = is_fsv16_feature_axis_blockable(params);
     jit.AddConstant(MakeJitConstant("RMS_FEATURE_AXIS", feature_axis));
-    jit.AddConstant(MakeJitConstant("RMS_FSV16_FAST", fsv16_fast));
-    if (fsv16_fast) {
-        const auto t = get_fsv16_tiling(params);
-        const auto& in = params.inputs[0];
-        jit.AddConstants({
-            MakeJitConstant("FSV", subgroup_size),
-            MakeJitConstant("XBLK", t.xblk),
-            MakeJitConstant("FSPLIT", t.fsplit),
-            MakeJitConstant("BLOCKS_PER_SG", t.blocks_per_sg),
-            MakeJitConstant("F_BLOCKS", in.Feature().v / subgroup_size),
-            MakeJitConstant("X_BLOCKS", in.X().v / t.xblk),
-            MakeJitConstant("CACHE_INPUT", t.cache),
-            MakeJitConstant("INV_DATA_SIZE", 1.0F / static_cast<float>(in.Feature().v)),
-        });
-    }
     if (feature_axis) {
         if (!params.fused_ops.empty()) {
             std::vector<std::string> idx_order;
-            if (fsv16_fast) {
-                if (params.inputs[0].GetDims().size() == 5) {
-                    idx_order = {"(b_idx)", "(f_base + lane)", "(z_idx)", "(y_idx)", "(x0 + xi)"};
-                } else {
-                    idx_order = {"(b_idx)", "(f_base + lane)", "(y_idx)", "(x0 + xi)"};
-                }
-            } else if (params.inputs[0].GetDims().size() == 5) {
+            if (params.inputs[0].GetDims().size() == 5) {
                 idx_order = {"(b_idx)", "(f_idx)", "(z_idx)", "(y_idx)", "(x_idx)"};
             } else {
                 idx_order = {"(b_idx)", "(f_idx)", "(y_idx)", "(x_idx)"};
@@ -311,17 +216,6 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
     dispatchData.maxSlmSize = max_lws;
     if (!params.has_dynamic_tensors()) {
-        if (is_fsv16_feature_axis_blockable(params)) {
-            const auto t = get_fsv16_tiling(params);
-            dispatchData.dataSize = input.Feature().v;
-            dispatchData.dataCount = (input.X().v / t.xblk) * input.Y().v * input.Z().v * input.Batch().v;
-            dispatchData.lws = {1, t.fsplit * subgroup_size, 1};
-            dispatchData.gws = {dispatchData.dataCount, t.fsplit * subgroup_size, 1};
-            dispatchData.itemsNum = t.blocks_per_sg;
-            dispatchData.leftovers = 0;
-            dispatchData.subgroupBlockSize = 1;
-            return dispatchData;
-        }
         // data size to be processed within a LWG
         if (is_feature_axis_normalization(params)) {
             dispatchData.dataSize = input.Feature().v;

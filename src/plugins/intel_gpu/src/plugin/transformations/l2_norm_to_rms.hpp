@@ -82,8 +82,8 @@ public:
  * Applied when:
  *  - x has rank 4 or 5 (RMS maps axis 1 to the GPU feature axis for those ranks only) and a static channel
  *    dimension C (it goes into gamma and eps); other dimensions may be dynamic;
- *  - the reduction is over axis 1 only, with keep_dims, and the norm and its floor feed nothing else (otherwise they
- *    would stay alive next to RMS);
+ *  - the reduction is over axis 1 only, with keep_dims, and every matched node but the last feeds nothing else
+ *    (otherwise it would stay alive next to RMS);
  *  - eps is a scalar in [0, d / 1024], d the smallest positive (denormal) value of the element type of the norm
  *    (f16: ~5.8e-11, so the usual 1e-12 qualifies; f32/bf16: practically only 0). A nonzero ||x||_2 is at least d, so
  *    the floor and the addend then agree to 2^-21 relative, and ||x||_2 == 0 gives 0 either way;

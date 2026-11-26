@@ -613,6 +613,38 @@ TEST_F(L2NormToRMSTest, ChannelNormHasOtherConsumer) {
     model = std::make_shared<ov::Model>(ov::OutputVector{div, norm}, ov::ParameterVector{x});
 }
 
+// The normalized x is used elsewhere too: the gamma Multiply stays outside, and RMS replaces the normalization.
+TEST_F(L2NormToRMSTest, ChannelNormalizedHasOtherConsumer) {
+    const auto gamma = gamma_values(ov::element::f32);
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, channel_shape(4));
+        auto normalized = l2_norm_channel(x);
+        auto weighted = std::make_shared<v1::Multiply>(normalized, v0::Constant::create(ov::element::f32, per_channel_shape(4), gamma));
+        model = std::make_shared<ov::Model>(ov::OutputVector{weighted, normalized}, ov::ParameterVector{x});
+    }
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, channel_shape(4));
+        auto rms = channel_rms(x, fused_gamma(std::nullopt, std::nullopt));
+        auto weighted = std::make_shared<v1::Multiply>(rms, v0::Constant::create(ov::element::f32, per_channel_shape(4), gamma));
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{weighted, rms}, ov::ParameterVector{x});
+    }
+}
+
+// Only the root may have several consumers.
+TEST_F(L2NormToRMSTest, ChannelRootHasTwoConsumers) {
+    const auto gamma = gamma_values(ov::element::f32);
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, channel_shape(4));
+        auto weighted = std::make_shared<v1::Multiply>(l2_norm_channel(x), v0::Constant::create(ov::element::f32, per_channel_shape(4), gamma));
+        model = std::make_shared<ov::Model>(ov::OutputVector{weighted, weighted}, ov::ParameterVector{x});
+    }
+    {
+        auto x = std::make_shared<v0::Parameter>(ov::element::f32, channel_shape(4));
+        auto rms = channel_rms(x, fused_gamma(std::nullopt, gamma));
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms, rms}, ov::ParameterVector{x});
+    }
+}
+
 // The Broadcast expands x itself, so the result does not have the shape of RMS(x).
 TEST_F(L2NormToRMSTest, ChannelBroadcastExpandsX) {
     const ov::Shape x_shape{1, channels, 1, 10};

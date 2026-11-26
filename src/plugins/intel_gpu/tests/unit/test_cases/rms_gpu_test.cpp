@@ -1401,9 +1401,9 @@ TYPED_TEST(rms_gpu_mixed_gamma_type_test, ref_feature_axis) {
     run_rms_test_bfyx_feature_axis<typename TestFixture::input_type, typename TestFixture::gamma_type>("rms_gpu_ref");
 }
 
-// Feature-axis RMS on fsv16-blocked tensors (b_fs_yx_fsv16 / b_fs_zyx_fsv16), served by rms_gpu_bfyx_opt.
-// Whole-fsv16-block cases take the RMS_FSV16_FAST path (sub-group block read/write over XBLK columns);
-// the tiling it picks is checked through the jit constants of the compiled kernel.
+// Feature-axis RMS on fsv16-blocked tensors (b_fs_yx_fsv16 / b_fs_zyx_fsv16). Whole-fsv16-block cases are served by
+// rms_gpu_fsv16 (sub-group block read/write over XBLK columns), the others by the feature-axis path of rms_gpu_bfyx_opt;
+// the tiling rms_gpu_fsv16 picks is checked through the jit constants of the compiled kernel.
 // A blocked input with a plain output is not covered: rms takes its output format from its input
 // (calc_output_layout), so forcing a plain rms format just moves the reorder in front of rms.
 namespace {
@@ -1415,13 +1415,13 @@ struct rms_fsv16_case {
     ov::Shape shape;  // [B, C, (Z,) Y, X]
     data_types dt;
     rms_fsv16_gamma gamma;
-    bool fused_sum;         // eltwise sum (full-shape bias) fused into rms
-    padding in_pad;         // padding of the blocked rms input
-    padding out_pad;        // padding of the rms output
-    bool expect_fast;       // RMS_FSV16_FAST expected
-    int64_t expect_xblk;    // -1: don't check
-    int64_t expect_fsplit;  // -1: don't check, 0: expect > 1, else exact value
-    int64_t expect_cache;   // -1: don't check
+    bool fused_sum;            // eltwise sum (full-shape bias) fused into rms
+    padding in_pad;            // padding of the blocked rms input
+    padding out_pad;           // padding of the rms output
+    bool expect_fsv16_kernel;  // rms_gpu_fsv16 selected, else rms_gpu_bfyx_opt
+    int64_t expect_xblk;       // -1: don't check
+    int64_t expect_fsplit;     // -1: don't check, 0: expect > 1, else exact value
+    int64_t expect_cache;      // -1: don't check
 };
 
 std::string rms_fsv16_jit_value(const std::string& jit, const std::string& name) {
@@ -1524,14 +1524,14 @@ void run_rms_fsv16_feature_axis(const rms_fsv16_case& p) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"rms", {blocked_fmt, "rms_gpu_bfyx_opt"}}}));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"rms", {blocked_fmt, ""}}}));
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto inst = network.get_primitive("rms");
     auto impl = inst->get_impl();
     ASSERT_NE(impl, nullptr);
-    ASSERT_EQ(impl->get_kernel_name(), "rms_gpu_bfyx_opt");
+    ASSERT_EQ(impl->get_kernel_name(), p.expect_fsv16_kernel ? "rms_gpu_fsv16" : "rms_gpu_bfyx_opt");
     const auto& node = inst->get_node();
     const auto in_layout = node.get_input_layout(0);
     const auto out_layout = node.get_output_layout(0);
@@ -1550,7 +1550,6 @@ void run_rms_fsv16_feature_axis(const rms_fsv16_case& p) {
         }
     }
     ASSERT_FALSE(jit.empty());
-    ASSERT_EQ(rms_fsv16_jit_int(jit, "RMS_FSV16_FAST"), p.expect_fast ? 1 : 0);
     if (p.expect_xblk >= 0) {
         EXPECT_EQ(rms_fsv16_jit_int(jit, "XBLK"), p.expect_xblk);
     }
@@ -1595,7 +1594,7 @@ const padding pad_5d_out({0, 0, 0, 1, 1}, {0, 0, 1, 0, 2});
 // or tiles * FSPLIT < 32 * EUs (capped at 16 and F/16); CACHE_INPUT = blocks per sub-group * XBLK <= 64.
 const std::vector<rms_fsv16_case> rms_fsv16_cases = {
     // clang-format off
-    // name                         shape                     dt              gamma                         fused  in_pad     out_pad     fast   xblk fsplit cache
+    // name                         shape                     dt              gamma                         fused  in_pad     out_pad     fsv16  xblk fsplit cache
     {"f32_4d_xblk8",                {2, 32, 3, 8},            data_types::f32, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  8,   -1,  1},
     {"f16_4d_xblk4",                {1, 48, 5, 4},            data_types::f16, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  4,   -1,  1},
     {"f32_4d_xblk2",                {1, 32, 2, 6},            data_types::f32, rms_fsv16_gamma::per_channel, false, no_pad,    no_pad,     true,  2,   -1,  1},
@@ -1632,7 +1631,7 @@ const std::vector<rms_fsv16_case> rms_fsv16_cases = {
 
 class rms_gpu_fsv16_feature_axis_test : public ::testing::TestWithParam<rms_fsv16_case> {};
 
-TEST_P(rms_gpu_fsv16_feature_axis_test, rms_gpu_bfyx_opt) {
+TEST_P(rms_gpu_fsv16_feature_axis_test, feature_axis) {
     const auto& p = GetParam();
     if (p.dt == data_types::f16) {
         run_rms_fsv16_feature_axis<ov::float16>(p);
