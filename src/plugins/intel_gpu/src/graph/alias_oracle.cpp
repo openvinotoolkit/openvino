@@ -6,11 +6,15 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
 
 #include "alias_analysis.h"
+#include "assign_inst.h"
+#include "kv_cache_inst.h"
+#include "read_value_inst.h"
 #include "condition_inst.h"
 #include "data_inst.h"
 #include "exec_axis.h"
@@ -253,6 +257,152 @@ void network::run_alias_oracle(const exec_axis* axis_override) {
             const bool ambiguous = aa->uid_is_ambiguous(static_cast<uint32_t>(ua)) || aa->uid_is_ambiguous(static_cast<uint32_t>(ub));
             rep.hits.push_back({rule_id::V2, ambiguous ? severity::info : severity::defect, a.node->id(), b.node->id(), a.port, b.port,
                                 std::string("shared allocation of two different classes is not explained by the pool") + (ambiguous ? " (ambiguous uid)" : "")});
+        }
+    }
+
+    // ---- V2b: lifetime on the actually bound memory (design 19, C6). Independent of alias_analysis, node flags and class_lifetimes. ----
+    {
+        struct wrec {
+            uintptr_t lo = 0, hi = 0;
+            const primitive_inst* inst = nullptr;
+            bool padded = false;
+        };
+        const auto not_judged_type = [](const program_node& n) {
+            return n.is_type<condition>() || n.is_type<loop>() || n.is_type<assign>() || n.is_type<read_value>() || n.is_type<kv_cache>() ||
+                   n.is_type<mutable_data>();
+        };
+        const auto external_type = [](const program_node& n) {
+            return n.is_type<input_layout>() || n.is_type<data>();
+        };
+        const auto position_of = [&](const primitive_inst* i) -> int64_t {
+            auto it = _exec_positions.find(i);
+            return it == _exec_positions.end() ? -1 : static_cast<int64_t>(it->second);
+        };
+        // executes a kernel / writes memory this round
+        const auto writer = [&](const primitive_inst& i) {
+            const auto& n = i.get_node();
+            return position_of(&i) >= 0 && !i.get_flag(ExecutionFlags::SKIP) && !i.can_be_optimized() && !external_type(n) && !not_judged_type(n);
+        };
+        size_t max_pos = 0;
+        for (const auto& kv : _exec_positions) {
+            max_pos = std::max(max_pos, kv.second);
+        }
+        std::vector<std::vector<wrec>> writes_at(max_pos + 1);
+        const auto add_write = [&](const primitive_inst& inst, size_t pos, const memory::ptr& m, bool padded) {
+            wrec w;
+            if (!m || !usm_range(*m, w.lo, w.hi)) {
+                if (m && m->size() != 0) {
+                    ++rep.v2b_unverifiable;
+                }
+                return;
+            }
+            w.inst = &inst;
+            w.padded = padded;
+            writes_at[pos].push_back(w);
+            ++rep.v2b_writes;
+        };
+        for (const auto& inst : _exec_order) {
+            const primitive_inst& i = *inst;
+            if (not_judged_type(i.get_node())) {
+                ++rep.v2b_excluded;
+                continue;
+            }
+            if (!writer(i)) {
+                continue;
+            }
+            const size_t pos = static_cast<size_t>(position_of(&i));
+            for (size_t port = 0; port < i.outputs_memory_count(); ++port) {
+                bool padded = false;
+                try {
+                    padded = static_cast<bool>(i.get_output_layout(port).data_padding);
+                } catch (...) {
+                    padded = true;
+                }
+                add_write(i, pos, i.output_memory_ptr(port), padded);
+            }
+            for (const auto& m : i.get_intermediates_memories()) {
+                add_write(i, pos, m, false);
+            }
+        }
+
+        const auto overlap = [](uintptr_t alo, uintptr_t ahi, uintptr_t blo, uintptr_t bhi, uintptr_t& olo, uintptr_t& ohi) {
+            olo = std::max(alo, blo);
+            ohi = std::min(ahi, bhi);
+            return olo < ohi;
+        };
+        std::set<std::pair<const primitive_inst*, const primitive_inst*>> reported;
+        // range R of the data that the reader at position `rpos` takes from the output of `d`
+        std::function<void(uintptr_t, uintptr_t, const primitive_inst*, const primitive_inst&, int64_t, int)> judge = [&](uintptr_t rlo, uintptr_t rhi,
+                                                                                                                         const primitive_inst* d,
+                                                                                                                         const primitive_inst& reader,
+                                                                                                                         int64_t rpos, int depth) {
+            if (d == nullptr || depth > 64) {
+                return;
+            }
+            const auto& dn = d->get_node();
+            if (not_judged_type(dn)) {
+                return;
+            }
+            int64_t dpos = -1;   // external data (input_layout / data) exists before the first position
+            if (!external_type(dn)) {
+                if (writer(*d)) {
+                    dpos = position_of(d);
+                } else {
+                    // executes nothing (skipped / can_be_optimized): the data lives in the memories of its inputs
+                    for (size_t j = 0; j < d->inputs_memory_count() && j < d->dependencies().size(); ++j) {
+                        const auto m = d->dep_memory_ptr(j);
+                        uintptr_t mlo, mhi, olo, ohi;
+                        if (m && usm_range(*m, mlo, mhi) && overlap(rlo, rhi, mlo, mhi, olo, ohi)) {
+                            judge(olo, ohi, d->dependencies()[j].first, reader, rpos, depth + 1);
+                        }
+                    }
+                    return;
+                }
+            }
+            for (int64_t q = dpos + 1; q < rpos && q <= static_cast<int64_t>(max_pos); ++q) {
+                for (const auto& w : writes_at[static_cast<size_t>(q)]) {
+                    uintptr_t olo, ohi;
+                    if (w.inst == &reader || !overlap(rlo, rhi, w.lo, w.hi, olo, ohi)) {
+                        continue;
+                    }
+                    if (!reported.emplace(w.inst, &reader).second) {
+                        continue;
+                    }
+                    bool d_padded = false;
+                    try {
+                        for (size_t port = 0; port < d->outputs_memory_count(); ++port) {
+                            d_padded = d_padded || static_cast<bool>(d->get_output_layout(port).data_padding);
+                        }
+                    } catch (...) {
+                        d_padded = true;
+                    }
+                    const bool slots = w.padded && d_padded;
+                    rep.v2b_hits.push_back({rule_id::V2, slots ? severity::info : severity::defect, w.inst->id(), reader.id(), 0, 0,
+                                            "V2b: " + w.inst->id() + " writes [position " + std::to_string(q) + "] into memory that " + reader.id() + " reads at position " +
+                                                std::to_string(rpos) + " from " + d->id() + " (produced at position " + std::to_string(dpos) + ")" +
+                                                (slots ? " (padded slots of one group: not separable by range)" : "")});
+                }
+            }
+        };
+        for (const auto& inst : _exec_order) {
+            const primitive_inst& x = *inst;
+            if (!writer(x)) {
+                continue;
+            }
+            const int64_t xpos = position_of(&x);
+            for (size_t i = 0; i < x.inputs_memory_count() && i < x.dependencies().size(); ++i) {
+                const auto m = x.dep_memory_ptr(i);
+                uintptr_t lo, hi;
+                if (!m || m->size() == 0) {
+                    continue;
+                }
+                if (!usm_range(*m, lo, hi)) {
+                    ++rep.v2b_unverifiable;
+                    continue;
+                }
+                ++rep.v2b_reads_checked;
+                judge(lo, hi, x.dependencies()[i].first, x, xpos, 0);
+            }
         }
     }
     *_alias_oracle_report = std::move(rep);

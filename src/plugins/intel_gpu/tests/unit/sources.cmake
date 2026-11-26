@@ -85,6 +85,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/alloc_trace_summary_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/alias_analysis_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/alias_oracle_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/alias_oracle_v2b_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/alias_validation_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/oooq_gate_shadow_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/class_lifetime_test.cpp
