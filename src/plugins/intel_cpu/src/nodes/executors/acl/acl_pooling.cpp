@@ -60,16 +60,11 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         poolingAttrs.rounding == op::RoundingType::CEIL_TORCH) {
         // Auto padding depends on the concrete input shape and is not known here.
         bool mayDropLastWindow = poolingAttrs.auto_pad;
-        bool hasPadding = false;
         for (size_t i = 0; i < poolingAttrs.kernel.size(); ++i) {
             mayDropLastWindow |= poolingAttrs.data_pad_end[i] > poolingAttrs.kernel[i] - poolingAttrs.stride[i];
-            hasPadding |= poolingAttrs.data_pad_begin[i] != 0 || poolingAttrs.data_pad_end[i] != 0;
         }
-        // Preserve the NCHW ceil-average padding accuracy workaround below.
-        const bool needsPaddingWorkaround =
-            dataLayout == DataLayout::NCHW && hasPadding && !poolingAttrs.exclude_pad;
-        if (mayDropLastWindow || needsPaddingWorkaround) {
-            DEBUG_LOG("Dynamic CEIL_TORCH AvgPool requires oneDNN shape or padding handling.");
+        if (mayDropLastWindow) {
+            DEBUG_LOG("Dynamic CEIL_TORCH AvgPool may drop a window unsupported by ACL.");
             return false;
         }
     }
