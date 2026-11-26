@@ -260,8 +260,19 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     key_cache->set_friendly_name(present_key->get_friendly_name() + "_stateless");
 
     std::shared_ptr<op::StatelessKV> value_cache;
+    bool transpose_sdpa_value = false;
     if (past_value_transpose && present_value_transpose) {
-        metadata.transpose_v_order = transpose_v_order;
+        // SDPA reads the cache as value order {0,1,3,2} only where its kernel reads that order (m_fuse_transposed_v) and at a
+        // static head size up to 512; elsewhere V reaches SDPA back as [B, KVH, S, head_size] through an explicit Transpose
+        // of the cache (the other SDPA kernels read V as head-contiguous rows).
+        const auto& value_shape = value.get_partial_shape();
+        const auto& head_dim = value_shape.rank().is_static() && value_shape.size() == 4 ? value_shape[3] : ov::Dimension::dynamic();
+        const bool head_ok = head_dim.is_static() && head_dim.get_length() <= 512;
+        if (m_fuse_transposed_v && head_ok) {
+            metadata.transpose_v_order = transpose_v_order;
+        } else {
+            transpose_sdpa_value = true;
+        }
         // Before: past_value -> Transpose -> GQA cache -> Transpose -> present_value.
         // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
         //         current_value -> Transpose ----------^      (the output Transpose is bypassed)
@@ -281,6 +292,9 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     } else {
         outputs.sdpa_key = key_cache->output(1);
         outputs.sdpa_value = value_cache->output(1);
+    }
+    if (transpose_sdpa_value) {
+        outputs.sdpa_value = register_new_node<v1::Transpose>(outputs.sdpa_value, value_transpose_order);
     }
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));

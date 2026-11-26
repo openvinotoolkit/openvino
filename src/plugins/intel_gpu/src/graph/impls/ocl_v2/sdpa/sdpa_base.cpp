@@ -87,6 +87,18 @@ bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
     return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
+bool SDPABase::has_transposed_v(const kernel_impl_params& params) {
+    if (!params.is_type<scaled_dot_product_attention>()) {
+        return false;
+    }
+    const auto& order = params.typed_desc<scaled_dot_product_attention>()->input_v_transpose_order;
+    if (order.empty()) {
+        return false;
+    }
+    const auto ext = extend_order_in_num_heads_dim(order);
+    return ext.size() == 4 && ext[2] == 3 && ext[3] == 2;
+}
+
 // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
 // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
 // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
