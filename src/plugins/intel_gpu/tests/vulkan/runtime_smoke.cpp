@@ -122,6 +122,15 @@ TEST_F(VulkanRuntimeSmoke, RejectsStringTensors) {
         "String tensors are unsupported");
 }
 
+TEST_F(VulkanRuntimeSmoke, RejectsDynamicElementType) {
+    auto context = m_core.get_default_context(m_device_name);
+    expect_ov_exception(
+        [&] {
+            context.create_tensor(ov::element::dynamic, {1});
+        },
+        "Dynamic element types are unsupported");
+}
+
 TEST_F(VulkanRuntimeSmoke, RejectsUnsupportedTensorRankBeforeChangingShape) {
     auto context = m_core.get_default_context(m_device_name);
     const ov::Shape supported_shape(8, 1);

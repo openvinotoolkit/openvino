@@ -22,6 +22,7 @@ namespace cldnn {
 namespace vulkan {
 
 void validate_tensor_shape(const ov::Shape& shape, const ov::element::Type& type) {
+    OPENVINO_ASSERT(type.is_static(), "[GPU][Vulkan] Dynamic element types are unsupported");
     OPENVINO_ASSERT(shape.size() <= layout::max_rank(), "[GPU][Vulkan] Tensor rank exceeds the maximum supported rank of ", layout::max_rank());
     constexpr auto max_dimension = static_cast<uint64_t>((std::numeric_limits<ov::Dimension::value_type>::max)());
     OPENVINO_ASSERT(std::all_of(shape.begin(),
