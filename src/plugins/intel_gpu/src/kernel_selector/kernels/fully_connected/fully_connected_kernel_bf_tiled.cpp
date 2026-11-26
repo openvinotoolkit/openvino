@@ -411,18 +411,16 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_f = bf_size.second;
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
-    // If batch size is prime number, still can apply tile execution to avoid poor performance.
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
-        const size_t batch_tiles = CeilDiv(batch_size, static_cast<size_t>(tparams.tile_b));
-        if (batch_size == 1 || (batch_tiles % tparams.dispatch_bsv != 0)) {
+        if (params.is_shape_agnostic || tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
             return false;
         }
 
-        size_t tile = simd;
-        while (batch_size % tile != 0) {
-            tile--;
-        }
-        if (tile > 1) {
+        // Allow padded batch tiles / padded dispatch_bsv for static non-SLM kernels when
+        // batch_size >= tile_b and dispatch_bsv <= batch_tiles (avoiding redundant empty tiles).
+        // Padded workgroups (out_b >= BATCH_SIZE) exit immediately at kernel entry.
+        const size_t batch_tiles = CeilDiv(batch_size, static_cast<size_t>(tparams.tile_b));
+        if (batch_size < tparams.tile_b || tparams.dispatch_bsv > batch_tiles) {
             return false;
         }
     }
@@ -603,40 +601,52 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
             }
         }
     } else {
-        if (dtype == Datatype::F16) {
+        if (dtype == Datatype::F16 || dtype == Datatype::F32) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             // Keep tile_b <= 8 with 4-byte FP32 running accumulators (FC_ACC_TYPE) + tile-local acc_tmp
             // so all non-XMX GPUs (including 128-GRF Xe-LP) stay well within register occupancy headroom.
-            // Pick the largest dispatch_bsv <= 16 dividing CeilDiv(batch, 8) (exact or prime batch)
-            // to maximize L3 weight reuse across consecutive workgroups.
-            selector.Case([&](const fully_connected_params&) -> tune_params {
-                const unsigned int tile_b = 8;
-                const unsigned int tile_ofm = std::min(max_tile_ofm, 2U);
-                size_t tile = simd;
-                while (batch % tile != 0) {
-                    tile--;
+            // Prefer an exact dispatch_bsv >= 8 dividing CeilDiv(batch, 8) to avoid padded workgroups;
+            // otherwise pad dispatch_bsv to min(batch_tiles, 16) so large unaligned batches preserve
+            // L2/L3 weight reuse across consecutive workgroups (padded workgroups exit immediately).
+            const unsigned int tile_b = 8;
+            // For small batches (< 64) not divisible by 8 that have an exact divisor in [4, 7]
+            // (e.g. M = 30 -> tile_b = 6, dispatch_bsv = 5), all batch tiles already fit in a single
+            // mega-block (<= 15) with zero leftover overhead, so let the exact-divisor fallback handle them.
+            const bool has_exact_small_tile = (batch < 64) && (batch % tile_b != 0) && (batch % 7 == 0 || batch % 6 == 0 || batch % 5 == 0 || batch % 4 == 0);
+            // Also prefer exact tile_b = 7 when batch % 8 != 0 and batch / 7 already has an exact
+            // dispatch_bsv >= 8 (e.g. M = 196 = 7 * 28 -> tile_b = 7, dispatch_bsv = 14, tile_k = 2,
+            // zero padding and BATCH_LEFTOVER = 0).
+            auto has_exact_tile7 = [&]() -> bool {
+                if (batch % tile_b == 0 || batch % 7 != 0) {
+                    return false;
                 }
-                const bool use_tile8 = (batch % tile_b == 0) || (batch > 1 && tile == 1);
-                if (!use_tile8) {
-                    return tune_params(tile_b, tile_ofm, 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED);
+                const size_t t7_batches = batch / 7;
+                for (unsigned int bsv = 16; bsv >= 8; --bsv) {
+                    if (t7_batches % bsv == 0) {
+                        return true;
+                    }
                 }
-                const size_t batch_tiles = CeilDiv(batch, static_cast<size_t>(tile_b));
-                unsigned int dispatch_bsv = 16;
-                while (batch_tiles % dispatch_bsv != 0) {
-                    dispatch_bsv--;
-                }
-                const size_t ofm_tiles = CeilDiv(output_f, static_cast<size_t>(tile_ofm) * simd);
-                const unsigned int dispatch_fsv = (dispatch_bsv > 1 && ofm_tiles % 2 == 0) ? 2 : 1;
-                return tune_params(tile_b, tile_ofm, 1, 2, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED);
-            });
-        } else if (dtype == Datatype::F32) {
-            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
-            selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 16, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 8, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 4, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 2, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
+                return false;
+            };
+            if (batch >= tile_b && !has_exact_small_tile && !has_exact_tile7()) {
+                selector.Case([&](const fully_connected_params&) -> tune_params {
+                    const unsigned int tile_ofm = std::min(max_tile_ofm, 2U);
+                    const unsigned int tile_k = (dtype == Datatype::F16) ? 2 : 1;
+                    const size_t batch_tiles = CeilDiv(batch, static_cast<size_t>(tile_b));
+                    unsigned int dispatch_bsv = static_cast<unsigned int>(std::min<size_t>(batch_tiles, 16));
+                    if (batch_tiles > 16) {
+                        unsigned int exact_bsv = 16;
+                        while (exact_bsv >= 8 && batch_tiles % exact_bsv != 0) {
+                            exact_bsv--;
+                        }
+                        dispatch_bsv = (exact_bsv >= 8) ? exact_bsv : 16;
+                    }
+                    const size_t ofm_tiles = CeilDiv(output_f, static_cast<size_t>(tile_ofm) * simd);
+                    const bool allow_fsv2 = (dtype == Datatype::F16) ? (dispatch_bsv > 1) : (dispatch_bsv == 16);
+                    const unsigned int dispatch_fsv = (allow_fsv2 && ofm_tiles % 2 == 0) ? 2 : 1;
+                    return tune_params(tile_b, tile_ofm, 1, tile_k, 1, dispatch_bsv, dispatch_fsv, EXE_MODE_AGE_BASED);
+                });
+            }
         }
 
         if (params.compressed && batch == 1) {
@@ -689,9 +699,10 @@ FullyConnected_bf_tiled::DispatchData FullyConnected_bf_tiled::SetDefault(const 
     auto feature_threads = threads.second;
 
     const size_t aligned_batch = Align(batch_threads, lws_batches);  // Each WG calculates 8x8 batches (TILE_B x LWS[2] size)
+    const size_t aligned_batch_threads = Align(batch_threads, tparams.dispatch_bsv);
     const bool can_use_slm = tparams.kernel_type == KernelType::SLM;
 
-    dispatchData.gws[0] = can_use_slm ? feature_threads * simd : feature_threads * batch_threads * simd;
+    dispatchData.gws[0] = can_use_slm ? feature_threads * simd : feature_threads * aligned_batch_threads * simd;
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = can_use_slm ? aligned_batch : 1;
 
@@ -903,11 +914,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
     }
     auto batch_size = get_input_bf_size(params).first;
-    if (batch_size % (dispatchData.tile_m * dispatchData.tile_ms) != 0) {
-        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 1));
-    } else {
-        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 0));
-    }
+    // Padded dispatch workgroups (out_b >= BATCH_SIZE) exit at kernel entry when !USE_SLM,
+    // so per-row tile leftover guards are only needed when batch_size % tile_m != 0 (or for SLM).
+    const bool has_dispatch_batch_leftover = (batch_size % (dispatchData.tile_m * dispatchData.tile_ms) != 0);
+    const bool has_tile_batch_leftover = (batch_size % dispatchData.tile_m != 0) || (dispatchData.use_slm && has_dispatch_batch_leftover);
+    jit.AddConstant(MakeJitConstant("DISPATCH_BATCH_LEFTOVER", has_dispatch_batch_leftover ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", has_tile_batch_leftover ? 1 : 0));
 
     if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {
         std::vector<std::string> idx_order_scalar = {"(out_b + bi)", "(out_f + sglid)", "0", "0"};

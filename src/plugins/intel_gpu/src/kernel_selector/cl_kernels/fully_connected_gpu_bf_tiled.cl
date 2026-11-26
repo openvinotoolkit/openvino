@@ -287,6 +287,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
 #endif
 
+#if !USE_SLM && !IS_DYNAMIC && DISPATCH_BATCH_LEFTOVER
+    if (out_b >= BATCH_SIZE) {
+        return;
+    }
+#endif
+
     FC_ACC_VEC_TYPE acc[TILE_B] = { };
     INPUT_VEC_TYPE  in_0[TILE_B] = { };
 
@@ -426,6 +432,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
     // Main computation loop
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
+#if !IS_DYNAMIC && BATCH_LEFTOVER && !USE_PER_ROW_INPUT_OFFSET
+    const bool is_full_batch_tile = (out_b + TILE_B <= BATCH_SIZE);
+#endif
 #if FC_ACC_MERGE_TILES > 1
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni_outer = 0; ni_outer < iterations; ni_outer += FC_ACC_MERGE_TILES) {
@@ -457,7 +466,28 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             #undef LOAD_IN_0
             input_k_offset += TILE_IFM * SIMD;
         #else
-            #if IS_DYNAMIC || BATCH_LEFTOVER
+            #if !IS_DYNAMIC && BATCH_LEFTOVER
+            // Use a single subgroup-uniform full-tile fast path for static unaligned batches
+            // so full batch tiles issue all TILE_B block reads without per-row branches inside
+            // the K-loop (kept off for IS_DYNAMIC/USE_PER_ROW_INPUT_OFFSET to avoid GRF spills).
+            if (is_full_batch_tile) {
+                #define LOAD_IN_0(bi) do {                                                          \
+                        in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH);  \
+                    } while (false)
+                CONST_LOOP(TILE_B, LOAD_IN_0);
+                #undef LOAD_IN_0
+            } else {
+                #define LOAD_IN_0(bi) do {                                                          \
+                        if (bi + out_b < BATCH_SIZE) {                                              \
+                            in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH); \
+                        } else {                                                                    \
+                            in_0[bi] = 0;                                                           \
+                        }                                                                           \
+                    } while (false)
+                CONST_LOOP(TILE_B, LOAD_IN_0);
+                #undef LOAD_IN_0
+            }
+            #elif IS_DYNAMIC || BATCH_LEFTOVER
             #define LOAD_IN_0(bi) do {                                                          \
                     if (bi + out_b < BATCH_SIZE) {                                              \
                         in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH); \
@@ -465,13 +495,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         in_0[bi] = 0;                                                           \
                     }                                                                           \
                 } while (false)
+            CONST_LOOP(TILE_B, LOAD_IN_0);
+            #undef LOAD_IN_0
             #else
             #define LOAD_IN_0(bi) do {                                                          \
                     in_0[bi] = INPUT_BLOCK_READ(input, input_offset + (bi) * TILE_IN_B_PITCH);  \
                 } while (false)
-            #endif
             CONST_LOOP(TILE_B, LOAD_IN_0);
             #undef LOAD_IN_0
+            #endif
             input_offset += TILE_IFM * SIMD;
         #endif
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
@@ -922,6 +954,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     OUTPUT_VEC_TYPE result[TILE_B] = { };
 #if HAS_FUSED_OPS
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        if (bi + out_b < BATCH_SIZE) {
+    #endif
     #if TILE_OFM > 1
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
@@ -931,6 +966,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         FUSED_OPS_SCALAR;
         result[bi] = FUSED_OPS_RESULT_SCALAR;
     #endif // TILE_OFM > 1
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        }
+    #endif
     }
 #else
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
@@ -1510,6 +1548,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OUTPUT_VEC_TYPE result[TILE_B] = { };
 #if HAS_FUSED_OPS
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        if (bi + out_b < BATCH_SIZE) {
+    #endif
     #if TILE_OFM > 1
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
@@ -1519,6 +1560,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         FUSED_OPS_SCALAR;
         result[bi] = FUSED_OPS_RESULT_SCALAR;
     #endif // TILE_OFM > 1
+    #if IS_DYNAMIC || BATCH_LEFTOVER
+        }
+    #endif
     }
 #else
     unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
