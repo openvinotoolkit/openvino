@@ -169,8 +169,8 @@ jobs:
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} -- /verbosity:minimal && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- /verbosity:minimal
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} -- /verbosity:detailed && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- /verbosity:detailed
         env:
           UseMultiToolTask: 'true'
           EnforceProcessCountAcrossBuilds: 'true'
@@ -188,7 +188,7 @@ jobs:
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- /verbosity:minimal
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- /verbosity:detailed
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -372,7 +372,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed
         env:
           UseMultiToolTask: 'true'
           EnforceProcessCountAcrossBuilds: 'true'

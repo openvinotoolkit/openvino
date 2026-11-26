@@ -160,8 +160,8 @@ jobs:
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} -- -v && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- -v
 
       - name: Show ccache stats
         if: ${{ !cancelled() }}
@@ -175,7 +175,7 @@ jobs:
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- -v
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -359,7 +359,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed
 
       - name: List bin files
         shell: cmd
@@ -453,7 +453,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed
         env:
           UseMultiToolTask: 'true'
           EnforceProcessCountAcrossBuilds: 'true'
