@@ -600,6 +600,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
+// Unfused GatherMatmul with a scalar (per-tensor) zero point: the compressed path must not drop it.
+INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul_scalar_zp,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u8, ov::element::u4),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::scalar),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(true),       // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),   // use_per_expert_scale
+                                            ::testing::Values(false),   // use_layernorm_multiply
+                                            ::testing::Values(true)),   // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
 // 2-GEMM unfused: covers GatherMatmul OCL clamp/bias/swiglu compile path.
 INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                          MoECompressedFusionTest,
