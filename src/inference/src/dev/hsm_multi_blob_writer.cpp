@@ -95,21 +95,20 @@ private:
 
 MultiBlobWriter::MultiBlobWriter(std::ostream* stream,
                                  std::span<std::byte> buffer,
-                                 size_t origin,
-                                 size_t position,
-                                 MultiBlobOpenMode mode)
+                                 MultiBlobOpenMode mode,
+                                 size_t origin)
     : m_stream{stream},
       m_buffer{buffer},
       m_origin{origin},
-      m_position{position},
+      m_position{stream ? static_cast<size_t>(std::streamoff(stream->tellp())) : 0},
       m_failed{false},
       m_needs_shared_context{mode == MultiBlobOpenMode::create} {}
 
 std::optional<MultiBlobWriter> MultiBlobWriter::open(std::ostream& stream, MultiBlobOpenMode mode) {
-    if (const auto position = stream.tellp(); !stream || position == std::streampos(-1)) {
+    if (!stream || stream.tellp() == std::streampos(-1)) {
         return std::nullopt;
     } else {
-        return MultiBlobWriter{&stream, {}, 0, static_cast<size_t>(std::streamoff(position)), mode};
+        return MultiBlobWriter{&stream, {}, mode, 0};
     }
 }
 
@@ -117,7 +116,7 @@ std::optional<MultiBlobWriter> MultiBlobWriter::open(std::span<std::byte> dst, M
     if (dst.data() == nullptr || dst.size() > std::numeric_limits<size_t>::max() - origin) {
         return std::nullopt;
     } else {
-        return MultiBlobWriter{nullptr, dst, origin, 0, mode};
+        return MultiBlobWriter{nullptr, dst, mode, origin};
     }
 }
 

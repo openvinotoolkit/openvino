@@ -92,11 +92,7 @@ public:
 private:
     class Sink;
 
-    MultiBlobWriter(std::ostream* stream,
-                    std::span<std::byte> buffer,
-                    size_t origin,
-                    size_t position,
-                    MultiBlobOpenMode mode);
+    MultiBlobWriter(std::ostream* stream, std::span<std::byte> buffer, MultiBlobOpenMode mode, size_t origin);
 
     bool good();
     void put(ov::util::MemoryView data);
