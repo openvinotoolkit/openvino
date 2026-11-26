@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <tuple>
 #include <vector>
 
@@ -25,7 +26,14 @@
 namespace ov::intel_cpu {
 namespace {
 
-using Params = std::tuple<size_t, size_t, size_t, size_t, ov::element::Type>;
+struct Params {
+    std::vector<size_t> lengths;
+    size_t heads;
+    size_t kv_heads;
+    size_t key_size;
+    size_t value_size;
+    ov::element::Type cache_type;
+};
 class PagedAttentionFP16Test : public testing::TestWithParam<std::tuple<Params, bool>> {};
 
 TEST(ScaledDotProductAttentionFP16Test, PrefillWithKeyAndValueTailsMatchesReference) {
@@ -108,13 +116,22 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
     }
     const auto& dimensions = std::get<0>(GetParam());
     const bool nonzero_qk = std::get<1>(GetParam());
-    const size_t tokens = std::get<0>(dimensions);
-    const size_t heads = std::get<1>(dimensions);
-    const size_t key_size = std::get<2>(dimensions);
-    const size_t value_size = std::get<3>(dimensions);
-    const auto cache_type = std::get<4>(dimensions);
+    const auto& [lengths, heads, kv_heads, key_size, value_size, cache_type] = dimensions;
+    const size_t sequences = lengths.size();
+    const size_t tokens = std::accumulate(lengths.begin(), lengths.end(), size_t{0});
+    std::vector<size_t> continuation(sequences, 1);
+    if (sequences > 1) {
+        continuation[1] = 3;
+    }
     constexpr size_t block_size = 32;
-    const size_t blocks = (tokens + block_size) / block_size;
+    std::vector<size_t> block_begins(sequences + 1, 0);
+    size_t max_context = 0;
+    for (size_t sequence = 0; sequence < sequences; ++sequence) {
+        const size_t capacity = lengths[sequence] + continuation[sequence];
+        block_begins[sequence + 1] = block_begins[sequence] + (capacity + block_size - 1) / block_size;
+        max_context = std::max(max_context, capacity);
+    }
+    const size_t blocks = block_begins.back();
     auto tensor = [](ov::element::Type type, const ov::Shape& shape) {
         ov::Tensor result(type, shape);
         std::fill_n(static_cast<uint8_t*>(result.data()), result.get_byte_size(), uint8_t{0});
@@ -130,25 +147,26 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
         input = tensor(ov::element::i32, {0});
     }
     inputs[0] = tensor(ov::element::f16, {tokens, heads * key_size});
-    inputs[1] = tensor(ov::element::f16, {tokens, heads * key_size});
-    inputs[2] = tensor(ov::element::f16, {tokens, heads * value_size});
-    inputs[3] = tensor(ov::element::f16, {blocks, heads, block_size, key_size});
-    inputs[4] = tensor(ov::element::f16, {blocks, heads, block_size, value_size});
-    inputs[5] = tensor(ov::element::i32, {1});
-    inputs[6] = tensor(ov::element::i32, {2});
-    inputs[6].data<int32_t>()[1] = static_cast<int32_t>(tokens);
+    inputs[1] = tensor(ov::element::f16, {tokens, kv_heads * key_size});
+    inputs[2] = tensor(ov::element::f16, {tokens, kv_heads * value_size});
+    inputs[3] = tensor(ov::element::f16, {blocks, kv_heads, block_size, key_size});
+    inputs[4] = tensor(ov::element::f16, {blocks, kv_heads, block_size, value_size});
+    inputs[5] = tensor(ov::element::i32, {sequences});
+    inputs[6] = tensor(ov::element::i32, {sequences + 1});
     inputs[7] = tensor(ov::element::i32, {blocks});
     for (size_t i = 0; i < blocks; ++i) {
-        inputs[7].data<int32_t>()[i] = static_cast<int32_t>(i);
+        inputs[7].data<int32_t>()[i] = static_cast<int32_t>(blocks - 1 - i);
     }
-    inputs[8] = tensor(ov::element::i32, {2});
-    inputs[8].data<int32_t>()[1] = static_cast<int32_t>(blocks);
+    inputs[8] = tensor(ov::element::i32, {sequences + 1});
+    for (size_t sequence = 0; sequence <= sequences; ++sequence) {
+        inputs[8].data<int32_t>()[sequence] = static_cast<int32_t>(block_begins[sequence]);
+    }
     inputs[9] = tensor(ov::element::f32, {});
     inputs[9].data<float>()[0] = 1.0F;
     inputs[10] = scalar(0);
     inputs[11] = tensor(ov::element::f32, {0});
-    inputs[12] = scalar(static_cast<int32_t>(tokens + 1));
-    inputs[13] = scalar(0);
+    inputs[12] = scalar(static_cast<int32_t>(max_context));
+    inputs[13] = tensor(ov::element::i32, {sequences});
     inputs[16] = tensor(ov::element::f32, {0});
     inputs[17] = tensor(ov::element::f32, {0});
     inputs[18] = scalar(64);
@@ -173,9 +191,9 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
     }
     auto attention = std::make_shared<ov::op::PagedAttentionExtension>(arguments);
     attention->get_rt_info()["k_head_size"] = static_cast<int64_t>(key_size);
-    attention->get_rt_info()["num_k_heads"] = static_cast<int64_t>(heads);
+    attention->get_rt_info()["num_k_heads"] = static_cast<int64_t>(kv_heads);
     attention->get_rt_info()["v_head_size"] = static_cast<int64_t>(value_size);
-    attention->get_rt_info()["num_v_heads"] = static_cast<int64_t>(heads);
+    attention->get_rt_info()["num_v_heads"] = static_cast<int64_t>(kv_heads);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{attention->output(0)}, parameters);
     ov::Core core;
     auto compiled = core.compile_model(model,
@@ -191,39 +209,60 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
         shape[0] = blocks;
         inputs[i] = tensor(compiled.input(i).get_element_type(), shape.to_shape());
     }
-    auto value = [cache_type](size_t token, size_t channel) {
+    auto value = [cache_type](size_t sequence, size_t token, size_t channel) {
         const size_t levels = cache_type == ov::element::f16 ? 17 : 16;
-        return static_cast<float>(static_cast<int>((token * 7 + channel * 3) % levels) - 8) / 16.0F;
+        return static_cast<float>(static_cast<int>((sequence * 5 + token * 7 + channel * 3) % levels) - 8) / 16.0F;
     };
-    auto query = [nonzero_qk](size_t token, size_t channel) {
-        return nonzero_qk ? static_cast<float>(static_cast<int>((token * 3 + channel * 7) % 11) - 5) / 32.0F : 0.0F;
+    auto query = [nonzero_qk](size_t sequence, size_t token, size_t channel) {
+        return nonzero_qk
+                   ? static_cast<float>(static_cast<int>((sequence * 3 + token * 3 + channel * 7) % 11) - 5) / 32.0F
+                   : 0.0F;
     };
-    auto key = [nonzero_qk](size_t token, size_t channel) {
-        return nonzero_qk ? static_cast<float>(static_cast<int>((token * 5 + channel * 3) % 16) - 8) / 32.0F : 0.0F;
+    auto key = [nonzero_qk](size_t sequence, size_t token, size_t channel) {
+        return nonzero_qk
+                   ? static_cast<float>(static_cast<int>((sequence * 7 + token * 5 + channel * 3) % 16) - 8) / 32.0F
+                   : 0.0F;
     };
-    for (size_t t = 0; t < tokens; ++t) {
-        for (size_t c = 0; c < heads * key_size; ++c) {
-            inputs[0].data<ov::float16>()[t * heads * key_size + c] = ov::float16(query(t, c));
-            inputs[1].data<ov::float16>()[t * heads * key_size + c] = ov::float16(key(t, c));
+    std::vector<size_t> past_lengths(sequences, 0);
+    auto infer = [&](const std::vector<size_t>& query_lengths) {
+        const size_t query_tokens = std::accumulate(query_lengths.begin(), query_lengths.end(), size_t{0});
+        inputs[0] = tensor(ov::element::f16, {query_tokens, heads * key_size});
+        inputs[1] = tensor(ov::element::f16, {query_tokens, kv_heads * key_size});
+        inputs[2] = tensor(ov::element::f16, {query_tokens, kv_heads * value_size});
+        size_t row = 0;
+        for (size_t sequence = 0; sequence < sequences; ++sequence) {
+            inputs[5].data<int32_t>()[sequence] = static_cast<int32_t>(past_lengths[sequence]);
+            inputs[6].data<int32_t>()[sequence] = static_cast<int32_t>(row);
+            for (size_t t = 0; t < query_lengths[sequence]; ++t, ++row) {
+                const size_t token = past_lengths[sequence] + t;
+                for (size_t c = 0; c < heads * key_size; ++c) {
+                    inputs[0].data<ov::float16>()[row * heads * key_size + c] = ov::float16(query(sequence, token, c));
+                }
+                for (size_t c = 0; c < kv_heads * key_size; ++c) {
+                    inputs[1].data<ov::float16>()[row * kv_heads * key_size + c] = ov::float16(key(sequence, token, c));
+                }
+                for (size_t c = 0; c < kv_heads * value_size; ++c) {
+                    inputs[2].data<ov::float16>()[row * kv_heads * value_size + c] =
+                        ov::float16(value(sequence, token, c));
+                }
+            }
         }
-        for (size_t c = 0; c < heads * value_size; ++c) {
-            inputs[2].data<ov::float16>()[t * heads * value_size + c] = ov::float16(value(t, c));
-        }
-    }
-    auto infer = [&]() {
+        inputs[6].data<int32_t>()[sequences] = static_cast<int32_t>(row);
         for (size_t i = 0; i < parameters.size(); ++i) {
             request.set_input_tensor(i, inputs[i]);
         }
         request.infer();
     };
-    auto compare = [&](size_t row, size_t last_token) {
+    auto compare = [&](size_t sequence, size_t row, size_t last_token) {
         auto output = request.get_output_tensor();
         ASSERT_EQ(output.get_element_type(), ov::element::f16);
         for (size_t h = 0; h < heads; ++h) {
+            const size_t kv_head = h / (heads / kv_heads);
             std::vector<float> weights(last_token + 1, 0.0F);
             for (size_t t = 0; t <= last_token; ++t) {
                 for (size_t c = 0; c < key_size; ++c) {
-                    weights[t] += query(last_token, h * key_size + c) * key(t, h * key_size + c);
+                    weights[t] +=
+                        query(sequence, last_token, h * key_size + c) * key(sequence, t, kv_head * key_size + c);
                 }
             }
             const float max_score = *std::max_element(weights.begin(), weights.end());
@@ -235,49 +274,48 @@ TEST_P(PagedAttentionFP16Test, PrefillAndDecodeMatchReference) {
             for (auto& weight : weights) {
                 weight = static_cast<float>(ov::float16(weight / denominator));
             }
-            for (size_t c = h * value_size; c < (h + 1) * value_size; ++c) {
+            for (size_t c = 0; c < value_size; ++c) {
                 float expected = 0.0F;
                 for (size_t t = 0; t <= last_token; ++t) {
-                    expected += weights[t] * value(t, c);
+                    expected += weights[t] * value(sequence, t, kv_head * value_size + c);
                 }
-                ASSERT_NEAR(static_cast<float>(output.data<ov::float16>()[row * heads * value_size + c]),
-                            expected,
-                            0.002F)
-                    << "row=" << row << " channel=" << c;
+                ASSERT_NEAR(
+                    static_cast<float>(output.data<ov::float16>()[row * heads * value_size + h * value_size + c]),
+                    expected,
+                    0.002F)
+                    << "sequence=" << sequence << " row=" << row << " head=" << h << " channel=" << c;
             }
         }
     };
-    infer();
-    for (size_t t = 0; t < tokens; ++t) {
-        ASSERT_NO_FATAL_FAILURE(compare(t, t));
+    for (const auto& query_lengths : {lengths, continuation}) {
+        infer(query_lengths);
+        ASSERT_EQ(
+            request.get_output_tensor().get_shape(),
+            (ov::Shape{std::accumulate(query_lengths.begin(), query_lengths.end(), size_t{0}), heads * value_size}));
+        size_t row = 0;
+        for (size_t sequence = 0; sequence < sequences; ++sequence) {
+            for (size_t t = 0; t < query_lengths[sequence]; ++t, ++row) {
+                ASSERT_NO_FATAL_FAILURE(compare(sequence, row, past_lengths[sequence] + t));
+            }
+            past_lengths[sequence] += query_lengths[sequence];
+        }
     }
-    inputs[0] = tensor(ov::element::f16, {1, heads * key_size});
-    inputs[1] = tensor(ov::element::f16, {1, heads * key_size});
-    inputs[2] = tensor(ov::element::f16, {1, heads * value_size});
-    for (size_t c = 0; c < heads * key_size; ++c) {
-        inputs[0].data<ov::float16>()[c] = ov::float16(query(tokens, c));
-        inputs[1].data<ov::float16>()[c] = ov::float16(key(tokens, c));
-    }
-    for (size_t c = 0; c < heads * value_size; ++c) {
-        inputs[2].data<ov::float16>()[c] = ov::float16(value(tokens, c));
-    }
-    inputs[5].data<int32_t>()[0] = static_cast<int32_t>(tokens);
-    inputs[6].data<int32_t>()[1] = 1;
-    infer();
-    compare(0, tokens);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          PagedAttentionFP16Test,
-                         testing::Combine(testing::Values(Params{33, 1, 64, 64, ov::element::f16},
-                                                          Params{63, 8, 64, 80, ov::element::f16},
-                                                          Params{63, 2, 128, 64, ov::element::f16},
-                                                          Params{33, 1, 64, 64, ov::element::u8},
-                                                          Params{63, 8, 64, 80, ov::element::u8},
-                                                          Params{63, 2, 128, 64, ov::element::u8},
-                                                          Params{33, 1, 64, 64, ov::element::u4},
-                                                          Params{63, 8, 64, 80, ov::element::u4},
-                                                          Params{63, 2, 128, 64, ov::element::u4}),
+                         testing::Combine(testing::Values(Params{{33}, 1, 1, 64, 64, ov::element::f16},
+                                                          Params{{63}, 8, 8, 64, 80, ov::element::f16},
+                                                          Params{{63}, 2, 2, 128, 64, ov::element::f16},
+                                                          Params{{33, 63}, 8, 2, 128, 64, ov::element::f16},
+                                                          Params{{33}, 1, 1, 64, 64, ov::element::u8},
+                                                          Params{{63}, 8, 8, 64, 80, ov::element::u8},
+                                                          Params{{63}, 2, 2, 128, 64, ov::element::u8},
+                                                          Params{{33, 63}, 8, 2, 128, 64, ov::element::u8},
+                                                          Params{{33}, 1, 1, 64, 64, ov::element::u4},
+                                                          Params{{63}, 8, 8, 64, 80, ov::element::u4},
+                                                          Params{{63}, 2, 2, 128, 64, ov::element::u4},
+                                                          Params{{33, 63}, 8, 2, 128, 64, ov::element::u4}),
                                           testing::Values(false, true)));
 
 }  // namespace

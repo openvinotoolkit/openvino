@@ -294,8 +294,6 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
         if (brgemm_desc_finalize(&brgDesc) != dnnl_success) {
             THROW_ERROR("cannot be executed due to invalid FP16 brgemm params");
         }
-        // The column step must describe the same paired FP16 storage as the loader.
-        brgDesc.ld_step = brgVnniFactor;
     }
 
     if (use_amx && b_accumulate) {

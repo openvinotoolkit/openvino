@@ -974,7 +974,7 @@ struct MHAHelper {
                                                      dst_f32,
                                                      scale_b,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
-                                                     _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                                                     _qk_scratch_a ? _qk_scratch_a.ptr_v(ithr) : nullptr);
 #    endif
                 } else {
                     auto* k_ptr = qk_scratch_b.ptr_v(k_blk, hk);
@@ -985,7 +985,7 @@ struct MHAHelper {
                                                      nullptr,
                                                      nullptr,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
-                                                     _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                                                     _qk_scratch_a ? _qk_scratch_a.ptr_v(ithr) : nullptr);
                 }
             }
 
@@ -1125,17 +1125,16 @@ struct MHAHelper {
                                                      nullptr,
                                                      nullptr,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
-                                                     _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                                                     _wv_scratch_a ? _wv_scratch_a.ptr_v(ithr) : nullptr);
                 } else {
-                    _wv_gemm_acc[q_cnt - 1]->executeGemm(
-                        q_cnt < _block_size,
-                        w_gemm_ptr,
-                        v_ptr,
-                        fp32_out_ptr,
-                        nullptr,
-                        nullptr,
-                        _wsp.data() + ithr * _wsp_size_per_thread,
-                        _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                    _wv_gemm_acc[q_cnt - 1]->executeGemm(q_cnt < _block_size,
+                                                         w_gemm_ptr,
+                                                         v_ptr,
+                                                         fp32_out_ptr,
+                                                         nullptr,
+                                                         nullptr,
+                                                         _wsp.data() + ithr * _wsp_size_per_thread,
+                                                         _wv_scratch_a ? _wv_scratch_a.ptr_v(ithr) : nullptr);
                 }
             }
             if (q_is_xf16) {
@@ -1445,7 +1444,7 @@ struct MHAHelper {
             }
         }
 
-        memset(_output.ptr<float>(ithr), 0, q_len * H * SV * sizeof(float));
+        memset(_output.ptr<float>(ithr), 0, q_len * _output.stride(1) * sizeof(float));
         for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {
@@ -1781,18 +1780,7 @@ struct MHA {
                     auto* k_ptr = k_cache.ptr_v(block_number, hk);
                     auto* k_dst = _helper._qk_scratch_b.template ptr<float>(batch_in_reorder, kv_block, hk);
                     auto* tmp = reinterpret_cast<DATA_TYPE*>(_helper._output.template ptr<float>(ithr));
-                    if constexpr (KEY_PREC == ov::element::f16) {
-                        transpose_16NxK<float, KEY_PREC>(k_dst,
-                                                         k_ptr,
-                                                         nullptr,
-                                                         valid_len,
-                                                         _helper.S,
-                                                         _helper._block_size,
-                                                         _helper._block_size,
-                                                         _helper.S,
-                                                         0,
-                                                         false);
-                    } else {
+                    if constexpr (KEY_PREC != ov::element::f16) {
                         // Preserve the existing FP16 rounding after cache dequantization.
                         dequant<DATA_TYPE, KEY_PREC>(tmp,
                                                      k_ptr,
@@ -1801,17 +1789,18 @@ struct MHA {
                                                      _helper._block_size,
                                                      _helper._params.key_group_size,
                                                      _helper._params.quant_key_bychannel);
-                        transpose_16NxK<float, ov::element::f16>(k_dst,
-                                                                 tmp,
-                                                                 nullptr,
-                                                                 valid_len,
-                                                                 _helper.S,
-                                                                 _helper._block_size,
-                                                                 _helper._block_size,
-                                                                 _helper.S,
-                                                                 0,
-                                                                 false);
+                        k_ptr = tmp;
                     }
+                    transpose_16NxK<float, ov::element::f16>(k_dst,
+                                                             k_ptr,
+                                                             nullptr,
+                                                             valid_len,
+                                                             _helper.S,
+                                                             _helper._block_size,
+                                                             _helper._block_size,
+                                                             _helper.S,
+                                                             0,
+                                                             false);
                     auto* v_ptr = v_cache.ptr_v(block_number, hk);
                     auto* v_dst = _helper._wv_scratch_b.template ptr<float>(batch_in_reorder, kv_block, hk);
                     if constexpr (VALUE_PREC == ov::element::f16) {
