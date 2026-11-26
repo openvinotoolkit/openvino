@@ -18,8 +18,6 @@ using namespace ov::frontend;
 
 using ONNXOpExtensionTest = FrontEndOpExtensionTest;
 
-static const std::string translator_name = "Relu";
-
 class Relu1 : public Relu {
 public:
     OPENVINO_OP("CustomRelu_1");

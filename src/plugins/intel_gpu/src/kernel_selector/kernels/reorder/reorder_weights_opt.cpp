@@ -164,7 +164,10 @@ ReorderWeightsOpt::DispatchData ReorderWeightsOpt::SetDefault(const reorder_weig
 
     const auto osv_first = IsOsvFirst(output_layout);
     const auto ofm_block = (osv_first) ? subgroup_size : GetOptimalSize(output.OFM().v, preferred_sizes);
-    const auto ifm_block = (osv_first) ? ifm_block_supported ? GetOptimalSize(output.IFM().v, preferred_sizes) : 1 : subgroup_size;
+    size_t ifm_block = subgroup_size;
+    if (osv_first) {
+        ifm_block = ifm_block_supported ? GetOptimalSize(output.IFM().v, preferred_sizes) : 1;
+    }
 
     if (osv_first) {
         // When IFM is not aligned to the ISV block size, expand GWS to cover padding
@@ -194,7 +197,10 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
     const auto osv_first = IsOsvFirst(output.GetLayout());
     const auto leftovers = (osv_first) ? output.OFM().v % subgroup_size : output.IFM().v % subgroup_size;
     const auto ofm_block = (osv_first) ? subgroup_size : GetOptimalSize(output.OFM().v, preferred_sizes);
-    const auto ifm_block = (osv_first) ? ifm_block_supported ? GetOptimalSize(output.IFM().v, preferred_sizes) : 1 : subgroup_size;
+    size_t ifm_block = subgroup_size;
+    if (osv_first) {
+        ifm_block = ifm_block_supported ? GetOptimalSize(output.IFM().v, preferred_sizes) : 1;
+    }
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", slice_sizes.first));
     jit.AddConstant(MakeJitConstant("OFM_SIZE", slice_sizes.second));
@@ -219,12 +225,7 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
         }
     }
 
-    jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.input.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.input.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.input.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.input.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.output.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.output.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.output.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.output.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
 

@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -98,14 +99,22 @@ void quantize_row_q8_0_c(const float* x, size_t cols, int8_t* out_weights, ov::f
     for (size_t c = 0; c < cols; ++c) {
         amax = std::max(amax, std::fabs(x[c]));
     }
-    const float d = amax / 127.0f;
-    // A zero row has a zero scale and must remain zero. Keep the division in a
-    // branch where its divisor is known to be non-zero.
-    float id = 0.0f;
-    if (d != 0.0f) {
-        id = 1.0f / d;
+    if (amax == 0.0f) {
+        out_scale = ov::float16(0.0f);
+        std::fill_n(out_weights, cols, int8_t{0});
+        return;
     }
+    const float d = amax / 127.0f;
     out_scale = ov::float16(d);
+    if (d < std::numeric_limits<float>::min()) {
+        // Avoid an underflowed scale or overflowing reciprocal for tiny nonzero rows.
+        const double id = 127.0 / static_cast<double>(amax);
+        for (size_t c = 0; c < cols; ++c) {
+            out_weights[c] = static_cast<int8_t>(std::lround(static_cast<double>(x[c]) * id));
+        }
+        return;
+    }
+    const float id = 1.0f / d;
     for (size_t c = 0; c < cols; ++c) {
         out_weights[c] = static_cast<int8_t>(std::lround(x[c] * id));
     }
@@ -296,6 +305,27 @@ void fill_q8_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
     });
 }
 
+void fill_q8_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+    constexpr size_t weights_per_block = 32;
+    constexpr size_t bytes_per_block = 36;
+    OPENVINO_ASSERT(tensor.num_weights % weights_per_block == 0 && weights_arr.get_size() == tensor.num_weights &&
+                        scales_arr.get_size() == tensor.num_weights / weights_per_block,
+                    "[GGUF] invalid Q8_1 output sizes");
+    OPENVINO_ASSERT(tensor.bsize % bytes_per_block == 0 && tensor.bsize / bytes_per_block == scales_arr.get_size(),
+                    "[GGUF] invalid Q8_1 payload size");
+    const auto* data = static_cast<const uint8_t*>(tensor.weights_data);
+    auto* weights = weights_arr.data<int8_t>();
+    auto* scales = scales_arr.data<ov::float16>();
+    ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
+        const auto* block = data + i * bytes_per_block;
+        uint16_t scale_bits;
+        std::memcpy(&scale_bits, block, sizeof(scale_bits));
+        scales[i] = ov::float16::from_bits(scale_bits);
+        // The second F16 field is a dot-product sum, not a weight offset.
+        std::memcpy(weights + i * weights_per_block, block + 4, weights_per_block);
+    });
+}
+
 // Q5_0 symmetric: block = |f16 scale d|32-bit qh|16 bytes ql (32x4bit low)|.
 // weight = lo|(hi<<4) in [0..31]; dequant = d*(w - 16). Output: i8 weights [-16..15].
 void fill_q5_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
@@ -460,6 +490,42 @@ static void dequant_row_q6_k_f32(const uint8_t* row, size_t cols, float* y) {
     }
 }
 
+void gguf_fill_q5_k_i8(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
+    constexpr size_t group_size = 32;
+    OPENVINO_ASSERT(tensor.type == GGUF_TYPE_Q5_K, "[GGUF] invalid Q5_K symmetric requantization group");
+    OPENVINO_ASSERT(tensor.num_weights % 256 == 0 && tensor.bsize / kQ5K_BLOCK_BYTES == tensor.num_weights / 256 &&
+                        tensor.bsize % kQ5K_BLOCK_BYTES == 0,
+                    "[GGUF] invalid Q5_K symmetric requantization payload");
+    OPENVINO_ASSERT(weights.get_element_type() == ov::element::i8 && weights.get_size() == tensor.num_weights &&
+                        scales.get_element_type() == ov::element::f16 &&
+                        scales.get_size() == tensor.num_weights / group_size,
+                    "[GGUF] invalid Q5_K symmetric requantization buffers");
+    auto* dst = weights.data<int8_t>();
+    auto* scale_data = scales.data<ov::float16>();
+    ov::parallel_for(tensor.num_weights / 256, [&](size_t block) {
+        std::array<float, 256> values;
+        dequant_row_q45_k_f32<true>(tensor.weights_data + block * kQ5K_BLOCK_BYTES, 256, values.data());
+        for (size_t offset = 0; offset < 256; offset += group_size) {
+            float amax = 0.0f;
+            for (size_t k = offset; k < offset + group_size; ++k) {
+                OPENVINO_ASSERT(std::isfinite(values[k]), "[GGUF] cannot requantize non-finite Q5_K values");
+                amax = std::max(amax, std::fabs(values[k]));
+            }
+            const ov::float16 scale_f16(amax / 127.0f);
+            const float scale = static_cast<float>(scale_f16);
+            OPENVINO_ASSERT(std::isfinite(scale), "[GGUF] Q5_K symmetric scale exceeds f16 range");
+            scale_data[(block * 256 + offset) / group_size] = scale_f16;
+            for (size_t k = offset; k < offset + group_size; ++k) {
+                const float code = scale > 0.0f ? std::round(values[k] / scale) : 0.0f;
+                dst[block * 256 + k] = static_cast<int8_t>(std::clamp(code, -127.0f, 127.0f));
+            }
+        }
+    });
+    if (tensor.num_weights != 0) {
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q5_K_SYMMETRIC_REQUANT);
+    }
+}
+
 // Fused faithful dequant + channel-wise Q8_0_C requant, streaming one row at a time so the full f32
 // weight is never materialized (holds only `cols` floats). Fills i8 weights [rows,cols] + f16 scales
 // [rows,1], matching the upstream Q8_0_C path (amax/127 per row, roundf). qtype selects the exact
@@ -530,36 +596,44 @@ void fill_q5_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
     }
 
     // Store one 32-value group whose source values are q[k] in [0..31], w = d1*q - m1.
-    const auto store_group = [&](size_t group, float d1, float m1, const uint8_t* q, uint8_t* dst) {
-        if (!zp.is_integer()) {
-            scales[group] = ov::float16(d1);
-            zp.store(group, zp_from_offset(m1, d1));
-            std::copy_n(q, 32, dst);
-            return;
-        }
-        float values[32];
-        float lo = 0.0f, hi = 0.0f;
-        for (int k = 0; k < 32; ++k) {
-            values[k] = d1 * static_cast<float>(q[k]) - m1;
-            lo = std::min(lo, values[k]);
-            hi = std::max(hi, values[k]);
-        }
-        const ov::float16 scale_f16((hi - lo) / 255.0f);
-        const float scale = static_cast<float>(scale_f16);
-        if (!(scale > 0.0f) || !std::isfinite(scale)) {
-            // A (near-)zero range: every value rounds to zero.
-            scales[group] = ov::float16(0.0f);
-            zp.store_integer(group, 0);
-            std::fill_n(dst, 32, 0);
-            return;
-        }
-        const long zpi = std::clamp(std::lround(-lo / scale), 0L, 255L);
-        scales[group] = scale_f16;
-        zp.store_integer(group, static_cast<uint8_t>(zpi));
-        for (int k = 0; k < 32; ++k) {
-            dst[k] = static_cast<uint8_t>(std::clamp(std::lround(values[k] / scale) + zpi, 0L, 255L));
-        }
-    };
+    const auto store_group =
+        [&](size_t group, float d1, float m1, float source_min_scale, const uint8_t* q, uint8_t* dst) {
+            if (!zp.is_integer()) {
+                if (d1 == 0.f && m1 != 0.f) {
+                    const float scale = std::fabs(source_min_scale);
+                    scales[group] = ov::float16(scale);
+                    zp.store(group, m1 / scale);
+                    std::fill_n(dst, 32, 0);
+                    return;
+                }
+                scales[group] = ov::float16(d1);
+                zp.store(group, zp_from_offset(m1, d1));
+                std::copy_n(q, 32, dst);
+                return;
+            }
+            float values[32];
+            float lo = 0.0f, hi = 0.0f;
+            for (int k = 0; k < 32; ++k) {
+                values[k] = d1 * static_cast<float>(q[k]) - m1;
+                lo = std::min(lo, values[k]);
+                hi = std::max(hi, values[k]);
+            }
+            const ov::float16 scale_f16((hi - lo) / 255.0f);
+            const float scale = static_cast<float>(scale_f16);
+            if (!(scale > 0.0f) || !std::isfinite(scale)) {
+                // A (near-)zero range: every value rounds to zero.
+                scales[group] = ov::float16(0.0f);
+                zp.store_integer(group, 0);
+                std::fill_n(dst, 32, 0);
+                return;
+            }
+            const long zpi = std::clamp(std::lround(-lo / scale), 0L, 255L);
+            scales[group] = scale_f16;
+            zp.store_integer(group, static_cast<uint8_t>(zpi));
+            for (int k = 0; k < 32; ++k) {
+                dst[k] = static_cast<uint8_t>(std::clamp(std::lround(values[k] / scale) + zpi, 0L, 255L));
+            }
+        };
 
     ov::parallel_for(n_super_block, [&](size_t i) {
         const uint8_t* block_data = data + i * bytes_per_block;
@@ -582,8 +656,8 @@ void fill_q5_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
                 q1[l] = static_cast<uint8_t>((ql[l] & 0xF) + ((qh[l] & u1) ? 16 : 0));
                 q2[l] = static_cast<uint8_t>((ql[l] >> 4) + ((qh[l] & u2) ? 16 : 0));
             }
-            store_group(i * 8 + is, d1, m1, q1, weights + i * 256 + j);
-            store_group(i * 8 + is + 1, d2, m2, q2, weights + i * 256 + j + 32);
+            store_group(i * 8 + is, d1, m1, dmin, q1, weights + i * 256 + j);
+            store_group(i * 8 + is + 1, d2, m2, dmin, q2, weights + i * 256 + j + 32);
             ql += 32;
             is += 2;
             u1 <<= 2;
@@ -890,7 +964,7 @@ void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tenso
     });
 }
 
-// Symmetric types (Q1_0, Q4_0, Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no
+// Symmetric types (Q1_0, Q4_0, Q8_0, Q8_1, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no
 // zero-point. Q8_K uses f32 scales and is handled by a separate overload dispatched on
 // tensor.type.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
@@ -901,6 +975,8 @@ void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& sc
         return fill_q4_0(tensor, weights, scales);
     case GGUF_TYPE_Q8_0:
         return fill_q8_0(tensor, weights, scales);
+    case GGUF_TYPE_Q8_1:
+        return fill_q8_1(tensor, weights, scales);
     case GGUF_TYPE_Q5_0:
         return fill_q5_0(tensor, weights, scales);
     case GGUF_TYPE_Q6_K:

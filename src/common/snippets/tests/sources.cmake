@@ -16,6 +16,8 @@ set(SNIPPETS_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/loop.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/move_scalar_to_consumer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/optimize_domain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/pass_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/serialize_data_flow.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/set_buffer_reg_group.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/split_loops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowering_utils.cpp
@@ -26,6 +28,7 @@ set(SNIPPETS_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gated_mlp_tokenization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gn_decomposition.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gn_tokenization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/hash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/mha_tokenization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/mlp_seq_tokenization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/online_softmax_decomposition.cpp

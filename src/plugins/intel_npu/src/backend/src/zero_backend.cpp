@@ -26,19 +26,19 @@ uint32_t ZeroEngineBackend::getDriverVersion() const {
 }
 
 uint32_t ZeroEngineBackend::getGraphExtVersion() const {
-    return _initStruct->getGraphDdiTable().version();
+    return _initStruct->getGraphExtVersion();
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _initStruct->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+    return _initStruct->isCommandQueueExtSupported();
 }
 
 bool ZeroEngineBackend::isLUIDExtSupported() const {
-    return _initStruct->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+    return _initStruct->isLUIDExtSupported();
 }
 
 bool ZeroEngineBackend::isContextExtSupported() const {
-    return _initStruct->isExtensionSupported(std::string(ZE_CONTEXT_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+    return _initStruct->isContextExtSupported();
 }
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {

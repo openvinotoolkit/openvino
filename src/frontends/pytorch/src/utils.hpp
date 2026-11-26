@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <tuple>
+
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
@@ -89,6 +91,23 @@ Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port,
 
 op::PadType convert_pad(const std::string& pt_pad);
 
+struct ConvPadConfig {
+    op::PadType pad_type;
+    CoordinateDiff pads_begin;
+    CoordinateDiff pads_end;
+    bool dynamic_same_padding = false;
+};
+
+// Resolves convolution padding where possible; dynamic SAME kernels are padded at runtime before the convolution.
+ConvPadConfig convert_conv_pad(const std::string& pt_pad,
+                               const Output<Node>& weight,
+                               const Strides& strides,
+                               const Strides& dilations);
+Output<Node> apply_dynamic_same_padding(const NodeContext& context,
+                                        const Output<Node>& input,
+                                        const Output<Node>& weight,
+                                        const Strides& dilations);
+
 Output<Node> concat_list_construct(const Output<Node>& input);
 
 /// \brief Checks if input represents empty list.
@@ -153,6 +172,9 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
 Output<Node> try_constfold(const Output<Node>& x);
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
+
+/// \brief Returns the input element type, falling back to the visible context and the decoder type when it is dynamic.
+element::Type get_input_element_type(const NodeContext& context, size_t idx);
 
 /// \brief Rounds toward zero, keeping infinities and NaN. Integer inputs are returned unchanged.
 Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x);

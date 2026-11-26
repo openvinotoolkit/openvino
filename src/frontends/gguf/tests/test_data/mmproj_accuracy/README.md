@@ -10,12 +10,18 @@ llama.cpp build or model download is needed unless they are regenerated.
 | Suite | Layout | Families |
 |---|---|---|
 | `GGUFMMProjAccuracy` | `inputs`, `embeddings` and family-specific index inputs | `gemma3` (+`_fused`, `_legacy`), `idefics3`, `janus_pro`, `mlp` (+`_norm`, `_feature`), `internvl` (+`_qknorm`), `resampler` (+`_v2`, `_v4`), `qwen2vl_merger`, `qwen2.5vl_merger` (+`_window_video`), `qwen3vl_merger`, `qwen2a`, `ultravox`, `voxtral` (+`_odd`), `musicflamingo`, `meralion`, `glma` |
-| `GGUFMMProjDynamicAccuracy` | two input sizes as `0.*` and `1.*`; one compiled model must serve both | `muse-glimmer`, `pixtral` (+`_merge`), `phi4`, `gemma4v` (+`_one_sided`), `gemma4uv` (+`_low_contrast`), `gemma4ua`, `gemma4a`, `minicpmv4_6`, `deepseekocr` (+`_resize`, `_overview`), `deepseekocr2` (+`_overview`); `qwen2.5vl_merger_grids` and `resampler_grids` rerun single-grid fixture models |
+| `GGUFMMProjDynamicAccuracy` | two input sizes as `0.*` and `1.*`; one compiled model must serve both | `muse-glimmer`, `pixtral` (+`_merge`), `phi4`, `gemma4v` (+`_one_sided`), `gemma4uv` (+`_low_contrast`), `gemma4ua`, `gemma4a`, `minicpmv4_6`, `minicpm_ocr_1_0_4x`, `deepseekocr` (+`_resize`, `_overview`), `deepseekocr2` (+`_overview`); `qwen2.5vl_merger_grids` and `resampler_grids` rerun single-grid fixture models |
 
 Suffixes select fixture variants, for example fused QKV, legacy FFN names, concatenated CLIP
 feature layers, whole-tensor QK norms, an odd frame count, one-sided clipping bounds or OCR
 overview separators. Both suites compare the raw encoder and its `AdaptMmprojToGenAI` form
 with normalized MSE below `1e-5`.
+
+The three Gemma3nv dynamic fixtures use distinct deterministic 256x256 image inputs
+(seeds 42 and 43) and CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`.
+`gemma3nv_uir` exercises a MobileNet UIR block with depthwise-start convolution
+and no optional pointwise expansion. Each fixture compares native and GenAI-adapted
+features across two images and request reuse.
 
 The standalone op tests in `test_ops.cpp` read `../mmproj_*.npy`, `../vision_rope_expected.npy`
 and `../multimodal_imrope_expected.npy`: window partition, SAM relative positions,
@@ -23,7 +29,7 @@ vision/interleaved RoPE, antialiased bilinear resize and 2D im2col.
 
 ## Reference revision
 
-All fixtures and op expectations come from llama.cpp
+Base fixtures and op expectations come from llama.cpp
 [`03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4),
 which has aligned-corner position interpolation, the Muse Glimmer encoder, and a `ggml_clamp`
 that no longer clamps its source in place. The Gemma4 fixtures clip only the Q input, so
@@ -59,6 +65,12 @@ See [testing](../../../docs/testing.md#real-checkpoints) for pytest commands, de
 oracle caches, and local-file lists, and [coverage limits](../../../docs/mmproj.md#validation-coverage)
 for checkpoint tolerance overrides and skipped cases.
 
+`qwen3tts_gen.npz` contains a tiny F32 predictor with two query heads, one KV head,
+16 codebooks, and the full waveform topology. `gen_qwen3tts_accuracy.py` regenerates it
+with `qwen3tts_oracle.cpp` against CPU revision `098ce526b546b5a190327c1da82929cee051b9ac`
+(`GGML_OPENVINO=OFF`). The regression checks exact sampled codes/feedback, full logits,
+two streaming chunks and reset of all 38 states at the existing `1e-5` NMSE gate.
+
 `lfm2` and `lfm2_no_norm` use the same pinned oracle revision above and the two-grid
 generator seed 2718. They cover SigLIP, resized positions, spatial unshuffle and the
 optional input LayerNorm at 16x8 and 8x24 pixels, through both native and embedding-adapted IO.
@@ -66,3 +78,13 @@ optional input LayerNorm at 16x8 and 8x24 pixels, through both native and embedd
 `lfm2a` uses the same pinned llama.cpp CPU oracle, with 49 and 101 feature frames.
 It exercises depthwise subsampling, relative attention shift and temporal convolution.
 The dynamic test returns to the first shape to check request reuse.
+
+`minicpmv4_7` and `minicpmv4_7_4x` are extracted from PR #39000. The pinned
+llama.cpp CPU references at `098ce526b546b5a190327c1da82929cee051b9ac`
+cover the window-attention and direct 2x2 merger paths,
+with unequal image grids and packed-patch GenAI input adaptation.
+
+`minicpm_ocr_1_0_4x` uses llama.cpp CPU
+`604cc430239c76ff636c443e3400bf552b750421`, which added the projector. MiniCPM-OCR
+shares the MiniCPM-V 4.6 encoder; its fixture covers the direct 2x2 merger used by the published
+`-4x` projector at 16x8 and 8x24 pixels.

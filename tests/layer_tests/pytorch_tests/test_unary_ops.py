@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 import torch.nn.functional as F
@@ -334,3 +335,68 @@ class TestUnaryOp(PytorchLayerTest):
         self.dtype = dtype
         self._test(unary_op_complex_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)
+
+
+class TestLog1pExpm1Accuracy(PytorchLayerTest):
+    # log1p and expm1 exist to stay accurate for small inputs, where 1 + x and exp(x) round to 1.
+    # The result is divided by x so that it is ~1 for small x and the absolute tolerance of the
+    # comparison cannot hide a result that collapsed to 0 or lost most of its digits.
+    def _prepare_input(self):
+        return (np.array([1e-30, -1e-30, 1e-10, -1e-10, 1e-7, -1e-7, 1e-4, -1e-4, 0.5, -0.5], dtype=np.float32),)
+
+    def create_model(self, op_name, dtype):
+
+        class aten_op_relative(torch.nn.Module):
+            def __init__(self, op, dtype):
+                super().__init__()
+                self.op = op
+                self.dtype = dtype
+
+            def forward(self, x):
+                x = x.to(self.dtype)
+                return self.op(x) / x
+
+        return aten_op_relative(getattr(torch, op_name), dtype), "aten::" + op_name
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.parametrize("op_name", ["log1p", "expm1"])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+    def test_small_values(self, op_name, dtype, ie_device, precision, ir_version):
+        if precision == "FP16":
+            pytest.skip("Values exceed the f16 range")
+        self._test(*self.create_model(op_name, dtype), ie_device, precision, ir_version)
+
+
+class TestLog1pExpm1SpecialValues(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.array(self.values, dtype=np.float32),)
+
+    def create_model(self, op_name):
+
+        class aten_op(torch.nn.Module):
+            def __init__(self, op):
+                super().__init__()
+                self.op = op
+
+            def forward(self, x):
+                return self.op(x)
+
+        return aten_op(getattr(torch, op_name)), "aten::" + op_name
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.parametrize(("op_name", "values"), [
+        ("log1p", [np.inf, -1.0, -1.5, np.nan, 3e38]),
+        # -87.5, -100 and -103 make exp(x) subnormal, where expm1 must still be exactly -1
+        ("expm1", [np.inf, -np.inf, -87.5, -100.0, -103.0, 80.0]),
+    ])
+    def test_special_values(self, op_name, values, ie_device, precision, ir_version):
+        if precision == "FP16":
+            pytest.skip("Values exceed the f16 range")
+        self.values = values
+        self._test(*self.create_model(op_name), ie_device, precision, ir_version)

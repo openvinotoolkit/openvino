@@ -2,9 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// The routing logits can be a padded view, e.g. an in-place crop of a horizontally fused FC output,
+// so they are addressed with the input offset and pitches. Input: [tokens, experts] or [batch, seq, experts].
+inline size_t FUNC(get_input_index)(OPTIONAL_SHAPE_INFO_ARG size_t token, size_t expert) {
+#if INPUT0_DIMS == 2
+    return INPUT0_OFFSET + token * INPUT0_BATCH_PITCH + expert * INPUT0_FEATURE_PITCH;
+#else
+    return INPUT0_OFFSET + (token / INPUT0_FEATURE_NUM) * INPUT0_BATCH_PITCH + (token % INPUT0_FEATURE_NUM) * INPUT0_FEATURE_PITCH +
+           (expert / INPUT0_SIZE_X) * INPUT0_Y_PITCH + (expert % INPUT0_SIZE_X) * INPUT0_X_PITCH;
+#endif
+}
+
 #if SOFTMAX_TOPK_ENABLE
 
 KERNEL(softmax_topk)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global MOE_DTYPE* input, // [input_batch, sort_in_num]
     __global uint* output_index, // [input_batch, TOP_K]
     __global MOE_DTYPE* output // [input_batch, TOP_K]
@@ -14,7 +26,7 @@ KERNEL(softmax_topk)(
     const uint sort_index = (uint)get_global_id(1);
     const uint sort_cnt = (uint)get_global_size(1);
 
-    input += batch * sort_cnt + sort_index;
+    input += FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR batch, sort_index);
 
     uint sort_position = 0;
 
@@ -22,13 +34,8 @@ KERNEL(softmax_topk)(
     __local MOE_DTYPE local_output[TOP_K];
     __local uint local_index[TOP_K];
 
-#if MOE_DTYPE_SIZE == 2
-    MOE_DTYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
-#elif MOE_DTYPE_SIZE == 4
-    MOE_DTYPE in_value = as_float(intel_sub_group_block_read((const __global uint*)(input)));
-#else
-#    error "softmax_topk: unsupported MOE_DTYPE_SIZE"
-#endif
+    // A sub-group block read would read SIMD-width elements and overrun the buffer when sort_cnt < SIMD.
+    MOE_DTYPE in_value = input[0];
     local_input[sort_index] = in_value;
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -74,6 +81,7 @@ KERNEL(softmax_topk)(
 #elif SIGMOID_BIAS_TOPK_ENABLE
 
 KERNEL(sigmoid_bias_topk)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global MOE_DTYPE* input,    // routing logits [input_batch, num_experts]
     const __global MOE_DTYPE* bias,     // routing bias [1, num_experts] or [num_experts]
     const __global MOE_DTYPE* eps_ptr,  // routing epsilon scalar [1]
@@ -85,7 +93,7 @@ KERNEL(sigmoid_bias_topk)(
     const uint sort_index = (uint)get_global_id(1);
     const uint sort_cnt = (uint)get_global_size(1);  // num_experts
 
-    input += batch * sort_cnt + sort_index;
+    input += FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR batch, sort_index);
 
     __local MOE_DTYPE local_sigmoid[VALUE_NUM];     // raw sigmoid values
     __local MOE_DTYPE local_selection[VALUE_NUM];   // sigmoid + bias (for sorting)
@@ -93,13 +101,7 @@ KERNEL(sigmoid_bias_topk)(
     __local uint local_index[TOP_K];
 
     // Compute sigmoid
-#if MOE_DTYPE_SIZE == 2
-    MOE_DTYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
-#elif MOE_DTYPE_SIZE == 4
-    MOE_DTYPE in_value = as_float(intel_sub_group_block_read((const __global uint*)(input)));
-#else
-#    error "sigmoid_bias_topk: unsupported MOE_DTYPE_SIZE"
-#endif
+    MOE_DTYPE in_value = input[0];
     MOE_DTYPE sigmoid_val = (MOE_DTYPE)(1.0f / (1.0f + native_exp(-(float)in_value)));
 
     // Add bias for selection (determines which experts are chosen)

@@ -5,12 +5,17 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "graph/include/variable.hpp"
 #include <functional>
 #include <unordered_map>
+
+namespace cldnn {
+class tensor_conversion;
+}
 
 namespace ov::intel_gpu {
 class RemoteContextImpl;
@@ -51,7 +56,10 @@ protected:
 
 class VariableState : public VariableStateBase {
 public:
-    VariableState(const VariableStateInfo& info, std::shared_ptr<RemoteContextImpl> context, ShapePredictor::Ptr shape_predictor);
+    VariableState(const VariableStateInfo& info, std::shared_ptr<RemoteContextImpl> context,
+                  ShapePredictor::Ptr shape_predictor,
+                  std::shared_ptr<cldnn::tensor_conversion> conversion = nullptr);
+    ~VariableState() override;
     using Ptr = std::shared_ptr<VariableState>;
 
     void reset() override;
@@ -80,10 +88,16 @@ protected:
     std::vector<std::weak_ptr<cldnn::memory_state::releasable_variable>> m_prim_inst;
     cldnn::memory::ptr m_memory = nullptr;
     bool m_transpose_required = false;
+    std::shared_ptr<cldnn::tensor_conversion> m_conversion;
     size_t actual_size = 0;
 
     const cldnn::layout m_initial_layout;
 
+    // Retain staging memory until GPU conversion completes.
+    // TODO: Review synchronization for concurrent state access across graph switches and external queues.
+    mutable PendingConversion m_pending;
+
+    void wait_for_gpu_conversion() const;
     void update_device_buffer();
 };
 

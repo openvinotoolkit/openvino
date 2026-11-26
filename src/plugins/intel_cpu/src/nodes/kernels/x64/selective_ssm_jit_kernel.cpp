@@ -33,7 +33,8 @@ void jit_selective_ssm_kernel<isa>::load(const Vmm& destination,
     const auto seed = load_emitter_params(source_precision, ov::element::f32, element_count, fill_tail, "zero").hash();
     auto& emitter = emitters[seed];
     if (!emitter) {
-        constexpr cpu_isa_t emitter_isa = (isa & zmm_bit) != 0 ? avx512_core : isa;
+        constexpr cpu_isa_t emitter_isa =
+            (static_cast<unsigned>(isa) & static_cast<unsigned>(zmm_bit)) != 0 ? avx512_core : isa;
         emitter = std::make_unique<jit_load_emitter>(this,
                                                      emitter_isa,
                                                      source_precision,
@@ -58,7 +59,8 @@ void jit_selective_ssm_kernel<isa>::store(const Xbyak::Reg64& destination,
     const auto seed = store_emitter_params(ov::element::f32, destination_precision, element_count).hash();
     auto& emitter = emitters[seed];
     if (!emitter) {
-        constexpr cpu_isa_t emitter_isa = (isa & zmm_bit) != 0 ? avx512_core : isa;
+        constexpr cpu_isa_t emitter_isa =
+            (static_cast<unsigned>(isa) & static_cast<unsigned>(zmm_bit)) != 0 ? avx512_core : isa;
         emitter = std::make_unique<jit_store_emitter>(this,
                                                       emitter_isa,
                                                       ov::element::f32,
@@ -213,7 +215,7 @@ template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::zero_accumulators(size_t row) {
     const auto accumulator = accumulator_vmm(row);
     uni_vpxor(accumulator, accumulator, accumulator);
-    if constexpr ((isa & zmm_bit) != 0) {
+    if constexpr ((static_cast<unsigned>(isa) & static_cast<unsigned>(zmm_bit)) != 0) {
         const auto second = accumulator_vmm(row, 1);
         uni_vpxor(second, second, second);
     }
@@ -221,7 +223,7 @@ void jit_selective_ssm_kernel<isa>::zero_accumulators(size_t row) {
 
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::fold_partial_accumulators(size_t row) {
-    if constexpr ((isa & zmm_bit) != 0) {
+    if constexpr ((static_cast<unsigned>(isa) & static_cast<unsigned>(zmm_bit)) != 0) {
         const auto accumulator = accumulator_vmm(row);
         vaddps(accumulator, accumulator, accumulator_vmm(row, 1));
     }

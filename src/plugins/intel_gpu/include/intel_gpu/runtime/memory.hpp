@@ -55,10 +55,6 @@ struct memory {
     }
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
-#ifdef ENABLE_MLIR_FOR_GPU
-    // Returns the handle to the underlying memory object (e.g. cl_mem for OpenCL)
-    virtual void* get_native_handle() const { return nullptr; }
-#endif
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }
@@ -158,8 +154,12 @@ struct simple_attached_memory : memory {
 
     void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
-    event::ptr fill(stream& /* stream */, unsigned char, const std::vector<event::ptr>&, bool) override { return nullptr; }
-    event::ptr fill(stream& /* stream */, const std::vector<event::ptr>&, bool) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, unsigned char /*pattern*/, const std::vector<event::ptr>& /*dep_events*/, bool /*blocking*/) override {
+        return nullptr;
+    }
+    event::ptr fill(stream& /* stream */, const std::vector<event::ptr>& /*dep_events*/, bool /*blocking*/) override {
+        return nullptr;
+    }
     shared_mem_params get_internal_params(runtime_types rt_type) const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
