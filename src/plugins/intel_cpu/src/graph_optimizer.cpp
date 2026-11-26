@@ -285,6 +285,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         if (!scaleNode->isConstant()) {
             return false;
         }
+        // DQ scales apply to every consumer of the parent's output, so the Multiply must be the only one
+        if (parentNode->getChildEdges().size() != 1) {
+            return false;
+        }
         // Only Fusing scales for INT8 precision.
         if (!parentNode->canBeExecutedInInt8()) {
             return false;
@@ -1496,10 +1500,6 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph& graph) {
         return false;
     };
 
-    auto isSuitableChildNode = [](const NodePtr& node) {
-        return node->getType() == Type::FakeQuantize && node->getAlgorithm() != Algorithm::FQBinarization;
-    };
-
     for (const auto& parent : graphNodes) {
         if (!isSuitableParentNode(parent)) {
             continue;
@@ -1508,7 +1508,7 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph& graph) {
         CPU_GRAPH_OPTIMIZER_SCOPE(FusePoolingAndFakeQuantize_ParentNode);
 
         auto child = parent->getChildEdgeAt(0)->getChild();
-        if (!isSuitableChildNode(child)) {
+        if (!parent->canFuse(child)) {
             continue;
         }
 

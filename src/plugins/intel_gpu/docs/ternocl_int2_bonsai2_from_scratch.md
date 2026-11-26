@@ -24,7 +24,7 @@ The environment every command needs (put it in a file and `source` it):
 # env.sh
 export WORK=$HOME/ov-bonsai2
 export OV_ROOT=$WORK/openvino
-export TOOLS=$OV_ROOT/src/plugins/intel_gpu/tools/int2
+export TOOLS=$OV_ROOT/tools/int2_bonsai
 export ZE_AFFINITY_MASK=0                    # multi-GPU hosts: which GPU to use
 ```
 

@@ -267,6 +267,8 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
 
     const size_t kv_output_index = need_qk_output ? 0 : 1;
     for (const auto& stateless_kv : statelesskvs) {
+        EXPECT_EQ(stateless_kv->get_sliding_window_cache(), cfg.sliding_window_cache);
+        EXPECT_EQ(stateless_kv->get_window_size(), cfg.local_window_size);
         const auto sdpa_index = find_sdpa_index(stateless_kv->output(kv_output_index).get_target_inputs(), find_sdpa_index);
         if (sdpa_index == 1) {
             ASSERT_EQ(key, nullptr);
@@ -346,10 +348,7 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         }
     }
 
-    if (cfg.sliding_window_cache) {
-        for (const auto& stateless_kv : statelesskvs) {
-            EXPECT_EQ(stateless_kv->get_window_size(), cfg.local_window_size);
-        }
+    if (cfg.local_window_size > 0) {
         ASSERT_NE(sdpa, nullptr);
         // SDPA applies the window natively, so no explicit mask input.
         EXPECT_EQ(sdpa->get_input_size(), 3u);
@@ -867,19 +866,24 @@ TEST(GQADecompositionTest, smooth_softmax_with_scale_keeps_mask) {
     EXPECT_TRUE(slot_holds_a_mask(sdpa->input_value(3)));
 }
 
-// A local window with a plain KV cache retains the explicit mask.
-TEST(GQADecompositionTest, local_window_keeps_mask) {
+// A local window with a plain KV cache still uses StatelessKV and SDPA's native window, without an explicit mask.
+TEST(GQADecompositionTest, local_window_uses_stateless_kv) {
     GQAConfig cfg;
     cfg.causal = true;
     cfg.local_window_size = 128;
     cfg.sliding_window_cache = false;  // plain past/present cache, not rotating
 
-    const auto sdpa = decompose_and_get_sdpa(cfg);
-    ASSERT_NE(sdpa, nullptr);
+    expect_stateless_kv_cache_connections(cfg);
+}
 
-    EXPECT_GT(sdpa->get_input_size(), 3u) << "local_window_size=" << cfg.local_window_size
-                                          << " requires an explicit window mask, but the mask was elided. is_causal alone "
-                                             "cannot express a left window bound, so attention now spans the whole KV cache.";
+TEST(GQADecompositionTest, local_window_static_uses_stateless_kv) {
+    GQAConfig cfg;
+    cfg.causal = true;
+    cfg.local_window_size = 64;
+    cfg.sliding_window_cache = false;
+    cfg.static_past_cache = true;
+
+    expect_stateless_kv_cache_connections(cfg);
 }
 
 // Combining a local window and sink retains the explicit mask.
