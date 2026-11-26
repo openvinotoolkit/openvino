@@ -311,7 +311,7 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
     if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 13) &&
-        zeroInitStruct->isExternalMemoryStandardAllocationSupported()) {
+        zeroInitStruct->getCapabilities().externalMemoryStandardAllocationSupported) {
         ASSERT_TRUE(zeGraphExt->isBlobDataImported(graphDescriptor));
     } else {
         ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));

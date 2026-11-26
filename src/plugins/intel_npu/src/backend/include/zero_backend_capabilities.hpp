@@ -18,9 +18,9 @@ inline BackendCapabilities makeBackendCapabilities(const ZeroCapabilities& zeroC
     caps.graphExtVersion = zeroCaps.graphExtVersion;
     caps.commandQueueExtVersion = zeroCaps.commandQueueExtVersion;
     caps.apiVersion = static_cast<uint32_t>(zeroCaps.zeApiVersion);
-    caps.commandQueueExtSupported = zeroCaps.commandQueueExtSupported;
+    caps.commandQueueExtSupported = zeroCaps.commandQueueExtVersion != 0;
     caps.luidExtSupported = zeroCaps.luidExtSupported;
-    caps.contextExtSupported = zeroCaps.contextExtSupported;
+    caps.contextExtSupported = zeroCaps.contextExtVersion != 0;
     return caps;
 }
 

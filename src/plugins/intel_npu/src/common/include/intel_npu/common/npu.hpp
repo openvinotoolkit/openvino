@@ -33,9 +33,9 @@ public:
     virtual const std::string getName() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
-    /** @brief Get Level Zero context*/
+    /** @brief Get Level Zero context */
     virtual void* getContext() const;
-    /** @brief What the plugin and the compiler adapters need to know about the backend. Defaults to "nothing available" */
+    /** @brief What the plugin need to know about the backend. Defaults to "nothing available" */
     virtual BackendCapabilities getCapabilities() const;
     /** @brief Update backend and device info */
     virtual void updateInfo(const ov::AnyMap& properties) = 0;

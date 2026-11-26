@@ -75,39 +75,6 @@ public:
     inline ze_graph_profiling_dditable_ext_curr_t& getProfilingDdiTable() const {
         return *_graph_profiling_npu_dditable_ext_decorator;
     }
-    inline uint32_t getDriverVersion() const {
-        return _driver_properties.driverVersion;
-    }
-    inline uint32_t getGraphExtVersion() const {
-        return _graph_dditable_ext_decorator->version();
-    }
-    inline uint32_t getMutableCommandListExtVersion() const {
-        return _capabilities.mutableCommandListExtVersion;
-    }
-    inline ze_api_version_t getZeDrvApiVersion() const {
-        return _capabilities.zeApiVersion;
-    }
-    inline bool isCommandQueueExtSupported() const {
-        return _capabilities.commandQueueExtSupported;
-    }
-    inline bool isLUIDExtSupported() const {
-        return _capabilities.luidExtSupported;
-    }
-    inline bool isContextExtSupported() const {
-        return _capabilities.contextExtSupported;
-    }
-    inline bool isExternalMemoryStandardAllocationSupported() const {
-        return _capabilities.externalMemoryStandardAllocationSupported;
-    }
-    inline bool isExternalMemoryFdWin32Supported() const {
-        return _capabilities.externalMemoryFdWin32Supported;
-    }
-    inline bool isCommandQueueSetPrioritySupported() const {
-        return _capabilities.commandQueueSetPrioritySupported;
-    }
-    inline uint32_t getCommandQueueGroupOrdinal() const {
-        return _capabilities.commandQueueGroupOrdinal;
-    }
 
     /**
      * @brief What the driver supports, as a plain value. Fixed once the driver has been queried.

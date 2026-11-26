@@ -20,7 +20,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     _device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
 
     // Get LUID info, if supported
-    if (_initStructs->isLUIDExtSupported()) {
+    if (_initStructs->getCapabilities().luidExtSupported) {
         _device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
         _device_properties.pNext = &_device_luid;
     }
@@ -54,7 +54,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
 #else                                 // _WIN32 || __CYGWIN__
     gops_support_drv_version = 1715354569;  /// Linux driver version which supports Gops calculations
 #endif                                // _WIN32 || __CYGWIN__
-    if (_initStructs->getDriverVersion() >= gops_support_drv_version) {
+    if (_initStructs->getCapabilities().driverVersion >= gops_support_drv_version) {
         float gops = (_device_properties.coreClockRate / powf(1000, 3)) * _device_properties.numSlices *
                      _device_properties.physicalEUSimdWidth;
         _device_gops[ov::element::f32] = 0;
@@ -156,7 +156,7 @@ uint64_t ZeroDevice::getTotalMemSize() const {
 
     // For drivers with graph_extension < 1.9 we report fixed 2GB max allocation size (old drivers don't support more)
     // For drivers with graph_extension > 1.9 we report the value they return
-    const uint32_t graph_ext_version = _initStructs->getGraphExtVersion();
+    const uint32_t graph_ext_version = _initStructs->getCapabilities().graphExtVersion;
     if (graph_ext_version >= ZE_MAKE_VERSION(1, 9)) {
         // we are safe here, can return the value directly from driver
         return query.total;
@@ -204,7 +204,7 @@ void ZeroDevice::updateInfo(const ov::AnyMap& properties) {
 }
 
 bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const {
-    if (_initStructs->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+    if (_initStructs->getCapabilities().zeApiVersion < ZE_MAKE_VERSION(1, 16)) {
         OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
     }
 

@@ -88,7 +88,7 @@ TEST(MakeBackendCapabilities, SupportFlagsAreCopiedIndependently) {
     EXPECT_FALSE(caps.contextExtSupported);
 
     ZeroCapabilities onlyContext;
-    onlyContext.contextExtSupported = true;
+    onlyContext.contextExtVersion = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
     caps = makeBackendCapabilities(onlyContext);
 
     EXPECT_TRUE(caps.contextExtSupported);
@@ -96,7 +96,7 @@ TEST(MakeBackendCapabilities, SupportFlagsAreCopiedIndependently) {
     EXPECT_FALSE(caps.commandQueueExtSupported);
 
     ZeroCapabilities onlyQueue;
-    onlyQueue.commandQueueExtSupported = true;
+    onlyQueue.commandQueueExtVersion = ZE_MAKE_VERSION(1, 1);
     caps = makeBackendCapabilities(onlyQueue);
 
     EXPECT_TRUE(caps.commandQueueExtSupported);

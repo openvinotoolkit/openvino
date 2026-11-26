@@ -474,7 +474,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorImportFile3) {
 TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedSize) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 64};
         auto shape_size = ov::shape_size(shape);
 
@@ -498,7 +498,7 @@ TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedSize) {
 TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedAddress) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 1024};
         auto shape_size = ov::shape_size(shape);
 
@@ -523,7 +523,7 @@ TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedAddress) {
 TEST_P(RemoteRunTests, ImportCpuVAUsingNpuRemoteTensorAPI) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 1024};
         auto shape_size = ov::shape_size(shape);
         auto model = createModel(element::f32, shape, "N...");
@@ -593,7 +593,7 @@ TEST_P(RemoteRunTests, ImportCpuVAUwithoutSettingBufferExpectedError) {
 TEST_P(RemoteRunTests, ImportCpuVAUsingStandardRemoteTensorAPI) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 1024};
         auto shape_size = ov::shape_size(shape);
         auto model = createModel(element::f32, shape, "N...");
@@ -640,7 +640,7 @@ TEST_P(RemoteRunTests, ImportCpuVAUsingStandardRemoteTensorAPI) {
 TEST_P(RemoteRunTests, ImportCpuVAWithImportSizeBiggerThanTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCapabilities().externalMemoryStandardAllocationSupported) {
         auto shape = Shape{1, 1024};
         auto shape_size = ov::shape_size(shape);
         auto model = createModel(element::f32, shape, "N...");
@@ -690,7 +690,7 @@ TEST_P(RemoteRunTests, ImportCpuVAWithImportSizeBiggerThanTensor) {
 TEST_P(RemoteRunTests, ImportCpuVAUnalignedTensorSizeWithAlignedImportSize) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCapabilities().externalMemoryStandardAllocationSupported) {
         // tensor size (256 bytes) is not aligned to the page size, so importing it without import_size fails
         auto shape = Shape{1, 64};
         auto shape_size = ov::shape_size(shape);

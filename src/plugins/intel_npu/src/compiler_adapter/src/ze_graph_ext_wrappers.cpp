@@ -678,7 +678,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 }
 
 std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_graph_handle_t graphHandle) const {
-    if (_zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+    if (_zeroInitStruct->getCapabilities().zeApiVersion < ZE_MAKE_VERSION(1, 16)) {
         return std::nullopt;
     }
 

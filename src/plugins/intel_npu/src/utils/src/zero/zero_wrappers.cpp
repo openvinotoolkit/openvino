@@ -145,14 +145,14 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
                                    &mutable_desc,
-                                   _init_structs->getCommandQueueGroupOrdinal(),
+                                   _init_structs->getCapabilities().commandQueueGroupOrdinal,
                                    0};
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandListCreate",
         zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
 
     try {
-        uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
+        uint32_t mutable_command_list_ext_version = _init_structs->getCapabilities().mutableCommandListExtVersion;
         if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 0)) {
             ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
 
@@ -233,7 +233,7 @@ CommandList::~CommandList() {
 void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
 
-    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+    desc.stype = (_init_structs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 11))
                      ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
                      : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
     desc.commandId = _command_id;
@@ -252,7 +252,7 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                                       const std::vector<size_t>& strides) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
 
-    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+    desc.stype = (_init_structs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 11))
                      ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
                      : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
     desc.commandId = _command_id;
@@ -296,7 +296,7 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
       _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t ze_queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
                                              nullptr,
-                                             _init_structs->getCommandQueueGroupOrdinal(),
+                                             _init_structs->getCapabilities().commandQueueGroupOrdinal,
                                              0,
                                              0,
                                              ZE_COMMAND_QUEUE_MODE_DEFAULT,
@@ -342,7 +342,7 @@ void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType
                                 _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
 }
 void CommandQueue::setPriority(ze_command_queue_priority_t priority) const {
-    if (!_init_structs->isCommandQueueSetPrioritySupported()) {
+    if (!_init_structs->getCapabilities().commandQueueSetPrioritySupported) {
         OPENVINO_THROW("The Priority property is not supported by the current Driver Version!");
     }
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueSetPriorityExt", zeCommandQueueSetPriorityExt(_handle, priority));

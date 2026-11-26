@@ -25,15 +25,16 @@ struct ZeroCapabilities {
     uint32_t mutableCommandListExtVersion = 0;
     uint32_t commandQueueGroupOrdinal = 0;
 
-    // Version numbers reported by the driver and its NPU extensions, 0 if not available. They are copied from the
+    // Negotiated versions of the NPU extensions, 0 if not supported (derived from the negotiated extension map)
+    uint32_t commandQueueExtVersion = 0;
+    uint32_t contextExtVersion = 0;
+
+    // Version numbers reported by the driver and its graph extension, 0 if not available. They are copied from the
     // driver by the holder, they are not derived from the negotiated extension map.
     uint32_t driverVersion = 0;
     uint32_t graphExtVersion = 0;
-    uint32_t commandQueueExtVersion = 0;
 
-    bool commandQueueExtSupported = false;
     bool commandQueueSetPrioritySupported = false;
-    bool contextExtSupported = false;
     bool luidExtSupported = false;
     bool externalMemoryStandardAllocationSupported = false;
     bool externalMemoryFdWin32Supported = false;
@@ -63,9 +64,9 @@ inline ZeroCapabilities makeZeroCapabilities(const std::map<std::string, uint32_
     caps.zeApiVersion = zeApiVersion;
     caps.mutableCommandListExtVersion = extensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME);
     caps.commandQueueGroupOrdinal = commandQueueGroupOrdinal;
-    caps.commandQueueExtSupported = extensionVersion(ZE_COMMAND_QUEUE_NPU_EXT_NAME) != 0;
+    caps.commandQueueExtVersion = extensionVersion(ZE_COMMAND_QUEUE_NPU_EXT_NAME);
+    caps.contextExtVersion = extensionVersion(ZE_CONTEXT_NPU_EXT_NAME);
     caps.commandQueueSetPrioritySupported = extensionVersion(ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME) != 0;
-    caps.contextExtSupported = extensionVersion(ZE_CONTEXT_NPU_EXT_NAME) != 0;
     caps.luidExtSupported = extensionVersion(ZE_DEVICE_LUID_EXT_NAME) != 0;
     caps.externalMemoryStandardAllocationSupported = externalMemoryStandardAllocationSupported;
     caps.externalMemoryFdWin32Supported = externalMemoryFdWin32Supported;

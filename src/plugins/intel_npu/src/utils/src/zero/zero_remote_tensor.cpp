@@ -371,7 +371,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             _tensor_type = TensorType::INPUT;
         }
 
-        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
+        if (!_init_structs->getCapabilities().externalMemoryStandardAllocationSupported) {
             _logger.info("Importing mmaped memory isn't supported for this configuration. File data will be copied to "
                          "the level zero memory");
             copy_file_data_to_level_zero_memory(bytes);

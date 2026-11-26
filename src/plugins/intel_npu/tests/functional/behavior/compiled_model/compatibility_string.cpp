@@ -132,7 +132,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
     const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
     if (driverHandlesCompatibilityCheck) {
         ASSERT_TRUE(it != properties.cend());
     } else {
@@ -172,7 +172,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
     const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
     if (driverHandlesCompatibilityCheck) {
         OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
     } else {
@@ -347,7 +347,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImportForWSIt
     // graph API version is high enough. On older drivers it is expected to be absent.
     const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     // Preparing the model for the test
     std::stringstream model_xml, model_bin;
@@ -488,7 +488,7 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
     // compatibility check without falling back to PluginCompilerAdapter.
     const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));
@@ -526,7 +526,7 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertie
     // compatibility check without falling back to PluginCompilerAdapter.
     const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));

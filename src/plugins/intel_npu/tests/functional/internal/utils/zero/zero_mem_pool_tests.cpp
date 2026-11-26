@@ -101,7 +101,7 @@ TEST_P(ZeroMemPoolTests, GetZeroMemoryData) {
 
     std::shared_ptr<::intel_npu::ZeroMem> get_zero_mem;
 
-    if (init_struct->isExternalMemoryStandardAllocationSupported()) {
+    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
         OV_ASSERT_NO_THROW(get_zero_mem =
                                ::intel_npu::zero_mem::import_standard_allocation_memory(init_struct, data, 4096));
         ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), data));
@@ -120,7 +120,7 @@ TEST_P(ZeroMemPoolTests, GetZeroMemoryData) {
 TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->isExternalMemoryStandardAllocationSupported()) {
+    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
         const int threads_no = 256;
         std::array<std::thread, threads_no> threads;
         std::array<std::shared_ptr<::intel_npu::ZeroMem>, 5> zero_mem;
@@ -161,7 +161,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
 TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (init_struct->isExternalMemoryStandardAllocationSupported()) {
+    if (init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
         constexpr int threads_no = 256;
         constexpr int no_of_buffers = 5;
         std::array<std::thread, threads_no> threads;
@@ -306,7 +306,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingDifferentZeroInitStructsHaveIsolatedPools
 TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultipleInitStructs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (!init_struct->isExternalMemoryStandardAllocationSupported()) {
+    if (!init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "Test requires support for importing standard allocated memory as external memory, which is "
                         "not available on this platform.";
     }
@@ -369,7 +369,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyItWithMultiple
 TEST_P(ZeroMemPoolTests, ImportMemoryAdjacentToAlreadyImportedAllocation) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (!init_struct->isExternalMemoryStandardAllocationSupported()) {
+    if (!init_struct->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "Test requires support for importing standard allocated memory as external memory, which is "
                         "not available on this platform.";
     }

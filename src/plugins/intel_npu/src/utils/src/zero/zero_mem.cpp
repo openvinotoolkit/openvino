@@ -39,7 +39,7 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _logger("ZeHostMem", Logger::global().level()),
       _size(bytes) {
     if (standard_allocation) {
-        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
+        if (!_init_structs->getCapabilities().externalMemoryStandardAllocationSupported) {
             throw ZeroMemException("Importing standard allocation is not supported with this driver version");
         }
 
@@ -74,7 +74,7 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                    ze_result_to_description(result).c_str());
         }
     } else {
-        OPENVINO_ASSERT(_init_structs->isExternalMemoryFdWin32Supported(),
+        OPENVINO_ASSERT(_init_structs->getCapabilities().externalMemoryFdWin32Supported,
                         "Remote tensor functionality is not supported with this driver version");
 
         OPENVINO_ASSERT(data != nullptr, "Data pointer for importing memory can't be null");

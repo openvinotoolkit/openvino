@@ -273,7 +273,7 @@ TEST_P(CompatibilityCheckTests, CompatibilityCheckUsesPluginCompilerAdapterOnlyW
     // compatibility check without falling back to PluginCompilerAdapter.
     const auto initStructs = backend ? backend->getInitStructs() : nullptr;
     const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+        initStructs != nullptr && initStructs->getCapabilities().zeApiVersion >= ZE_MAKE_VERSION(1, 16);
 
     bool isSupported = false;
     {

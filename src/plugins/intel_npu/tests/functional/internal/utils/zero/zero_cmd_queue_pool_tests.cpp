@@ -111,7 +111,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeOnExistingQueue) {
 }
 
 TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
-    if (!init_struct->isCommandQueueSetPrioritySupported()) {
+    if (!init_struct->getCapabilities().commandQueueSetPrioritySupported) {
         GTEST_SKIP() << "The SetPriority feature is not supported by the current driver.\n";
     }
 

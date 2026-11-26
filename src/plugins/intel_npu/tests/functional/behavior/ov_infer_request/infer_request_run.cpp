@@ -3469,7 +3469,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAft
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    if (!zeroInit->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3529,7 +3529,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    if (!zeroInit->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3595,7 +3595,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    if (!zeroInit->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3655,7 +3655,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultiple
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    if (!zeroInit->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 
@@ -3717,7 +3717,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+    if (!zeroInit->getCapabilities().externalMemoryStandardAllocationSupported) {
         GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
     }
 

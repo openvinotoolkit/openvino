@@ -75,7 +75,7 @@ void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
     // If the graph already holds a command queue, that queue is the one used for execution,
     // so the priority must be applied on it (directly, or by recreating it on legacy drivers).
     if (_commandQueue) {
-        if (_zeroInitStruct->isCommandQueueSetPrioritySupported()) {
+        if (_zeroInitStruct->getCapabilities().commandQueueSetPrioritySupported) {
             _commandQueue->setPriority(zeModelPriority);
             return;
         }
