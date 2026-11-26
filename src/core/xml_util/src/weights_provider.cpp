@@ -29,8 +29,10 @@ std::filesystem::path WeightsProvider::path() const {
     return {};
 }
 
-BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
-    : m_weights(std::move(weights)) {}
+BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights,
+                                             std::filesystem::path origin_path)
+    : m_weights(std::move(weights)),
+      m_origin_path(std::move(origin_path)) {}
 
 std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::make_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
@@ -44,6 +46,10 @@ std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::make_region(size_t off
 size_t BufferWeightsProvider::size() const {
     OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
     return m_weights->size();
+}
+
+std::filesystem::path BufferWeightsProvider::path() const {
+    return m_origin_path;
 }
 
 FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path) : m_weights_path(std::move(weights_path)) {
