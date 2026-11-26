@@ -164,6 +164,10 @@ ov_add_test_target(
         OV UNIT GGUF_FE
 )
 
+if(TARGET openvino_ir_frontend)
+    add_dependencies(${TARGET_NAME} openvino_ir_frontend)
+endif()
+
 if(ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "OCL")
     if(ENABLE_ONEDNN_FOR_GPU)
         target_compile_definitions(${TARGET_NAME} PRIVATE GGUF_GPU_NATIVE_TESTS=1)

@@ -576,6 +576,73 @@ TEST_F(GGUFParser, NativeQ4KGatherMatchesLegacyOnCPU) {
     EXPECT_EQ(std::memcmp(weights->get_data_ptr(), bytes.data(), bytes.size()), 0);
 }
 
+TEST_F(GGUFParser, NativeQ4KGatherExecutesAfterFileIrRoundTrip) {
+    ov::Core core;
+    std::vector<std::string> devices;
+    for (const std::string device : {"CPU", "GPU"}) {
+        try {
+            RecordProperty(device, core.get_property(device, ov::device::full_name));
+            devices.push_back(device);
+        } catch (const ov::Exception&) {
+            continue;
+        }
+    }
+    if (devices.empty()) {
+        GTEST_SKIP() << "CPU and GPU plugins are unavailable";
+    }
+
+    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("token_embd.weight", GGUF_TYPE_Q4_K, 256, 4, bytes));
+    const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{m_path}, GGUFLoadOptions{true});
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(
+        make_weight_node(std::get<1>(loaded).at("token_embd.weight")));
+    ASSERT_TRUE(weights);
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    const auto scale = ov::op::v0::Constant::create(ov::element::f16, {}, {1});
+    const auto gather = std::make_shared<ov::op::internal::GatherCompressed>(weights, indices, axis, 0, scale);
+    const auto output = std::make_shared<ov::op::v0::Convert>(gather, ov::element::f32);
+    const auto source = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{indices});
+    serialize_ir(source, m_path + ".xml", m_path + ".bin");
+    const auto restored = core.read_model(m_path + ".xml");
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(restored->get_results()[0]->get_input_node_shared_ptr(0));
+    ASSERT_TRUE(convert);
+    const auto restored_gather = ov::as_type_ptr<ov::op::internal::GatherCompressed>(convert->get_input_node_shared_ptr(0));
+    ASSERT_TRUE(restored_gather);
+    const auto restored_weights = ov::as_type_ptr<ov::op::v0::Constant>(restored_gather->get_input_node_shared_ptr(0));
+    ASSERT_TRUE(restored_weights);
+    EXPECT_EQ(restored_weights->get_element_type(), ov::element::gguf_q4_k);
+    EXPECT_EQ(restored_weights->get_shape(), (ov::Shape{4, 256}));
+    ASSERT_EQ(restored_weights->get_byte_size(), bytes.size());
+    EXPECT_EQ(std::memcmp(restored_weights->get_data_ptr(), bytes.data(), bytes.size()), 0);
+
+    const auto precision = ov::hint::inference_precision(ov::element::f32);
+    for (const auto& device : devices) {
+        SCOPED_TRACE(device);
+        auto direct = core.compile_model(source, device, precision).create_infer_request();
+        auto from_ir = core.compile_model(restored, device, precision).create_infer_request();
+        for (auto rows : {std::vector<int32_t>{0}, std::vector<int32_t>{3, 1, 3, 2}}) {
+            SCOPED_TRACE(rows.size());
+            ov::Tensor input(ov::element::i32, {rows.size()}, rows.data());
+            direct.set_input_tensor(input);
+            from_ir.set_input_tensor(input);
+            direct.infer();
+            from_ir.infer();
+            const auto expected = direct.get_output_tensor();
+            const auto actual = from_ir.get_output_tensor();
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{rows.size(), 256}));
+            ASSERT_EQ(actual.get_shape(), expected.get_shape());
+            ASSERT_EQ(actual.get_element_type(), ov::element::f32);
+            ASSERT_EQ(actual.get_element_type(), expected.get_element_type());
+            EXPECT_EQ(std::memcmp(actual.data(), expected.data(), actual.get_byte_size()), 0);
+        }
+    }
+    EXPECT_EQ(gather->get_input_node_shared_ptr(0), weights);
+    EXPECT_EQ(restored_gather->get_input_node_shared_ptr(0), restored_weights);
+    EXPECT_EQ(std::memcmp(weights->get_data_ptr(), bytes.data(), bytes.size()), 0);
+    EXPECT_EQ(std::memcmp(restored_weights->get_data_ptr(), bytes.data(), bytes.size()), 0);
+}
+
 TEST_F(GGUFParser, InternalCompressedOpsPublicIrRoundTrip) {
     const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 256});
     const auto weights = ov::op::v0::Constant::create(ov::element::u8, {1, 256}, {0});
@@ -2347,6 +2414,33 @@ TEST_F(GGUFQ8Projection, SharedModelCompilesInEitherDeviceOrder) {
     }
 }
 
+#if defined(GGUF_GPU_NATIVE_TESTS) || defined(GGUF_GPU_RAW_OCL_TESTS) || defined(GGUF_GPU_ZE_FALLBACK_TESTS)
+static std::shared_ptr<ov::Model> round_trip_dense_projection(ov::Core& core,
+                                                              const std::shared_ptr<ov::Model>& model,
+                                                              const std::filesystem::path& gguf_path) {
+    auto xml = gguf_path;
+    auto binary = gguf_path;
+    xml.replace_extension(".xml");
+    binary.replace_extension(".bin");
+    ov::pass::Serialize(xml, binary).run_on_model(model);
+    const auto restored = core.read_model(xml);
+    std::filesystem::remove(xml);
+    std::filesystem::remove(binary);
+    const auto original_fc = model->get_results().at(0)->get_input_node_shared_ptr(0);
+    const auto restored_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+        restored->get_results().at(0)->get_input_node_shared_ptr(0));
+    OPENVINO_ASSERT(restored_fc, "IR did not preserve FullyConnectedCompressed");
+    const auto source = ov::as_type_ptr<ov::op::v0::Constant>(original_fc->get_input_node_shared_ptr(1));
+    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(restored_fc->get_input_node_shared_ptr(1));
+    OPENVINO_ASSERT(source && weights && source->get_element_type() == weights->get_element_type() &&
+                        source->get_shape() == weights->get_shape() && source->get_byte_size() == weights->get_byte_size(),
+                    "IR did not preserve native weights metadata");
+    OPENVINO_ASSERT(std::memcmp(source->get_data_ptr(), weights->get_data_ptr(), source->get_byte_size()) == 0,
+                    "IR did not preserve native weight bytes");
+    return restored;
+}
+#endif
+
 #if defined(GGUF_GPU_NATIVE_TESTS) || defined(GGUF_GPU_RAW_OCL_TESTS)
 enum class DenseLayout { Raw, Shuffled, RawUnaligned, ShuffledGemmUnaligned };
 
@@ -2419,6 +2513,7 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
     inputs[0] = activation;
     const auto fc = projection->clone_with_new_inputs(inputs);
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+    const auto restored = layout_case == DenseLayout::Raw ? round_trip_dense_projection(core, model, path) : nullptr;
     if (layout_case == DenseLayout::Raw && std::find(devices.begin(), devices.end(), "CPU") != devices.end()) {
         const auto precision = ov::hint::inference_precision(ov::element::f32);
         bool cpu_supports_fc = false;
@@ -2460,6 +2555,13 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
             const auto output = cpu_request.get_output_tensor();
             ASSERT_EQ(output.get_shape(), (ov::Shape{2, channels}));
             ASSERT_EQ(output.get_element_type(), ov::element::f32);
+            auto restored_cpu_request = core.compile_model(restored, "CPU", precision).create_infer_request();
+            restored_cpu_request.set_input_tensor(input);
+            restored_cpu_request.infer();
+            const auto restored_output = restored_cpu_request.get_output_tensor();
+            ASSERT_EQ(restored_output.get_shape(), output.get_shape());
+            ASSERT_EQ(restored_output.get_element_type(), output.get_element_type());
+            EXPECT_EQ(std::memcmp(restored_output.data(), output.data(), output.get_byte_size()), 0);
             if (test_case.type == GGUF_TYPE_Q4_1 || test_case.type == GGUF_TYPE_Q6_K ||
                 test_case.type == GGUF_TYPE_Q4_K || test_case.type == GGUF_TYPE_Q5_K) {
                 const bool q6_k = test_case.type == GGUF_TYPE_Q6_K;
@@ -2551,6 +2653,13 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
     };
     auto request = compiled.create_infer_request();
     auto imported_request = imported.create_infer_request();
+    ov::CompiledModel restored_gpu;
+    ov::InferRequest restored_request;
+    if (restored) {
+        restored_gpu = core.compile_model(restored, "GPU", ov::hint::inference_precision(ov::element::f32),
+                                          ov::enable_profiling(true));
+        restored_request = restored_gpu.create_infer_request();
+    }
     for (size_t rows : {1u, 33u, 128u, 257u, 1u}) {
         SCOPED_TRACE(rows);
         ov::Tensor input(ov::element::f32, {rows, width});
@@ -2565,6 +2674,15 @@ TEST_P(GGUFDenseDispatch, FileExecutesAtMultipleRowCounts) {
         ASSERT_EQ(output.get_element_type(), ov::element::f32);
         const auto executed = executed_kernels(compiled);
         ASSERT_EQ(executed.size(), 1u);
+        if (restored) {
+            restored_request.set_input_tensor(input);
+            restored_request.infer();
+            const auto restored_output = restored_request.get_output_tensor();
+            ASSERT_EQ(restored_output.get_shape(), output.get_shape());
+            ASSERT_EQ(restored_output.get_element_type(), output.get_element_type());
+            EXPECT_EQ(std::memcmp(restored_output.data(), output.data(), output.get_byte_size()), 0);
+            EXPECT_EQ(executed_kernels(restored_gpu), executed);
+        }
         imported_request.set_input_tensor(input);
         imported_request.infer();
         const auto imported_output = imported_request.get_output_tensor();
@@ -2674,11 +2792,14 @@ TEST_P(GGUFZeDenseFallback, CompilesNativeFileProjectionWithoutMutatingSource) {
         return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{activation});
     };
     const auto model = make_model(fc);
+    const auto restored = round_trip_dense_projection(core, model, path);
     const auto lowered = ov::util::make_gguf_fc_compatible(*fc, {weights->get_element_type()});
     ASSERT_TRUE(lowered);
     const auto precision = ov::hint::inference_precision(ov::element::f32);
     EXPECT_EQ(core.query_model(model, "GPU", precision).count(fc->get_friendly_name()), 1u);
+    EXPECT_EQ(core.query_model(restored, "GPU", precision).count(fc->get_friendly_name()), 1u);
     auto actual = core.compile_model(model, "GPU", precision).create_infer_request();
+    auto from_ir = core.compile_model(restored, "GPU", precision).create_infer_request();
     auto reference = core.compile_model(make_model(lowered), "GPU", precision).create_infer_request();
     for (const size_t rows : {1u, 33u}) {
         SCOPED_TRACE(rows);
@@ -2688,13 +2809,19 @@ TEST_P(GGUFZeDenseFallback, CompilesNativeFileProjectionWithoutMutatingSource) {
             input.data<float>()[row * width + (7 * row + 13) % width] = 1.f;
         }
         actual.set_input_tensor(input);
+        from_ir.set_input_tensor(input);
         reference.set_input_tensor(input);
         actual.infer();
+        from_ir.infer();
         reference.infer();
         const auto result = actual.get_output_tensor();
+        const auto restored_result = from_ir.get_output_tensor();
         const auto expected = reference.get_output_tensor();
         ASSERT_EQ(result.get_shape(), (ov::Shape{rows, channels}));
         ASSERT_EQ(result.get_shape(), expected.get_shape());
+        ASSERT_EQ(result.get_shape(), restored_result.get_shape());
+        ASSERT_EQ(result.get_element_type(), restored_result.get_element_type());
+        EXPECT_EQ(std::memcmp(result.data(), restored_result.data(), result.get_byte_size()), 0);
         for (size_t index = 0; index < result.get_size(); ++index) {
             EXPECT_NEAR(result.data<const float>()[index], expected.data<const float>()[index], 1e-4f);
         }
