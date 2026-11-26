@@ -30,6 +30,7 @@
 #include <memory>
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -41,6 +42,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/tile.hpp"
@@ -236,6 +238,53 @@ TEST(ShapeOfConcatTest, DoesNotFoldWhenConcatShapeIsDynamic) {
 
     EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 1u)
         << "ShapeOf must be preserved when the Concat's output shape cannot be bound";
+}
+
+TEST(ShapeOfConcatTest, DoesNotFoldWhenConcatShapeHasDifferentBounds) {
+    auto past = ov::test::utils::make_param(element::f32, PartialShape{1, 2, Dimension(3, 5), 8}, "past");
+    auto cur = ov::test::utils::make_param(element::f32, Shape{1, 2, 1, 8}, "cur");
+    auto concat = std::make_shared<op::v0::Concat>(OutputVector{past, cur}, 2);
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(concat, element::i64);
+    auto model =
+        std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(shape_of)}, ParameterVector{past, cur});
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
+    EXPECT_FALSE(rewr.run_on_model(model));
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 1u);
+}
+
+TEST(ShapeOfConcatTest, RegularizeSDPAKeepsStaticDecodeShapeChain) {
+    auto model = build_shape_of_concat_static_model();
+
+    EXPECT_FALSE(ov::npuw::patterns::regularize::RegularizeSDPA(false).run_on_model(model));
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 1u);
+}
+
+TEST(ShapeOfConcatTest, RegularizeSDPAFoldsForAttentionIsolation) {
+    auto model = build_shape_of_concat_static_model();
+
+    EXPECT_TRUE(ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model));
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 0u);
+}
+
+TEST(ShapeOfConcatTest, RegularizeSDPAFoldsForSlidingAttentionWithStaticHint) {
+    auto past = ov::test::utils::make_param(element::f32, Shape{1, 2, 4, 8}, "past");
+    auto cur = ov::test::utils::make_param(element::f32, Shape{1, 2, 1, 8}, "cur");
+    auto query = ov::test::utils::make_param(element::f32, Shape{1, 2, 1, 8}, "query");
+    auto concat = std::make_shared<op::v0::Concat>(OutputVector{past, cur}, 2);
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(concat, element::i64);
+    auto mask = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 5}, {0.0f});
+    auto scale = op::v0::Constant::create(element::f32, Shape{}, {1.0f});
+    auto sdpa = std::make_shared<op::v13::ScaledDotProductAttention>(query, concat, concat, mask, scale, false);
+    sdpa->get_rt_info()[ov::npuw::NPUW_SDPA_MASK_RT_KEY] = int64_t{4};
+    auto model = std::make_shared<Model>(
+        ResultVector{std::make_shared<op::v0::Result>(shape_of), std::make_shared<op::v0::Result>(sdpa)},
+        ParameterVector{past, cur, query});
+
+    EXPECT_TRUE(ov::npuw::patterns::regularize::RegularizeSDPA(false).run_on_model(model));
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 0u);
+    EXPECT_EQ(count_ops<op::v13::ScaledDotProductAttention>(model), 1u);
 }
 
 // ---------------------------------------------------------------------------

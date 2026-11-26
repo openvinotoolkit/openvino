@@ -120,6 +120,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_nd.cpp
@@ -202,6 +203,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/range.cpp
