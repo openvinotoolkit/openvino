@@ -21,8 +21,8 @@ public:
 
 protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    void SetKernelArguments(const convolution_params& params, clKernelData& kernel, size_t idx) const;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
+    static void SetKernelArguments(const convolution_params& params, clKernelData& kernel, size_t idx);
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override {
         return WeightsLayout::os_is_yx_isv16_osv16;
     }
 };

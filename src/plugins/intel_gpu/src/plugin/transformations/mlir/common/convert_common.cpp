@@ -197,8 +197,12 @@ bool statically_broadcastable(const PartialShape& from, const PartialShape& to) 
 }
 
 bool is_debug() {
-    // The option is DEBUG-only, but ENABLE_MLIR_FOR_GPU requires ENABLE_GPU_DEBUG_CAPS, so it always exists here
+    // mlir_debug is a DEBUG_GLOBAL option, so it only exists in builds with debug caps
+#ifdef ENABLE_DEBUG_CAPS
     return ov::intel_gpu::ExecutionConfig::get_mlir_debug();
+#else
+    return false;
+#endif
 }
 
 }  // namespace ov::intel_gpu::mlir

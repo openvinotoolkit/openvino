@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ struct mvn_params : public base_params {
 
     MVNMode mvnMode = MVNMode::WITHIN_CHANNELS;
     bool mvnNormalizeVariance = false;
-    float epsilon = 0.0f;
+    float epsilon = 0.0F;
     MVNEpsMode mvnEpsMode = MVNEpsMode::INSIDE_SQRT;
 
     ParamsKey GetParamsKey() const override {
@@ -52,12 +52,14 @@ public:
     };
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
-    virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
+    virtual std::string GetKernelName(const mvn_params& /*unused*/) const {
+        return kernelName;
+    }
     KernelsData GetCommonKernelsData(const Params& params) const;
-    Datatype GetActivationType(const mvn_params& params) const;
+    static Datatype GetActivationType(const mvn_params& params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

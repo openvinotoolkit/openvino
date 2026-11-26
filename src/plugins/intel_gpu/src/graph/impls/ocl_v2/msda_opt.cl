@@ -8,7 +8,7 @@
 // align_corners=false, which is the GridSample sampling the fusion replaces.
 //
 // The pixel coordinates and the bilinear weights are float, as in
-// grid_sample_opt_bilinear_zeros.cl; the samples are accumulated in
+// grid_sample_opt_bilinear.cl; the samples are accumulated in
 // ACCUMULATOR_TYPE (f32) and converted to OUTPUT_TYPE on store. One work item
 // per output channel keeps the corner loads of neighboring work items
 // contiguous along D.
@@ -62,7 +62,7 @@ KERNEL(multi_scale_deformable_attn)(
 
             // The corners are loaded unconditionally from clamped, in-bounds
             // offsets and masked afterwards, which avoids divergent branches
-            // around the loads (see LOAD_INPUT in grid_sample_opt_bilinear_zeros.cl).
+            // around the loads (see LOAD_INPUT in grid_sample_opt_bilinear.cl).
             const INPUT0_TYPE v00_d = level_value[(y0c * width + x0c) * key_stride];
             const INPUT0_TYPE v01_d = level_value[(y0c * width + x1c) * key_stride];
             const INPUT0_TYPE v10_d = level_value[(y1c * width + x0c) * key_stride];

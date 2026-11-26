@@ -217,7 +217,7 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
     return jit;
 }
 
-size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution_params& params) const {
+size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution_params& params) {
     size_t fsv = 4;
     if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
         params.inputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.inputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
@@ -241,7 +241,7 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution
     return tile_ifm;
 }
 
-size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution_params& params) const {
+size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution_params& params) {
     // TODO Loosen divisibility requirement for tile ofm 2
     if (params.weights.OFM().v % (simd * 2) == 0 && params.outputs[0].Batch().v % 2 != 0) {
         return 2;
@@ -250,7 +250,7 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution
     return 1;
 }
 
-size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileX(const deconvolution_params& params) const {
+size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileX(const deconvolution_params& params) {
     constexpr size_t max_tile_x = simd;
     if (params.outputs[0].X().v <= max_tile_x) {
         return params.outputs[0].X().v;
@@ -259,7 +259,7 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileX(const deconvolution_p
     return max_tile_x;
 }
 
-size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileB(const deconvolution_params& params) const {
+size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileB(const deconvolution_params& params) {
     if (params.outputs[0].Batch().v % 2 == 0) {
         return 2;
     }
