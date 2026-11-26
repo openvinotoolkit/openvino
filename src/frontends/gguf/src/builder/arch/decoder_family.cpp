@@ -95,6 +95,7 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
                                              "ernie4_5-moe",
                                              "mellum",
                                              "gemma4"});
+    p.experts.rescale_down_input = arch == "flint";
     if (is_one_of(arch, {"afmoe", "glm4moe"}))
         p.experts.routing = ExpertRouting::Sigmoid;
     if (is_one_of(arch, {"qwen35", "qwen35moe", "qwen3next"})) {
@@ -161,6 +162,11 @@ DecoderParameters resolve_decoder_parameters(const GgufMetadata& metadata,
         p.scales.logits = 1.0f / p.scales.logits;
     if (p.architecture == "lfm2moe")
         p.experts.weights_scale = 0.0f;
+    // llama.cpp Flint rotates sliding layers with the global base and scale.
+    if (p.architecture == "flint") {
+        p.attention.sliding_rope.freq_base = p.attention.rope.freq_base;
+        p.attention.sliding_rope.freq_scale = p.attention.rope.freq_scale;
+    }
     if (p.architecture == "dflash" && metadata.has(p.architecture + ".hidden_activation")) {
         const auto activation = metadata.get_str(p.architecture + ".hidden_activation");
         OPENVINO_ASSERT(

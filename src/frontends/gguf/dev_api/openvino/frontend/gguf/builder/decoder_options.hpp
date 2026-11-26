@@ -74,6 +74,8 @@ struct GGUF_FRONTEND_API DecoderAttention {
     int sliding_head_size = 0;
     bool rope_on_sliding_only = false;
     int rope_skip_period = 0;
+    // Per-layer RoPE flags (llama.cpp `attention.rope_pattern`); empty rotates every layer.
+    std::vector<int32_t> rope_layers;
     bool sliding_on_attention_layers = false;
     bool interleaved_q_gate = false;
     std::optional<bool> fused_qkv;
@@ -93,6 +95,8 @@ struct GGUF_FRONTEND_API DecoderExperts {
     ExpertRouting routing = ExpertRouting::Softmax;
     float weights_scale = 0.0f;
     bool normalize_weights = false;
+    // Keep routed down-projection inputs within F16 range with exact per-row rescaling.
+    bool rescale_down_input = false;
     std::optional<bool> enabled;
     std::optional<bool> softmax_after_topk;
     std::optional<bool> swiglu_oai;
@@ -117,6 +121,7 @@ struct GGUF_FRONTEND_API DecoderLayerOverrides {
     std::optional<int> head_size;
     std::optional<float> attention_scale;
     std::optional<RopeConfig> rope;
+    std::optional<bool> rope_enabled;
     std::optional<bool> sliding_window;
     std::optional<bool> recurrent;
     std::optional<bool> experts;
@@ -190,6 +195,7 @@ struct GGUF_FRONTEND_API DecoderLayerParameters {
     RopeConfig rope;
     bool sliding_window;
     bool recurrent;
+    bool rope_enabled = true;
 };
 
 }  // namespace ov::frontend::gguf

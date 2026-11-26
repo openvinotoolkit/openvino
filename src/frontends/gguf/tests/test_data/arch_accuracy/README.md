@@ -25,6 +25,7 @@ per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-
 |---|---|
 | Decoder/embedding fixtures other than the Mamba, Prism and noncausal LFM cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
 | `lfm2-encoder`, `lfm2-embed-mean`, `lfm2-embed-cls`, `lfm2-embed-last`, `lfm2-colbert`, `lfm3-d1` | Upstream `604cc430239c76ff636c443e3400bf552b750421` |
+| `flint`, `flint-rescale` | Upstream `e087c6c4e7bf6b773a6d3cf6c5bdd41fa6d9e2c1` (2026-11-26) |
 | `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
 | `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
 
@@ -37,6 +38,12 @@ NoPE layer. ERNIE omits `expert_shared_count`, as the real 21B checkpoint does. 
 covers sigmoid routing, biased selection, group filtering, and a shared expert. EXAONE MoE
 also covers sigmoid routing with scale 2.5 and trailing NextN tensors; MiniMax and Hunyuan
 omit expert-normalization metadata to exercise their mandatory normalization defaults.
+Flint lists its sliding and RoPE layers as boolean arrays: NoPE full-attention layers
+surround two sliding RoPE layers, with attention sinks, sigmoid routing, biased selection
+and a shared expert. Its `rope.freq_base_swa` differs from the global base; llama.cpp
+Flint ignores it, and the fixture checks that the frontend does too. `flint-rescale` scales the
+routed gate/up expert weights by 300 so that both llama.cpp's F16 range rescaling and the
+frontend's routed-activation rescaling engage; both are exact, so the logits must still match.
 
 Devstral adds three configurations under the existing `llama` and `mistral3` families.
 Small models use unequal embedding/query widths. Devstral Small 2 crosses reduced original-context

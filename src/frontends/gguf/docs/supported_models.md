@@ -29,6 +29,7 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `ernie4_5-moe` | ERNIE-4.5-21B-A3B-PT Q4_K_M | Interleaved MoE, biased selection, normalized weights, shared experts |
 | `exaone-moe` | K-EXAONE-236B-A23B Q2_K | Dense lead, shared/routed experts, RoPE on SWA layers only |
 | `exaone4` | EXAONE-4.0-1.2B Q4_K_M | Post-norm-only attention and FFN |
+| `flint` | Flint Q4_0, requantized from unsloth/flint-GGUF Q8_0 | Dense lead, sigmoid-routed and shared experts, attention sinks, SWA, RoPE only on listed layers; routed activations are rescaled to stay within F16 range |
 | `gemma` | gemma-2b Q4_K_M | GeGLU, multi-query attention |
 | `gemma2` | gemma-2-2b-it Q4_K_M | Post-norms, SWA, attention and final soft-caps |
 | `gemma3` | gemma-3-1b-it Q4_0 | Post-norms, final soft-cap, separate global/local RoPE scaling |

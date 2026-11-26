@@ -88,6 +88,7 @@ struct DecoderConfig {
     int n_expert = 0;
     int n_expert_used = 0;
     bool moe_sigmoid_gating = false;
+    bool moe_rescale_down_input = false;
     int expert_groups = 1;
     int expert_groups_used = 1;
     float embedding_scale = 1.0f;
@@ -154,12 +155,17 @@ struct DecoderConfig {
     const RopeConfig& layer_rope_config(int il) const {
         return m_layers.at(il).rope;
     }
+    // False for NoPE layers.
+    bool layer_has_rope(int il) const {
+        return m_layers.at(il).rope_enabled;
+    }
 
 private:
     struct LayerSettings {
         bool swa = false;
         bool moe = false;
         bool recurrent = false;
+        bool rope_enabled = true;
         int head_size = 0;
         int n_head = 0;
         int n_head_kv = 0;

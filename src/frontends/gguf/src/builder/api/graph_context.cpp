@@ -71,7 +71,8 @@ DecoderLayerParameters GgufGraphContext::decoder_layer_parameters(int layer) con
             cfg.layer_kq_scale(layer),
             cfg.layer_rope_config(layer),
             cfg.layer_is_swa(layer),
-            cfg.is_recurrent_layer(layer)};
+            cfg.is_recurrent_layer(layer),
+            cfg.layer_has_rope(layer)};
 }
 
 GgufValue GgufGraphContext::decoder_attention(int layer, const GgufValue& input) {
