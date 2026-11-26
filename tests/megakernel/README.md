@@ -12,3 +12,5 @@ ctest --test-dir build-megakernel-test -R '^ov_megakernel_integration_test$' --o
 ```
 
 The test needs an Intel OpenCL GPU with USM support. It compares a fused Add/Relu against the same GPU graph with megakernel disabled and checks that the test runtime executed.
+
+The Ubuntu 24.04 GitHub Actions workflow builds this configuration separately and runs the integration test on an Intel GPU runner when GPU tests are affected.

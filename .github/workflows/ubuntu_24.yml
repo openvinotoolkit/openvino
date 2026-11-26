@@ -362,9 +362,90 @@ jobs:
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
     if: ${{ github.event_name == 'schedule' }}
 
+  Megakernel_Build:
+    name: Megakernel integration build
+    needs: [ Docker, Smart_CI ]
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' && fromJSON(needs.smart_ci.outputs.affected_components).GPU.test }}
+    timeout-minutes: 150
+    runs-on: aks-linux-16-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }}
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 15
+    steps:
+      - name: Checkout OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          submodules: recursive
+
+      - name: Configure megakernel integration test
+        shell: bash
+        run: |
+          cmake -S . -B build-megakernel-test -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=OCL -DENABLE_TESTS=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DOUTPUT_ROOT="$PWD/build-megakernel-test/output" \
+            -DMEGAKERNEL_ROOT="$PWD/tests/megakernel" -DMEGAKERNEL_IMPLEMENTATION=TestMegaKernel
+
+      - name: Build megakernel integration test
+        shell: bash
+        run: cmake --build build-megakernel-test --target ov_megakernel_integration_test
+
+      - name: Package megakernel integration test
+        shell: bash
+        run: |
+          runtime_dir=build-megakernel-test/output/bin/intel64/Release
+          openvino_library=$(ldd "$runtime_dir/ov_megakernel_integration_test" | awk '$1 ~ /^libopenvino\.so\./ {print $1}')
+          tbb_library=$(ldd "$runtime_dir/libopenvino_intel_gpu_plugin.so" | awk '$1 == "libtbb.so.12" {print $3}')
+          test -f "$runtime_dir/$openvino_library"
+          test -f "$tbb_library"
+          cp -L "$tbb_library" "$runtime_dir/libtbb.so.12"
+          tar -chzf megakernel-test.tar.gz -C "$runtime_dir" \
+            ov_megakernel_integration_test "$openvino_library" libTestMegaKernel.so \
+            libopenvino_intel_gpu_plugin.so libtbb.so.12
+
+      - name: Upload megakernel integration test
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: megakernel-integration-test
+          path: megakernel-test.tar.gz
+          if-no-files-found: error
+
+  Megakernel_Test:
+    name: Megakernel integration test
+    needs: [ Docker, Smart_CI, Megakernel_Build ]
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' && fromJSON(needs.smart_ci.outputs.affected_components).GPU.test }}
+    timeout-minutes: 30
+    runs-on:
+      group: Intel-GPU
+      labels: [ self-hosted, igpu, Linux ]
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      options: --group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }}
+    steps:
+      - name: Download megakernel integration test
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: megakernel-integration-test
+
+      - name: Run megakernel integration test
+        shell: bash
+        run: |
+          test_dir=$(mktemp -d)
+          trap 'rm -rf "$test_dir"' EXIT
+          tar -xzf megakernel-test.tar.gz -C "$test_dir"
+          export LD_LIBRARY_PATH="$test_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          "$test_dir/ov_megakernel_integration_test"
+
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, Openvino_genai, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
+    needs: [Smart_CI, Build, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, Openvino_genai, LLM_Accuracy_CPU, LLM_Accuracy_iGPU, Megakernel_Build, Megakernel_Test]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

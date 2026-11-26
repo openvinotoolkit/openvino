@@ -89,6 +89,7 @@
 
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
+- 'tests/megakernel/**/*'
 - 'thirdparty/ocl/**/*'
 
 'category: NPU':
