@@ -43,9 +43,9 @@ public:
     virtual size_t size() const = 0;
 
     /**
-     * @brief Returns the path to the weights source when the provider is file-backed.
+     * @brief Returns the path of the weights file behind this provider, if any.
      *
-     * @return Path to the weights source, or an empty path if the provider is not file-backed.
+     * @return Path of the file the weights are read or were loaded from, or an empty path when there is none.
      */
     virtual std::filesystem::path path() const;
 };
@@ -59,8 +59,10 @@ public:
      * @brief Constructs a weights provider over an existing buffer.
      *
      * @param weights Buffer containing the full weights blob.
+     * @param origin_path Path of the weights file the buffer was loaded from (for example by memory mapping), or an
+     * empty path when the buffer has no file origin.
      */
-    explicit BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights);
+    explicit BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights, std::filesystem::path origin_path = {});
 
     /**
      * @brief Returns a view of the requested region from the backing buffer.
@@ -78,8 +80,16 @@ public:
      */
     size_t size() const override;
 
+    /**
+     * @brief Returns the path of the weights file the buffer was loaded from.
+     *
+     * @return Path given at construction, or an empty path when the buffer has no file origin.
+     */
+    std::filesystem::path path() const override;
+
 private:
     std::shared_ptr<ov::AlignedBuffer> m_weights;
+    std::filesystem::path m_origin_path{};
 };
 
 /**
