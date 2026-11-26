@@ -3597,6 +3597,8 @@ static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
             set_values(k_zp_mem, k_q.zero_points);
             set_values(v_zp_mem, v_q.zero_points);
         }
+        // xe_hpg's opt single-token stage takes a one-query step at its heads (KV_COMP_PER_CHANNEL, V_TRANSPOSED_READ).
+        const bool on_opt = seq_q == 1 && tests::plain_decode_on_opt(engine.get_device_info(), D, D, true);
         auto run = [&](network::ptr& net, const memory::ptr& v) {
             net->set_input_data("q", q_mem);
             net->set_input_data("k", k_mem);
@@ -3618,8 +3620,6 @@ static void run_sdpa_transposed_v_i8(const sdpa_tv_i8_case& c) {
             if (!sdpa_id.empty()) {
                 const auto inst = net->get_primitive(sdpa_id);
                 const auto entries = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
-                // xe_hpg's opt single-token stage takes a one-query step at its heads (KV_COMP_PER_CHANNEL, V_TRANSPOSED_READ).
-                const bool on_opt = seq_q == 1 && tests::plain_decode_on_opt(engine.get_device_info(), D, D, true);
                 EXPECT_NE(entries.find(on_opt ? "sdpa_opt" : "sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
             }
             return out;
