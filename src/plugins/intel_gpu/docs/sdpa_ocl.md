@@ -4504,13 +4504,13 @@ The branch's `fuse_transposed_v` code fixes problems that master has as well. It
   of SDPA (without the flag or above head 512), and the pipeline's flag.
 - The `GQADecompositionTest` additions and `smoke_GQATransposedVCache`.
 
-Three things stay on the branch:
+Two things stay on the branch. (The `prepare_compressed_kv()` limits stayed at first too; they moved on 2026-11-27, next
+entry.)
 
 - `!SDPABase::has_transposed_v()` in `single_token_supports_query_rows()` (`sdpa_opt.cpp`, from 58c3c9daa4). The PR has
   the same line for sdpa_micro. Here it sends 2-4 query rows of a transposed V to `sdpa_ocl`'s multi-token stage;
   without it, `execute()` asserts on the default path ("needs the sdpa_ocl single-token stage").
 - `SDPABase::has_transposed_v()` itself: the readers' host gates use it.
-- The `prepare_compressed_kv()` limits.
 
 - Master `cf02398464`, B70: an ONNX `com.microsoft.GroupQueryAttention` model (8 / 2 heads, heads 64 / 128) against a
   numpy f32 reference (kit `test/gqa_tv_master_cf/`). The transposed-V model's output cosine on master was:
@@ -4532,6 +4532,24 @@ Three things stay on the branch:
   - Put the pipeline's condition back as `sdpa_ocl_selected() && enable_sdpa_micro && f16`: sdpa_micro is gone here.
   - Add back the func test rows that the PR left out: heads 100 / 512, and softcap / qk_output / i8 at head 576.
 
+### The GQA per-channel cache limit moved to a master PR (2026-11-27)
+
+The `prepare_compressed_kv()` limit (fuse a per-channel cache only with a static head size up to 512 and, at 8 bits, an
+i8 cache) fixes failures that master has as well. It now goes to master as a separate PR (fork branch
+`agents/gqa-compressed-kv-limit`, `0b3c796f71`: the same code lines, new `GQADecompositionTest` rows and
+`smoke_GQAPerChannelKVCache`) and has been taken off the branch, so the decomposition is master's again.
+
+- Master `cf02398464`, B70, GQA (8 / 2 heads) against TEMPLATE in f32 (kit `test/gqa_tv_master_cf/`):
+  - a u8 8-bit cache does not compile ("No layout format available for sdpa");
+  - i8 at head 576 runs `sdpa_ref`: wrong output, then a GPU fault;
+  - i8 with a dynamic head size: a GPU fault on `sdpa_ref`.
+
+  With the PR, u8 and head 576 match TEMPLATE.
+- A dynamic head size is broken on master without quantization too (a plain f16 cache: wrong output on `sdpa_ref`), and
+  with the PR the dequantized cache segfaults in `sdpa_opt`. The PR lists it as a known issue.
+- Until the PR is merged and the branch rebased, those caches reach SDPA as is, quantized ("Known issues"). The branch no
+  longer changes the decomposition, so the rebase takes the limit from master without a conflict.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -4547,6 +4565,13 @@ result is quoted.
     heads up to 512 were not measured. Master gives wrong output in the same cases.
   - The default path (f16, `sdpa_ocl`, a static head up to 512) is unchanged.
   - From code reading and the master measurements; the branch build after the removal was not run.
+- Until the master PR of "The GQA per-channel cache limit moved to a master PR (2026-11-27)" is merged and the branch
+  rebased, the GQA decomposition hands every per-channel quantized cache to SDPA as is: also a u8 8-bit one, and one
+  with a head above 512 or a dynamic head.
+  - `sdpa_ocl` does not read those (`per_channel_kv_supported()`), so `SDPAOpt::validate_impl()` gives them to
+    `sdpa_ref`. Master fails in all three cases.
+  - An i8 or 4-bit cache with a static head up to 512 is unchanged.
+  - From code reading; not measured on the branch.
 - A `-inf` block-diagonal or left-padding mask with large logits on head 128 was recorded here as a wrong output of `sdpa_ocl` and
   master's `sdpa_micro` (measured 2026-11-14, B70, native 4D `[1, 2, 256, 128]` f16, Q/K/V random integers 0..9, logits about 300, a
   block-diagonal mask of 4 segments): the two agreed within 0.008 and were 3.00 off the TEMPLATE reference, where `sdpa_opt` was 0.016

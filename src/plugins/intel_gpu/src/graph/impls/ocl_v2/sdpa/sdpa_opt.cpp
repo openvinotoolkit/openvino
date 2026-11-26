@@ -311,8 +311,8 @@ public:
         // contiguous, but for the single-token stage on xe_hpg (V_TRANSPOSED_READ), which the ctor leaves its one-query steps
         // to where it takes the head; those go on to the opt single-token path below.
         if (SDPABase::has_transposed_v(new_params)) {
-            const bool opt_decode =
-                !multi_token_rows && !has_stage(ocl_single_token) && SDPABase::opt_single_token_reads_transposed_v(new_params) && !unaligned_kv_head(new_params);
+            const bool opt_decode = !multi_token_rows && !has_stage(ocl_single_token) && SDPABase::opt_single_token_reads_transposed_v(new_params) &&
+                                    !unaligned_kv_head(new_params);
             if (!opt_decode) {
                 OPENVINO_ASSERT(!is_indirect && has_stage(multi_token_rows ? ocl_multi_tokens : ocl_single_token),
                                 "[GPU] SDPA with a transposed V needs the sdpa_ocl ",

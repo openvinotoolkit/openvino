@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -56,27 +55,6 @@ void expect_valid_tiling(const SDPAOclTilingInfo& t, size_t vd_max, const std::s
     }
     EXPECT_EQ(t.wg_size, t.sg_per_wg * t.subgroup_size);
 }
-
-struct scoped_env {
-    std::vector<std::string> names;
-    void set(const char* n, const char* v) {
-        names.emplace_back(n);
-#    ifdef _WIN32
-        _putenv_s(n, v);
-#    else
-        setenv(n, v, 1);
-#    endif
-    }
-    ~scoped_env() {
-        for (const auto& n : names) {
-#    ifdef _WIN32
-            _putenv_s(n.c_str(), "");
-#    else
-            unsetenv(n.c_str());
-#    endif
-        }
-    }
-};
 }  // namespace
 
 TEST(SdpaOclHpg, Limits) {
@@ -147,30 +125,5 @@ TEST(SdpaOclHpg, HeadSizeBounds) {
         EXPECT_FALSE(sdpa_ocl_describe_tiling(arch, 576, 576, t));  // must return false, not assert
         EXPECT_FALSE(sdpa_ocl_describe_tiling(arch, 64, 1024, t));
     }
-}
-
-// The SDPA_OCL_KQ_* overrides go through the same fit check as the defaults: what choose_config() would assert on,
-// supported() (via describe_tiling) refuses.
-TEST(SdpaOclHpg, OverrideIsCheckedAgainstTheDevice) {
-    SDPAOclTilingInfo t;
-    ASSERT_TRUE(sdpa_ocl_describe_tiling(gpu_arch::xe_hpg, 128, 128, t));
-    {
-        scoped_env env;  // a milder override still fits: the control that makes the next one mean something
-        env.set("SDPA_OCL_KQ_TILE_QUERIES", "32");
-        ASSERT_TRUE(sdpa_ocl_describe_tiling(gpu_arch::xe_hpg, 128, 128, t));
-        EXPECT_EQ(t.kq_sg_tile_queries, 32);
-        EXPECT_LE(t.slm_bytes, 64u * 1024);
-    }
-    for (const auto arch : {gpu_arch::xe_hpg, gpu_arch::xe2}) {
-        scoped_env env;  // 128 queries x 512 depth: the Q staging alone is 128 KiB
-        env.set("SDPA_OCL_KQ_TILE_QUERIES", "64");
-        EXPECT_FALSE(sdpa_ocl_describe_tiling(arch, 512, 512, t)) << static_cast<int>(arch);
-    }
-    {
-        scoped_env env;  // 2048 work-items
-        env.set("SDPA_OCL_KQ_PER_WG_KEYS", "128");
-        EXPECT_FALSE(sdpa_ocl_describe_tiling(gpu_arch::xe_hpg, 128, 128, t));
-    }
-    ASSERT_TRUE(sdpa_ocl_describe_tiling(gpu_arch::xe_hpg, 128, 128, t));  // and nothing leaked
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU

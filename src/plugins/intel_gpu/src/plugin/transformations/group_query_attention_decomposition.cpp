@@ -88,13 +88,6 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
         key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR || !m_sdpa_support_immad) {
         return false;
     }
-    // Only what sdpa_ocl reads (SDPAOclGenerator's per_channel_kv_supported(); f16 queries): a static head size up to 512, and
-    // an i8 8-bit cache (a u8 one is read as unsigned bytes); anything else would land on sdpa_ref.
-    const auto& head_dim = key_partial_shape.rank().is_static() ? key_partial_shape[key_partial_shape.rank().get_length() - 1] : ov::Dimension::dynamic();
-    const int64_t head_size = head_dim.is_static() ? head_dim.get_length() * (kv_cache_bit_width == 4 ? 2 : 1) : -1;
-    if (head_size <= 0 || head_size > 512 || (kv_cache_bit_width == 8 && key_type != ov::element::i8)) {
-        return false;
-    }
 
     auto& compressed_kv = metadata.compressed_kv.emplace();
 

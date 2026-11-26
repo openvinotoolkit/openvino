@@ -377,8 +377,8 @@ struct plain_prefill_shape {
     bool shape_agnostic = true;
     int64_t n_keys = 0;
     int64_t q_len = 0;
-    bool f16_qkv = false;     // f16 Q, K and V (the tilings below take no bf16, no compressed KV)
-    bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
+    bool f16_qkv = false;            // f16 Q, K and V (the tilings below take no bf16, no compressed KV)
+    bool mask_input = false;         // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
     bool i8_per_channel_kv = false;  // f16 Q with a per-channel compressed i8 K / V (the plain decode and its own PREFILL tiling)
     bool u4_per_channel_kv = false;  // f16 Q with a per-channel compressed 4-bit K / V (PLAIN_KV_U4)
     bool v_transposed = false;       // V read as [value][key] (V_TRANSPOSED): the op's order, so compile time and dispatch agree
