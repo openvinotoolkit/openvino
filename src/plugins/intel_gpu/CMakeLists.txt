@@ -34,11 +34,7 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     )
 
     if (WIN32)
-        if (CMAKE_COMPILE_WARNING_AS_ERROR)
-            ov_add_compiler_flags(/WX)
-        else()
-            ov_add_compiler_flags(/WX-)
-        endif()
+        # /WX comes from CMake's COMPILE_WARNING_AS_ERROR (automatic since CMake 3.24).
         # SYCL headers from recent oneAPI emit deprecation warnings inside system headers;
         # suppress them so non-WAE builds with current toolkits stay clean
         ov_add_compiler_flags(-Wno-deprecated-declarations)
