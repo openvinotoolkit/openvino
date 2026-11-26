@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
@@ -15,21 +14,17 @@ OutputVector translate_deg2rad(const NodeContext& context) {
     // Ensure that the operation has exactly one input (the input tensor)
     num_inputs_check(context, 1, 1);
 
-    // Retrieve the input tensor
-    auto input = context.get_input(0);
+    // Retrieve input tensor, promoting integer inputs to default floating point
+    auto input = get_input_with_floating_type(context, 0);
 
-    // Define the value of π
-    const double pi_val = std::atan(1.0) * 4;
-
-    // Create a constant node with the conversion factor (π / 180) using fp32 type
-    Output<Node> conversion_factor_output = context.mark_node(
-        ov::op::v0::Constant::create(ov::element::f32, Shape{}, {static_cast<float>(pi_val) / 180.0f}));
-
-    // Align elementwise input types to handle integer cases correctly
-    align_eltwise_input_types(context, input, conversion_factor_output, is_python_scalar_input(context, 0), true);
+    // Define π with double precision and compute conversion factor (π / 180)
+    const double pi_val = 3.14159265358979323846;
+    auto conversion_factor = context.mark_node(
+        ov::op::v0::Constant::create(ov::element::f64, Shape{}, {pi_val / 180.0}))->output(0);
+    conversion_factor = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(conversion_factor, input));
 
     // Apply the multiplication operation to convert degrees to radians
-    auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(input, conversion_factor_output));
+    auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(input, conversion_factor));
 
     // Return the computed result as an OutputVector
     return {result};
