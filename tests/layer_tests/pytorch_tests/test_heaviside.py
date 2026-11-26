@@ -95,7 +95,7 @@ class TestHeavisideInplace(PytorchLayerTest):
     def create_model(self):
         class aten_heaviside_(torch.nn.Module):
             def forward(self, x, values):
-                return x.heaviside_(values)
+                return x.heaviside_(values), x
 
         return aten_heaviside_(), "aten::heaviside_"
 
