@@ -81,8 +81,9 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         return true;
     }
 
-    // cldnn::grouped_matmul (incl. GroupedMatMulCompressed) needs a 2D mat_a; legacy shape infer pads it to 4D.
-    if (ov::is_type<ov::op::v17::GroupedMatMul>(op) && op->get_input_partial_shape(0).size() == 2) {
+    // cldnn::grouped_matmul (2D x 3D) and the batched FC (3D x 3D), incl. GroupedMatMulCompressed, need the original
+    // ranks; legacy shape infer pads them to 4D.
+    if (ov::is_type<ov::op::v17::GroupedMatMul>(op)) {
         return true;
     }
 
