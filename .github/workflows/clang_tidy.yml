@@ -166,13 +166,16 @@ jobs:
       show-sccache-stats: false
 
   Build-gpu:
-    name: Build-gpu-${{ matrix.mode }}
+    name: Build-gpu-${{ matrix.name }}
     needs: [Docker, Smart_CI]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
     strategy:
       fail-fast: false
       matrix:
-        mode: [COMBINED, ZE-no-oneDNN]
+        include:
+          - {name: COMBINED-OCL, mode: COMBINED, target: openvino_intel_gpu_plugin_ocl}
+          - {name: COMBINED-ZE, mode: COMBINED, target: openvino_intel_gpu_plugin}
+          - {name: ZE-no-oneDNN, mode: ZE-no-oneDNN, target: openvino_intel_gpu_plugin}
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
@@ -180,8 +183,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu_${{ matrix.mode }}
-      build-target: ${{ matrix.mode == 'COMBINED' && 'openvino_intel_gpu_plugin openvino_intel_gpu_plugin_ocl' || 'openvino_intel_gpu_plugin' }}
-      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_${{ matrix.mode }}
+      build-target: ${{ matrix.target }}
+      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_${{ matrix.name }}
       cmake-extra-args: >-
         -DENABLE_INTEL_GPU=ON
         -DGPU_RT_TYPE=${{ matrix.mode == 'ZE-no-oneDNN' && 'ZE' || matrix.mode }}
@@ -229,6 +232,7 @@ jobs:
       build-target: openvino_intel_gpu_plugin
       compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_SYCL_${{ matrix.analysis }}
       prepared-build-artifact: clang_tidy_gpu_SYCL_prepared
+      clang-tidy-binary: /usr/local/bin/clang-tidy-sycl-${{ matrix.analysis }}
       cmake-extra-args: >-
         -DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=SYCL -DENABLE_ONEDNN_FOR_GPU=ON
         -DCLANG_TIDY=/usr/local/bin/clang-tidy-sycl-${{ matrix.analysis }} -DCLANG_TIDY_REQUIRED_VERSION=19

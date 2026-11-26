@@ -55,6 +55,10 @@ on:
         description: 'Artifact to upload during preparation or restore before analysis'
         type: string
         default: ''
+      clang-tidy-binary:
+        description: 'Run standalone analysis with this binary instead of recompiling the prepared build'
+        type: string
+        default: ''
 
 permissions: read-all
 
@@ -148,6 +152,7 @@ jobs:
             -B "${BUILD_DIR}"
 
       - name: CMake build
+        if: inputs.clang-tidy-binary == ''
         env:
           BUILD_TARGET: ${{ inputs.build-target }}
           BUILD_EXTRA_ARGS: ${{ inputs.build-extra-args }}
@@ -159,6 +164,42 @@ jobs:
             --config "${CMAKE_BUILD_TYPE}" \
             --target "${build_targets[@]}" \
             -- ${BUILD_EXTRA_ARGS}
+
+      - name: Run clang-tidy
+        if: inputs.clang-tidy-binary != ''
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          CLANG_TIDY: ${{ inputs.clang-tidy-binary }}
+        run: |
+          read -r -a build_targets <<< "${BUILD_TARGET}"
+          database="${BUILD_DIR}/clang-tidy"
+          mkdir -p "$database"
+          ninja -C "${BUILD_DIR}" -f "build-${CMAKE_BUILD_TYPE}.ninja" \
+            -t compdb-targets "${build_targets[@]}" > "$database/targets.json"
+          python3 - "$database" <<'PYTHON'
+          import json
+          import os
+          import shlex
+          import sys
+
+          database = sys.argv[1]
+          commands = []
+          for command in json.load(open(os.path.join(database, "targets.json"))):
+              argv = shlex.split(command["command"])
+              tidy = next((arg for arg in argv if arg.startswith("--tidy=")), None)
+              if tidy is not None:
+                  command["arguments"] = argv[argv.index("--") + 1:]
+                  command["tidy_args"] = tidy.split("=", 1)[1].split(";")[1:]
+                  del command["command"]
+                  commands.append(command)
+          if not commands:
+              sys.exit("No clang-tidy commands in the selected target")
+          with open(os.path.join(database, "compile_commands.json"), "w") as stream:
+              json.dump(commands, stream)
+          print(f"Analyzing {len(commands)} commands")
+          PYTHON
+          /opt/intel/oneapi/compiler/2024.2/bin/run-clang-tidy \
+            -clang-tidy-binary "$CLANG_TIDY" -p "$database" -j "$CMAKE_BUILD_PARALLEL_LEVEL"
 
       - name: Package prepared build
         if: inputs.prepare-only

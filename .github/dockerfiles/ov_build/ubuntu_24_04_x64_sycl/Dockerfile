@@ -57,6 +57,13 @@ cat > /usr/local/bin/clang-tidy-sycl <<'BASH'
 # Analyze both SYCL compilation modes and fail if either pass reports an error.
 set -u
 compiler=/opt/intel/oneapi/compiler/2024.2/bin/compiler
+database=
+for arg do
+    case "$arg" in
+        --) break;;
+        -p=*) database=${arg#-p=};;
+    esac
+done
 sycl=false
 host_args=()
 for arg do
@@ -75,6 +82,31 @@ for arg do
         *) host_args+=("$arg");;
     esac
 done
+if [[ -n "$database" ]]; then
+    # Keep the same compiler arguments and working directory as the CMake invocation.
+    exec python3 - "$0" "$database" "$@" <<'PYTHON'
+import json
+import os
+import shlex
+import subprocess
+import sys
+
+adapter, database, *args = sys.argv[1:]
+source = args.pop()
+options = [arg for arg in args if arg != "-p=" + database]
+with open(os.path.join(database, "compile_commands.json")) as stream:
+    commands = json.load(stream)
+commands = [command for command in commands if os.path.abspath(os.path.join(command["directory"], command["file"])) == os.path.abspath(source)]
+if not commands:
+    sys.exit("No compilation command for " + source)
+status = 0
+for command in commands:
+    argv = command.get("arguments") or shlex.split(command["command"])
+    result = subprocess.call([adapter, *command.get("tidy_args", []), *options, source, "--", *argv], cwd=command["directory"])
+    status = result or status
+sys.exit(status)
+PYTHON
+fi
 case "${0##*/}" in
     clang-tidy-sycl-host) exec "$compiler/clang-tidy" "${host_args[@]}";;
     clang-tidy-sycl-device)
