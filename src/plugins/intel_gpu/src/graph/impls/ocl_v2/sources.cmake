@@ -9,6 +9,10 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ctc_loss.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_mix_ref.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_mix_ref.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_post_ref.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_post_ref.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gated_residual.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gather_matmul.cpp
@@ -126,6 +130,8 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/expert_gemm_common.cl
     ${CMAKE_CURRENT_LIST_DIR}/expert_gemm_compute.cl
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_mix_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/hyper_connection_post_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul_batched.cl
     ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_gather.cl
