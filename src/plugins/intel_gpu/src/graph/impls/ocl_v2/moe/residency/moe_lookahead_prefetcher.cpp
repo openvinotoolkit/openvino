@@ -338,9 +338,6 @@ struct ExpertPrefetcher::State {
                     try {
                         OPENVINO_ASSERT(event_status(selected->load.last_use_event) == CL_COMPLETE,
                                         "Lookahead consumer event failed");
-                        if (selected->load.last_use_event) {
-                            dynamic_cast<cldnn::ocl::ocl_stream&>(*dma).enqueue_external_barrier({selected->load.last_use_event});
-                        }
                         auto& source = *selected->binding;
                         source.cache->start_load(selected->load);
                         moe_otd::fill_weights_memory_async(*dma, *source.reader, source.tensors,
