@@ -66,10 +66,6 @@ public:
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, size_t inputZpSize);
 
-#if defined(OPENVINO_ARCH_ARM64)
-    void initializeUnsignedOc1JitZeroPoint(uint8_t zeroPoint);
-#endif
-
     const VectorDims& getWeightDims() {
         return getInputShapeAtPort(WEIGHTS).getDims();
     }
@@ -86,6 +82,9 @@ public:
         return m_attrs.paddingR;
     }
 
+#if defined(OPENVINO_ARCH_ARM64)
+    void initializeUnsignedOc1JitZeroPoint(uint8_t zeroPoint);
+#endif
     bool canFuse(const NodePtr& node) const override;
     bool isDepthWise() const {
         return m_attrs.isGrouped && 1 == groupOC && 1 == groupIC;
