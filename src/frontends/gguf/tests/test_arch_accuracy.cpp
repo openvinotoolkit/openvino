@@ -12,9 +12,12 @@
 #include <limits>
 #include <map>
 #include <numeric>
+#include <optional>
 #include <set>
 #include <sstream>
+#include <string>
 #include <tuple>
+#include <vector>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/decoder_builder.hpp"
@@ -308,14 +311,23 @@ TEST(GGUFInkling, PaddedVocabularyAndIntegerPositionState) {
     EXPECT_TRUE(found_positions);
 }
 
-TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
-    for (const auto* family : {"inkling2", "inkling2-loop", "inkling2-loop-varying"}) {
+// Sources are fixture names with llama.cpp logits, or .gguf paths compared with the stateful CPU model only.
+void check_inkling_paged_attention(const std::string& device,
+                                   double tolerance,
+                                   const std::vector<std::string>& sources) {
+    const bool on_cpu = device == "CPU";
+    for (const auto& family : sources) {
         SCOPED_TRACE(family);
-        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
-        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        const bool has_oracle = family.find(".gguf") == std::string::npos;
+        cnpy::npz_t arrays;
+        std::optional<ov_gguf_test::TemporaryGguf> temporary;
+        if (has_oracle) {
+            arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+            temporary.emplace(ov_gguf_test::npz_array(arrays, "model"));
+        }
         ov::frontend::gguf::FrontEnd frontend;
         frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
-        auto model = frontend.convert(frontend.load(temporary.path));
+        auto model = frontend.convert(frontend.load(has_oracle ? temporary->path : family));
         auto stateful = model->clone();
         ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model));
         size_t attentions = 0, convolutions = 0;
@@ -323,16 +335,18 @@ TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
         for (const auto& node : model->get_ops()) {
             if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
                 ++attentions;
-                EXPECT_EQ(pa->get_input_size(), 30);
+                EXPECT_EQ(pa->get_input_size(), 29);
                 if (!first_bias)
                     first_bias = ov::as_type_ptr<ov::op::v0::Convert>(pa->get_input_node_shared_ptr(28));
             }
             convolutions += ov::is_type<ov::op::internal::PagedCausalConv1D>(node);
             EXPECT_FALSE(ov::is_type<ov::op::util::ReadValueBase>(node));
         }
-        const size_t slots = std::string(family) == "inkling2" ? 4 : std::string(family) == "inkling2-loop" ? 10 : 6;
-        EXPECT_EQ(attentions, slots);
-        EXPECT_EQ(convolutions, slots * 4);
+        if (has_oracle) {
+            const size_t slots = family == "inkling2" ? 4 : family == "inkling2-loop" ? 10 : 6;
+            EXPECT_EQ(attentions, slots);
+        }
+        EXPECT_EQ(convolutions, attentions * 4);
         EXPECT_TRUE(model->get_sinks().empty());
         ASSERT_TRUE(first_bias);
         ASSERT_EQ(first_bias->get_output_element_type(0), ov::element::f16);
@@ -348,8 +362,10 @@ TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
                                 ov::hint::dynamic_quantization_group_size(0),
                                 ov::num_streams(1),
                                 ov::inference_num_threads(4)};
-        auto stateful_compiled = core.compile_model(stateful, "CPU", config);
-        auto paged_compiled = core.compile_model(model, "CPU", config);
+        // Off CPU, the reference is the stateful model on the same device and precision: f16 can flip MoE routing.
+        const auto device_config = on_cpu ? config : ov::AnyMap{ov::hint::inference_precision(ov::element::f16)};
+        auto stateful_compiled = core.compile_model(stateful, device, device_config);
+        auto paged_compiled = core.compile_model(model, device, device_config);
         auto first = stateful_compiled.create_infer_request();
         auto second = stateful_compiled.create_infer_request();
         auto paged = paged_compiled.create_infer_request();
@@ -362,12 +378,22 @@ TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
             auto shape = input.get_partial_shape();
             shape[0] = name.rfind("conv_state_table.", 0) == 0 ? 4 : 2;
             ASSERT_TRUE(shape.is_static()) << name << ' ' << shape;
-            ov::Tensor cache(input.get_element_type(), shape.to_shape());
-            std::memset(cache.data(), 0, cache.get_byte_size());
+            // Kernels update the caches in place, so off CPU they must live in device memory.
+            auto cache = on_cpu
+                             ? ov::Tensor(input.get_element_type(), shape.to_shape())
+                             : paged_compiled.get_context().create_tensor(input.get_element_type(), shape.to_shape());
             paged.set_tensor(name, cache);
             caches.emplace(name, cache);
         }
         ASSERT_EQ(caches.size(), attentions * 2 + convolutions);
+        const auto clear_caches = [&]() {
+            for (auto& [name, cache] : caches) {
+                ov::Tensor zeros(cache.get_element_type(), cache.get_shape());
+                std::memset(zeros.data(), 0, zeros.get_byte_size());
+                zeros.copy_to(cache);
+            }
+        };
+        clear_caches();
 
         const auto stateful_infer = [&](ov::InferRequest& request, const std::vector<int64_t>& tokens, int64_t past) {
             std::vector<int64_t> positions(tokens.size());
@@ -381,9 +407,10 @@ TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
             const auto result = request.get_tensor("logits");
             return std::vector<float>(result.data<const float>(), result.data<const float>() + result.get_size());
         };
-        const auto& oracle = ov_gguf_test::npz_array(arrays, "logits");
-        ASSERT_EQ(oracle.shape.size(), 2);
-        const auto vocab = oracle.shape[1];
+        const cnpy::NpyArray* oracle = has_oracle ? &ov_gguf_test::npz_array(arrays, "logits") : nullptr;
+        ASSERT_TRUE(!oracle || oracle->shape.size() == 2);
+        const auto vocab =
+            oracle ? oracle->shape[1] : stateful_compiled.output("logits").get_partial_shape()[2].get_length();
         const auto run = [&](const std::vector<int64_t>& a,
                              const std::vector<int64_t>& b,
                              int32_t past_a,
@@ -395,9 +422,10 @@ TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
             const auto expected_b = stateful_infer(second, b, past_b);
             ASSERT_EQ(expected_a.size(), vocab);
             ASSERT_EQ(expected_b.size(), vocab);
-            ov_gguf_test::expect_nmse_below(
-                ov_gguf_test::nmse(expected_a.data(), oracle.data<float>() + oracle_step * vocab, vocab),
-                1e-5);
+            if (oracle)
+                ov_gguf_test::expect_nmse_below(
+                    ov_gguf_test::nmse(expected_a.data(), oracle->data<float>() + oracle_step * vocab, vocab),
+                    1e-5);
             const auto& seq0 = swapped ? b : a;
             const auto& seq1 = swapped ? a : b;
             const auto p0 = swapped ? past_b : past_a;
@@ -437,6 +465,19 @@ TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
             ASSERT_NO_THROW(paged.infer());
             const auto actual = paged.get_tensor("logits");
             ASSERT_EQ(actual.get_shape(), (ov::Shape{tokens.size(), 1, vocab}));
+            const auto* seq0_logits = actual.data<const float>() + (seq0.size() - 1) * vocab;
+            const auto* seq1_logits = actual.data<const float>() + (tokens.size() - 1) * vocab;
+            const auto& expected0 = swapped ? expected_b : expected_a;
+            const auto& expected1 = swapped ? expected_a : expected_b;
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(seq0_logits, expected0.data(), vocab), tolerance);
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(seq1_logits, expected1.data(), vocab), tolerance);
+            if (oracle)
+                ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(swapped ? seq1_logits : seq0_logits,
+                                                                   oracle->data<float>() + oracle_step * vocab,
+                                                                   vocab),
+                                                tolerance);
+            if (!on_cpu)
+                return;
             const auto before_rounding = paged.get_tensor("test_bias_raw");
             const auto after_rounding = paged.get_tensor("test_bias_f16");
             ASSERT_EQ(before_rounding.get_element_type(), ov::element::f32);
@@ -450,28 +491,38 @@ TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
                 rounded_values += before != after;
             }
             EXPECT_GT(rounded_values, 0);
-            const auto* seq0_logits = actual.data<const float>() + (seq0.size() - 1) * vocab;
-            const auto* seq1_logits = actual.data<const float>() + (tokens.size() - 1) * vocab;
-            const auto& expected0 = swapped ? expected_b : expected_a;
-            const auto& expected1 = swapped ? expected_a : expected_b;
-            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(seq0_logits, expected0.data(), vocab), 1e-5);
-            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(seq1_logits, expected1.data(), vocab), 1e-5);
-            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(swapped ? seq1_logits : seq0_logits,
-                                                               oracle.data<float>() + oracle_step * vocab,
-                                                               vocab),
-                                            1e-5);
         };
         run({1, 2, 3}, {2, 3}, 0, 0, false, {0, 1, 2, 3}, 0);
         run({4}, {5}, 3, 2, true, {3, 2, 1, 0}, 1);
         run({5, 6}, {6}, 4, 3, true, {2, 3, 0, 1}, 2);
-        for (auto state : first.query_state())
-            state.reset();
-        for (auto state : second.query_state())
-            state.reset();
-        for (auto& [name, cache] : caches)
-            std::memset(cache.data(), 0, cache.get_byte_size());
+        if (on_cpu) {
+            for (auto state : first.query_state())
+                state.reset();
+            for (auto state : second.query_state())
+                state.reset();
+        } else {
+            first = stateful_compiled.create_infer_request();
+            second = stateful_compiled.create_infer_request();
+        }
+        clear_caches();
         run({1, 2, 3}, {2, 3}, 0, 0, false, {0, 1, 2, 3}, 0);
     }
+}
+
+TEST(GGUFInkling, PagedAttentionMatchesPackedStatefulDecode) {
+    check_inkling_paged_attention("CPU", 1e-5, {"inkling2", "inkling2-loop", "inkling2-loop-varying"});
+}
+
+// GPU PagedAttention needs head size >= 16, larger than the llama.cpp-oracle fixtures use. The f16 reference
+// differs from PagedAttention in rounding and, on random weights, in MoE routing, so the bound is loose.
+TEST(GGUFInkling, GpuPagedAttentionMatchesPackedStatefulDecode) {
+    const auto* path = std::getenv("OV_GGUF_INKLING_GPU_MODEL");
+    if (!path)
+        GTEST_SKIP() << "Set OV_GGUF_INKLING_GPU_MODEL to an Inkling GGUF with head size >= 16";
+    const auto devices = ov::Core().get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "GPU") == devices.end())
+        GTEST_SKIP() << "GPU is not available";
+    check_inkling_paged_attention("GPU", 1e-1, {path});
 }
 
 TEST(GGUFPagedAttention, Qwen3MoeMatchesLlamaCpu) {
@@ -577,7 +628,7 @@ TEST(GGUFInkling, PagedBiasContractSurvivesSerialization) {
     for (const auto& node : restored->get_ops()) {
         if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
             ++attentions;
-            EXPECT_EQ(pa->get_input_size(), 30);
+            EXPECT_EQ(pa->get_input_size(), 29);
         }
     }
     EXPECT_EQ(attentions, 10);
@@ -595,31 +646,29 @@ TEST(GGUFInkling, PagedBiasFollowsPrecisionConversion) {
     for (const auto& node : model->get_ops()) {
         if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
             ++attentions;
-            ASSERT_EQ(pa->get_input_size(), 30);
+            ASSERT_EQ(pa->get_input_size(), 29);
             EXPECT_EQ(pa->get_input_element_type(28), ov::element::f32);
         }
     }
     EXPECT_EQ(attentions, 4);
 }
 
-TEST(GGUFInkling, PagedAttentionRejectsUnmatchedDynamicTapState) {
+TEST(GGUFInkling, PagedAttentionRejectsLiveConvolutionState) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/inkling2.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     ov::frontend::gguf::FrontEnd frontend;
     frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
     auto model = frontend.convert(frontend.load(temporary.path));
-    std::shared_ptr<ov::Node> window;
+    std::shared_ptr<ov::Node> state;
     for (const auto& node : model->get_ops()) {
-        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node);
-        if (concat && concat->get_axis() == 3 && concat->get_input_size() == 2 &&
-            ov::is_type<ov::op::util::ReadValueBase>(concat->get_input_node_shared_ptr(0)) &&
-            concat->output(0).get_target_inputs().size() >= 5) {
-            window = concat;
+        const auto read = ov::as_type_ptr<ov::op::util::ReadValueBase>(node);
+        if (read && read->get_variable_id().find("conv_state") != std::string::npos) {
+            state = read;
             break;
         }
     }
-    ASSERT_TRUE(window);
-    model->add_results({std::make_shared<ov::op::v0::Result>(window)});
+    ASSERT_TRUE(state);
+    model->add_results({std::make_shared<ov::op::v0::Result>(state)});
     OV_EXPECT_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model),
                     ov::Exception,
                     testing::HasSubstr("cannot retain unconverted state"));

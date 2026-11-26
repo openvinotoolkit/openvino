@@ -296,7 +296,6 @@ set(PAGED_ATTENTION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_qsa_indexer_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_sparse_attention_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/preserve_gather_matmul_layout.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/total_sequence_length_pattern.hpp

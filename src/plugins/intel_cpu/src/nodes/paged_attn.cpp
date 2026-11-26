@@ -129,8 +129,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 28U || orgInputNumber == 30U,
-                    "The input number of PagedAttention should be 28 or 30.");
+    CPU_NODE_ASSERT(orgInputNumber == 28U || orgInputNumber == 29U,
+                    "The input number of PagedAttention should be 28 or 29.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -254,13 +254,10 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS_BEGINS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS_BEGINS)));
-    if (orgInputNumber == 30U) {
+    if (orgInputNumber == 29U) {
         config.inConfs[PagedAttentionExecutor::ID_RELATIVE_BIAS].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)
                 ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_RELATIVE_BIAS)));
-        config.inConfs[PagedAttentionExecutor::ID_POSITION_IDS].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i64, getInputShapeAtPort(PagedAttentionExecutor::ID_POSITION_IDS)));
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);

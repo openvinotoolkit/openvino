@@ -8,7 +8,6 @@
 #include <cmath>
 #include <cstdint>
 #include <numeric>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,9 +46,7 @@ std::shared_ptr<ov::Model> make_model(int32_t sliding_window,
     auto blocks = parameter(element::i32, {-1}, "block_indices");
     auto block_begins = parameter(element::i32, {-1}, "block_indices_begins");
     auto bias = parameter(element::f16, {-1, heads, span + 1}, "relative_bias");
-    auto positions = parameter(element::i64, {-1}, "position_ids");
     enable_keep_const_precision(bias);
-    enable_keep_const_precision(positions);
 
     const auto scalar_i32 = [](int32_t value) {
         return op::v0::Constant::create(element::i32, {}, {value});
@@ -86,8 +83,7 @@ std::shared_ptr<ov::Model> make_model(int32_t sliding_window,
                       empty_i32,
                       empty_u8,
                       empty_i32,
-                      bias,
-                      positions};
+                      bias};
     auto attention = std::make_shared<op::PagedAttentionExtension>(args);
     attention->get_rt_info()["num_k_heads"] = size_t{1};
     attention->get_rt_info()["num_v_heads"] = size_t{1};
@@ -95,7 +91,7 @@ std::shared_ptr<ov::Model> make_model(int32_t sliding_window,
     attention->get_rt_info()["v_head_size"] = width;
     return std::make_shared<Model>(
         OutputVector{attention},
-        ParameterVector{q, k, v, key_cache, value_cache, past, begins, blocks, block_begins, bias, positions});
+        ParameterVector{q, k, v, key_cache, value_cache, past, begins, blocks, block_begins, bias});
 }
 
 template <typename T>
@@ -113,7 +109,7 @@ struct History {
 
 class PagedAttentionRelativeBiasTest : public testing::TestWithParam<int32_t> {};
 
-TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeReuseAndPositions) {
+TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeAndReuse) {
     const auto window = GetParam();
     constexpr float sink = 0.7f;
     auto model = make_model(window, 64, ov::element::f32, sink);
@@ -132,11 +128,10 @@ TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeReuseAndPositions) {
     request.set_tensor("block_indices_begins", tensor<int32_t>(ov::element::i32, {3}, {0, 1, 2}));
 
     std::vector<History> history(2);
-    auto step = [&](const std::vector<int32_t>& lengths, std::optional<int64_t> invalid_position = std::nullopt) {
+    auto step = [&](const std::vector<int32_t>& lengths) {
         const auto count = static_cast<size_t>(lengths[0] + lengths[1]);
         std::vector<float> q(count * heads * width), k(count * width), v(count * width);
         std::vector<ov::float16> bias(count * heads * (span + 1));
-        std::vector<int64_t> positions(count);
         std::vector<int32_t> past(2);
         std::vector<int32_t> begins{0, lengths[0], lengths[0] + lengths[1]};
         for (size_t seq = 0; seq < 2; ++seq) {
@@ -144,7 +139,6 @@ TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeReuseAndPositions) {
             for (int32_t local = 0; local < lengths[seq]; ++local) {
                 const auto token = static_cast<size_t>(begins[seq] + local);
                 const auto position = static_cast<size_t>(past[seq] + local);
-                positions[token] = static_cast<int64_t>(position);
                 for (size_t d = 0; d < width; ++d) {
                     k[token * width + d] = 0.1f * static_cast<float>(1 + seq + position + d);
                     v[token * width + d] = 0.2f * static_cast<float>(1 + 2 * seq + position + d);
@@ -157,19 +151,12 @@ TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeReuseAndPositions) {
                             ov::float16(0.13f * static_cast<float>(position + h) - 0.21f * static_cast<float>(d));
             }
         }
-        if (invalid_position)
-            positions.back() = *invalid_position;
         request.set_tensor("q", tensor<float>(ov::element::f32, {count, heads * width}, q));
         request.set_tensor("k", tensor<float>(ov::element::f32, {count, width}, k));
         request.set_tensor("v", tensor<float>(ov::element::f32, {count, width}, v));
         request.set_tensor("relative_bias", tensor<ov::float16>(ov::element::f16, {count, heads, span + 1}, bias));
-        request.set_tensor("position_ids", tensor<int64_t>(ov::element::i64, {count}, positions));
         request.set_tensor("past_lens", tensor<int32_t>(ov::element::i32, {2}, past));
         request.set_tensor("subsequence_begins", tensor<int32_t>(ov::element::i32, {3}, begins));
-        if (invalid_position) {
-            EXPECT_THROW(request.infer(), ov::Exception);
-            return;
-        }
         request.infer();
         const auto actual = request.get_output_tensor(0);
         ASSERT_EQ(actual.get_size(), count * heads * width);
@@ -203,9 +190,6 @@ TEST_P(PagedAttentionRelativeBiasTest, PackedPrefillDecodeReuseAndPositions) {
             }
         }
     };
-    step({3, 2}, INT64_C(4294967296));
-    step({3, 2}, -1);
-    step({3, 2}, 0);
     step({3, 2});
     step({1, 1});
     step({2, 1});
@@ -264,7 +248,6 @@ void run_long_cached_context(int32_t window, const ov::element::Type& cache_type
     request.set_tensor("block_indices_begins",
                        tensor<int32_t>(ov::element::i32, {2}, {0, static_cast<int32_t>(blocks_count)}));
     request.set_tensor("relative_bias", tensor<ov::float16>(ov::element::f16, {1, heads, span + 1}, bias));
-    request.set_tensor("position_ids", tensor<int64_t>(ov::element::i64, {1}, {past}));
     ASSERT_NO_THROW(request.infer());
 
     const auto actual = request.get_output_tensor(0);

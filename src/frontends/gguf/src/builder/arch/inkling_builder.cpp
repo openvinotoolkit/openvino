@@ -281,20 +281,36 @@ private:
 
     Value convolve(const Value& cur, const Value& w, const std::string& name, const Value& dynamic = {}) {
         const auto channels = cur.get_partial_shape()[3].get_length();
-        const auto state = e.add_input(name, ov::element::f32, ps({1, 1, channels, kernel - 1}));
-        auto history = std::make_shared<op::Concat>(ov::OutputVector{state, transpose(cur, {0, 1, 3, 2})}, 3);
+        // Dynamic taps read the lagged inputs as extra one-hot channels of the same causal convolution.
+        const auto copies = dynamic.get_node() ? kernel + 1 : 1;
+        auto input = cur;
+        auto filters = w;
+        if (copies > 1) {
+            input = std::make_shared<op::Concat>(ov::OutputVector(static_cast<size_t>(copies), cur), 3);
+            std::vector<float> one_hot(static_cast<size_t>(kernel * channels * kernel), 0.f);
+            for (int64_t lag = 0; lag < kernel; ++lag)
+                for (int64_t channel = 0; channel < channels; ++channel)
+                    one_hot[static_cast<size_t>((lag * channels + channel) * kernel + kernel - 1 - lag)] = 1.f;
+            const auto one_hot_shape = ov::Shape{static_cast<size_t>(kernel * channels), static_cast<size_t>(kernel)};
+            filters = std::make_shared<op::Concat>(
+                ov::OutputVector{reshape(w, {channels, kernel}),
+                                 op::Constant::create(w.get_element_type(), one_hot_shape, one_hot)},
+                0);
+        }
+        const auto state = e.add_input(name, ov::element::f32, ps({1, 1, channels * copies, kernel - 1}));
+        auto history = std::make_shared<op::Concat>(ov::OutputVector{state, transpose(input, {0, 1, 3, 2})}, 3);
         const auto update = save(slice(history, 3, -(kernel - 1), -1));
         e.graph()->recurrent_states.emplace_back(name, update);
         e.graph()->model_output_names.push_back(update);
-        Value out = operation("GGML_OP_SSM_CONV", {history, w}, 0, {{"batch_major", true}});
-        if (dynamic.get_node()) {
+        Value out = operation("GGML_OP_SSM_CONV", {history, filters}, 0, {{"batch_major", true}});
+        if (copies > 1) {
             const auto heads = dynamic.get_partial_shape()[3].get_length() / kernel;
             auto taps = reshape(dynamic, {0, -1, heads, kernel}, true);
-            const auto tokens = std::make_shared<op::Gather>(std::make_shared<op::ShapeOf>(cur), ints({2}), ints({0}));
+            const auto conv = out;
+            out = slice(conv, 3, 0, channels);
             for (int64_t lag = 0; lag < kernel; ++lag) {
-                auto begin = ints({kernel - 1 - lag});
-                auto windowed = std::make_shared<op::Slice>(history, begin, add(begin, tokens), ints({1}), ints({3}));
-                auto rows = reshape(transpose(windowed, {0, 1, 3, 2}), {0, -1, heads, channels / heads}, true);
+                auto rows =
+                    reshape(slice(conv, 3, (lag + 1) * channels, channels), {0, -1, heads, channels / heads}, true);
                 out = add(out, reshape(mul(rows, slice(taps, 3, lag, 1)), {0, 1, -1, channels}, true));
             }
         }

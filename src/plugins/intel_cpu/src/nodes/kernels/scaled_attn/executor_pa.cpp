@@ -2186,7 +2186,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 28 || inputs_size == 30);
+        OPENVINO_ASSERT(inputs_size == 28 || inputs_size == 29);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2401,16 +2401,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         _helper._relative_bias = PlainTensor();
-        if (inputs_size == 30) {
+        if (inputs_size == 29) {
             OPENVINO_ASSERT(!inputs[ID_RELATIVE_BIAS]->getShape().hasZeroDims(),
                             "PagedAttention: relative bias cannot be empty");
             _helper._relative_bias.reset(inputs[ID_RELATIVE_BIAS]);
             _helper._relative_bias.assert_dims({B_token, H, 0}, true);
             OPENVINO_ASSERT(_helper._relative_bias.size(2) >= 2,
                             "PagedAttention: relative bias requires a distance and fallback entry");
-            PlainTensor positions;
-            positions.reset(inputs[ID_POSITION_IDS]);
-            positions.assert_dims({B_token});
             OPENVINO_ASSERT(!alibi_slopes && !rotated_block_indices && !xattention_threshold &&
                                 !adaptive_rkv_evictable_sizes && !token_type_ids && !qq_bias,
                             "PagedAttention: relative bias does not support ALiBi, cache eviction/rotation, "
@@ -2419,25 +2416,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             OPENVINO_ASSERT(!any_of(precision_of<DATA_TYPE>::value, ov::element::f16, ov::element::bf16),
                             "PagedAttention: relative bias on ARM requires f32 inference");
 #    endif
-            const auto* begins = subsequence_begins.ptr<int32_t>();
-            const auto* past = past_lens.ptr<int32_t>();
-            const auto* position = positions.ptr<int64_t>();
-            OPENVINO_ASSERT(begins[0] == 0 && begins[B_seq] >= 0 && static_cast<size_t>(begins[B_seq]) == B_token,
-                            "PagedAttention: invalid subsequence boundaries for relative bias");
-            for (size_t seq = 0; seq < B_seq; ++seq) {
-                OPENVINO_ASSERT(begins[seq] >= 0 && begins[seq + 1] >= begins[seq] &&
-                                    static_cast<size_t>(begins[seq + 1]) <= B_token && past[seq] >= 0,
-                                "PagedAttention: invalid sequence lengths for relative bias");
-                for (int32_t token = begins[seq]; token < begins[seq + 1]; ++token) {
-                    const auto expected = static_cast<int64_t>(past[seq]) + token - begins[seq];
-                    OPENVINO_ASSERT(expected <= std::numeric_limits<int32_t>::max() && position[token] == expected,
-                                    "PagedAttention: relative bias requires contiguous position_ids without "
-                                    "cache eviction; expected ",
-                                    expected,
-                                    ", got ",
-                                    position[token]);
-                }
-            }
         }
 
         output_emb.assert_dims({B_token, H * SV});

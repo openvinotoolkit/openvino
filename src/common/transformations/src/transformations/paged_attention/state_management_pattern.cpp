@@ -5,7 +5,6 @@
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
 #include <charconv>
-#include <limits>
 #include <optional>
 #include <tuple>
 #include <unordered_set>
@@ -217,14 +216,11 @@ struct RelativeBias {
     ov::Output<ov::Node> table;
     ov::Output<ov::Node> sink;
     std::shared_ptr<ov::op::util::ReadValueBase> positions_state;
-    ov::element::Type mask_type;
     int32_t sliding_window;
 };
 
 bool constant_is(const ov::Output<ov::Node>& value, const std::vector<int64_t>& expected) {
-    const auto constant = ov::as_type_ptr<v0::Constant>(value.get_node_shared_ptr());
-    return constant && constant->get_element_type().is_integral_number() &&
-           constant->cast_vector<int64_t>() == expected;
+    return ov::op::util::has_constant_value(value.get_node_shared_ptr(), expected);
 }
 
 std::optional<RelativeBias> extract_relative_bias(const ov::Node* sdpa, const PaParams& params) {
@@ -286,7 +282,7 @@ std::optional<RelativeBias> extract_relative_bias(const ov::Node* sdpa, const Pa
                         depends_on(query_pos->input_value(0), positions.get()) &&
                         depends_on(cache->input_value(1), positions.get()),
                     "PagedAttention: invalid cached-position state");
-    return RelativeBias{table->output(0), sub->input_value(1), state, sdpa->get_input_element_type(3), window};
+    return RelativeBias{table->output(0), sub->input_value(1), state, window};
 }
 
 }  // namespace
@@ -991,11 +987,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                      Shape{3},
                                      std::vector<int64_t>{0, shape[1].get_length(), shape[3].get_length()}),
                 true);
-            const auto rounded = std::make_shared<v0::Convert>(flattened, relative_bias->mask_type);
-            auto positions = pa_params["position_ids"];
-            enable_keep_const_precision(positions);
-            pa_arguments.push_back(rounded);
-            pa_arguments.push_back(positions);
+            pa_arguments.push_back(std::make_shared<v0::Convert>(flattened, sdpa_node->get_input_element_type(3)));
         }
 
         auto paged_attention =

@@ -20,10 +20,10 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    OPENVINO_ASSERT(op->get_input_size() == 28, "GPU PagedAttention does not support query-dependent relative bias");
-    validate_inputs_count(op, {28});
+    validate_inputs_count(op, {28, 29});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
+    prim.has_relative_bias = op->get_input_size() == 29;
 
     const auto& rt_info = op->get_rt_info();
     const auto* const k_head_size_id = "k_head_size";

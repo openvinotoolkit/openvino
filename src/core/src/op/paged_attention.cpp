@@ -82,8 +82,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 28 || get_input_size() == 30,
-                          "PagedAttentionExtension expects 28 or 30 inputs, but it has ",
+                          get_input_size() == 28 || get_input_size() == 29,
+                          "PagedAttentionExtension expects 28 or 29 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -116,12 +116,10 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 25, "token_type_ids", {1, 2}, {element::i32});
     input_check(this, 26, "qq_bias", {1}, {element::u8});
     input_check(this, 27, "qq_bias_begins", {1}, {element::i32});
-    if (get_input_size() == 30) {
+    if (get_input_size() == 29) {
         input_check(this, 28, "relative_bias", {3}, {element::f16, element::f32});
-        input_check(this, 29, "position_ids", {1}, {element::i64});
         const auto& query_shape = get_input_partial_shape(0);
         const auto& bias_shape = get_input_partial_shape(28);
-        const auto& position_shape = get_input_partial_shape(29);
         if (query_shape.rank().is_static() && bias_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   query_shape[0].compatible(bias_shape[0]),
@@ -129,11 +127,6 @@ void PagedAttentionExtension::validate_and_infer_types() {
             NODE_VALIDATION_CHECK(this,
                                   bias_shape[2].is_dynamic() || bias_shape[2].get_length() >= 2,
                                   "relative_bias must contain at least one distance and one fallback entry.");
-        }
-        if (query_shape.rank().is_static() && position_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                                  query_shape[0].compatible(position_shape[0]),
-                                  "position_ids must have one entry per query token.");
         }
     }
 
