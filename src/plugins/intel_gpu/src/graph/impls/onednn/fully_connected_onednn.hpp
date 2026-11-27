@@ -22,7 +22,7 @@ namespace onednn {
 
 struct FullyConnectedImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::fc")
-    FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
+    FullyConnectedImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {
@@ -91,6 +91,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 if (!is_wei_compressed || !is_zp_compressed) {
                     LOG_AND_RETURN_FALSE(node);
                 }
+                const auto& zero_point_layout = fc_node.get_input_layout(decompression_zp_idx);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), zero_point_layout, fc_prim->weights_transposed);
+                if (!is_supported_scale_group(groups.first, groups.second)) {
+                    LOG_AND_RETURN_FALSE(node);
+                }
             }
 
             // oneDNN requires every non-unit stride of a sub-byte weights descriptor to hold a whole number of bytes.
@@ -112,11 +117,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 }
             }
 
-            // Reject u2 scale grouping oneDNN can't handle here, so another FC impl is selected instead.
-            if (wei_dt == data_types::u2 && fc_prim->decompression_scale.is_valid()) {
+            // Reject scale grouping oneDNN can't handle here, so another FC impl is selected instead.
+            if (fc_prim->decompression_scale.is_valid()) {
                 const auto& scale_layout = fc_node.get_input_layout(fc_prim->bias.is_valid() ? 3 : 2);
-                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout,
-                                                     fc_prim->weights_transposed);
+                const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout, fc_prim->weights_transposed);
                 if (!is_supported_scale_group(groups.first, groups.second)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
@@ -135,7 +139,25 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
+        if (get_shape_type() == shape_types::dynamic_shape && !supports_shape_agnostic_impl(node)) {
+            LOG_AND_RETURN_FALSE(node);
+        }
+
         return is_supported_post_ops(node);
+    }
+
+    // The shape-agnostic matmul is built once with runtime dims. oneDNN post-op attributes are not created for
+    // dynamic nodes, so fused ops would be dropped; compressed / >2D weights and padded tensors are not handled.
+    static bool supports_shape_agnostic_impl(const program_node& node) {
+        const auto& fc_node = node.as<fully_connected>();
+        const auto fc_prim = fc_node.get_primitive();
+        if (fc_prim->compressed_weights || fc_prim->weights_rank != 2 || !node.get_fused_primitives().empty()) {
+            return false;
+        }
+        // Dynamic padding (e.g. from runtime buffer fusing) is resolved only at execution time, so check it explicitly.
+        const auto& input_padding = fc_node.get_input_layout(0).data_padding;
+        const auto& output_padding = fc_node.get_output_layout(0).data_padding;
+        return !input_padding && !input_padding.is_dynamic() && !output_padding && !output_padding.is_dynamic();
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
