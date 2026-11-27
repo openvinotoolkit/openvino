@@ -58,20 +58,20 @@
   "dependencies": {
     "@actions/core": "^3.0.0",
     "fs": "^0.0.1-security",
-    "tar": "^7.5.16"
+    "tar": "^7.5.24"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0",
-    "@babel/eslint-parser": "^7.23.10",
-    "@babel/preset-env": "^7.29.2",
+    "@babel/core": "^7.29.16",
+    "@babel/eslint-parser": "^7.29.13",
+    "@babel/preset-env": "^7.29.14",
     "@vercel/ncc": "^0.44.1",
-    "babel-preset-jest": "^30.3.0",
+    "babel-preset-jest": "^30.5.0",
     "eslint": "^8.57.0",
     "eslint-plugin-github": "^5.0.0",
-    "eslint-plugin-jest": "^27.9.0",
+    "eslint-plugin-jest": "^28.14.0",
     "fs": "0.0.1-security",
-    "jest": "^30.4.2",
-    "prettier": "^3.8.3"
+    "jest": "^30.5.2",
+    "prettier": "^3.10.1"
   },
   "license": "Apache-2.0"
 }
