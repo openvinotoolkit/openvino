@@ -98,7 +98,8 @@ public:
         : m_meta(context.metadata),
           m_arch(context.arch),
           m_cfg(parameters, context.weights->weights),
-          m_emit(context.weights->weights, context.arch, context.weights->translators) {
+          m_emit(context.weights->weights, context.arch, context.weights->translators),
+          m_options(context.options) {
         m_cfg.configure_graph(m_emit, context.metadata);
         read_hparams();
         // every SwiGLU (routed, shared, dense lead) is clamped; llama.cpp reads one limit per layer
@@ -118,6 +119,10 @@ public:
     }
 
     std::shared_ptr<GgufGraph> build() override {
+        // Load option gguf_model_part=mtp (FrontEnd::load(path, ov::AnyMap{{"gguf_model_part", "mtp"}})) builds the
+        // NextN draft model instead of the main model.
+        if (option_str("gguf_model_part") == "mtp")
+            return build_mtp();
         build_inputs();
         m_emit.add_weight("token_embd.weight");
         auto embd = m_emit.add_op("GGML_OP_GET_ROWS", "embd", {"token_embd.weight", "inp_tokens"});
@@ -149,7 +154,64 @@ public:
 
         auto graph = m_emit.graph();
         graph->model_output_names.insert(graph->model_output_names.begin(), logits);
+        // gguf_hidden_states_output: also expose the post-norm hidden state, the NextN block's hidden_states input
+        if (option_bool("gguf_hidden_states_output"))
+            graph->model_output_names.push_back(cur);
         return graph;
+    }
+
+    // NextN (MTP) draft block, as llama.cpp graph_mtp: tokens paired row-wise with the target's post-norm hidden
+    // states (input "hidden_states"); eh_proj on [enorm(emb), hnorm(h)], one MLA + DSA layer with its own caches,
+    // MoE + shared expert, shared_head_norm, the base LM head. No mHC. Outputs logits and the block's own
+    // post-norm hidden state (for chaining drafts).
+    std::shared_ptr<GgufGraph> build_mtp() {
+        build_inputs();
+        const int il = m_cfg.n_layer;  // the first NextN block follows the trunk
+        const std::string p = "blk." + std::to_string(il) + ".";
+        m_emit.add_input("hidden_states", f32, ps({1, 1, D, m_cfg.n_embd}));
+        m_emit.add_weight("token_embd.weight");
+        auto embd = m_emit.add_op("GGML_OP_GET_ROWS", "embd", {"token_embd.weight", "inp_tokens"});
+        auto e = blocks::rms_norm(m_emit, embd, p + "nextn.enorm.weight", p + "mtp_enorm", m_cfg.rms_eps);
+        auto hn = blocks::rms_norm(m_emit, "hidden_states", p + "nextn.hnorm.weight", p + "mtp_hnorm", m_cfg.rms_eps);
+        auto cat = reg(p + "mtp_cat", std::make_shared<ov::op::v0::Concat>(ov::OutputVector{val(e), val(hn)}, -1));
+        const auto cur0 = mm(p + "nextn.eh_proj.weight", cat, p + "mtp_eh_proj");
+        auto x = blocks::rms_norm(m_emit, cur0, p + "attn_norm.weight", p + "attn_norm", m_cfg.rms_eps);
+        // the draft's residual stream comes straight from the token-major inputs ([tokens, 1, 1, D] after
+        // SDPAToPagedAttention), while mla() returns the folded [1, 1, rows, D]: give the attention output the
+        // residual's own shape, or the Add broadcasts to [T, 1, T, D] and the MoE runs on T^2 rows
+        const auto sub = reg(
+            p + "mtp_attn_out",
+            std::make_shared<ov::op::v1::Reshape>(val(mla(il, x)),
+                                                  std::make_shared<ov::op::v3::ShapeOf>(val(cur0), ov::element::i64),
+                                                  false));
+        auto ffn_inp = m_emit.add_op("GGML_OP_ADD", p + "mtp_ffn_inp", {sub, cur0});
+        x = blocks::rms_norm(m_emit, ffn_inp, p + "ffn_norm.weight", p + "ffn_norm", m_cfg.rms_eps);
+        const auto ffn = blocks::moe_ffn(m_emit, m_cfg, p, x);
+        auto out = m_emit.add_op("GGML_OP_ADD", p + "mtp_post_ffn", {ffn, ffn_inp});
+        out = m_emit.add_op("GGML_OP_GET_ROWS", p + "mtp_rows", {out, "inp_out_ids"});
+        const std::string head_norm = m_emit.has_weight(p + "nextn.shared_head_norm.weight")
+                                          ? p + "nextn.shared_head_norm.weight"
+                                          : std::string("output_norm.weight");
+        // GenAI's MTP contract: the draft model outputs last_hidden_state and GenAI grafts the target's lm_head onto
+        // it. The gguf_mtp_lm_head option keeps the draft's own head (logits first) for checks against llama.cpp.
+        auto hnext = blocks::rms_norm(m_emit, out, head_norm, "last_hidden_state", m_cfg.rms_eps);
+        auto graph = m_emit.graph();
+        if (option_bool("gguf_mtp_lm_head")) {
+            m_emit.add_weight("output.weight");
+            const auto logits = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {"output.weight", hnext});
+            graph->model_output_names.insert(graph->model_output_names.begin(), logits);
+        }
+        graph->model_output_names.push_back(hnext);
+        return graph;
+    }
+
+    std::string option_str(const std::string& key) const {
+        const auto it = m_options.find(key);
+        return it == m_options.end() ? std::string{} : it->second.as<std::string>();
+    }
+    bool option_bool(const std::string& key) const {
+        const auto it = m_options.find(key);
+        return it != m_options.end() && it->second.as<bool>();
     }
 
 private:
@@ -501,6 +563,7 @@ private:
     std::string m_arch;
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
+    ov::AnyMap m_options;
 
     int64_t m_hc = 4, m_sk_iters = 20, m_n_head = 0, m_kda_hd = 0, m_d_conv = 4;
     int64_t m_q_lora = 0, m_kv_lora = 0, m_hd_mla = 0, m_hd_v_mla = 0;

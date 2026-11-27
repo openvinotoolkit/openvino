@@ -825,6 +825,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Keep ownership while add_results() may reallocate the model's ResultVector below.
     const std::shared_ptr<ov::op::v0::Result> old_result = model->get_results()[0];
     auto logits_src = old_result->input_value(0);
+    // An MTP draft without its own head outputs only last_hidden_state; GenAI grafts the target's lm_head onto it
+    // (mtp_model_transforms.cpp), so it keeps that name in the same [b, seq, width] layout instead of becoming logits.
+    const char* const head_output = has_output_name(old_result, "last_hidden_state") ? "last_hidden_state" : "logits";
 
     // genai's gather/slice-before-matmul only finds the LM head as Result <- MatMul (optionally
     // behind Add / Transpose / Divide -> Tanh -> Multiply) with a rank-3 input. Without it, PA
@@ -909,9 +912,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                           make_shared<v0::Concat>(ov::OutputVector{batch_seq_flat, vocab}, 0),
                                           false);  // [batch, seq, vocab]
     }
-    name_output(logits, "logits");
+    name_output(logits, head_output);
     auto new_result = make_shared<v0::Result>(logits);
-    new_result->set_friendly_name("logits");
+    new_result->set_friendly_name(head_output);
 
     const auto auxiliary_results = model->get_results();
     if (genai.logits_first) {
