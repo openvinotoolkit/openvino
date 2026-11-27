@@ -368,8 +368,8 @@ protected:
         directory = std::move(path);
         std::ofstream kernel(directory / "test.cl");
         kernel << R"(
-__kernelvoid custom_kernel_axis_probe_3d(__global const INPUT0_TYPE* input,
-                                          __global OUTPUT0_TYPE* output) {
+__kernel void custom_kernel_axis_probe_3d(__global const INPUT0_TYPE* input,
+                                         __global OUTPUT0_TYPE* output) {
     const int y = get_global_id(0);
     const int f = get_global_id(1);
     const int b = get_global_id(2);
