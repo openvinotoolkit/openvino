@@ -147,11 +147,11 @@ void sycl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
 event::ptr sycl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     // Wait for all previously enqueued tasks if deps list is empty
     if (deps.empty()) {
+        // Unlike an OCL marker, this barrier also blocks subsequently submitted commands.
+        // The queue stamp is left 0, same as the OCL runtime.
         ::sycl::event ret_ev;
         try {
-            ret_ev = _command_queue.submit([&](::sycl::handler &cgh) {
-                cgh.single_task([]() {});
-            });
+            ret_ev = _command_queue.ext_oneapi_submit_barrier();
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }

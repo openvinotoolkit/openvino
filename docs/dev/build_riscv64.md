@@ -13,7 +13,8 @@ The software was validated on the following devices:
 ## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
-- GCC 7.5 or higher (for non-RVV) / [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
+- GCC 10 or higher (for non-RVV) /
+  [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
 - Python 3.12 for the optional OpenVINO Runtime Python API cross-build described below
 
 ## How to build
@@ -57,7 +58,7 @@ Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platfo
 3. Create a build folder:
    ```sh
    mkdir build && cd build
-   ``` 
+   ```
 
 4. To cross compile OpenVINO Runtime for RISC-V devices, run `cmake` with specified `CMAKE_TOOLCHAIN_FILE` and `RISCV_TOOLCHAIN_ROOT` (the last one is needed only for build using GNU toolchain).
 - For target with RVV intrinsics using `riscv-gnu-toolchain`:
@@ -68,7 +69,7 @@ Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platfo
      -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/riscv64-gnu.toolchain.cmake \
      -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
    ```
-   > **NOTE**: The `riscv-gnu-toolchain` is build as there are essential files used for cross compilation under `/opt/riscv/sysroot`. The latest stable versions of Clang or GCC both support compiling source code into RISC-V instructions, so it is acceptable to choose your preferable compilers by specifying `-DCMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER`. But remember to add the key `-DCMAKE_SYSROOT=/opt/riscv/sysroot`, otherwise many fundamental headers and libs could not be found during cross compilation. 
+   > **NOTE**: The `riscv-gnu-toolchain` is build as there are essential files used for cross compilation under `/opt/riscv/sysroot`. The latest stable versions of Clang or GCC both support compiling source code into RISC-V instructions, so it is acceptable to choose your preferable compilers by specifying `-DCMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER`. But remember to add the key `-DCMAKE_SYSROOT=/opt/riscv/sysroot`, otherwise many fundamental headers and libs could not be found during cross compilation.
 - For target without optimized primitives using installed Linux packages:
    ```sh
    cmake .. \
@@ -85,7 +86,7 @@ Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platfo
 ### (Optional) Build the OpenVINO Runtime Python API
 To enable cross-compilation with python, the library `libpython3-dev:riscv64` should be on the host machine.
 
-When installing packages using the utilities `apt` or `apt-get` the packages are downloaded from apt software repositories. On Ubuntu the apt software repositories are defined in the `/etc/apt/sources.list` file or in separate files under the `/etc/apt/sources.list.d/` directory. Host machine contains host-specific repositories (for example, x86-x64) in these files. 
+When installing packages using the utilities `apt` or `apt-get` the packages are downloaded from apt software repositories. On Ubuntu the apt software repositories are defined in the `/etc/apt/sources.list` file or in separate files under the `/etc/apt/sources.list.d/` directory. Host machine contains host-specific repositories (for example, x86-x64) in these files.
 
 1. Add riscv64 repositories to download riscv64-specific packages:
     ```sh

@@ -109,6 +109,7 @@ class IsRegularParameterCaseParametrized : public ::testing::TestWithParam<std::
 };
 class IsRegularCrossGroupConsumerCaseParametrized
     : public ::testing::TestWithParam<std::tuple<std::vector<std::size_t>, bool>> {};
+class IsRegularCrossGroupConsumerCaseF16Parametrized : public ::testing::TestWithParam<std::vector<std::size_t>> {};
 
 };  // namespace
 
@@ -814,3 +815,47 @@ TEST(OnlinePartitioningTest, IsRegularCrossGroupConsumerCase_Gemma4KVSharingPatt
     // (block 5 has external consumer, others do not) → irregular_io=true.
     EXPECT_TRUE(ens.irregular_io);
 }
+
+TEST_P(IsRegularCrossGroupConsumerCaseF16Parametrized, IgnoresNonF32SharedTensor) {
+    ModelBuilder mb;
+    auto model = mb.get_model_with_kv_sharing_repeated_blocks(10, GetParam(), ov::element::f16);
+    std::set<std::string> shared_outputs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::MatMul>(node)) {
+            EXPECT_EQ(node->get_input_element_type(0), ov::element::f16);
+            EXPECT_TRUE(ov::is_type<ov::op::v0::Relu>(node->get_input_node_shared_ptr(0)));
+            shared_outputs.insert(node->get_input_node_shared_ptr(0)->get_friendly_name());
+        }
+    }
+    EXPECT_EQ(shared_outputs.size(), GetParam().size());
+
+    auto cfg = createConfigWithKeepBlockSize(4);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    ASSERT_EQ(ens.repeated.size(), 1u);
+    const auto& matches = ens.repeated.begin()->second.matches;
+    EXPECT_GE(matches.size(), 4u);
+    bool found_shared_bank = shared_outputs.empty();
+    for (const auto& bank : matches) {
+        EXPECT_GE(bank.size(), 2u);
+        const auto head_count = std::count_if(bank.begin(), bank.end(), [&](const std::string& name) {
+            return shared_outputs.count(name) != 0;
+        });
+        if (head_count != 0) {
+            found_shared_bank = true;
+            if (GetParam().size() < 10u) {
+                EXPECT_EQ(static_cast<std::size_t>(head_count), shared_outputs.size());
+                EXPECT_GT(bank.size(), static_cast<std::size_t>(head_count));
+            }
+        }
+    }
+    EXPECT_TRUE(found_shared_bank);
+    EXPECT_FALSE(ens.irregular_io);
+}
+
+INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
+                         IsRegularCrossGroupConsumerCaseF16Parametrized,
+                         ::testing::Values(std::vector<std::size_t>{2, 5, 8},
+                                           std::vector<std::size_t>{9},
+                                           std::vector<std::size_t>{},
+                                           std::vector<std::size_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));

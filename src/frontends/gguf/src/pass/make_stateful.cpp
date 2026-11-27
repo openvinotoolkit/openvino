@@ -463,11 +463,29 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto concat = std::make_shared<v0::Concat>(ov::OutputVector{past, new_rows}, axis);
         caches.push_back({read_value, concat.get(), init_shape});
         concat->set_friendly_name(write->get_friendly_name());
-        auto assign = std::make_shared<v6::Assign>(concat, var);
-        copy_cache_write_runtime_info(
-            write,
-            cache_param,
-            {beam_idx, init, read_value, split_shape, new_rows.get_node_shared_ptr(), axis0, past, concat, assign});
+        ov::Output<ov::Node> committed = concat;
+        ov::NodeVector replacements =
+            {beam_idx, init, read_value, split_shape, new_rows.get_node_shared_ptr(), axis0, past, concat};
+        const auto& info = write->get_rt_info();
+        if (const auto it = info.find("gguf.draft_context"); it != info.end()) {
+            ov::Output<ov::Node> context;
+            for (const auto& node : model->get_ordered_ops())
+                if (node->get_friendly_name() == it->second.as<std::string>())
+                    context = node;
+            OPENVINO_ASSERT(context.get_node(), "[GGUF] missing draft context boundary");
+            auto shape = std::make_shared<v3::ShapeOf>(context, ov::element::i64);
+            auto count = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i64, {1}, {2}), axis0);
+            auto context_rows = std::make_shared<v8::Slice>(new_rows,
+                                                            v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                            count,
+                                                            v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                            v0::Constant::create(ov::element::i64, {1}, {axis}));
+            committed = std::make_shared<v0::Concat>(ov::OutputVector{past, context_rows}, axis);
+            replacements.insert(replacements.end(), {shape, count, context_rows, committed.get_node_shared_ptr()});
+        }
+        auto assign = std::make_shared<v6::Assign>(committed, var);
+        replacements.push_back(assign);
+        copy_cache_write_runtime_info(write, cache_param, replacements);
         new_sinks.push_back(assign);
 
         // The stateless graph returns each updated cache as a Result; in the stateful form the Assign

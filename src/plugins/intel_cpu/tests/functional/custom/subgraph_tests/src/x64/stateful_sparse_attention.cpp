@@ -39,7 +39,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
+#include "utils/precision_support.h"
 
 namespace ov {
 namespace test {
@@ -56,9 +56,9 @@ struct Step {
 };
 
 // {inference precision, kv cache precision, key cache quantized by channel, batch, head size, key block size,
-// number of selection heads}
+// number of selection heads, TurboQuant cache algorithm requested}
 using StatefulSparseAttentionParams =
-    std::tuple<ov::element::Type, ov::element::Type, bool, size_t, size_t, size_t, size_t>;
+    std::tuple<ov::element::Type, ov::element::Type, bool, size_t, size_t, size_t, size_t, bool>;
 
 // values in [-1, 1] with a step of 0.01, exactly representable in bf16 after the rounding done by the helper
 ov::Tensor random_tensor(ov::element::Type prec, const ov::Shape& shape, int seed) {
@@ -148,11 +148,11 @@ struct HostCache {
 class StatefulSparseAttentionTest : public ::testing::TestWithParam<StatefulSparseAttentionParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StatefulSparseAttentionParams>& obj) {
-        const auto& [prec, cache_prec, by_channel, batch, head_size, block_size, sel_heads] = obj.param;
+        const auto& [prec, cache_prec, by_channel, batch, head_size, block_size, sel_heads, turbo] = obj.param;
         std::ostringstream result;
         result << "Prec=" << prec.get_type_name() << "_Cache=" << cache_prec.get_type_name()
                << (by_channel ? "_KeyByChannel" : "") << "_N=" << batch << "_E=" << head_size << "_Bk=" << block_size
-               << "_Hs=" << sel_heads;
+               << "_Hs=" << sel_heads << (turbo ? "_Turbo" : "");
         return result.str();
     }
 
@@ -313,8 +313,9 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
     const auto E = std::get<4>(param);
     const auto Bk = std::get<5>(param);
     const auto Hs = std::get<6>(param);
-    if (prec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
-        GTEST_SKIP() << "bf16 is not supported on this machine";
+    const auto turbo = std::get<7>(param);
+    if (!ov::intel_cpu::hasHardwareSupport(prec)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << prec << " data on this system.";
     }
     auto core = ov::test::utils::PluginCache::get().core();
     // the reference keeps a plain (not compressed) cache: the stateful model is compared against it, a compressed cache
@@ -324,6 +325,11 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
     config[ov::hint::kv_cache_precision.name()] = cache_prec;
     config[ov::key_cache_group_size.name()] = static_cast<uint64_t>(32);
     config[ov::value_cache_group_size.name()] = static_cast<uint64_t>(32);
+    if (turbo) {
+        // not supported by the node, and the fusion is unconditional: both caches must stay plain, not fail
+        config[ov::internal::key_cache_quant_alg.name()] = ov::internal::CacheQuantAlgorithm::TURBO;
+        config[ov::internal::value_cache_quant_alg.name()] = ov::internal::CacheQuantAlgorithm::TURBO;
+    }
     if (key_by_channel) {
         // the key groups are 32 tokens long: the prefill ends in a partial group that the decodes keep filling
         config[ov::internal::key_cache_quant_mode.name()] = ov::internal::CacheQuantMode::BY_CHANNEL;
@@ -349,10 +355,10 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
 
     // bf16 inference rounds the cache once, in both models
     float threshold = prec == ov::element::bf16 ? 2e-2F : 1e-4F;
-    if (cache_prec == ov::element::u8) {
-        threshold = 3e-2F;
-    } else if (cache_prec == ov::element::u4) {
-        threshold = 0.15F;
+    // a TURBO request leaves the caches plain: only a compressed cache is merely close to the reference
+    const bool compressed_cache = !turbo && cache_prec != ov::element::f32;
+    if (compressed_cache) {
+        threshold = cache_prec == ov::element::u8 ? 3e-2F : 0.15F;
     }
 
     auto request = compiled.create_infer_request();
@@ -417,7 +423,7 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
     for (auto&& state : request.query_state()) {
         const auto& expected = state.get_name() == "pastk" ? k_cache : v_cache;
         // a compressed cache must not be exact: that proves the cache is really quantized
-        const float min_diff = cache_prec == ov::element::f32 ? 0.F : 1e-4F;
+        const float min_diff = compressed_cache ? 1e-4F : 0.F;
         compare(expected.tensor(prec), state.get_state(), threshold, "get_state " + state.get_name(), min_diff);
     }
 
@@ -441,6 +447,40 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
     }
 }
 
+// The cache group size follows ScaledDotProductAttention: it must divide the head size of a compressed cache. A plain
+// cache has no groups, and a TurboQuant request leaves the caches plain.
+class StatefulSparseAttentionGroupSizeTest : public StatefulSparseAttentionTest {};
+
+TEST_P(StatefulSparseAttentionGroupSizeTest, GroupSizeThatDoesNotDivideTheHeadIsRejected) {
+    const auto& param = GetParam();
+    const auto prec = std::get<0>(param);
+    const auto cache_prec = std::get<1>(param);
+    const auto E = std::get<4>(param);
+    const auto Bk = std::get<5>(param);
+    const auto Hs = std::get<6>(param);
+    const auto turbo = std::get<7>(param);
+    if (!ov::intel_cpu::hasHardwareSupport(prec)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << prec << " data on this system.";
+    }
+    auto core = ov::test::utils::PluginCache::get().core();
+    // 48 divides neither 32 nor 64
+    ov::AnyMap config{{ov::hint::inference_precision.name(), prec},
+                      {ov::hint::kv_cache_precision.name(), cache_prec},
+                      {ov::key_cache_group_size.name(), static_cast<uint64_t>(48)},
+                      {ov::value_cache_group_size.name(), static_cast<uint64_t>(48)}};
+    if (turbo) {
+        config[ov::internal::key_cache_quant_alg.name()] = ov::internal::CacheQuantAlgorithm::TURBO;
+        config[ov::internal::value_cache_quant_alg.name()] = ov::internal::CacheQuantAlgorithm::TURBO;
+    }
+    const bool compressed_cache = !turbo && (cache_prec == ov::element::u8 || cache_prec == ov::element::u4);
+    const auto model = make_stateful_model(prec, E, Bk, Hs);
+    if (compressed_cache) {
+        EXPECT_ANY_THROW(core->compile_model(model, ov::test::utils::DEVICE_CPU, config));
+    } else {
+        EXPECT_NO_THROW(core->compile_model(model, ov::test::utils::DEVICE_CPU, config));
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention,
                          StatefulSparseAttentionTest,
                          ::testing::Combine(::testing::Values(ov::element::f32, ov::element::bf16),
@@ -449,7 +489,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention,
                                             ::testing::Values(1, 2),
                                             ::testing::Values(32, 64),
                                             ::testing::Values(4, 16),
-                                            ::testing::Values(1, 2)),
+                                            ::testing::Values(1, 2),
+                                            ::testing::Values(false)),
+                         StatefulSparseAttentionTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention_GroupSize,
+                         StatefulSparseAttentionGroupSizeTest,
+                         ::testing::Combine(::testing::Values(ov::element::f32, ov::element::bf16),
+                                            ::testing::Values(ov::element::f32, ov::element::u8, ov::element::u4),
+                                            ::testing::Values(false),
+                                            ::testing::Values(1),
+                                            ::testing::Values(32),
+                                            ::testing::Values(4),
+                                            ::testing::Values(1),
+                                            ::testing::Values(false, true)),
                          StatefulSparseAttentionTest::getTestCaseName);
 
 // keys quantized by channel (u8 only); the values are quantized by token
@@ -461,7 +515,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention_KeyByChannel,
                                             ::testing::Values(1, 2),
                                             ::testing::Values(32, 64),
                                             ::testing::Values(4, 16),
-                                            ::testing::Values(1, 2)),
+                                            ::testing::Values(1, 2),
+                                            ::testing::Values(false)),
+                         StatefulSparseAttentionTest::getTestCaseName);
+
+// a TurboQuant cache request falls back to plain caches
+INSTANTIATE_TEST_SUITE_P(smoke_StatefulSparseAttention_Turbo,
+                         StatefulSparseAttentionTest,
+                         ::testing::Combine(::testing::Values(ov::element::f32, ov::element::bf16),
+                                            ::testing::Values(ov::element::u8, ov::element::u4),
+                                            ::testing::Values(false),
+                                            ::testing::Values(1, 2),
+                                            ::testing::Values(64),
+                                            ::testing::Values(4),
+                                            ::testing::Values(1),
+                                            ::testing::Values(true)),
                          StatefulSparseAttentionTest::getTestCaseName);
 
 }  // namespace test

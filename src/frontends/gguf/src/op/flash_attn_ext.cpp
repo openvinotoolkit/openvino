@@ -134,7 +134,9 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     // Encoders keep f32 attention; decoders use f16 SDPA.
     const auto sdpa_type = context.get_attribute<bool>("f32_attention", false) ? ov::element::f32 : ov::element::f16;
-    auto q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);
+    ov::Output<ov::Node> q = q_f32;
+    if (q_f32.get_element_type() != sdpa_type)
+        q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);
     auto scale_node = std::make_shared<ov::op::v0::Constant>(sdpa_type, ov::Shape{}, std::vector<float>{scale});
 
     ov::Output<ov::Node> mask_sliced, res;

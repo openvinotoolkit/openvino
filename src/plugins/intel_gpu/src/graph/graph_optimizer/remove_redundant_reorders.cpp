@@ -9,6 +9,7 @@
 
 #include "broadcast_inst.h"
 #include "concatenation_inst.h"
+#include "condition_inst.h"
 #include "convert_color_inst.h"
 #include "depth_to_space_inst.h"
 #include "eltwise_inst.h"
@@ -39,6 +40,12 @@ bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
     return std::any_of(users.begin(), users.end(), [impl](const auto& user) {
         return user->get_preferred_impl_type() == impl;
     });
+}
+
+// Weights reorder for a convolution that replaces a stride-1 deconvolution, which rotates the weights by 180 degrees
+bool rotates_weights(const program_node& reorder_node) {
+    const auto& weights_params = reorder_node.as<reorder>().get_primitive()->weights_reorder_params;
+    return weights_params != nullptr && weights_params->should_be_transposed();
 }
 
 }  // namespace
@@ -343,10 +350,11 @@ void remove_redundant_reorders::run(program& p) {
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
+        // condition is excluded because it passes the buffer to a branch parameter, which does not accept padding.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() && i_layout.spatial(0) == 1 &&
             i_layout.spatial(1) == 1 && i_layout.data_padding._upper_size[2] == 0 && i_layout.data_padding._lower_size[2] == 0 &&
             i_layout.data_padding._upper_size[3] == 0 && i_layout.data_padding._lower_size[3] == 0 && !o_layout.data_padding &&
-            i_layout.data_type == o_layout.data_type && !does_any_user_have_impl_type(r_node, impl_types::onednn)) {
+            i_layout.data_type == o_layout.data_type && !does_any_user_have_impl_type(r_node, impl_types::onednn) && !r_node.have_user_with_type<condition>()) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 && !i_layout.data_padding && !o_layout.data_padding) || i_layout.batch() == 1) {
@@ -426,7 +434,8 @@ void remove_redundant_reorders::run(program& p) {
                 auto l1_port_idx = node->get_dependency_with_port(0).second;
                 auto l2_port_idx = user->get_dependency_with_port(0).second;
 
-                if (l1.identical(l2) && (l1_port_idx == l2_port_idx)) {
+                // A reorder that rotates the weights gives other data than one that doesn't, even with the same output layout
+                if (l1.identical(l2) && (l1_port_idx == l2_port_idx) && rotates_weights(*node) == rotates_weights(*user)) {
                     r_nodes_to_remove.push_back(user);
                 }
             }

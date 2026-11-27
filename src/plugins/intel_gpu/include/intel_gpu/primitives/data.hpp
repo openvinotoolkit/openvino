@@ -199,6 +199,10 @@ struct weightless_cache_manager {
             ib >> *reorder_rep.input_layout;
             reorder_rep.reorder = std::make_shared<reorder>();
             ib >> *reorder_rep.reorder;
+            if (!do_precision_conversion) {
+                // External weights describe the reorder input, not its padded destination.
+                original_size = reorder_rep.input_layout->bytes_count();
+            }
         }
 
         OPENVINO_ASSERT(weights_memory != nullptr, "weights_memory is nullptr!!!");

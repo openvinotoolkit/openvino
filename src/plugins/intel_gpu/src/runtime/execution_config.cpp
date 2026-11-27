@@ -2,19 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/execution_config.hpp"
+
 #include <algorithm>
 #include <cstdlib>
 
+#include "intel_gpu/op/gated_residual.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
@@ -33,7 +38,6 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -76,6 +80,17 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
+        return true;
+    }
+
+    // cldnn::grouped_matmul (2D x 3D) and the batched FC (3D x 3D), incl. GroupedMatMulCompressed, need the original
+    // ranks; legacy shape infer pads them to 4D.
+    if (ov::is_type<ov::op::v17::GroupedMatMul>(op)) {
+        return true;
+    }
+
+    // A READ with a write gate has two outputs, which the legacy shape inference cannot address by port.
+    if (ov::is_type<ov::intel_gpu::op::GatedResidual>(op)) {
         return true;
     }
 
@@ -372,14 +387,22 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (!is_set_by_user(ov::intel_gpu::use_onednn)) {
-#if defined(OV_GPU_VENDOR_NVIDIA)
+#    if defined(OV_GPU_VENDOR_NVIDIA)
         // oneDNN is the main backend on NVIDIA GPUs
         m_use_onednn = true;
-#else
+#    else
         if (info.supports_immad) {
             m_use_onednn = true;
         }
-#endif
+#    endif
+    }
+    if (auto* const external_queue = dynamic_cast<const RemoteContextImpl*>(context)->get_external_queue()) {
+        m_queue_type = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().create_stream(*this, external_queue)->get_queue_type();
+        // oneDNN requires an in-order queue, including when the queue belongs to the user.
+        if (m_use_onednn && m_queue_type == QueueTypes::out_of_order) {
+            GPU_DEBUG_LOG << "oneDNN is disabled because the external OpenCL queue is out of order." << std::endl;
+            m_use_onednn = false;
+        }
     }
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;

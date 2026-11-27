@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 
@@ -32,11 +33,21 @@ enum class MoEConstantRole {
 /// Checks if an op is an OTD-capable MOE node (MOECompressed with GEMM3_SWIGLU).
 bool is_otd_capable_moe(const ov::Node* node);
 
-bool is_moe_otd_eligible(const ov::Node* node);
+/// Whether the routed weights of a MoE layer can be streamed from the weights file (if not, why, in `reason`).
+/// The layers sharing routed weights with it must be eligible too.
+bool is_moe_otd_eligible(const ov::Node* node, std::string* reason = nullptr);
+/// Whether the constant is a routed weight of eligible MoE layers only, i.e. partially uploaded when OFFLOAD_RATIO > 0.
 bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op);
 
 /// Determines the role of a Constant feeding into MOECompressed.
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op);
+
+/// Number of device-resident expert slots of an offloaded (OTD) MoE layer, 0 if the layer stays fully resident (and why, in `reason`).
+/// Only the routed weights are offloaded, and only if they are unmodified views of the weights file.
+size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio, std::string* reason = nullptr);
+
+/// Offset of the data of `constant` in `weights_path`. Throws if the constant is not a view of that file.
+size_t get_weights_file_offset(const ov::op::v0::Constant& constant, const std::filesystem::path& weights_path);
 
 struct PartialUploadDesc {
     bool enabled = false;
@@ -48,6 +59,7 @@ struct PartialUploadDesc {
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op);
 
 uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio);
+/// Throws if OFFLOAD_RATIO cannot apply to any MoE layer of the model or the resident constants exceed the device memory
 void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes);
 
 class PartialUploadLogState {

@@ -100,6 +100,21 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
+// Copies host data to usm_device memory through the builder's usm_host staging buffer, in pieces of at most 64 MiB.
+// The data may be a memory-mapped model file, which some drivers cannot copy to usm_device directly (DG2 on Windows:
+// clEnqueueMemcpyINTEL returns CL_OUT_OF_RESOURCES).
+static void upload_to_device(ProgramBuilder& p, cldnn::memory& dst, const char* src, size_t size) {
+    constexpr size_t max_staging_bytes = 64 * 1024 * 1024;
+    auto& stream = p.get_engine().get_service_stream();
+    auto staging = p.get_constant_staging_buffer(std::min(size, max_staging_bytes));
+    for (size_t offset = 0; offset < size;) {
+        const size_t n = std::min(staging->size(), size - offset);
+        std::memcpy(staging->buffer_ptr(), src + offset, n);
+        dst.copy_from(stream, *staging, 0, offset, n, true);
+        offset += n;
+    }
+}
+
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
@@ -171,7 +186,16 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         if (partial_upload.enabled) {
             mem = partial_upload.memory;
         } else if (constLayout.bytes_count() > 0) {
-            mem = p.get_engine().allocate_memory(constLayout, false);
+            // Allocating in usm_device right away avoids holding a host copy of every constant until
+            // program::transfer_memory_to_device() runs at the end of the build. Integrated GPUs keep the host
+            // allocation: there the per-constant uploads and the host reads cost more compile time than they save.
+            auto& engine = p.get_engine();
+            const bool is_image = constLayout.format.is_image_2d();
+            const bool is_dgpu = engine.get_device_info().dev_type == cldnn::device_type::discrete_gpu;
+            const auto alloc_type = engine.keeps_constants_in_device_memory() && is_dgpu && !is_image
+                                        ? cldnn::allocation_type::usm_device
+                                        : engine.get_lockable_preferred_memory_allocation_type(is_image);
+            mem = engine.allocate_memory(constLayout, alloc_type, false);
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
@@ -185,8 +209,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
         if (!partial_upload.enabled) {
             auto& stream = p.get_engine().get_service_stream();
-            cldnn::mem_lock<char> lock{mem, stream};
-            auto* buf = lock.data();
             auto bufSize = constLayout.bytes_count();
             auto upload_count = ov::shape_size(const_shape);
 
@@ -194,10 +216,23 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             // instead. Convert the data in that case, otherwise just copy it.
             const auto src_et = op->get_output_element_type(0);
             const auto dst_et = ov::element::Type(out_dtype);
-            if (src_et == dst_et) {
-                std::memcpy(&buf[0], &data[0], bufSize);
+            if (mem->get_allocation_type() == cldnn::allocation_type::usm_device) {
+                // A lock of usm_device memory would copy it to the host first, so upload it instead
+                if (src_et == dst_et) {
+                    upload_to_device(p, *mem, data, bufSize);
+                } else {
+                    std::vector<char> converted(bufSize);
+                    convert_and_copy(data, src_et, converted.data(), dst_et, upload_count, constLayout);
+                    upload_to_device(p, *mem, converted.data(), bufSize);
+                }
             } else {
-                convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
+                cldnn::mem_lock<char> lock{mem, stream};
+                auto* buf = lock.data();
+                if (src_et == dst_et) {
+                    std::memcpy(&buf[0], &data[0], bufSize);
+                } else {
+                    convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
+                }
             }
         }
         ov::wsh::Extension::hint_evict(*op);

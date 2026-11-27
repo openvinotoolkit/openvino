@@ -11,6 +11,7 @@
 
 #include "data_inst.h"
 #include "fully_connected_inst.h"
+#include "gemm_inst.h"
 #include "intel_gpu/graph/program.hpp"
 #include "pooling_inst.h"
 #include "read_value_inst.h"
@@ -169,6 +170,15 @@ static bool dep_is_network_input_or_state(const program_node& dep_node) {
     return owner->is_type<input_layout>() || owner->is_type<read_value>();
 }
 
+// oneDNN runs fully_connected and gemm as a matmul, which turns a sum post-op into GEMM beta = 1 and
+// accumulates the product into the addend's buffer. With an f32 destination the GEMM may then split K
+// between work-groups that add their partial sums to dst with float atomics, so the summation order, and
+// with it the f32 result, changes from run to run. A binary add is applied once to the finished product,
+// which keeps f32 results reproducible and rounded the same way as an unfused Add.
+static bool is_f32_matmul_destination(const program_node& p_node, const layout& p_layout) {
+    return p_layout.data_type == data_types::f32 && (p_node.is_type<fully_connected>() || p_node.is_type<gemm>());
+}
+
 add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
@@ -212,7 +222,7 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type) && p_layout.format == d_layout.format &&
             p_layout.get_tensor() == d_layout.get_tensor() && p_layout.data_padding == d_layout.data_padding &&
             (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node)) && !dep_node.is_constant() && !p_node.is_type<pooling>() &&
-            !p_node.is_output() && !p_node_consumes_dep_node() && !dep_is_network_input_or_state(dep_node)) {
+            !p_node.is_output() && !p_node_consumes_dep_node() && !dep_is_network_input_or_state(dep_node) && !is_f32_matmul_destination(p_node, p_layout)) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {
