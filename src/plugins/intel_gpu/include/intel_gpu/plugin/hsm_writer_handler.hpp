@@ -23,7 +23,8 @@ public:
     WriterHandler(ov::CacheMode cache_mode,
                   std::string requirements,
                   std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
-                  const decltype(ov::EncryptionCallbacks::encrypt)& encrypt);
+                  const decltype(ov::EncryptionCallbacks::encrypt)& encrypt,
+                  size_t plaintext_capacity);
 
     void handle_section(runtime::hsm::IWriter& writer) const override;
 
@@ -41,6 +42,7 @@ void write_model(std::ostream& destination,
                  ov::CacheMode cache_mode,
                  const std::string& requirements,
                  std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
-                 const decltype(ov::EncryptionCallbacks::encrypt)& encrypt);
+                 const decltype(ov::EncryptionCallbacks::encrypt)& encrypt,
+                 size_t plaintext_capacity);
 
 }  // namespace ov::intel_gpu::hsm

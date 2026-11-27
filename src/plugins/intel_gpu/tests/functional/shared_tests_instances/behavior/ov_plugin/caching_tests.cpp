@@ -21,6 +21,7 @@
 #include "behavior/compiled_model/import_export.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -314,6 +315,54 @@ TEST_P(GPUHsmRegressionTest, ImportUsesStoredCacheMode) {
     expect_same_inference(imported);
 }
 
+TEST_P(GPUHsmRegressionTest, WeightlessExportRoundTripsSharedKernels) {
+    const ov::Shape input_shape{4, 32};
+    auto first = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto second = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto weights = ov::op::v0::Constant::create(ov::element::f32, {32, 32}, {0.25f});
+    auto first_matmul = std::make_shared<ov::op::v0::MatMul>(first, weights);
+    auto second_matmul = std::make_shared<ov::op::v0::MatMul>(second, weights);
+    auto shared_kernel_model = std::make_shared<ov::Model>(ov::OutputVector{first_matmul, second_matmul},
+                                                           ov::ParameterVector{first, second});
+    const auto xml = cache_path.string() + ".xml";
+    const auto bin = cache_path.string() + ".bin";
+    ov::serialize(shared_kernel_model, xml, bin);
+
+    auto first_input = ov::test::utils::create_and_fill_tensor(ov::element::f32, input_shape);
+    auto second_input = ov::test::utils::create_and_fill_tensor(ov::element::f32, input_shape);
+    std::fill_n(second_input.data<float>(), second_input.get_size(), 2.f);
+    const auto infer = [&](ov::CompiledModel& compiled) {
+        auto request = compiled.create_infer_request();
+        request.set_input_tensor(0, first_input);
+        request.set_input_tensor(1, second_input);
+        request.infer();
+        return request;
+    };
+
+    for (const bool use_hsm : {false, true}) {
+        SCOPED_TRACE(use_hsm);
+        auto config = configuration;
+        config.insert_or_assign(ov::intel_gpu::export_hsm_format.name(), use_hsm);
+        config.insert_or_assign(ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SIZE);
+        auto compiled = core.compile_model(xml, target_device, config);
+        const auto blob = export_blob(compiled);
+        ASSERT_EQ(is_hsm(blob), use_hsm);
+        auto expected = infer(compiled);
+
+        std::stringstream stream(blob);
+        ov::AnyMap import_config{ov::weights_path(bin)};
+        if (!use_hsm) {
+            import_config.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        }
+        auto imported = core.import_model(stream, target_device, import_config);
+        EXPECT_EQ(imported.get_property(ov::cache_mode), ov::CacheMode::OPTIMIZE_SIZE);
+        auto actual = infer(imported);
+        for (size_t output = 0; output < shared_kernel_model->get_output_size(); ++output) {
+            ov::test::utils::compare(expected.get_output_tensor(output), actual.get_output_tensor(output));
+        }
+    }
+}
+
 TEST_P(GPUHsmRegressionTest, CacheHitsUsePerCallExportFormat) {
     for (const bool use_mmap : {false, true}) {
         core.set_property(ov::enable_mmap(use_mmap));
@@ -412,11 +461,12 @@ TEST_P(GPUHsmRegressionTest, EnablingEncryptionReplacesPlaintextCache) {
     expect_same_inference(cached);
 }
 
-TEST_P(GPUHsmRegressionTest, EncryptedPayloadRoundTripsThroughOffsetStreamAndTensor) {
+TEST_P(GPUHsmRegressionTest, EncryptedPayloadRoundTripsThroughOffsetStreamAndTensors) {
     ov::EncryptionCallbacks callbacks;
     callbacks.encrypt = ov::util::codec_xor;
     callbacks.decrypt = ov::util::codec_xor;
     auto config = configuration;
+    config.insert_or_assign(ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED);
     config.emplace(ov::cache_encryption_callbacks(callbacks));
     auto compiled = core.compile_model(model, target_device, config);
     const auto blob = export_blob(compiled);
@@ -435,6 +485,17 @@ TEST_P(GPUHsmRegressionTest, EncryptedPayloadRoundTripsThroughOffsetStreamAndTen
         from_tensor = core.import_model(tensor, target_device, config);
     }
     expect_same_inference(from_tensor);
+
+    const auto path = cache_path.string() + ".mapped";
+    {
+        std::ofstream file(path, std::ios::binary);
+        file.write(blob.data(), static_cast<std::streamsize>(blob.size()));
+        ASSERT_TRUE(file.good());
+    }
+    const auto mapping = ov::load_mmap_object(path);
+    ov::Tensor mapped_tensor(ov::element::u8, ov::Shape{blob.size()}, mapping->data());
+    auto from_mapping = core.import_model(mapped_tensor, target_device, config);
+    expect_same_inference(from_mapping);
 }
 
 TEST_P(GPUHsmRegressionTest, ForwardOnlyStreamRejectsHsmButReadsLegacy) {

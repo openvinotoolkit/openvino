@@ -18,7 +18,10 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/plugin/hsm_writer_handler.hpp"
+#include "data_inst.h"
 
+#include <algorithm>
+#include <limits>
 #include <sstream>
 #include <sys/types.h>
 #include <vector>
@@ -26,6 +29,27 @@
 namespace ov::intel_gpu {
 
 namespace {
+size_t estimate_encrypted_payload_capacity(const cldnn::program& program) {
+    constexpr size_t max_size = std::numeric_limits<size_t>::max();
+    constexpr size_t max_overhead = 64 * 1024 * 1024;
+    size_t weight_bytes = 0;
+    for (const auto* node : program.get_processing_order()) {
+        if (!node->is_type<cldnn::data>()) {
+            continue;
+        }
+        const auto& data = node->as<cldnn::data>();
+        const auto memory = data.get_primitive()->mem ? data.get_primitive()->mem : data.get_attached_memory_ptr();
+        if (memory) {
+            if (memory->size() > max_size - weight_bytes) {
+                return 0;
+            }
+            weight_bytes += memory->size();
+        }
+    }
+    const auto overhead = std::min(weight_bytes / 32, max_overhead);
+    return overhead <= max_size - weight_bytes ? weight_bytes + overhead : 0;
+}
+
 std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                                    const ExecutionConfig& config) {
     if (config.get_exclusive_async_requests()) {
@@ -239,6 +263,10 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     const ov::CacheMode cache_mode = m_config.get_cache_mode();
     if (m_config.get_export_hsm_format()) {
+        const auto plaintext_capacity = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SPEED &&
+                                                !m_config.get_enable_weightless()
+                                            ? estimate_encrypted_payload_capacity(*get_graph(0)->get_network()->get_program())
+                                            : 0;
         hsm::write_model(
             model,
             cache_mode,
@@ -246,7 +274,8 @@ void CompiledModel::export_model(std::ostream& model) const {
             [&](cldnn::BinaryOutputBuffer& output) {
                 export_payload(output);
             },
-            encryption_callbacks.encrypt);
+            encryption_callbacks.encrypt,
+            plaintext_capacity);
         return;
     }
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =

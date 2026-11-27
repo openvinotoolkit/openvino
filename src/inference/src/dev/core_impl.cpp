@@ -1939,7 +1939,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
             const bool emits_hsm = device_supports_internal_property(plugin, ov::internal::emit_hsm_format) &&
-                                   plugin.get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>();
+                                   plugin.get_property(ov::internal::emit_hsm_format.name(), cfg).as<bool>();
             std::string compiled_model_runtime_properties;
             if (!emits_hsm &&
                 device_supports_internal_property(plugin, ov::internal::compiled_model_runtime_properties.name())) {

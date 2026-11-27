@@ -83,7 +83,11 @@ private:
 
 class PlaintextBuffer final : public cldnn::BinaryOutputBuffer {
 public:
-    explicit PlaintextBuffer(std::ostream& stream) : BinaryOutputBuffer(stream, true) {}
+    PlaintextBuffer(std::ostream& stream, size_t capacity) : BinaryOutputBuffer(stream, true) {
+        if (capacity <= m_plaintext.max_size()) {
+            m_plaintext.reserve(capacity);
+        }
+    }
 
     void write(const void* data, std::streamsize size) override {
         OPENVINO_ASSERT(size >= 0, "[GPU] Invalid HSM plaintext size");
@@ -100,16 +104,19 @@ private:
 
 class ModelEncoder final : public runtime::hsm::ISectionEncoder {
 public:
-    ModelEncoder(std::function<void(cldnn::BinaryOutputBuffer&)> serialize, decltype(ov::EncryptionCallbacks::encrypt) encrypt)
+        ModelEncoder(std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
+                                 decltype(ov::EncryptionCallbacks::encrypt) encrypt,
+                                 size_t plaintext_capacity)
         : m_serialize(std::move(serialize)),
-          m_encrypt(std::move(encrypt)) {}
+                    m_encrypt(std::move(encrypt)),
+                    m_plaintext_capacity(plaintext_capacity) {}
 
     void encode(const runtime::hsm::SectionSink& sink) const override {
         SectionOutputStreamBuf buffer(sink);
         std::ostream stream(&buffer);
         stream.exceptions(std::ios::badbit | std::ios::failbit);
         if (m_encrypt) {
-            PlaintextBuffer output(stream);
+            PlaintextBuffer output(stream, m_plaintext_capacity);
             m_serialize(output);
             const auto ciphertext = m_encrypt(output.plaintext());
             OPENVINO_ASSERT(!ciphertext.empty(), "[GPU] HSM encryption produced an empty model");
@@ -125,6 +132,7 @@ public:
 private:
     std::function<void(cldnn::BinaryOutputBuffer&)> m_serialize;
     decltype(ov::EncryptionCallbacks::encrypt) m_encrypt;
+    size_t m_plaintext_capacity;
 };
 
 }  // namespace
@@ -132,10 +140,11 @@ private:
 WriterHandler::WriterHandler(ov::CacheMode cache_mode,
                              std::string requirements,
                              std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
-                             const decltype(ov::EncryptionCallbacks::encrypt)& encrypt)
+                             const decltype(ov::EncryptionCallbacks::encrypt)& encrypt,
+                             size_t plaintext_capacity)
     : m_requirements(std::move(requirements)),
       m_compile_options{ov::cache_mode(cache_mode)},
-      m_encoder(std::make_shared<ModelEncoder>(std::move(serialize), encrypt)) {
+    m_encoder(std::make_shared<ModelEncoder>(std::move(serialize), encrypt, plaintext_capacity)) {
     OPENVINO_ASSERT(cache_mode == ov::CacheMode::OPTIMIZE_SPEED || cache_mode == ov::CacheMode::OPTIMIZE_SIZE, "[GPU] Invalid stored HSM cache mode");
     OPENVINO_ASSERT(!m_requirements.empty() && m_requirements.size() <= CompiledModel::runtime_requirements_max_size,
                     "[GPU] Invalid HSM runtime requirements size");
@@ -157,8 +166,9 @@ void write_model(std::ostream& destination,
                  ov::CacheMode cache_mode,
                  const std::string& requirements,
                  std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
-                 const decltype(ov::EncryptionCallbacks::encrypt)& encrypt) {
-    WriterHandler handler(cache_mode, requirements, std::move(serialize), encrypt);
+                 const decltype(ov::EncryptionCallbacks::encrypt)& encrypt,
+                 size_t plaintext_capacity) {
+    WriterHandler handler(cache_mode, requirements, std::move(serialize), encrypt, plaintext_capacity);
     auto writer = runtime::hsm::DeferredWriter::open(destination);
     OPENVINO_ASSERT(writer, "[GPU] HSM export requires a seekable output stream");
     writer->add_sections({&handler});
