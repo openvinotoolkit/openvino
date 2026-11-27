@@ -12,7 +12,6 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <utility>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "llm_test_helpers.hpp"
@@ -171,14 +170,13 @@ std::vector<std::vector<float>> prefill_and_decode(ov::CompiledModel& compiled,
                                                    std::size_t prompt,
                                                    std::size_t sequences) {
     constexpr std::size_t kBlockSize = 32;
-    // Enough blocks per sequence for the prompt and the decoded token.
-    const auto seq_blocks = static_cast<int32_t>(prompt / kBlockSize + 1);
+    constexpr std::size_t kBlocks = 8;
     auto request = compiled.create_infer_request();
     for (const auto& port : compiled.inputs()) {
         const auto& name = port.get_any_name();
         if (name.rfind("key_cache.", 0) == 0 || name.rfind("value_cache.", 0) == 0) {
             auto shape = port.get_partial_shape();
-            shape[0] = static_cast<int64_t>(sequences) * seq_blocks;
+            shape[0] = static_cast<int64_t>(kBlocks * sequences);
             ov::Tensor cache(port.get_element_type(), shape.to_shape());
             std::fill_n(static_cast<uint8_t*>(cache.data()), cache.get_byte_size(), uint8_t{0});
             request.set_tensor(name, cache);
@@ -197,24 +195,24 @@ std::vector<std::vector<float>> prefill_and_decode(ov::CompiledModel& compiled,
     std::vector<std::vector<float>> logits;
     std::size_t past = 0;
     for (const std::size_t tokens : {prompt, std::size_t{1}}) {
+        const auto blocks = static_cast<int32_t>((past + tokens + kBlockSize - 1) / kBlockSize);
         std::vector<int64_t> ids, positions, sampled;
-        std::vector<int32_t> past_lens, subsequence_begins = {0}, table, table_begins = {0};
+        std::vector<int32_t> subsequence_begins = {0}, table, table_begins = {0};
         for (std::size_t s = 0; s < sequences; ++s) {
             for (std::size_t i = 0; i < tokens; ++i) {
-                ids.push_back(static_cast<int64_t>(1 + (past + i + s * 31) * 7 % 250));
+                ids.push_back(static_cast<int64_t>(1 + (past + i + s) * 7 % 250));
                 positions.push_back(static_cast<int64_t>(past + i));
             }
-            sampled.push_back(static_cast<int64_t>(ids.size() - 1));
-            past_lens.push_back(static_cast<int32_t>(past));
-            subsequence_begins.push_back(static_cast<int32_t>(ids.size()));
-            for (int32_t b = 0; b < seq_blocks; ++b) {
-                table.push_back(static_cast<int32_t>(s) * seq_blocks + b);
+            for (int32_t b = 0; b < blocks; ++b) {
+                table.push_back(static_cast<int32_t>(s * kBlocks) + b);
             }
+            sampled.push_back(static_cast<int64_t>(ids.size() - 1));
+            subsequence_begins.push_back(static_cast<int32_t>(ids.size()));
             table_begins.push_back(static_cast<int32_t>(table.size()));
         }
         request.set_tensor("input_ids", i64(ids));
         request.set_tensor("position_ids", i64(positions));
-        request.set_tensor("past_lens", i32(past_lens));
+        request.set_tensor("past_lens", i32(std::vector<int32_t>(sequences, static_cast<int32_t>(past))));
         request.set_tensor("subsequence_begins", i32(subsequence_begins));
         request.set_tensor("block_indices", i32(table));
         request.set_tensor("block_indices_begins", i32(table_begins));
@@ -230,11 +228,9 @@ std::vector<std::vector<float>> prefill_and_decode(ov::CompiledModel& compiled,
     return logits;
 }
 
-// One sequence: the prefill runs as a 128-token chunk on its variant plus a
-// dynamic tail, the decode on the 1-token variant. Nine sequences: every
-// prefill takes the 4-token variant and they share a dynamic tail, the decode
-// batch fills the 8-token variant and its last token takes the 1-token one.
-// All through NPUW on CPU.
+// Each prefill runs as a 128-token chunk on its variant plus a dynamic tail,
+// the decode batch of 13 on the 8-, 4- and 1-token variants, all through NPUW
+// on CPU.
 TEST(PACompiledModelEndToEnd, VariantsCompileAndMatchTheDynamicModel) {
     const auto model = make_pipeline_pa_model();
     // The model meets the chunkable contract, so the variants serve it.
@@ -269,21 +265,17 @@ TEST(PACompiledModelEndToEnd, VariantsCompileAndMatchTheDynamicModel) {
     ov::CompiledModel front_end;
     ASSERT_NO_THROW(front_end = core.compile_model(model->clone(), "NPU", npuw));
 
-    const std::pair<std::size_t, std::size_t> runs[] = {{130, 1}, {6, 9}};
-    for (const auto& [prompt, sequences] : runs) {
-        SCOPED_TRACE("prompt " + std::to_string(prompt) + ", sequences " + std::to_string(sequences));
-        const auto expected = prefill_and_decode(reference, prompt, sequences);
-        const auto actual = prefill_and_decode(front_end, prompt, sequences);
-        ASSERT_EQ(expected.size(), actual.size());
-        for (std::size_t step = 0; step < expected.size(); ++step) {
-            ASSERT_EQ(expected[step].size(), actual[step].size());
-            float scale = 1.f;
-            for (const auto v : expected[step]) {
-                scale = std::max(scale, std::fabs(v));
-            }
-            for (std::size_t i = 0; i < expected[step].size(); ++i) {
-                EXPECT_NEAR(expected[step][i], actual[step][i], 1e-3f * scale) << "step " << step << " at " << i;
-            }
+    const auto expected = prefill_and_decode(reference, 130, 13);
+    const auto actual = prefill_and_decode(front_end, 130, 13);
+    ASSERT_EQ(expected.size(), actual.size());
+    for (std::size_t step = 0; step < expected.size(); ++step) {
+        ASSERT_EQ(expected[step].size(), actual[step].size());
+        float scale = 1.f;
+        for (const auto v : expected[step]) {
+            scale = std::max(scale, std::fabs(v));
+        }
+        for (std::size_t i = 0; i < expected[step].size(); ++i) {
+            EXPECT_NEAR(expected[step][i], actual[step][i], 1e-3f * scale) << "step " << step << " at " << i;
         }
     }
 }

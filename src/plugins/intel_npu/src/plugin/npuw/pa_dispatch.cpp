@@ -5,7 +5,6 @@
 #include "pa_dispatch.hpp"
 
 #include <algorithm>
-#include <functional>
 
 #include "openvino/core/except.hpp"
 
@@ -58,64 +57,31 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
     }
 }
 
-std::vector<ov::npuw::pa::Call> ov::npuw::pa::plan_calls(const Dispatch& dispatch,
-                                                         const std::vector<std::size_t>& chunk_sizes) {
-    std::vector<std::size_t> multi_token;
+bool ov::npuw::pa::variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes) {
+    if (chunk_sizes.empty() || dispatch.tokens() == 0) {
+        return false;
+    }
+
     bool has_one_token_variant = false;
+    std::size_t min_multi_token = 0u;
     for (const auto chunk_size : chunk_sizes) {
         has_one_token_variant |= (chunk_size == 1u);
-        if (chunk_size > 1u) {
-            multi_token.push_back(chunk_size);
-        }
-    }
-    std::sort(multi_token.begin(), multi_token.end(), std::greater<std::size_t>());
-    const auto largest_fit = [&](int64_t n) {
-        for (const auto chunk_size : multi_token) {
-            if (static_cast<int64_t>(chunk_size) <= n) {
-                return chunk_size;
-            }
-        }
-        return std::size_t{0u};
-    };
-
-    std::vector<Call> calls;
-    std::vector<Segment> singles;
-    std::vector<Segment> rest;
-    for (int64_t s = 0; s < dispatch.sequences(); ++s) {
-        const int64_t seq_len = dispatch.subsequence_begins[s + 1] - dispatch.subsequence_begins[s];
-        int64_t off = 0;
-        while (const auto chunk_size = largest_fit(seq_len - off)) {
-            const auto n = static_cast<int64_t>(chunk_size);
-            calls.push_back({chunk_size, {{s, off, n}}});
-            off += n;
-        }
-        if (seq_len - off == 1) {
-            singles.push_back({s, off, 1});
-        } else if (seq_len > off) {
-            rest.push_back({s, off, seq_len - off});
+        if (chunk_size > 1u && (min_multi_token == 0u || chunk_size < min_multi_token)) {
+            min_multi_token = chunk_size;
         }
     }
 
-    auto next = singles.begin();
-    while (const auto chunk_size = largest_fit(singles.end() - next)) {
-        const auto end = next + static_cast<std::ptrdiff_t>(chunk_size);
-        calls.push_back({chunk_size, std::vector<Segment>(next, end)});
-        next = end;
-    }
-    if (singles.end() - next == 1 && has_one_token_variant) {
-        calls.push_back({1u, {*next}});
-        ++next;
+    if (dispatch.sequences() == 1 && dispatch.tokens() == 1) {
+        return has_one_token_variant;
     }
 
-    if (calls.empty()) {
-        return {};
+    int64_t decode_batch = 0;
+    for (int64_t s = 0; min_multi_token > 0u && s < dispatch.sequences(); ++s) {
+        const auto seq_len = dispatch.subsequence_begins[s + 1] - dispatch.subsequence_begins[s];
+        decode_batch = seq_len == 1 ? decode_batch + 1 : 0;
+        if (std::max<int64_t>(seq_len, decode_batch) >= static_cast<int64_t>(min_multi_token)) {
+            return true;
+        }
     }
-    rest.insert(rest.end(), next, singles.end());
-    if (!rest.empty()) {
-        std::sort(rest.begin(), rest.end(), [](const Segment& a, const Segment& b) {
-            return a.seq < b.seq;
-        });
-        calls.push_back({0u, std::move(rest)});
-    }
-    return calls;
+    return false;
 }
