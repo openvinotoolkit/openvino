@@ -15,8 +15,8 @@ namespace test {
 namespace SoftMax {
 namespace {
 const auto optimizedCPUSpec = []()-> std::vector<CPUSpecificParams>{
-    const auto avx512 = CPUSpecificParams{{}, {}, {"jit"}, "jit_avx512"};
-    const auto avx2 = CPUSpecificParams{{}, {}, {"jit"}, "jit_avx2"};
+    const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
+    const auto avx2 = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
     const std::vector<CPUSpecificParams> vecCpuConfigs = {avx512, avx2};
     auto supportConfigure = CPUTestUtils::filterCPUInfoForDevice(vecCpuConfigs);
     // only the MAX ISA of vecCpuConfigs will be tested
