@@ -691,7 +691,7 @@ void register_grouped_matmul_decomposition(ov::pass::Manager& manager,
                                            const cldnn::device_info& device_info,
                                            const ExecutionConfig& config,
                                            ov::element::Type infer_precision) {
-    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+    if (config.get_enable_mlir()) {
         return;
     }
     if (!device_info.supports_immad || !config.get_use_onednn()) {
@@ -1402,7 +1402,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             // Never decompose if mlir-path is enabled
-            if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+            if (config.get_enable_mlir()) {
                 return true;
             }
 
@@ -1874,7 +1874,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     apply_activation_scaling_transformations(func, infer_precision);
 
-    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+    if (config.get_enable_mlir()) {
         // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
         // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
 #ifdef OV_GPU_MLIR_BACKEND_LINKED

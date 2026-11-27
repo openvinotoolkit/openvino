@@ -78,6 +78,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/framework_node.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_nd.cpp
@@ -93,7 +94,6 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/group_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/group_query_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/grouped_matmul.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hard_sigmoid.cpp

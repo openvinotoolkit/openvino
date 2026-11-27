@@ -16,6 +16,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
@@ -78,6 +79,12 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
+        return true;
+    }
+
+    // cldnn::grouped_matmul (2D x 3D) and the batched FC (3D x 3D), incl. GroupedMatMulCompressed, need the original
+    // ranks; legacy shape infer pads them to 4D.
+    if (ov::is_type<ov::op::v17::GroupedMatMul>(op)) {
         return true;
     }
 

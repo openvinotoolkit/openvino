@@ -11,6 +11,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_zero_dims_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rt_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/weights_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/dummy_node.hpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/enforce_inference_precision_bf16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/inplace_resolve_io.cpp
@@ -82,6 +83,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/extract_image_patches_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/eye_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/fft_base_shape_inference_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gated_residual_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gather_elements_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gather_nd_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gather_shape_inference_test.cpp

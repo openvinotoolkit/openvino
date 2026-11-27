@@ -4,6 +4,7 @@
 
 #include "range.h"
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -135,8 +136,19 @@ size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) 
     *startPtr = getSrcDataAtPortAs<const data_t>(RANGE_START)[0];
     *stopPtr = getSrcDataAtPortAs<const data_t>(RANGE_LIMIT)[0];
     *stepPtr = getSrcDataAtPortAs<const data_t>(RANGE_DELTA)[0];
-    const data_t span = *stopPtr - *startPtr;
     const data_t step = *stepPtr;
+    if constexpr (std::is_floating_point_v<data_t>) {
+        CPU_NODE_ASSERT(std::isfinite(*startPtr) && std::isfinite(*stopPtr),
+                        "'start' and 'stop' cannot be nan or infinite.");
+        CPU_NODE_ASSERT(std::isfinite(step) && step != 0, "'step' cannot be zero, nan, or infinite.");
+    } else {
+        CPU_NODE_ASSERT(step != 0, "'step' cannot be zero.");
+    }
+    // As in the core shape inference: the output is empty when step points away from stop.
+    if ((step > 0 && *startPtr >= *stopPtr) || (step < 0 && *startPtr <= *stopPtr)) {
+        return 0;
+    }
+    const data_t span = *stopPtr - *startPtr;
     if (std::is_same_v<data_t, int>) {
         auto iSpan = static_cast<int>(span);
         auto iStep = static_cast<int>(step);
