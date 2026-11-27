@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "config.h"
-#include "cpu_streams_calculation.hpp"
 #include "infer_request.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/visibility.hpp"

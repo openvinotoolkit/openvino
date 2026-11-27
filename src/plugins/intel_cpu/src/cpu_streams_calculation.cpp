@@ -1455,6 +1455,14 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     const bool run_sync_in_caller_thread =
         config.multiAppThreadSyncExecution && !config.exclusiveAsyncRequests && !has_sub_streams;
 
+    // Reject an explicit pinning request here, before check_cpu_pinning() can override it per platform
+    // (e.g. forced off on macOS), so the contract is the same everywhere.
+    OPENVINO_ASSERT(!run_sync_in_caller_thread || !config.changedCpuPinning || !config.enableCpuPinning,
+                    "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with "
+                    "ov::hint::enable_cpu_pinning(true). Running inference on the calling application thread "
+                    "while CPU pinning is enabled silently changes that thread's CPU affinity. Remove "
+                    "ov::hint::enable_cpu_pinning(true) or set it to false.");
+
     if (run_sync_in_caller_thread && !config.changedCpuPinning) {
         // Pinning would change the caller thread's affinity, so default it off unless explicitly requested.
         config.enableCpuPinning = false;

@@ -189,7 +189,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_task_executor);
         m_run_sync_in_caller_thread = streams_executor && !m_has_sub_compiled_models && !m_cfg.exclusiveAsyncRequests;
         // Reject explicit pinning: running on the caller thread while pinned would silently change that
-        // thread's own CPU affinity. Default pinning is already resolved to false in generate_stream_info().
+        // thread's own CPU affinity. generate_stream_info() already rejects explicit pinning and resolves the
+        // default to false; this is a backstop for any other path that builds the executor config.
         OPENVINO_ASSERT(!m_run_sync_in_caller_thread || !executor_config.get_cpu_pinning(),
                         "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with "
                         "ov::hint::enable_cpu_pinning(true). Running inference on the calling application thread "

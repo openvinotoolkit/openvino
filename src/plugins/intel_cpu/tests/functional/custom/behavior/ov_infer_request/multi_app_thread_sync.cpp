@@ -266,19 +266,21 @@ TEST(AsyncInferRequestTest, smoke_RegularPathKeepsMultipleThreadsPerStream) {
     GTEST_SKIP() << "SEQ threading never executes on worker threads, so it cannot resolve multiple threads per "
                     "stream regardless of configuration";
 #endif
-    if (std::thread::hardware_concurrency() < kThreads) {
-        GTEST_SKIP() << "needs at least " << kThreads << " hardware threads to resolve " << kThreads / kStreams
-                     << " threads per stream";
-    }
     auto ctx = CreateTestInferRequest(
         {ov::num_streams(kStreams), ov::inference_num_threads(kThreads), ov::hint::enable_cpu_pinning(false)});
     ASSERT_FALSE(ctx.compiled_model.get_property(ov::intel_cpu::multi_app_thread_sync_execution.name()).as<bool>());
-    ASSERT_EQ(ctx.compiled_model.get_property(ov::inference_num_threads), kThreads);
+    // The plugin caps the request to the cores it can use (e.g. physical cores only), so check against the
+    // resolved budget rather than the requested one.
+    const int resolved_threads = ctx.compiled_model.get_property(ov::inference_num_threads);
+    if (resolved_threads < 2 * kStreams || resolved_threads % kStreams != 0) {
+        GTEST_SKIP() << "plugin resolved " << resolved_threads << " threads; needs a multiple of " << kStreams
+                     << " that gives at least 2 threads per stream";
+    }
 
     SetInput(ctx.infer_request, ctx.compiled_model.input(), 5.0F);
     ASSERT_NO_THROW(ctx.infer_request.infer());
     ASSERT_NE(ctx.state->executing_thread_id.load(), std::this_thread::get_id());
-    ASSERT_EQ(ctx.state->max_threads_during_evaluate.load(), kThreads / kStreams);
+    ASSERT_EQ(ctx.state->max_threads_during_evaluate.load(), resolved_threads / kStreams);
     ASSERT_FLOAT_EQ(GetOutput(ctx.infer_request, ctx.compiled_model.output()), 5.0F);
 }
 
@@ -484,7 +486,8 @@ TEST(AsyncInferRequestStreamCollisionTest, smoke_StaysCorrectWhenAppThreadsExcee
     }
 
     std::vector<std::thread> workers;
-    std::vector<bool> succeeded(kAppThreads, false);
+    // Not std::vector<bool>: its bit-packed elements share words, so concurrent writes from the workers race.
+    std::vector<char> succeeded(kAppThreads, 0);
     std::vector<float> observed(kAppThreads, -1.0F);
     workers.reserve(kAppThreads);
     for (int i = 0; i < kAppThreads; ++i) {
@@ -494,9 +497,9 @@ TEST(AsyncInferRequestStreamCollisionTest, smoke_StaysCorrectWhenAppThreadsExcee
             try {
                 requests[i].infer();
                 observed[i] = GetOutput(requests[i], compiled_model.output());
-                succeeded[i] = true;
+                succeeded[i] = 1;
             } catch (...) {
-                succeeded[i] = false;
+                succeeded[i] = 0;
             }
         });
     }
