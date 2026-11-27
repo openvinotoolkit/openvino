@@ -31,6 +31,13 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
 #include "graph/impls/onednn/primitive_onednn_base.h"
+#ifdef OV_GPU_VENDOR_NVIDIA
+#include "program_wrapper.h"
+#include "activation_inst.h"
+#include "eltwise_inst.h"
+#include "quantize_inst.h"
+#include "graph/impls/onednn/convolution_onednn.hpp"
+#endif
 #endif
 
 using namespace cldnn;
@@ -13969,3 +13976,174 @@ TEST(convolution_onednn_dynamic_azp, impl_reuse_mixed_conv0_channel_conv1_tensor
 TEST(convolution_onednn_dynamic_azp, impl_reuse_no_flag_conv0_channel_conv1_uniform) {
     test_onednn_conv_dynamic_azp_impl_reuse(true, false, false);
 }
+
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_NVIDIA)
+
+namespace {
+
+class convolution_onednn_nvidia_validation : public testing::Test {
+protected:
+    convolution_onednn_nvidia_validation() : _program(get_test_engine(), config()) {}
+
+    void SetUp() override {
+        layout input_layout_desc{ov::PartialShape{1, 16, 3, 3}, data_types::f32, format::bfyx};
+        layout weights_layout{ov::PartialShape{16, 16, 1, 1}, data_types::f32, format::bfyx};
+        auto& input = _program.get_or_create(std::make_shared<input_layout>("input", input_layout_desc));
+        auto& weights = _program.get_or_create(std::make_shared<input_layout>("weights", weights_layout));
+        auto desc = std::make_shared<convolution>("conv", input_info("input"), "weights", "", 1,
+                                                 ov::Strides{1, 1}, ov::Strides{1, 1},
+                                                 ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false);
+        _conv = &_program.get_or_create(desc).as<convolution>();
+        program_wrapper::add_connection(_program, input, *_conv);
+        program_wrapper::add_connection(_program, weights, *_conv);
+        // Initialize dependencies first so lazy input shape inference cannot invalidate the output.
+        input.set_output_layout(input_layout_desc, false);
+        weights.set_output_layout(weights_layout, false);
+        _conv->set_output_layout(input_layout_desc, false);
+    }
+
+    static ExecutionConfig config() {
+        auto cfg = get_test_default_config(get_test_engine());
+        cfg.set_user_property(ov::intel_gpu::use_onednn(true));
+        return cfg;
+    }
+
+    bool is_supported() const {
+        // Forced implementation selection bypasses validation. Test the actual eligibility guard
+        // directly, without network compilation or an Intel-only supports_immad skip.
+        return _manager.validate_impl(*_conv);
+    }
+
+    static void set_format(program_node& node, format fmt) {
+        auto output_layout = node.get_output_layout();
+        output_layout.format = fmt;
+        node.set_output_layout(output_layout, false);
+    }
+
+    void fuse(const std::shared_ptr<primitive>& desc) {
+        auto output_layout = _conv->get_output_layout();
+        auto& fused_node = _program.get_or_create(desc);
+        fused_node.set_output_layout(output_layout, false);
+        fused_primitive_desc fused(desc);
+        fused.input_layout = output_layout;
+        fused.output_layouts = {output_layout};
+        fused.f_param = fused_node.get_fuse_params();
+        ASSERT_NE(fused.f_param, nullptr);
+        _conv->add_fused_primitive(fused);
+    }
+
+    // Empty programs provide the node/configuration needed by the validator without creating a
+    // kernel cache. These tests do not depend on NVIDIA kernel compilation or lazy builder creation.
+    program _program;
+    convolution_node* _conv = nullptr;
+    onednn::ConvolutionImplementationManager _manager{shape_types::static_shape};
+};
+
+TEST_F(convolution_onednn_nvidia_validation, accepts_plain_fp32) {
+    EXPECT_TRUE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, accepts_plain_byxf) {
+    ASSERT_TRUE(is_supported());
+    set_format(_conv->input(), format::byxf);
+    set_format(*_conv, format::byxf);
+    EXPECT_TRUE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_blocked_input) {
+    ASSERT_TRUE(is_supported());
+    set_format(_conv->input(), format::b_fs_yx_fsv16);
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_blocked_output) {
+    ASSERT_TRUE(is_supported());
+    set_format(*_conv, format::b_fs_yx_fsv16);
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_blocked_weights) {
+    ASSERT_TRUE(is_supported());
+    set_format(_conv->weights(), format::os_iyx_osv16);
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_quantize) {
+    ASSERT_TRUE(is_supported());
+    fuse(std::make_shared<quantize>("quantize", input_info("conv"), input_info("input_low"),
+                                   input_info("input_high"), input_info("output_low"), input_info("output_high"),
+                                   256, data_types::f32));
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_prelu) {
+    ASSERT_TRUE(is_supported());
+    fuse(std::make_shared<activation>("prelu", input_info("conv"), "slope", activation_func::relu));
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_eltwise_sum) {
+    ASSERT_TRUE(is_supported());
+    fuse(std::make_shared<eltwise>("sum", std::vector<input_info>{input_info("conv"), input_info("other")},
+                                  eltwise_mode::sum));
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_eltwise_product) {
+    ASSERT_TRUE(is_supported());
+    fuse(std::make_shared<eltwise>("product", std::vector<input_info>{input_info("conv"), input_info("other")},
+                                  eltwise_mode::prod));
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_multiple_activations) {
+    ASSERT_TRUE(is_supported());
+    fuse(std::make_shared<activation>("relu", input_info("conv"), activation_func::relu));
+    ASSERT_TRUE(is_supported());
+    fuse(std::make_shared<activation>("logistic", input_info("relu"), activation_func::logistic));
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_nonzero_activation_alpha) {
+    ASSERT_TRUE(is_supported());
+    fuse(std::make_shared<activation>("elu", input_info("conv"), activation_func::elu,
+                                     activation_additional_params{1.0f, 0.0f}));
+    EXPECT_FALSE(is_supported());
+}
+
+TEST_F(convolution_onednn_nvidia_validation, rejects_disabled_onednn) {
+    ASSERT_TRUE(is_supported());
+    program_wrapper::update_configs_properties(_program, {ov::intel_gpu::use_onednn(false)});
+    EXPECT_FALSE(is_supported());
+}
+
+struct activation_case {
+    activation_func function;
+    bool supported;
+    const char* name;
+};
+
+class convolution_onednn_nvidia_activation : public convolution_onednn_nvidia_validation,
+                                           public testing::WithParamInterface<activation_case> {};
+
+TEST_P(convolution_onednn_nvidia_activation, validates_single_activation) {
+    ASSERT_TRUE(is_supported());
+    const auto& param = GetParam();
+    fuse(std::make_shared<activation>("activation", input_info("conv"), param.function));
+    EXPECT_EQ(is_supported(), param.supported);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    activation,
+    convolution_onednn_nvidia_activation,
+    testing::Values(activation_case{activation_func::relu, true, "relu"},
+                    activation_case{activation_func::hyperbolic_tan, true, "tanh"},
+                    activation_case{activation_func::elu, true, "elu"},
+                    activation_case{activation_func::logistic, true, "logistic"},
+                    activation_case{activation_func::abs, false, "abs"},
+                    activation_case{activation_func::mish, false, "mish"}),
+    [](const testing::TestParamInfo<activation_case>& info) { return info.param.name; });
+
+}  // namespace
+
+#endif  // ENABLE_ONEDNN_FOR_GPU && OV_GPU_VENDOR_NVIDIA
