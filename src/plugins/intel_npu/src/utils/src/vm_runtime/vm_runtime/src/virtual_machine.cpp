@@ -1959,6 +1959,9 @@ void VMEngine::execute(CallFrame entryFrame) {
                 _state.setExecState(ExecState::Halted);
                 break;
             }
+            NPU_VM_LOG_DEBUG("  buffer.create request dstReg={} shape={} strides={} elemByteSize={} byteSize={}",
+                             dstReg, intel_npu::vm::formatVector(meta.shape),
+                             intel_npu::vm::formatVector(meta.strides), meta.elemByteSize, *byteSize);
             try {
                 const auto handle = _state.getBufferManager().create(static_cast<size_t>(*byteSize),
                                                                      Permission::ReadWrite, /*zeroInitialized*/ true);
@@ -2064,7 +2067,7 @@ void VMEngine::execute(CallFrame entryFrame) {
             const auto srcHandle = static_cast<BufferHandle>(frame.getReg(srcReg));
             auto& bufferManager = _state.getBufferManager();
             auto& bufferMetadata = _state.getBufferMetadata();
-            auto srcIt = bufferMetadata.find(srcHandle);
+            const auto srcIt = bufferMetadata.find(srcHandle);
             if (srcIt == bufferMetadata.end() || !bufferManager.exists(srcHandle) ||
                 static_cast<int64_t>(srcIt->second.shape.size()) != rank ||
                 static_cast<int64_t>(srcIt->second.strides.size()) != rank) {
