@@ -58,6 +58,7 @@ FuseMoEExpertSort::FuseMoEExpertSort(size_t max_num_experts) {
     auto sorted_ids_cvt_m = optional<v0::Convert>({sorted_ids_m});
     auto zeros_m = any_input(
         rank_equals(1) && has_static_shape() &&
+        // moe_mask_gen runs a single work-group with a work-item per expert
         [max_num_experts](const Output<Node>& output) {
             return output.get_shape()[0] <= max_num_experts;
         } &&
@@ -71,7 +72,6 @@ FuseMoEExpertSort::FuseMoEExpertSort(size_t max_num_experts) {
 
     // Extra parts of the pattern. They only consume the permutation, so they are not reachable from the root (offsets) and are
     // optional: matched separately in the callback, on the consumers of the permutation.
-    // Token of each sorted row: [0..T) expanded to [T, K], flattened and gathered by the permutation
     auto extra_range_m = wrap_type<v4::Range>({0, any_input(), 1});
     auto extra_unsqueeze_m = wrap_type<v0::Unsqueeze>({extra_range_m, any_input()}, shape_matches("?, 1"));
     auto extra_expand_m = wrap_type<v1::Broadcast, v3::Broadcast>({extra_unsqueeze_m, any_input()}, rank_equals(2) && has_static_dim(1));
@@ -88,17 +88,10 @@ FuseMoEExpertSort::FuseMoEExpertSort(size_t max_num_experts) {
         const auto perm_out = m.get_pattern_map().at(argsort_m)->output(1);
         const auto perm = main_pm.count(perm_m) ? main_pm.at(perm_m) : perm_out;
 
-        // The extra parts are matched on top of the main match, starting from the main map, so that they share its nodes
-        // (e.g. the same argsort). pm is the main map extended with the extra parts found: they are in it only if matched.
+        // The extra parts are matched on top of the main map, so that they reuse its nodes
         PatternValueMap pm = main_pm;
 
-        /**
-         * Matches the pattern of `matcher` on a consumer of `source`, on top of the values of `pm`, so that the extra part has to use
-         * the same values as the main match. On success, the pattern map of `matcher` holds `pm` extended with the extra part.
-         * @param matcher Matcher of an extra part.
-         * @param source  Output whose consumers are tried as the root of the pattern.
-         * @return True if a consumer of `source` is matched.
-         */
+        // Matches `matcher` on a consumer of `source`, on top of pm
         auto match_consumer = [&pm](Matcher& matcher, const Output<Node>& source) {
             for (const auto& input : source.get_target_inputs()) {
                 for (const auto& candidate : input.get_node()->outputs()) {
@@ -130,7 +123,8 @@ FuseMoEExpertSort::FuseMoEExpertSort(size_t max_num_experts) {
             const auto& expand_shape = pm.at(extra_expand_m).get_partial_shape();
             const auto& topk_ids_shape = topk_ids.get_partial_shape();
             const bool same_top_k = static_cast<size_t>(expand_shape[1].get_length()) == top_k;
-            // The symbols come from SymbolicPropagation that has to run before the pass
+            // MoEExpertSort computes the token index from topk_ids, so the token source must enumerate the same T tokens.
+            // A dynamic T can only be compared by symbol, set by SymbolicPropagation
             const bool same_num_tokens = (expand_shape[0].is_static() && expand_shape[0] == topk_ids_shape[0]) ||
                                          ov::symbol::are_equal(expand_shape[0].get_symbol(), topk_ids_shape[0].get_symbol());
             if (!same_top_k || !same_num_tokens) {
@@ -142,8 +136,16 @@ FuseMoEExpertSort::FuseMoEExpertSort(size_t max_num_experts) {
         if (has_inv) {
             inv_perm = pm.at(extra_inv_argsort_m).get_node_shared_ptr()->output(1);
         }
-        // The new sort may order the rows of equal ids differently than the argsort, so a user of the permutation other than
-        // the nodes replaced here (or a ShapeOf) would see another order
+        // MoEExpertSort is stable, while the argsort TopK may order the rows of equal ids differently,
+        // e.g. for ids [1, 0, 1] TopK can give perm [1, 2, 0] and MoEExpertSort gives [1, 0, 2].
+        // So all the users of perm must move to MoEExpertSort, or they would disagree on the order of the rows:
+        //
+        //                       perm (TopK)
+        //         ┌──────────────┼──────────────┬──────────────────┐
+        //     sorted_ids       token         inv_perm         other user
+        //         └─── replaced by MoEExpertSort ───┘    keeps the TopK order
+        //
+        // ShapeOf reads only the number of rows, so it may stay.
         const std::unordered_set<const Node*> replaced_users{pm.at(sorted_ids_m).get_node(), perm.get_node(), token.get_node(), inv_perm.get_node()};
         auto has_unreplaced_user = [&](const Output<Node>& permutation) {
             const auto users = permutation.get_target_inputs();

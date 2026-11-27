@@ -43,7 +43,7 @@ TEST(moe_unit, moe_mask_gen_test) {
     std::vector<int32_t> num_actually_used_experts_ref = {num_actually_used_experts};
     topology topology(
         input_layout("input_topk", topk_layout),
-        moe_mask_gen("moe_mask_gen", input_info("input_topk"), 32, 2, true),
+        moe_mask_gen("moe_mask_gen", input_info("input_topk"), 32, 2),
         moe_mask_gen_reshape("moe_mask_gen_reshape",
                              input_info("moe_mask_gen", 0),
                              input_info("moe_mask_gen", 1),
@@ -121,7 +121,6 @@ std::vector<int32_t> make_router_ids(int32_t num_tokens, int32_t top_k, int32_t 
 
 // Stable counting sort of the (token, slot) rows by expert
 struct SortReference {
-    std::vector<int32_t> lens;         // rows of each expert
     std::vector<int32_t> end_offsets;  // inclusive end row of each expert
     std::vector<int32_t> token_index;  // token of each sorted row
     std::vector<int32_t> row_lut;      // sorted row of each (token, slot) position
@@ -129,12 +128,12 @@ struct SortReference {
 
 SortReference make_sort_reference(const std::vector<int32_t>& topk_idx, int32_t top_k, int32_t num_experts) {
     SortReference ref;
-    ref.lens.assign(num_experts, 0);
+    std::vector<int32_t> lens(num_experts, 0);
     for (auto e : topk_idx) {
-        ref.lens[e]++;
+        lens[e]++;
     }
     ref.end_offsets.resize(num_experts);
-    std::partial_sum(ref.lens.begin(), ref.lens.end(), ref.end_offsets.begin());
+    std::partial_sum(lens.begin(), lens.end(), ref.end_offsets.begin());
     std::vector<int32_t> next_row(num_experts, 0);
     for (int32_t e = 1; e < num_experts; e++) {
         next_row[e] = ref.end_offsets[e - 1];
@@ -166,7 +165,7 @@ TEST_P(moe_mask_gen_3gemm, matches_reference) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto build_network = [&](const ov::PartialShape& topk_shape) {
         topology topology(input_layout("topk", layout{topk_shape, data_types::i32, format::bfyx}),
-                          moe_mask_gen("mask_gen", input_info("topk"), num_experts, top_k, true, moe_mask_gen::expert_type::GEMM3_SWIGLU));
+                          moe_mask_gen("mask_gen", input_info("topk"), num_experts, top_k, moe_mask_gen::expert_type::GEMM3_SWIGLU));
         for (size_t i = 0; i < names.size(); i++) {
             topology.add(reorder(names[i], input_info("mask_gen", static_cast<int>(i)), format::bfyx, data_types::i32));
         }
@@ -206,82 +205,3 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            std::make_tuple(8, 56, false),
                                            std::make_tuple(8, 256, true),
                                            std::make_tuple(8, 256, false)));
-
-// Both expert types of the primitive on the same ids: the 5 GEMM2_BIAS_SWIGLU_CLAMP outputs (compact list of the activated experts)
-// and the 3 GEMM3_SWIGLU outputs must agree on the sorted token ids and on the inclusive expert end offsets, and each must match the CPU reference.
-class moe_mask_gen_modes : public ::testing::TestWithParam<std::tuple<int32_t, int32_t, bool>> {};  // top_k, experts, onednn layout of the offsets
-
-TEST_P(moe_mask_gen_modes, gemm2_and_gemm3_agree) {
-    auto& engine = get_test_engine();
-    const auto [top_k, num_experts, onednn_grouped_gemm] = GetParam();
-
-    auto topk_layout = layout{ov::PartialShape{ov::Dimension::dynamic(), top_k}, data_types::i32, format::bfyx};
-    topology topology(input_layout("topk", topk_layout),
-                      moe_mask_gen("mask_gen", input_info("topk"), num_experts, top_k, onednn_grouped_gemm),
-                      moe_mask_gen("sort", input_info("topk"), num_experts, top_k, true, moe_mask_gen::expert_type::GEMM3_SWIGLU));
-    for (size_t i = 0; i < 5; i++) {
-        topology.add(reorder("mask_gen_" + std::to_string(i), input_info("mask_gen", static_cast<int>(i)), format::bfyx, data_types::i32));
-    }
-    for (size_t i = 0; i < 3; i++) {
-        topology.add(reorder("sort_" + std::to_string(i), input_info("sort", static_cast<int>(i)), format::bfyx, data_types::i32));
-    }
-    auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
-
-    std::mt19937 gen((top_k * 17) + num_experts);
-    for (const int32_t num_tokens : {1, 7, 38, 256, 100, 731}) {
-        const auto topk_idx = make_router_ids(num_tokens, top_k, num_experts, gen);
-        const auto ref = make_sort_reference(topk_idx, top_k, num_experts);
-        std::vector<int32_t> used_ids, used_lens, used_starts;
-        for (int32_t e = 0; e < num_experts; e++) {
-            if (ref.lens[e] > 0) {
-                used_ids.push_back(e);
-                used_lens.push_back(ref.lens[e]);
-                used_starts.push_back(ref.end_offsets[e] - ref.lens[e]);
-            }
-        }
-
-        auto topk_mem = engine.allocate_memory(layout{ov::PartialShape{num_tokens, top_k}, data_types::i32, format::bfyx});
-        set_values(topk_mem, topk_idx);
-        network->set_input_data("topk", topk_mem);
-        auto outputs = network->execute();
-
-        auto read = [&](const std::string& name) {
-            auto mem = outputs.at(name).get_memory();
-            cldnn::mem_lock<int32_t, mem_lock_type::read> ptr(mem, get_test_stream());
-            return std::vector<int32_t>(ptr.begin(), ptr.end());
-        };
-        auto expect_prefix = [&](const std::vector<int32_t>& actual, const std::vector<int32_t>& ref, const std::string& what) {
-            ASSERT_GE(actual.size(), ref.size()) << what;
-            for (size_t i = 0; i < ref.size(); i++) {
-                ASSERT_EQ(actual[i], ref[i]) << what << " index " << i << " tokens " << num_tokens;
-            }
-        };
-
-        const auto mask_tokens = read("mask_gen_0");
-        const auto sort_tokens = read("sort_0");
-        expect_prefix(mask_tokens, ref.token_index, "mask_gen token ids");
-        ASSERT_EQ(mask_tokens, sort_tokens) << "token ids of the two modes differ, tokens " << num_tokens;
-
-        const auto sort_offsets = read("sort_1");
-        expect_prefix(sort_offsets, ref.end_offsets, "sort offsets");
-        const auto mask_start = read("mask_gen_1");
-        if (onednn_grouped_gemm) {
-            ASSERT_EQ(mask_start, sort_offsets) << "offsets of the two modes differ, tokens " << num_tokens;
-        } else {
-            expect_prefix(mask_start, used_starts, "mask_gen compact start offsets");
-        }
-        expect_prefix(read("mask_gen_2"), used_ids, "mask_gen experts ids");
-        expect_prefix(read("mask_gen_3"), used_lens, "mask_gen tokens lens");
-        ASSERT_EQ(read("mask_gen_4")[0], static_cast<int32_t>(used_ids.size())) << "mask_gen number of used experts, tokens " << num_tokens;
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         moe_mask_gen_modes,
-                         ::testing::Values(std::make_tuple(6, 64, true),
-                                           std::make_tuple(6, 64, false),
-                                           std::make_tuple(8, 56, true),
-                                           std::make_tuple(8, 56, false),
-                                           std::make_tuple(8, 256, true)));

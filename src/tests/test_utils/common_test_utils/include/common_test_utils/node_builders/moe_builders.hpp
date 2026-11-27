@@ -85,5 +85,34 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     bool use_per_expert_scale = false,
     bool use_layernorm_multiply = false);
 
+struct MoEExpertSortOptions {
+    bool token_index = true;          ///< build the token of each sorted row
+    bool inverse_permutation = true;  ///< build the argsort of the permutation
+    bool descending_argsort = false;  ///< the argsort TopK mode is MAX instead of MIN
+    /// the scatter-add updates are Slice(Broadcast(1)), as exported by the PyTorch frontend
+    bool slice_on_updates = false;
+    bool permutation_to_i32 = false;  ///< the permutation is converted to i32 before its users
+    /// top_k the token source is expanded to, the one of topk_ids by default
+    std::optional<size_t> token_source_top_k;
+    /// tensor whose dim 0 is the number of tokens of the token source, topk_ids by default
+    ov::Output<ov::Node> token_source_tokens;
+};
+
+struct MoEExpertSortSubgraph {
+    ov::Output<ov::Node> permutation;          ///< argsort of the flattened topk_ids
+    ov::Output<ov::Node> offsets;              ///< inclusive end row of each expert (GroupedMatMul offsets)
+    ov::Output<ov::Node> token_index;          ///< token of each sorted row, if requested
+    ov::Output<ov::Node> inverse_permutation;  ///< argsort of the permutation, if requested
+};
+
+/// Expert sort of a grouped experts forward (transformers `grouped_mm_experts_forward`, optimum-intel `ov_grouped_mm`):
+///   flat_ids = Reshape(topk_ids [T, K], [-1]), perm = TopK(flat_ids, k = T*K, min).indices
+///   offsets  = CumSum(ScatterElementsUpdate(zeros[E], flat_ids[perm], ones, sum))
+///   token    = Reshape(Broadcast(Unsqueeze(Range(0, T, 1)), [1, K]), [-1])[perm]
+///   inv_perm = TopK(perm, k = T*K, min).indices
+MoEExpertSortSubgraph build_moe_expert_sort_subgraph(const ov::Output<ov::Node>& topk_ids,
+                                                     size_t number_of_experts,
+                                                     const MoEExpertSortOptions& options = {});
+
 }  // namespace test
 }  // namespace ov

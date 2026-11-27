@@ -4,8 +4,8 @@
 
 #include "include/batch_headers/common.cl"
 
-// MOE_3GEMM (moe_3gemm_fused_compressed, GroupedMatMul): tokens_per_expert, inclusive end offsets of all the experts, row_lut.
-// Otherwise (2GEMM moe_gemm): tokens_per_expert, experts_info_start_idx, the list of the activated experts and its size.
+// Both modes: tokens_per_expert and the inclusive end offsets of all the experts (experts_info_start_idx).
+// MOE_3GEMM (moe_3gemm_fused_compressed, GroupedMatMul) adds row_lut, 2GEMM (moe_gemm) the list of the activated experts and its size.
 KERNEL(moe_mask_gen)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* topk_idx,
@@ -39,31 +39,21 @@ KERNEL(moe_mask_gen)(
     }
 
     int tokens_per_expert_iter = work_group_scan_exclusive_add(num_tokens_per_curr_expert);
-#if MOE_3GEMM
     experts_info_start_idx[expert_id] = tokens_per_expert_iter + num_tokens_per_curr_expert;
-
-    if (num_tokens_per_curr_expert == 0) {
-        return;
-    }
-#else
+#if !MOE_3GEMM
     int is_used = (num_tokens_per_curr_expert > 0) ? 1 : 0;
     int experts_id_iter = work_group_scan_exclusive_add(is_used);
 
     if ((expert_id + 1) == get_local_size(0)) {
         num_actual_used_experts[0] = experts_id_iter + is_used;
     }
-
-    #if ONEDNN_GROUPED_GEMM_USED
-        experts_info_start_idx[expert_id] = tokens_per_expert_iter + num_tokens_per_curr_expert;
-    #endif
+#endif
 
     if (num_tokens_per_curr_expert == 0) {
         return;
     }
 
-    #if !ONEDNN_GROUPED_GEMM_USED
-        experts_info_start_idx[experts_id_iter] = tokens_per_expert_iter;
-    #endif
+#if !MOE_3GEMM
     experts_id[experts_id_iter] = expert_id;
     tokens_lens_per_expert[experts_id_iter] = num_tokens_per_curr_expert;
 #endif

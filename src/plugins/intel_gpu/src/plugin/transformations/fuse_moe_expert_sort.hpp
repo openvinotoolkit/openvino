@@ -33,19 +33,19 @@ namespace ov::intel_gpu {
  *                │  TopK   │ argsort
  *                └────┬────┘
  *                     │ perm [S]
- *        ┌────────────┼─────────────┐
- *        │            │             │
+ *        ┌────────────┼┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+ *        │            ┆             ┆
  *   ┌────┴────┐  ┌────┴────┐  ┌─────┴─────┐
  *   │ Gather  │  │ Gather  │  │   TopK    │
  *   │flat_ids │  │ token   │  │ (inverse) │
  *   └────┬────┘  │ source  │  └─────┬─────┘
- *        │       └────┬────┘        │
- *   ┌────┴────┐       │             │
- *   │ScatterEU│       │             │
- *   └────┬────┘       │             │
- *   ┌────┴────┐       │             │
- *   │ CumSum  │       │             │
- *   └────┬────┘       │             │
+ *        │       └────┬────┘        ┆
+ *   ┌────┴────┐       ┆             ┆
+ *   │ScatterEU│       ┆             ┆
+ *   └────┬────┘       ┆             ┆
+ *   ┌────┴────┐       ┆             ┆
+ *   │ CumSum  │       ┆             ┆
+ *   └────┬────┘       ┆             ┆
  *     offsets    token index    inv_perm
  *
  * After:
@@ -55,9 +55,11 @@ namespace ov::intel_gpu {
  *             ┌───────┴───────┐
  *             │ MoEExpertSort │
  *             └───┬───┬───┬───┘
- *                 │   │   │
+ *                 ┆   │   ┆
  *       token index   │   inv_perm (row_lut)
  *                  offsets
+ *
+ * ┆ - optional branches.
  *
  * MoEExpertSort is stable, while the argsort TopK is not, so the pass requires every user of the permutation to be replaced.
  * The token index and the inverse permutation are optional. max_num_experts is the number of experts the kernel supports.

@@ -23,7 +23,7 @@ static void CreateMoEExpertSortOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     const auto& topk_shape = op->get_input_partial_shape(0);
     const auto top_k = static_cast<int32_t>(topk_shape[1].get_length());
     const auto num_experts = static_cast<int32_t>(op->get_num_experts());
-    p.add_primitive(*op, cldnn::moe_mask_gen(layer_type_name_ID(op), inputs[0], num_experts, top_k, true, cldnn::moe_mask_gen::expert_type::GEMM3_SWIGLU));
+    p.add_primitive(*op, cldnn::moe_mask_gen(layer_type_name_ID(op), inputs[0], num_experts, top_k, cldnn::moe_mask_gen::expert_type::GEMM3_SWIGLU));
 }
 
 REGISTER_FACTORY_IMPL(internal, MoEExpertSort);

@@ -29,13 +29,13 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     /// @param moe_type             GEMM2_BIAS_SWIGLU_CLAMP (moe_gemm) or GEMM3_SWIGLU (moe_3gemm_fused_compressed, GroupedMatMul) outputs
     ///
     /// GEMM2_BIAS_SWIGLU_CLAMP outputs (MoEMaskGenOutputIdx):
-    /// @param output0 :            used tokens per expert
-    /// @param output1 :            start offset for each expert' info
+    /// @param output0 :            token of each sorted row
+    /// @param output1 :            inclusive end row of each expert
     /// @param output2 :            experts' ids actually used
     /// @param output3 :            tokens' length per expert
     /// @param output4 :            number of actually used experts
     ///
-    /// GEMM3_SWIGLU outputs (MoEMaskGen3GemmOutputIdx), always in the oneDNN grouped GEMM layout:
+    /// GEMM3_SWIGLU outputs (MoEMaskGen3GemmOutputIdx):
     /// @param output0 :            token of each sorted row
     /// @param output1 :            inclusive end row of each expert
     /// @param output2 :            sorted row of each (token, top-k slot) pair (row_lut)
@@ -44,24 +44,20 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
                  const input_info& router_idx,
                  const int32_t num_total_experts,
                  const int32_t num_experts_per_token,
-                 const bool onednn_grouped_gemm_used = false,
                  const expert_type moe_type = expert_type::GEMM2_BIAS_SWIGLU_CLAMP)
         : primitive_base(id, {router_idx}, moe_type == expert_type::GEMM3_SWIGLU ? 3 : 5),
           num_total_experts(num_total_experts),
           num_experts_per_token(num_experts_per_token),
-          onednn_grouped_gemm_used(onednn_grouped_gemm_used || moe_type == expert_type::GEMM3_SWIGLU),
           moe_type(moe_type) {}
 
     int32_t num_total_experts = 0;
     int32_t num_experts_per_token = 0;
-    bool onednn_grouped_gemm_used = false;
     expert_type moe_type = expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, num_total_experts);
         seed = hash_combine(seed, num_experts_per_token);
-        seed = hash_combine(seed, onednn_grouped_gemm_used);
         seed = hash_combine(seed, static_cast<int>(moe_type));
         return seed;
     }
@@ -72,7 +68,7 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
         }
         if (const auto* rhs_casted = dynamic_cast<const moe_mask_gen*>(&rhs)) {
             return num_total_experts == rhs_casted->num_total_experts && num_experts_per_token == rhs_casted->num_experts_per_token &&
-                   onednn_grouped_gemm_used == rhs_casted->onednn_grouped_gemm_used && moe_type == rhs_casted->moe_type;
+                   moe_type == rhs_casted->moe_type;
         }
         return false;
     }
@@ -81,7 +77,6 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
         primitive_base<moe_mask_gen>::save(ob);
         ob << num_total_experts;
         ob << num_experts_per_token;
-        ob << onednn_grouped_gemm_used;
         ob << make_data(&moe_type, sizeof(moe_type));
     }
 
@@ -89,7 +84,6 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
         primitive_base<moe_mask_gen>::load(ib);
         ib >> num_total_experts;
         ib >> num_experts_per_token;
-        ib >> onednn_grouped_gemm_used;
         ib >> make_data(&moe_type, sizeof(moe_type));
     }
 };

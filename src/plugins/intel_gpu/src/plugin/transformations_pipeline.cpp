@@ -1123,6 +1123,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
+            // FuseMoEExpertSort compares the dynamic numbers of tokens of the token source and of the router ids by symbol
             manager.register_pass<ov::pass::SymbolicPropagation>();
             manager.register_pass<ov::intel_gpu::FuseMoEExpertSort>(device_info.max_work_group_size);
         }
