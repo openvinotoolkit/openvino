@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -13,6 +15,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/log.hpp"
@@ -26,6 +29,7 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
@@ -1583,4 +1587,94 @@ TEST(TransformationTests, ConvertPrecision_preserves_integer_bucket_value) {
 
     EXPECT_EQ(outputs[0].data<int64_t>()[0], 49)
         << "f16 compression must not change the integer bucket produced by Ceiling";
+}
+
+TEST(TransformationTests, ConvertPrecision_keeps_integer_rounding_ops_in_fp32) {
+    // Ceiling, Floor and Round are all precision sensitive when they feed an integer conversion:
+    // rounding the input to f16 first can move a value across the integer boundary, so every one
+    // of them must keep the whole chain in f32.
+    const std::vector<std::function<std::shared_ptr<Node>(const std::shared_ptr<Node>&)>> rounding_ops{
+        [](const std::shared_ptr<Node>& input) {
+            return std::make_shared<Ceiling>(input);
+        },
+        [](const std::shared_ptr<Node>& input) {
+            return std::make_shared<Floor>(input);
+        },
+        [](const std::shared_ptr<Node>& input) {
+            return std::make_shared<Round>(input, op::v5::Round::RoundMode::HALF_TO_EVEN);
+        }};
+
+    for (const auto& make_rounding : rounding_ops) {
+        auto position = make_shared<Parameter>(element::i64, Shape{1});
+        auto position_f = make_shared<Convert>(position, element::f32);
+        auto scale = Constant::create(element::f32, Shape{}, {1.0000625f});
+        auto scaled = make_shared<Multiply>(position_f, scale);
+        auto rounded = make_rounding(scaled);
+        auto bucket = make_shared<Convert>(rounded, element::i64);
+        auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
+
+        pass::Manager manager;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      type_to_fuse_map{},
+                                                      true);
+        manager.run_passes(model);
+
+        EXPECT_EQ(position_f->get_output_element_type(0), element::f32) << rounded->get_type_name();
+        EXPECT_EQ(scaled->get_output_element_type(0), element::f32) << rounded->get_type_name();
+        EXPECT_EQ(rounded->get_output_element_type(0), element::f32) << rounded->get_type_name();
+        EXPECT_EQ(bucket->get_input_element_type(0), element::f32) << rounded->get_type_name();
+        EXPECT_EQ(bucket->get_output_element_type(0), element::i64) << rounded->get_type_name();
+    }
+}
+
+TEST(TransformationTests, ConvertPrecision_preserves_integer_bucket_selected_by_comparison) {
+    // The int-to-float Convert here feeds only a boolean comparison. f16 rounds the
+    // threshold 47.999 to 48.0, flipping Greater(48, threshold) from true to false and
+    // selecting the wrong bucket. The boolean output must not terminate the subgraph walk.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto threshold = Constant::create(element::f32, Shape{}, {47.999f});
+    auto cond = make_shared<Greater>(position_f, threshold);
+    auto true_bucket = Constant::create(element::f32, Shape{}, {100.0f});
+    auto false_bucket = Constant::create(element::f32, Shape{}, {200.0f});
+    auto selected = make_shared<Select>(cond, true_bucket, false_bucket);
+    auto bucket = make_shared<Convert>(selected, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true);
+    manager.run_passes(model);
+
+    std::vector<int64_t> position_data{48};
+    TensorVector inputs{Tensor(element::i64, Shape{1}, position_data.data())};
+    TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    EXPECT_EQ(outputs[0].data<int64_t>()[0], 100)
+        << "f16 compression must not flip a comparison that selects an integer bucket";
+}
+
+TEST(TransformationTests, MarkIntegerToFloatSubgraph_marks_every_terminal_convert) {
+    // One int-to-float Convert can feed more than one float-to-int Convert through different
+    // branches. Every terminal conversion needs its input marked, not just the first one found.
+    auto position = make_shared<Parameter>(element::i64, Shape{1});
+    auto position_f = make_shared<Convert>(position, element::f32);
+    auto scale = Constant::create(element::f32, Shape{}, {1.0000625f});
+    auto scaled = make_shared<Multiply>(position_f, scale);
+    auto ceiling1 = make_shared<Ceiling>(scaled);
+    auto bucket1 = make_shared<Convert>(ceiling1, element::i64);
+    auto offset = Constant::create(element::f32, Shape{}, {0.5f});
+    auto shifted = make_shared<Add>(scaled, offset);
+    auto ceiling2 = make_shared<Ceiling>(shifted);
+    auto bucket2 = make_shared<Convert>(ceiling2, element::i64);
+    auto model = make_shared<Model>(OutputVector{bucket1, bucket2}, ParameterVector{position});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    EXPECT_TRUE(is_precision_sensitive(bucket1->input(0))) << "first terminal convert not marked";
+    EXPECT_TRUE(is_precision_sensitive(bucket2->input(0))) << "second terminal convert not marked";
 }

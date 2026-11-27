@@ -457,6 +457,7 @@ public:
 
             std::unordered_set<const Node*> visited{convert.get()};
             std::vector<Output<Node>> outputs{convert->output(0)};
+            bool found = false;
             while (!outputs.empty()) {
                 const auto output = outputs.back();
                 outputs.pop_back();
@@ -468,12 +469,13 @@ public:
                     if (const auto to_integer = as_type_ptr<v0::Convert>(consumer)) {
                         if (to_integer->get_input_element_type(0).is_real() &&
                             to_integer->get_convert_element_type().is_integral_number()) {
-                            disable_conversion(convert, element::f16);
                             // AlignMixedFP32FP16Types must not insert a compression Convert
                             // right before the float-to-integer conversion, otherwise the
-                            // rounding happens anyway.
+                            // rounding happens anyway. Do not stop here: one int-to-float
+                            // Convert can feed several terminal conversions through different
+                            // branches, and all of them must be marked.
                             mark_as_precision_sensitive(to_integer->input(0));
-                            return true;
+                            found = true;
                         }
                         // Any other Convert interrupts the chain, the same way it interrupts
                         // down propagation.
@@ -483,13 +485,18 @@ public:
                     if (!is_precision_propagating_op(consumer))
                         continue;
 
+                    // Follow every output, not just floating point ones: a comparison produces
+                    // a boolean condition, but f16 rounding of the compared values can still
+                    // change which branch a following Select takes and hence the final integer.
                     for (const auto& consumer_output : consumer->outputs()) {
-                        if (consumer_output.get_element_type().is_real())
-                            outputs.push_back(consumer_output);
+                        outputs.push_back(consumer_output);
                     }
                 }
             }
-            return false;
+
+            if (found)
+                disable_conversion(convert, element::f16);
+            return found;
         };
 
         auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
