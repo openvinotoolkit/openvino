@@ -1403,7 +1403,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             return found;
         };
-        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc && npudesc->arch == "5010" &&
+        const auto device_routed_platform =
+            npudesc && (npudesc->arch == ov::intel_npu::Platform::NPU5010 ||
+                        ov::intel_npu::Platform::standardize(npudesc->arch) == ov::intel_npu::Platform::NPU6010);
+        if (npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && device_routed_platform &&
             npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
             m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1 && !generate_model_variants.empty() &&
             std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
