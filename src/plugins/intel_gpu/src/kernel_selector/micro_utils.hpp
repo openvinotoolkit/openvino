@@ -17,10 +17,10 @@
 # define NOMINMAX
 #endif
 
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/package.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/kernel_selector.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel_selector.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/shim.hpp"
+#include "gemmstone/microkernel/package.hpp"
+#include "gemmstone/kernel_selector.hpp"
+#include "gemmstone/microkernel_selector.hpp"
+#include "gemmstone/microkernel/shim.hpp"
 #include "common/utils.hpp"
 
 namespace micro {
