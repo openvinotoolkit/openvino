@@ -5,9 +5,12 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
@@ -70,12 +73,17 @@ public:
         : ov::ICompiledModel(model, plugin, nullptr, nullptr),
           m_model(model) {}
 
-    void export_model(std::ostream&) const override {}
+    void export_model(std::ostream& stream) const override {
+        stream << "inert test model";
+    }
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
         return m_model;
     }
     void set_property(const ov::AnyMap&) override {}
-    ov::Any get_property(const std::string&) const override {
+    ov::Any get_property(const std::string& name) const override {
+        if (name == ov::execution_devices.name()) {
+            return std::vector<std::string>{"NPU"};
+        }
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
@@ -89,9 +97,11 @@ private:
     std::shared_ptr<ov::Model> m_model;
 };
 
-std::shared_ptr<TestPlugin> make_test_plugin() {
+using TestCore = testing::NiceMock<ov::MockICore>;
+
+std::pair<std::shared_ptr<TestPlugin>, std::shared_ptr<TestCore>> make_test_plugin_with_core() {
     auto plugin = std::make_shared<TestPlugin>();
-    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto core = std::make_shared<TestCore>();
 
     ON_CALL(*core, get_supported_property(testing::_, testing::_, testing::_))
         .WillByDefault([](const std::string&, const ov::AnyMap& properties, const bool) {
@@ -131,7 +141,11 @@ std::shared_ptr<TestPlugin> make_test_plugin() {
         });
 
     plugin->set_core(core);
-    return plugin;
+    return {plugin, core};
+}
+
+std::shared_ptr<TestPlugin> make_test_plugin() {
+    return make_test_plugin_with_core().first;
 }
 
 std::shared_ptr<ov::npuw::CompiledModel> make_compiled_model_with_input_link(
@@ -178,6 +192,129 @@ void expect_validation_throw_contains(const std::shared_ptr<ov::npuw::CompiledMo
         FAIL() << "Expected ov::Exception containing: " << expected_substr;
     } catch (const ov::Exception& ex) {
         EXPECT_NE(std::string(ex.what()).find(expected_substr), std::string::npos) << ex.what();
+    }
+}
+
+enum class SectionBoundary {
+    Valid,
+    ChildHeader,
+    ChildBody,
+    MetadataBody,
+    MetadataField,
+    SubmodelField,
+    LegacyMetadataField,
+    LegacyValid,
+};
+
+std::string make_section_boundary_blob(const SectionBoundary boundary) {
+    namespace orc = ov::npuw::orc;
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    compiled->m_dev_list = {"NPU"};
+    compiled->m_cfg.update({{"NPUW_DEVICES", "NPU"}});
+    add_fake_submodel(compiled);
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    compiled->export_model(buffer);
+
+    if (boundary == SectionBoundary::LegacyMetadataField || boundary == SectionBoundary::LegacyValid) {
+        auto section = orc::read_file(buffer);
+        std::stringstream legacy(std::ios::in | std::ios::out | std::ios::binary);
+        orc::write_file_header(legacy, orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
+        orc::with_section(legacy, section.type, 0u, section.flags, [&] {
+            auto writer = orc::Stream::writer(legacy);
+            auto& metadata = section.children.front().payload;
+            writer.bytes(metadata.data(), metadata.size());
+            for (std::size_t idx = 1u; idx < section.children.size(); ++idx) {
+                writer & section.children[idx];
+            }
+        });
+        buffer.str(legacy.str());
+        buffer.clear();
+    }
+
+    orc::read_file_header(buffer);
+    const auto root_position = buffer.tellg();
+    orc::ScopedReadSection root(buffer);
+    auto header = root.header();
+    auto position = root_position;
+
+    if (boundary == SectionBoundary::LegacyMetadataField) {
+        header.size = 0u;
+    } else if (boundary != SectionBoundary::LegacyValid && boundary != SectionBoundary::Valid) {
+        const auto metadata_position = buffer.tellg();
+        orc::ScopedReadSection metadata(buffer, root.remaining());
+        const auto metadata_header = metadata.header();
+        metadata.read_remaining_blob();
+        const auto child_position = buffer.tellg();
+        const auto metadata_extent = static_cast<std::uint64_t>(child_position - metadata_position);
+        if (boundary == SectionBoundary::ChildHeader) {
+            header.size = metadata_extent + 1u;
+        } else if (boundary == SectionBoundary::ChildBody) {
+            orc::ScopedReadSection child(buffer, root.remaining());
+            header.size = static_cast<std::uint64_t>(buffer.tellg() - metadata_position);
+        } else if (boundary == SectionBoundary::MetadataBody) {
+            header.size = metadata_extent - 1u;
+        } else if (boundary == SectionBoundary::MetadataField) {
+            position = metadata_position;
+            header = metadata_header;
+            header.size = 0u;
+        } else if (boundary == SectionBoundary::SubmodelField) {
+            position = child_position;
+            orc::ScopedReadSection child(buffer, root.remaining());
+            header = child.header();
+            header.size = sizeof(std::size_t) + sizeof(bool) + sizeof(std::size_t);
+        }
+    }
+    buffer.seekp(position);
+    auto writer = orc::Stream::writer(buffer);
+    writer & header;
+    return buffer.str();
+}
+
+void expect_section_boundary_rejected(const SectionBoundary boundary, const std::string& message) {
+    auto [plugin, core] = make_test_plugin_with_core();
+    EXPECT_CALL(*core, import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::_))
+        .Times(0);
+    std::istringstream input(make_section_boundary_blob(boundary), std::ios::in | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModel::import_model(input, plugin, {}), ov::Exception, message);
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsOutOfRootChildHeaderBeforeNestedImport) {
+    expect_section_boundary_rejected(SectionBoundary::ChildHeader, "header exceeds remaining parent payload");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsOutOfRootChildBodyBeforeNestedImport) {
+    expect_section_boundary_rejected(SectionBoundary::ChildBody, "exceeds remaining payload");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsOutOfRootMetadataBeforeNestedImport) {
+    expect_section_boundary_rejected(SectionBoundary::MetadataBody, "exceeds remaining payload");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsOutOfMetadataFieldBeforeNestedImport) {
+    expect_section_boundary_rejected(SectionBoundary::MetadataField, "ORC read exceeds bounded input stream");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsOutOfSubmodelFieldBeforeNestedImport) {
+    expect_section_boundary_rejected(SectionBoundary::SubmodelField, "exceeds remaining payload");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsOutOfLegacyMetadataBeforeNestedImport) {
+    expect_section_boundary_rejected(SectionBoundary::LegacyMetadataField, "ORC read exceeds bounded input stream");
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsContainedSectionsAndImportsNestedModel) {
+    for (const auto boundary : {SectionBoundary::Valid, SectionBoundary::LegacyValid}) {
+        auto [plugin, core] = make_test_plugin_with_core();
+        EXPECT_CALL(*core, import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::_))
+            .WillOnce([](std::istream& model, const std::string& device, const ov::AnyMap&) {
+                EXPECT_EQ(device, "NPU");
+                std::string payload;
+                std::getline(model, payload);
+                EXPECT_EQ(payload, "inert test model");
+                return ov::SoPtr<ov::ICompiledModel>{};
+            });
+        std::istringstream input(make_section_boundary_blob(boundary), std::ios::in | std::ios::binary);
+        EXPECT_NO_THROW(ov::npuw::CompiledModel::import_model(input, plugin, {}));
     }
 }
 
