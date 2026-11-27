@@ -6,6 +6,7 @@
 
 #ifdef OV_GPU_WITH_OCL_RT
 
+#    include <algorithm>
 #    include <array>
 #    include <atomic>
 #    include <cmath>
@@ -25,6 +26,7 @@
 #    include "registry/registry.hpp"
 #    include "runtime/ocl/ocl_engine.hpp"
 #    include "runtime/ocl/ocl_kernel.hpp"
+#    include "ternocl_int2_dpas_prefill.hpp"
 #    include "ternocl_int2_kernels.inc"  // generated from TERNOCL_ROOT (CMakeLists.txt)
 
 namespace cldnn {
@@ -323,6 +325,32 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
     };
     std::array<Int8Launch, 4> _int8_launch;
     kernel::ptr _fwht;
+    // ternocl_prequant_prefill_min_m (0 = off): M >= min M on the pre-quantized int8 DPAS GEMM
+    // (ternocl_int2_dpas_prefill.hpp). Shared by the clones of an impl; the row-major weight copies are keyed by the
+    // packed weights buffer, so FCs that share an impl through the cache keep their own.
+    size_t _dpas_min_m = 0;
+    struct DpasState {
+        std::mutex m;
+        kernel::ptr to_rows_w, to_rows_s, quant, gemm, gemm_tall;
+        std::map<const void*, std::pair<memory::ptr, memory::ptr>> rows;
+    };
+    std::shared_ptr<DpasState> _dpas;
+
+    bool use_dpas(size_t M) const {
+        return _dpas_min_m != 0 && M >= _dpas_min_m && _N % dpas_cols(M) == 0 && _K % 128 == 0;  // u2: whole tiles
+    }
+    // Long-K FCs (down projection) at M >= 512 take a tall tile walked column-first: 2 row blocks x 8
+    // subgroups stacked = 128 x 16 (5120 x 17408, M 1024: 3.3-3.5 ms vs 4.3 TernOCL; at M 256 the wide
+    // tile is faster, 0.7 vs 1.1 ms). Others: 4 row blocks x 8 subgroups side by side = 32 x 128, row-first.
+    bool dpas_tall(size_t M) const {
+        return _K >= 2 * _N && M >= 512;
+    }
+    size_t dpas_rows(size_t M) const {
+        return dpas_tall(M) ? 128 : 32;
+    }
+    size_t dpas_cols(size_t M) const {
+        return dpas_tall(M) ? 16 : 128;
+    }
 
     fully_connected_ternocl_int2() : parent("ternocl_int2") {}
     fully_connected_ternocl_int2(ocl_engine& engine,
@@ -351,6 +379,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         _engine = &engine;
         _integrated = engine.get_device_info().dev_type == device_type::integrated_gpu;
         _programs = TernoclProgramCache::get(engine);
+        _dpas = std::make_shared<DpasState>();
         _had_signs = nullptr;
         if (desc.hadamard_block != 0 && !desc.hadamard_signs.empty()) {
             OPENVINO_ASSERT(desc.hadamard_signs.size() == _K, "[GPU] ternocl int2: hadamard signs length mismatch");
@@ -370,6 +399,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         ob << _out_f32;
         ob << _had_block;
         ob << _int8_prefill;
+        ob << _dpas_min_m;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -383,6 +413,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         ib >> _out_f32;
         ib >> _had_block;
         ib >> _int8_prefill;
+        ib >> _dpas_min_m;
         _postop = static_cast<TernoclPostop>(postop);
         const auto* params = reinterpret_cast<const kernel_impl_params*>(ib.getKernelImplParams());
         OPENVINO_ASSERT(params != nullptr, "[GPU] ternocl int2: kernel_impl_params are required to load the impl");
@@ -414,7 +445,12 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         if (_had_block != 0) {
             descs.emplace_back(M * _K, ov::element::f16);
         }
-        if (M > 8 && _int8_prefill) {
+        if (use_dpas(M)) {
+            const size_t Mp = (M + dpas_rows(M) - 1) / dpas_rows(M) * dpas_rows(M);
+            descs.emplace_back(Mp * _K, ov::element::i8);           // XD: int8 activations, DPAS A layout
+            descs.emplace_back((_K / 128) * Mp, ov::element::f32);  // XS [K/128][Mp]
+            descs.emplace_back((_K / 128) * Mp, ov::element::f32);  // XZ [K/128][Mp]
+        } else if (M > 8 && _int8_prefill) {
             descs.emplace_back((_K / kTernoclGroupSize) * ((M + 31) & ~size_t{31}), ov::element::f16);
         }
         return descs;
@@ -548,6 +584,111 @@ protected:
         return stream.enqueue_kernel(*l.gemm, d, a, deps, instance.is_output());
     }
 
+    event::ptr execute_dpas(typed_primitive_inst<fully_connected>& instance,
+                            memory::cptr in,
+                            std::vector<event::ptr> deps,
+                            size_t M) {
+        auto& network = instance.get_network();
+        auto& stream = network.get_stream();
+        auto& st = *_dpas;
+        std::lock_guard<std::mutex> lock(st.m);
+        if (!st.gemm) {
+            const std::string base = "-cl-std=CL3.0 -cl-intel-256-GRF-per-thread -DN=" + std::to_string(_N) +
+                                     " -DK=" + std::to_string(_K) + epi_opts();
+            const std::string opts = base + " -DRB=4 -DSGR=1 -DROWFAST=1";
+            const auto prog = _programs->get_program(*_engine, kTernoclDpasPrefillSource, opts);
+            st.to_rows_w = make_kernel(*_engine, prog, "weights_to_rows");
+            st.to_rows_s = make_kernel(*_engine, prog, "scales_to_rows");
+            st.quant = make_kernel(*_engine, prog, "quant_a");
+            st.gemm = make_kernel(*_engine, prog, "gemm");
+            if (_K >= 2 * _N) {
+                st.gemm_tall = make_kernel(
+                    *_engine,
+                    _programs->get_program(*_engine, kTernoclDpasPrefillSource, base + " -DRB=2 -DSGR=8 -DROWFAST=0"),
+                    "gemm");
+            }
+            GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] K=" << _K << " N=" << _N << " dpas prefill: " << opts
+                                   << std::endl;
+        }
+        const size_t groups = _K / 128, Mp = (M + dpas_rows(M) - 1) / dpas_rows(M) * dpas_rows(M);
+        memory::cptr wmem = instance.weights_memory();
+        memory::cptr smem = instance.dep_memory_ptr(_scale_dep);
+        auto it = st.rows.find(wmem->buffer_ptr());
+        if (it == st.rows.end()) {
+            auto& engine = network.get_engine();
+            memory::ptr wr = engine.allocate_memory(
+                layout{ov::PartialShape{static_cast<int64_t>(_N * _K / 4)}, data_types::u8, format::bfyx},
+                allocation_type::usm_device,
+                false);
+            memory::ptr sr = engine.allocate_memory(
+                layout{ov::PartialShape{static_cast<int64_t>(_N * groups)}, data_types::f16, format::bfyx},
+                allocation_type::usm_device,
+                false);
+            for (int which = 0; which < 2; ++which) {
+                auto& k = which == 0 ? st.to_rows_w : st.to_rows_s;
+                kernel_arguments_desc d;
+                d.workGroups.global = {_N, which == 0 ? _K / 16 : groups, 1};
+                d.workGroups.local = {_N % 16 == 0 ? size_t{16} : size_t{1}, 1, 1};
+                d.arguments = {{argument_desc::Types::INPUT, 0}, {argument_desc::Types::OUTPUT, 0}};
+                kernel_arguments_data a;
+                a.inputs = {which == 0 ? wmem : smem};
+                a.outputs = {which == 0 ? wr : sr};
+                stream.set_arguments(*k, d, a);
+                deps = {stream.enqueue_kernel(*k, d, a, deps, false)};
+            }
+            it = st.rows.emplace(wmem->buffer_ptr(), std::make_pair(wr, sr)).first;
+        }
+        const auto& im = instance.get_intermediates_memories();
+        const size_t base = _had_block != 0 ? 1 : 0;
+        const auto& xd = im.at(base);
+        const auto& xs = im.at(base + 1);
+        const auto& xz = im.at(base + 2);
+        scalars_desc sc(2);
+        sc[0].t = sc[1].t = scalar_desc::Types::INT32;
+        sc[0].v.s32 = static_cast<int32_t>(M);
+        sc[1].v.s32 = static_cast<int32_t>(Mp);
+        {
+            kernel_arguments_desc d;
+            d.workGroups.global = {Mp * groups * 16, 1, 1};
+            d.workGroups.local = {128, 1, 1};
+            d.arguments = {{argument_desc::Types::INPUT, 0},
+                           {argument_desc::Types::OUTPUT, 0},
+                           {argument_desc::Types::OUTPUT, 1},
+                           {argument_desc::Types::OUTPUT, 2},
+                           {argument_desc::Types::SCALAR, 0},
+                           {argument_desc::Types::SCALAR, 1}};
+            kernel_arguments_data a;
+            a.inputs = {in};
+            a.outputs = {xs, xz, xd};
+            a.scalars = &sc;
+            stream.set_arguments(*st.quant, d, a);
+            deps = {stream.enqueue_kernel(*st.quant, d, a, deps, false)};
+        }
+        // XD, XS, XZ, W rows, S rows, C, Other, Bias, M, Mp
+        kernel_arguments_desc d;
+        d.workGroups.global = {(Mp / dpas_rows(M)) * ceil_div(_N, dpas_cols(M)) * 128, 1, 1};
+        d.workGroups.local = {128, 1, 1};
+        d.arguments = {{argument_desc::Types::INPUT, 0},
+                       {argument_desc::Types::INPUT, 1},
+                       {argument_desc::Types::INPUT, 2},
+                       {argument_desc::Types::INPUT, 3},
+                       {argument_desc::Types::INPUT, 4},
+                       {argument_desc::Types::OUTPUT, 0},
+                       {argument_desc::Types::INPUT, 5},
+                       {argument_desc::Types::INPUT, 6},
+                       {argument_desc::Types::SCALAR, 0},
+                       {argument_desc::Types::SCALAR, 1}};
+        memory::cptr other = ternocl_postop_reads_other(_postop) ? instance.dep_memory_ptr(_other_dep) : in;
+        memory::cptr bias = _postop == TernoclPostop::bias ? instance.bias_memory() : in;
+        kernel_arguments_data a;
+        a.inputs = {xd, xs, xz, it->second.first, it->second.second, other, bias};
+        a.outputs = {instance.output_memory_ptr(0)};
+        a.scalars = &sc;
+        auto& gemm = dpas_tall(M) ? st.gemm_tall : st.gemm;
+        stream.set_arguments(*gemm, d, a);
+        return stream.enqueue_kernel(*gemm, d, a, deps, instance.is_output());
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<fully_connected>& instance) override {
         auto& network = instance.get_network();
         auto& stream = network.get_stream();
@@ -583,6 +724,9 @@ protected:
             in = rotated;
         }
 
+        if (use_dpas(M)) {
+            return execute_dpas(instance, in, deps, M);
+        }
         if (M > 8 && _int8_prefill) {
             return execute_int8(instance, in, deps, M);
         }
@@ -651,6 +795,7 @@ public:
 
         auto impl =
             std::make_unique<fully_connected_ternocl_int2>(downcast<ocl_engine>(prog.get_engine()), *desc, N, K, *postop, other_dep, scale_dep, out_f32, int8);
+        impl->_dpas_min_m = prog.get_config().get_ternocl_prequant_prefill_min_m();
         auto packed_layout = wei_layout;
         packed_layout.format = format::is_os_yx_isv16_ternary;
         impl->_weights_reorder_params = std::make_shared<WeightsReorderParams>(wei_layout, packed_layout);

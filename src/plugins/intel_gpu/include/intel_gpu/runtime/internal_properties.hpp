@@ -212,6 +212,8 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignme
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_disable_fusion{"GPU_MOE_DISABLE_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_ternocl_int2{"GPU_ENABLE_TERNOCL_INT2"};
 static constexpr Property<bool, ov::PropertyMutability::RW> ternocl_int2_int8_prefill{"GPU_TERNOCL_INT2_INT8_PREFILL"};
+static constexpr Property<uint32_t, ov::PropertyMutability::RW> ternocl_prequant_prefill_min_m{
+    "GPU_TERNOCL_PREQUANT_PREFILL_MIN_M"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_hadamard_fc_fusion{"GPU_ENABLE_HADAMARD_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_rms_rope_fusion{"GPU_ENABLE_RMS_ROPE_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_gpu_mask_gen_prefill{"GPU_MOE_USE_GPU_MASK_GEN_PREFILL"};

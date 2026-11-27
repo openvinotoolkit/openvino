@@ -7585,12 +7585,14 @@ struct ternary_fc_params {
     bool out_f32;
     bool int8_prefill;
     bool hadamard;
+    bool legacy_shape_infer = false;  // static network without allow_new_shape_infer (simple static models)
+    bool prequant = false;            // ternocl_prequant_prefill_min_m = 9: M > 8 on the pre-quantized int8 DPAS GEMM
 };
 
 std::ostream& operator<<(std::ostream& os, const ternary_fc_params& p) {
     static const char* epi[] = {"none", "bias", "sigmoid", "residual"};
     return os << "m" << p.m << "_n" << p.n << "_k" << p.k << "_" << epi[static_cast<int>(p.epilogue)] << (p.out_f32 ? "_f32" : "")
-              << (p.int8_prefill ? "_int8" : "") << (p.hadamard ? "_had" : "");
+              << (p.int8_prefill ? "_int8" : "") << (p.hadamard ? "_had" : "") << (p.prequant ? "_prequant" : "");
 }
 
 bool ternocl_int2_supported(engine& engine) {
@@ -7637,11 +7639,12 @@ public:
 
         // About 40% zeros, as in the ternary checkpoints.
         auto u = rg.generate_random_1d<float>(p.n * p.k, 0.0f, 1.0f, 100);
-        std::vector<int8_t> w(p.n * p.k);
+        std::vector<float> w(p.n * p.k);
         std::vector<uint8_t> packed(p.n * p.k / 4, 0);
         for (int64_t i = 0; i < p.n * p.k; ++i) {
-            w[i] = u[i] < 0.4f ? 0 : (u[i] < 0.7f ? 1 : -1);
-            packed[i / 4] |= static_cast<uint8_t>((w[i] + 1) << (2 * (i % 4)));
+            const int t = u[i] < 0.4f ? 0 : (u[i] < 0.7f ? 1 : -1);
+            w[i] = static_cast<float>(t);
+            packed[i / 4] |= static_cast<uint8_t>((t + 1) << (2 * (i % 4)));
         }
         auto scales = rg.generate_random_1d<ov::float16>(p.n * groups, 0.01f, 0.1f, 1000);
         auto bias = rg.generate_random_1d<ov::float16>(p.n, -1.0f, 1.0f);
@@ -7698,9 +7701,10 @@ public:
         const bool read_f32 = p.out_f32 || fused_epilogue;
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(!p.legacy_shape_infer));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::ternocl_int2_int8_prefill(p.int8_prefill));
+        config.set_property(ov::intel_gpu::ternocl_prequant_prefill_min_m(p.prequant ? 9 : 0));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
         network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
@@ -7755,7 +7759,8 @@ public:
             }
 
             // int8 prefill quantizes the activations per 128-group (~1/127 relative per element).
-            const float tol = (p.int8_prefill && m > 8 ? 0.02f : 0.005f) * std::max(max_abs, 1.0f);
+            const bool int8_acts = (p.int8_prefill || p.prequant) && m > 8;
+            const float tol = (int8_acts ? 0.02f : 0.005f) * std::max(max_abs, 1.0f);
             // A dynamic network may hand back a buffer larger than the current shape; only m * n values are valid.
             ASSERT_EQ(outputs.at(out_id).get_layout().count(), ref.size());
             auto out_mem = outputs.at(out_id).get_memory();
@@ -7795,6 +7800,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              ternary_fc_params{12, 256, 1024, ternary_epilogue::none, false, false, false},
                              ternary_fc_params{33, 512, 512, ternary_epilogue::none, false, false, false},
                              ternary_fc_params{70, 256, 1024, ternary_epilogue::none, false, false, false},
+                             // a static batch of 16 without new shape infer (the FC shape rule otherwise picks a yxfb output)
+                             ternary_fc_params{16, 256, 1024, ternary_epilogue::none, false, false, false, true},
+                             ternary_fc_params{16, 256, 1024, ternary_epilogue::none, false, true, false, true},
+                             ternary_fc_params{32, 256, 1024, ternary_epilogue::none, false, false, false, true},
                              // as many groups as output columns: [N, groups] and [groups, N] scales have equal shapes
                              ternary_fc_params{1, 16, 2048, ternary_epilogue::none, false, false, false},
                              // epilogues and output type
@@ -7811,7 +7820,15 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              // Hadamard input rotation (rotated-basis checkpoints)
                              ternary_fc_params{1, 256, 2048, ternary_epilogue::none, false, false, true},
                              ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, false, true},
-                             ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, true, true}),
+                             ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, true, true},
+                             // pre-quantized int8 DPAS prefill: padded M, both tiles (long K takes the tall one from M 512), epilogues
+                             ternary_fc_params{12, 256, 1024, ternary_epilogue::none, false, false, false, false, true},
+                             ternary_fc_params{70, 512, 2048, ternary_epilogue::none, false, false, false, false, true},
+                             ternary_fc_params{520, 128, 1024, ternary_epilogue::none, false, false, false, false, true},
+                             ternary_fc_params{20, 256, 1024, ternary_epilogue::bias, false, false, false, false, true},
+                             ternary_fc_params{40, 256, 1024, ternary_epilogue::none, true, false, false, false, true},
+                             ternary_fc_params{17, 256, 1024, ternary_epilogue::residual, false, false, false, false, true},
+                             ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, false, true, false, true}),
                          fully_connected_gpu_ternocl_int2::GetTestCaseName);
 
 TEST(fully_connected_gpu_ternocl_int2_dynamic, gemv_and_gemm_on_one_network) {
