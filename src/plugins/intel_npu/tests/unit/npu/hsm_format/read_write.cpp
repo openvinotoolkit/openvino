@@ -470,6 +470,8 @@ TEST_P(HSMReadWriteTest, MixedCases) {
         {{3, STRING_THAT_EVALUATES_TO_SUPPORTED.data()}, {4, STRING_THAT_EVALUATES_TO_UNKNOWN.data()}});
     const std::unordered_map<SectionID, SectionType> id_to_type_reference{{3, IO_LAYOUTS_TYPE}, {4, IO_LAYOUTS_TYPE}};
     ASSERT_TRUE(runtime_requirements.has_value());
+    std::cout << runtime_requirements->get_cre().to_string() << std::endl;
+    std::cout << cre_reference.to_string() << std::endl;
     ASSERT_TRUE(runtime_requirements->get_cre() == cre_reference);
     ASSERT_TRUE(runtime_requirements->get_sections_requirements() == sections_requirements_reference);
     ASSERT_TRUE(runtime_requirements->get_section_id_to_type_mapping() == id_to_type_reference);
